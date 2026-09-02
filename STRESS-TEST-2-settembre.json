@@ -1,0 +1,273 @@
+[
+ {
+  "dimensione": "regole",
+  "titolo": "Trascinare una carta indietro su «Prospect» scrive una fase inesistente (o muore in silenzio)",
+  "gravita": 1,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Lista.tsx",
+  "dettaglio": "La colonna «Prospect» accetta i drop come le altre (Lista.tsx:22 la chiave è 'prospect', Lista.tsx:352 il drop è attivo per ogni chiave non nulla). Se trascini una carta da Conoscitiva/Tecnica/Avvio/Cliente/Persi verso «Prospect», gestisciDrop non ha nessuna regola per quel caso: il salto è negativo, supera tutti i controlli (righe 113, 119, 125, 142) e arriva a muovi() alla riga 149 con target 'prospect', che NON è una fase valida (types.ts:46: PipelineStage è solo conoscitiva|tecnica|avvio|cliente|perso). In demo la carta riceve pipeline_stage='prospect' e SPARISCE da tutte le colonne della bacheca (nessun filtro di TAPPE la cattura, perché fuori resta true e pipeline_stage non è né null né 'conoscitiva'), con toast e nota «Riportata in undefined» (PIPELINE_LABEL['prospect'] non esiste, righe 183 e 192). Col database vero il check constraint (supabase/schema_v4.sql:46-47) rifiuta l'update: muovi() ritorna in silenzio alla riga 178, la carta torna al suo posto senza nessun messaggio.",
+  "riproduzione": "Aprire http://localhost:5173/?demo → Tutti → vista bacheca → trascinare la carta di Venice Design Week (Conoscitiva) sulla colonna Prospect: la carta sparisce dalla bacheca e nell'elenco il badge mostra il testo grezzo 'prospect'.",
+  "nota_verifica": "Confermato: la colonna Prospect ha chiave 'prospect' non nulla (Lista.tsx:22) quindi accetta i drop (riga 352), un salto negativo supera tutti i controlli (113/119/125/142) e arriva a muovi() con target 'prospect' (riga 149), valore fuori da PipelineStage (types.ts:46) e dal check constraint (schema_v4.sql:46-47); in demo la carta esce da tutti i filtri di TAPPE e PIPELINE_LABEL['prospect'] è undefined (righe 183 e 192), col database vero muovi() ritorna muto alla riga 178."
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Un prospect in pipeline non può mai diventare «Perso»",
+  "gravita": 1,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Lista.tsx",
+  "dettaglio": "Il flusso dichiarato è Prospect → Conoscitiva → Tecnica → Avvio → Cliente (o Perso), ma per chi è in pipeline (fuori=true) non esiste NESSUN percorso verso Perso: la colonna Persi ha chiave null (Lista.tsx:27) quindi niente onDragOver/onDrop (righe 344-352, i handler sono undefined per chiave null); PIPELINE_NEXT non contempla 'perso' (types.ts:73-77) quindi il bottone «Porta avanti» in Scheda non ci arriva mai; le chip di stage in Scheda che permettono 'perso' sono visibili solo quando !p.fuori (Scheda.tsx:734) e comunque toccano il campo legacy stage, non pipeline_stage. Risultato: una trattativa in Conoscitiva/Tecnica/Avvio che salta resta viva per sempre, gonfia i conteggi della home (Pipeline.tsx:24-26) e continua a generare avvisi «senza un prossimo passo» nel Radar (Radar.tsx:171-179). L'asimmetria è pure inversa: da Persi si può trascinare FUORI (le carte perse fuori=true sono trascinabili, Lista.tsx:242 blocca solo i legacy) ma non si può trascinare DENTRO.",
+  "nota_verifica": "Confermato: la colonna Persi ha chiave null quindi nessun handler di drop (Lista.tsx:27 e 344-352), PIPELINE_NEXT non contiene 'perso' (types.ts:73-77), le chip di Scheda compaiono solo con !p.fuori (Scheda.tsx:734) e toccano il campo legacy stage, e il grep su tutto src conferma che nessun punto dell'app scrive pipeline_stage='perso'; intanto i conteggi (Pipeline.tsx:24-26) e gli avvisi (Radar.tsx:171-179) restano gonfi, e le carte perse fuori=true si trascinano fuori (riga 242) ma non dentro."
+ },
+ {
+  "dimensione": "dati",
+  "titolo": "La ricerca per SG-ID funziona solo in demo, sul database vero non troverà niente",
+  "gravita": 1,
+  "file": "src/components/Lista.tsx",
+  "dettaglio": "La query al server (Lista.tsx:72) filtra con .or() solo su company, name ed email; sg_id non c'è. Il rifiltro lato client (Lista.tsx:80-84) aggiunge sgid(p.sg_id), ma lavora solo sulle righe che il server ha già restituito. In demo funziona perché lo stub ignora .or() (demo.ts:260) e restituisce tutte le righe, che poi il client filtra anche per SG-ID. Sul Supabase vero il server esclude tutto ciò che non matcha company/name/email, quindi cercare un ID restituisce zero righe: la demo mostra una funzione che sparirà appena si applica schema_v4. In più il rifiltro client usa la q grezza mentre il server usa la versione ripulita (virgole e parentesi sostituite, Lista.tsx:69): una ricerca con la virgola può azzerare risultati che il server aveva trovato.",
+  "riproduzione": "Con DB vero: digitare \"SG-000127\" nella barra di ricerca → «Niente per \"SG-000127\"» anche se il prospect esiste. In ?demo la stessa ricerca lo trova.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Clara scrive col trattino lungo, che le è vietato",
+  "gravita": 1,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/ClaraVolante.tsx",
+  "dettaglio": "La regola di casa vieta il \"—\" nell'output di Clara, e il backend la rispetta (scripts/clara.py:62 sostituisce ogni \"—\" con \":\"), ma la UI di Clara lo reintroduce. ClaraVolante.tsx:285, 360 e 392 compongono i titoli delle call proposte da Clara come `Chiamata Conoscitiva — Azienda`: quel titolo finisce in agenda, nel messaggio di conferma in chat (riga 418) e nell'evento Google Calendar. ClaraVolante.tsx:374 scrive in chat `📎 file — messo nel Vault`. Stessa app, due regole: quello che Clara scrive dal cron è pulito, quello che scrive dal pannello no.",
+  "riproduzione": "In demo (?demo), aprire Clara, scrivere \"fissa una call conoscitiva con Serenergy domani alle 15\": la proposta compilata mostra il titolo con \"—\".",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "La chat carica gli 80 messaggi più VECCHI: dopo un po' i nuovi messaggi di Clara spariscono",
+  "gravita": 1,
+  "file": "src/components/ClaraVolante.tsx",
+  "dettaglio": "Alle righe 190-196 la query fa .order('at', { ascending: true }).limit(80): ordina dal più vecchio e taglia a 80, quindi prende gli 80 messaggi PIÙ VECCHI, non gli ultimi. Clara scrive parecchi messaggi al giorno (brief, saluto, promemoria, anomalie) più i messaggi di Dre: superate le 80 righe in tabella, la chat mostra per sempre la storia antica, i messaggi nuovi non compaiono mai, il badge dei non letti (riga 230) conta solo i vecchi e resta a zero sui nuovi, e il gancio del «sì» (riga 262, che cerca l'ultima domanda della sentinella dentro questa lista) non trova più le domande recenti. In più non c'è nessun polling né subscription realtime: la lista si ricarica solo aprendo/chiudendo il pannello (effect con dipendenza [aperta], riga 189), quindi se la Dashboard resta aperta tutta la mattina i messaggi del giro di Clara non fanno mai comparire il badge.",
+  "riproduzione": "Con più di 80 righe in clara_messaggi, aprire il pannello: si vedono i messaggi più vecchi e nessuno dei nuovi. In demo basta guardare la query: order ascending + limit.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "Il brief del mattino mostra le ore delle call in UTC: due ore indietro",
+  "gravita": 1,
+  "file": "scripts/clara.py",
+  "dettaglio": "Alla riga 279 il brief stampa l'ora con a['at'][11:16], cioè taglia la stringa ISO che Supabase restituisce in UTC. Una call fissata alle 15:00 (ora italiana) viene salvata da ClaraVolante.tsx:411 con toISOString() come 13:00Z, e il brief dice «• 13:00: Chiamata Conoscitiva». Con l'ora legale sono 2 ore di scarto, d'inverno 1. Stesso vizio sulla finestra del giorno (riga 243): confronta la data locale con timestamp UTC, quindi una call a mezzanotte e mezza ora italiana finisce nel giorno sbagliato del brief. Il brief è il pezzo che Dre legge per organizzarsi: qui gli dice l'ora sbagliata.",
+  "riproduzione": "Fissare da Clara una call domani alle 15:00, lanciare clara.py domattina: il brief la elenca alle 13:00.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Il pedaggio si aggira dalle chip di stage in Scheda: cliente senza nessuna call",
+  "gravita": 2,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Scheda.tsx",
+  "dettaglio": "Nella card «Classificazione» le chip degli stage legacy (Scheda.tsx:765-775, onClick aggiorna({stage: s})) includono 'cliente' e 'perso': due click e un prospect qualunque, mai entrato in pipeline, diventa cliente senza contesto, senza call e senza transcript. Quel prospect finisce nella colonna «Cliente» della bacheca (Lista.tsx:26: !p.fuori && p.stage === 'cliente') e la faccia diventa verde (ui.tsx:60). È in contraddizione diretta con la regola del drag, che blocca esplicitamente Prospect → Cliente («si entra dalla Conoscitiva», Lista.tsx:113-116). Stessa incoerenza per 'perso'. Il cancello del pedaggio vale solo per il trascinamento: la via laterale lo azzera.",
+  "riproduzione": "Aprire la scheda di un prospect non in pipeline (es. CER Italia in demo) → Classificazione → chip «Cliente»: appare nella colonna Cliente della bacheca senza aver mai pagato pedaggio.",
+  "nota_verifica": "Confermato: le chip degli stage legacy (Scheda.tsx:765-775, onClick aggiorna({stage: s}) alla 768) includono 'cliente' e 'perso' senza nessun cancello, e un prospect con fuori=false e stage='cliente' finisce nella colonna Cliente della bacheca (Lista.tsx:26) con la faccia verde (ui.tsx:60), in contraddizione con il blocco del drag «si entra dalla Conoscitiva» (Lista.tsx:113-116)."
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Se il salvataggio del riassunto fallisce, il testo di Dre sparisce senza nessun avviso",
+  "gravita": 2,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Lista.tsx",
+  "dettaglio": "Nel modal del pedaggio, alla conferma si chiude il modal e si svuota il riassunto PRIMA di scrivere sul database (Lista.tsx:425-426: setPedaggio(null) e setRiassunto('') precedono gli await). Poi: entra() esce muta se l'update fallisce (riga 164, if (!data) return), l'insert del transcript esce muto se fallisce (riga 436), e muovi() idem (riga 178). Nessun toast di errore, nessun banner: a differenza di Scheda, che almeno mostra «Salvataggio non riuscito» (Scheda.tsx:123, 133, 148), Lista non ha alcuna gestione dell'errore. Col database vero non ancora a schema v4 (dichiarato non applicato) o con un errore di rete, Dre scrive il riassunto della call, preme «Salva e porta avanti», il modal si chiude come se fosse andata bene e il testo è perso per sempre, con la carta ferma dov'era.",
+  "nota_verifica": "Confermato: setPedaggio(null) e setRiassunto('') precedono gli await (Lista.tsx:425-426), e tutti e tre i punti di scrittura escono muti su errore (entra riga 164, insert riga 436, muovi riga 178) senza nessun toast, mentre Scheda mostra «Salvataggio non riuscito» (Scheda.tsx:123, 133, 148): con un errore del database vero il riassunto scritto è perso e il modal si è già chiuso come se fosse andata bene."
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Il numero «Prospect» della home non torna con la colonna «Prospect» della bacheca",
+  "gravita": 2,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Pipeline.tsx",
+  "dettaglio": "La card «Prospect» della home applica il filtro VIVI (Pipeline.tsx:19 e :39: esclude negativo, fuori_target, soppresso) oltre a .neq('stage','nuovo'). La bacheca «Tutti», che si apre proprio cliccando quella card (onTutti, Pipeline.tsx:61), carica invece con il solo .neq('stage','nuovo') (Lista.tsx:67) e la colonna Prospect filtra solo !fuori e stage ≠ perso/cliente (Lista.tsx:22): i negativi, i fuori target e i soppressi ci finiscono dentro. Stessi dati, due numeri diversi: clicchi «Prospect: 12» e atterri su una colonna che ne mostra 20. Il filtro VIVI è inoltre una stringa copiata identica in tre file (Pipeline.tsx:19, Radar.tsx:14, Oggi.tsx:16) e assente in Lista: alla prima modifica in un file solo, i numeri divergono ancora di più. Nota: in demo la differenza non si vede perché il finto Supabase ignora .or() (demo.ts:260), quindi il bug emerge solo col database vero.",
+  "nota_verifica": "Confermato: la home applica .or(VIVI) (Pipeline.tsx:19 e 39) mentre Lista carica solo con .neq('stage','nuovo') (Lista.tsx:67) e la colonna Prospect non filtra la classificazione (Lista.tsx:22), quindi col database vero negativi, fuori target e soppressi compaiono nella colonna ma non nel numero; la stringa VIVI è davvero copiata in tre file (Pipeline.tsx:19, Radar.tsx:14, Oggi.tsx:16) e il finto Supabase ignora .or() (demo.ts:260), per cui in demo la differenza non si vede."
+ },
+ {
+  "dimensione": "dati",
+  "titolo": "Lo stub demo non mette la data agli insert: la chat di Clara si rimescola e i timestamp spariscono",
+  "gravita": 2,
+  "file": "src/lib/demo.ts",
+  "dettaglio": "Sul DB vero clara_messaggi, vault_file e task_dre hanno `at default now()` (schema_v4.sql:98,114,144), ma lo stub demo all'insert (demo.ts:269-272) non emula il default: la riga entra con `at` undefined. Chi si affida al default: ClaraVolante.tsx:239-244 (ogni messaggio scritto a Clara) e 371-373 (allegati), Scheda.tsx:208-212 e 304-307 (richieste a Clara), Scheda.tsx:298-301 (task da post-it), Vault.tsx:88-89 (upload). Conseguenze visibili in demo: il messaggio mostra l'ora vuota; alla successiva riapertura del pannello l'effect ricarica con .order('at') e lo stub ordina `undefined` come stringa vuota (demo.ts:277), quindi tutti i messaggi scritti in sessione saltano IN CIMA alla conversazione, prima del brief del mattino. Nel Vault il file caricato mostra data «—» e dopo un reload finisce in fondo invece che in cima. Rischia anche di rompere il flusso del «sì» in interpreta (ClaraVolante.tsx:262), che cerca l'ultima domanda per posizione nell'array.",
+  "riproduzione": "Aprire http://localhost:5173/?demo → aprire Clara → scrivere «ciao» (appare senza ora) → chiudere e riaprire il pannello → il messaggio è in cima alla conversazione, sopra i messaggi del mattino.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "dati",
+  "titolo": "Lo stub ordina i numeri come stringhe: l'ordine delle task salta dopo un reload",
+  "gravita": 2,
+  "file": "src/lib/demo.ts",
+  "dettaglio": "order() nello stub confronta sempre con String(...).localeCompare (demo.ts:276-278). Per la colonna numerica `ordine` di task_dre (Oggi.tsx:94) il risultato è lessicografico: verificato che ['10','2','-1','-2'] ordina come -1, -2, 10, 2, cioè 10 prima di 2 e -1 prima di -2. Le task nuove nascono con ordine negativi decrescenti (Oggi.tsx:210-212) o fissi a -1 (ClaraVolante.tsx:400-401, Scheda.tsx:298-301), quindi appena ci sono due task aggiunte, o più di 9 task riordinate col drag, l'ordine mostrato dopo un ricaricamento non è quello che Dre ha impostato. Sul DB vero l'ordinamento è numerico e corretto: la demo si comporta diversamente dal prodotto.",
+  "riproduzione": "In ?demo, sezione Task: aggiungere due attività (la seconda ha ordine -2), ricaricare la pagina → la prima aggiunta compare sopra la seconda (ordine invertito rispetto all'inserimento). Con 10+ task riordinate a mano, al reload la decima torna prima della seconda.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "dati",
+  "titolo": "Contatori calcolati su query troncate: sui 13k del database vero i numeri mentiranno",
+  "gravita": 2,
+  "file": "src/components/Pipeline.tsx",
+  "dettaglio": "Le card delle fasi in Dashboard contano client-side su due query con .limit(300) (Pipeline.tsx:40,45): con i 13k prospect importati il conteggio «Prospect» si ferma a 300 senza nessun avviso. Stesso schema altrove: Radar somma «Da fare oggi» su query con .limit(200)/.limit(100) (Radar.tsx:85,97,104) e una query pipeline senza limit esplicito (Radar.tsx:86-90, che PostgREST comunque taglia a 1000); Analytics calcola funnel, tassi e verdetti su .limit(1000) prospects e .limit(2000) interactions (Analytics.tsx:33,40); la bacheca di Lista mostra i conteggi di colonna su 300 righe (Lista.tsx:66) ma l'avviso «Primi 300 risultati» esiste solo nella vista elenco (Lista.tsx:324-326), non in bacheca. In demo (8 prospect) tutto torna; sul DB vero i numeri saranno silenziosamente più bassi del reale.",
+  "riproduzione": "Applicare schema_v4 e importare i 13k prospect: se i prospect attivi con fuori=false superano 300, la card «Prospect» in Dashboard mostra al massimo 300.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Cliente vecchio stile marchiato PROSPECT ambra accanto alla faccia verde da cliente",
+  "gravita": 2,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Scheda.tsx",
+  "dettaglio": "Il badge in testata (Scheda.tsx:449-451) decide CLIENTE/PROSPECT guardando solo `pipeline_stage === 'cliente'`. Un cliente \"vecchio stile\" (fuori=false, stage='cliente', caso previsto esplicitamente da Lista.tsx:26 e ui.tsx:60) ha pipeline_stage null: la scheda gli mette il badge ambra PROSPECT mentre la Faccia accanto è verde da cliente (tonoFase, ui.tsx:60-62) e l'elenco gli mette l'etichetta verde \"Cliente\" (StageBadge). Stessa persona, verde in lista e ambra in scheda. Anche un perso di pipeline riceve il badge PROSPECT ambra sopra la faccia grigia da perso.",
+  "riproduzione": "Un prospect con stage='cliente' e fuori=false (dati importati dal vecchio sistema): aprire la sua scheda e confrontarla con la riga in Tutti.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Plugin: \"da collegare\" dichiarato grigio ma disegnato rosso allarme",
+  "gravita": 2,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Plugin.tsx",
+  "dettaglio": "Il commento in testa (Plugin.tsx:3-4) fissa il linguaggio: verde=collegato, ambra=aspetta, grigio=da collegare. Ma la riga 23 mappa lo stato 'no' sul Dot 'fermo', che in ui.tsx:41 è bg-red-600: Zapmail \"da collegare\" ha il pallino rosso, lo stesso colore che in tutta l'app significa problema/fermo da 30 giorni. Un integrazione mai attivata non è un guasto; il grigio promesso non esiste proprio nella palette del Dot (solo ok/attesa/fermo).",
+  "riproduzione": "Aprire la sezione Plugin: la riga Zapmail ha il pallino rosso.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Trattino lungo sparso nel copy di feedback della UI",
+  "gravita": 2,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Scheda.tsx",
+  "dettaglio": "Fuori dai placeholder vuoti (quelli di fmtDate sono legittimi), il \"—\" da pausa compare in frasi di feedback e stato: Scheda.tsx:283 (\"la call è da fare o è fatta — col transcript si avanza\"), 432 (\"Segnato ✓ — non te lo chiedo più\"), 438 (\"SOPPRESSO — mai ricontattare\"), 681 (\"Telefono — non trovato\"), 762 (\"corretta a mano — il sync non la tocca più\"), 226 (nota in timeline \"📎 file — nel Vault\"); Analytics.tsx:180 (verdetto del funnel \"— qui si perde di più\"); App.tsx:148 (\"Dashboard — manca la configurazione\"); Lista.tsx:214 (\" — \" come separatore azienda/nome). La regola di casa dice di usare \":\" o \";\".",
+  "riproduzione": "grep -rn \"—\" src/ escludendo i return '—' dei formatter.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "La sentinella call-fissata è rotta: filtri con «+00:00» nell'URL e mai nessuna domanda senza last_reply_at",
+  "gravita": 2,
+  "file": "scripts/clara.py",
+  "dettaglio": "Due problemi nella stessa funzione (sorveglia_call_fissate). 1) Alle righe 200 e 203-204 i filtri usano adesso.isoformat(), che contiene «+00:00»: urllib manda il + letterale e PostgREST lo decodifica come spazio (gotcha noto, va percent-encodato %2B), quindi il timestamp arriva malformato e la richiesta fallisce o filtra male; e lì api() (righe 46-57) non ha try/except, quindi l'intero giro muore con un traceback dentro launchd, in silenzio. 2) Righe 211-218: se il prospect in call_fissata non ha last_reply_at (stage messo a mano), ore resta 0, il controllo «ore < 3» scatta sempre e Clara non chiede MAI di quella call: il buco che la sentinella doveva coprire resta scoperto per sempre. Bonus: la copertura guarda solo eventi futuri (riga 200, at=gte.adesso), quindi a call avvenuta il prospect torna «scoperto» e, passata la finestra dedup di 7 giorni (riga 203), Clara richiede ogni settimana di una call già fatta.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "Un «ok» qualsiasi riapre una vecchia domanda della sentinella e prepara una call fuori contesto",
+  "gravita": 2,
+  "file": "src/components/ClaraVolante.tsx",
+  "dettaglio": "Riga 261: qualunque messaggio che INIZIA con si/vai/ok/certo/procedi (verificato: «ok perfetto grazie», «vai avanti col brief», perfino «si vede che il problema è altrove» dopo la pulizia degli accenti) fa scattare il gancio del sì. Il codice cerca poi l'ultima domanda «Vuoi che la preparo io» nella cronologia (righe 262-263) senza guardare quanto è vecchia né se è già stata gestita: niente marca mai la domanda come consumata (confermaCall non la tocca). Risultato: giorni dopo, Dre risponde «ok» a tutt'altro e Clara parte a chiedere «Che giorno?» per una conoscitiva con un prospect vecchio, magari già fissata. Il click finale resta di Dre, ma la macchina a stati si è avviata da sola su un contesto sbagliato.",
+  "riproduzione": "In demo (dove c'è una domanda sentinella su p1): scrivere «ok perfetto grazie» nella chat, Clara risponde «Che giorno?» per la call di quel prospect.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "Lo stato Pendente non si può annullare e sequestra i messaggi successivi",
+  "gravita": 2,
+  "file": "src/components/ClaraVolante.tsx",
+  "dettaglio": "Una volta che Clara è in slot-filling (pendente settato, righe 292-353) non esiste NESSUN modo di uscirne a parole: «annulla», «lascia stare», «niente» vengono macinati come risposte agli slot. Escape (riga 207) azzera comando e chiude il pannello ma NON pendente, e il bottone Annulla esiste solo sul modulo finale, quando pendente è già nullo. Conseguenze: (a) se Dre risponde «il 4» a «Che giorno?», trovaGiorno non lo capisce (serve giorno+mese o gg/mm) e Clara richiede «Che giorno?» in loop; (b) se Dre cambia discorso e scrive «ricordami di pagare l'F24» con una call pendente, il genere resta 'call' (riga 300 gira solo se !pendente), la task non viene mai creata e Clara risponde con la prossima domanda della call, tipo «Con chi la fisso?». Lo stato sporco resta finché per caso non si completa la proposta.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "Il bando del trattino lungo vale solo in clara.py: la UI lo scrive nei messaggi di Clara",
+  "gravita": 2,
+  "file": "src/components/ClaraVolante.tsx",
+  "dettaglio": "In clara.py scrivi() (righe 61-63) sostituisce ogni «—» come da regola di Dre del 31/8. Ma nella UI scriviMessaggio (righe 239-244) non ha nessun filtro, e i titoli delle call vengono costruiti proprio col trattino lungo: riga 285 e riga 360 (`${CALL[...]} — ${company}`) e riga 392 in scegliProspect. Quel titolo finisce nella ricevuta di Clara in chat (riga 417-419, «Preparata: Chiamata Conoscitiva — Acme...»), nella tabella agenda e nell'evento Calendar. Anche i nomi interpolati (company/name dal DB) passano senza scrub. La regola della casa è applicata a metà: i messaggi generati dal Python sono puliti, quelli generati dal browser no.",
+  "riproduzione": "Fissare una call dai comandi rapidi: la ricevuta in chat contiene «Chiamata Conoscitiva — <azienda>».",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "Il match fuzzy dei prospect aggancia parole italiane comuni e sceglie la persona sbagliata in silenzio",
+  "gravita": 2,
+  "file": "src/components/ClaraVolante.tsx",
+  "dettaglio": "trovaProspect (righe 143-162) spezza nome e azienda in pezzi di almeno 4 lettere e li cerca con t.includes(pezzo): substring pura, senza confini di parola. Un'azienda tipo «Bottega della Sedia» ha il pezzo «della», che sta in quasi ogni frase italiana («fissa la call della prossima settimana» aggancia quel prospect); «Studio Rossi» aggancia qualsiasi frase con «studio»; e «marco» dentro «rimarco» farebbe match uguale. A parità di aggancio vince solo il pezzo più lungo, senza chiedere conferma sul nome: la proposta arriva precompilata con prospect e invitato sbagliati, e se Dre non rilegge il select conferma la call con la mail della persona sbagliata. Nel flusso sentinella-sì il prospect è sicuro (viene dal messaggio), ma nel comando a parole no.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Un cliente pagante si retrocede con un drag, senza conferma e senza traccia sul contratto",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Lista.tsx",
+  "dettaglio": "Tutti i movimenti all'indietro passano lisci: con salto negativo gestisciDrop non ha nessun controllo e chiama direttamente muovi() (Lista.tsx:149). Trascinare la carta di un CLIENTE (fuori=true, trascinabile perché la riga 242 blocca solo i legacy) su Conoscitiva/Tecnica/Avvio lo retrocede all'istante: niente conferma, next_action azzerata (riga 176), e contratto e canone restano appesi sul record (il patch tocca solo pipeline_stage e next_action). Vale anche per i Persi: ORDINE ha perso=99 (riga 31), quindi qualunque uscita da Persi è un salto negativo e passa senza pedaggio né domanda. Diventare cliente costa tre call col transcript; smettere di esserlo costa un movimento di polso sbagliato.",
+  "riproduzione": "In demo, bacheca Tutti: trascinare Klavzar (Cliente, canone 1.400) sulla colonna Call Conoscitiva. Retrocede subito, contratto stable e canone restano nei dati.",
+  "nota_verifica": "Confermato: la carta di un cliente in pipeline è trascinabile (Lista.tsx:242 blocca solo i legacy), ogni salto negativo supera tutti i controlli e chiama muovi() (riga 149) che azzera next_action (riga 176) senza toccare contratto e canone né chiedere conferma, e con ORDINE perso=99 (riga 31) anche l'uscita da Persi passa liscia; Klavzar in demo (demo.ts p7, contratto stable, canone 1400) riproduce esattamente lo scenario."
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Con più di 80 interazioni la Scheda perde i transcript recenti e «Porta avanti» resta bloccato",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Scheda.tsx",
+  "dettaglio": "La timeline si carica con .order('at', ascending: true).limit(80) (Scheda.tsx:88-90): ordine crescente + limite = si tengono le 80 interazioni PIÙ VECCHIE e si tagliano le più recenti. transcriptCorrente (righe 242-245) cerca il transcript della fase corrente dentro quella lista tagliata: per un prospect con storia lunga (mesi di email sincronizzate) il riassunto appena pagato può non esserci, e il bottone «Porta avanti» resta disabilitato (riga 838) anche se il pedaggio è stato pagato. Intanto la bacheca fa il SUO controllo con una query diversa (Lista.tsx:126-131: kind='transcript', limit 20, senza ordine): le due porte possono dare verdetti opposti sullo stesso prospect. Il controllo del pedaggio andrebbe fatto in un punto solo, con l'ordine giusto.",
+  "nota_verifica": "Confermato: .order('at', ascending: true).limit(80) (Scheda.tsx:88-90) tiene le 80 interazioni più vecchie tagliando le recenti, transcriptCorrente cerca solo dentro quella lista (righe 242-245) e il bottone è disabled={!transcriptCorrente} (riga 838), mentre la bacheca verifica lo stesso pedaggio con una query separata su kind='transcript' limit 20 (Lista.tsx:126-131): riaprendo la scheda di un prospect con storia lunga il riassunto pagato può mancare e le due porte danno verdetti diversi."
+ },
+ {
+  "dimensione": "regole",
+  "titolo": "Nell'elenco i clienti e i persi «vecchio stile» risultano fermi in rosso",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Lista.tsx",
+  "dettaglio": "La stessa nozione di «chiuso» è scritta due volte nello stesso file e le due versioni non coincidono: la carta della bacheca considera chiusi anche i legacy (!fuori && stage cliente/perso, Lista.tsx:235-236), la riga dell'elenco no (Lista.tsx:198-199 guarda solo pipeline_stage e classificazione). Un cliente storico mai passato dalla pipeline (fuori=false, stage='cliente', pipeline_stage=null) nell'elenco mostra «60 giorni» in rosso grassetto come una trattativa abbandonata (righe 200-203 e 223-224), mentre nella bacheca lo stesso record è correttamente spento. Terza variante della stessa logica in tonoFase (ui.tsx:59-60, che i legacy li gestisce bene): tre copie che classificano in modo diverso lo stesso prospect.",
+  "nota_verifica": "Confermato: il chiuso dell'elenco guarda solo pipeline_stage e classificazione (Lista.tsx:198-199) quindi un cliente legacy (fuori=false, stage='cliente', pipeline_stage=null) mostra i giorni in rosso grassetto (righe 200-203 e 223-224), mentre la carta della bacheca lo spegne correttamente (righe 235-236) e tonoFase (ui.tsx:59-60) è una terza copia che i legacy li gestisce bene: tre versioni divergenti della stessa nozione, e le chip di Scheda dimostrano che quello stato si crea davvero."
+ },
+ {
+  "dimensione": "dati",
+  "titolo": ".or(VIVI) ignorato dallo stub e nessun rifiltro in Oggi, Radar e Pipeline: gli esclusi rientrano",
+  "gravita": 3,
+  "file": "src/components/Oggi.tsx",
+  "dettaglio": "Lo stub demo tratta .or() come no-op (demo.ts:260). Lista lo sa e rifiltra a mano (commento a Lista.tsx:79), ma il filtro VIVI (escludi negativo/fuori_target/soppresso) usato in Oggi.tsx:100-112 (4 query), Radar.tsx:84,103 e Pipeline.tsx:39 non ha nessuna compensazione client. Oggi è invisibile solo perché il dataset demo non contiene nessun prospect negativo o soppresso: appena se ne aggiunge uno (o un collaudo visivo prova proprio a verificare l'esclusione), quel prospect compare in «Rispondere ai lead», nel ticker del Radar e nei contatori Dashboard, cioè la demo mostra in coda gente da non ricontattare. Sul DB vero il filtro funziona: demo e prodotto divergono in silenzio. Analytics invece filtra i morti client-side (Analytics.tsx:46-47) e non ha il problema.",
+  "riproduzione": "In demo.ts aggiungere un prospect con classificazione 'soppresso' e awaiting_us=true → in ?demo compare nella coda «Rispondere ai lead» della sezione Task, cosa che il filtro VIVI sul DB vero impedirebbe.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "dati",
+  "titolo": "«Oggi» calcolato in UTC ma le date sono locali: fra mezzanotte e le 2 il giorno è sbagliato",
+  "gravita": 3,
+  "file": "src/components/Oggi.tsx",
+  "dettaglio": "new Date().toISOString().slice(0,10) dà il giorno UTC, non quello italiano (CEST = UTC+2). Fra le 00:00 e le 02:00 locali «oggi» è ancora ieri in: Oggi.tsx:97,156 e Radar.tsx:56 (i ricontatti e follow-up con next_action_date/scadenza di oggi non compaiono, o il chip «Oggi» mostra la data sbagliata), Scheda.tsx:281, App.tsx:116 (il saluto di Clara di oggi non viene trovato). La chiave localStorage delle spunte in Oggi.tsx:47 è per giorno UTC: le spunte fatte dopo mezzanotte finiscono sotto il giorno prima e la coda si azzera alle 02:00 invece che a mezzanotte. In Calendario il problema è inverso: le celle usano la data locale (chiave(), Calendario.tsx:38) ma gli eventi si raggruppano con at.slice(0,10) cioè il giorno UTC (Calendario.tsx:85,112-113), quindi un evento fra le 00:00 e le 01:59 locali finisce nella cella del giorno precedente; le voci follow-up costruite come 'T09:00:00' senza Z (Calendario.tsx:90,98) vengono poi confrontate come stringhe con timestamp UTC con la Z (Calendario.tsx:136-138,151), mescolando due semantiche.",
+  "riproduzione": "Con orologio a 00:30 ora italiana: una task con scadenza di oggi non mostra il chip «Oggi»; un evento in agenda alle 00:30 compare nella cella di ieri nel calendario.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "dati",
+  "titolo": "Riordino task: una richiesta al server per ogni task, senza gestione errori",
+  "gravita": 3,
+  "file": "src/components/Oggi.tsx",
+  "dettaglio": "Dopo ogni drag, lascia() riscrive l'ordine di TUTTE le task vive con un update sequenziale per riga (Oggi.tsx:238-240): con 50 task sono 50 PATCH in fila sul DB vero, dopo ogni singolo trascinamento. Lo stato locale viene già riordinato in modo ottimistico prima del loop (Oggi.tsx:233-237) e nessun esito viene controllato: se una richiesta a metà fallisce (rete, RLS, 401), la UI mostra un ordine che il database non ha, e al prossimo ricaricamento le task tornano mischiate senza nessun messaggio. In demo non si vede perché lo stub non fallisce mai e le task sono 2.",
+  "riproduzione": "Con DB vero e una decina di task: trascinarne una e staccare la rete a metà del giro di update → la pagina mostra il nuovo ordine, il reload ne mostra un altro.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Mappe colori morte in types.ts che contraddicono il linguaggio delle fasi",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/lib/types.ts",
+  "dettaglio": "PIPELINE_COLOR (types.ts:79-85) veste tecnica di viola e avvio di AMBRA, cioè il colore riservato ai prospect, contraddicendo il blu-che-si-scurisce di tonoFase/FASI (#6b85e0 → blu → navy). STAGE_COLOR (types.ts:33-42) introduce teal, violet e orange mai usati altrove. Nessuna delle due mappe (né CLS_COLOR) è importata da alcun componente: oggi non si vede, ma è una trappola pronta; il primo che usa PIPELINE_COLOR per un badge dipinge Avvio col colore dei Prospect. O si allineano al linguaggio vero o si eliminano.",
+  "riproduzione": "grep -rn PIPELINE_COLOR src/ | grep -v types.ts non restituisce nulla: codice morto.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Avviso del radar mostra la chiave grezza della fase invece dell'etichetta",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Radar.tsx",
+  "dettaglio": "Radar.tsx:176 compone il testo con `in ${p.pipeline_stage} senza un prossimo passo`: a schermo esce \"in tecnica\" o \"in avvio\" (valore grezzo dell'enum, minuscolo), mentre ovunque altrove si passa da PIPELINE_LABEL (\"resta in Conoscitiva\", Lista.tsx:410; \"In Tecnica: ...\", Scheda.tsx:282-283). Nella stessa famiglia di refusi: Scheda.tsx:601 ha uno spazio prima dei due punti (\"Chiesta a Clara ✓ : la troverai qui\") e Lista.tsx:182-183 alterna il genere del soggetto nelle note della stessa timeline (\"Avanzata a...\" femminile, \"È DIVENTATO CLIENTE.\" maschile).",
+  "riproduzione": "Un prospect fuori=true in tecnica senza next_action: l'avviso in home recita \"Azienda: in tecnica senza un prossimo passo\".",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Stati vuoti incoerenti: la chat di Clara vuota resta bianca, gli altri parlano",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/ClaraVolante.tsx",
+  "dettaglio": "Ogni lista dell'app ha una frase per il vuoto (Lista board \"Nessuno\" a riga 363, elenco \"Nessun prospect trovato.\" a 321, Calendario \"Niente in programma\" a 192/304, Vault \"Il Vault è vuoto\" a 150, Scheda \"Nessun evento ancora.\" a 854), ma la conversazione di Clara no: con zero messaggi ClaraVolante.tsx:496-539 renderizza un'area bianca muta, senza nemmeno un invito a scrivere. In più le frasi esistenti oscillano tra formule (\"Nessuno\"/\"Niente\"/\"è vuoto\") e punteggiatura (con punto finale in Lista e Scheda, senza in Calendario e Vault).",
+  "riproduzione": "Aprire il pannello Clara con la tabella clara_messaggi vuota (DB reale appena creato): pannello bianco.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "coerenza",
+  "titolo": "Didascalie statiche che la regola di casa vieta",
+  "gravita": 3,
+  "file": "/Users/dramane/Documents/odyn-crm/src/components/Calendario.tsx",
+  "dettaglio": "La regola è: niente etichette esplicative, il testo porta dati o feedback. La legenda fissa sotto la griglia (Calendario.tsx:286-290: \"call / follow-up armati / scadenze e altro\") è una didascalia pura, sempre visibile anche a calendario vuoto, e introduce il gergo \"armati\" che non compare in nessun'altra schermata. Stessa natura per le descrizioni fisse dei Plugin (Plugin.tsx:7-14, es. \"i dati di prospect e clienti\"): testo statico che non cambia mai e non dà né dato né feedback.",
+  "riproduzione": "Aprire Calendario su un mese vuoto: la legenda dei tre pallini resta comunque a schermo.",
+  "nota_verifica": "non giudicato"
+ },
+ {
+  "dimensione": "clara",
+  "titolo": "Parser date/ora: date passate saltano a un anno dopo, «alle 6 di mattina» diventa 18:00, «task:» non funziona, mail con punto finale",
+  "gravita": 3,
+  "file": "src/components/ClaraVolante.tsx",
+  "dettaglio": "Grappolo di casi verificati con riproduzione. 1) trovaGiorno righe 116-129: una data appena passata viene spinta silenziosamente all'anno dopo («il 31/8» detto il 1/9 diventa 31/8/2027, precompilato nel form dove l'anno si nota poco); un mese oltre 12 non viene rifiutato ma trabocca («il 15/25» diventa 15/1/2028). 2) trovaOra riga 138: la regola /alle\\s+[1-6]/ forza il pomeriggio anche quando c'è scritto il contrario: «alle 6 di mattina» diventa 18:00. 3) Riga 296: il trigger «task:» è morto, perché in /\\btask:\\b/ il \\b dopo i due punti non può mai combaciare seguito da uno spazio: «task: pagare f24» non viene riconosciuto (verificato: false). 4) trovaMail riga 165: la regex [\\w.]+ cattura il punto di fine frase («marco@acme.com.» col punto), che finisce come invitato non valido nell'URL di Calendar.",
+  "riproduzione": "node: /\\b(ricordami|aggiungi.*task|segna(mi)? di|task:)\\b/.test('task: pagare f24') → false; trovaOra('domani alle 6 di mattina') → 18:00; trovaGiorno('il 31/8') il 1/9/2026 → 2027-08-31.",
+  "nota_verifica": "non giudicato"
+ }
+]

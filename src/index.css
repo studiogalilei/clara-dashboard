@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Lo stile della Dashboard, sul riferimento scelto da Dre (31/8):
+   pagina chiara, carte bianche morbide, sidebar a sinistra, un solo
+   colore accent (il blu Galilei), font tondo e leggibile.
+   Rosso/ambra/verde restano SOLO per gli stati. */
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+
+  --color-navy: #061773;
+  --color-navy-scuro: #040f52;
+  --color-inchiostro: #1c2030;
+  --color-tenue: #5d6377;
+  --color-spento: #8f94a6;
+  --color-bordo: #e4e6ee;
+  --color-velo: #eef0f5;
+  --color-fondo: #f5f6f9;
+  --color-blu: #1a49c9;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-size: 13.5px;
+  color: var(--color-inchiostro);
+  background: var(--color-fondo);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* il drag & drop della bacheca: atterraggio morbido, presa inclinata */
+@keyframes atterra {
+  from { transform: scale(0.93); opacity: 0.5; }
+  60%  { transform: scale(1.03); }
+  to   { transform: scale(1); opacity: 1; }
+}
+.atterra { animation: atterra 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+
+@keyframes salta-su {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.salta-su { animation: salta-su 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+
+/* dal video UI/UX (31/8): i titoli grandi si stringono (tracking -2%,
+   line-height ~115%) e ogni bottone risponde alla pressione */
+h1, h2 {
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+@media (prefers-reduced-motion: no-preference) {
+  button:active {
+    transform: scale(0.985);
+  }
+}
+
+/* il ticker della card «Da fare oggi»: esce a sinistra, entra da destra */
+@keyframes ticker-dentro {
+  from { transform: translateX(65%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes ticker-fuori {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-65%); opacity: 0; }
+}
+.ticker-dentro { animation: ticker-dentro 0.38s ease both; }
+.ticker-fuori  { animation: ticker-fuori 0.38s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-dentro, .ticker-fuori { animation: none; }
+}

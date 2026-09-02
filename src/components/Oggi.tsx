@@ -1,0 +1,446 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import type { Prospect, Classificazione } from '../lib/types'
+import Radar from './Radar'
+import { Card, Spinner, daysAgo, giorni, fmtDateShort, sgid } from './ui'
+import { VIVI, oggi } from '../lib/regole'
+
+// La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
+// «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
+// Completate in fondo. La coda generata dai dati non fa dieci task
+// fotocopia: UN titolo («Rispondere ai lead») e i nomi come sottopunti.
+
+const FU_DAYS = 5
+const RANGO: Partial<Record<Classificazione, number>> = {
+  positivo: 0, da_classificare: 1, tiepido: 2, rinvio: 3, ooo: 4,
+}
+
+interface TaskDre {
+  id: number
+  at: string
+  titolo: string
+  dettagli: string | null
+  scadenza: string | null
+  ordine: number
+  fatta: boolean
+  fatta_il: string | null
+}
+
+interface Sotto {
+  chiave: string
+  nome: string
+  nota: string
+  prospect_id: string
+  sg: string | null
+}
+
+interface Gruppo {
+  chiave: string
+  titolo: string
+  sotto: Sotto[]
+}
+
+interface Props {
+  onOpen: (id: string) => void
+}
+
+const OGGI_CHIAVE = () => `task-fatte-${oggi()}`
+function leggiFatte(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(OGGI_CHIAVE()) ?? '[]')) } catch { return new Set() }
+}
+function salvaFatte(f: Set<string>) {
+  try { localStorage.setItem(OGGI_CHIAVE(), JSON.stringify([...f])) } catch { /* niente */ }
+}
+
+function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      aria-label={fatta ? 'Segna da fare' : 'Completa'}
+      className="group/c mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center"
+    >
+      {fatta ? (
+        <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] text-blu">
+          <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+        </svg>
+      ) : (
+        <span className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 transition-colors ${
+          mezzo ? 'border-blu' : 'border-spento group-hover/c:border-tenue'
+        }`}>
+          <svg viewBox="0 0 24 24" className="h-3 w-3 text-tenue opacity-0 transition-opacity group-hover/c:opacity-100">
+            <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+          </svg>
+        </span>
+      )}
+    </button>
+  )
+}
+
+export default function Oggi({ onOpen }: Props) {
+  const [attivita, setAttivita] = useState<TaskDre[] | null>(null)
+  const [gruppi, setGruppi] = useState<Gruppo[] | null>(null)
+  const [fatteCoda, setFatteCoda] = useState<Set<string>>(leggiFatte)
+  const [spuntando, setSpuntando] = useState<string | null>(null)
+  const [aggiungo, setAggiungo] = useState(false)
+  const [nuovo, setNuovo] = useState('')
+  const [nuovaData, setNuovaData] = useState('')
+  const [apertaTask, setApertaTask] = useState<number | null>(null)
+  const [completateAperte, setCompletateAperte] = useState(false)
+  const [trascino, setTrascino] = useState<number | null>(null)
+  const [sopraDi, setSopraDi] = useState<number | null>(null)
+  const nuovoRef = useRef<HTMLInputElement>(null)
+  const [problema, setProblema] = useState('')
+
+  const caricaTask = useCallback(() => {
+    supabase.from('task_dre').select('*').order('ordine', { ascending: true }).limit(200)
+      .then(({ data }) => setAttivita((data as TaskDre[]) ?? []))
+  }, [])
+
+  useEffect(() => {
+    caricaTask()
+
+    const today = oggi()
+    Promise.all([
+      supabase.from('prospects').select('*')
+        .eq('awaiting_us', true).eq('fuori', false).or(VIVI)
+        .order('last_reply_at', { ascending: false }).limit(100),
+      supabase.from('prospects').select('*')
+        .in('stage', ['analisi_inviata', 'in_follow_up'])
+        .eq('no_followup', false).eq('awaiting_us', false).eq('fuori', false).or(VIVI)
+        .order('analysis_sent_at', { ascending: true }).limit(200),
+      supabase.from('prospects').select('*')
+        .lte('next_action_date', today).not('next_action_date', 'is', null)
+        .not('stage', 'in', '("cliente","perso")').or(VIVI)
+        .order('next_action_date', { ascending: true }).limit(100),
+      supabase.from('prospects').select('*')
+        .lte('ooo_until', today).not('ooo_until', 'is', null)
+        .eq('no_followup', false).eq('fuori', false).or(VIVI),
+    ]).then(([dr, fu, ri, oo]) => {
+      const visti = new Set<string>()
+      const sotto = (p: Prospect, nota: string): Sotto | null => {
+        if (visti.has(p.id)) return null
+        visti.add(p.id)
+        return { chiave: `coda-${p.id}`, nome: p.company || p.name || p.email, nota, prospect_id: p.id, sg: sgid(p.sg_id) }
+      }
+      const caldo = (a: Prospect, b: Prospect) =>
+        (RANGO[a.classificazione ?? 'da_classificare'] ?? 5) - (RANGO[b.classificazione ?? 'da_classificare'] ?? 5)
+
+      const out: Gruppo[] = []
+      const rispondi = ((dr.data as Prospect[]) ?? []).sort(caldo)
+        .map((p) => sotto(p, `ha scritto lui il ${fmtDateShort(p.last_reply_at)}`))
+        .filter(Boolean) as Sotto[]
+      if (rispondi.length) out.push({ chiave: 'rispondi', titolo: 'Rispondere ai lead', sotto: rispondi })
+
+      const dovuti = ((fu.data as Prospect[]) ?? []).filter((p) => {
+        if (p.followup_due) return p.followup_due.slice(0, 10) <= today
+        const d = daysAgo(p.analysis_sent_at)
+        return d !== null && d >= FU_DAYS
+      }).sort((a, b) => (daysAgo(b.analysis_sent_at) ?? 0) - (daysAgo(a.analysis_sent_at) ?? 0))
+        .map((p) => {
+          const d = daysAgo(p.analysis_sent_at)
+          return sotto(p, `silenzio da ${d !== null ? giorni(d) : '?'}`)
+        }).filter(Boolean) as Sotto[]
+      if (dovuti.length) out.push({ chiave: 'followup', titolo: 'Mandare i follow-up', sotto: dovuti })
+
+      const ricontatti = (((ri.data as Prospect[]) ?? [])
+        .map((p) => sotto(p, p.next_action ?? 'la data è arrivata'))
+        .filter(Boolean)) as Sotto[]
+      if (ricontatti.length) out.push({ chiave: 'ricontatti', titolo: 'Ricontatti in scadenza', sotto: ricontatti })
+
+      const rientri = (((oo.data as Prospect[]) ?? [])
+        .map((p) => sotto(p, `rientrato il ${fmtDateShort(p.ooo_until)}`))
+        .filter(Boolean)) as Sotto[]
+      if (rientri.length) out.push({ chiave: 'rientri', titolo: 'Rientrati dalle ferie', sotto: rientri })
+
+      setGruppi(out)
+    })
+  }, [caricaTask])
+
+  if (attivita === null || gruppi === null) return <Spinner />
+
+  const mieDaFare = attivita.filter((t) => !t.fatta)
+  const gruppiVivi = gruppi
+    .map((g) => ({ ...g, sotto: g.sotto.filter((s) => !fatteCoda.has(s.chiave)) }))
+    .filter((g) => g.sotto.length > 0)
+  const completate: Array<{ chiave: string; titolo: string; taskId: number | null }> = [
+    ...attivita.filter((t) => t.fatta).map((t) => ({ chiave: `dre-${t.id}`, titolo: t.titolo, taskId: t.id })),
+    ...gruppi.flatMap((g) => g.sotto.filter((s) => fatteCoda.has(s.chiave))
+      .map((s) => ({ chiave: s.chiave, titolo: s.nome, taskId: null }))),
+  ]
+
+  function spuntaCoda(chiavi: string[]) {
+    setSpuntando(chiavi[0])
+    setTimeout(() => {
+      setSpuntando(null)
+      const nuove = new Set(fatteCoda)
+      chiavi.forEach((c) => nuove.add(c))
+      setFatteCoda(nuove)
+      salvaFatte(nuove)
+    }, 380)
+  }
+
+  async function spuntaMia(t: TaskDre) {
+    setSpuntando(`dre-${t.id}`)
+    setTimeout(async () => {
+      setSpuntando(null)
+      const { data } = await supabase.from('task_dre')
+        .update({ fatta: true, fatta_il: new Date().toISOString() })
+        .eq('id', t.id).select().single()
+      if (data) setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))
+    }, 380)
+  }
+
+  async function ripristina(c: { chiave: string; taskId: number | null }) {
+    if (c.taskId !== null) {
+      const { data } = await supabase.from('task_dre')
+        .update({ fatta: false, fatta_il: null }).eq('id', c.taskId).select().single()
+      if (data) setAttivita((a) => a!.map((x) => (x.id === c.taskId ? (data as TaskDre) : x)))
+    } else {
+      const nuove = new Set(fatteCoda)
+      nuove.delete(c.chiave)
+      setFatteCoda(nuove)
+      salvaFatte(nuove)
+    }
+  }
+
+  async function aggiorna(id: number, patch: Partial<TaskDre>) {
+    const { data } = await supabase.from('task_dre').update(patch).eq('id', id).select().single()
+    if (data) setAttivita((a) => a!.map((t) => (t.id === id ? (data as TaskDre) : t)))
+  }
+
+  async function aggiungi() {
+    const titolo = nuovo.trim()
+    if (!titolo) { setAggiungo(false); return }
+    const minOrd = Math.min(0, ...attivita!.map((t) => t.ordine)) - 1
+    const { data } = await supabase.from('task_dre')
+      .insert({ titolo, scadenza: nuovaData || null, fatta: false, ordine: minOrd })
+      .select().single()
+    if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
+    setNuovo('')
+    setNuovaData('')
+    nuovoRef.current?.focus()
+  }
+
+  // trascina per riordinare (le mie attivita')
+  async function lascia(su: TaskDre) {
+    const daId = trascino
+    setTrascino(null)
+    setSopraDi(null)
+    if (daId === null || daId === su.id) return
+    const vive = mieDaFare.slice()
+    const da = vive.findIndex((t) => t.id === daId)
+    const a = vive.findIndex((t) => t.id === su.id)
+    if (da < 0 || a < 0) return
+    const [mossa] = vive.splice(da, 1)
+    vive.splice(a, 0, mossa)
+    // si riscrive l'ordine 0..n
+    setAttivita((att) => {
+      const mappa = new Map(vive.map((t, i) => [t.id, i]))
+      return att!.map((t) => (mappa.has(t.id) ? { ...t, ordine: mappa.get(t.id)! } : t))
+        .sort((x, y) => x.ordine - y.ordine)
+    })
+    // si riscrivono solo le righe che cambiano davvero, e si controlla:
+    // prima l'ordine a schermo poteva non essere quello sul database
+    const cambiate = vive.map((t, i) => ({ id: t.id, i })).filter(({ id, i }) => {
+      const prima = attivita!.find((t) => t.id === id)
+      return prima?.ordine !== i
+    })
+    const esiti = await Promise.all(cambiate.map(({ id, i }) =>
+      supabase.from('task_dre').update({ ordine: i }).eq('id', id).select().single()))
+    if (esiti.some((e) => !e.data)) {
+      setProblema('Il nuovo ordine non è stato salvato: rimetto quello del database.')
+      caricaTask()
+    }
+  }
+
+  const chipData = (scadenza: string | null) => scadenza && (
+    <span className={`mt-1 inline-block rounded-full border px-2 py-px text-[11px] ${
+      scadenza <= oggi()
+        ? 'border-transparent bg-blu/10 font-semibold text-blu'
+        : 'border-bordo text-tenue'
+    }`}>
+      {scadenza === oggi() ? 'Oggi' : fmtDateShort(scadenza)}
+    </span>
+  )
+
+  return (
+    <div className="space-y-4 pb-28 sm:pb-8">
+      <div className="lg:hidden">
+        <Radar onOpen={onOpen} />
+      </div>
+
+      {problema && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">
+          {problema}
+        </p>
+      )}
+
+      <Card className="p-3">
+        {aggiungo ? (
+          <div className="flex items-start gap-3 rounded-lg px-2 py-2">
+            <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center">
+              <span className="h-[18px] w-[18px] rounded-full border-2 border-bordo" />
+            </span>
+            <div className="flex-1">
+              <input
+                ref={nuovoRef}
+                autoFocus
+                value={nuovo}
+                onChange={(e) => setNuovo(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') aggiungi()
+                  if (e.key === 'Escape') { setAggiungo(false); setNuovo('') }
+                }}
+                onBlur={() => { if (nuovo.trim()) aggiungi(); else setAggiungo(false) }}
+                placeholder="Titolo"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-spento"
+              />
+              <input
+                type="date"
+                value={nuovaData}
+                onChange={(e) => setNuovaData(e.target.value)}
+                className="mt-1 rounded-full border border-bordo px-2 py-px text-[11px] text-tenue outline-none focus:border-blu"
+              />
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAggiungo(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-velo/50"
+          >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center text-blu">
+              <svg viewBox="0 0 24 24" className="h-5 w-5"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
+            </span>
+            <span className="text-sm font-semibold text-blu">Aggiungi un'attività</span>
+          </button>
+        )}
+
+        {/* le mie attivita': trascinabili, con le note sotto */}
+        {mieDaFare.map((t) => (
+          <div
+            key={t.id}
+            draggable
+            onDragStart={() => setTrascino(t.id)}
+            onDragEnd={() => { setTrascino(null); setSopraDi(null) }}
+            onDragOver={(e) => { e.preventDefault(); setSopraDi(t.id) }}
+            onDrop={(e) => { e.preventDefault(); lascia(t) }}
+            className={`group rounded-lg transition-all ${
+              trascino === t.id ? 'opacity-40' : ''
+            } ${sopraDi === t.id && trascino !== t.id ? 'border-t-2 border-blu' : 'border-t-2 border-transparent'}`}
+          >
+            <div className={`flex items-start gap-3 px-2 py-2 hover:bg-velo/50 ${spuntando === `dre-${t.id}` ? 'opacity-40' : ''}`}>
+              <span className="mt-1.5 hidden h-4 w-2.5 shrink-0 cursor-grab flex-col justify-between opacity-0 transition-opacity group-hover:opacity-100 sm:flex" aria-hidden>
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="flex justify-between">
+                    <span className="h-[3px] w-[3px] rounded-full bg-spento" />
+                    <span className="h-[3px] w-[3px] rounded-full bg-spento" />
+                  </span>
+                ))}
+              </span>
+              <Cerchio fatta={spuntando === `dre-${t.id}`} onClick={() => spuntaMia(t)} />
+              <button onClick={() => setApertaTask(apertaTask === t.id ? null : t.id)} className="min-w-0 flex-1 text-left">
+                <p className={`text-sm ${spuntando === `dre-${t.id}` ? 'text-spento line-through' : 'font-medium'}`}>
+                  {t.titolo}
+                </p>
+                {t.dettagli && apertaTask !== t.id && (
+                  <p className="truncate text-xs text-tenue">{t.dettagli}</p>
+                )}
+                {apertaTask !== t.id && chipData(t.scadenza)}
+              </button>
+            </div>
+            {apertaTask === t.id && (
+              <div className="salta-su space-y-2 px-2 pb-3 pl-[4.25rem] sm:pl-[4.9rem]">
+                <input
+                  value={t.titolo}
+                  onChange={(e) => setAttivita((a) => a!.map((x) => (x.id === t.id ? { ...x, titolo: e.target.value } : x)))}
+                  onBlur={(e) => aggiorna(t.id, { titolo: e.target.value })}
+                  className="w-full rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu"
+                />
+                <textarea
+                  rows={2}
+                  value={t.dettagli ?? ''}
+                  onChange={(e) => setAttivita((a) => a!.map((x) => (x.id === t.id ? { ...x, dettagli: e.target.value } : x)))}
+                  onBlur={(e) => aggiorna(t.id, { dettagli: e.target.value || null })}
+                  placeholder="Aggiungi dettagli"
+                  className="w-full resize-none rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none placeholder:text-spento focus:border-blu"
+                />
+                <input
+                  type="date"
+                  value={t.scadenza ?? ''}
+                  onChange={(e) => aggiorna(t.id, { scadenza: e.target.value || null })}
+                  className="rounded-full border border-bordo px-2.5 py-1 text-xs text-tenue outline-none focus:border-blu"
+                />
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* la coda dai dati: un titolo, i nomi come sottopunti */}
+        {gruppiVivi.map((g) => (
+          <div key={g.chiave} className="mt-1">
+            <div className="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-velo/50">
+              <Cerchio
+                fatta={false}
+                mezzo
+                onClick={() => spuntaCoda(g.sotto.map((s) => s.chiave))}
+              />
+              <p className="flex-1 text-sm font-semibold">{g.titolo}</p>
+              <span className="text-xs text-spento">{g.sotto.length}</span>
+            </div>
+            <div className="ml-[1.35rem] border-l border-velo pl-1">
+              {g.sotto.map((s) => (
+                <div
+                  key={s.chiave}
+                  className={`flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-velo/50 ${
+                    spuntando === s.chiave ? 'opacity-40' : ''
+                  }`}
+                >
+                  <Cerchio fatta={spuntando === s.chiave} onClick={() => spuntaCoda([s.chiave])} />
+                  <button onClick={() => onOpen(s.prospect_id)} className="min-w-0 flex-1 text-left">
+                    <p className={`text-sm ${spuntando === s.chiave ? 'text-spento line-through' : ''}`}>
+                      {s.nome}
+                      {s.sg && <span className="ml-1.5 text-[10px] font-semibold text-blu/70">{s.sg}</span>}
+                    </p>
+                    <p className="truncate text-xs text-tenue">{s.nota}</p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {mieDaFare.length === 0 && gruppiVivi.length === 0 && !aggiungo && (
+          <p className="px-2 py-6 text-center text-sm text-spento">Tutte le attività completate</p>
+        )}
+      </Card>
+
+      {completate.length > 0 && (
+        <Card className="p-3">
+          <button
+            onClick={() => setCompletateAperte(!completateAperte)}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-velo/50"
+          >
+            <svg viewBox="0 0 24 24" className={`h-4 w-4 text-tenue transition-transform ${completateAperte ? 'rotate-90' : ''}`}>
+              <path fill="currentColor" d="M9 6l6 6-6 6z" />
+            </svg>
+            <span className="text-sm font-semibold">Completate ({completate.length})</span>
+          </button>
+          {completateAperte && completate.map((c) => (
+            <div key={c.chiave} className="flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-velo/50">
+              <Cerchio fatta onClick={() => ripristina(c)} />
+              <p className="flex-1 text-sm text-spento line-through">{c.titolo}</p>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      <button
+        onClick={() => { setAggiungo(true); setTimeout(() => nuovoRef.current?.focus(), 50) }}
+        aria-label="Aggiungi un'attività"
+        className="fixed bottom-20 left-1/2 z-30 flex -translate-x-1/2 items-center justify-center rounded-2xl bg-white p-3 text-blu shadow-[0_6px_20px_rgba(16,24,40,0.25)] sm:hidden"
+      >
+        <svg viewBox="0 0 24 24" className="h-7 w-7"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
+      </button>
+    </div>
+  )
+}
