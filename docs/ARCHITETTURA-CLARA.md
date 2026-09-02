@@ -41,6 +41,7 @@ dichiara chi è:
   "dipende": ["supabase"],
   "quando": "ogni mattina",
   "livello": "prepara",
+  "testa": null,
   "costa": false,
   "chi": "tutti"
 }
@@ -49,6 +50,8 @@ dichiara chi è:
 - `famiglia`: `skill` o `agente`
 - `quando`: `ogni mattina`, `al bisogno`, `su tuo ordine`
 - `livello`: `guarda`, `prepara`, `propone`, `esegue` (la scala del 31/8)
+- `testa`: `null` se non le serve un modello, altrimenti `leggera`,
+  `normale` o `pesante`
 - `costa`: se girando spende soldi
 - `chi`: `tutti` oggi; domani `ceo` e sparisce dalla lista di chi non deve vederla
 
@@ -248,6 +251,75 @@ task o una proposta di evento, e solo su ordine esplicito di Dre: la
 proposta resta da confermare e l'ultimo click è suo (regola del 12/8,
 mai cambiata).
 
+## La velocità, e perché non dipende dal modello
+
+Dre (2/9) vuole Clara veloce. La cosa da capire prima di ottimizzare
+qualunque cosa: **la qualità del modello non è la velocità del prodotto.**
+
+Dove si aspetta davvero, oggi:
+
+| cosa fa Dre | cosa aspetta | c'è un modello? |
+|---|---|---|
+| apre la Dashboard | il database | no |
+| apre una scheda | il database | no |
+| legge il brief | niente, è già scritto dalle 8 | no |
+| detta una call a Clara | un parser scritto a mano | no |
+| chiede un'analisi | il lavoro vero | sì, ed è un minuto |
+
+**In quattro casi su cinque il modello non è nella stanza**, e non per
+fortuna: è la conseguenza di due scelte di questo documento, cioè le skill
+deterministiche e gli agenti che non partono da soli.
+
+**La regola**: mai un modello sulla strada di qualcosa che Dre sta
+aspettando. Una schermata che aspetta un modello per disegnarsi è un errore
+di progetto, non un problema di velocità.
+
+Dove invece il modello c'è davvero, tre cose, e nessuna riguarda il modello:
+
+1. **Scrivere mentre pensa.** Una risposta che parte dopo mezzo secondo e
+   finisce in otto sembra più veloce di una che appare intera dopo tre.
+2. **Rispondere dai dati quando si può.** «Quanti sono in tecnica» è una
+   domanda al database. Prima si smista, poi semmai si pensa.
+3. **Non ricominciare da capo.** La parte fissa delle istruzioni resta fissa
+   e nello stesso ordine, così il fornitore la tiene in cache e non la
+   rifà pagare. Rimescolarla a ogni richiesta significa pagare pieno ogni
+   volta.
+
+## Perché un cambio di modello non si deve notare
+
+Il confine fa **cambiare** modello. Non basta a cambiarlo **senza
+accorgersene**: quella è un'altra cosa e si compra così.
+
+**La qualità sta nel contesto.** La voce di Clara non nasce dal modello,
+nasce da CLARA.md, dai template verbatim, dalle correzioni imparate da Dre,
+dai playbook. Per la gran parte dei lavori (classificare, riassumere,
+estrarre, scrivere partendo da un template) un modello medio con un
+contesto eccellente batte un modello fortissimo a digiuno. Quella parte si
+cambia e non si vede.
+
+**Il resto si nota, e la risposta è non dare a tutti la stessa testa.** Il
+campo `testa` nella scheda dice quanto pesa il ragionamento che serve. La
+sentinella e le classificazioni girano sulla leggera, dove i modelli si
+somigliano. L'analisi Canossa gira sulla pesante. Si cambia la leggera senza
+che si veda niente, e si paga il grosso solo dove conta.
+
+## Il banco di prova
+
+Dieci casi veri presi dal lavoro di questi mesi, con scritto cosa deve
+venirne fuori: questo thread va classificato così, su questo prospect il
+verdetto è questo, a questa mail si risponde con quel template. Stanno in
+`prove/` nel progetto, uno per file.
+
+A cosa serve, in concreto: si cambia modello, si rilanciano, e in due minuti
+si sa se si è perso qualcosa. Senza, il cambio di modello lo si fa a occhio.
+
+**Ed è anche il motivo per cui il sistema migliora nel tempo**: ogni volta
+che Clara sbaglia, quel caso entra nella cartella e non si ripete più. Il
+sistema migliora perché ricorda i suoi errori, non perché qualcuno si
+ricorda di migliorarlo.
+
+Nasce piccolo, dieci casi (Dre, 2/9), insieme al primo agente.
+
 ## Le regole per aggiungere una capacità
 
 Un filtro solo per decidere se una regola vale la pena di essere scritta
@@ -255,7 +327,7 @@ oggi: **cambia una decisione che stiamo prendendo adesso?** Se sì si scrive.
 Se no è astrologia: sarà sbagliata quando ci arriveremo, e nel frattempo
 qualcuno costruirà roba per rispettarla.
 
-Queste nove passano il filtro.
+Queste dodici passano il filtro.
 
 1. **Una capacità, una scheda.** Il file dichiara chi è. Aggiungerne una non
    tocca nient'altro, e nessuno deve modificare una lista centrale.
@@ -291,6 +363,18 @@ Queste nove passano il filtro.
 
 9. **La testa sta sempre dietro il confine.** Nessuna capacità nomina un
    fornitore di modelli dentro di sé.
+
+10. **Mai un modello sulla strada di un'attesa.** Se qualcosa che Dre sta
+    guardando deve aspettare un modello per esistere, il disegno è
+    sbagliato: si risponde dai dati e si pensa dopo.
+
+11. **Ogni capacità dichiara che testa le serve.** `leggera`, `normale`,
+    `pesante`, o nessuna. Così si cambia modello dove non si vede e si paga
+    il grosso solo dove conta.
+
+12. **Ogni agente nuovo porta almeno un caso di prova.** Se non c'è un
+    esempio con scritto cosa deve venirne fuori, non c'è modo di sapere se
+    il prossimo cambio di modello lo ha peggiorato.
 
 **E la riga di fondo: niente regole su macchine che non abbiamo.** Come si
 coordinano gli agenti fra loro, come si comprime una conversazione lunga,
