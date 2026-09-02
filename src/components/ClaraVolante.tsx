@@ -207,6 +207,9 @@ export default function ClaraVolante({ onOpen }: Props) {
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [testo, setTesto] = useState('')
   const [invio, setInvio] = useState(false)
+  // il logo che lavora: resta acceso un momento anche dopo la fine, se no
+  // su un lavoro veloce lampeggia e non lo vedi
+  const [pensa, setPensa] = useState(false)
   const [comando, setComando] = useState<Comando | null>(null)
   const [pendente, setPendente] = useState<Pendente | null>(null)
   // il modulo della proposta
@@ -246,6 +249,12 @@ export default function ClaraVolante({ onOpen }: Props) {
   useEffect(() => {
     fondoRef.current?.scrollIntoView({ block: 'end' })
   }, [messaggi, aperta, comando])
+
+  useEffect(() => {
+    if (invio) { setPensa(true); return }
+    const t = setTimeout(() => setPensa(false), 900)
+    return () => clearTimeout(t)
+  }, [invio])
 
   useEffect(() => {
     function esc(e: KeyboardEvent) {
@@ -499,7 +508,7 @@ export default function ClaraVolante({ onOpen }: Props) {
         aria-label="Clara"
         className="fixed bottom-20 right-4 z-[70] flex h-14 w-14 items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.28)] transition-transform hover:-translate-y-0.5 sm:bottom-6 sm:right-6"
       >
-        <ClaraLogo size={38} />
+        <ClaraLogo size={38} lavora={pensa} />
         {nonLetti.length > 0 && !aperta && (
           <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
             {nonLetti.length}
@@ -526,7 +535,7 @@ export default function ClaraVolante({ onOpen }: Props) {
             />
 
             <header className="flex items-center gap-3 border-b border-velo px-5 py-3.5">
-              <span className="text-navy"><ClaraLogo size={30} /></span>
+              <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>
               <span className="text-[15px] font-extrabold">Clara</span>
               {nonLetti.length > 0 && (
                 <button onClick={segnaLette} className="ml-auto text-xs font-semibold text-blu hover:underline">
