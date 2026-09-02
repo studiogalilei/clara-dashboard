@@ -320,6 +320,40 @@ ricorda di migliorarlo.
 
 Nasce piccolo, dieci casi (Dre, 2/9), insieme al primo agente.
 
+## I documenti che Clara produce
+
+Domanda di Dre (2/9): darle la capacità di fare documenti è overbuilding?
+Risposta: **in generale sì, su un documento preciso no.**
+
+Un editor generico per documenti è un prodotto, non una funzione, e nasce
+per un bisogno che nessuno ha ancora nominato. Ma il motore c'è già: 132
+analisi impaginate col logo e i colori del prospect e il grafico delle 12
+barre dentro (`render_an.py` più `brand_assets.py`). Il documento numero due
+costa una frazione del numero uno.
+
+**Il primo e per ora unico: il dossier di preparazione pre-call** (scelto da
+Dre il 2/9). Chi sono, come sono arrivati con la frase verbatim e la data,
+cosa dice l'analisi che hanno già in mano, le dieci domande dal generico al
+preciso, cosa serve validare per la tecnica con Carlo. Il formato è già
+scritto nelle regole di casa e non si reinventa.
+
+È l'agente «Foglio di prep prima delle call» già in elenco: non è una
+capacità in più, cambia solo che il risultato è un documento impaginato
+invece di testo dentro la scheda. Parte a mano dal bottone «Chiedila a
+Clara» che c'è già, e da sola quando arriva Google Calendar.
+
+**I disegni: no.** Immagini generate per un'agenzia di marketing sono la
+cosa che sembra utile e non lo è, l'output raramente sopravvive al contatto
+con un brand vero, servono un altro fornitore e un'altra voce di spesa, e
+non c'è modo di misurarne la qualità. I grafici dentro i documenti, che sono
+la parte che paga, ci sono già.
+
+**Il prossimo documento entra solo quando Dre lo avrà fatto a mano più di
+due volte in un mese.** Candidati già sul tavolo e volutamente non
+costruiti: la proposta dopo la call tecnica (serve la testa di Carlo) e il
+report mensile ai clienti (con i clienti di oggi è un documento al mese, il
+fastidio non c'è ancora).
+
 ## Le regole per aggiungere una capacità
 
 Un filtro solo per decidere se una regola vale la pena di essere scritta
@@ -327,7 +361,7 @@ oggi: **cambia una decisione che stiamo prendendo adesso?** Se sì si scrive.
 Se no è astrologia: sarà sbagliata quando ci arriveremo, e nel frattempo
 qualcuno costruirà roba per rispettarla.
 
-Queste dodici passano il filtro.
+Queste tredici passano il filtro.
 
 1. **Una capacità, una scheda.** Il file dichiara chi è. Aggiungerne una non
    tocca nient'altro, e nessuno deve modificare una lista centrale.
@@ -375,6 +409,10 @@ Queste dodici passano il filtro.
 12. **Ogni agente nuovo porta almeno un caso di prova.** Se non c'è un
     esempio con scritto cosa deve venirne fuori, non c'è modo di sapere se
     il prossimo cambio di modello lo ha peggiorato.
+
+13. **Ogni documento nasce bozza, col nome di Clara sopra.** Un documento
+    che sembra finito ma è sbagliato fa più danni di un documento che non
+    esiste.
 
 **E la riga di fondo: niente regole su macchine che non abbiamo.** Come si
 coordinano gli agenti fra loro, come si comprime una conversazione lunga,
