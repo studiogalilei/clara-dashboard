@@ -54,9 +54,8 @@ export default function Lista({ onOpen, q }: Props) {
   const [toast, setToast] = useState<Toast | null>(null)
   // il pedaggio al rilascio: si apre la richiesta del riassunto; senza,
   // la carta torna dov'era
-  const [pedaggio, setPedaggio] = useState<{ p: Prospect; da: Chiave; target: PipelineStage; tipo: 'ingresso' | 'call' } | null>(null)
+  const [pedaggio, setPedaggio] = useState<{ p: Prospect; da: Chiave; target: PipelineStage } | null>(null)
   const [riassunto, setRiassunto] = useState('')
-  const [dataCall, setDataCall] = useState('')
   // indietro e «Perso»: si possono fare da ogni fase, ma li confermi tu (Dre, 2/9)
   const [conferma, setConferma] = useState<
     { p: Prospect; da: Chiave; target: Chiave; tipo: 'indietro' | 'riapri' | 'perso' } | null
@@ -160,43 +159,41 @@ export default function Lista({ onOpen, q }: Props) {
       const pagato = await pedaggioPagato(id, da as PipelineStage)
       if (!pagato) {
         setRiassunto('')
-        setPedaggio({ p, da: da as PipelineStage, target: target as PipelineStage, tipo: 'call' })
+        setPedaggio({ p, da: da as PipelineStage, target: target as PipelineStage })
         return
       }
     }
 
-    // l'ingresso in pipeline si guadagna: contesto + quando e' la call
+    // dal parco alla Conoscitiva non si paga niente: non c'e' ancora nessuna
+    // call da riassumere, e il contesto sta gia' nella cartella (Dre, 2/9)
     if (da === 'prospect') {
-      setRiassunto('')
-      setDataCall('')
-      setPedaggio({ p, da: 'prospect', target: 'conoscitiva', tipo: 'ingresso' })
+      await entra(p)
       return
     }
 
     await muovi(id, nome, target as PipelineStage, salto)
   }
 
-  async function entra(p: Prospect, testo: string, quando: string): Promise<boolean> {
+  async function entra(p: Prospect): Promise<boolean> {
     const patch: Record<string, unknown> = {
       fuori: true,
       fuori_at: new Date().toISOString(),
       pipeline_stage: 'conoscitiva',
       awaiting_us: false,
     }
-    if (quando) {
-      patch.next_action = 'Conoscitiva fissata'
-      patch.next_action_date = quando
-    }
+    const nome = p.company || p.name || p.email
     const { data } = await supabase.from('prospects').update(patch).eq('id', p.id).select().single()
-    if (!data) return false
+    if (!data) {
+      setToast({ testo: `${nome}: non sono riuscito a salvare, la carta resta dov'era`, tono: 'stop', id: p.id })
+      return false
+    }
     await supabase.from('interactions').insert({
       prospect_id: p.id, at: new Date().toISOString(), kind: 'nota',
-      body: `[Ingresso in Conoscitiva] ${testo}`,
+      body: 'Entra in Conoscitiva.',
     }).select().single()
-    const nome = p.company || p.name || p.email
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
     setMosso(p.id)
-    setToast({ testo: `${nome} → Conoscitiva ✓${quando ? ` · call il ${fmtDateShort(quando)}` : ''}`, tono: 'ok', id: p.id })
+    setToast({ testo: `${nome} → Conoscitiva ✓`, tono: 'ok', id: p.id })
     return true
   }
 
@@ -454,33 +451,18 @@ export default function Lista({ onOpen, q }: Props) {
       {pedaggio && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-inchiostro/30 px-4">
           <div className="salta-su w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <p className="text-base font-extrabold">
-              {pedaggio.tipo === 'ingresso' ? 'Entra in Conoscitiva' : 'Riassunto di fase'}
-            </p>
+            <p className="text-base font-extrabold">Riassunto di fase</p>
             <p className="mt-1 text-sm text-tenue">
               {pedaggio.p.company || pedaggio.p.name}
-              {pedaggio.tipo === 'call' && ` · ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} → ${PIPELINE_LABEL[pedaggio.target]}`}
+              {` · ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} → ${PIPELINE_LABEL[pedaggio.target]}`}
             </p>
             <textarea
               autoFocus
               value={riassunto}
               onChange={(e) => setRiassunto(e.target.value)}
-              placeholder={pedaggio.tipo === 'ingresso'
-                ? 'Come è arrivato, cosa vuole, cosa serve validare…'
-                : 'Il riassunto della call e i prossimi passi…'}
+              placeholder="Il riassunto della call e i prossimi passi…"
               className="mt-3 min-h-32 w-full rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
             />
-            {pedaggio.tipo === 'ingresso' && (
-              <label className="mt-2.5 flex items-center gap-2 text-sm text-tenue">
-                Quando è la call?
-                <input
-                  type="date"
-                  value={dataCall}
-                  onChange={(e) => setDataCall(e.target.value)}
-                  className="rounded-lg border border-bordo px-2 py-1 text-sm outline-none focus:border-blu"
-                />
-              </label>
-            )}
             {erroreP && (
               <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
                 {erroreP}
@@ -491,9 +473,7 @@ export default function Lista({ onOpen, q }: Props) {
                 onClick={() => {
                   const nome = pedaggio.p.company || pedaggio.p.name || pedaggio.p.email
                   setToast({
-                    testo: pedaggio.tipo === 'ingresso'
-                      ? `${nome} resta fra i prospect: l'ingresso si guadagna col contesto`
-                      : `${nome} resta in ${PIPELINE_LABEL[pedaggio.da as PipelineStage]}: senza riassunto non si avanza`,
+                    testo: `${nome} resta in ${PIPELINE_LABEL[pedaggio.da as PipelineStage]}: senza riassunto non si avanza`,
                     tono: 'stop', id: pedaggio.p.id,
                   })
                   setPedaggio(null)
@@ -506,18 +486,11 @@ export default function Lista({ onOpen, q }: Props) {
               </button>
               <button
                 onClick={async () => {
-                  const { p, da, target, tipo } = pedaggio
+                  const { p, da, target } = pedaggio
                   const testo = riassunto.trim()
                   if (!testo || salvando) return
                   setSalvando(true)
                   setErroreP('')
-                  if (tipo === 'ingresso') {
-                    const fatto = await entra(p, testo, dataCall)
-                    setSalvando(false)
-                    if (!fatto) { setErroreP('Non è stato salvato. Il testo è ancora qui: riprova.'); return }
-                    setPedaggio(null); setRiassunto(''); setDataCall('')
-                    return
-                  }
                   const { data } = await supabase.from('interactions').insert({
                     prospect_id: p.id, at: new Date().toISOString(), kind: 'transcript',
                     body: `[${PIPELINE_LABEL[da as PipelineStage]}] ${testo}`,
@@ -538,8 +511,7 @@ export default function Lista({ onOpen, q }: Props) {
                 disabled={!riassunto.trim() || salvando}
                 className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:cursor-not-allowed disabled:opacity-30"
               >
-                {salvando ? 'Salvo…'
-                  : pedaggio.tipo === 'ingresso' ? 'Entra in Conoscitiva →' : 'Salva e porta avanti →'}
+                {salvando ? 'Salvo…' : 'Salva e porta avanti →'}
               </button>
             </div>
           </div>
