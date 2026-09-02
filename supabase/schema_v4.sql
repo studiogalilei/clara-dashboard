@@ -155,3 +155,46 @@ create policy "auth full access task_dre" on task_dre
   for all to authenticated using (true) with check (true);
 
 select 'schema v4 applicato' as esito;
+
+-- ────────────────────────────────────────────────────────────────────
+-- v4.1 (2/9/2026): le manopole di Clara e il campo owner.
+-- Deciso in ARCHITETTURA-CLARA.md. Aggiunto qui invece che in un file
+-- nuovo cosi' Dre incolla una volta sola.
+-- ────────────────────────────────────────────────────────────────────
+
+-- 12) Agenti e Skills: la scheda di ogni capacita' sta in un file JSON nel
+--     progetto (skills/<chiave>.json). Qui ci sta solo cio' che CAMBIA:
+--     l'interruttore di Dre e com'e' andato l'ultimo giro. La riga nasce da
+--     sola alla prima accensione: una capacita' nuova non richiede che
+--     qualcuno tocchi il database.
+create table if not exists clara_skills (
+  chiave text primary key,
+  acceso boolean not null default true,
+  ultimo_giro timestamptz,
+  ultimo_esito text,
+  owner uuid references auth.users(id) default null
+);
+alter table clara_skills enable row level security;
+drop policy if exists "auth full access skills" on clara_skills;
+create policy "auth full access skills" on clara_skills
+  for all to authenticated using (true) with check (true);
+
+-- 13) owner: chi possiede la riga. Oggi vuoto ovunque e vuol dire
+--     «dell'azienda», e nessuna schermata cambia. E' il gancio a cui domani
+--     si attaccano le regole per dividere chi vede cosa, senza dover
+--     toccare 13.000 righe quel giorno.
+--     L'abitudine che vale piu' del campo: ogni tabella nuova nasce con owner.
+alter table prospects       add column if not exists owner uuid references auth.users(id) default null;
+alter table interactions    add column if not exists owner uuid references auth.users(id) default null;
+alter table agenda          add column if not exists owner uuid references auth.users(id) default null;
+alter table clara_messaggi  add column if not exists owner uuid references auth.users(id) default null;
+alter table vault_file      add column if not exists owner uuid references auth.users(id) default null;
+alter table task_dre        add column if not exists owner uuid references auth.users(id) default null;
+
+-- 14) La cartella del prospect (Dre, 2/9): non e' una tabella nuova.
+--     La cartella E' il suo contenuto, cioe' l'analisi agganciata, chi sono,
+--     il verdetto sul mercato e tutto quello che si allega dopo. Creare un
+--     record «cartella» vuoto sarebbe solo una cosa in piu' che puo'
+--     disallinearsi. Serve solo poter cercare in fretta per prospect.
+create index if not exists idx_vault_prospect on vault_file (prospect_id)
+  where prospect_id is not null;
