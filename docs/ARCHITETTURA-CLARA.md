@@ -248,6 +248,55 @@ task o una proposta di evento, e solo su ordine esplicito di Dre: la
 proposta resta da confermare e l'ultimo click è suo (regola del 12/8,
 mai cambiata).
 
+## Le regole per aggiungere una capacità
+
+Un filtro solo per decidere se una regola vale la pena di essere scritta
+oggi: **cambia una decisione che stiamo prendendo adesso?** Se sì si scrive.
+Se no è astrologia: sarà sbagliata quando ci arriveremo, e nel frattempo
+qualcuno costruirà roba per rispettarla.
+
+Queste nove passano il filtro.
+
+1. **Una capacità, una scheda.** Il file dichiara chi è. Aggiungerne una non
+   tocca nient'altro, e nessuno deve modificare una lista centrale.
+
+2. **Nasce spenta.** L'interruttore lo accende Dre, mai il codice. Una
+   capacità che si accende da sola il giorno che la scrivi è una capacità
+   che gira prima che qualcuno l'abbia guardata.
+
+3. **Il livello sta nella scheda.** Non è una manopola in mano a nessuno: è
+   una proprietà, decisa quando la capacità si scrive e sensata di suo.
+
+4. **Nessuna capacità ne chiama un'altra.** Se una si accorge che serve
+   altro, mette la richiesta in coda. Le capacità non si parlano fra loro,
+   parlano tutte con la coda. Questa è la regola che tiene aperta la porta
+   alle squadre di agenti **senza costruirle adesso**: il giorno che
+   servisse un coordinatore, lui legge la coda e nient'altro cambia.
+
+5. **Chi si accorge non esegue.** La skill che vede il bisogno prepara la
+   richiesta e si ferma. Il lavoro lo fa chi ha il potere di farlo, dopo un
+   via. Il confine viene dalla struttura, non da un controllo scritto a mano
+   che qualcuno prima o poi dimentica.
+
+6. **Un no non è un errore.** Permesso che non basta o collegamento spento:
+   si risponde no, si scrive il perché nell'esito, il giro continua. Niente
+   si pianta, e chi ha chiesto cambia strada.
+
+7. **Se cade, cade da sola.** Una capacità che si rompe non ferma le altre e
+   lascia scritto cosa è successo. Il giro del mattino deve arrivare in
+   fondo anche con un pezzo rotto.
+
+8. **Dichiara cosa costa.** Se spende, si vede prima di spendere, non nel
+   conto a fine mese.
+
+9. **La testa sta sempre dietro il confine.** Nessuna capacità nomina un
+   fornitore di modelli dentro di sé.
+
+**E la riga di fondo: niente regole su macchine che non abbiamo.** Come si
+coordinano gli agenti fra loro, come si comprime una conversazione lunga,
+come si caricano gli strumenti al volo: quando servirà lo si scoprirà
+guardando il problema vero, non immaginandolo oggi.
+
 ## Cosa NON si costruisce adesso
 
 - Clara che si scrive skill da sola
