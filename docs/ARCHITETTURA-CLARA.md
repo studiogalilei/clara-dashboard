@@ -104,6 +104,57 @@ Dre apre e dice vai. Il lavoro parte da lì, con Claude, dentro una sessione.
 
 Niente parte a sua insaputa. Niente costa a sua insaputa.
 
+## La testa: chi ragiona, e come si cambia
+
+Gli agenti non chiamano Claude. Chiamano **la testa**, e chi sia la testa lo
+dice un file di configurazione (Dre, 2/9).
+
+Un punto solo nel codice, con tre funzioni: fai una domanda, dammi una
+risposta strutturata, dimmi quanto è costata. Sotto ci sta quello che si
+vuole: oggi Claude, domani un modello sul Mac, dopodomani un altro
+fornitore. Nessun agente si accorge del cambio.
+
+Il confine parla il **dialetto OpenAI**, che non è una scelta di campo ma la
+presa universale: ci si attaccano i modelli locali (Ollama, LM Studio), i
+proxy aperti tipo LiteLLM, e con un adattatore sottile anche Anthropic.
+
+**Perché adesso e non dopo**: se gli agenti scrivono dritti sul fornitore,
+cambiarlo vuol dire toccarli tutti uno per uno. Con il confine è una riga di
+configurazione. Costa mezza giornata oggi e non scade mai.
+
+**Cosa NON promette**: l'indipendenza dalla qualità. Un'analisi Canossa
+oggi la scrive un modello forte, e un modello locale non ci arriva. La
+libertà che si compra qui è quella di cambiare senza rifare, che è una cosa
+diversa e più utile.
+
+**I dati sono già liberi**: Supabase è Postgres. Il giorno che lo si vuole
+su un server proprio è un salvataggio e un ripristino, non un progetto.
+
+## Da dove viene questo disegno
+
+Le scelte qui sopra non sono nate a mente. Il 2/9 abbiamo studiato come è
+fatta dentro Claude Code, che è il sistema agentico più esaminato in giro
+(il suo codice e le sue istruzioni sono pubblici e analizzati a fondo).
+Quattro cose da lì valgono anche qui, e sono già dentro questo documento:
+
+1. **Il cuore è piccolo.** Il ciclo dell'agente vero sta in poche decine di
+   righe: chiedi, esegui, rimetti il risultato nella lista, ripeti. Tutto il
+   resto sta intorno e si stacca.
+2. **Lo stato è una lista di messaggi.** Nessuno stato nascosto: così una
+   sessione si salva, si rigioca per capire cosa è andato storto, e si
+   comprime quando è lunga.
+3. **Le capacità si dichiarano, non si programmano dentro.** Nome,
+   descrizione, schema, permesso: la scheda della skill è esattamente
+   questo.
+4. **Un permesso negato non è un errore.** Il sistema non si pianta,
+   risponde «no» e chi ha chiesto cambia strada.
+
+Quello che di là c'è e qui **non serve**: le squadre di agenti che si
+coordinano, la compattazione del contesto a più livelli, il caricamento
+dinamico degli strumenti. Sono risposte a conversazioni lunghissime e a
+centinaia di strumenti. Clara ne ha tredici e i suoi lavori durano un
+minuto. Copiarle adesso sarebbe peso.
+
 ## Il magazzino: chi tiene cosa
 
 **La regola, in una riga: se serve interrogarlo va su Supabase; se serve
@@ -202,6 +253,8 @@ mai cambiata).
 - Clara che si scrive skill da sola
 - il bottone «lancia adesso»
 - i tetti di spesa (non servono finché nessun agente parte da solo)
+- le squadre di agenti che si coordinano fra loro, la compattazione del
+  contesto a più livelli, il caricamento dinamico degli strumenti
 - la separazione multi-azienda, i cataloghi di skill per persona, il
   pannello dei ruoli, il pacchetto da consegnare fuori
 
