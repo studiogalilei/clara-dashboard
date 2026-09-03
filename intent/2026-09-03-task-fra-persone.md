@@ -63,3 +63,47 @@ ribatte a mano ogni settimana. Solo quello merita di entrare.
 Dal punto 1 piu' il punto 2. Il menu componibile senza roba da comporre e'
 arredamento, e cosa serve a Giacomo non si indovina da fuori: serve
 mezz'ora con lui.
+
+## Deciso il 3/9, secondo giro
+
+**Due viste, non tre**, e i nomi li ha scelti Dre:
+- **On go** (di default): la scatola pulita dall'alto in basso, raggruppata per
+  giorno. E' quella del telefono, dove si butta dentro una cosa in tre secondi.
+- **Week picture**: la settimana intera davanti, senza scorrere, a colonne.
+
+Il calendario resta una sezione sua: non e' la terza vista delle task.
+
+Sul telefono la vista e' sempre On go: sette colonne su uno schermo stretto
+non si guardano, ed e' esattamente il motivo per cui On go esiste.
+
+**Le viste non sono legate alle persone.** Sono modi di guardare, e chiunque
+li cambia quando vuole. Le task invece sono di chi le ha: ognuno la sua lista,
+e ci si passano le task a vicenda.
+
+**I post-it sulle schede sono privati** (Dre, 3/9): la nota che attacchi a un
+prospect e' roba tua, non del gruppo.
+
+**«Passa a…»: la terza uscita dalla pipeline.** Dre e' il gestore principale
+dei prospect, quindi non serve un proprietario per ogni riga. Serve invece
+poter dire che un lead e' stato passato a qualcun altro (quelli che vogliono
+un sito vanno al web, quelli che volevano parlare con Lore vanno a lei) e
+ritrovarli tutti. Oggi quei lead o restano in pipeline a gonfiare i numeri o
+spariscono, e con loro il rapporto con chi li ha ricevuti. Non e' una
+piccolezza: e' lo stesso buco tappato il 2/9 con «Perso», ma di lato invece
+che in basso, e vale soldi perche' quei passaggi sono la rete di Dre.
+
+Forma: accanto a «Segna come perso» nella scheda ci va «Passa a…» con a chi e
+il perche'. La carta esce dalla pipeline e finisce in una colonna «Passati»
+nella bacheca, che compare solo quando ce n'e' qualcuno, come i Persi. Niente
+sezione nuova nel menu: si userebbe una volta al mese e peserebbe ogni giorno.
+
+**Il preso in carico.** Appena entra Giacomo, due persone possono rispondere
+allo stesso thread senza saperlo, o nessuno dei due perche' ognuno pensa che
+l'altro l'abbia fatto. Serve poter prendere una conversazione, e che si veda.
+Stesso principio dell'accettazione delle task: il lavoro ha sempre un nome
+sopra.
+
+**Clara resta una sola, con una casella per ciascuno.** Due mezze Clare non
+saprebbero abbastanza ne' l'una ne' l'altra, e lei e' la segretaria dello
+studio, non l'assistente personale di Dre. Quello che sa e' comune, quello che
+dice e' indirizzato.

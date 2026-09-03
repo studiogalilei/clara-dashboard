@@ -3,12 +3,32 @@ import { supabase } from '../lib/supabase'
 import type { Prospect, Classificazione } from '../lib/types'
 import Radar from './Radar'
 import { Card, Spinner, daysAgo, giorni, fmtDateShort, sgid } from './ui'
-import { VIVI, oggi } from '../lib/regole'
+import { VIVI, oggi, giorno } from '../lib/regole'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
 // Completate in fondo. La coda generata dai dati non fa dieci task
 // fotocopia: UN titolo («Rispondere ai lead») e i nomi come sottopunti.
+
+// Le due viste (Dre, 3/9). «On go» e' la scatola pulita dall'alto in basso,
+// quella del telefono, dove butti dentro una cosa in tre secondi. «Week
+// picture» e' la settimana intera davanti, senza scorrere. Stesse task
+// sotto: cambia solo come le guardi.
+type Vista = 'ongo' | 'big'
+
+function leggiVista(): Vista {
+  try { return (localStorage.getItem('task-vista') as Vista) || 'ongo' } catch { return 'ongo' }
+}
+
+const GIORNI_IT = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
+
+// il lunedi' della settimana di una data
+function lunediDi(d: Date): Date {
+  const x = new Date(d)
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
+  x.setHours(0, 0, 0, 0)
+  return x
+}
 
 const FU_DAYS = 5
 const RANGO: Partial<Record<Classificazione, number>> = {
@@ -90,6 +110,28 @@ export default function Oggi({ onOpen }: Props) {
   const [sopraDi, setSopraDi] = useState<number | null>(null)
   const nuovoRef = useRef<HTMLInputElement>(null)
   const [problema, setProblema] = useState('')
+  const [vista, setVista] = useState<Vista>(leggiVista)
+  const [settimana, setSettimana] = useState(0)          // 0 = questa
+  const [aggiungoIn, setAggiungoIn] = useState<string | null>(null)
+  const [nuovoIn, setNuovoIn] = useState('')
+  const [sopraGiorno, setSopraGiorno] = useState<string | null>(null)
+
+  const [stretto, setStretto] = useState(false)
+  useEffect(() => {
+    try {
+      const m = window.matchMedia('(max-width: 640px)')
+      setStretto(m.matches)
+      const su = (e: MediaQueryListEvent) => setStretto(e.matches)
+      m.addEventListener('change', su)
+      return () => m.removeEventListener('change', su)
+    } catch { /* niente */ }
+  }, [])
+  const vistaVera: Vista = stretto ? 'ongo' : vista
+
+  function cambiaVista(v: Vista) {
+    setVista(v)
+    try { localStorage.setItem('task-vista', v) } catch { /* niente */ }
+  }
 
   const caricaTask = useCallback(() => {
     supabase.from('task_dre').select('*').order('ordine', { ascending: true }).limit(200)
@@ -253,6 +295,116 @@ export default function Oggi({ onOpen }: Props) {
     }
   }
 
+  // ── WEEK PICTURE: la settimana davanti, senza scorrere ───────────
+  async function spostaA(id: number, quando: string | null) {
+    setSopraGiorno(null)
+    await aggiorna(id, { scadenza: quando })
+  }
+
+  async function aggiungiIn(quando: string | null) {
+    const t = nuovoIn.trim()
+    if (!t) { setAggiungoIn(null); return }
+    const min = Math.min(0, ...(attivita ?? []).map((x) => x.ordine))
+    const { data } = await supabase.from('task_dre')
+      .insert({ titolo: t, scadenza: quando, fatta: false, ordine: min - 1 })
+      .select().single()
+    if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
+    setNuovoIn('')
+    setAggiungoIn(null)
+  }
+
+  function bigPicture() {
+    const inizio = lunediDi(new Date())
+    inizio.setDate(inizio.getDate() + settimana * 7)
+    const giorni = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(inizio); d.setDate(d.getDate() + i)
+      return { iso: giorno(d), nome: GIORNI_IT[i], numero: d.getDate() }
+    })
+    const vive = (attivita ?? []).filter((t) => !t.fatta)
+    const senzaData = vive.filter((t) => !t.scadenza)
+    const colonne: Array<{ chiave: string; titolo: string; sotto: string; iso: string | null; task: TaskDre[]; oggi: boolean }> = [
+      { chiave: 'senza', titolo: 'Senza data', sotto: `${senzaData.length}`, iso: null, task: senzaData, oggi: false },
+      ...giorni.map((g) => ({
+        chiave: g.iso, titolo: g.nome, sotto: String(g.numero), iso: g.iso,
+        task: vive.filter((t) => t.scadenza === g.iso), oggi: g.iso === oggi(),
+      })),
+    ]
+
+    return (
+      // a tutta larghezza: una settimana dentro un contenitore stretto
+      // costringe a scorrere, che e' esattamente quello che non si vuole
+      <div className="mx-[calc(50%-50vw)] w-screen px-4 lg:px-8">
+        <div className="grid gap-2 overflow-x-auto pb-2"
+             style={{ gridTemplateColumns: 'minmax(150px,0.75fr) repeat(7, minmax(150px,1fr))' }}>
+          {colonne.map((c) => (
+            <section
+              key={c.chiave}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSopraGiorno(c.chiave) }}
+              onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setSopraGiorno(null) }}
+              onDrop={(e) => {
+                e.preventDefault()
+                const id = Number(e.dataTransfer.getData('text/plain'))
+                if (id) spostaA(id, c.iso)
+              }}
+              className={`flex min-h-[58vh] flex-col rounded-2xl border transition-colors ${
+                sopraGiorno === c.chiave ? 'border-navy bg-navy/5'
+                : c.oggi ? 'border-navy/30 bg-white' : 'border-bordo bg-white'
+              }`}
+            >
+              <header className="flex items-baseline justify-between gap-1 border-b border-velo px-3 py-2">
+                <span className={`text-[11px] font-bold uppercase tracking-wide ${c.oggi ? 'text-navy' : 'text-tenue'}`}>
+                  {c.titolo}
+                </span>
+                <span className={`text-sm font-extrabold tabular-nums ${c.oggi ? 'text-navy' : 'text-spento'}`}>
+                  {c.sotto}
+                </span>
+              </header>
+
+              <div className="flex-1 space-y-1.5 overflow-y-auto p-2">
+                {c.task.map((t) => (
+                  <div
+                    key={t.id}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData('text/plain', String(t.id))}
+                    className="flex cursor-grab items-start gap-2 rounded-xl border border-bordo bg-white px-2 py-1.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] active:cursor-grabbing"
+                  >
+                    <Cerchio fatta={false} onClick={() => spuntaMia(t)} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] leading-snug">{t.titolo}</p>
+                      {t.dettagli && <p className="truncate text-[11px] text-tenue">{t.dettagli}</p>}
+                    </div>
+                  </div>
+                ))}
+
+                {aggiungoIn === c.chiave ? (
+                  <input
+                    autoFocus
+                    value={nuovoIn}
+                    onChange={(e) => setNuovoIn(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') aggiungiIn(c.iso)
+                      if (e.key === 'Escape') { setAggiungoIn(null); setNuovoIn('') }
+                    }}
+                    onBlur={() => aggiungiIn(c.iso)}
+                    placeholder="Cosa c'è da fare"
+                    className="w-full rounded-lg border border-blu bg-white px-2 py-1.5 text-[13px] outline-none"
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setAggiungoIn(c.chiave); setNuovoIn('') }}
+                    className="w-full rounded-lg px-2 py-1.5 text-left text-[13px] text-spento hover:bg-velo/60 hover:text-navy"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const chipData = (scadenza: string | null) => scadenza && (
     <span className={`mt-1 inline-block rounded-full border px-2 py-px text-[11px] ${
       scadenza <= oggi()
@@ -275,6 +427,36 @@ export default function Oggi({ onOpen }: Props) {
         </p>
       )}
 
+      {/* le due viste: stesse task, due modi di guardarle */}
+      <div className="hidden items-center gap-2 sm:flex">
+        <div className="flex overflow-hidden rounded-full border border-bordo bg-white">
+          {(['ongo', 'big'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => cambiaVista(v)}
+              className={`px-4 py-1.5 text-xs font-bold transition-colors ${
+                vista === v ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'
+              }`}
+            >
+              {v === 'ongo' ? 'On go' : 'Week picture'}
+            </button>
+          ))}
+        </div>
+        {vistaVera === 'big' && (
+          <div className="ml-auto flex items-center gap-1">
+            <button onClick={() => setSettimana(settimana - 1)} aria-label="Settimana prima"
+              className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm text-tenue hover:border-navy">‹</button>
+            <button onClick={() => setSettimana(0)} disabled={settimana === 0}
+              className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-navy hover:border-navy disabled:border-transparent disabled:bg-transparent disabled:text-spento">
+              {settimana === 0 ? 'questa settimana' : 'torna a oggi'}
+            </button>
+            <button onClick={() => setSettimana(settimana + 1)} aria-label="Settimana dopo"
+              className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm text-tenue hover:border-navy">›</button>
+          </div>
+        )}
+      </div>
+
+      {vistaVera === 'big' ? bigPicture() : (
       <Card className="p-3">
         {aggiungo ? (
           <div className="flex items-start gap-3 rounded-lg px-2 py-2">
@@ -413,6 +595,7 @@ export default function Oggi({ onOpen }: Props) {
           <p className="px-2 py-6 text-center text-sm text-spento">Tutte le attività completate</p>
         )}
       </Card>
+      )}
 
       {completate.length > 0 && (
         <Card className="p-3">
