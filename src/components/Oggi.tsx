@@ -312,21 +312,6 @@ export default function Oggi({ onOpen }: Props) {
     }
   }
 
-  function settimanaMostrata(): Date {
-    const d = lunediDi(new Date())
-    d.setDate(d.getDate() + settimana * 7)
-    return d
-  }
-
-  function etichettaSettimana(): string {
-    const a = settimanaMostrata()
-    const b = new Date(a); b.setDate(b.getDate() + 6)
-    const mese = (d: Date) => d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '')
-    return a.getMonth() === b.getMonth()
-      ? `${a.getDate()} - ${b.getDate()} ${mese(b)}`
-      : `${a.getDate()} ${mese(a)} - ${b.getDate()} ${mese(b)}`
-  }
-
   // ── WEEK PICTURE: la settimana davanti, senza scorrere ───────────
   async function spostaA(id: number, quando: string | null) {
     setSopraGiorno(null)
@@ -346,7 +331,8 @@ export default function Oggi({ onOpen }: Props) {
   }
 
   function bigPicture() {
-    const inizio = settimanaMostrata()
+    const inizio = lunediDi(new Date())
+    inizio.setDate(inizio.getDate() + settimana * 7)
     const giorni = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(inizio); d.setDate(d.getDate() + i)
       return { iso: giorno(d), nome: GIORNI_IT[i], numero: d.getDate() }
@@ -512,34 +498,15 @@ export default function Oggi({ onOpen }: Props) {
           ))}
         </div>
         {vistaVera === 'big' && (
-          <div className="ml-auto flex items-center gap-2.5">
-            {/* i punti: una settimana ciascuno, si clicca e ci si salta */}
-            <div className="flex items-center gap-1.5">
-              {[-2, -1, 0, 1, 2].map((d) => {
-                const w = settimana + d
-                return (
-                  <button
-                    key={d}
-                    onClick={() => setSettimana(w)}
-                    aria-label={d === 0 ? 'Questa settimana' : `Settimana ${w > 0 ? '+' : ''}${w}`}
-                    className={`rounded-full transition-all ${
-                      d === 0 ? 'h-2.5 w-2.5 bg-navy' : 'h-1.5 w-1.5 bg-bordo hover:bg-spento'
-                    }`}
-                  />
-                )
-              })}
-            </div>
+          <div className="ml-auto flex items-center gap-1">
             <button onClick={() => setSettimana(settimana - 1)} aria-label="Settimana prima"
-              className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm leading-none text-tenue hover:border-navy">‹</button>
-            <span className="min-w-[124px] text-center text-xs font-bold text-navy">{etichettaSettimana()}</span>
+              className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm text-tenue hover:border-navy">‹</button>
+            <button onClick={() => setSettimana(0)} disabled={settimana === 0}
+              className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-navy hover:border-navy disabled:border-transparent disabled:bg-transparent disabled:text-spento">
+              {settimana === 0 ? 'questa settimana' : 'torna a oggi'}
+            </button>
             <button onClick={() => setSettimana(settimana + 1)} aria-label="Settimana dopo"
-              className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm leading-none text-tenue hover:border-navy">›</button>
-            {settimana !== 0 && (
-              <button onClick={() => setSettimana(0)}
-                className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-navy hover:border-navy">
-                oggi
-              </button>
-            )}
+              className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm text-tenue hover:border-navy">›</button>
           </div>
         )}
       </div>
