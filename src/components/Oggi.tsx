@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, Classificazione } from '../lib/types'
 import Radar from './Radar'
@@ -347,107 +347,112 @@ export default function Oggi({ onOpen }: Props) {
       })),
     ]
 
+    const RIGHE = Math.max(14, ...colonne.map((c) => c.task.length + 2))
+    const righe = Array.from({ length: RIGHE }, (_, i) => i)
+
     return (
       // a tutta larghezza: una settimana dentro un contenitore stretto
       // costringe a scorrere, che e' esattamente quello che non si vuole
       <div className="mx-[calc(50%-50vw)] w-screen px-4 lg:px-8">
-        <div className="overflow-x-auto rounded-xl border border-bordo bg-white">
-          <div className="grid min-w-[900px]"
-               style={{ gridTemplateColumns: 'minmax(150px,0.75fr) repeat(7, minmax(130px,1fr))' }}>
+        <div className="overflow-x-auto rounded-lg border border-bordo bg-white">
+          <div className="grid min-w-[1000px]"
+               style={{ gridTemplateColumns: '34px minmax(150px,0.8fr) repeat(7, minmax(140px,1fr))' }}>
 
-            {/* la riga dei giorni */}
+            {/* la testata: i giorni, grossi, come nel foglio */}
+            <div className="border-b border-r border-bordo bg-velo" />
             {colonne.map((c) => (
               <div
                 key={`t-${c.chiave}`}
-                className={`flex items-baseline justify-between gap-1 border-b border-bordo px-2.5 py-2 ${
-                  c.chiave === 'senza' ? '' : 'border-l border-l-velo'
-                } ${c.oggi ? 'bg-navy text-white' : 'bg-velo/70'}`}
+                className={`border-b border-r border-bordo px-2.5 py-1.5 ${
+                  c.oggi ? 'bg-navy text-white' : 'bg-navy/10 text-navy'
+                }`}
               >
-                <span className={`text-[11px] font-bold uppercase tracking-wide ${c.oggi ? '' : 'text-tenue'}`}>
+                <span className="block truncate text-lg font-extrabold uppercase leading-tight tracking-tight">
                   {c.titolo}
                 </span>
-                <span className={`text-xs font-extrabold tabular-nums ${c.oggi ? '' : 'text-spento'}`}>
+                <span className={`text-[11px] font-semibold ${c.oggi ? 'text-white/70' : 'text-navy/60'}`}>
                   {c.sotto}
                 </span>
               </div>
             ))}
 
-            {/* le celle: righe sottili, testo sulla riga */}
-            {colonne.map((c) => (
-              <div
-                key={`c-${c.chiave}`}
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSopraGiorno(c.chiave) }}
-                onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setSopraGiorno(null) }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  const id = Number(e.dataTransfer.getData('text/plain'))
-                  if (id) spostaA(id, c.iso)
-                }}
-                className={`min-h-[56vh] min-w-0 ${c.chiave === 'senza' ? '' : 'border-l border-velo'} ${
-                  sopraGiorno === c.chiave ? 'bg-navy/5' : ''
-                }`}
-              >
-                {c.task.map((t) => (
-                  <div
-                    key={t.id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData('text/plain', String(t.id))}
-                    className={`group relative flex cursor-grab items-start gap-1.5 border-b border-velo px-2 py-1.5 hover:bg-velo/50 active:cursor-grabbing ${tinta(t.colore)}`}
-                  >
-                    <Cerchio fatta={false} onClick={() => spuntaMia(t)} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] leading-snug">{t.titolo}</p>
-                      {t.dettagli && <p className="truncate text-[11px] text-tenue">{t.dettagli}</p>}
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setTavolozza(tavolozza === t.id ? null : t.id) }}
-                      aria-label="Colore"
-                      className={`mt-1 h-3 w-3 shrink-0 rounded-full border border-bordo transition-opacity ${
-                        t.colore ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                      } ${COLORI.find(([k]) => k === t.colore)?.[2] ?? 'bg-white'}`}
-                    />
-                    {tavolozza === t.id && (
-                      <div className="salta-su absolute right-1 top-6 z-20 flex gap-1 rounded-xl border border-bordo bg-white p-1.5 shadow-[0_8px_24px_rgba(16,24,40,0.16)]">
-                        <button
-                          onClick={() => { aggiorna(t.id, { colore: null }); setTavolozza(null) }}
-                          aria-label="Nessun colore"
-                          className="h-4 w-4 rounded-full border border-bordo bg-white"
-                        />
-                        {COLORI.map(([k, , pallino]) => (
+            {/* il reticolo: le celle ci sono anche quando sono vuote */}
+            {righe.map((r) => (
+              <Fragment key={`r-${r}`}>
+                <div className="border-b border-r border-bordo bg-velo px-1 py-1 text-right text-[10px] tabular-nums text-spento">
+                  {r + 1}
+                </div>
+                {colonne.map((c) => {
+                  const t = c.task[r]
+                  const chiaveCella = `${c.chiave}-${r}`
+                  return (
+                    <div
+                      key={chiaveCella}
+                      draggable={Boolean(t)}
+                      onDragStart={(e) => { if (t) e.dataTransfer.setData('text/plain', String(t.id)) }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSopraGiorno(c.chiave) }}
+                      onDragLeave={() => setSopraGiorno(null)}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        const id = Number(e.dataTransfer.getData('text/plain'))
+                        if (id) spostaA(id, c.iso)
+                      }}
+                      className={`group relative flex min-h-[30px] min-w-0 items-start gap-1.5 border-b border-r border-bordo/70 px-1.5 py-1 ${
+                        t ? 'cursor-grab active:cursor-grabbing' : ''
+                      } ${tinta(t?.colore ?? null)} ${
+                        sopraGiorno === c.chiave && !t ? 'bg-navy/5' : ''
+                      }`}
+                    >
+                      {t ? (
+                        <>
+                          <Cerchio fatta={false} onClick={() => spuntaMia(t)} />
+                          <span className="min-w-0 flex-1 truncate pt-0.5 text-[13px] leading-tight" title={t.titolo}>
+                            {t.titolo}
+                          </span>
                           <button
-                            key={k}
-                            onClick={() => { aggiorna(t.id, { colore: k }); setTavolozza(null) }}
-                            aria-label={k}
-                            className={`h-4 w-4 rounded-full ${pallino}`}
+                            onClick={(e) => { e.stopPropagation(); setTavolozza(tavolozza === t.id ? null : t.id) }}
+                            aria-label="Colore"
+                            className={`mt-1 h-3 w-3 shrink-0 rounded-full border border-bordo transition-opacity ${
+                              t.colore ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                            } ${COLORI.find(([k]) => k === t.colore)?.[2] ?? 'bg-white'}`}
                           />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {aggiungoIn === c.chiave ? (
-                  <input
-                    autoFocus
-                    value={nuovoIn}
-                    onChange={(e) => setNuovoIn(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') aggiungiIn(c.iso)
-                      if (e.key === 'Escape') { setAggiungoIn(null); setNuovoIn('') }
-                    }}
-                    onBlur={() => aggiungiIn(c.iso)}
-                    placeholder="Cosa c'è da fare"
-                    className="w-full border-b border-blu px-2 py-1.5 text-[13px] outline-none"
-                  />
-                ) : (
-                  <button
-                    onClick={() => { setAggiungoIn(c.chiave); setNuovoIn('') }}
-                    className="w-full border-b border-velo px-2 py-1.5 text-left text-[13px] text-spento/60 hover:bg-velo/60 hover:text-navy"
-                  >
-                    +
-                  </button>
-                )}
-              </div>
+                          {tavolozza === t.id && (
+                            <div className="salta-su absolute right-1 top-6 z-20 flex gap-1 rounded-xl border border-bordo bg-white p-1.5 shadow-[0_8px_24px_rgba(16,24,40,0.16)]">
+                              <button
+                                onClick={() => { aggiorna(t.id, { colore: null }); setTavolozza(null) }}
+                                aria-label="Nessun colore"
+                                className="h-4 w-4 rounded-full border border-bordo bg-white"
+                              />
+                              {COLORI.map(([k, , pallino]) => (
+                                <button key={k} onClick={() => { aggiorna(t.id, { colore: k }); setTavolozza(null) }}
+                                  aria-label={k} className={`h-4 w-4 rounded-full ${pallino}`} />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : aggiungoIn === chiaveCella ? (
+                        <input
+                          autoFocus
+                          value={nuovoIn}
+                          onChange={(e) => setNuovoIn(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') aggiungiIn(c.iso)
+                            if (e.key === 'Escape') { setAggiungoIn(null); setNuovoIn('') }
+                          }}
+                          onBlur={() => aggiungiIn(c.iso)}
+                          className="w-full bg-transparent text-[13px] outline-none"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setAggiungoIn(chiaveCella); setNuovoIn('') }}
+                          aria-label="Scrivi qui"
+                          className="absolute inset-0 hover:bg-velo/60"
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </Fragment>
             ))}
           </div>
         </div>
