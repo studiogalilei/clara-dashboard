@@ -338,14 +338,12 @@ export default function Oggi({ onOpen }: Props) {
       return { iso: giorno(d), nome: GIORNI_IT[i], numero: d.getDate() }
     })
     const vive = (attivita ?? []).filter((t) => !t.fatta)
-    const senzaData = vive.filter((t) => !t.scadenza)
-    const colonne: Array<{ chiave: string; titolo: string; sotto: string; iso: string | null; task: TaskDre[]; oggi: boolean }> = [
-      { chiave: 'senza', titolo: 'Senza data', sotto: `${senzaData.length}`, iso: null, task: senzaData, oggi: false },
-      ...giorni.map((g) => ({
-        chiave: g.iso, titolo: g.nome, sotto: String(g.numero), iso: g.iso,
-        task: vive.filter((t) => t.scadenza === g.iso), oggi: g.iso === oggi(),
-      })),
-    ]
+    // niente colonne appese ai lati: il blocco comincia lunedi' e finisce
+    // domenica (Dre, 3/9). Le task senza data vivono in On go.
+    const colonne = giorni.map((g) => ({
+      chiave: g.iso, titolo: g.nome, sotto: String(g.numero), iso: g.iso as string | null,
+      task: vive.filter((t) => t.scadenza === g.iso), oggi: g.iso === oggi(),
+    }))
 
     const RIGHE = Math.max(14, ...colonne.map((c) => c.task.length + 2))
     const righe = Array.from({ length: RIGHE }, (_, i) => i)
@@ -356,14 +354,13 @@ export default function Oggi({ onOpen }: Props) {
       <div className="mx-[calc(50%-50vw)] w-screen px-4 lg:px-8">
         <div className="overflow-x-auto rounded-lg border border-bordo bg-white">
           <div className="grid min-w-[1000px]"
-               style={{ gridTemplateColumns: '34px minmax(150px,0.8fr) repeat(7, minmax(140px,1fr))' }}>
+               style={{ gridTemplateColumns: 'repeat(7, minmax(140px,1fr))' }}>
 
             {/* la testata: i giorni, grossi, come nel foglio */}
-            <div className="border-b border-r border-bordo bg-velo" />
             {colonne.map((c) => (
               <div
                 key={`t-${c.chiave}`}
-                className={`border-b border-r border-bordo px-2.5 py-1.5 ${
+                className={`border-b border-bordo px-2.5 py-1.5 last:border-r-0 [&:not(:last-child)]:border-r ${
                   c.oggi ? 'bg-navy text-white' : 'bg-navy/10 text-navy'
                 }`}
               >
@@ -379,9 +376,6 @@ export default function Oggi({ onOpen }: Props) {
             {/* il reticolo: le celle ci sono anche quando sono vuote */}
             {righe.map((r) => (
               <Fragment key={`r-${r}`}>
-                <div className="border-b border-r border-bordo bg-velo px-1 py-1 text-right text-[10px] tabular-nums text-spento">
-                  {r + 1}
-                </div>
                 {colonne.map((c) => {
                   const t = c.task[r]
                   const chiaveCella = `${c.chiave}-${r}`
