@@ -22,6 +22,21 @@ function leggiVista(): Vista {
 
 const GIORNI_IT = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
 
+// I colori sono facoltativi (Dre, 3/9): di default una task e' bianca come
+// tutto il resto. Chi vuole marcarne qualcuna se la colora, ma tinte tenui:
+// il foglio di Giacomo piace perche' e' pulito, non perche' e' colorato.
+const COLORI: Array<[string, string, string]> = [
+  // [chiave, tinta della riga, pallino nel selettore]
+  ['giallo', 'bg-amber-50', 'bg-amber-300'],
+  ['verde',  'bg-green-50', 'bg-green-400'],
+  ['blu',    'bg-blue-50',  'bg-blue-400'],
+  ['viola',  'bg-violet-50', 'bg-violet-400'],
+  ['rosa',   'bg-pink-50',  'bg-pink-300'],
+  ['grigio', 'bg-gray-100', 'bg-gray-400'],
+]
+// la tinta della riga: bianca se nessuno l'ha voluta colorata
+const tinta = (c: string | null) => COLORI.find(([k]) => k === c)?.[1] ?? ''
+
 // il lunedi' della settimana di una data
 function lunediDi(d: Date): Date {
   const x = new Date(d)
@@ -42,6 +57,7 @@ interface TaskDre {
   dettagli: string | null
   scadenza: string | null
   ordine: number
+  colore: string | null
   fatta: boolean
   fatta_il: string | null
 }
@@ -115,6 +131,7 @@ export default function Oggi({ onOpen }: Props) {
   const [aggiungoIn, setAggiungoIn] = useState<string | null>(null)
   const [nuovoIn, setNuovoIn] = useState('')
   const [sopraGiorno, setSopraGiorno] = useState<string | null>(null)
+  const [tavolozza, setTavolozza] = useState<number | null>(null)
 
   const [stretto, setStretto] = useState(false)
   useEffect(() => {
@@ -334,45 +351,78 @@ export default function Oggi({ onOpen }: Props) {
       // a tutta larghezza: una settimana dentro un contenitore stretto
       // costringe a scorrere, che e' esattamente quello che non si vuole
       <div className="mx-[calc(50%-50vw)] w-screen px-4 lg:px-8">
-        <div className="grid gap-2 overflow-x-auto pb-2"
-             style={{ gridTemplateColumns: 'minmax(150px,0.75fr) repeat(7, minmax(150px,1fr))' }}>
-          {colonne.map((c) => (
-            <section
-              key={c.chiave}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSopraGiorno(c.chiave) }}
-              onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setSopraGiorno(null) }}
-              onDrop={(e) => {
-                e.preventDefault()
-                const id = Number(e.dataTransfer.getData('text/plain'))
-                if (id) spostaA(id, c.iso)
-              }}
-              className={`flex min-h-[58vh] flex-col rounded-2xl border transition-colors ${
-                sopraGiorno === c.chiave ? 'border-navy bg-navy/5'
-                : c.oggi ? 'border-navy/30 bg-white' : 'border-bordo bg-white'
-              }`}
-            >
-              <header className="flex items-baseline justify-between gap-1 border-b border-velo px-3 py-2">
-                <span className={`text-[11px] font-bold uppercase tracking-wide ${c.oggi ? 'text-navy' : 'text-tenue'}`}>
+        <div className="overflow-x-auto rounded-xl border border-bordo bg-white">
+          <div className="grid min-w-[900px]"
+               style={{ gridTemplateColumns: 'minmax(150px,0.75fr) repeat(7, minmax(130px,1fr))' }}>
+
+            {/* la riga dei giorni */}
+            {colonne.map((c) => (
+              <div
+                key={`t-${c.chiave}`}
+                className={`flex items-baseline justify-between gap-1 border-b border-bordo px-2.5 py-2 ${
+                  c.chiave === 'senza' ? '' : 'border-l border-l-velo'
+                } ${c.oggi ? 'bg-navy text-white' : 'bg-velo/70'}`}
+              >
+                <span className={`text-[11px] font-bold uppercase tracking-wide ${c.oggi ? '' : 'text-tenue'}`}>
                   {c.titolo}
                 </span>
-                <span className={`text-sm font-extrabold tabular-nums ${c.oggi ? 'text-navy' : 'text-spento'}`}>
+                <span className={`text-xs font-extrabold tabular-nums ${c.oggi ? '' : 'text-spento'}`}>
                   {c.sotto}
                 </span>
-              </header>
+              </div>
+            ))}
 
-              <div className="flex-1 space-y-1.5 overflow-y-auto p-2">
+            {/* le celle: righe sottili, testo sulla riga */}
+            {colonne.map((c) => (
+              <div
+                key={`c-${c.chiave}`}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSopraGiorno(c.chiave) }}
+                onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setSopraGiorno(null) }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const id = Number(e.dataTransfer.getData('text/plain'))
+                  if (id) spostaA(id, c.iso)
+                }}
+                className={`min-h-[56vh] min-w-0 ${c.chiave === 'senza' ? '' : 'border-l border-velo'} ${
+                  sopraGiorno === c.chiave ? 'bg-navy/5' : ''
+                }`}
+              >
                 {c.task.map((t) => (
                   <div
                     key={t.id}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData('text/plain', String(t.id))}
-                    className="flex cursor-grab items-start gap-2 rounded-xl border border-bordo bg-white px-2 py-1.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] active:cursor-grabbing"
+                    className={`group relative flex cursor-grab items-start gap-1.5 border-b border-velo px-2 py-1.5 hover:bg-velo/50 active:cursor-grabbing ${tinta(t.colore)}`}
                   >
                     <Cerchio fatta={false} onClick={() => spuntaMia(t)} />
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] leading-snug">{t.titolo}</p>
                       {t.dettagli && <p className="truncate text-[11px] text-tenue">{t.dettagli}</p>}
                     </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTavolozza(tavolozza === t.id ? null : t.id) }}
+                      aria-label="Colore"
+                      className={`mt-1 h-3 w-3 shrink-0 rounded-full border border-bordo transition-opacity ${
+                        t.colore ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      } ${COLORI.find(([k]) => k === t.colore)?.[2] ?? 'bg-white'}`}
+                    />
+                    {tavolozza === t.id && (
+                      <div className="salta-su absolute right-1 top-6 z-20 flex gap-1 rounded-xl border border-bordo bg-white p-1.5 shadow-[0_8px_24px_rgba(16,24,40,0.16)]">
+                        <button
+                          onClick={() => { aggiorna(t.id, { colore: null }); setTavolozza(null) }}
+                          aria-label="Nessun colore"
+                          className="h-4 w-4 rounded-full border border-bordo bg-white"
+                        />
+                        {COLORI.map(([k, , pallino]) => (
+                          <button
+                            key={k}
+                            onClick={() => { aggiorna(t.id, { colore: k }); setTavolozza(null) }}
+                            aria-label={k}
+                            className={`h-4 w-4 rounded-full ${pallino}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -387,19 +437,19 @@ export default function Oggi({ onOpen }: Props) {
                     }}
                     onBlur={() => aggiungiIn(c.iso)}
                     placeholder="Cosa c'è da fare"
-                    className="w-full rounded-lg border border-blu bg-white px-2 py-1.5 text-[13px] outline-none"
+                    className="w-full border-b border-blu px-2 py-1.5 text-[13px] outline-none"
                   />
                 ) : (
                   <button
                     onClick={() => { setAggiungoIn(c.chiave); setNuovoIn('') }}
-                    className="w-full rounded-lg px-2 py-1.5 text-left text-[13px] text-spento hover:bg-velo/60 hover:text-navy"
+                    className="w-full border-b border-velo px-2 py-1.5 text-left text-[13px] text-spento/60 hover:bg-velo/60 hover:text-navy"
                   >
                     +
                   </button>
                 )}
               </div>
-            </section>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     )
