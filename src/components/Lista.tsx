@@ -81,7 +81,14 @@ export default function Lista({ onOpen, q }: Props) {
     const t = setTimeout(async () => {
       let query = supabase.from('prospects').select('*').limit(300)
       if (stage === 'attivi') query = query.neq('stage', 'nuovo')
-      else if (stage !== 'tutti') query = query.eq('stage', stage)
+      // cliente e perso non stanno in `stage`: la pipeline scrive solo
+      // pipeline_stage, e chiedendoli a `stage` si vedevano soltanto i record
+      // vecchio stile, cioe' l'esatto contrario (revisione 4/9)
+      else if (stage === 'cliente') {
+        query = query.or('and(fuori.eq.true,pipeline_stage.eq.cliente),and(fuori.eq.false,stage.eq.cliente)')
+      } else if (stage === 'perso') {
+        query = query.or('and(fuori.eq.true,pipeline_stage.eq.perso),and(fuori.eq.false,stage.eq.perso)')
+      } else if (stage !== 'tutti') query = query.eq('stage', stage)
       const pulito = q.trim().replace(/[,()"%]/g, ' ').trim()
       if (pulito) {
         const term = `%${pulito}%`

@@ -48,8 +48,12 @@ const CAMPI: Array<{ key: keyof Prospect; label: string; type?: string }> = [
 const TAPPE = ['Risposta', 'Analisi', 'Follow-up', 'Conoscitiva', 'Tecnica', 'Avvio', 'Cliente']
 
 function tappaCorrente(p: Prospect): number {
+  // stessa regola del resto dell'app: un cliente vecchio stile e' arrivato in
+  // fondo anche se non e' mai passato dalla pipeline (revisione 4/9)
+  if (eCliente(p)) return 6
+  if (ePerso(p)) return 0
   if (p.fuori && p.pipeline_stage) {
-    return { conoscitiva: 3, tecnica: 4, avvio: 5, cliente: 6, perso: 3 }[p.pipeline_stage] ?? 3
+    return { conoscitiva: 3, tecnica: 4, avvio: 5, cliente: 6, perso: 0 }[p.pipeline_stage] ?? 3
   }
   if (p.stage === 'in_follow_up') return 2
   if (p.stage === 'analisi_inviata') return 1
@@ -367,7 +371,7 @@ export default function Scheda({ id, onClose }: Props) {
   function adesso(): string {
     if (soppresso) return 'Soppresso: mai ricontattare. Il blocco è nei dati.'
     if (ePerso(p!)) return `Perso${p!.lost_reason ? `: ${p!.lost_reason}` : '. Nessun motivo scritto.'}`
-    if (p!.pipeline_stage === 'cliente') {
+    if (eCliente(p!)) {
       return p!.contratto === 'stable'
         ? `Cliente stabile${p!.canone ? `, ${fmtNum(Number(p!.canone))} € al mese` : ''}.`
         : p!.contratto === 'prova' ? 'Cliente in periodo di prova (1.500 € × 2 mesi).' : 'Cliente: contratto da definire qui sotto.'
@@ -980,7 +984,7 @@ export default function Scheda({ id, onClose }: Props) {
               </Card>
             )}
 
-            {p.pipeline_stage === 'cliente' && (
+            {eCliente(p) && (
               <Card className="p-4">
                 <TitoloCard>Contratto</TitoloCard>
                 <div className="flex flex-wrap gap-1">
