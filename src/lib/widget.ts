@@ -13,6 +13,7 @@ export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
   | 'tutti'
+  | 'progetti'
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
@@ -54,6 +55,11 @@ export const WIDGET: Widget[] = [
   { chiave: 'tutti', nome: 'Tutti', cosa: 'Clienti e prospect, con canone e chi li segue', zona: 'menu',
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M20 7h-9M14 17H5M17 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM7 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z' },
+  // solo per il coordinamento (Dre, 4/9): i progetti sono il mondo della
+  // delivery. Dre li vede comunque nella scheda del suo cliente.
+  { chiave: 'progetti', nome: 'Progetti', cosa: 'Il lavoro a scadenza: chi, quando, quanto', zona: 'menu',
+    ruoli: ['coordinamento'],
+    icona: 'M4 7h16v13H4zM4 7l2-3h12l2 3M9 12h6' },
   { chiave: 'analytics', nome: 'Analytics', cosa: 'I numeri: funnel, ricorrente, canali', zona: 'sistema',
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 20v-6M11 20V6M17 20v-9M3 20h18' },

@@ -13,6 +13,7 @@ import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import TuttiElenco from './components/TuttiElenco'
+import Progetti from './components/Progetti'
 import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
@@ -319,6 +320,8 @@ export default function App() {
               <Vault onOpen={setOpenId} />
             ) : tab === 'plugin' ? (
               <Plugin />
+            ) : tab === 'progetti' ? (
+              <Progetti onOpen={setOpenId} />
             ) : tab === 'tutti' ? (
               <TuttiElenco onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (

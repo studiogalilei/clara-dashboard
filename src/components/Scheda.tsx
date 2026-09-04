@@ -9,6 +9,8 @@ import {
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
 import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase } from '../lib/regole'
+import NuovoProgetto from './NuovoProgetto'
+import { STATI, type Progetto } from './Progetti'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
   fmtDate, fmtDateShort, fmtOra, daysAgo, giorni, fmtNum, sgid,
@@ -96,6 +98,8 @@ export default function Scheda({ id, onClose }: Props) {
   // la scheda e' IL posto: qui dentro deve esserci tutto quello che esiste
   // su di lui (Dre, 4/9)
   const [documenti, setDocumenti] = useState<Array<{ id: number; nome: string; path: string; at: string }>>([])
+  const [progetti, setProgetti] = useState<Progetto[]>([])
+  const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
   const [prepAperta, setPrepAperta] = useState(false)
   const [prepChiesta, setPrepChiesta] = useState(false)
@@ -108,7 +112,7 @@ export default function Scheda({ id, onClose }: Props) {
     // poteva essere scritta sul prospect sbagliato (revisione 4/9)
     let vivo = true
     setP(null); setTimeline(null); setDraft({}); setDocumenti([]); setTaskSue([])
-    setProssimaCall(null); setTranscript(''); setNota(''); setPremio([])
+    setProssimaCall(null); setTranscript(''); setNota(''); setPremio([]); setProgetti([])
     setErrore(null); setSaved(false); setNoteAperte(false); setAltroAperto(false)
     supabase.from('prospects').select('*').eq('id', id).single()
       .then(({ data }) => { if (vivo) setP(data as Prospect) })
@@ -121,6 +125,9 @@ export default function Scheda({ id, onClose }: Props) {
     supabase.from('task').select('id,titolo,fatta,scadenza').eq('prospect_id', id)
       .order('fatta', { ascending: true }).limit(50)
       .then(({ data }) => { if (vivo) setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? []) })
+    supabase.from('progetti').select('*').eq('prospect_id', id)
+      .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
+      .then(({ data }) => { if (vivo) setProgetti((data as Progetto[]) ?? []) })
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .gte('at', new Date().toISOString())
       .order('at', { ascending: true }).limit(1)
@@ -224,8 +231,9 @@ export default function Scheda({ id, onClose }: Props) {
     const next = PIPELINE_NEXT[p.pipeline_stage]
     if (!next) return
     if (await aggiorna({ pipeline_stage: next, next_action: null, next_action_date: null })) {
-      await segna('nota', next === 'cliente' ? 'È DIVENTATO CLIENTE.' : `Avanzata a ${PIPELINE_LABEL[next]}`)
+      await segna('nota', next === 'cliente' ? 'DIVENTA CLIENTE.' : `Passa a ${PIPELINE_LABEL[next]}`)
       setAvanzataA(next)
+      if (next === 'cliente') setChiedoProgetto(true)
     }
   }
 
@@ -1061,6 +1069,44 @@ export default function Scheda({ id, onClose }: Props) {
               </Card>
             )}
 
+            {/* I SUOI PROGETTI: il lavoro a scadenza, quello che non e' canone */}
+            {eCliente(p) && !modifica && (
+              <Card className="p-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <TitoloCard>I suoi progetti</TitoloCard>
+                  <button
+                    onClick={() => setChiedoProgetto(true)}
+                    className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-navy"
+                  >
+                    + Aggiungi
+                  </button>
+                </div>
+                {progetti.length === 0 ? (
+                  <p className="py-2 text-sm text-spento">Nessun progetto in corso.</p>
+                ) : (
+                  <ul className="divide-y divide-velo">
+                    {progetti.map((g) => (
+                      <li key={g.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+                        <span className="min-w-0 flex-1 truncate font-semibold">{g.nome}</span>
+                        {g.chi_segue && <span className="shrink-0 text-xs text-tenue">{g.chi_segue}</span>}
+                        {g.scadenza && <span className="shrink-0 text-xs text-tenue">{fmtDateShort(g.scadenza)}</span>}
+                        {g.valore != null && (
+                          <span className="shrink-0 font-bold tabular-nums">
+                            {Number(g.valore).toLocaleString('it-IT')} €
+                          </span>
+                        )}
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          STATI.find(([st]) => st === g.stato)?.[2] ?? ''
+                        }`}>
+                          {STATI.find(([st]) => st === g.stato)?.[1]}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
+
             {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro.
                 Sta sempre, anche vuota: se no non sai dove finiscono quando
                 li salvi (Dre, 4/9) */}
@@ -1224,6 +1270,19 @@ export default function Scheda({ id, onClose }: Props) {
           </div>
         </div>
       </ZonaFile>
+      {chiedoProgetto && (
+        <NuovoProgetto
+          prospectId={p.id}
+          nomeCliente={p.company || p.name || p.email}
+          onFatto={() => {
+            setChiedoProgetto(false)
+            supabase.from('progetti').select('*').eq('prospect_id', p.id)
+              .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
+              .then(({ data }) => setProgetti((data as Progetto[]) ?? []))
+          }}
+        />
+      )}
+
     </div>
   )
 }

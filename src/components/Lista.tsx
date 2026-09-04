@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
 import { chiuso, eCliente, ePerso, vivo, pedaggioPagato } from '../lib/regole'
+import NuovoProgetto from './NuovoProgetto'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
 // (le fasi a colonne, statica: tutto nella larghezza, niente scroll);
@@ -67,6 +68,8 @@ export default function Lista({ onOpen, q }: Props) {
     { p: Prospect; da: Chiave; target: Chiave; tipo: 'indietro' | 'riapri' | 'perso' } | null
   >(null)
   const [motivo, setMotivo] = useState('')
+  // il pedaggio del cliente: cosa gli abbiamo venduto (Dre, 4/9)
+  const [nuovoCliente, setNuovoCliente] = useState<Prospect | null>(null)
   // il riassunto non si butta prima di averlo salvato (2/9)
   const [salvando, setSalvando] = useState(false)
   const [erroreP, setErroreP] = useState('')
@@ -267,6 +270,7 @@ export default function Lista({ onOpen, q }: Props) {
     if (come === 'riapri') {
       setToast({ testo: `${nome} riaperta in ${PIPELINE_LABEL[target]}`, tono: 'ok', id })
     } else if (target === 'cliente') {
+      setNuovoCliente(data as Prospect)
       setToast({ testo: `🏆 ${nome} è CLIENTE · apri la scheda e scegli il contratto`, tono: 'oro', id })
     } else if (salto > 0) {
       setToast({ testo: `${nome} → ${PIPELINE_LABEL[target]} ✓`, tono: 'ok', id })
@@ -639,6 +643,14 @@ export default function Lista({ onOpen, q }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {nuovoCliente && (
+        <NuovoProgetto
+          prospectId={nuovoCliente.id}
+          nomeCliente={nuovoCliente.company || nuovoCliente.name || nuovoCliente.email}
+          onFatto={() => setNuovoCliente(null)}
+        />
       )}
 
       {/* il toast: la voce della bacheca */}
