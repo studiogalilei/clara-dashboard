@@ -103,21 +103,29 @@ export default function Scheda({ id, onClose }: Props) {
   const transcriptRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    // si riparte da zero a ogni persona, e le risposte in ritardo della
+    // precedente non atterrano su questa: prima una modifica non salvata
+    // poteva essere scritta sul prospect sbagliato (revisione 4/9)
+    let vivo = true
+    setP(null); setTimeline(null); setDraft({}); setDocumenti([]); setTaskSue([])
+    setProssimaCall(null); setTranscript(''); setNota(''); setPremio([])
+    setErrore(null); setSaved(false); setNoteAperte(false); setAltroAperto(false)
     supabase.from('prospects').select('*').eq('id', id).single()
-      .then(({ data }) => setP(data as Prospect))
+      .then(({ data }) => { if (vivo) setP(data as Prospect) })
     supabase.from('interactions').select('*').eq('prospect_id', id)
       .order('at', { ascending: false }).limit(200)
-      .then(({ data }) => setTimeline([...((data as Interaction[]) ?? [])].reverse()))
+      .then(({ data }) => { if (vivo) setTimeline([...((data as Interaction[]) ?? [])].reverse()) })
     supabase.from('vault_file').select('id,nome,path,at').eq('prospect_id', id)
       .order('at', { ascending: false }).limit(50)
-      .then(({ data }) => setDocumenti((data as Array<{ id: number; nome: string; path: string; at: string }>) ?? []))
+      .then(({ data }) => { if (vivo) setDocumenti((data as Array<{ id: number; nome: string; path: string; at: string }>) ?? []) })
     supabase.from('task').select('id,titolo,fatta,scadenza').eq('prospect_id', id)
       .order('fatta', { ascending: true }).limit(50)
-      .then(({ data }) => setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? []))
+      .then(({ data }) => { if (vivo) setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? []) })
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .gte('at', new Date().toISOString())
       .order('at', { ascending: true }).limit(1)
-      .then(({ data }) => setProssimaCall(((data as AgendaItem[]) ?? [])[0] ?? null))
+      .then(({ data }) => { if (vivo) setProssimaCall(((data as AgendaItem[]) ?? [])[0] ?? null) })
+    return () => { vivo = false }
   }, [id])
 
   useEffect(() => {
@@ -378,6 +386,7 @@ export default function Scheda({ id, onClose }: Props) {
       await supabase.from('task').insert({
         titolo: `${t.slice(0, 60)} · ${p!.company || p!.name}`,
         scadenza: notaData, fatta: false, ordine: -1,
+        prospect_id: p!.id, owner: utenteId, da: utenteId,
       }).select().single()
     }
     if (notaClara) {

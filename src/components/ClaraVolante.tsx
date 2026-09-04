@@ -486,7 +486,8 @@ export default function ClaraVolante({ onOpen }: Props) {
     const t = pTitolo.trim()
     if (!t) return
     await supabase.from('task')
-      .insert({ titolo: t, scadenza: pData || null, fatta: false, ordine: -1 })
+      .insert({ titolo: t, scadenza: pData || null, fatta: false, ordine: -1,
+                owner: utenteId, da: utenteId, prospect_id: pProspect || null })
       .select().single()
     await scriviMessaggio('controllo', `Task aggiunta: «${t}»${pData ? ` · ${fmtDateShort(pData)}` : ''}`)
     setComando(null)

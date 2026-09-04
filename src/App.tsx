@@ -351,7 +351,7 @@ export default function App() {
         </div>
       </nav>
 
-      {openId && <Scheda id={openId} onClose={chiudiScheda} />}
+      {openId && <Scheda key={openId} id={openId} onClose={chiudiScheda} />}
 
       {/* Clara è dappertutto, anche sopra la scheda */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} />

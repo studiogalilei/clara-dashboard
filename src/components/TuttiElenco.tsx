@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect } from '../lib/types'
 import { eCliente, ePerso, vivo } from '../lib/regole'
@@ -30,6 +30,9 @@ export default function TuttiElenco({ onOpen }: Props) {
   const [filtro, setFiltro] = useState<Filtro>(leggiFiltro)
   const [scrivo, setScrivo] = useState<string | null>(null)
   const [bozza, setBozza] = useState('')
+  const [problema, setProblema] = useState('')
+  const scrivoRef = useRef<string | null>(null)
+  useEffect(() => { scrivoRef.current = scrivo }, [scrivo])
 
   useEffect(() => {
     supabase.from('prospects').select('*').neq('stage', 'nuovo')
@@ -46,8 +49,17 @@ export default function TuttiElenco({ onOpen }: Props) {
   async function assegna(p: Riga, chi: string) {
     const { data } = await supabase.from('prospects')
       .update({ chi_segue: chi.trim() || null }).eq('id', p.id).select().single()
-    if (data) setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Riga) : x)))
-    setScrivo(null); setBozza('')
+    if (!data) {
+      // se non si salva lo schermo non deve fingere di aver salvato
+      setProblema(`«${p.company || p.name}»: non sono riuscito a salvare chi lo segue.`)
+      return
+    }
+    setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Riga) : x)))
+    setProblema('')
+    // si chiude solo se stai ancora scrivendo su QUESTA riga: se nel
+    // frattempo ne hai aperta un'altra, la sua bozza non si tocca
+    setScrivo((s) => (s === p.id ? null : s))
+    setBozza((b) => (scrivoRef.current === p.id ? '' : b))
   }
 
   if (righe === null) return <Spinner />
@@ -111,6 +123,11 @@ export default function TuttiElenco({ onOpen }: Props) {
 
   return (
     <div className="space-y-3 pb-24 sm:pb-8">
+      {problema && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">
+          {problema}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-full border border-bordo bg-white">
           {FILTRI.map(([f, etichetta]) => (

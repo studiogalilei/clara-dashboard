@@ -296,9 +296,16 @@ export default function Oggi({ onOpen }: Props) {
     }
   }
 
+  // se il database rifiuta, lo schermo non deve mostrare il valore nuovo:
+  // prima restava scritto e nessuno se ne accorgeva (revisione 4/9)
   async function aggiorna(id: number, patch: Partial<TaskDre>) {
     const { data } = await supabase.from('task').update(patch).eq('id', id).select().single()
-    if (data) setAttivita((a) => a!.map((t) => (t.id === id ? (data as TaskDre) : t)))
+    if (!data) {
+      setProblema('Non sono riuscito a salvare: rimetto quello che c\'è nel database.')
+      caricaTask()
+      return
+    }
+    setAttivita((a) => a!.map((t) => (t.id === id ? (data as TaskDre) : t)))
   }
 
   async function aggiungi() {
