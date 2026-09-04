@@ -881,52 +881,6 @@ export default function Scheda({ id, onClose }: Props) {
               )}
             </Card>
 
-            {/* LA CARTELLA (Dre, 2/9): una sola e cresce. Nasce con quello
-                che gia' sappiamo di lui, senza che nessuno lo debba scrivere:
-                l'analisi ricevuta, chi sono, se vale la pena */}
-            {!modifica && (
-              <Card>
-                <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
-                  <TitoloCard>La cartella</TitoloCard>
-                  {codice && <span className="text-[11px] font-bold text-blu">{codice}</span>}
-                </header>
-
-                <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
-                  <span className="mt-0.5 text-base" aria-hidden>📄</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">L'analisi</p>
-                    {p.analysis_sent ? (
-                      <p className="text-xs text-tenue">
-                        Ricevuta il {fmtDateShort(p.analysis_sent_at)}
-                        {p.analysis_pdf ? '' : ' · il file non è agganciato qui'}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-tenue">Non ancora inviata</p>
-                    )}
-                  </div>
-                  {p.analysis_pdf && (
-                    <a href={p.analysis_pdf} target="_blank" rel="noreferrer"
-                       className="shrink-0 rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-navy hover:border-navy">
-                      Apri
-                    </a>
-                  )}
-                </div>
-
-                <div className="flex items-start gap-3 px-4 py-3">
-                  <span className="mt-0.5 text-base" aria-hidden>🏢</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-sm font-semibold">
-                      Chi sono
-                      {p.enriched?.descrizione === 'auto' && <Auto />}
-                    </p>
-                    <p className="text-sm leading-relaxed text-tenue">
-                      {p.descrizione ?? 'Ancora da scrivere: cosa fanno e a chi lo vendono.'}
-                    </p>
-                  </div>
-                </div>
-
-              </Card>
-            )}
 
             {/* il mercato, compresso nel verdetto */}
             {mercato && (
@@ -1025,6 +979,98 @@ export default function Scheda({ id, onClose }: Props) {
 
           {/* CENTRO: il vivo */}
           <div className="space-y-3">
+            {/* LA CARTELLA (Dre, 2/9): una sola e cresce. Nasce con quello
+                che gia' sappiamo di lui, senza che nessuno lo debba scrivere:
+                l'analisi ricevuta, chi sono, se vale la pena */}
+            {!modifica && (
+              <Card>
+                <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
+                  <TitoloCard>La cartella</TitoloCard>
+                  {codice && <span className="text-[11px] font-bold text-blu">{codice}</span>}
+                </header>
+
+                <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
+                  <span className="mt-0.5 text-base" aria-hidden>📄</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">L'analisi</p>
+                    {p.analysis_sent ? (
+                      <p className="text-xs text-tenue">
+                        Ricevuta il {fmtDateShort(p.analysis_sent_at)}
+                        {p.analysis_pdf ? '' : ' · il file non è agganciato qui'}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-tenue">Non ancora inviata</p>
+                    )}
+                  </div>
+                  {p.analysis_pdf && (
+                    <a href={p.analysis_pdf} target="_blank" rel="noreferrer"
+                       className="shrink-0 rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-navy hover:border-navy">
+                      Apri
+                    </a>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="mt-0.5 text-base" aria-hidden>🏢</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      Chi sono
+                      {p.enriched?.descrizione === 'auto' && <Auto />}
+                    </p>
+                    <p className="text-sm leading-relaxed text-tenue">
+                      {p.descrizione ?? 'Ancora da scrivere: cosa fanno e a chi lo vendono.'}
+                    </p>
+                  </div>
+                </div>
+
+              </Card>
+            )}
+
+            {/* DA FARE PER LUI: la scheda deve rispondere anche a questo */}
+            {taskSue.length > 0 && (
+              <Card className="p-4">
+                <TitoloCard>Da fare per lui</TitoloCard>
+                <ul className="divide-y divide-velo">
+                  {taskSue.map((t) => (
+                    <li key={t.id} className="flex items-center gap-2 py-1.5 text-sm">
+                      <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${t.fatta ? 'bg-green-600' : 'bg-amber-500'}`} />
+                      <span className={`min-w-0 flex-1 truncate ${t.fatta ? 'text-spento line-through' : ''}`}>
+                        {t.titolo}
+                      </span>
+                      {t.scadenza && (
+                        <span className="shrink-0 text-xs text-spento">{fmtDateShort(t.scadenza)}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro */}
+            {documenti.length > 0 && (
+              <Card className="p-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <TitoloCard>I suoi documenti</TitoloCard>
+                  <span className="text-xs text-spento">{documenti.length}</span>
+                </div>
+                <ul className="divide-y divide-velo">
+                  {documenti.map((d) => (
+                    <li key={d.id} className="flex items-center gap-2 py-1.5 text-sm">
+                      <span className="shrink-0" aria-hidden>📄</span>
+                      <a
+                        href={supabase.storage.from('vault').getPublicUrl(d.path).data.publicUrl}
+                        target="_blank" rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-blu hover:underline"
+                      >
+                        {d.nome}
+                      </a>
+                      <span className="shrink-0 text-xs text-spento">{fmtDateShort(d.at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
 
             {/* il pedaggio, quando serve */}
             {p.fuori && next && !soppresso && (
@@ -1108,50 +1154,7 @@ export default function Scheda({ id, onClose }: Props) {
               </div>
             </Card>
 
-            {/* DA FARE PER LUI: la scheda deve rispondere anche a questo */}
-            {taskSue.length > 0 && (
-              <Card className="p-4">
-                <TitoloCard>Da fare per lui</TitoloCard>
-                <ul className="divide-y divide-velo">
-                  {taskSue.map((t) => (
-                    <li key={t.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${t.fatta ? 'bg-green-600' : 'bg-amber-500'}`} />
-                      <span className={`min-w-0 flex-1 truncate ${t.fatta ? 'text-spento line-through' : ''}`}>
-                        {t.titolo}
-                      </span>
-                      {t.scadenza && (
-                        <span className="shrink-0 text-xs text-spento">{fmtDateShort(t.scadenza)}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
 
-            {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro */}
-            {documenti.length > 0 && (
-              <Card className="p-4">
-                <div className="flex items-baseline justify-between gap-2">
-                  <TitoloCard>I suoi documenti</TitoloCard>
-                  <span className="text-xs text-spento">{documenti.length}</span>
-                </div>
-                <ul className="divide-y divide-velo">
-                  {documenti.map((d) => (
-                    <li key={d.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <span className="shrink-0" aria-hidden>📄</span>
-                      <a
-                        href={supabase.storage.from('vault').getPublicUrl(d.path).data.publicUrl}
-                        target="_blank" rel="noreferrer"
-                        className="min-w-0 flex-1 truncate text-blu hover:underline"
-                      >
-                        {d.nome}
-                      </a>
-                      <span className="shrink-0 text-xs text-spento">{fmtDateShort(d.at)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
 
             {transcripts.length > 0 && (
               <Card className="p-4">
