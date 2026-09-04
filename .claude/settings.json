@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/dramane/Documents/odyn-crm/.claude/hooks/niente-chiavi.sh",
+            "if": "Bash(git commit*)",
+            "statusMessage": "Controllo che non ci siano chiavi",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/dramane/Documents/odyn-crm/.claude/hooks/regole-di-casa.sh",
+            "statusMessage": "Passo dal cancello delle regole di casa",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
