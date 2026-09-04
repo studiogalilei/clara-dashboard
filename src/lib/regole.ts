@@ -97,6 +97,37 @@ export async function ricorrenteMensile(): Promise<{
   }
 }
 
+// ── quanti ce n'e' in ogni fase ───────────────────────────────────
+// Lo stesso nome valeva due numeri a un click di distanza: la home li
+// contava sul database, la bacheca contava le 300 righe che era riuscita a
+// scaricare, e lo scriveva in fondo alla pagina come una confessione. Ora la
+// domanda e' una e la fa il database, per tutte e due (revisione 4/9).
+export type Fascia = 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'cliente' | 'perso'
+
+const MORTI_QUERY = `and(fuori.eq.false,classificazione.in.("${MORTI.join('","')}"))`
+
+const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
+  prospect: soloProspect,
+  conoscitiva: (q) => q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva'),
+  tecnica: (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica'),
+  avvio: (q) => q.eq('fuori', true).eq('pipeline_stage', 'avvio'),
+  cliente: (q) => q.or(CLIENTI_QUERY),
+  // fra i persi ci sono anche i morti dichiarati: non sono piu' prospect
+  perso: (q) => q.or(
+    'and(fuori.eq.true,pipeline_stage.eq.perso),and(fuori.eq.false,stage.eq.perso),' + MORTI_QUERY),
+}
+
+export const FASCE = Object.keys(DOMANDE) as Fascia[]
+
+export async function contaFasi(): Promise<Record<Fascia, number>> {
+  const esiti = await Promise.all(FASCE.map((f) =>
+    DOMANDE[f](supabase.from('prospects')
+      .select('*', { count: 'exact', head: true }) as unknown as Filtro) as unknown as Promise<{ count: number | null }>))
+  const out = {} as Record<Fascia, number>
+  FASCE.forEach((f, i) => { out[f] = esiti[i]?.count ?? 0 })
+  return out
+}
+
 // ── la coda di oggi, una sola ─────────────────────────────────────
 // «Cosa devo fare oggi» era scritta tre volte: il saluto di Clara la contava
 // in un modo, il Radar in un altro e la pagina Task in un terzo, con gruppi,

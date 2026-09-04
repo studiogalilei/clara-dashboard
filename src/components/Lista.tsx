@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato, ricorrenteMensile } from '../lib/regole'
+import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato, ricorrenteMensile, contaFasi, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
@@ -18,7 +18,7 @@ interface Props {
 }
 
 type Vista = 'board' | 'elenco'
-type Chiave = PipelineStage | 'prospect'
+type Chiave = Fascia
 
 // le colonne della bacheca: le fasi vere (ordine di Dre, 1/9)
 const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
@@ -52,6 +52,10 @@ function leggiVista(): Vista {
 export default function Lista({ onOpen, q }: Props) {
   const [rows, setRows] = useState<Prospect[] | null>(null)
   const [ricorrente, setRicorrente] = useState<{ mese: number; quanti: number; senza: number } | null>(null)
+  // i numeri delle colonne li conta il database, come la home: le carte
+  // scaricate sono le prime 300 e non sono un conteggio (revisione 4/9)
+  const [quanti, setQuanti] = useState<Record<Fascia, number> | null>(null)
+  const [giro, setGiro] = useState(0)   // ogni carta mossa rifa i conti
   const [stage, setStage] = useState<Stage | 'attivi' | 'tutti'>('attivi')
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -79,6 +83,7 @@ export default function Lista({ onOpen, q }: Props) {
   }
 
   useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
+  useEffect(() => { contaFasi().then(setQuanti) }, [giro])
 
   useEffect(() => {
     let vivo = true
@@ -210,6 +215,7 @@ export default function Lista({ onOpen, q }: Props) {
       body: 'Entra in Conoscitiva.',
     }).select().single()
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
+    setGiro((g) => g + 1)
     setMosso(p.id)
     setToast({ testo: `${nome} → Conoscitiva ✓`, tono: 'ok', id: p.id })
     return true
@@ -229,6 +235,7 @@ export default function Lista({ onOpen, q }: Props) {
       body: 'Uscita dalla pipeline: torna fra i prospect.',
     }).select().single()
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
+    setGiro((g) => g + 1)
     setMosso(p.id)
     setToast({ testo: `${nome} torna fra i prospect`, tono: 'ok', id: p.id })
   }
@@ -249,6 +256,7 @@ export default function Lista({ onOpen, q }: Props) {
       body: `Segnato come perso: ${perche}`,
     }).select().single()
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
+    setGiro((g) => g + 1)
     setMosso(p.id)
     setToast({ testo: `${nome} → Perso`, tono: 'ok', id: p.id })
   }
@@ -275,6 +283,7 @@ export default function Lista({ onOpen, q }: Props) {
         : `Torna in ${PIPELINE_LABEL[target]}${eraCliente ? ': contratto e canone azzerati' : ''}`,
     }).select().single()
     setRows((rs) => rs!.map((x) => (x.id === id ? (data as Prospect) : x)))
+    setGiro((g) => g + 1)
     setMosso(id)
     if (come === 'riapri') {
       setToast({ testo: `${nome} riaperta in ${PIPELINE_LABEL[target]}`, tono: 'ok', id })
@@ -478,7 +487,9 @@ export default function Lista({ onOpen, q }: Props) {
               >
                 <header className="flex items-baseline justify-between gap-2 px-3 pb-2 pt-2.5">
                   <Micro className="text-inchiostro">{nome}</Micro>
-                  <span className="text-xs font-semibold text-tenue">{dentro.length}</span>
+                  <span className="text-xs font-semibold text-tenue">
+                    {quanti ? quanti[chiave] : dentro.length}
+                  </span>
                 </header>
                 <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
                   {dentro.length === 0
@@ -514,7 +525,7 @@ export default function Lista({ onOpen, q }: Props) {
 
       {rows.length >= 300 && (
         <p className="mt-2 text-center text-xs text-spento">
-          Primi 300: i numeri delle colonne contano solo questi
+          In bacheca le prime 300 carte; i numeri sulle colonne sono tutti
         </p>
       )}
 

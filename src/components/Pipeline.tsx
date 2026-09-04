@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { soloProspect, type Filtro } from '../lib/regole'
+import { contaFasi, type Fascia } from '../lib/regole'
 import Radar from './Radar'
 import { Micro, Spinner, fmtNum } from './ui'
 
@@ -17,30 +16,20 @@ interface Props {
   onTutti?: () => void
 }
 
-// [nome, colore-fase (lo stesso delle facce), la domanda al database]
-const FASI: Array<[string, string, (q: Filtro) => Filtro]> = [
-  // il numero dei prospect lo decide regole.ts, come per la bacheca e per
-  // Tutti: qui dentro mancava «passato a qualcun altro» e la home ne contava
-  // piu' delle altre due schermate (revisione 4/9)
-  ['Prospect', 'bg-amber-400', soloProspect],
-  ['Call Conoscitiva', 'bg-[#6b85e0]', (q) =>
-    q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva')],
-  ['Call Tecnica', 'bg-blu', (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica')],
-  ['Call di Avvio', 'bg-navy', (q) => q.eq('fuori', true).eq('pipeline_stage', 'avvio')],
+// [nome, colore-fase (lo stesso delle facce), quale fascia]. I numeri li
+// conta regole.ts: sono gli stessi che vedi sulle colonne della bacheca,
+// e prima erano due conti diversi a un click di distanza (revisione 4/9)
+const FASI: Array<[string, string, Fascia]> = [
+  ['Prospect', 'bg-amber-400', 'prospect'],
+  ['Call Conoscitiva', 'bg-[#6b85e0]', 'conoscitiva'],
+  ['Call Tecnica', 'bg-blu', 'tecnica'],
+  ['Call di Avvio', 'bg-navy', 'avvio'],
 ]
 
 export default function Pipeline({ onOpen, onOggi, onCalendario, onTutti }: Props) {
-  const [numeri, setNumeri] = useState<number[] | null>(null)
+  const [numeri, setNumeri] = useState<Record<Fascia, number> | null>(null)
 
-  useEffect(() => {
-    Promise.all(
-      FASI.map(([, , domanda]) =>
-        domanda(supabase.from('prospects')
-          .select('*', { count: 'exact', head: true }) as unknown as Filtro) as unknown as Promise<{ count: number | null }>),
-    ).then((esiti) => {
-      setNumeri(esiti.map((e) => e.count ?? 0))
-    })
-  }, [])
+  useEffect(() => { contaFasi().then(setNumeri) }, [])
 
   if (numeri === null) return <Spinner />
 
@@ -49,7 +38,7 @@ export default function Pipeline({ onOpen, onOggi, onCalendario, onTutti }: Prop
 
       {/* ── le fasi, coi numeri ───────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {FASI.map(([nome, colore], i) => (
+        {FASI.map(([nome, colore, fascia]) => (
           <button
             key={nome}
             onClick={onTutti}
@@ -60,7 +49,7 @@ export default function Pipeline({ onOpen, onOggi, onCalendario, onTutti }: Prop
               <Micro>{nome}</Micro>
             </span>
             <p className="mt-1 text-[26px] font-extrabold leading-none tabular-nums">
-              {fmtNum(numeri[i] ?? 0)}
+              {fmtNum(numeri[fascia] ?? 0)}
             </p>
           </button>
         ))}
