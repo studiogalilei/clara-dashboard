@@ -44,6 +44,17 @@ const CAMPI: Array<{ key: keyof Prospect; label: string; type?: string }> = [
   { key: 'lost_reason', label: 'Motivo perso / rinvio' },
 ]
 
+// Perche' non ha funzionato, detto com'e' davvero. Prima ogni errore
+// diventava «il database non e' aggiornato (schema v4)», che era una diagnosi
+// finta: nascondeva permessi, rete e colonne mancanti sotto la stessa frase.
+function spiegaErrore(e: { message?: string; code?: string } | null): string {
+  if (e?.code === '42703' || e?.code === 'PGRST204') {
+    return 'Il database non ha questa colonna: manca una migrazione (supabase/schema_completo.sql).'
+  }
+  if (e?.code === '42501') return 'Il database ha rifiutato: non hai il permesso di scrivere qui.'
+  return 'Salvataggio non riuscito: ' + (e?.message ?? 'motivo sconosciuto')
+}
+
 // le sette tappe del percorso, per lo stepper in testata
 const TAPPE = ['Risposta', 'Analisi', 'Follow-up', 'Conoscitiva', 'Tecnica', 'Avvio', 'Cliente']
 
@@ -128,7 +139,13 @@ export default function Scheda({ id, onClose }: Props) {
       .then(({ data }) => { if (vivo) setDocumenti((data as Array<{ id: number; nome: string; path: string; at: string }>) ?? []) })
     supabase.from('task').select('id,titolo,fatta,scadenza').eq('prospect_id', id)
       .order('fatta', { ascending: true }).limit(50)
-      .then(({ data }) => { if (vivo) setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? []) })
+      .then(({ data, error }) => {
+        if (!vivo) return
+        // vuoto perche' non ce ne sono e vuoto perche' la colonna non esiste
+        // erano la stessa immagine: due cose diverse (revisione 4/9)
+        if (error) setErrore('Le sue task non si leggono. ' + spiegaErrore(error))
+        setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? [])
+      })
     supabase.from('progetti').select('*').eq('prospect_id', id)
       .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
       .then(({ data }) => { if (vivo) setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)) })
@@ -170,7 +187,7 @@ export default function Scheda({ id, onClose }: Props) {
       setDraft({})
       setSaved(true)
     } else if (error) {
-      setErrore('Salvataggio non riuscito: il database non è aggiornato (schema v4).')
+      setErrore(spiegaErrore(error))
     }
     setSaving(false)
   }
@@ -180,7 +197,7 @@ export default function Scheda({ id, onClose }: Props) {
     const { data, error } = await supabase.from('prospects')
       .update(patch).eq('id', id).select().single()
     if (data) setP(data as Prospect)
-    if (error) setErrore('Salvataggio non riuscito: il database non è aggiornato (schema v4).')
+    if (error) setErrore(spiegaErrore(error))
     return Boolean(data) && !error
   }
 
@@ -199,7 +216,7 @@ export default function Scheda({ id, onClose }: Props) {
       .insert(riga)
       .select().single()
     if (data) setTimeline((t) => [...(t ?? []), data as Interaction])
-    if (error) setErrore('Salvataggio non riuscito: il database non è aggiornato (schema v4).')
+    if (error) setErrore(spiegaErrore(error))
     return Boolean(data) && !error
   }
 
@@ -395,11 +412,17 @@ export default function Scheda({ id, onClose }: Props) {
     if (!t) return
     await segna('postit', notaData ? `${t} · ricordamelo il ${fmtDateShort(notaData)}` : t)
     if (notaData) {
-      await supabase.from('task').insert({
+      // ordine: -1 fisso voleva dire che due promemoria nati da due schede
+      // diverse si accavallavano in cima. Stesso calcolo che fa Task
+      const { data: prima } = await supabase.from('task')
+        .select('ordine').order('ordine', { ascending: true }).limit(1).single()
+      const ordine = Math.min(0, Number((prima as { ordine?: number } | null)?.ordine ?? 0)) - 1
+      const { error } = await supabase.from('task').insert({
         titolo: `${t.slice(0, 60)} · ${p!.company || p!.name}`,
-        scadenza: notaData, fatta: false, ordine: -1,
+        scadenza: notaData, fatta: false, ordine,
         prospect_id: p!.id, owner: utenteId, da: utenteId,
       }).select().single()
+      if (error) setErrore('Il promemoria non è finito in Task. ' + spiegaErrore(error))
     }
     if (notaClara) {
       await supabase.from('clara_messaggi').insert({

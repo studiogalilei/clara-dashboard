@@ -48,7 +48,8 @@ export default function Progetti({ onOpen }: Props) {
     supabase.from('progetti').select('*')
       .order('scadenza', { ascending: true, nullsFirst: false }).limit(300)
       .then(({ data }) => setRighe((data as Progetto[]) ?? []))
-    supabase.from('prospects').select('id,company,name,email').neq('stage', 'nuovo').limit(500)
+    supabase.from('prospects').select('id,company,name,email').neq('stage', 'nuovo')
+      .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(500)
       .then(({ data }) => {
         const m: Record<string, string> = {}
         for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string }>) ?? []) {

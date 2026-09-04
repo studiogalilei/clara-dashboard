@@ -81,6 +81,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         .eq('awaiting_us', false)
         .eq('fuori', false)
         .or(VIVI)
+        .order('analysis_sent_at', { ascending: true, nullsFirst: false })
         .limit(1000),
       supabase
         .from('prospects')
@@ -93,6 +94,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         .eq('fuori', false)
         .in('classificazione', ['rinvio', 'ooo'])
         .eq('no_followup', false)
+        .order('last_reply_at', { ascending: false, nullsFirst: false })
         .limit(1000),
       supabase
         .from('prospects')
@@ -100,6 +102,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         .eq('awaiting_us', true)
         .eq('fuori', false)
         .or(VIVI)
+        .order('last_reply_at', { ascending: false, nullsFirst: false })
         .limit(1000),
     ]).then(([ag, fu, pi, ri, dr]) => {
       const eventi = (ag.data as AgendaItem[]) ?? []

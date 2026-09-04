@@ -232,22 +232,27 @@ export default function ClaraVolante({ onOpen }: Props) {
   // messaggi indirizzati a te, piu' quelli di tutti che non hanno un
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const caricaMessaggi = useCallback(() => {
+    // la scelta la fa il database, non il browser: se no gli 80 posti se li
+    // prende chi ha parlato di piu' e i tuoi messaggi non arrivano mai
+    const miei = utenteId ? `owner.is.null,owner.eq.${utenteId}` : 'owner.is.null'
     supabase
       .from('clara_messaggi')
       .select('*')
       .neq('tipo', 'saluto')
+      .or(miei)
       .order('at', { ascending: false })
       .limit(80)
       .then(({ data }) => {
         const tutti = (data as Array<Messaggio & { owner?: string | null }>) ?? []
-        const miei = tutti.filter((m) => !m.owner || m.owner === utenteId)
-        setMessaggi([...miei].reverse())
+        setMessaggi([...tutti].reverse())
       })
   }, [utenteId])
 
   useEffect(() => {
     caricaMessaggi()
-    supabase.from('prospects').select('*').neq('stage', 'nuovo').limit(300)
+    supabase.from('prospects').select('*').neq('stage', 'nuovo')
+      .order('last_reply_at', { ascending: false, nullsFirst: false })
+      .limit(300)
       .then(({ data }) => setProspects((data as Prospect[]) ?? []))
   }, [aperta, caricaMessaggi])
 
@@ -485,10 +490,18 @@ export default function ClaraVolante({ onOpen }: Props) {
   async function confermaTask() {
     const t = pTitolo.trim()
     if (!t) return
-    await supabase.from('task')
-      .insert({ titolo: t, scadenza: pData || null, fatta: false, ordine: -1,
+    const { data: prima } = await supabase.from('task')
+      .select('ordine').order('ordine', { ascending: true }).limit(1).single()
+    const ordine = Math.min(0, Number((prima as { ordine?: number } | null)?.ordine ?? 0)) - 1
+    const { error } = await supabase.from('task')
+      .insert({ titolo: t, scadenza: pData || null, fatta: false, ordine,
                 owner: utenteId, da: utenteId, prospect_id: pProspect || null })
       .select().single()
+    if (error) {
+      await scriviMessaggio('controllo', `La task «${t}» non si è salvata: ${error.message}`)
+      setComando(null)
+      return
+    }
     await scriviMessaggio('controllo', `Task aggiunta: «${t}»${pData ? ` · ${fmtDateShort(pData)}` : ''}`)
     setComando(null)
   }

@@ -68,7 +68,9 @@ export default function Vault({ onOpen }: Props) {
         if (error) setProblema('I documenti non si caricano: ' + error.message)
         setFile((data as FileVault[]) ?? [])
       })
-    supabase.from('prospects').select('*').neq('stage', 'nuovo').limit(300)
+    supabase.from('prospects').select('*').neq('stage', 'nuovo')
+      .order('last_reply_at', { ascending: false, nullsFirst: false })
+      .limit(300)
       .then(({ data }) => setProspects((data as Prospect[]) ?? []))
   }, [])
 

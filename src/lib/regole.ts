@@ -85,6 +85,7 @@ export async function ricorrenteMensile(): Promise<{
     .from('prospects')
     .select('canone, fuori, stage, pipeline_stage')
     .or(CLIENTI_QUERY)
+    .order('canone', { ascending: false, nullsFirst: false })
     .limit(2000)
   if (error) return { mese: 0, quanti: 0, senza: 0, problema: error.message }
   const clienti = ((data ?? []) as Array<Fase & { canone: number | null }>).filter(eCliente)

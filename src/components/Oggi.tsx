@@ -162,18 +162,25 @@ export default function Oggi({ onOpen }: Props) {
   }
 
   const caricaTask = useCallback(() => {
-    // le mie: quelle mie e quelle vecchie senza proprietario
-    supabase.from('task').select('*').order('ordine', { ascending: true }).limit(200)
-      .then(({ data }) => {
-        const tutte = (data as TaskDre[]) ?? []
-        setAttivita(tutte.filter((t) => !t.owner || t.owner === io))
-        setMandate(tutte.filter((t) => t.da && t.da === io && t.owner !== io))
-      })
+    // le mie: quelle mie e quelle vecchie senza proprietario. Chiedere «di
+    // chi sono» al database e non al browser: se no, con due persone, le 200
+    // righe se le prendeva chi ne aveva scritte di piu' (revisione 4/9)
+    const mie = io ? `owner.is.null,owner.eq.${io}` : 'owner.is.null'
+    supabase.from('task').select('*').or(mie)
+      .order('ordine', { ascending: true }).limit(200)
+      .then(({ data }) => setAttivita((data as TaskDre[]) ?? []))
+    // quelle che ho mandato io a un altro: e' una lista sua, non mia,
+    // ma voglio sapere se l'ha presa
+    if (io) {
+      supabase.from('task').select('*').eq('da', io).neq('owner', io)
+        .order('ordine', { ascending: true }).limit(100)
+        .then(({ data }) => setMandate((data as TaskDre[]) ?? []))
+    } else setMandate([])
   }, [io])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setIo(data.session?.user?.id ?? null))
-    supabase.from('profili').select('id,nome').limit(20)
+    supabase.from('profili').select('id,nome').order('nome', { ascending: true }).limit(20)
       .then(({ data }) => setPersone((data as Persona[]) ?? []))
   }, [])
 

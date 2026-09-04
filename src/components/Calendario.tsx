@@ -70,6 +70,7 @@ export default function Calendario({ onOpen }: Props) {
         .select('*')
         .eq('fuori', true)
         .not('next_action_date', 'is', null)
+        .order('next_action_date', { ascending: true })
         .limit(200),
       supabase
         .from('prospects')
@@ -77,6 +78,7 @@ export default function Calendario({ onOpen }: Props) {
         .eq('fuori', false)
         .eq('no_followup', false)
         .not('followup_due', 'is', null)
+        .order('followup_due', { ascending: true })
         .limit(200),
     ]).then(([ag, pa, fu]) => {
       const out: Voce[] = ((ag.data as AgendaItem[]) ?? []).map((a) => ({

@@ -82,7 +82,8 @@ export default function Lista({ onOpen, q }: Props) {
   useEffect(() => {
     let vivo = true
     const t = setTimeout(async () => {
-      let query = supabase.from('prospects').select('*').limit(300)
+      let query = supabase.from('prospects').select('*')
+        .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(300)
       if (stage === 'attivi') query = query.neq('stage', 'nuovo')
       // cliente e perso non stanno in `stage`: la pipeline scrive solo
       // pipeline_stage, e chiedendoli a `stage` si vedevano soltanto i record
