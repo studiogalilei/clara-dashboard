@@ -21,6 +21,16 @@ export interface Progetto {
   note: string | null
 }
 
+// il lavoro vivo sta sopra, il consegnato scende; a parita' comanda la
+// scadenza, e chi non ce l'ha va in coda (revisione 4/9)
+export function ordineProgetti(a: Progetto, b: Progetto): number {
+  const finito = (p: Progetto) => (p.stato === 'consegnato' ? 1 : 0)
+  if (finito(a) !== finito(b)) return finito(a) - finito(b)
+  if (!a.scadenza) return b.scadenza ? 1 : 0
+  if (!b.scadenza) return -1
+  return a.scadenza.localeCompare(b.scadenza)
+}
+
 export const STATI: Array<[Progetto['stato'], string, string]> = [
   ['da_iniziare', 'Da iniziare', 'bg-velo text-tenue'],
   ['in_corso', 'In corso', 'bg-blu/10 text-blu'],
@@ -48,9 +58,17 @@ export default function Progetti({ onOpen }: Props) {
       })
   }, [])
 
+  const [problema, setProblema] = useState<string | null>(null)
+
   async function cambiaStato(p: Progetto, stato: Progetto['stato']) {
-    const { data } = await supabase.from('progetti').update({ stato }).eq('id', p.id).select().single()
-    if (data) setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Progetto) : x)))
+    const { data, error } = await supabase.from('progetti').update({ stato }).eq('id', p.id).select().single()
+    if (error || !data) {
+      // prima il menu tornava indietro da solo e sembrava un ripensamento
+      setProblema(`«${p.nome}» non è cambiato di stato: ${error?.message ?? 'nessuna riga aggiornata'}`)
+      return
+    }
+    setProblema(null)
+    setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Progetto) : x)))
   }
 
   if (righe === null) return <Spinner />
@@ -99,6 +117,12 @@ export default function Progetti({ onOpen }: Props) {
 
   return (
     <div className="space-y-3 pb-24 sm:pb-8">
+      {problema && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span className="flex-1">{problema}</span>
+          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">chiudi</button>
+        </div>
+      )}
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-3">
         <span className="text-xl font-extrabold tabular-nums">{valore.toLocaleString('it-IT')} €</span>
         <Micro>in lavorazione</Micro>

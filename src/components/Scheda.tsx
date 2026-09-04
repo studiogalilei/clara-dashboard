@@ -10,7 +10,7 @@ import {
 import { mercatoDi } from '../lib/mercato'
 import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
-import { STATI, type Progetto } from './Progetti'
+import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
   fmtDate, fmtDateShort, fmtOra, daysAgo, giorni, fmtNum, sgid,
@@ -131,7 +131,7 @@ export default function Scheda({ id, onClose }: Props) {
       .then(({ data }) => { if (vivo) setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? []) })
     supabase.from('progetti').select('*').eq('prospect_id', id)
       .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
-      .then(({ data }) => { if (vivo) setProgetti((data as Progetto[]) ?? []) })
+      .then(({ data }) => { if (vivo) setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)) })
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .gte('at', new Date().toISOString())
       .order('at', { ascending: true }).limit(1)
@@ -1282,7 +1282,7 @@ export default function Scheda({ id, onClose }: Props) {
             setChiedoProgetto(false)
             supabase.from('progetti').select('*').eq('prospect_id', p.id)
               .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
-              .then(({ data }) => setProgetti((data as Progetto[]) ?? []))
+              .then(({ data }) => setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)))
           }}
         />
       )}
