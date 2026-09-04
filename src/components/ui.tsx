@@ -218,7 +218,7 @@ export function ZonaFile({ onFile, messaggio = 'Lascia qui il file', className =
 
   return (
     <div
-      className={`relative ${className}`}
+      className="relative flex min-h-0 flex-1 flex-col"
       onDragEnter={(e) => {
         if (!eFile(e)) return
         conta.current += 1
@@ -239,7 +239,7 @@ export function ZonaFile({ onFile, messaggio = 'Lascia qui il file', className =
         if (f) onFile(f)
       }}
     >
-      {children}
+      <div className={className}>{children}</div>
       {sopra && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-navy bg-navy/5">
           <span className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white shadow-lg">

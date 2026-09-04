@@ -44,6 +44,7 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
   const [vistaTutti, setVistaTutti] = useState(() => leggi('tutti-vista', 'board'))
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
   const [presa, setPresa] = useState<Chiave | null>(null)
+  const [sopra, setSopra] = useState<Chiave | null>(null)
   const comando = ruolo === 'ceo'
 
   // trascina per riordinare: l'ordine vale per il menu, non solo per qui
@@ -53,10 +54,11 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
     const da = n.findIndex((w) => w.chiave === presa)
     const a = n.findIndex((w) => w.chiave === sopra)
     const [mosso] = n.splice(da, 1)
-    n.splice(a, 0, mosso)
+    n.splice(da < a ? a - 1 : a, 0, mosso)   // come in Oggi: gli indici scalano
     setLista(n)
     salvaOrdine(n.map((w) => w.chiave))
     setPresa(null)
+    setSopra(null)
     onCambio()
   }
 
@@ -136,13 +138,18 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
             <div
               key={w.chiave}
               draggable
-              onDragStart={() => setPresa(w.chiave)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => lascia(w.chiave)}
-              onDragEnd={() => setPresa(null)}
+              onDragStart={(e) => {
+                setPresa(w.chiave)
+                // Firefox non avvia il trascinamento senza dati (revisione 4/9)
+                e.dataTransfer.setData('text/plain', w.chiave)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(e) => { e.preventDefault(); setSopra(w.chiave) }}
+              onDrop={(e) => { e.preventDefault(); lascia(w.chiave) }}
+              onDragEnd={() => { setPresa(null); setSopra(null) }}
               className={`border-b border-velo px-4 py-3 last:border-0 ${
                 presa === w.chiave ? 'bg-velo opacity-60' : ''
-              }`}
+              } ${sopra === w.chiave && presa && presa !== w.chiave ? 'border-t-2 border-t-blu' : ''}`}
             >
               <div className="flex items-center gap-3">
                 <span className="cursor-grab text-spento active:cursor-grabbing" aria-hidden>

@@ -340,7 +340,9 @@ export default function Oggi({ onOpen }: Props) {
     const a = vive.findIndex((t) => t.id === su.id)
     if (da < 0 || a < 0) return
     const [mossa] = vive.splice(da, 1)
-    vive.splice(a, 0, mossa)
+    // dopo la rimozione gli indici a valle scalano di uno: senza questa
+    // correzione la task finiva una riga piu' giu' di dove diceva la linea
+    vive.splice(da < a ? a - 1 : a, 0, mossa)
     // si riscrive l'ordine 0..n
     setAttivita((att) => {
       const mappa = new Map(vive.map((t, i) => [t.id, i]))
@@ -400,7 +402,7 @@ export default function Oggi({ onOpen }: Props) {
     return (
       // a tutta larghezza: una settimana dentro un contenitore stretto
       // costringe a scorrere, che e' esattamente quello che non si vuole
-      <div className="mx-[calc(50%-50vw)] w-screen px-4 lg:px-8">
+      <div className="-mx-4 lg:-mx-8">
         <div className="overflow-x-auto rounded-lg border border-bordo bg-white">
           <div className="grid min-w-[1000px]"
                style={{ gridTemplateColumns: 'repeat(7, minmax(140px,1fr))' }}>
