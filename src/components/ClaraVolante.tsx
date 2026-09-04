@@ -529,18 +529,20 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   return (
     <>
-      <button
-        onClick={() => setAperta(!aperta)}
-        aria-label="Clara"
-        className="fixed bottom-20 right-4 z-[70] flex h-14 w-14 items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.28)] transition-transform hover:-translate-y-0.5 sm:bottom-6 sm:right-6"
-      >
-        <ClaraLogo size={38} lavora={pensa} />
-        {nonLetti.length > 0 && !aperta && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-            {nonLetti.length}
-          </span>
-        )}
-      </button>
+      {!aperta && (
+        <button
+          onClick={() => setAperta(true)}
+          aria-label="Clara"
+          className="fixed bottom-20 right-4 z-[70] flex h-14 w-14 items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.28)] transition-transform hover:-translate-y-0.5 sm:bottom-6 sm:right-6"
+        >
+          <ClaraLogo size={38} lavora={pensa} />
+          {nonLetti.length > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+              {nonLetti.length}
+            </span>
+          )}
+        </button>
+      )}
 
       {aperta && (
         <>
@@ -741,12 +743,11 @@ export default function ClaraVolante({ onOpen }: Props) {
                 <button
                   onClick={() => manda(testo)}
                   disabled={!testo.trim() || invio}
-                  aria-label="Invia"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-white transition-opacity disabled:opacity-25"
+                  aria-label="Manda a Clara"
+                  title="Manda a Clara"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-navy transition-all hover:bg-velo disabled:opacity-25 disabled:hover:bg-transparent"
                 >
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                    <path d="M3 20v-6l8-2-8-2V4l19 8z" />
-                  </svg>
+                  <ClaraLogo size={26} lavora={invio || pensa} />
                 </button>
               </div>
             </div>
