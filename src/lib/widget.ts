@@ -1,0 +1,98 @@
+// I WIDGET (Dre, 3/9).
+//
+// Ogni pezzo della Dashboard e' un widget: dichiara chi e', cosa mostra e a
+// chi serve. Le Impostazioni li accendono e li spengono, e Dre decide chi ha
+// accesso a cosa. E' la stessa forma della scheda delle skill di Clara e del
+// menu componibile: quando lo stesso schema torna tre volte da strade
+// diverse, e' quello giusto.
+//
+// Aggiungere un widget vuol dire aggiungere una riga qui sotto: compare da
+// solo nelle Impostazioni e nel menu, senza toccare nient'altro.
+
+export type Chiave =
+  | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
+  | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
+  | 'clienti'
+
+export type Ruolo = 'ceo' | 'coordinamento'
+
+export const RUOLI: Array<[Ruolo, string]> = [
+  ['ceo', 'CEO'],
+  ['coordinamento', 'Coordinamento'],
+]
+
+export interface Widget {
+  chiave: Chiave
+  nome: string
+  cosa: string                 // una riga: cosa mostra, non cosa e'
+  zona: 'menu' | 'sistema'
+  icona: string                // path SVG 24x24, tratto
+  ruoli: Ruolo[]               // chi ci arriva, salvo diverso ordine di Dre
+  fisso?: boolean              // non si spegne: senza, non sapresti dove sei
+}
+
+export const WIDGET: Widget[] = [
+  { chiave: 'pipeline', nome: 'Dashboard', cosa: 'La giornata: fasi, coda, avvisi', zona: 'menu', fisso: true,
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
+  { chiave: 'prospect', nome: 'Tutti', cosa: 'Prospect e clienti, bacheca ed elenco', zona: 'menu',
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a3 3 0 1 0 0-6M22 21c0-2.8-1.9-5.1-4.5-5.8' },
+  { chiave: 'calendario', nome: 'Calendario', cosa: 'Call, follow-up e scadenze', zona: 'menu',
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 3v4M16 3v4M4 11h16' },
+  { chiave: 'oggi', nome: 'Task', cosa: 'Le tue attività, On go o Week picture', zona: 'menu',
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M4 6h16M4 12h10M4 18h7' },
+  { chiave: 'analytics', nome: 'Analytics', cosa: 'I numeri: funnel, ricorrente, canali', zona: 'sistema',
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M5 20v-6M11 20V6M17 20v-9M3 20h18' },
+  { chiave: 'vault', nome: 'Vault', cosa: 'I documenti, agganciati ai prospect', zona: 'sistema',
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3' },
+  { chiave: 'plugin', nome: 'Agenti e Skills', cosa: 'Cosa sa fare Clara, e i collegamenti', zona: 'sistema',
+    ruoli: ['ceo'],
+    icona: 'M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7zM12 17v4' },
+  { chiave: 'impostazioni', nome: 'Impostazioni', cosa: 'Widget, ruoli e accessi', zona: 'sistema', fisso: true,
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z' },
+]
+
+export const widgetDi = (c: Chiave) => WIDGET.find((w) => w.chiave === c)
+
+// ── chi sei ───────────────────────────────────────────────────────
+// Finche' gli accessi non sono legati ai ruoli sul database, il ruolo e'
+// una scelta locale. Serve gia' adesso per provare cosa vede Giacomo.
+export function mioRuolo(): Ruolo {
+  try { return (localStorage.getItem('mio-ruolo') as Ruolo) || 'ceo' } catch { return 'ceo' }
+}
+export function scegliRuolo(r: Ruolo) {
+  try { localStorage.setItem('mio-ruolo', r) } catch { /* niente */ }
+}
+
+// ── chi arriva dove: lo decide Dre ────────────────────────────────
+type Accessi = Partial<Record<Chiave, Ruolo[]>>
+export function accessi(): Accessi {
+  try { return JSON.parse(localStorage.getItem('widget-accessi') ?? '{}') } catch { return {} }
+}
+export function salvaAccessi(a: Accessi) {
+  try { localStorage.setItem('widget-accessi', JSON.stringify(a)) } catch { /* niente */ }
+}
+export function ruoliDi(w: Widget): Ruolo[] {
+  return accessi()[w.chiave] ?? w.ruoli
+}
+
+// ── cosa vuoi vedere tu: lo decide ognuno per se' ─────────────────
+export function nascosti(): Chiave[] {
+  try { return JSON.parse(localStorage.getItem('widget-nascosti') ?? '[]') } catch { return [] }
+}
+export function salvaNascosti(n: Chiave[]) {
+  try { localStorage.setItem('widget-nascosti', JSON.stringify(n)) } catch { /* niente */ }
+}
+
+// il menu vero: quello a cui arrivi, meno quello che hai spento
+export function menuDi(ruolo: Ruolo, zona: 'menu' | 'sistema'): Widget[] {
+  const spenti = nascosti()
+  return WIDGET.filter((w) =>
+    w.zona === zona && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave)))
+}

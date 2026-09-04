@@ -11,6 +11,8 @@ import Vault from './components/Vault'
 import Plugin from './components/Plugin'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
+import Impostazioni from './components/Impostazioni'
+import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
 
@@ -18,31 +20,9 @@ import Scheda from './components/Scheda'
 // sinistra, testata con titolo grande e ricerca, contenuto in carte morbide.
 // Sul telefono la sidebar sparisce e resta la barra in basso.
 
-type Tab = 'pipeline' | 'oggi' | 'calendario' | 'analytics' | 'prospect' | 'vault' | 'plugin'
-
-const TABS: Array<[Tab, string, string]> = [
-  // [tab, etichetta, icona (path SVG 24x24, tratto)] — ordine di Dre (1/9)
-  ['pipeline', 'Dashboard', 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z'],
-  ['prospect', 'Tutti', 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a3 3 0 1 0 0-6M22 21c0-2.8-1.9-5.1-4.5-5.8'],
-  ['calendario', 'Calendario', 'M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 3v4M16 3v4M4 11h16'],
-  ['oggi', 'Task', 'M4 6h16M4 12h10M4 18h7'],
-]
-
-const TITOLI: Record<Tab, string> = {
-  pipeline: 'Dashboard',
-  oggi: 'Task',
-  calendario: 'Calendario',
-  analytics: 'Analytics',
-  prospect: 'Tutti',
-  vault: 'Vault',
-  plugin: 'Plugin',
-}
-
-const SISTEMA: Array<[Tab, string, string]> = [
-  ['analytics', 'Analytics', 'M5 20v-6M11 20V6M17 20v-9M3 20h18'],
-  ['vault', 'Vault', 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3'],
-  ['plugin', 'Plugin', 'M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7zM12 17v4'],
-]
+// il menu si compone dal registro dei widget: aggiungerne uno non si tocca
+// piu' qui dentro (Dre, 3/9)
+type Tab = Chiave
 
 // il saluto grande: cambia ogni giorno, a volte fa anche ridere.
 // Deterministico sul giorno dell'anno: tutta la giornata la stessa frase.
@@ -160,7 +140,10 @@ export default function App() {
   if (!session) return <Login />
 
   const utente = demo ? 'Demo' : (session.user.email ?? '').split('@')[0]
-  const titolo = TITOLI[tab]
+  const titolo = widgetDi(tab)?.nome ?? ''
+  const ruolo = mioRuolo()
+  const voci = menuDi(ruolo, 'menu')
+  const vociSistema = menuDi(ruolo, 'sistema')
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
@@ -180,7 +163,7 @@ export default function App() {
           Menu
         </p>
         <nav className="space-y-1">
-          {TABS.map(([t, label, icona]) => {
+          {voci.map(({ chiave: t, nome: label, icona }) => {
             const attivo = tab === t
             return (
               <button
@@ -206,7 +189,7 @@ export default function App() {
           Sistema
         </p>
         <nav className="space-y-1">
-          {SISTEMA.map(([t, label, icona]) => {
+          {vociSistema.map(({ chiave: t, nome: label, icona }) => {
             const attivo = tab === t
             return (
               <button
@@ -327,6 +310,8 @@ export default function App() {
               <Vault onOpen={setOpenId} />
             ) : tab === 'plugin' ? (
               <Plugin />
+            ) : tab === 'impostazioni' ? (
+              <Impostazioni onCambio={() => setVersione((v) => v + 1)} />
             ) : (
               <Lista onOpen={setOpenId} q={q} />
             )}
@@ -337,7 +322,7 @@ export default function App() {
       {/* navigazione mobile */}
       <nav className="fixed inset-x-0 bottom-0 border-t border-bordo bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="flex">
-          {TABS.map(([t, label, icona]) => (
+          {voci.map(({ chiave: t, nome: label, icona }) => (
             <button
               key={t}
               onClick={() => { setTab(t); setOpenId(null) }}
