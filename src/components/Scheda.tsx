@@ -8,7 +8,7 @@ import {
   type AgendaItem,
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
-import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase } from '../lib/regole'
+import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import {
@@ -412,17 +412,12 @@ export default function Scheda({ id, onClose }: Props) {
     if (!t) return
     await segna('postit', notaData ? `${t} · ricordamelo il ${fmtDateShort(notaData)}` : t)
     if (notaData) {
-      // ordine: -1 fisso voleva dire che due promemoria nati da due schede
-      // diverse si accavallavano in cima. Stesso calcolo che fa Task
-      const { data: prima } = await supabase.from('task')
-        .select('ordine').order('ordine', { ascending: true }).limit(1).single()
-      const ordine = Math.min(0, Number((prima as { ordine?: number } | null)?.ordine ?? 0)) - 1
-      const { error } = await supabase.from('task').insert({
+      const { problema } = await creaTask({
         titolo: `${t.slice(0, 60)} · ${p!.company || p!.name}`,
-        scadenza: notaData, fatta: false, ordine,
-        prospect_id: p!.id, owner: utenteId, da: utenteId,
-      }).select().single()
-      if (error) setErrore('Il promemoria non è finito in Task. ' + spiegaErrore(error))
+        scadenza: notaData,
+        prospect_id: p!.id,
+      })
+      if (problema) setErrore('Il promemoria non è finito in Task: ' + problema)
     }
     if (notaClara) {
       await supabase.from('clara_messaggi').insert({

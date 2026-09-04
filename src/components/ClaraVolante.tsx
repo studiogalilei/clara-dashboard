@@ -4,7 +4,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
-import { pulisci } from '../lib/regole'
+import { pulisci, creaTask } from '../lib/regole'
 
 // Clara volante: pannello allargabile (trascina il bordo sinistro), la
 // conversazione stile Claude, e i COMANDI RAPIDI. Regola del workflow
@@ -491,15 +491,11 @@ export default function ClaraVolante({ onOpen }: Props) {
   async function confermaTask() {
     const t = pTitolo.trim()
     if (!t) return
-    const { data: prima } = await supabase.from('task')
-      .select('ordine').order('ordine', { ascending: true }).limit(1).single()
-    const ordine = Math.min(0, Number((prima as { ordine?: number } | null)?.ordine ?? 0)) - 1
-    const { error } = await supabase.from('task')
-      .insert({ titolo: t, scadenza: pData || null, fatta: false, ordine,
-                owner: utenteId, da: utenteId, prospect_id: pProspect || null })
-      .select().single()
-    if (error) {
-      await scriviMessaggio('controllo', `La task «${t}» non si è salvata: ${error.message}`)
+    const { problema } = await creaTask({
+      titolo: t, scadenza: pData || null, prospect_id: pProspect || null,
+    })
+    if (problema) {
+      await scriviMessaggio('controllo', `La task «${t}» non si è salvata: ${problema}`)
       setComando(null)
       return
     }

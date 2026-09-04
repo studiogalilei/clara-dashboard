@@ -4,7 +4,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Classificazione } from '../lib/types'
 import Radar from './Radar'
 import { Card, Spinner, giorni, fmtDateShort, sgid } from './ui'
-import { oggi, giorno, codaDiOggi, type VoceCoda } from '../lib/regole'
+import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -290,18 +290,16 @@ export default function Oggi({ onOpen }: Props) {
   async function aggiungi() {
     const titolo = nuovo.trim()
     if (!titolo) { setAggiungo(false); return }
-    const minOrd = Math.min(0, ...attivita!.map((t) => t.ordine)) - 1
-    // se la mandi a qualcun altro nasce «proposta»: entra nella sua lista
-    // solo quando lui la accetta (Dre, 3/9)
     const altrui = Boolean(perChi && perChi !== io)
-    const { data } = await supabase.from('task')
-      .insert({
-        titolo, scadenza: nuovaData || null, fatta: false, ordine: minOrd,
-        owner: altrui ? perChi : io, da: io, stato: altrui ? 'proposta' : 'accettata',
-      })
-      .select().single()
-    if (data && !altrui) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
-    if (data && altrui) setMandate((m) => [data as TaskDre, ...m])
+    const { task, problema: guaio } = await creaTask({
+      titolo,
+      scadenza: nuovaData || null,
+      perChi,
+      ordine: Math.min(0, ...attivita!.map((t) => t.ordine)) - 1,
+    })
+    if (guaio) { setProblema('La task non è stata salvata: ' + guaio); return }
+    if (task && !altrui) setAttivita((a) => [task as TaskDre, ...(a ?? [])])
+    if (task && altrui) setMandate((m) => [task as TaskDre, ...m])
     setNuovo('')
     setNuovaData('')
     setPerChi('')

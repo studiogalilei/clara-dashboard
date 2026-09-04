@@ -128,6 +128,73 @@ export async function contaFasi(): Promise<Record<Fascia, number>> {
   return out
 }
 
+// ── nascere una task, da una porta sola ───────────────────────────
+// Le task si creano da quattro posti (Task, la scheda di un cliente, Clara,
+// e adesso il Calendario) e ognuno si ricopiava le stesse quattro righe:
+// chi e' il padrone, chi l'ha mandata, che ordine ha, se e' una proposta.
+// Bastava scordarsene una perche' la task finisse nella lista di un altro,
+// ed e' gia' successo. Adesso la porta e' una (revisione 4/9).
+export interface TaskRiga {
+  id: number
+  at: string
+  titolo: string
+  dettagli: string | null
+  scadenza: string | null
+  ordine: number
+  colore: string | null
+  fatta: boolean
+  fatta_il: string | null
+  owner: string | null
+  da: string | null
+  stato: 'proposta' | 'accettata' | 'rimandata' | 'fatta'
+  motivo: string | null
+}
+
+export interface NuovaTask {
+  titolo: string
+  scadenza?: string | null
+  prospect_id?: string | null
+  // se la mandi a qualcun altro nasce «proposta»: entra nella sua lista solo
+  // quando lui la accetta (Dre, 3/9)
+  perChi?: string | null
+  // chi ha la lista sott'occhio sa gia' dove va in cima e non la richiede
+  ordine?: number
+}
+
+export async function creaTask(t: NuovaTask): Promise<{ task: TaskRiga | null; problema: string | null }> {
+  const titolo = t.titolo.trim()
+  if (!titolo) return { task: null, problema: 'Una task senza titolo non è una task.' }
+
+  const { data: sess } = await supabase.auth.getSession()
+  const io = sess.session?.user?.id ?? null
+
+  let ordine = t.ordine
+  if (ordine === undefined) {
+    // in cima alla lista: la piu' piccola meno uno. Con -1 fisso due task
+    // nate da due schermate diverse si accavallavano
+    const { data: prima } = await supabase.from('task')
+      .select('ordine').order('ordine', { ascending: true }).limit(1).single()
+    ordine = Math.min(0, Number((prima as { ordine?: number } | null)?.ordine ?? 0)) - 1
+  }
+
+  const altrui = Boolean(t.perChi && t.perChi !== io)
+  const { data, error } = await supabase.from('task').insert({
+    titolo,
+    scadenza: t.scadenza || null,
+    prospect_id: t.prospect_id || null,
+    fatta: false,
+    ordine,
+    owner: altrui ? t.perChi : io,
+    da: io,
+    stato: altrui ? 'proposta' : 'accettata',
+  }).select().single()
+
+  if (error || !data) {
+    return { task: null, problema: error?.message ?? 'la task non è stata salvata' }
+  }
+  return { task: data as TaskRiga, problema: null }
+}
+
 // ── la coda di oggi, una sola ─────────────────────────────────────
 // «Cosa devo fare oggi» era scritta tre volte: il saluto di Clara la contava
 // in un modo, il Radar in un altro e la pagina Task in un terzo, con gruppi,

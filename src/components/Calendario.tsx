@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, AgendaItem } from '../lib/types'
 import { Card, Micro, Empty, fmtDateShort, fmtOra } from './ui'
-import { giorno } from '../lib/regole'
+import { giorno, creaTask } from '../lib/regole'
 
 // Il calendario: griglia mensile con le chip dei prospect nelle celle
 // (desktop) e lista raggruppata sul telefono. Tre colori fissi:
 // call = blu Galilei, follow-up armato = ambra, scadenza/altro = rosso.
 // Sola lettura: i meeting li mette Dre su Google Calendar, regola fissa.
+//
+// L'unica cosa che si scrive da qui e' una task, e sta apposta in fondo al
+// pannello del giorno e non nella barra in alto (Dre, 4/9): il calendario
+// non e' il posto delle task, ma se sei qui e ti viene in mente una cosa per
+// giovedi', doverla andare a scrivere altrove significa perderla.
 
 type Tipo = 'call' | 'followup' | 'altro'
 
@@ -56,6 +61,23 @@ export default function Calendario({ onOpen }: Props) {
   const [anno, setAnno] = useState(oggi.getFullYear())
   const [mese, setMese] = useState(oggi.getMonth())
   const [scelto, setScelto] = useState(chiave(oggi))
+  const [scrivoTask, setScrivoTask] = useState(false)
+  const [titoloTask, setTitoloTask] = useState('')
+  const [salvo, setSalvo] = useState(false)
+  const [esito, setEsito] = useState<string | null>(null)
+
+  async function aggiungiTask() {
+    const titolo = titoloTask.trim()
+    if (!titolo) { setScrivoTask(false); return }
+    setSalvo(true)
+    const { problema } = await creaTask({ titolo, scadenza: scelto })
+    setSalvo(false)
+    if (problema) { setEsito('Non si è salvata: ' + problema); return }
+    setEsito(`«${titolo}» è in Task per il ${fmtDateShort(scelto)} ✓`)
+    setTitoloTask('')
+    setScrivoTask(false)
+    setTimeout(() => setEsito(null), 3000)
+  }
 
   useEffect(() => {
     Promise.all([
@@ -301,6 +323,40 @@ export default function Calendario({ onOpen }: Props) {
             {delGiorno.length === 0
               ? <Empty text="Niente in programma" />
               : delGiorno.map(rigaVoce)}
+
+            {/* la porta discreta: una riga sotto quello che c'e' gia' */}
+            <div className="border-t border-velo px-4 py-2.5">
+              {scrivoTask ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={titoloTask}
+                    onChange={(e) => setTitoloTask(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') aggiungiTask()
+                      if (e.key === 'Escape') { setScrivoTask(false); setTitoloTask('') }
+                    }}
+                    placeholder="Cosa c'è da fare?"
+                    className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu"
+                  />
+                  <button
+                    onClick={aggiungiTask}
+                    disabled={!titoloTask.trim() || salvo}
+                    className="shrink-0 rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30"
+                  >
+                    {salvo ? 'Salvo…' : 'Metti in Task'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setScrivoTask(true)}
+                  className="text-xs font-semibold text-spento hover:text-navy"
+                >
+                  + una task per questo giorno
+                </button>
+              )}
+              {esito && <p className="mt-1.5 text-xs font-semibold text-green-700">{esito}</p>}
+            </div>
           </Card>
         </div>
       </div>
