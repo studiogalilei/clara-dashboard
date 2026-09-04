@@ -213,14 +213,14 @@ type Riga = Record<string, unknown>
 
 const sync_runs: Riga[] = [{ id: 1, finished_at: new Date(Date.now() - 13 * 60000).toISOString(), ok: true }]
 
-const task_dre: Riga[] = [
+const task: Riga[] = [
   { id: 1, at: gg(1), titolo: 'Mandare i 30 follow-up su Smartlead', dettagli: 'le bozze sono pronte', scadenza: data(-1), ordine: 0, fatta: false, fatta_il: null },
   { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1) },
 ]
 
 const TABELLE: Record<string, Riga[]> = {
   sync_runs,
-  task_dre,
+  task,
   vault_file: vault_file as unknown as Riga[],
   clara_messaggi: clara_messaggi as unknown as Riga[],
   prospects: prospects as unknown as Riga[],

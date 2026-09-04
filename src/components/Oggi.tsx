@@ -151,7 +151,7 @@ export default function Oggi({ onOpen }: Props) {
   }
 
   const caricaTask = useCallback(() => {
-    supabase.from('task_dre').select('*').order('ordine', { ascending: true }).limit(200)
+    supabase.from('task').select('*').order('ordine', { ascending: true }).limit(200)
       .then(({ data }) => setAttivita((data as TaskDre[]) ?? []))
   }, [])
 
@@ -242,7 +242,7 @@ export default function Oggi({ onOpen }: Props) {
     setSpuntando(`dre-${t.id}`)
     setTimeout(async () => {
       setSpuntando(null)
-      const { data } = await supabase.from('task_dre')
+      const { data } = await supabase.from('task')
         .update({ fatta: true, fatta_il: new Date().toISOString() })
         .eq('id', t.id).select().single()
       if (data) setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))
@@ -251,7 +251,7 @@ export default function Oggi({ onOpen }: Props) {
 
   async function ripristina(c: { chiave: string; taskId: number | null }) {
     if (c.taskId !== null) {
-      const { data } = await supabase.from('task_dre')
+      const { data } = await supabase.from('task')
         .update({ fatta: false, fatta_il: null }).eq('id', c.taskId).select().single()
       if (data) setAttivita((a) => a!.map((x) => (x.id === c.taskId ? (data as TaskDre) : x)))
     } else {
@@ -263,7 +263,7 @@ export default function Oggi({ onOpen }: Props) {
   }
 
   async function aggiorna(id: number, patch: Partial<TaskDre>) {
-    const { data } = await supabase.from('task_dre').update(patch).eq('id', id).select().single()
+    const { data } = await supabase.from('task').update(patch).eq('id', id).select().single()
     if (data) setAttivita((a) => a!.map((t) => (t.id === id ? (data as TaskDre) : t)))
   }
 
@@ -271,7 +271,7 @@ export default function Oggi({ onOpen }: Props) {
     const titolo = nuovo.trim()
     if (!titolo) { setAggiungo(false); return }
     const minOrd = Math.min(0, ...attivita!.map((t) => t.ordine)) - 1
-    const { data } = await supabase.from('task_dre')
+    const { data } = await supabase.from('task')
       .insert({ titolo, scadenza: nuovaData || null, fatta: false, ordine: minOrd })
       .select().single()
     if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
@@ -305,7 +305,7 @@ export default function Oggi({ onOpen }: Props) {
       return prima?.ordine !== i
     })
     const esiti = await Promise.all(cambiate.map(({ id, i }) =>
-      supabase.from('task_dre').update({ ordine: i }).eq('id', id).select().single()))
+      supabase.from('task').update({ ordine: i }).eq('id', id).select().single()))
     if (esiti.some((e) => !e.data)) {
       setProblema('Il nuovo ordine non è stato salvato: rimetto quello del database.')
       caricaTask()
@@ -322,7 +322,7 @@ export default function Oggi({ onOpen }: Props) {
     const t = nuovoIn.trim()
     if (!t) { setAggiungoIn(null); return }
     const min = Math.min(0, ...(attivita ?? []).map((x) => x.ordine))
-    const { data } = await supabase.from('task_dre')
+    const { data } = await supabase.from('task')
       .insert({ titolo: t, scadenza: quando, fatta: false, ordine: min - 1 })
       .select().single()
     if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])

@@ -331,7 +331,7 @@ export default function Scheda({ id, onClose }: Props) {
     if (!t) return
     await segna('postit', notaData ? `${t} · ricordamelo il ${fmtDateShort(notaData)}` : t)
     if (notaData) {
-      await supabase.from('task_dre').insert({
+      await supabase.from('task').insert({
         titolo: `${t.slice(0, 60)} · ${p!.company || p!.name}`,
         scadenza: notaData, fatta: false, ordine: -1,
       }).select().single()
