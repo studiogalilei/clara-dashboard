@@ -39,6 +39,10 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
   const [acc, setAcc] = useState(accessi)
   const [bozzaNome, setBozzaNome] = useState(nomeSalvato() || nome)
   const [salvato, setSalvato] = useState(false)
+  // il ponte verso Obsidian: qui dentro sta la spina, non il gesto (Dre, 3/9).
+  // Se il nome del vault e' vuoto il ponte e' spento in tutta l'app.
+  const [vault, setVault] = useState(() => leggiPref('obsidian-vault'))
+  const [vaultSalvato, setVaultSalvato] = useState(false)
   const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
   const [vistaTutti, setVistaTutti] = useState(() => leggiPref('tutti-vista', 'board'))
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
@@ -238,6 +242,39 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
               </button>
             ))}
           </div>
+        </div>
+      </Card>
+
+      {/* ── OBSIDIAN ───────────────────────────────────────────── */}
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Obsidian</TitoloCard>
+        </header>
+        <div className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={vault}
+              onChange={(e) => { setVault(e.target.value); setVaultSalvato(false) }}
+              onBlur={() => { scriviPref('obsidian-vault', vault.trim()); setVaultSalvato(true); onCambio() }}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              placeholder="Nome del vault"
+              className="min-w-[200px] flex-1 rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+            />
+            <a
+              href={vault.trim() ? `obsidian://open?vault=${encodeURIComponent(vault.trim())}` : undefined}
+              aria-disabled={!vault.trim()}
+              className={`shrink-0 rounded-full border border-bordo px-4 py-2 text-sm font-semibold ${
+                vault.trim() ? 'text-tenue hover:border-navy hover:text-navy' : 'pointer-events-none opacity-30'
+              }`}
+            >
+              Aprilo
+            </a>
+          </div>
+          <p className="mt-1.5 text-xs text-spento">
+            {vault.trim()
+              ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato ✓</span>}</>
+              : 'Spento: senza il nome del vault i collegamenti non saprebbero dove andare'}
+          </p>
         </div>
       </Card>
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { leggi as leggiPref } from '../lib/preferenze'
 import {
   STAGES, STAGE_LABEL, KIND_LABEL,
   PIPELINE_LABEL, PIPELINE_NEXT,
@@ -96,6 +97,9 @@ export default function Scheda({ id, onClose }: Props) {
   // la terza uscita: passato a qualcun altro (Dre, 3/9)
   const [passoAperto, setPassoAperto] = useState(false)
   const [altroAperto, setAltroAperto] = useState(false)
+  // il ponte verso Obsidian, dove vivono gli originali: acceso o spento
+  // dalle Impostazioni, non da qui
+  const vault = leggiPref('obsidian-vault').trim()
   const [aChi, setAChi] = useState('')
   const [perche, setPerche] = useState('')
   const [giro, setGiro] = useState(0)
@@ -620,6 +624,15 @@ export default function Scheda({ id, onClose }: Props) {
               </button>
               {altroAperto && (
                 <div className="salta-su absolute right-0 top-12 z-30 w-52 overflow-hidden rounded-xl border border-bordo bg-white py-1 shadow-[0_10px_30px_rgba(16,24,40,0.16)]">
+                  {vault && (
+                    <a
+                      href={`obsidian://search?vault=${encodeURIComponent(vault)}&query=${encodeURIComponent(p.company || p.name || p.email)}`}
+                      onClick={() => setAltroAperto(false)}
+                      className="block w-full px-4 py-2 text-left text-sm hover:bg-velo"
+                    >
+                      Cerca in Obsidian
+                    </a>
+                  )}
                   {!ePerso(p) && !soppresso && !(p as unknown as { passato_a?: string }).passato_a && (
                     <button
                       onClick={() => { setAltroAperto(false); setPassoAperto(true); setAChi(''); setPerche('') }}

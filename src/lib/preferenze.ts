@@ -23,6 +23,7 @@ export const CHIAVI = [
   'tutti-filtro',
   'clara-larghezza',
   'menu-larghezza',
+  'obsidian-vault',
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]
