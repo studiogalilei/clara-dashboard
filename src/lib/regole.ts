@@ -2,7 +2,8 @@
 // Prima erano copiate a mano in quattro file e i numeri divergevano:
 // la home diceva 12 prospect e la bacheca ne mostrava 20.
 
-import type { Prospect } from './types'
+import { supabase } from './supabase'
+import { PIPELINE_LABEL, type Prospect, type PipelineStage } from './types'
 
 // ── chi è vivo ────────────────────────────────────────────────────
 // I morti dichiarati non si contano, non si ricontattano, non appaiono.
@@ -45,15 +46,54 @@ export function eProspect(p: Fase & Pick<Prospect, 'classificazione'>): boolean 
   return !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p) && !passato(p)
 }
 
-// la stessa domanda nella lingua di PostgREST, per i conteggi sul database
-export const PROSPECT_QUERY = {
-  fuori: false,
-  esclusi: "stage.not.in.(\"perso\",\"cliente\",\"nuovo\")",
+// le stesse domande nella lingua di PostgREST, per quando a contare e' il
+// database e non il browser. Devono dare gli stessi insiemi delle funzioni
+// qui sopra: se divergono, la home e la bacheca ricominciano a litigare.
+export const CLIENTI_QUERY =
+  'and(fuori.eq.true,pipeline_stage.eq.cliente),and(fuori.eq.false,stage.eq.cliente)'
+
+// il minimo che una catena di supabase-js deve saper fare per essere filtrata
+// qui dentro: i generici veri non si lasciano passare in giro come valori
+export interface Filtro {
+  eq(c: string, v: unknown): Filtro
+  neq(c: string, v: unknown): Filtro
+  is(c: string, v: unknown): Filtro
+  or(s: string): Filtro
+}
+
+export function soloProspect(q: Filtro): Filtro {
+  return q.eq('fuori', false)
+    .neq('stage', 'nuovo').neq('stage', 'perso').neq('stage', 'cliente')
+    .is('passato_a', null)
+    .or(VIVI)
 }
 
 // in pipeline: fra la prima call e la firma
 export function inPipeline(p: Fase): boolean {
   return p.fuori && p.pipeline_stage !== 'cliente' && p.pipeline_stage !== 'perso'
+}
+
+// ── il ricorrente mensile, un numero solo ─────────────────────────
+// Prima ognuna delle tre schermate lo sommava sulla propria pagina di
+// risultati: la bacheca su 300 righe, Tutti su 500, i Numeri su un altro
+// taglio ancora. Stessa domanda, tre cifre. Adesso si chiede al database
+// una volta sola e si somma su tutti i clienti (revisione 4/9).
+export async function ricorrenteMensile(): Promise<{
+  mese: number; quanti: number; senza: number; problema: string | null
+}> {
+  const { data, error } = await supabase
+    .from('prospects')
+    .select('canone, fuori, stage, pipeline_stage')
+    .or(CLIENTI_QUERY)
+    .limit(2000)
+  if (error) return { mese: 0, quanti: 0, senza: 0, problema: error.message }
+  const clienti = ((data ?? []) as Array<Fase & { canone: number | null }>).filter(eCliente)
+  return {
+    mese: clienti.reduce((t, c) => t + (Number(c.canone) || 0), 0),
+    quanti: clienti.length,
+    senza: clienti.filter((c) => !c.canone).length,
+    problema: null,
+  }
 }
 
 // ── il giorno, in ora italiana ────────────────────────────────────
@@ -84,9 +124,6 @@ export function pulisci(t: string): string {
 // ── il pedaggio, da una porta sola ────────────────────────────────
 // Prima la bacheca e la scheda facevano due domande diverse al database
 // e potevano dare verdetti opposti sullo stesso prospect.
-import { supabase } from './supabase'
-import { PIPELINE_LABEL, type PipelineStage } from './types'
-
 export function marcaFase(fase: PipelineStage): string {
   return `[${PIPELINE_LABEL[fase]}]`
 }

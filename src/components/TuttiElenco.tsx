@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect } from '../lib/types'
-import { eCliente, ePerso, vivo } from '../lib/regole'
+import { eCliente, eProspect, ricorrenteMensile } from '../lib/regole'
 import { Card, TitoloCard, Micro, Spinner, Faccia, PipelineBadge, StageBadge, fmtDateShort, sgid } from './ui'
 
 // TUTTI (Dre, 4/9): una lista sola con tutti dentro, tarata sui clienti.
@@ -34,6 +34,11 @@ export default function TuttiElenco({ onOpen }: Props) {
   const scrivoRef = useRef<string | null>(null)
   useEffect(() => { scrivoRef.current = scrivo }, [scrivo])
 
+  // il ricorrente non si somma su questa pagina di 500 righe: e' una domanda
+  // sull'azienda, e la fa regole.ts al database (revisione 4/9)
+  const [ricorrente, setRicorrente] = useState<{ mese: number; quanti: number; senza: number } | null>(null)
+  useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
+
   useEffect(() => {
     supabase.from('prospects').select('*').neq('stage', 'nuovo')
       .order('last_reply_at', { ascending: false, nullsFirst: false })
@@ -65,9 +70,9 @@ export default function TuttiElenco({ onOpen }: Props) {
   if (righe === null) return <Spinner />
 
   const clienti = righe.filter(eCliente)
-  const prospetti = righe.filter((p) => !eCliente(p) && !ePerso(p) && vivo(p))
+  const prospetti = righe.filter(eProspect)
   const mostrate = filtro === 'clienti' ? clienti : filtro === 'prospect' ? prospetti : [...clienti, ...prospetti]
-  const mese = clienti.reduce((t, p) => t + (Number(p.canone) || 0), 0)
+
 
   const riga = (p: Riga) => (
     <div key={p.id} className="flex items-center gap-3 border-b border-velo px-4 py-2.5 last:border-0 hover:bg-velo/40">
@@ -145,10 +150,13 @@ export default function TuttiElenco({ onOpen }: Props) {
         <span className="text-sm font-semibold text-tenue">
           {mostrate.length} {filtro === 'prospect' ? 'prospect' : filtro === 'clienti' ? (mostrate.length === 1 ? 'cliente' : 'clienti') : 'in tutto'}
         </span>
-        {filtro !== 'prospect' && mese > 0 && (
+        {filtro !== 'prospect' && ricorrente && ricorrente.mese > 0 && (
           <span className="ml-auto text-sm">
-            <span className="text-lg font-extrabold tabular-nums">{mese.toLocaleString('it-IT')} €</span>
+            <span className="text-lg font-extrabold tabular-nums">{ricorrente.mese.toLocaleString('it-IT')} €</span>
             <span className="ml-1.5 text-xs text-spento">al mese</span>
+            {ricorrente.senza > 0 && (
+              <span className="ml-2 text-xs text-amber-700">{ricorrente.senza} senza canone</span>
+            )}
           </span>
         )}
       </div>

@@ -269,6 +269,7 @@ class Query {
   select(_c?: string, o?: { count?: string; head?: boolean }) { this.conta = Boolean(o?.count); this.testa = Boolean(o?.head); return this }
   eq(c: string, v: unknown) { this.filtri.push((r) => r[c] === v); return this }
   neq(c: string, v: unknown) { this.filtri.push((r) => r[c] !== v); return this }
+  is(c: string, v: unknown) { this.filtri.push((r) => (v === null ? r[c] == null : r[c] === v)); return this }
   in(c: string, v: unknown) { const l = dentroLista(v); this.filtri.push((r) => l.includes(String(r[c]))); return this }
   not(c: string, op: string, v: unknown) {
     if (op === 'is' && v === null) this.filtri.push((r) => r[c] != null)
@@ -338,6 +339,12 @@ function spezzaOr(s: string): string[] {
 }
 
 function leggiClausola(c: string): ((r: Riga) => boolean) | null {
+  // and(a.eq.1,b.eq.2): tutte le sue, dentro un or che ne vuole una
+  const gruppo = /^and\((.*)\)$/.exec(c.trim())
+  if (gruppo) {
+    const dentro = spezzaOr(gruppo[1]).map(leggiClausola).filter(Boolean) as Array<(r: Riga) => boolean>
+    return dentro.length ? (r: Riga) => dentro.every((f) => f(r)) : null
+  }
   const m = /^([\w]+)\.(not\.)?(\w+)\.(.*)$/.exec(c)
   if (!m) return null
   const [, col, negato, op, grezzo] = m

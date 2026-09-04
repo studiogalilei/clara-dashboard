@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { VIVI } from '../lib/regole'
+import { soloProspect, type Filtro } from '../lib/regole'
 import Radar from './Radar'
 import { Micro, Spinner, fmtNum } from './ui'
 
@@ -17,18 +17,12 @@ interface Props {
   onTutti?: () => void
 }
 
-// giusto i pezzi di catena che servono qui: i generici di supabase-js
-// non si lasciano passare in giro come valori
-interface Filtro {
-  eq(c: string, v: unknown): Filtro
-  neq(c: string, v: unknown): Filtro
-  or(s: string): Filtro
-}
-
 // [nome, colore-fase (lo stesso delle facce), la domanda al database]
 const FASI: Array<[string, string, (q: Filtro) => Filtro]> = [
-  ['Prospect', 'bg-amber-400', (q) =>
-    q.eq('fuori', false).neq('stage', 'nuovo').neq('stage', 'perso').neq('stage', 'cliente').or(VIVI)],
+  // il numero dei prospect lo decide regole.ts, come per la bacheca e per
+  // Tutti: qui dentro mancava «passato a qualcun altro» e la home ne contava
+  // piu' delle altre due schermate (revisione 4/9)
+  ['Prospect', 'bg-amber-400', soloProspect],
   ['Call Conoscitiva', 'bg-[#6b85e0]', (q) =>
     q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva')],
   ['Call Tecnica', 'bg-blu', (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica')],

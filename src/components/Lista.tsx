@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato } from '../lib/regole'
+import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato, ricorrenteMensile } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
@@ -50,6 +50,7 @@ function leggiVista(): Vista {
 
 export default function Lista({ onOpen, q }: Props) {
   const [rows, setRows] = useState<Prospect[] | null>(null)
+  const [ricorrente, setRicorrente] = useState<{ mese: number; quanti: number; senza: number } | null>(null)
   const [stage, setStage] = useState<Stage | 'attivi' | 'tutti'>('attivi')
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -75,6 +76,8 @@ export default function Lista({ onOpen, q }: Props) {
     setVista(v)
     try { localStorage.setItem('tutti-vista', v) } catch { /* niente */ }
   }
+
+  useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
 
   useEffect(() => {
     let vivo = true
@@ -415,26 +418,23 @@ export default function Lista({ onOpen, q }: Props) {
         </p>
       )}
 
-      {/* quando guardi i clienti, il numero che conta e' uno solo */}
-      {stage === 'cliente' && rows.length > 0 && (() => {
-        const clienti = rows.filter(eCliente)
-        const mese = clienti.reduce((t, x) => t + (Number(x.canone) || 0), 0)
-        const senza = clienti.filter((x) => !x.canone).length
-        return (
-          <div className="mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-2.5">
-            <span className="text-lg font-extrabold tabular-nums">{mese.toLocaleString('it-IT')} €</span>
-            <Micro>al mese</Micro>
-            <span className="text-sm font-semibold text-tenue">
-              {clienti.length} client{clienti.length === 1 ? 'e' : 'i'}
+      {/* quando guardi i clienti, il numero che conta e' uno solo: e' lo
+          stesso che vedi in Tutti, perche' e' la stessa domanda al database
+          e non la somma delle righe di questa pagina (revisione 4/9) */}
+      {stage === 'cliente' && ricorrente && ricorrente.quanti > 0 && (
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-2.5">
+          <span className="text-lg font-extrabold tabular-nums">{ricorrente.mese.toLocaleString('it-IT')} €</span>
+          <Micro>al mese</Micro>
+          <span className="text-sm font-semibold text-tenue">
+            {ricorrente.quanti} client{ricorrente.quanti === 1 ? 'e' : 'i'}
+          </span>
+          {ricorrente.senza > 0 && (
+            <span className="text-xs font-semibold text-amber-700">
+              {ricorrente.senza} senza canone: il totale è più basso del vero
             </span>
-            {senza > 0 && (
-              <span className="text-xs font-semibold text-amber-700">
-                {senza} senza canone: il totale è più basso del vero
-              </span>
-            )}
-          </div>
-        )
-      })()}
+          )}
+        </div>
+      )}
 
       {vista === 'elenco' ? (
         <>
