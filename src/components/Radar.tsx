@@ -128,6 +128,9 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
           .map((a) => ({ testo: `${fmtOra(a.at)} · ${a.titolo}`, prospect_id: a.prospect_id })),
         ...daRisp.map((p) => ({ testo: `Rispondere a ${nome(p)}`, prospect_id: p.id })),
         ...dovuti.map((p) => {
+          if (p.followup_due) {
+            return { testo: `Follow-up a ${nome(p)} · previsto ${fmtDateShort(p.followup_due)}`, prospect_id: p.id }
+          }
           const d = daysAgo(p.analysis_sent_at)
           return { testo: `Follow-up a ${nome(p)}${d !== null ? ` · tace da ${d} gg` : ''}`, prospect_id: p.id }
         }),
@@ -200,7 +203,12 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
 
   useEffect(() => {
     if (ticker.length < 2 || fermo) return
-    const t = setInterval(() => setIndice((i) => (i + 1) % ticker.length), 3000)
+    const t = setInterval(() => {
+      // in secondo piano il tempo non conta: senza questo si torna alla
+      // scheda e la card ha gia' fatto tre giri a vuoto
+      if (document.hidden) return
+      setIndice((i) => (i + 1) % ticker.length)
+    }, 5000)
     return () => clearInterval(t)
   }, [ticker.length, fermo])
 
@@ -216,14 +224,27 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         <div
           onMouseEnter={() => setFermo(true)}
           onMouseLeave={() => setFermo(false)}
+          onPointerDown={() => setFermo(true)}
+          onFocusCapture={() => setFermo(true)}
           className="col-span-2 rounded-2xl bg-navy p-3.5 text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)] lg:col-span-1"
         >
           <div className="flex items-baseline justify-between">
             <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
             {ticker.length > 0 && (
-              <button onClick={onOggi} className="text-[11px] font-bold tabular-nums text-white/70 hover:text-white">
-                {(indice % ticker.length) + 1}/{ticker.length}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={onOggi} className="text-[11px] font-bold tabular-nums text-white/70 hover:text-white">
+                  {(indice % ticker.length) + 1}/{ticker.length}
+                </button>
+                {ticker.length > 1 && (
+                  <button
+                    onClick={() => { setFermo(true); setIndice((i) => (i + 1) % ticker.length) }}
+                    aria-label="La prossima cosa da fare"
+                    className="-my-1 rounded px-1 py-1 text-[11px] font-bold text-white/50 hover:text-white"
+                  >
+                    ›
+                  </button>
+                )}
+              </div>
             )}
           </div>
           <div className="relative mt-1 h-12 overflow-hidden">
