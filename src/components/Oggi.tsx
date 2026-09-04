@@ -60,7 +60,13 @@ interface TaskDre {
   colore: string | null
   fatta: boolean
   fatta_il: string | null
+  owner: string | null       // di chi e'
+  da: string | null          // chi l'ha mandata
+  stato: 'proposta' | 'accettata' | 'rimandata' | 'fatta'
+  motivo: string | null
 }
+
+interface Persona { id: string; nome: string | null }
 
 interface Sotto {
   chiave: string
@@ -131,6 +137,11 @@ export default function Oggi({ onOpen }: Props) {
   const [aggiungoIn, setAggiungoIn] = useState<string | null>(null)
   const [nuovoIn, setNuovoIn] = useState('')
   const [sopraGiorno, setSopraGiorno] = useState<string | null>(null)
+  // le task hanno un proprietario e un mittente (Dre, 3/9)
+  const [io, setIo] = useState<string | null>(null)
+  const [persone, setPersone] = useState<Persona[]>([])
+  const [perChi, setPerChi] = useState<string>('')      // '' = per me
+  const [mandate, setMandate] = useState<TaskDre[]>([])
   const [tavolozza, setTavolozza] = useState<number | null>(null)
 
   const [stretto, setStretto] = useState(false)
@@ -151,9 +162,31 @@ export default function Oggi({ onOpen }: Props) {
   }
 
   const caricaTask = useCallback(() => {
+    // le mie: quelle mie e quelle vecchie senza proprietario
     supabase.from('task').select('*').order('ordine', { ascending: true }).limit(200)
-      .then(({ data }) => setAttivita((data as TaskDre[]) ?? []))
+      .then(({ data }) => {
+        const tutte = (data as TaskDre[]) ?? []
+        setAttivita(tutte.filter((t) => !t.owner || t.owner === io))
+        setMandate(tutte.filter((t) => t.da && t.da === io && t.owner !== io))
+      })
+  }, [io])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setIo(data.session?.user?.id ?? null))
+    supabase.from('profili').select('id,nome').limit(20)
+      .then(({ data }) => setPersone((data as Persona[]) ?? []))
   }, [])
+
+  const nomeDi = (id: string | null) =>
+    persone.find((p) => p.id === id)?.nome ?? 'qualcuno'
+
+  // una task che arriva non entra nella lista finche' non la accetti
+  async function rispondiAllaProposta(t: TaskDre, accetto: boolean, motivo?: string) {
+    await supabase.from('task')
+      .update(accetto ? { stato: 'accettata' } : { stato: 'rimandata', motivo: motivo ?? null })
+      .eq('id', t.id).select().single()
+    caricaTask()
+  }
 
   useEffect(() => {
     caricaTask()
@@ -217,7 +250,8 @@ export default function Oggi({ onOpen }: Props) {
 
   if (attivita === null || gruppi === null) return <Spinner />
 
-  const mieDaFare = attivita.filter((t) => !t.fatta)
+  const proposte = attivita.filter((t) => t.stato === 'proposta' && !t.fatta)
+  const mieDaFare = attivita.filter((t) => !t.fatta && t.stato !== 'proposta')
   const gruppiVivi = gruppi
     .map((g) => ({ ...g, sotto: g.sotto.filter((s) => !fatteCoda.has(s.chiave)) }))
     .filter((g) => g.sotto.length > 0)
@@ -271,12 +305,20 @@ export default function Oggi({ onOpen }: Props) {
     const titolo = nuovo.trim()
     if (!titolo) { setAggiungo(false); return }
     const minOrd = Math.min(0, ...attivita!.map((t) => t.ordine)) - 1
+    // se la mandi a qualcun altro nasce «proposta»: entra nella sua lista
+    // solo quando lui la accetta (Dre, 3/9)
+    const altrui = Boolean(perChi && perChi !== io)
     const { data } = await supabase.from('task')
-      .insert({ titolo, scadenza: nuovaData || null, fatta: false, ordine: minOrd })
+      .insert({
+        titolo, scadenza: nuovaData || null, fatta: false, ordine: minOrd,
+        owner: altrui ? perChi : io, da: io, stato: altrui ? 'proposta' : 'accettata',
+      })
       .select().single()
-    if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
+    if (data && !altrui) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
+    if (data && altrui) setMandate((m) => [data as TaskDre, ...m])
     setNuovo('')
     setNuovaData('')
+    setPerChi('')
     nuovoRef.current?.focus()
   }
 
@@ -323,7 +365,7 @@ export default function Oggi({ onOpen }: Props) {
     if (!t) { setAggiungoIn(null); return }
     const min = Math.min(0, ...(attivita ?? []).map((x) => x.ordine))
     const { data } = await supabase.from('task')
-      .insert({ titolo: t, scadenza: quando, fatta: false, ordine: min - 1 })
+      .insert({ titolo: t, scadenza: quando, fatta: false, ordine: min - 1, owner: io, da: io })
       .select().single()
     if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
     setNuovoIn('')
@@ -505,6 +547,75 @@ export default function Oggi({ onOpen }: Props) {
         )}
       </div>
 
+      {/* quello che ti hanno mandato: sta sopra, e non entra nella tua coda
+          finche' non lo accetti (Dre, 3/9) */}
+      {proposte.length > 0 && (
+        <Card className="border-blu/30">
+          <header className="border-b border-velo bg-blu/5 px-4 py-2.5">
+            <p className="text-sm font-bold text-navy">
+              {proposte.length === 1 ? 'Una task per te' : `${proposte.length} task per te`}
+            </p>
+          </header>
+          {proposte.map((t) => (
+            <div key={t.id} className="flex flex-wrap items-center gap-3 border-b border-velo px-4 py-3 last:border-0">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{t.titolo}</p>
+                <p className="text-xs text-tenue">
+                  da {nomeDi(t.da)}
+                  {t.scadenza ? ` · per il ${fmtDateShort(t.scadenza)}` : ''}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={() => {
+                    const m = window.prompt('Perché la rimandi indietro?')
+                    if (m !== null) rispondiAllaProposta(t, false, m)
+                  }}
+                  className="rounded-full border border-bordo px-3 py-1.5 text-xs font-semibold text-tenue hover:border-spento"
+                >
+                  Rimanda indietro
+                </button>
+                <button
+                  onClick={() => rispondiAllaProposta(t, true)}
+                  className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-navy-scuro"
+                >
+                  Accetta
+                </button>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {/* quelle che hai mandato tu: per sapere a che punto sono senza chiedere */}
+      {mandate.length > 0 && vistaVera === 'ongo' && (
+        <Card>
+          <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
+            <p className="text-sm font-bold">Mandate da te</p>
+            <span className="text-xs text-spento">{mandate.length}</span>
+          </header>
+          {mandate.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 border-b border-velo px-4 py-2.5 last:border-0">
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm ${t.fatta ? 'text-spento line-through' : 'font-semibold'}`}>{t.titolo}</p>
+                <p className="text-xs text-tenue">
+                  a {nomeDi(t.owner)}
+                  {t.stato === 'rimandata' && t.motivo ? ` · rimandata indietro: ${t.motivo}` : ''}
+                </p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                t.fatta ? 'bg-green-50 text-green-800'
+                : t.stato === 'proposta' ? 'bg-amber-50 text-amber-800'
+                : t.stato === 'rimandata' ? 'bg-red-50 text-red-700'
+                : 'bg-velo text-tenue'
+              }`}>
+                {t.fatta ? 'fatta' : t.stato === 'proposta' ? 'da accettare' : t.stato === 'rimandata' ? 'rimandata' : 'in corso'}
+              </span>
+            </div>
+          ))}
+        </Card>
+      )}
+
       {vistaVera === 'big' ? bigPicture() : (
       <Card className="p-3">
         {aggiungo ? (
@@ -526,12 +637,26 @@ export default function Oggi({ onOpen }: Props) {
                 placeholder="Titolo"
                 className="w-full bg-transparent text-sm outline-none placeholder:text-spento"
               />
-              <input
-                type="date"
-                value={nuovaData}
-                onChange={(e) => setNuovaData(e.target.value)}
-                className="mt-1 rounded-full border border-bordo px-2 py-px text-[11px] text-tenue outline-none focus:border-blu"
-              />
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <input
+                  type="date"
+                  value={nuovaData}
+                  onChange={(e) => setNuovaData(e.target.value)}
+                  className="rounded-full border border-bordo px-2 py-px text-[11px] text-tenue outline-none focus:border-blu"
+                />
+                {persone.filter((x) => x.id !== io).length > 0 && (
+                  <select
+                    value={perChi}
+                    onChange={(e) => setPerChi(e.target.value)}
+                    className="rounded-full border border-bordo bg-white px-2 py-px text-[11px] text-tenue outline-none focus:border-blu"
+                  >
+                    <option value="">per me</option>
+                    {persone.filter((x) => x.id !== io).map((x) => (
+                      <option key={x.id} value={x.id}>per {x.nome ?? 'lui'}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
           </div>
         ) : (
