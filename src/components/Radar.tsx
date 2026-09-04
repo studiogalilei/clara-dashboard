@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
-import { Dot, Card, fmtNum, daysAgo, fmtDateShort, fmtOra } from './ui'
+import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
 import { VIVI, oggi, giorno, codaDiOggi, GIORNI_FOLLOWUP, type VoceCoda } from '../lib/regole'
 
 // Il radar della home: la riga dei 4 numeri (la scura e' «Da fare oggi»,
@@ -214,14 +214,14 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   return (
     <div className="space-y-4">
 
-      {/* ── la riga dei numeri, con la Prossima accanto ───────── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[2fr_1fr_1fr]">
+      {/* ── cosa devi fare adesso ─────────────────────────────── */}
+      <div>
         <div
           onMouseEnter={() => setFermo(true)}
           onMouseLeave={() => setFermo(false)}
           onPointerDown={() => setFermo(true)}
           onFocusCapture={() => setFermo(true)}
-          className="col-span-2 rounded-2xl bg-navy p-3.5 text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)] lg:col-span-1"
+          className="rounded-2xl bg-navy p-3.5 text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]"
         >
           <div className="flex items-baseline justify-between">
             <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
@@ -286,17 +286,6 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
           </div>
         </div>
 
-        <Numero
-          etichetta="Avvisi"
-          valore={avvisi.length}
-          allarme={avvisi.length > 0}
-          onClick={() => document.getElementById('avvisi')?.scrollIntoView({ behavior: 'smooth' })}
-        />
-        <Numero
-          etichetta="In settimana"
-          valore={settimana}
-          onClick={onCalendario}
-        />
       </div>
 
       {/* ── la Prossima: un solo evento, grande ───────────────── */}
@@ -376,24 +365,5 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         )}
       </div>
     </div>
-  )
-}
-
-function Numero({
-  etichetta, valore, allarme, onClick,
-}: {
-  etichetta: string
-  valore: number
-  allarme?: boolean
-  onClick?: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-2xl border border-bordo bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_rgba(16,24,40,0.04)] transition-transform hover:-translate-y-px"
-    >
-      <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-spento">{etichetta}</p>
-      <p className={`mt-0.5 text-xl font-extrabold ${allarme ? 'text-red-700' : ''}`}>{fmtNum(valore)}</p>
-    </button>
   )
 }

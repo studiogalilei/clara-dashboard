@@ -35,6 +35,11 @@ const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
 // i passati a qualcun altro non si trascinano: ci si passa dalla scheda
 const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a ?? ''
 
+const COLORE: Record<Chiave, string> = {
+  prospect: 'bg-amber-400', conoscitiva: 'bg-[#6b85e0]', tecnica: 'bg-blu',
+  avvio: 'bg-navy', cliente: 'bg-green-600', perso: 'bg-gray-300',
+}
+
 const ORDINE: Record<Chiave, number> = {
   prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, cliente: 4, perso: 99,
 }
@@ -444,6 +449,22 @@ export default function Lista({ onOpen, q }: Props) {
               {ricorrente.senza} senza canone: il totale è più basso del vero
             </span>
           )}
+        </div>
+      )}
+
+      {vista === 'elenco' && quanti && (
+        <div className="mb-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-bordo bg-white px-4 py-2.5">
+          {TAPPE.map(([nome, chiave]) => (
+            <button
+              key={chiave}
+              onClick={() => { setStage(chiave === 'prospect' ? 'attivi' : (chiave as typeof stage)) }}
+              className="flex items-baseline gap-1.5 text-left"
+            >
+              <span className={`inline-block h-[7px] w-[7px] shrink-0 self-center rounded-full ${COLORE[chiave]}`} />
+              <span className="text-base font-extrabold tabular-nums">{quanti[chiave]}</span>
+              <Micro>{nome}</Micro>
+            </button>
+          ))}
         </div>
       )}
 
