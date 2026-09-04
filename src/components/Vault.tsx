@@ -75,6 +75,10 @@ export default function Vault({ onOpen }: Props) {
   const nomeProspect = (id: string | null) =>
     id ? (prospects.find((p) => p.id === id)?.company ?? prospects.find((p) => p.id === id)?.name ?? null) : null
 
+  // il file resta in mano finche' non si dice a chi appartiene
+  const [inAttesa, setInAttesa] = useState<File | null>(null)
+  const [aCasaDi, setACasaDi] = useState('')
+
   async function carica(f: File) {
     setCaricando(true)
     const path = `${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
@@ -86,12 +90,17 @@ export default function Vault({ onOpen }: Props) {
     }
     const nome = f.name.replace(/\.[^.]+$/, '')
     const { data } = await supabase.from('vault_file')
-      .insert({ nome, path, mime: f.type || null, dimensione: f.size })
+      .insert({ nome, path, mime: f.type || null, dimensione: f.size,
+                prospect_id: aCasaDi || null })
       .select().single()
     if (data) {
       setFile((v) => [data as FileVault, ...(v ?? [])])
-      setToast(`«${nome}» al sicuro nei Documenti ✓`)
+      setToast(aCasaDi
+        ? `«${nome}» nella cartella di ${nomeProspect(aCasaDi)} ✓`
+        : `«${nome}» fra i documenti interni ✓`)
     }
+    setInAttesa(null)
+    setACasaDi('')
     setCaricando(false)
   }
 
@@ -120,7 +129,51 @@ export default function Vault({ onOpen }: Props) {
   })
 
   return (
-    <ZonaFile onFile={carica} messaggio="Lascia qui: va nei Documenti" className="space-y-3 pb-24 sm:pb-8">
+    <ZonaFile onFile={(f) => setInAttesa(f)} messaggio="Lascia qui: va nei Documenti" className="space-y-3 pb-24 sm:pb-8">
+
+      {/* il pedaggio del documento (Dre, 4/9): un file entra solo se si sa
+          di chi e'. Se no la cartella di un cliente e' incompleta e non lo
+          sa nessuno */}
+      {inAttesa && (
+        <Card className="salta-su border-blu/40 p-4">
+          <p className="text-sm font-bold">Di chi è «{inAttesa.name.replace(/\.[^.]+$/, '')}»?</p>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <select
+              autoFocus
+              value={aCasaDi}
+              onChange={(e) => setACasaDi(e.target.value)}
+              className="min-w-[240px] flex-1 rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-blu"
+            >
+              <option value="">Scegli il cliente…</option>
+              {prospects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.company || p.name || p.email}{sgid(p.sg_id) ? ` · ${sgid(p.sg_id)}` : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => carica(inAttesa)}
+              disabled={!aCasaDi || caricando}
+              className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              {caricando ? 'Carico…' : 'Metti nella sua cartella'}
+            </button>
+            <button
+              onClick={() => { setACasaDi(''); carica(inAttesa) }}
+              disabled={caricando}
+              className="rounded-full border border-bordo px-4 py-2 text-sm font-semibold text-tenue hover:border-spento"
+            >
+              È un documento interno
+            </button>
+            <button
+              onClick={() => { setInAttesa(null); setACasaDi('') }}
+              className="text-xs text-spento hover:text-inchiostro"
+            >
+              annulla
+            </button>
+          </div>
+        </Card>
+      )}
       <div className="flex flex-wrap items-center gap-2.5">
         <button
           onClick={() => inputRef.current?.click()}
@@ -133,7 +186,7 @@ export default function Vault({ onOpen }: Props) {
           ref={inputRef}
           type="file"
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) carica(f); e.target.value = '' }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) setInAttesa(f); e.target.value = '' }}
         />
         <input
           type="search"

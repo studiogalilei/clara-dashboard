@@ -92,6 +92,10 @@ export default function Scheda({ id, onClose }: Props) {
   const [notaEsito, setNotaEsito] = useState<string | null>(null)
   const docRef = useRef<HTMLInputElement>(null)
   const [prossimaCall, setProssimaCall] = useState<AgendaItem | null>(null)
+  // la scheda e' IL posto: qui dentro deve esserci tutto quello che esiste
+  // su di lui (Dre, 4/9)
+  const [documenti, setDocumenti] = useState<Array<{ id: number; nome: string; path: string; at: string }>>([])
+  const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
   const [prepAperta, setPrepAperta] = useState(false)
   const [prepChiesta, setPrepChiesta] = useState(false)
   const appuntiRef = useRef<HTMLTextAreaElement>(null)
@@ -103,6 +107,12 @@ export default function Scheda({ id, onClose }: Props) {
     supabase.from('interactions').select('*').eq('prospect_id', id)
       .order('at', { ascending: false }).limit(200)
       .then(({ data }) => setTimeline([...((data as Interaction[]) ?? [])].reverse()))
+    supabase.from('vault_file').select('id,nome,path,at').eq('prospect_id', id)
+      .order('at', { ascending: false }).limit(50)
+      .then(({ data }) => setDocumenti((data as Array<{ id: number; nome: string; path: string; at: string }>) ?? []))
+    supabase.from('task').select('id,titolo,fatta,scadenza').eq('prospect_id', id)
+      .order('fatta', { ascending: true }).limit(50)
+      .then(({ data }) => setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? []))
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .gte('at', new Date().toISOString())
       .order('at', { ascending: true }).limit(1)
@@ -1097,6 +1107,51 @@ export default function Scheda({ id, onClose }: Props) {
                 <button onClick={addNota} className="rounded-full bg-navy px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-navy-scuro">+</button>
               </div>
             </Card>
+
+            {/* DA FARE PER LUI: la scheda deve rispondere anche a questo */}
+            {taskSue.length > 0 && (
+              <Card className="p-4">
+                <TitoloCard>Da fare per lui</TitoloCard>
+                <ul className="divide-y divide-velo">
+                  {taskSue.map((t) => (
+                    <li key={t.id} className="flex items-center gap-2 py-1.5 text-sm">
+                      <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${t.fatta ? 'bg-green-600' : 'bg-amber-500'}`} />
+                      <span className={`min-w-0 flex-1 truncate ${t.fatta ? 'text-spento line-through' : ''}`}>
+                        {t.titolo}
+                      </span>
+                      {t.scadenza && (
+                        <span className="shrink-0 text-xs text-spento">{fmtDateShort(t.scadenza)}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro */}
+            {documenti.length > 0 && (
+              <Card className="p-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <TitoloCard>I suoi documenti</TitoloCard>
+                  <span className="text-xs text-spento">{documenti.length}</span>
+                </div>
+                <ul className="divide-y divide-velo">
+                  {documenti.map((d) => (
+                    <li key={d.id} className="flex items-center gap-2 py-1.5 text-sm">
+                      <span className="shrink-0" aria-hidden>📄</span>
+                      <a
+                        href={supabase.storage.from('vault').getPublicUrl(d.path).data.publicUrl}
+                        target="_blank" rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-blu hover:underline"
+                      >
+                        {d.nome}
+                      </a>
+                      <span className="shrink-0 text-xs text-spento">{fmtDateShort(d.at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
             {transcripts.length > 0 && (
               <Card className="p-4">
