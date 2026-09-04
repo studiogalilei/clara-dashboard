@@ -5,6 +5,7 @@ import {
   mioRuolo, scegliRuolo, ruoliDi, inOrdine, salvaOrdine, type Chiave, type Ruolo,
 } from '../lib/widget'
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
+import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
 
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
@@ -30,9 +31,7 @@ function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick
   )
 }
 
-function leggi(chiave: string, difetto: string): string {
-  try { return localStorage.getItem(chiave) ?? difetto } catch { return difetto }
-}
+
 
 export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
   const [ruolo, setRuolo] = useState<Ruolo>(mioRuolo)
@@ -40,8 +39,8 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
   const [acc, setAcc] = useState(accessi)
   const [bozzaNome, setBozzaNome] = useState(nomeSalvato() || nome)
   const [salvato, setSalvato] = useState(false)
-  const [vistaTask, setVistaTask] = useState(() => leggi('task-vista', 'ongo'))
-  const [vistaTutti, setVistaTutti] = useState(() => leggi('tutti-vista', 'board'))
+  const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
+  const [vistaTutti, setVistaTutti] = useState(() => leggiPref('tutti-vista', 'board'))
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
   const [presa, setPresa] = useState<Chiave | null>(null)
   const [sopra, setSopra] = useState<Chiave | null>(null)
@@ -69,8 +68,8 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
     onCambio()
   }
 
-  function preferenza(chiave: string, valore: string, set: (v: string) => void) {
-    try { localStorage.setItem(chiave, valore) } catch { /* niente */ }
+  function preferenza(chiave: ChiavePref, valore: string, set: (v: string) => void) {
+    scriviPref(chiave, valore)
     set(valore); onCambio()
   }
 

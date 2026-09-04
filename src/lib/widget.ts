@@ -9,6 +9,8 @@
 // Aggiungere un widget vuol dire aggiungere una riga qui sotto: compare da
 // solo nelle Impostazioni e nel menu, senza toccare nient'altro.
 
+import { leggi as leggiPref, scrivi as scriviPref } from './preferenze'
+
 export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
@@ -74,22 +76,24 @@ export const WIDGET: Widget[] = [
 export const widgetDi = (c: Chiave) => WIDGET.find((w) => w.chiave === c)
 
 // ── chi sei ───────────────────────────────────────────────────────
-// Finche' gli accessi non sono legati ai ruoli sul database, il ruolo e'
-// una scelta locale. Serve gia' adesso per provare cosa vede Giacomo.
+// Il ruolo, l'ordine e gli accessi sono preferenze: stanno nel browser per
+// essere immediati e sul database per seguirti sul telefono (vedi
+// preferenze.ts). Prima restavano solo qui e cambiavano da un dispositivo
+// all'altro senza dirlo (revisione 4/9).
 export function mioRuolo(): Ruolo {
-  try { return (localStorage.getItem('mio-ruolo') as Ruolo) || 'ceo' } catch { return 'ceo' }
+  return (leggiPref('mio-ruolo') as Ruolo) || 'ceo'
 }
 export function scegliRuolo(r: Ruolo) {
-  try { localStorage.setItem('mio-ruolo', r) } catch { /* niente */ }
+  scriviPref('mio-ruolo', r)
 }
 
 // ── chi arriva dove: lo decide Dre ────────────────────────────────
 type Accessi = Partial<Record<Chiave, Ruolo[]>>
 export function accessi(): Accessi {
-  try { return JSON.parse(localStorage.getItem('widget-accessi') ?? '{}') } catch { return {} }
+  try { return JSON.parse(leggiPref('widget-accessi', '{}')) } catch { return {} }
 }
 export function salvaAccessi(a: Accessi) {
-  try { localStorage.setItem('widget-accessi', JSON.stringify(a)) } catch { /* niente */ }
+  scriviPref('widget-accessi', JSON.stringify(a))
 }
 export function ruoliDi(w: Widget): Ruolo[] {
   return accessi()[w.chiave] ?? w.ruoli
@@ -97,10 +101,10 @@ export function ruoliDi(w: Widget): Ruolo[] {
 
 // ── in che ordine li vuoi ─────────────────────────────────────────
 export function ordine(): Chiave[] {
-  try { return JSON.parse(localStorage.getItem('widget-ordine') ?? '[]') } catch { return [] }
+  try { return JSON.parse(leggiPref('widget-ordine', '[]')) } catch { return [] }
 }
 export function salvaOrdine(o: Chiave[]) {
-  try { localStorage.setItem('widget-ordine', JSON.stringify(o)) } catch { /* niente */ }
+  scriviPref('widget-ordine', JSON.stringify(o))
 }
 
 // i widget nell'ordine scelto: quelli mai spostati restano dove nascono
@@ -115,10 +119,10 @@ export function inOrdine(lista: Widget[]): Widget[] {
 
 // ── cosa vuoi vedere tu: lo decide ognuno per se' ─────────────────
 export function nascosti(): Chiave[] {
-  try { return JSON.parse(localStorage.getItem('widget-nascosti') ?? '[]') } catch { return [] }
+  try { return JSON.parse(leggiPref('widget-nascosti', '[]')) } catch { return [] }
 }
 export function salvaNascosti(n: Chiave[]) {
-  try { localStorage.setItem('widget-nascosti', JSON.stringify(n)) } catch { /* niente */ }
+  scriviPref('widget-nascosti', JSON.stringify(n))
 }
 
 // il menu vero: quello a cui arrivi, meno quello che hai spento

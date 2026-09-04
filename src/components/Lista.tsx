@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
 import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato, ricorrenteMensile } from '../lib/regole'
@@ -45,7 +46,7 @@ interface Toast {
 }
 
 function leggiVista(): Vista {
-  try { return (localStorage.getItem('tutti-vista') as Vista) || 'board' } catch { return 'board' }
+  return (leggiPref('tutti-vista') as Vista) || 'board'
 }
 
 export default function Lista({ onOpen, q }: Props) {
@@ -74,7 +75,7 @@ export default function Lista({ onOpen, q }: Props) {
 
   function cambiaVista(v: Vista) {
     setVista(v)
-    try { localStorage.setItem('tutti-vista', v) } catch { /* niente */ }
+    scriviPref('tutti-vista', v)
   }
 
   useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])

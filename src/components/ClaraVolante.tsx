@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
@@ -205,7 +206,7 @@ export default function ClaraVolante({ onOpen }: Props) {
   }, [])
   const [aperta, setAperta] = useState(false)
   const [larghezza, setLarghezza] = useState<number>(() => {
-    try { return Number(localStorage.getItem('clara-larghezza')) || 420 } catch { return 420 }
+    return Number(leggiPref('clara-larghezza')) || 420
   })
   const [messaggi, setMessaggi] = useState<Messaggio[] | null>(null)
   const [prospects, setProspects] = useState<Prospect[]>([])
@@ -284,7 +285,7 @@ export default function ClaraVolante({ onOpen }: Props) {
     function su() {
       if (tiro.current.attivo) {
         tiro.current.attivo = false
-        try { localStorage.setItem('clara-larghezza', String(larghezza)) } catch { /* niente */ }
+        scriviPref('clara-larghezza', String(larghezza))
       }
     }
     window.addEventListener('keydown', esc)

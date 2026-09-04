@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configured, demo } from './lib/supabase'
+import { scarica as scaricaPreferenze } from './lib/preferenze'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
 import Lista from './components/Lista'
@@ -85,8 +86,11 @@ export default function App() {
       setReady(true)
       return
     }
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
+      // quello che hai scelto da un altro dispositivo vince su questo
+      // browser: le preferenze seguono te, non la macchina (revisione 4/9)
+      if (data.session && await scaricaPreferenze()) setVersione((v) => v + 1)
       setReady(true)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))

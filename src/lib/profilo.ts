@@ -1,8 +1,9 @@
 // Il profilo: chi sei dentro la Dashboard.
 // Nome e iniziali stanno qui perche' compaiono in tre posti (barra in basso,
-// Impostazioni, e domani accanto alle task che mandi agli altri).
-// Finche' gli account non portano il nome, sta nel browser.
+// Impostazioni, e accanto alle task che mandi agli altri).
 
+import { supabase } from './supabase'
+import { leggi as leggiPref, scrivi as scriviPref } from './preferenze'
 import type { Ruolo } from './widget'
 
 export interface Profilo {
@@ -12,10 +13,23 @@ export interface Profilo {
 }
 
 export function nomeSalvato(): string {
-  try { return localStorage.getItem('profilo-nome') ?? '' } catch { return '' }
+  return leggiPref('profilo-nome')
 }
+
+// il nome va anche in `profili`, perche' non serve solo a te: e' quello che
+// l'altra persona legge accanto a una task che le hai mandato. Prima restava
+// nel tuo browser e gli altri vedevano il prefisso della mail (revisione 4/9)
 export function salvaNome(n: string) {
-  try { localStorage.setItem('profilo-nome', n.trim()) } catch { /* niente */ }
+  const nome = n.trim()
+  scriviPref('profilo-nome', nome)
+  void (async () => {
+    try {
+      const { data } = await supabase.auth.getSession()
+      const id = data.session?.user?.id
+      if (!id) return
+      await supabase.from('profili').upsert({ id, nome }, { onConflict: 'id' })
+    } catch { /* resta il nome locale */ }
+  })()
 }
 
 // le iniziali per il tondino: due lettere, nome e cognome se ci sono

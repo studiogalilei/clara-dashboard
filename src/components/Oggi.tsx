@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect, Classificazione } from '../lib/types'
 import Radar from './Radar'
 import { Card, Spinner, daysAgo, giorni, fmtDateShort, sgid } from './ui'
@@ -17,7 +18,7 @@ import { VIVI, oggi, giorno } from '../lib/regole'
 type Vista = 'ongo' | 'big'
 
 function leggiVista(): Vista {
-  try { return (localStorage.getItem('task-vista') as Vista) || 'ongo' } catch { return 'ongo' }
+  return (leggiPref('task-vista') as Vista) || 'ongo'
 }
 
 const GIORNI_IT = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
@@ -158,7 +159,7 @@ export default function Oggi({ onOpen }: Props) {
 
   function cambiaVista(v: Vista) {
     setVista(v)
-    try { localStorage.setItem('task-vista', v) } catch { /* niente */ }
+    scriviPref('task-vista', v)
   }
 
   const caricaTask = useCallback(() => {

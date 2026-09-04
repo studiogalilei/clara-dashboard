@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import { eCliente, eProspect, ricorrenteMensile } from '../lib/regole'
 import { Card, TitoloCard, Micro, Spinner, Faccia, PipelineBadge, StageBadge, fmtDateShort, sgid } from './ui'
@@ -22,7 +23,7 @@ const FILTRI: Array<[Filtro, string]> = [
 ]
 
 function leggiFiltro(): Filtro {
-  try { return (localStorage.getItem('tutti-filtro') as Filtro) || 'clienti' } catch { return 'clienti' }
+  return (leggiPref('tutti-filtro') as Filtro) || 'clienti'
 }
 
 export default function TuttiElenco({ onOpen }: Props) {
@@ -48,7 +49,7 @@ export default function TuttiElenco({ onOpen }: Props) {
 
   function cambia(f: Filtro) {
     setFiltro(f)
-    try { localStorage.setItem('tutti-filtro', f) } catch { /* niente */ }
+    scriviPref('tutti-filtro', f)
   }
 
   async function assegna(p: Riga, chi: string) {
