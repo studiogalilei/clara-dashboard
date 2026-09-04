@@ -13,6 +13,7 @@ import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
+import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
 
@@ -139,8 +140,9 @@ export default function App() {
   if (!ready) return null
   if (!session) return <Login />
 
-  const utente = demo ? 'Demo' : (session.user.email ?? '').split('@')[0]
-  const titolo = widgetDi(tab)?.nome ?? ''
+  const mail = demo ? '' : (session.user.email ?? '')
+  const utente = nomeDa(mail, demo)
+  const titolo = widgetDi(tab)?.nome ?? (tab === 'impostazioni' ? 'Impostazioni' : '')
   const ruolo = mioRuolo()
   const voci = menuDi(ruolo, 'menu')
   const vociSistema = menuDi(ruolo, 'sistema')
@@ -211,19 +213,25 @@ export default function App() {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-velo pt-4">
-          <div className="flex items-center gap-2.5 px-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-velo text-xs font-bold text-navy">
-              {utente.slice(0, 2).toUpperCase()}
+        <div className="mt-auto border-t border-velo pt-3">
+          <button
+            onClick={() => { setTab('impostazioni'); setOpenId(null) }}
+            className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors ${
+              tab === 'impostazioni' ? 'bg-velo' : 'hover:bg-velo/60'
+            }`}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">
+              {iniziali(utente)}
             </span>
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{utente}</span>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="text-xs text-spento hover:text-inchiostro"
-            >
-              Esci
-            </button>
-          </div>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">{utente}</span>
+              <span className="block text-[11px] text-spento">Impostazioni</span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                 className={`h-4 w-4 shrink-0 ${tab === 'impostazioni' ? 'text-navy' : 'text-spento'}`}>
+              <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       </aside>
 
@@ -311,7 +319,7 @@ export default function App() {
             ) : tab === 'plugin' ? (
               <Plugin />
             ) : tab === 'impostazioni' ? (
-              <Impostazioni onCambio={() => setVersione((v) => v + 1)} />
+              <Impostazioni nome={utente} email={mail} demo={demo} onCambio={() => setVersione((v) => v + 1)} />
             ) : (
               <Lista onOpen={setOpenId} q={q} />
             )}
