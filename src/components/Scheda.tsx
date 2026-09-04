@@ -76,6 +76,10 @@ export default function Scheda({ id, onClose }: Props) {
   // «Perso» si raggiunge da ogni fase, anche da qui (Dre, 2/9)
   const [persoAperto, setPersoAperto] = useState(false)
   const [motivoPerso, setMotivoPerso] = useState('')
+  // la terza uscita: passato a qualcun altro (Dre, 3/9)
+  const [passoAperto, setPassoAperto] = useState(false)
+  const [aChi, setAChi] = useState('')
+  const [perche, setPerche] = useState('')
   const [giro, setGiro] = useState(0)
   const [binarioSegnato, setBinarioSegnato] = useState(false)
   // il cancello: se fuori_binario e' null, la prima azione di scrittura
@@ -217,6 +221,35 @@ export default function Scheda({ id, onClose }: Props) {
     await segna('nota', `Segnato come perso: ${perche}`)
     setPersoAperto(false)
     setMotivoPerso('')
+  }
+
+  // passa a qualcun altro: non e' ne' vinto ne' perso, ed e' la rete di Dre
+  async function passaA() {
+    const chi = aChi.trim()
+    if (!p || !chi) return
+    const patch = {
+      passato_a: chi,
+      passato_il: new Date().toISOString(),
+      fuori: false,
+      pipeline_stage: null,
+      next_action: null,
+      next_action_date: null,
+    } as unknown as Partial<Prospect>
+    if (!(await aggiorna(patch))) return
+    await segna('nota', `Passato a ${chi}${perche.trim() ? `: ${perche.trim()}` : ''}`)
+    setPassoAperto(false); setAChi(''); setPerche('')
+  }
+
+  // prendo io: con due persone sulla stessa casella, o rispondono in due o
+  // non risponde nessuno perche' ognuno pensa all'altro
+  async function prendoIo() {
+    if (!p) return
+    const mio = (p as unknown as { preso_da?: string | null }).preso_da === utenteId
+    await aggiorna({
+      preso_da: mio ? null : utenteId,
+      preso_il: mio ? null : new Date().toISOString(),
+    } as unknown as Partial<Prospect>)
+    await segna('nota', mio ? 'Ha lasciato la conversazione.' : 'Ha preso in carico la conversazione.')
   }
 
   async function addNota() {
@@ -495,6 +528,25 @@ export default function Scheda({ id, onClose }: Props) {
               </p>
               <h2 className="mt-0.5 truncate text-lg font-extrabold">{p.company || p.name || p.email}</h2>
               <p className="mt-0.5 text-sm text-tenue">{adesso()}</p>
+              {(() => {
+                const presoDa = (p as unknown as { preso_da?: string | null }).preso_da
+                const passato = (p as unknown as { passato_a?: string | null }).passato_a
+                if (passato) return (
+                  <p className="mt-1 text-sm font-semibold text-blu">Passato a {passato}</p>
+                )
+                return (
+                  <button
+                    onClick={prendoIo}
+                    className={`mt-1.5 rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                      presoDa === utenteId ? 'bg-blu/10 text-blu'
+                      : presoDa ? 'border border-bordo text-tenue'
+                      : 'border border-bordo text-tenue hover:border-navy hover:text-navy'
+                    }`}
+                  >
+                    {presoDa === utenteId ? 'Ce l\'hai in mano · lascia' : presoDa ? 'Lo tiene un altro' : 'Prendo io'}
+                  </button>
+                )
+              })()}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               {/* il ponte verso Obsidian, dove vivono gli originali (3/9).
@@ -507,6 +559,14 @@ export default function Scheda({ id, onClose }: Props) {
               >
                 Apri in Obsidian
               </a>
+              {!ePerso(p) && !soppresso && !(p as unknown as { passato_a?: string }).passato_a && (
+                <button
+                  onClick={() => { setPassoAperto(true); setAChi(''); setPerche('') }}
+                  className="rounded-full border border-bordo px-3.5 py-2.5 text-sm font-semibold text-tenue transition-colors hover:border-navy hover:text-navy"
+                >
+                  Passa a…
+                </button>
+              )}
               {!ePerso(p) && !soppresso && (
                 <button
                   onClick={() => { setPersoAperto(true); setMotivoPerso('') }}
@@ -525,6 +585,37 @@ export default function Scheda({ id, onClose }: Props) {
               </button>
             </div>
           </div>
+
+          {passoAperto && (
+            <div className="salta-su mt-3 rounded-xl border border-bordo bg-velo/50 p-3">
+              <div className="flex flex-wrap gap-2">
+                <input
+                  autoFocus
+                  value={aChi}
+                  onChange={(e) => setAChi(e.target.value)}
+                  placeholder="A chi lo passi (il web, Lore, un partner…)"
+                  className="min-w-[220px] flex-1 rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-blu"
+                />
+                <input
+                  value={perche}
+                  onChange={(e) => setPerche(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && passaA()}
+                  placeholder="Perché (facoltativo)"
+                  className="min-w-[220px] flex-1 rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-blu"
+                />
+              </div>
+              <div className="mt-2 flex justify-end gap-2">
+                <button onClick={() => setPassoAperto(false)}
+                  className="rounded-full border border-bordo bg-white px-3.5 py-1.5 text-xs font-semibold text-tenue">
+                  Annulla
+                </button>
+                <button onClick={passaA} disabled={!aChi.trim()}
+                  className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-navy-scuro disabled:opacity-30">
+                  Passa a {aChi.trim() || '…'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {persoAperto && (
             <div className="salta-su mt-3 rounded-xl border border-red-200 bg-red-50/60 p-3">

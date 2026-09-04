@@ -20,7 +20,8 @@ type Chiave = PipelineStage | 'prospect'
 
 // le colonne della bacheca: le fasi vere (ordine di Dre, 1/9)
 const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
-  ['Prospect', 'prospect', (p) => !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p)],
+  ['Prospect', 'prospect', (p) => !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p)
+    && !(p as unknown as { passato_a?: string }).passato_a],
   ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva'],
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
   ['Call di Avvio', 'avvio', (p) => p.fuori && p.pipeline_stage === 'avvio'],
@@ -29,6 +30,11 @@ const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   // non sono piu' prospect, e cosi' il numero torna con quello della home
   ['Persi', 'perso', (p) => ePerso(p) || (!p.fuori && !vivo(p))],
 ]
+
+// i passati a qualcun altro: non sono ne' vinti ne' persi (Dre, 3/9).
+// Stanno fuori da TAPPE perche' non si trascinano: ci si passa dalla scheda.
+const passato = (p: Prospect) => Boolean((p as unknown as { passato_a?: string }).passato_a)
+const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a ?? ''
 
 const ORDINE: Record<Chiave, number> = {
   prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, cliente: 4, perso: 99,
@@ -469,6 +475,27 @@ export default function Lista({ onOpen, q }: Props) {
               </section>
             )
           })}
+        </div>
+      )}
+
+      {/* i passati: raggruppati per chi li ha ricevuti, cosi' non si perde
+          il rapporto con chi te li ha presi in mano */}
+      {vista === 'board' && rows.some(passato) && (
+        <div className="mt-3 rounded-2xl bg-velo p-3">
+          <div className="mb-2 flex items-baseline gap-2 px-1">
+            <Micro className="text-inchiostro">Passati a qualcun altro</Micro>
+            <span className="text-xs font-semibold text-tenue">{rows.filter(passato).length}</span>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            {[...new Set(rows.filter(passato).map(aChi))].map((chi) => (
+              <div key={chi} className="min-w-[180px] flex-1">
+                <p className="mb-1 px-1 text-xs font-bold text-blu">{chi}</p>
+                <div className="space-y-1.5">
+                  {rows.filter((p) => aChi(p) === chi).map(cartaBoard)}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
