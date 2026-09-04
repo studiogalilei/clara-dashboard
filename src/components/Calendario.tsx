@@ -24,7 +24,7 @@ interface Props {
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
-const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
+const GIORNI_LUNGHI = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
 
 const COLORE: Record<Tipo, string> = {
   call: 'bg-navy text-white',
@@ -204,8 +204,9 @@ export default function Calendario({ onOpen }: Props) {
         )}
       </div>
 
-      {/* desktop: griglia + giorno */}
-      <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+      {/* desktop: griglia + giorno, a tutta larghezza (Dre, 3/9): un mese
+          dentro un contenitore stretto si legge, non si scansiona */}
+      <div className="mx-[calc(50%-50vw)] hidden w-screen gap-4 px-4 lg:grid lg:grid-cols-[minmax(0,9fr)_minmax(0,3fr)] lg:px-8">
         <Card className="p-5">
           <div className="mb-3 flex items-baseline justify-between">
             <div className="flex items-baseline gap-2.5">
@@ -242,9 +243,9 @@ export default function Calendario({ onOpen }: Props) {
             </button>
           )}
 
-          <div className="mb-1 grid grid-cols-7">
-            {GIORNI.map((g, i) => (
-              <span key={i} className={`py-1 text-center text-[11px] font-bold uppercase ${i >= 5 ? 'text-bordo' : 'text-spento'}`}>
+          <div className="mb-1 grid grid-cols-7 border-b border-velo">
+            {GIORNI_LUNGHI.map((g, i) => (
+              <span key={i} className={`px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide ${i >= 5 ? 'text-bordo' : 'text-tenue'}`}>
                 {g}
               </span>
             ))}
@@ -261,23 +262,23 @@ export default function Calendario({ onOpen }: Props) {
                 <button
                   key={i}
                   onClick={() => setScelto(k)}
-                  className={`flex min-h-[64px] flex-col gap-1 rounded-lg border p-1.5 text-left transition-colors ${
+                  className={`flex min-h-[118px] flex-col gap-1 rounded-lg border p-2 text-left transition-colors ${
                     eScelto ? 'border-navy bg-navy/5'
                     : 'border-transparent hover:border-bordo'
-                  } ${weekend ? 'opacity-60' : ''}`}
+                  } ${weekend ? 'bg-velo/40' : ''}`}
                 >
-                  <span className={`self-start text-xs font-bold ${
-                    eOggi ? 'flex h-5 w-5 items-center justify-center rounded-full bg-navy text-white' : 'text-tenue'
+                  <span className={`self-start text-sm font-bold ${
+                    eOggi ? 'flex h-6 w-6 items-center justify-center rounded-full bg-navy text-white' : 'text-tenue'
                   }`}>
                     {d.getDate()}
                   </span>
-                  {eventi.slice(0, 2).map((v, j) => (
-                    <span key={j} className={`truncate rounded px-1 py-px text-[10px] font-semibold leading-tight ${COLORE[v.tipo]}`}>
+                  {eventi.slice(0, 4).map((v, j) => (
+                    <span key={j} className={`truncate rounded px-1.5 py-0.5 text-[11px] font-semibold leading-tight ${COLORE[v.tipo]}`}>
                       {corto(v.titolo)}
                     </span>
                   ))}
-                  {eventi.length > 2 && (
-                    <span className="text-[10px] font-semibold text-spento">+{eventi.length - 2}</span>
+                  {eventi.length > 4 && (
+                    <span className="text-[11px] font-semibold text-spento">+{eventi.length - 4}</span>
                   )}
                 </button>
               )
