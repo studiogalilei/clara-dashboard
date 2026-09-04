@@ -321,14 +321,13 @@ export default function App() {
                 {tab === 'pipeline' && <span className="text-navy"><ClaraLogo size={26} /></span>}
                 {tab === 'pipeline' ? saluto()[0] : titolo}
               </h1>
-              {tab === 'pipeline' && saluto()[1] && (
-                <p className="text-sm font-medium">{saluto()[1]}</p>
-              )}
-              {tab === 'pipeline' && salutoClara && (
-                <p className="text-sm text-tenue">
+              {tab === 'pipeline' && (salutoClara ? (
+                <p className="text-sm font-medium">
                   {salutoClara.replace(/^buon\w*[,.]?\s+dre[.,]?\s*/i, '')}
                 </p>
-              )}
+              ) : saluto()[1] ? (
+                <p className="text-sm font-medium">{saluto()[1]}</p>
+              ) : null)}
             </div>
             <div className="relative hidden w-72 lg:block">
               <input

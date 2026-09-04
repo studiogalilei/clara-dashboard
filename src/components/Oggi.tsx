@@ -219,10 +219,10 @@ export default function Oggi({ onOpen }: Props) {
         return sue.length ? [{ chiave: r, titolo, sotto: sue.map(sotto) }] : []
       }
       setGruppi([
-        ...gruppo('rispondi', 'Rispondere ai lead', caldo),
-        ...gruppo('followup', 'Mandare i follow-up', (a, b) => (b.fermoDa ?? 0) - (a.fermoDa ?? 0)),
-        ...gruppo('ricontatto', 'Ricontatti in scadenza'),
-        ...gruppo('rientro', 'Rientrati dalle ferie'),
+        ...gruppo('rispondi', 'Da rispondere', caldo),
+        ...gruppo('followup', 'Follow-up', (a, b) => (b.fermoDa ?? 0) - (a.fermoDa ?? 0)),
+        ...gruppo('ricontatto', 'Ricontatti'),
+        ...gruppo('rientro', 'Rientri'),
       ])
     })
   }, [caricaTask])

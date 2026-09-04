@@ -946,7 +946,7 @@ export default function Scheda({ id, onClose }: Props) {
                 <details>
                   <summary className="cursor-pointer list-none p-4 hover:bg-velo/40">
                     <span className="flex items-center justify-between">
-                      <TitoloCard>Il suo mercato</TitoloCard>
+                      <TitoloCard>Mercato</TitoloCard>
                       <span className="text-sm text-spento">›</span>
                     </span>
                     <span className="text-sm font-semibold">
@@ -1043,7 +1043,7 @@ export default function Scheda({ id, onClose }: Props) {
             {!modifica && (
               <Card>
                 <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
-                  <TitoloCard>La cartella</TitoloCard>
+                  <TitoloCard>Cartella</TitoloCard>
                   {codice && <span className="text-[11px] font-bold text-blu">{codice}</span>}
                 </header>
 
@@ -1087,7 +1087,7 @@ export default function Scheda({ id, onClose }: Props) {
             {/* DA FARE PER LUI: la scheda deve rispondere anche a questo */}
             {taskSue.length > 0 && (
               <Card className="p-4">
-                <TitoloCard>Da fare per lui</TitoloCard>
+                <TitoloCard>Da fare</TitoloCard>
                 <ul className="divide-y divide-velo">
                   {taskSue.map((t) => (
                     <li key={t.id} className="flex items-center gap-2 py-1.5 text-sm">
@@ -1108,7 +1108,7 @@ export default function Scheda({ id, onClose }: Props) {
             {eCliente(p) && !modifica && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
-                  <TitoloCard>I suoi progetti</TitoloCard>
+                  <TitoloCard>Progetti</TitoloCard>
                   <button
                     onClick={() => setChiedoProgetto(true)}
                     className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-navy"
@@ -1148,7 +1148,7 @@ export default function Scheda({ id, onClose }: Props) {
             {!modifica && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
-                  <TitoloCard>I suoi documenti</TitoloCard>
+                  <TitoloCard>Documenti</TitoloCard>
                   <button
                     onClick={() => docRef.current?.click()}
                     className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-navy"
@@ -1225,7 +1225,7 @@ export default function Scheda({ id, onClose }: Props) {
             )}
 
             <Card className="p-4">
-              <TitoloCard>Cosa è successo</TitoloCard>
+              <TitoloCard>Storia</TitoloCard>
               {timeline === null ? (
                 <Spinner />
               ) : storia.length === 0 ? (
@@ -1282,7 +1282,7 @@ export default function Scheda({ id, onClose }: Props) {
             )}
 
             <Card className="bg-velo/40 p-4">
-              <TitoloCard>Contatti fuori binario</TitoloCard>
+              <TitoloCard>Fuori binario</TitoloCard>
               <textarea
                 ref={appuntiRef}
                 rows={3}
