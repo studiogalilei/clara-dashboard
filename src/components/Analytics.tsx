@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, Interaction } from '../lib/types'
-import { vivo } from '../lib/regole'
+import { vivo, eCliente } from '../lib/regole'
 
 // giusto i pezzi di catena che servono qui
 interface Filtro {
@@ -62,6 +62,7 @@ export default function Analytics({ onOpen }: Props) {
       .from('prospects')
       .select('*')
       .neq('stage', 'nuovo')
+      .order('last_reply_at', { ascending: false, nullsFirst: false })
       .limit(1000)
       .then(({ data }) => setProspects((data as Prospect[]) ?? []))
 
@@ -69,6 +70,7 @@ export default function Analytics({ onOpen }: Props) {
       .from('interactions')
       .select('*')
       .gte('at', inizioSettimana(SETTIMANE - 1).toISOString())
+      .order('at', { ascending: false })
       .limit(2000)
       .then(({ data }) => setStoria((data as Interaction[]) ?? []))
   }, [])
@@ -80,8 +82,7 @@ export default function Analytics({ onOpen }: Props) {
   const tagliato = prospects.length >= 1000 || storia.length >= 2000
   const vivi = prospects.filter(vivo)
   const dentro = vivi.filter((p) => !p.fuori)
-  const fase = (f: string) => vivi.filter((p) => p.fuori && p.pipeline_stage === f)
-  const clienti = fase('cliente')
+  const clienti = vivi.filter(eCliente)   // stessa regola di Tutti e della bacheca
   const ricorrente = clienti.reduce((s, p) => s + (Number(p.canone) || 0), 0)
 
   // ── la FOTO: numeri col confronto sui 30 giorni ───────────────
@@ -93,7 +94,9 @@ export default function Analytics({ onOpen }: Props) {
   const rispostePrec = nel('email_in', t60, t30)
   const call30 = nel('transcript', t30, Date.now()) + nel('call', t30, Date.now())
   const callPrec = nel('transcript', t60, t30) + nel('call', t60, t30)
-  const clientiNuovi30 = clienti.filter((p) => p.fuori_at && new Date(p.fuori_at).getTime() >= t30).length
+  // fuori_at e' la data di INGRESSO in pipeline, non quella della firma:
+  // finche' non c'e' una data di conversione, la riga dice quello che sa
+  const entratiNuovi30 = vivi.filter((p) => p.fuori_at && new Date(p.fuori_at).getTime() >= t30).length
   const fermi = dentro
     .filter((p) => ['analisi_inviata', 'in_follow_up'].includes(p.stage) && !p.awaiting_us)
     .map((p) => ({ p, gg: daysAgo(p.analysis_sent_at) ?? 0 }))
@@ -154,7 +157,7 @@ export default function Analytics({ onOpen }: Props) {
       risposte: del.length,
       analisi: del.filter((p) => p.analysis_sent).length,
       call: del.filter((p) => p.fuori).length,
-      clienti: del.filter((p) => p.pipeline_stage === 'cliente').length,
+      clienti: del.filter(eCliente).length,
     }
   }).sort((a, b) => b.call - a.call)
 
@@ -211,9 +214,9 @@ export default function Analytics({ onOpen }: Props) {
       {/* ── LA FOTO ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Foto etichetta="Ricorrente / mese" valore={`${fmtNum(ricorrente)} €`}
-          confronto={clientiNuovi30 > 0 ? `+${clientiNuovi30} client${clientiNuovi30 === 1 ? 'e' : 'i'} nel mese` : ''} />
+          confronto={entratiNuovi30 > 0 ? `+${entratiNuovi30} entrati in pipeline nel mese` : ''} />
         <Foto etichetta="Clienti" valore={fmtNum(clienti.length)}
-          confronto={clientiNuovi30 > 0 ? `+${clientiNuovi30} nel mese` : ''} />
+          confronto={entratiNuovi30 > 0 ? `+${entratiNuovi30} entrati in pipeline nel mese` : ''} />
         <Foto etichetta="Risposte 30 giorni" valore={fmtNum(risposte30)}
           confronto={`${delta(risposte30, rispostePrec)} sul mese prima`} />
         <Foto etichetta="Call 30 giorni" valore={fmtNum(call30)}

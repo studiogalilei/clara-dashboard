@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, vivo, pedaggioPagato } from '../lib/regole'
+import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
@@ -21,8 +21,7 @@ type Chiave = PipelineStage | 'prospect'
 
 // le colonne della bacheca: le fasi vere (ordine di Dre, 1/9)
 const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
-  ['Prospect', 'prospect', (p) => !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p)
-    && !(p as unknown as { passato_a?: string }).passato_a],
+  ['Prospect', 'prospect', eProspect],
   ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva'],
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
   ['Call di Avvio', 'avvio', (p) => p.fuori && p.pipeline_stage === 'avvio'],
@@ -32,9 +31,7 @@ const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   ['Persi', 'perso', (p) => ePerso(p) || (!p.fuori && !vivo(p))],
 ]
 
-// i passati a qualcun altro: non sono ne' vinti ne' persi (Dre, 3/9).
-// Stanno fuori da TAPPE perche' non si trascinano: ci si passa dalla scheda.
-const passato = (p: Prospect) => Boolean((p as unknown as { passato_a?: string }).passato_a)
+// i passati a qualcun altro non si trascinano: ci si passa dalla scheda
 const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a ?? ''
 
 const ORDINE: Record<Chiave, number> = {
@@ -334,7 +331,9 @@ export default function Lista({ onOpen, q }: Props) {
       : fermo !== null && fermo >= 10 ? 'attesa'
       : 'ok'
     // i chiusi «vecchio stile» (mai passati dalla pipeline) non si trascinano
-    const trascinabile = !((!p.fuori) && (p.stage === 'cliente' || p.stage === 'perso'))
+    // un passato a qualcun altro non si trascina, se no dopo il rilascio
+    // compariva in due colonne insieme (revisione 4/9)
+    const trascinabile = !passato(p) && !((!p.fuori) && (p.stage === 'cliente' || p.stage === 'perso'))
     const inPresa = dragId === p.id
     return (
       <button
@@ -443,13 +442,14 @@ export default function Lista({ onOpen, q }: Props) {
           className="grid gap-3"
           style={{
             gridTemplateColumns: `repeat(${
-              TAPPE.filter(([nome, , filtro]) => nome !== 'Persi' || rows.filter(filtro).length > 0 || dragId !== null).length
+              TAPPE.length
             }, minmax(0, 1fr))`,
           }}
         >
           {TAPPE.map(([nome, chiave, filtro]) => {
             const dentro = rows.filter(filtro)
-            if (nome === 'Persi' && dentro.length === 0 && dragId === null) return null
+            // la corsia Persi c'e' sempre: prima compariva quando alzavi una
+            // carta e spostava tutte le altre sotto il dito (revisione 4/9)
             const evidenziata = sopra === chiave && dragId !== null
             return (
               <section

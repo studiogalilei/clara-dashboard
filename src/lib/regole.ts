@@ -33,6 +33,29 @@ export function chiuso(p: Fase & Pick<Prospect, 'classificazione'>): boolean {
   return eCliente(p) || ePerso(p) || !vivo(p)
 }
 
+// passato a qualcun altro: la terza uscita, ne' vinto ne' perso (Dre, 3/9)
+export function passato(p: Fase): boolean {
+  return Boolean((p as { passato_a?: string | null }).passato_a)
+}
+
+// un prospect e' chi non e' ancora in pipeline e non e' uscito da nessuna
+// delle tre porte. Prima questa regola era scritta in tre punti diversi e i
+// tre numeri non tornavano (revisione 4/9)
+export function eProspect(p: Fase & Pick<Prospect, 'classificazione'>): boolean {
+  return !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p) && !passato(p)
+}
+
+// la stessa domanda nella lingua di PostgREST, per i conteggi sul database
+export const PROSPECT_QUERY = {
+  fuori: false,
+  esclusi: "stage.not.in.(\"perso\",\"cliente\",\"nuovo\")",
+}
+
+// in pipeline: fra la prima call e la firma
+export function inPipeline(p: Fase): boolean {
+  return p.fuori && p.pipeline_stage !== 'cliente' && p.pipeline_stage !== 'perso'
+}
+
 // ── il giorno, in ora italiana ────────────────────────────────────
 // toISOString() dà il giorno UTC: fra mezzanotte e le 2 era ancora ieri.
 export function giorno(d: Date | string = new Date()): string {
