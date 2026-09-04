@@ -97,6 +97,78 @@ export async function ricorrenteMensile(): Promise<{
   }
 }
 
+// ── la coda di oggi, una sola ─────────────────────────────────────
+// «Cosa devo fare oggi» era scritta tre volte: il saluto di Clara la contava
+// in un modo, il Radar in un altro e la pagina Task in un terzo, con gruppi,
+// filtri e tetti diversi. Due di quei numeri stanno sulla stessa schermata e
+// non tornavano mai. Adesso la domanda si fa qui, una volta (revisione 4/9).
+//
+// Quattro ragioni per cui uno finisce nella coda, in ordine di urgenza. Chi
+// ne ha piu' d'una compare una volta sola, con la prima.
+export type Ragione = 'rispondi' | 'followup' | 'ricontatto' | 'rientro'
+
+export interface VoceCoda {
+  p: Prospect
+  ragione: Ragione
+  data: string | null      // la data che l'ha messo in coda
+  fermoDa: number | null   // giorni dall'analisi, quando e' quello che conta
+}
+
+// quanti giorni di silenzio dopo l'analisi prima di considerarlo dovuto
+export const GIORNI_FOLLOWUP = 5
+
+export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string | null }> {
+  const today = oggi()
+  const [dr, fu, ri, oo] = await Promise.all([
+    supabase.from('prospects').select('*')
+      .eq('awaiting_us', true).eq('fuori', false).or(VIVI)
+      .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(300),
+    supabase.from('prospects').select('*')
+      .in('stage', ['analisi_inviata', 'in_follow_up'])
+      .eq('no_followup', false).eq('awaiting_us', false).eq('fuori', false).or(VIVI)
+      .order('analysis_sent_at', { ascending: true, nullsFirst: false }).limit(500),
+    supabase.from('prospects').select('*')
+      .not('next_action_date', 'is', null).lte('next_action_date', today).or(VIVI)
+      .order('next_action_date', { ascending: true }).limit(300),
+    supabase.from('prospects').select('*')
+      .not('ooo_until', 'is', null).lte('ooo_until', today)
+      .eq('no_followup', false).eq('fuori', false).or(VIVI)
+      .order('ooo_until', { ascending: true }).limit(300),
+  ])
+  const problema = dr.error?.message ?? fu.error?.message ?? ri.error?.message ?? oo.error?.message ?? null
+
+  const voci: VoceCoda[] = []
+  const visti = new Set<string>()
+  // chi e' gia' cliente, chi e' perso e chi e' passato a un altro non ha una
+  // coda: e' la stessa regola che decide tutto il resto dell'app
+  const aggiungi = (p: Prospect, ragione: Ragione, data: string | null, fermoDa: number | null) => {
+    if (visti.has(p.id) || eCliente(p) || ePerso(p) || passato(p)) return
+    visti.add(p.id)
+    voci.push({ p, ragione, data, fermoDa })
+  }
+
+  for (const p of ((dr.data as Prospect[]) ?? [])) aggiungi(p, 'rispondi', p.last_reply_at, null)
+
+  for (const p of ((fu.data as Prospect[]) ?? [])) {
+    const g = giorniDa(p.analysis_sent_at)
+    // una data sua vince sul conto dei giorni: e' il motivo per cui e' qui
+    if (p.followup_due) { if (p.followup_due.slice(0, 10) <= today) aggiungi(p, 'followup', p.followup_due, g) }
+    else if (g !== null && g >= GIORNI_FOLLOWUP) aggiungi(p, 'followup', p.analysis_sent_at, g)
+  }
+
+  for (const p of ((ri.data as Prospect[]) ?? [])) aggiungi(p, 'ricontatto', p.next_action_date, null)
+  for (const p of ((oo.data as Prospect[]) ?? [])) aggiungi(p, 'rientro', p.ooo_until, null)
+
+  return { voci, problema }
+}
+
+export function giorniDa(iso: string | null | undefined): number | null {
+  if (!iso) return null
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return null
+  return Math.floor((Date.now() - t) / 86400000)
+}
+
 // ── il giorno, in ora italiana ────────────────────────────────────
 // toISOString() dà il giorno UTC: fra mezzanotte e le 2 era ancora ieri.
 export function giorno(d: Date | string = new Date()): string {

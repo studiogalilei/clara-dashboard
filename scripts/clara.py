@@ -99,6 +99,22 @@ def scrivi(tipo, testo, prospect_id=None):
     print(f"  {tipo}: {testo[:70]}")
 
 
+GIORNI_FOLLOWUP = 5
+
+
+def dovuto(p, oggi):
+    """Se questo follow-up e' dovuto oggi.
+
+    Copia esatta del ramo 'followup' di codaDiOggi() in src/lib/regole.ts:
+    una data sua vince sul conto dei giorni, perche' e' la ragione per cui
+    sta in lista. Se cambia una, cambia l'altra: se no il saluto in testata
+    e il Radar sotto contano due code diverse.
+    """
+    if p.get("followup_due"):
+        return p["followup_due"][:10] <= oggi
+    return (gg_fa(p.get("analysis_sent_at")) or 0) >= GIORNI_FOLLOWUP
+
+
 def gg_fa(iso):
     if not iso:
         return None
@@ -288,20 +304,37 @@ def main():
                  f"&at=lt.{iso_utc(inizio + timedelta(days=1))}&order=at")
     da_risp = api(f"prospects?awaiting_us=eq.true&fuori=eq.false&or=({vivi})&select=id")
     in_pipe = api('prospects?fuori=eq.true&pipeline_stage=in.("conoscitiva","tecnica","avvio")')
-    inviate = api(f"prospects?analysis_sent=eq.true&awaiting_us=eq.false&fuori=eq.false"
-                  f"&no_followup=eq.false&or=({vivi})&select=id,company,name,analysis_sent_at")
+    inviate = api(f"prospects?stage=in.(\"analisi_inviata\",\"in_follow_up\")"
+                  f"&awaiting_us=eq.false&fuori=eq.false"
+                  f"&no_followup=eq.false&or=({vivi})"
+                  f"&select=id,company,name,analysis_sent_at,followup_due")
+    ricontatti = api(f"prospects?next_action_date=not.is.null&next_action_date=lte.{oggi}"
+                     f"&or=({vivi})&select=id")
+    rientri = api(f"prospects?ooo_until=not.is.null&ooo_until=lte.{oggi}"
+                  f"&no_followup=eq.false&fuori=eq.false&or=({vivi})&select=id")
     clienti = api('prospects?pipeline_stage=eq.cliente')
 
-    dovuti = [p for p in inviate if (gg_fa(p.get("analysis_sent_at")) or 0) >= 5]
+    dovuti = [p for p in inviate if dovuto(p, oggi)]
     fermi = [p for p in inviate if (gg_fa(p.get("analysis_sent_at")) or 0) >= 30]
-    scaduti = [p for p in in_pipe
-               if p.get("next_action_date") and p["next_action_date"] < oggi]
 
     # ── il saluto in testata: il suo spazio nella UI ─────────────
     giorni_it = ["Lunedì", "Martedì", "Mercoledì", "Giovedì",
                  "Venerdì", "Sabato", "Domenica"]
     nome_giorno = giorni_it[date.today().weekday()]
-    conta_coda = len(da_risp) + len(dovuti)
+    # la coda: le stesse quattro ragioni della Dashboard, nello stesso
+    # ordine, contate una volta sola per persona
+    visti = set()
+    per_ragione = {}
+    for nome_gruppo, righe in (("rispondere", da_risp), ("follow-up", dovuti),
+                               ("ricontatti", ricontatti), ("rientri", rientri)):
+        quanti = 0
+        for p in righe:
+            if p["id"] in visti:
+                continue
+            visti.add(p["id"])
+            quanti += 1
+        per_ragione[nome_gruppo] = quanti
+    conta_coda = len(visti)
     if agenda and conta_coda > 3:
         saluto = (f"Buongiorno Dre. {nome_giorno} pieno: "
                   f"{len(agenda)} call e {conta_coda} in coda. Si parte dalla prima.")
@@ -323,15 +356,15 @@ def main():
             righe.append(f"• {ora_italiana(a['at'])}: {a['titolo']}")
     else:
         righe.append("• Nessuna call in calendario.")
-    conta = len(da_risp) + len(dovuti) + len(scaduti)
-    if conta:
-        pezzi = []
-        if da_risp:
-            pezzi.append(f"{len(da_risp)} da rispondere")
-        if dovuti:
-            pezzi.append(f"{len(dovuti)} follow-up dovuti")
-        if scaduti:
-            pezzi.append(f"{len(scaduti)} con la data passata")
+    if conta_coda:
+        etichette = {
+            "rispondere": ("da rispondere", "da rispondere"),
+            "follow-up": ("follow-up dovuto", "follow-up dovuti"),
+            "ricontatti": ("con la data arrivata", "con la data arrivata"),
+            "rientri": ("rientrato dalle ferie", "rientrati dalle ferie"),
+        }
+        pezzi = [f"{n} {etichette[g][0 if n == 1 else 1]}"
+                 for g, n in per_ragione.items() if n]
         righe.append("• In coda: " + ", ".join(pezzi) + ".")
     else:
         righe.append("• Coda pulita: nessun lead aspetta te.")

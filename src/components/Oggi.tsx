@@ -1,10 +1,10 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
-import type { Prospect, Classificazione } from '../lib/types'
+import type { Classificazione } from '../lib/types'
 import Radar from './Radar'
-import { Card, Spinner, daysAgo, giorni, fmtDateShort, sgid } from './ui'
-import { VIVI, oggi, giorno } from '../lib/regole'
+import { Card, Spinner, giorni, fmtDateShort, sgid } from './ui'
+import { oggi, giorno, codaDiOggi, type VoceCoda } from '../lib/regole'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -46,7 +46,6 @@ function lunediDi(d: Date): Date {
   return x
 }
 
-const FU_DAYS = 5
 const RANGO: Partial<Record<Classificazione, number>> = {
   positivo: 0, da_classificare: 1, tiepido: 2, rinvio: 3, ooo: 4,
 }
@@ -199,60 +198,32 @@ export default function Oggi({ onOpen }: Props) {
   useEffect(() => {
     caricaTask()
 
-    const today = oggi()
-    Promise.all([
-      supabase.from('prospects').select('*')
-        .eq('awaiting_us', true).eq('fuori', false).or(VIVI)
-        .order('last_reply_at', { ascending: false }).limit(100),
-      supabase.from('prospects').select('*')
-        .in('stage', ['analisi_inviata', 'in_follow_up'])
-        .eq('no_followup', false).eq('awaiting_us', false).eq('fuori', false).or(VIVI)
-        .order('analysis_sent_at', { ascending: true }).limit(200),
-      supabase.from('prospects').select('*')
-        .lte('next_action_date', today).not('next_action_date', 'is', null)
-        .not('stage', 'in', '("cliente","perso")').or(VIVI)
-        .order('next_action_date', { ascending: true }).limit(100),
-      supabase.from('prospects').select('*')
-        .lte('ooo_until', today).not('ooo_until', 'is', null)
-        .eq('no_followup', false).eq('fuori', false).or(VIVI),
-    ]).then(([dr, fu, ri, oo]) => {
-      const visti = new Set<string>()
-      const sotto = (p: Prospect, nota: string): Sotto | null => {
-        if (visti.has(p.id)) return null
-        visti.add(p.id)
-        return { chiave: `coda-${p.id}`, nome: p.company || p.name || p.email, nota, prospect_id: p.id, sg: sgid(p.sg_id) }
+    // la coda la definisce regole.ts, per tutti: qui si decide solo come
+    // si chiamano i gruppi e cosa c'e' scritto sotto ogni nome
+    codaDiOggi().then(({ voci }) => {
+      const caldo = (a: VoceCoda, b: VoceCoda) =>
+        (RANGO[a.p.classificazione ?? 'da_classificare'] ?? 5) - (RANGO[b.p.classificazione ?? 'da_classificare'] ?? 5)
+      const nota = (v: VoceCoda): string => {
+        if (v.ragione === 'rispondi') return `ha scritto lui il ${fmtDateShort(v.data)}`
+        if (v.ragione === 'followup') return v.fermoDa !== null ? `silenzio da ${giorni(v.fermoDa)}` : `dovuto dal ${fmtDateShort(v.data)}`
+        if (v.ragione === 'ricontatto') return v.p.next_action ?? 'la data è arrivata'
+        return `rientrato il ${fmtDateShort(v.data)}`
       }
-      const caldo = (a: Prospect, b: Prospect) =>
-        (RANGO[a.classificazione ?? 'da_classificare'] ?? 5) - (RANGO[b.classificazione ?? 'da_classificare'] ?? 5)
-
-      const out: Gruppo[] = []
-      const rispondi = ((dr.data as Prospect[]) ?? []).sort(caldo)
-        .map((p) => sotto(p, `ha scritto lui il ${fmtDateShort(p.last_reply_at)}`))
-        .filter(Boolean) as Sotto[]
-      if (rispondi.length) out.push({ chiave: 'rispondi', titolo: 'Rispondere ai lead', sotto: rispondi })
-
-      const dovuti = ((fu.data as Prospect[]) ?? []).filter((p) => {
-        if (p.followup_due) return p.followup_due.slice(0, 10) <= today
-        const d = daysAgo(p.analysis_sent_at)
-        return d !== null && d >= FU_DAYS
-      }).sort((a, b) => (daysAgo(b.analysis_sent_at) ?? 0) - (daysAgo(a.analysis_sent_at) ?? 0))
-        .map((p) => {
-          const d = daysAgo(p.analysis_sent_at)
-          return sotto(p, `silenzio da ${d !== null ? giorni(d) : '?'}`)
-        }).filter(Boolean) as Sotto[]
-      if (dovuti.length) out.push({ chiave: 'followup', titolo: 'Mandare i follow-up', sotto: dovuti })
-
-      const ricontatti = (((ri.data as Prospect[]) ?? [])
-        .map((p) => sotto(p, p.next_action ?? 'la data è arrivata'))
-        .filter(Boolean)) as Sotto[]
-      if (ricontatti.length) out.push({ chiave: 'ricontatti', titolo: 'Ricontatti in scadenza', sotto: ricontatti })
-
-      const rientri = (((oo.data as Prospect[]) ?? [])
-        .map((p) => sotto(p, `rientrato il ${fmtDateShort(p.ooo_until)}`))
-        .filter(Boolean)) as Sotto[]
-      if (rientri.length) out.push({ chiave: 'rientri', titolo: 'Rientrati dalle ferie', sotto: rientri })
-
-      setGruppi(out)
+      const sotto = (v: VoceCoda): Sotto => ({
+        chiave: `coda-${v.p.id}`, nome: v.p.company || v.p.name || v.p.email,
+        nota: nota(v), prospect_id: v.p.id, sg: sgid(v.p.sg_id),
+      })
+      const gruppo = (r: VoceCoda['ragione'], titolo: string, ordina?: (a: VoceCoda, b: VoceCoda) => number) => {
+        const sue = voci.filter((v) => v.ragione === r)
+        if (ordina) sue.sort(ordina)
+        return sue.length ? [{ chiave: r, titolo, sotto: sue.map(sotto) }] : []
+      }
+      setGruppi([
+        ...gruppo('rispondi', 'Rispondere ai lead', caldo),
+        ...gruppo('followup', 'Mandare i follow-up', (a, b) => (b.fermoDa ?? 0) - (a.fermoDa ?? 0)),
+        ...gruppo('ricontatto', 'Ricontatti in scadenza'),
+        ...gruppo('rientro', 'Rientrati dalle ferie'),
+      ])
     })
   }, [caricaTask])
 

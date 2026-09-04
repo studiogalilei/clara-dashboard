@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
 import { Dot, Card, fmtNum, daysAgo, fmtDateShort, fmtOra } from './ui'
-import { VIVI, oggi, giorno } from '../lib/regole'
+import { VIVI, oggi, giorno, codaDiOggi, GIORNI_FOLLOWUP, type VoceCoda } from '../lib/regole'
 
 // Il radar della home: la riga dei 4 numeri (la scura e' «Da fare oggi»,
 // e le call di OGGI vivono li' dentro), la card «Prossima» con il primo
 // evento futuro, e gli Avvisi. Regole della sintesi 31/8: mai lo stesso
 // evento in due punti; zero eventi in settimana = zero interfaccia.
 
-const FU_DAYS = 5
 const FERMO_DAYS = 30
 
 
@@ -45,8 +44,9 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   const [prossimo, setProssimo] = useState<AgendaItem | null>(null)
   const [settimana, setSettimana] = useState(0)
   const [aggiornato, setAggiornato] = useState<string | null>(null)
-  const [daFare, setDaFare] = useState<number | null>(null)
-  const [ticker, setTicker] = useState<VoceTicker[]>([])
+  const [pronto, setPronto] = useState(false)
+  const [callDiOggi, setCallDiOggi] = useState<VoceTicker[]>([])
+  const [coda, setCoda] = useState<VoceTicker[]>([])
   const [indice, setIndice] = useState(0)
   const [fermo, setFermo] = useState(false)
   const [tuttiAvvisi, setTuttiAvvisi] = useState(false)
@@ -65,6 +65,25 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         const run = (data as Array<{ finished_at: string | null }> | null)?.[0]
         if (run?.finished_at) setAggiornato(run.finished_at)
       })
+
+    // «cosa devo fare oggi» la decide regole.ts, per tutti. Prima ogni
+    // schermata rifaceva le sue query con filtri e tetti diversi, e i due
+    // numeri che stanno in testata e qui sotto non tornavano mai (4/9)
+    codaDiOggi().then(({ voci }) => {
+      const nome = (p: Prospect) => p.company || p.name || p.email
+      const testo = (v: VoceCoda): string => {
+        if (v.ragione === 'rispondi') return `Rispondere a ${nome(v.p)}`
+        if (v.ragione === 'followup') {
+          return v.p.followup_due
+            ? `Follow-up a ${nome(v.p)} · previsto ${fmtDateShort(v.p.followup_due)}`
+            : `Follow-up a ${nome(v.p)}${v.fermoDa !== null ? ` · tace da ${v.fermoDa} gg` : ''}`
+        }
+        if (v.ragione === 'ricontatto') return `${v.p.next_action ?? 'Ricontatto'} · ${nome(v.p)}`
+        return `Rientrato dalle ferie: ${nome(v.p)}`
+      }
+      setCoda(voci.map((v) => ({ testo: testo(v), prospect_id: v.p.id })))
+      setPronto(true)
+    })
 
     Promise.all([
       supabase
@@ -96,15 +115,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         .eq('no_followup', false)
         .order('last_reply_at', { ascending: false, nullsFirst: false })
         .limit(1000),
-      supabase
-        .from('prospects')
-        .select('*')
-        .eq('awaiting_us', true)
-        .eq('fuori', false)
-        .or(VIVI)
-        .order('last_reply_at', { ascending: false, nullsFirst: false })
-        .limit(1000),
-    ]).then(([ag, fu, pi, ri, dr]) => {
+    ]).then(([ag, fu, pi, ri]) => {
       const eventi = (ag.data as AgendaItem[]) ?? []
       const futuri = eventi.filter((a) => a.at >= adesso)
       const passati = eventi.filter((a) => a.at < adesso)
@@ -117,29 +128,11 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
       const dovuti = ((fu.data as Prospect[]) ?? []).filter((p) => {
         if (p.followup_due) return p.followup_due.slice(0, 10) <= today
         const d = daysAgo(p.analysis_sent_at)
-        return d !== null && d >= FU_DAYS
+        return d !== null && d >= GIORNI_FOLLOWUP
       })
-      const daRisp = (dr.data as Prospect[]) ?? []
-      const ricontatti = inPipeline.filter((p) => p.next_action_date && p.next_action_date <= today)
-      setDaFare(daRisp.length + dovuti.length + ricontatti.length)
-
-      // le voci che scorrono nella card scura
-      const nome = (p: Prospect) => p.company || p.name || p.email
-      const voci: VoceTicker[] = [
-        ...futuri.filter((a) => a.at.slice(0, 10) === today)
-          .map((a) => ({ testo: `${fmtOra(a.at)} · ${a.titolo}`, prospect_id: a.prospect_id })),
-        ...daRisp.map((p) => ({ testo: `Rispondere a ${nome(p)}`, prospect_id: p.id })),
-        ...dovuti.map((p) => {
-          if (p.followup_due) {
-            return { testo: `Follow-up a ${nome(p)} · previsto ${fmtDateShort(p.followup_due)}`, prospect_id: p.id }
-          }
-          const d = daysAgo(p.analysis_sent_at)
-          return { testo: `Follow-up a ${nome(p)}${d !== null ? ` · tace da ${d} gg` : ''}`, prospect_id: p.id }
-        }),
-        ...ricontatti.map((p) => ({ testo: `${p.next_action ?? 'Ricontatto'} · ${nome(p)}`, prospect_id: p.id })),
-      ]
-      setTicker(voci)
-      setIndice(0)
+      // le call di oggi: quelle stanno nell'agenda, non nella coda
+      setCallDiOggi(futuri.filter((a) => a.at.slice(0, 10) === today)
+        .map((a) => ({ testo: `${fmtOra(a.at)} · ${a.titolo}`, prospect_id: a.prospect_id })))
 
       const nuovi: Avviso[] = []
       for (const a of passati) {
@@ -198,6 +191,11 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
     })
   }, [])
 
+  // quello che scorre: prima le call di oggi, poi la coda. Due sorgenti,
+  // una lista sola, e il numero in alto conta questa. Prima il Radar ne
+  // calcolava un terzo, lo scriveva e non lo mostrava a nessuno (4/9)
+  const ticker = [...callDiOggi, ...coda]
+
   useEffect(() => {
     if (ticker.length < 2 || fermo) return
     const t = setInterval(() => {
@@ -245,7 +243,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
             )}
           </div>
           <div className="relative mt-1 h-12 overflow-hidden">
-            {daFare === null ? (
+            {!pronto ? (
               <p className="text-lg font-extrabold">…</p>
             ) : ticker.length === 0 ? (
               <>
