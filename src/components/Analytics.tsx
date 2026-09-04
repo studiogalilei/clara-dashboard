@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, Interaction } from '../lib/types'
-import { vivo, eCliente } from '../lib/regole'
+import { vivo, eCliente, ricorrenteMensile } from '../lib/regole'
 
 // giusto i pezzi di catena che servono qui
 interface Filtro {
@@ -33,11 +33,14 @@ function inizioSettimana(offset: number): Date {
 export default function Analytics({ onOpen }: Props) {
   const [canale, setCanale] = useState<Record<string, number> | null>(null)
   const [prospects, setProspects] = useState<Prospect[] | null>(null)
+  const [ricorrente, setRicorrente] = useState<{ mese: number; quanti: number } | null>(null)
   const [storia, setStoria] = useState<Interaction[] | null>(null)
 
   // il sommario per canale: i numeri li conta il database, non una lista
   // troncata. Oggi il sistema conosce solo l'Email (Smartlead): le altre
   // righe restano da collegare invece di essere inventate (Dre, 3/9)
+  useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
+
   useEffect(() => {
     const conta = (domanda: (f: Filtro) => Filtro) =>
       domanda(supabase.from('prospects')
@@ -83,7 +86,6 @@ export default function Analytics({ onOpen }: Props) {
   const vivi = prospects.filter(vivo)
   const dentro = vivi.filter((p) => !p.fuori)
   const clienti = vivi.filter(eCliente)   // stessa regola di Tutti e della bacheca
-  const ricorrente = clienti.reduce((s, p) => s + (Number(p.canone) || 0), 0)
 
   // ── la FOTO: numeri col confronto sui 30 giorni ───────────────
   const t30 = Date.now() - 30 * 86400e3
@@ -213,9 +215,11 @@ export default function Analytics({ onOpen }: Props) {
 
       {/* ── LA FOTO ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Foto etichetta="Ricorrente / mese" valore={`${fmtNum(ricorrente)} €`}
+        {/* il ricorrente e i clienti li conta regole.ts, non questa lista:
+            e' lo stesso numero che vedi in Tutti e in bacheca (4/9) */}
+        <Foto etichetta="Ricorrente / mese" valore={ricorrente ? `${fmtNum(ricorrente.mese)} €` : '…'}
           confronto={entratiNuovi30 > 0 ? `+${entratiNuovi30} entrati in pipeline nel mese` : ''} />
-        <Foto etichetta="Clienti" valore={fmtNum(clienti.length)}
+        <Foto etichetta="Clienti" valore={ricorrente ? fmtNum(ricorrente.quanti) : '…'}
           confronto={entratiNuovi30 > 0 ? `+${entratiNuovi30} entrati in pipeline nel mese` : ''} />
         <Foto etichetta="Risposte 30 giorni" valore={fmtNum(risposte30)}
           confronto={`${delta(risposte30, rispostePrec)} sul mese prima`} />
