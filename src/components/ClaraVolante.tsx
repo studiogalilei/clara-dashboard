@@ -553,12 +553,16 @@ export default function ClaraVolante({ onOpen }: Props) {
             style={{ width: `min(${larghezza}px, 100vw)` }}
             className="salta-su fixed bottom-0 right-0 top-0 z-[65] flex flex-col bg-white shadow-[-8px_0_40px_rgba(16,24,40,0.15)]"
           >
-            {/* la maniglia per allargare */}
+            {/* la maniglia per allargare: si vede, se no nessuno sa che
+                c'e' (Dre, 4/9). Il filo si scurisce quando ci passi sopra */}
             <div
               onPointerDown={(e) => { e.preventDefault(); tiro.current.attivo = true }}
-              className="absolute bottom-0 left-0 top-0 hidden w-2 cursor-col-resize hover:bg-blu/20 sm:block"
-              aria-hidden
-            />
+              aria-label="Allarga o stringi il pannello di Clara"
+              className="group absolute bottom-0 left-0 top-0 z-10 hidden w-3 -translate-x-1.5 cursor-col-resize sm:block"
+            >
+              <span className="absolute inset-y-0 left-1.5 w-px bg-bordo transition-colors group-hover:bg-blu" />
+              <span className="absolute left-[1px] top-1/2 h-8 w-[5px] -translate-y-1/2 rounded-full bg-transparent transition-colors group-hover:bg-blu/30" />
+            </div>
 
             <header className="flex items-center gap-3 border-b border-velo px-5 py-3.5">
               <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>

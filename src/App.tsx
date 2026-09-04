@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configured, demo } from './lib/supabase'
-import { scarica as scaricaPreferenze } from './lib/preferenze'
+import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
 import Lista from './components/Lista'
@@ -73,6 +73,10 @@ export default function App() {
   // alla chiusura della scheda le viste si ricaricano: la bacheca non deve
   // mai mentire su una fase appena cambiata
   const [versione, setVersione] = useState(0)
+  // il menu si allarga e si stringe trascinando il filo, come su Claude
+  // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
+  const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
+  const tiroMenu = useRef(false)
   const [salutoClara, setSalutoClara] = useState<string | null>(null)
   const cercaRef = useRef<HTMLInputElement>(null)
 
@@ -80,6 +84,26 @@ export default function App() {
     setOpenId(null)
     setVersione((v) => v + 1)
   }
+
+  useEffect(() => {
+    function muovi(e: PointerEvent) {
+      if (!tiroMenu.current) return
+      e.preventDefault()
+      setMenuLargo(Math.min(Math.max(e.clientX, 180), 400))
+    }
+    function molla() {
+      if (!tiroMenu.current) return
+      tiroMenu.current = false
+      document.body.style.userSelect = ''
+      setMenuLargo((w) => { scriviPref('menu-larghezza', String(w)); return w })
+    }
+    window.addEventListener('pointermove', muovi)
+    window.addEventListener('pointerup', molla)
+    return () => {
+      window.removeEventListener('pointermove', muovi)
+      window.removeEventListener('pointerup', molla)
+    }
+  }, [])
 
   useEffect(() => {
     if (!configured) {
@@ -157,7 +181,26 @@ export default function App() {
     <div className="min-h-dvh bg-fondo lg:flex">
 
       {/* ── sidebar (solo desktop) ─────────────────────────────── */}
-      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-bordo bg-white px-4 py-5 lg:flex">
+      <aside
+        style={{ width: menuLargo }}
+        className="sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-bordo bg-white px-4 py-5 lg:flex"
+      >
+        {/* il filo per allargare: si scurisce quando ci passi sopra */}
+        <div
+          onPointerDown={(e) => {
+            e.preventDefault()
+            tiroMenu.current = true
+            // se no trascinando si seleziona mezza pagina
+            document.body.style.userSelect = 'none'
+          }}
+          onDoubleClick={() => { setMenuLargo(224); scriviPref('menu-larghezza', '224') }}
+          aria-label="Allarga o stringi il menu"
+          title="Trascina per allargare, doppio clic per rimetterlo com'era"
+          className="group absolute inset-y-0 right-0 z-10 w-3 translate-x-1.5 cursor-col-resize"
+        >
+          <span className="absolute inset-y-0 left-1.5 w-px bg-transparent transition-colors group-hover:bg-blu" />
+          <span className="absolute left-[1px] top-1/2 h-8 w-[5px] -translate-y-1/2 rounded-full bg-transparent transition-colors group-hover:bg-blu/30" />
+        </div>
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <img src="/sg-simbolo.svg" alt="Studio Galilei" className="h-9 w-auto" />
           <span className="text-[15px] leading-tight tracking-tight text-navy">

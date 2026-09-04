@@ -22,6 +22,7 @@ export const CHIAVI = [
   'tutti-vista',
   'tutti-filtro',
   'clara-larghezza',
+  'menu-larghezza',
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]
