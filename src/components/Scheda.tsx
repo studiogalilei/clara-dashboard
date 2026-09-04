@@ -248,8 +248,8 @@ export default function Scheda({ id, onClose }: Props) {
     await supabase.from('vault_file')
       .insert({ nome, path, mime: f.type || null, dimensione: f.size, prospect_id: p!.id })
       .select().single()
-    await segna('nota', `📎 ${f.name} · nel Vault`)
-    setNotaEsito(`«${nome}» nel Vault, agganciato a ${p!.company || p!.name} ✓`)
+    await segna('nota', `📎 ${f.name} · nei Documenti`)
+    setNotaEsito(`«${nome}» nei Documenti, agganciato a ${p!.company || p!.name} ✓`)
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)
   }
 
@@ -447,7 +447,7 @@ export default function Scheda({ id, onClose }: Props) {
 
       <ZonaFile
         onFile={(f) => { setNoteAperte(true); allegaDocumento(f) }}
-        messaggio={`Lascia qui: nel Vault, agganciato a ${p.company || p.name}`}
+        messaggio={`Lascia qui: nei Documenti, agganciato a ${p.company || p.name}`}
         className="mx-auto max-w-5xl space-y-3 px-4 py-4 pb-16"
       >
 
@@ -485,6 +485,16 @@ export default function Scheda({ id, onClose }: Props) {
               <p className="mt-0.5 text-sm text-tenue">{adesso()}</p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {/* il ponte verso Obsidian, dove vivono gli originali (3/9).
+                  Non nelle Impostazioni, dove sarebbe un segnalibro: qui
+                  porta al punto */}
+              <a
+                href={`obsidian://search?vault=studiogalilei&query=${encodeURIComponent(p.company || p.name || p.email)}`}
+                title="Cerca questo prospect nel vault, su questo Mac"
+                className="rounded-full border border-bordo px-3.5 py-2.5 text-sm font-semibold text-tenue transition-colors hover:border-navy hover:text-navy"
+              >
+                Apri in Obsidian
+              </a>
               {!ePerso(p) && !soppresso && (
                 <button
                   onClick={() => { setPersoAperto(true); setMotivoPerso('') }}

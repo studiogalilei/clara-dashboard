@@ -54,7 +54,7 @@ export const WIDGET: Widget[] = [
   { chiave: 'analytics', nome: 'Analytics', cosa: 'I numeri: funnel, ricorrente, canali', zona: 'sistema',
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 20v-6M11 20V6M17 20v-9M3 20h18' },
-  { chiave: 'vault', nome: 'Vault', cosa: 'I documenti, agganciati ai prospect', zona: 'sistema', fisso: true,
+  { chiave: 'vault', nome: 'Documenti', cosa: 'I file, agganciati ai prospect', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3' },
   { chiave: 'plugin', nome: 'Agenti e Skills', cosa: 'Cosa sa fare Clara, e i collegamenti', zona: 'sistema',

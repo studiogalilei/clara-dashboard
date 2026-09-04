@@ -448,7 +448,7 @@ export default function ClaraVolante({ onOpen }: Props) {
       await supabase.from('vault_file')
         .insert({ nome, path, mime: f.type || null, dimensione: f.size })
         .select().single()
-      await scriviMessaggio('dre', `📎 ${f.name} · messo nel Vault`)
+      await scriviMessaggio('dre', `📎 ${f.name} · messo nei Documenti`)
     }
     setInvio(false)
   }
@@ -569,7 +569,7 @@ export default function ClaraVolante({ onOpen }: Props) {
             </div>
 
             {/* la conversazione */}
-            <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo al Vault" className="flex-1 space-y-2.5 overflow-y-auto p-4">
+            <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo ai Documenti" className="flex-1 space-y-2.5 overflow-y-auto p-4">
               {messaggi === null ? (
                 <Spinner />
               ) : messaggi.length === 0 ? (

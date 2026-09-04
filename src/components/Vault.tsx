@@ -90,7 +90,7 @@ export default function Vault({ onOpen }: Props) {
       .select().single()
     if (data) {
       setFile((v) => [data as FileVault, ...(v ?? [])])
-      setToast(`«${nome}» al sicuro nel Vault ✓`)
+      setToast(`«${nome}» al sicuro nei Documenti ✓`)
     }
     setCaricando(false)
   }
@@ -120,7 +120,7 @@ export default function Vault({ onOpen }: Props) {
   })
 
   return (
-    <ZonaFile onFile={carica} messaggio="Lascia qui: va nel Vault" className="space-y-3 pb-24 sm:pb-8">
+    <ZonaFile onFile={carica} messaggio="Lascia qui: va nei Documenti" className="space-y-3 pb-24 sm:pb-8">
       <div className="flex flex-wrap items-center gap-2.5">
         <button
           onClick={() => inputRef.current?.click()}
@@ -139,7 +139,7 @@ export default function Vault({ onOpen }: Props) {
           type="search"
           value={cerca}
           onChange={(e) => setCerca(e.target.value)}
-          placeholder="Cerca nel Vault…"
+          placeholder="Cerca nei Documenti…"
           className="w-56 rounded-full border border-bordo bg-white px-4 py-2 text-sm outline-none focus:border-blu"
         />
       </div>
@@ -147,7 +147,7 @@ export default function Vault({ onOpen }: Props) {
       {file === null ? (
         <Card><Spinner /></Card>
       ) : visibili.length === 0 ? (
-        <Card><Empty text={cerca ? `Niente per «${cerca}»` : 'Il Vault è vuoto'} /></Card>
+        <Card><Empty text={cerca ? `Niente per «${cerca}»` : 'Nessun documento'} /></Card>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {visibili.map((f) => (
