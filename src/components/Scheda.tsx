@@ -902,7 +902,7 @@ export default function Scheda({ id, onClose }: Props) {
                   )}
                 </div>
 
-                <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
+                <div className="flex items-start gap-3 px-4 py-3">
                   <span className="mt-0.5 text-base" aria-hidden>🏢</span>
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-sm font-semibold">
@@ -915,27 +915,6 @@ export default function Scheda({ id, onClose }: Props) {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 px-4 py-3">
-                  <span className="mt-0.5 text-base" aria-hidden>📈</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">Ne vale la pena</p>
-                    {mercato ? (
-                      <p className="text-sm">
-                        <span className={mercato.fit === 'si' ? 'font-bold text-green-700' : 'font-bold text-red-700'}>
-                          {mercato.fit === 'si' ? 'Sì' : 'No'}
-                        </span>
-                        <span className="text-tenue">
-                          {' · '}{fmtNum(mercato.ricerche)} ricerche al mese · CPC{' '}
-                          {mercato.cpc.toLocaleString('it-IT', { minimumFractionDigits: 2 })} € · {mercato.zona}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-sm text-tenue">
-                        Non calcolabile: manca il settore o la città.
-                      </p>
-                    )}
-                  </div>
-                </div>
               </Card>
             )}
 
