@@ -199,6 +199,10 @@ function trovaMail(testo: string): string[] {
 }
 
 export default function ClaraVolante({ onOpen }: Props) {
+  const [utenteId, setUtenteId] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUtenteId(data.session?.user?.id ?? null))
+  }, [])
   const [aperta, setAperta] = useState(false)
   const [larghezza, setLarghezza] = useState<number>(() => {
     try { return Number(localStorage.getItem('clara-larghezza')) || 420 } catch { return 420 }
@@ -224,6 +228,9 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   // gli ULTIMI 80, non i primi: prima oltre le 80 righe i messaggi nuovi
   // non comparivano più e il badge restava a zero
+  // Clara e' una sola, ma la casella e' di ognuno (Dre, 3/9): si vedono i
+  // messaggi indirizzati a te, piu' quelli di tutti che non hanno un
+  // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const caricaMessaggi = useCallback(() => {
     supabase
       .from('clara_messaggi')
@@ -231,8 +238,12 @@ export default function ClaraVolante({ onOpen }: Props) {
       .neq('tipo', 'saluto')
       .order('at', { ascending: false })
       .limit(80)
-      .then(({ data }) => setMessaggi([...((data as Messaggio[]) ?? [])].reverse()))
-  }, [])
+      .then(({ data }) => {
+        const tutti = (data as Array<Messaggio & { owner?: string | null }>) ?? []
+        const miei = tutti.filter((m) => !m.owner || m.owner === utenteId)
+        setMessaggi([...miei].reverse())
+      })
+  }, [utenteId])
 
   useEffect(() => {
     caricaMessaggi()
@@ -292,7 +303,7 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   async function scriviMessaggio(tipo: Messaggio['tipo'], t: string, prospect_id: string | null = null) {
     const { data } = await supabase.from('clara_messaggi')
-      .insert({ tipo, testo: senzaTrattino(t), letto: true, prospect_id })
+      .insert({ tipo, testo: senzaTrattino(t), letto: true, prospect_id, owner: utenteId })
       .select().single()
     if (data) setMessaggi((m) => [...(m ?? []), data as Messaggio])
   }

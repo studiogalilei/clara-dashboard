@@ -55,6 +55,11 @@ function tappaCorrente(p: Prospect): number {
 }
 
 export default function Scheda({ id, onClose }: Props) {
+  // chi sta guardando: serve per i post-it, che sono suoi
+  const [utenteId, setUtenteId] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUtenteId(data.session?.user?.id ?? null))
+  }, [])
   const [p, setP] = useState<Prospect | null>(null)
   const [timeline, setTimeline] = useState<Interaction[] | null>(null)
   const [draft, setDraft] = useState<Partial<Prospect>>({})
@@ -152,8 +157,12 @@ export default function Scheda({ id, onClose }: Props) {
   }
 
   async function segna(kind: Interaction['kind'], body: string): Promise<boolean> {
+    // i post-it sono privati (Dre, 3/9): nascono col nome di chi li scrive,
+    // e piu' avanti le regole del database li mostreranno solo a lui
+    const riga: Record<string, unknown> = { prospect_id: id, at: new Date().toISOString(), kind, body }
+    if (kind === 'postit') riga.owner = utenteId
     const { data, error } = await supabase.from('interactions')
-      .insert({ prospect_id: id, at: new Date().toISOString(), kind, body })
+      .insert(riga)
       .select().single()
     if (data) setTimeline((t) => [...(t ?? []), data as Interaction])
     if (error) setErrore('Salvataggio non riuscito: il database non è aggiornato (schema v4).')
@@ -266,7 +275,10 @@ export default function Scheda({ id, onClose }: Props) {
   const next = p.pipeline_stage ? PIPELINE_NEXT[p.pipeline_stage] : undefined
   const transcripts = (timeline ?? []).filter((t) => t.kind === 'transcript')
   const transcriptCorrente = pagato
-  const postit = (timeline ?? []).filter((t) => t.kind === 'postit')
+  // i post-it sono privati: si vedono i propri, e quelli vecchi senza
+  // proprietario restano visibili a chi c'era prima (Dre, 3/9)
+  const postit = (timeline ?? []).filter((t) =>
+    t.kind === 'postit' && (!(t as { owner?: string }).owner || (t as { owner?: string }).owner === utenteId))
   const prep = [...(timeline ?? [])].reverse().find((t) => t.kind === 'prep')
   const storia = [...(timeline ?? [])]
     .filter((t) => t.kind !== 'transcript' && t.kind !== 'postit' && t.kind !== 'prep')
@@ -768,13 +780,71 @@ export default function Scheda({ id, onClose }: Props) {
               )}
             </Card>
 
-            {p.descrizione && !modifica && (
-              <Card className="p-4">
-                <div className="flex items-baseline justify-between">
-                  <TitoloCard>Chi sono</TitoloCard>
-                  {p.enriched?.descrizione === 'auto' && <Auto />}
+            {/* LA CARTELLA (Dre, 2/9): una sola e cresce. Nasce con quello
+                che gia' sappiamo di lui, senza che nessuno lo debba scrivere:
+                l'analisi ricevuta, chi sono, se vale la pena */}
+            {!modifica && (
+              <Card>
+                <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
+                  <TitoloCard>La cartella</TitoloCard>
+                  {codice && <span className="text-[11px] font-bold text-blu">{codice}</span>}
+                </header>
+
+                <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
+                  <span className="mt-0.5 text-base" aria-hidden>📄</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">L'analisi</p>
+                    {p.analysis_sent ? (
+                      <p className="text-xs text-tenue">
+                        Ricevuta il {fmtDateShort(p.analysis_sent_at)}
+                        {p.analysis_pdf ? '' : ' · il file non è agganciato qui'}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-tenue">Non ancora inviata</p>
+                    )}
+                  </div>
+                  {p.analysis_pdf && (
+                    <a href={p.analysis_pdf} target="_blank" rel="noreferrer"
+                       className="shrink-0 rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-navy hover:border-navy">
+                      Apri
+                    </a>
+                  )}
                 </div>
-                <p className="text-sm leading-relaxed">{p.descrizione}</p>
+
+                <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
+                  <span className="mt-0.5 text-base" aria-hidden>🏢</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      Chi sono
+                      {p.enriched?.descrizione === 'auto' && <Auto />}
+                    </p>
+                    <p className="text-sm leading-relaxed text-tenue">
+                      {p.descrizione ?? 'Ancora da scrivere: cosa fanno e a chi lo vendono.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="mt-0.5 text-base" aria-hidden>📈</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">Ne vale la pena</p>
+                    {mercato ? (
+                      <p className="text-sm">
+                        <span className={mercato.fit === 'si' ? 'font-bold text-green-700' : 'font-bold text-red-700'}>
+                          {mercato.fit === 'si' ? 'Sì' : 'No'}
+                        </span>
+                        <span className="text-tenue">
+                          {' · '}{fmtNum(mercato.ricerche)} ricerche al mese · CPC{' '}
+                          {mercato.cpc.toLocaleString('it-IT', { minimumFractionDigits: 2 })} € · {mercato.zona}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-tenue">
+                        Non calcolabile: manca il settore o la città.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </Card>
             )}
 
