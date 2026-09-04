@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
-import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
+import { Dot, Card, daysAgo, giorni, fmtDateShort, fmtOra } from './ui'
 import { VIVI, oggi, giorno, codaDiOggi, GIORNI_FOLLOWUP, type VoceCoda } from '../lib/regole'
 
 // Il radar della home: la riga dei 4 numeri (la scura e' «Da fare oggi»,
@@ -25,8 +25,9 @@ interface Props {
   onCalendario?: () => void
 }
 
-interface VoceTicker {
+interface Voce {
   testo: string
+  quando: string
   prospect_id: string | null
 }
 
@@ -45,10 +46,9 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   const [settimana, setSettimana] = useState(0)
   const [aggiornato, setAggiornato] = useState<string | null>(null)
   const [pronto, setPronto] = useState(false)
-  const [callDiOggi, setCallDiOggi] = useState<VoceTicker[]>([])
-  const [coda, setCoda] = useState<VoceTicker[]>([])
-  const [indice, setIndice] = useState(0)
-  const [fermo, setFermo] = useState(false)
+  const [callDiOggi, setCallDiOggi] = useState<Voce[]>([])
+  const [coda, setCoda] = useState<Voce[]>([])
+  const [tuttaLaCoda, setTuttaLaCoda] = useState(false)
   const [tuttiAvvisi, setTuttiAvvisi] = useState(false)
 
   useEffect(() => {
@@ -71,17 +71,25 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
     // numeri che stanno in testata e qui sotto non tornavano mai (4/9)
     codaDiOggi().then(({ voci }) => {
       const nome = (p: Prospect) => p.company || p.name || p.email
-      const testo = (v: VoceCoda): string => {
-        if (v.ragione === 'rispondi') return `Rispondere a ${nome(v.p)}`
-        if (v.ragione === 'followup') {
-          return v.p.followup_due
-            ? `Follow-up a ${nome(v.p)} · previsto ${fmtDateShort(v.p.followup_due)}`
-            : `Follow-up a ${nome(v.p)}${v.fermoDa !== null ? ` · tace da ${v.fermoDa} gg` : ''}`
+      const riga = (v: VoceCoda): Voce => {
+        const id = v.p.id
+        if (v.ragione === 'rispondi') {
+          const g = daysAgo(v.p.last_reply_at)
+          return { testo: `Rispondere a ${nome(v.p)}`, quando: g !== null ? giorni(g) : '', prospect_id: id }
         }
-        if (v.ragione === 'ricontatto') return `${v.p.next_action ?? 'Ricontatto'} · ${nome(v.p)}`
-        return `Rientrato dalle ferie: ${nome(v.p)}`
+        if (v.ragione === 'followup') {
+          return {
+            testo: `Follow-up a ${nome(v.p)}`,
+            quando: v.p.followup_due ? `dal ${fmtDateShort(v.p.followup_due)}` : v.fermoDa !== null ? giorni(v.fermoDa) : '',
+            prospect_id: id,
+          }
+        }
+        if (v.ragione === 'ricontatto') {
+          return { testo: `${v.p.next_action ?? 'Ricontatto'} · ${nome(v.p)}`, quando: fmtDateShort(v.data), prospect_id: id }
+        }
+        return { testo: `Rientrato: ${nome(v.p)}`, quando: fmtDateShort(v.data), prospect_id: id }
       }
-      setCoda(voci.map((v) => ({ testo: testo(v), prospect_id: v.p.id })))
+      setCoda(voci.map(riga))
       setPronto(true)
     })
 
@@ -132,7 +140,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
       })
       // le call di oggi: quelle stanno nell'agenda, non nella coda
       setCallDiOggi(futuri.filter((a) => a.at.slice(0, 10) === today)
-        .map((a) => ({ testo: `${fmtOra(a.at)} · ${a.titolo}`, prospect_id: a.prospect_id })))
+        .map((a) => ({ testo: a.titolo, quando: fmtOra(a.at), prospect_id: a.prospect_id })))
 
       const nuovi: Avviso[] = []
       for (const a of passati) {
@@ -191,21 +199,11 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
     })
   }, [])
 
-  // quello che scorre: prima le call di oggi, poi la coda. Due sorgenti,
-  // una lista sola, e il numero in alto conta questa. Prima il Radar ne
-  // calcolava un terzo, lo scriveva e non lo mostrava a nessuno (4/9)
-  const ticker = [...callDiOggi, ...coda]
-
-  useEffect(() => {
-    if (ticker.length < 2 || fermo) return
-    const t = setInterval(() => {
-      // in secondo piano il tempo non conta: senza questo si torna alla
-      // scheda e la card ha gia' fatto tre giri a vuoto
-      if (document.hidden) return
-      setIndice((i) => (i + 1) % ticker.length)
-    }, 5000)
-    return () => clearInterval(t)
-  }, [ticker.length, fermo])
+  // la giornata: prima le call di oggi, poi la coda. Due sorgenti, una
+  // lista sola, e il numero in alto conta questa
+  const giornata = [...callDiOggi, ...coda]
+  const PRIME = 5
+  const mostrate = tuttaLaCoda ? giornata : giornata.slice(0, PRIME)
 
   const oraControllo = aggiornato ? fmtOra(aggiornato) : fmtOra(new Date().toISOString())
   const visibili = tuttiAvvisi ? avvisi : avvisi.slice(0, 3)
@@ -214,78 +212,57 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   return (
     <div className="space-y-4">
 
-      {/* ── cosa devi fare adesso ─────────────────────────────── */}
-      <div>
-        <div
-          onMouseEnter={() => setFermo(true)}
-          onMouseLeave={() => setFermo(false)}
-          onPointerDown={() => setFermo(true)}
-          onFocusCapture={() => setFermo(true)}
-          className="rounded-2xl bg-navy p-3.5 text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]"
-        >
-          <div className="flex items-baseline justify-between">
-            <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
-            {ticker.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <button onClick={onOggi} className="text-[11px] font-bold tabular-nums text-white/70 hover:text-white">
-                  {(indice % ticker.length) + 1}/{ticker.length}
-                </button>
-                {ticker.length > 1 && (
-                  <button
-                    onClick={() => { setFermo(true); setIndice((i) => (i + 1) % ticker.length) }}
-                    aria-label="La prossima cosa da fare"
-                    className="-my-1 rounded px-1 py-1 text-[11px] font-bold text-white/50 hover:text-white"
-                  >
-                    ›
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="relative mt-1 h-12 overflow-hidden">
-            {!pronto ? (
-              <p className="text-lg font-extrabold">…</p>
-            ) : ticker.length === 0 ? (
-              <>
-                <p className="text-[15px] font-extrabold">Tutto in ordine</p>
-                {prossimo && (
-                  <p className="truncate text-[11px] text-white/70">
-                    Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                {ticker.length > 1 && (
-                  <button
-                    key={`fuori-${indice}`}
-                    onClick={onOggi}
-                    className="ticker-fuori pointer-events-none absolute inset-0 text-left"
-                    aria-hidden
-                  >
-                    <p className="truncate text-[15px] font-extrabold leading-snug">
-                      {ticker[(indice + ticker.length - 1) % ticker.length].testo}
-                    </p>
-                  </button>
-                )}
-                <button
-                  key={`dentro-${indice}`}
-                  onClick={() => {
-                    const v = ticker[indice % ticker.length]
-                    if (v.prospect_id) onOpen(v.prospect_id)
-                    else onOggi?.()
-                  }}
-                  className="ticker-dentro absolute inset-0 text-left"
-                >
-                  <p className="line-clamp-2 text-[15px] font-extrabold leading-snug">
-                    {ticker[indice % ticker.length].testo}
-                  </p>
-                </button>
-              </>
-            )}
-          </div>
+      {/* ── la giornata: una lista, non una giostra ───────────── */}
+      <div className="rounded-2xl bg-navy text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]">
+        <div className="flex items-baseline justify-between px-4 pb-1 pt-3.5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
+          {giornata.length > 0 && (
+            <span className="text-lg font-extrabold tabular-nums leading-none">{giornata.length}</span>
+          )}
         </div>
 
+        {!pronto ? (
+          <p className="px-4 pb-4 text-[15px] font-extrabold">…</p>
+        ) : giornata.length === 0 ? (
+          <div className="px-4 pb-4">
+            <p className="text-[15px] font-extrabold">Tutto in ordine</p>
+            {prossimo && (
+              <p className="truncate text-[11px] text-white/70">
+                Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="pb-1.5">
+            {mostrate.map((v, i) => (
+              <button
+                key={`${v.prospect_id ?? 'x'}-${i}`}
+                onClick={() => (v.prospect_id ? onOpen(v.prospect_id) : onOggi?.())}
+                className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10"
+              >
+                <span className="min-w-0 flex-1 truncate text-[15px] font-bold leading-snug">{v.testo}</span>
+                {v.quando && (
+                  <span className="shrink-0 text-[11px] tabular-nums text-white/55">{v.quando}</span>
+                )}
+              </button>
+            ))}
+            <div className="flex items-center justify-between px-4 pb-2 pt-1">
+              {giornata.length > PRIME ? (
+                <button
+                  onClick={() => setTuttaLaCoda((v) => !v)}
+                  className="text-[11px] font-bold text-white/60 hover:text-white"
+                >
+                  {tuttaLaCoda ? 'mostra le prime 5' : `+ altre ${giornata.length - PRIME}`}
+                </button>
+              ) : <span />}
+              {onOggi && (
+                <button onClick={onOggi} className="text-[11px] font-bold text-white/60 hover:text-white">
+                  apri Task →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── la Prossima: un solo evento, grande ───────────────── */}

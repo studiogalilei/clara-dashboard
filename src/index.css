@@ -56,17 +56,3 @@ h1, h2 {
   }
 }
 
-/* il ticker della card «Da fare oggi»: esce a sinistra, entra da destra */
-@keyframes ticker-dentro {
-  from { transform: translateX(65%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-@keyframes ticker-fuori {
-  from { transform: translateX(0); opacity: 1; }
-  to   { transform: translateX(-65%); opacity: 0; }
-}
-.ticker-dentro { animation: ticker-dentro 0.38s ease both; }
-.ticker-fuori  { animation: ticker-fuori 0.38s ease both; }
-@media (prefers-reduced-motion: reduce) {
-  .ticker-dentro, .ticker-fuori { animation: none; }
-}
