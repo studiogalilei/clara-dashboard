@@ -10,6 +10,13 @@
             "if": "Bash(git commit*)",
             "statusMessage": "Controllo che non ci siano chiavi",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "/Users/dramane/Documents/odyn-crm/.claude/hooks/schema-allineato.sh",
+            "if": "Bash(git commit*)",
+            "statusMessage": "Controllo che lo schema completo sia aggiornato",
+            "timeout": 15
           }
         ]
       }
