@@ -119,7 +119,7 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
             ))}
           </div>
           <p className="mt-1.5 text-xs text-spento">
-            Il ruolo decide a quali widget arrivi. Cambialo per vedere la Dashboard con gli occhi di un altro.
+            {WIDGET.filter((w) => ruoliDi(w).includes(ruolo)).length} widget su {WIDGET.length}
           </p>
         </div>
       </Card>
@@ -217,7 +217,6 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
         <div className="flex items-center gap-3 border-b border-velo px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Task</p>
-            <p className="text-xs text-tenue">La vista con cui parte</p>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['ongo', 'On go'], ['big', 'Week picture']].map(([v, etichetta]) => (
@@ -231,7 +230,6 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Tutti</p>
-            <p className="text-xs text-tenue">La vista con cui parte</p>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['board', 'Bacheca'], ['elenco', 'Elenco']].map(([v, etichetta]) => (

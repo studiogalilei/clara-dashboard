@@ -17,7 +17,6 @@ interface Avviso {
   peso: number
   tono: 'fermo' | 'attesa'
   testo: string
-  sotto: string
   id: string | null
 }
 
@@ -147,7 +146,6 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
           nuovi.push({
             peso: 1, tono: 'fermo',
             testo: `${p.company || p.name || p.email}: la call del ${fmtDateShort(a.at)} è passata e la scheda è ferma`,
-            sotto: 'Manca il riassunto della call.',
             id: p.id,
           })
         }
@@ -157,7 +155,6 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
           nuovi.push({
             peso: 2, tono: 'attesa',
             testo: `${p.company || p.name || p.email}: in attesa senza una data`,
-            sotto: 'Rinvio senza scadenza.',
             id: p.id,
           })
         }
@@ -167,7 +164,6 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         nuovi.push({
           peso: 3, tono: 'fermo',
           testo: `${fermi.length} person${fermi.length === 1 ? 'a aspetta' : 'e aspettano'} una risposta da più di un mese`,
-          sotto: 'Analisi ricevuta, poi silenzio.',
           id: null,
         })
       }
@@ -177,14 +173,12 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
           nuovi.push({
             peso: 4, tono: 'fermo',
             testo: `${nome}: in ${p.pipeline_stage ? PIPELINE_LABEL[p.pipeline_stage] : 'pipeline'} senza un prossimo passo`,
-            sotto: 'Nessuna azione, nessuna data.',
             id: p.id,
           })
         } else if (p.next_action_date && p.next_action_date < today) {
           nuovi.push({
             peso: 5, tono: 'attesa',
             testo: `${nome}: «${p.next_action ?? 'prossimo passo'}» era per il ${fmtDateShort(p.next_action_date)}`,
-            sotto: 'Data passata, scheda ferma.',
             id: p.id,
           })
         }
@@ -352,7 +346,6 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
                   <span className="mt-[7px]"><Dot tone={a.tono} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold">{a.testo}</span>
-                    {a.sotto && <span className="block text-xs text-tenue">{a.sotto}</span>}
                   </span>
                 </>
               )
