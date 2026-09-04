@@ -296,9 +296,19 @@ export default function Lista({ onOpen, q }: Props) {
             {p.last_reply_at && <> · ultima risposta {fmtDateShort(p.last_reply_at)}</>}
           </p>
         </div>
-        {fermo !== null && !finito && (
+        {eCliente(p) ? (
+          <span className="hidden shrink-0 text-right text-xs sm:block">
+            <span className="block font-bold text-green-800">
+              {p.canone ? `${Number(p.canone).toLocaleString('it-IT')} €/mese` : 'canone da mettere'}
+            </span>
+            <span className="block text-spento">
+              {p.contratto === 'prova' ? 'in prova' : p.contratto === 'stable' ? 'stabile' : 'contratto da scegliere'}
+              {p.fuori_at ? ` · da ${fmtDateShort(p.fuori_at)}` : ''}
+            </span>
+          </span>
+        ) : fermo !== null && !finito ? (
           <span className={`hidden shrink-0 text-xs sm:block ${tonoFermo}`}>{giorni(fermo)}</span>
-        )}
+        ) : null}
         {p.fuori && p.pipeline_stage
           ? <PipelineBadge stage={p.pipeline_stage} />
           : <StageBadge stage={p.stage} />}
@@ -388,6 +398,27 @@ export default function Lista({ onOpen, q }: Props) {
           «{q.trim()}»: {rows.length} risultat{rows.length === 1 ? 'o' : 'i'}
         </p>
       )}
+
+      {/* quando guardi i clienti, il numero che conta e' uno solo */}
+      {stage === 'cliente' && rows.length > 0 && (() => {
+        const clienti = rows.filter(eCliente)
+        const mese = clienti.reduce((t, x) => t + (Number(x.canone) || 0), 0)
+        const senza = clienti.filter((x) => !x.canone).length
+        return (
+          <div className="mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-2.5">
+            <span className="text-lg font-extrabold tabular-nums">{mese.toLocaleString('it-IT')} €</span>
+            <Micro>al mese</Micro>
+            <span className="text-sm font-semibold text-tenue">
+              {clienti.length} client{clienti.length === 1 ? 'e' : 'i'}
+            </span>
+            {senza > 0 && (
+              <span className="text-xs font-semibold text-amber-700">
+                {senza} senza canone: il totale è più basso del vero
+              </span>
+            )}
+          </div>
+        )
+      })()}
 
       {vista === 'elenco' ? (
         <>
