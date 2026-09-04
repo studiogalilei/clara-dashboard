@@ -13,6 +13,7 @@ Regola d'oro: Clara prepara e avvisa, non invia mai niente.
     clara.py --prova    # scrive un brief di prova anche se ce n'e' gia' uno
 """
 import json
+import re
 import os
 import sys
 import urllib.request
@@ -83,9 +84,17 @@ def ora_italiana(iso):
     return t.astimezone().strftime("%H:%M")
 
 
+def pulisci(testo):
+    """Il trattino lungo e' bandito (Dre, 31/8).
+
+    Copia esatta di pulisci() in src/lib/regole.ts: se cambia una, cambia
+    l'altra, se no Clara scrive in due modi a seconda di chi la chiama.
+    """
+    return re.sub(r"\s*—\s*", ": ", testo).replace("–", "-")
+
+
 def scrivi(tipo, testo, prospect_id=None):
-    # Regola di Dre (31/8): Clara non usa mai il trattino lungo.
-    testo = testo.replace(" — ", ": ").replace("—", ":")
+    testo = pulisci(testo)
     api("clara_messaggi", {"tipo": tipo, "testo": testo, "prospect_id": prospect_id}, "POST")
     print(f"  {tipo}: {testo[:70]}")
 

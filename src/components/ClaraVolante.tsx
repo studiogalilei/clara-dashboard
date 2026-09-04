@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
-import { pulisci as senzaTrattino } from '../lib/regole'
+import { pulisci } from '../lib/regole'
 
 // Clara volante: pannello allargabile (trascina il bordo sinistro), la
 // conversazione stile Claude, e i COMANDI RAPIDI. Regola del workflow
@@ -83,7 +83,7 @@ const GIORNI_SETT = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'v
 const MESI_NOMI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
   'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
 
-function pulisci(t: string): string {
+function senzaAccenti(t: string): string {
   return t.toLowerCase()
     .replace(/[àá]/g, 'a').replace(/[èé]/g, 'e').replace(/[ìí]/g, 'i')
     .replace(/[òó]/g, 'o').replace(/[ùú]/g, 'u')
@@ -176,7 +176,7 @@ function trovaProspect(t: string, lista: Prospect[]): string | undefined {
   for (const p of lista) {
     for (const nome of [p.company, p.name]) {
       if (!nome) continue
-      const n = pulisci(nome)
+      const n = senzaAccenti(nome)
       if (n.length >= 4 && intero(n, t)) {
         if (!pieno || n.length > pieno.lung) pieno = { id: p.id, lung: n.length }
         continue
@@ -303,7 +303,7 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   async function scriviMessaggio(tipo: Messaggio['tipo'], t: string, prospect_id: string | null = null) {
     const { data } = await supabase.from('clara_messaggi')
-      .insert({ tipo, testo: senzaTrattino(t), letto: true, prospect_id, owner: utenteId })
+      .insert({ tipo, testo: pulisci(t), letto: true, prospect_id, owner: utenteId })
       .select().single()
     if (data) setMessaggi((m) => [...(m ?? []), data as Messaggio])
   }
@@ -320,7 +320,7 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   // il pezzo che ascolta: call e task detti a parole
   async function interpreta(originale: string) {
-    const t = pulisci(originale)
+    const t = senzaAccenti(originale)
 
     // ── uscire da un giro a metà, a parole ────────────────────────
     if (pendente && /^(annulla|lascia stare|lascia perdere|niente|stop|basta|fa nulla|non importa)\b/.test(t)) {
