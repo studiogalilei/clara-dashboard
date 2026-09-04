@@ -39,7 +39,7 @@ export interface Widget {
 }
 
 export const WIDGET: Widget[] = [
-  { chiave: 'pipeline', nome: 'Dashboard', cosa: 'La giornata: fasi, coda, avvisi', zona: 'menu', fisso: true,
+  { chiave: 'pipeline', nome: 'Oggi', cosa: 'La coda, la prossima call, cosa non va', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
   // nota sui nomi: la chiave 'prospect' e' la sezione che Dre chiama Pipeline
@@ -62,7 +62,7 @@ export const WIDGET: Widget[] = [
   { chiave: 'progetti', nome: 'Progetti', cosa: 'Il lavoro a scadenza: chi, quando, quanto', zona: 'menu',
     ruoli: ['coordinamento'],
     icona: 'M4 7h16v13H4zM4 7l2-3h12l2 3M9 12h6' },
-  { chiave: 'analytics', nome: 'Analytics', cosa: 'I numeri: funnel, ricorrente, canali', zona: 'sistema',
+  { chiave: 'analytics', nome: 'Numeri', cosa: 'Funnel, ricorrente, canali', zona: 'sistema',
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 20v-6M11 20V6M17 20v-9M3 20h18' },
   { chiave: 'vault', nome: 'Documenti', cosa: 'I file, agganciati ai prospect', zona: 'sistema', fisso: true,
