@@ -78,6 +78,7 @@ export default function Scheda({ id, onClose }: Props) {
   const [motivoPerso, setMotivoPerso] = useState('')
   // la terza uscita: passato a qualcun altro (Dre, 3/9)
   const [passoAperto, setPassoAperto] = useState(false)
+  const [altroAperto, setAltroAperto] = useState(false)
   const [aChi, setAChi] = useState('')
   const [perche, setPerche] = useState('')
   const [giro, setGiro] = useState(0)
@@ -558,41 +559,46 @@ export default function Scheda({ id, onClose }: Props) {
                 )
               })()}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              {/* il ponte verso Obsidian, dove vivono gli originali (3/9).
-                  Non nelle Impostazioni, dove sarebbe un segnalibro: qui
-                  porta al punto */}
-              <a
-                href={`obsidian://search?vault=studiogalilei&query=${encodeURIComponent(p.company || p.name || p.email)}`}
-                title="Cerca questo prospect nel vault, su questo Mac"
-                className="rounded-full border border-bordo px-3.5 py-2.5 text-sm font-semibold text-tenue transition-colors hover:border-navy hover:text-navy"
-              >
-                Apri in Obsidian
-              </a>
-              {!ePerso(p) && !soppresso && !(p as unknown as { passato_a?: string }).passato_a && (
-                <button
-                  onClick={() => { setPassoAperto(true); setAChi(''); setPerche('') }}
-                  className="rounded-full border border-bordo px-3.5 py-2.5 text-sm font-semibold text-tenue transition-colors hover:border-navy hover:text-navy"
-                >
-                  Passa a…
-                </button>
-              )}
-              {!ePerso(p) && !soppresso && (
-                <button
-                  onClick={() => { setPersoAperto(true); setMotivoPerso('') }}
-                  className="rounded-full border border-bordo px-3.5 py-2.5 text-sm font-semibold text-tenue transition-colors hover:border-red-300 hover:text-red-700"
-                >
-                  Segna come perso
-                </button>
-              )}
+            {/* Un gesto solo e visibile per quello che si fa spesso; il
+                resto sotto i puntini. Tre bottoni in fila di cui uno diceva
+                «Segna come perso» erano un invito a perdere un lead: un
+                default e' letto come un consiglio (Dre, 4/9) */}
+            <div className="relative flex shrink-0 items-center gap-2">
               <button
                 onClick={() => { setNoteAperte(!noteAperte); setNotaEsito(null) }}
                 className={`rounded-full border px-4 py-2.5 text-sm font-bold transition-colors ${
                   noteAperte ? 'border-navy bg-navy text-white' : 'border-bordo text-tenue hover:border-navy hover:text-navy'
                 }`}
               >
-                ✎ Note e documenti
+                ✎ Nota
               </button>
+              <button
+                onClick={() => setAltroAperto(!altroAperto)}
+                aria-label="Altre azioni"
+                className="rounded-full border border-bordo px-3 py-2.5 text-sm font-bold leading-none text-tenue transition-colors hover:border-navy hover:text-navy"
+              >
+                ⋯
+              </button>
+              {altroAperto && (
+                <div className="salta-su absolute right-0 top-12 z-30 w-52 overflow-hidden rounded-xl border border-bordo bg-white py-1 shadow-[0_10px_30px_rgba(16,24,40,0.16)]">
+                  {!ePerso(p) && !soppresso && !(p as unknown as { passato_a?: string }).passato_a && (
+                    <button
+                      onClick={() => { setAltroAperto(false); setPassoAperto(true); setAChi(''); setPerche('') }}
+                      className="block w-full px-4 py-2 text-left text-sm hover:bg-velo"
+                    >
+                      Passa a un altro
+                    </button>
+                  )}
+                  {!ePerso(p) && !soppresso && (
+                    <button
+                      onClick={() => { setAltroAperto(false); setPersoAperto(true); setMotivoPerso('') }}
+                      className="block w-full px-4 py-2 text-left text-sm text-tenue hover:bg-velo hover:text-red-700"
+                    >
+                      Segna come perso
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1046,13 +1052,25 @@ export default function Scheda({ id, onClose }: Props) {
               </Card>
             )}
 
-            {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro */}
-            {documenti.length > 0 && (
+            {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro.
+                Sta sempre, anche vuota: se no non sai dove finiscono quando
+                li salvi (Dre, 4/9) */}
+            {!modifica && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>I suoi documenti</TitoloCard>
-                  <span className="text-xs text-spento">{documenti.length}</span>
+                  <button
+                    onClick={() => docRef.current?.click()}
+                    className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-navy"
+                  >
+                    + Aggiungi
+                  </button>
                 </div>
+                {documenti.length === 0 && (
+                  <p className="py-2 text-sm text-spento">
+                    Ancora niente. Quello che aggiungi qui resta agganciato a lui.
+                  </p>
+                )}
                 <ul className="divide-y divide-velo">
                   {documenti.map((d) => (
                     <li key={d.id} className="flex items-center gap-2 py-1.5 text-sm">
