@@ -208,7 +208,7 @@ export default function Calendario({ onOpen }: Props) {
 
       {/* desktop: griglia + giorno, a tutta larghezza (Dre, 3/9): un mese
           dentro un contenitore stretto si legge, non si scansiona */}
-      <div className="mx-[calc(50%-50vw)] hidden w-screen gap-4 px-4 lg:grid lg:grid-cols-[minmax(0,9fr)_minmax(0,3fr)] lg:px-8">
+      <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(0,9fr)_minmax(0,3fr)]">
         <Card className="p-5">
           <div className="mb-3 flex items-baseline justify-between">
             <div className="flex items-baseline gap-2.5">
