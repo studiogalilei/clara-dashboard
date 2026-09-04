@@ -58,10 +58,16 @@ export default function Vault({ onOpen }: Props) {
   const [caricando, setCaricando] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [problema, setProblema] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('vault_file').select('*').order('at', { ascending: false }).limit(200)
-      .then(({ data }) => setFile((data as FileVault[]) ?? []))
+      .then(({ data, error }) => {
+        // senza questo una connessione rotta si legge «nessun documento»,
+        // che e' la bugia peggiore in un archivio (revisione 4/9)
+        if (error) setProblema('I documenti non si caricano: ' + error.message)
+        setFile((data as FileVault[]) ?? [])
+      })
     supabase.from('prospects').select('*').neq('stage', 'nuovo').limit(300)
       .then(({ data }) => setProspects((data as Prospect[]) ?? []))
   }, [])
@@ -84,29 +90,42 @@ export default function Vault({ onOpen }: Props) {
     const path = `${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
     const { error } = await supabase.storage.from('vault').upload(path, f)
     if (error) {
-      setToast('Caricamento non riuscito: serve schema_v4 su Supabase')
+      setProblema(`«${f.name}» non è salito: ${error.message}`)
       setCaricando(false)
       return
     }
     const nome = f.name.replace(/\.[^.]+$/, '')
-    const { data } = await supabase.from('vault_file')
+    const { data, error: e2 } = await supabase.from('vault_file')
       .insert({ nome, path, mime: f.type || null, dimensione: f.size,
                 prospect_id: aCasaDi || null })
       .select().single()
-    if (data) {
-      setFile((v) => [data as FileVault, ...(v ?? [])])
-      setToast(aCasaDi
-        ? `«${nome}» nella cartella di ${nomeProspect(aCasaDi)} ✓`
-        : `«${nome}» fra i documenti interni ✓`)
+    if (e2 || !data) {
+      // il file e' nello storage ma nessuna riga lo nomina: se lo lasciassimo
+      // li' sarebbe spazio occupato che non compare in nessuna cartella
+      await supabase.storage.from('vault').remove([path])
+      setProblema(`«${nome}» è stato caricato ma non registrato, quindi l'ho tolto. ${e2?.message ?? ''}`.trim())
+      setCaricando(false)
+      return
     }
+    setFile((v) => [data as FileVault, ...(v ?? [])])
+    setToast(aCasaDi
+      ? `«${nome}» nella cartella di ${nomeProspect(aCasaDi)} ✓`
+      : `«${nome}» fra i documenti interni ✓`)
+    setProblema(null)
     setInAttesa(null)
     setACasaDi('')
     setCaricando(false)
   }
 
   async function aggiorna(id: number, patch: Partial<FileVault>) {
-    const { data } = await supabase.from('vault_file').update(patch).eq('id', id).select().single()
-    if (data) setFile((v) => v!.map((x) => (x.id === id ? (data as FileVault) : x)))
+    const { data, error } = await supabase.from('vault_file').update(patch).eq('id', id).select().single()
+    if (error || !data) {
+      // prima la riga tornava com'era e sembrava un ripensamento del mouse
+      setProblema('La modifica non è stata salvata: ' + (error?.message ?? 'nessuna riga aggiornata'))
+      return
+    }
+    setProblema(null)
+    setFile((v) => v!.map((x) => (x.id === id ? (data as FileVault) : x)))
   }
 
   function urlDi(f: FileVault): string | null {
@@ -130,6 +149,13 @@ export default function Vault({ onOpen }: Props) {
 
   return (
     <ZonaFile onFile={(f) => setInAttesa(f)} messaggio="Lascia qui: va nei Documenti" className="space-y-3 pb-24 sm:pb-8">
+
+      {problema && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span className="flex-1">{problema}</span>
+          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">chiudi</button>
+        </div>
+      )}
 
       {/* il pedaggio del documento (Dre, 4/9): un file entra solo se si sa
           di chi e'. Se no la cartella di un cliente e' incompleta e non lo
