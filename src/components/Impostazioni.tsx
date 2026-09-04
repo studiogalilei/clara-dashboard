@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   WIDGET, RUOLI, accessi, salvaAccessi, nascosti, salvaNascosti,
-  mioRuolo, scegliRuolo, ruoliDi, type Chiave, type Ruolo,
+  mioRuolo, scegliRuolo, ruoliDi, inOrdine, salvaOrdine, type Chiave, type Ruolo,
 } from '../lib/widget'
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { Card, TitoloCard, Micro } from './ui'
@@ -42,7 +42,23 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
   const [salvato, setSalvato] = useState(false)
   const [vistaTask, setVistaTask] = useState(() => leggi('task-vista', 'ongo'))
   const [vistaTutti, setVistaTutti] = useState(() => leggi('tutti-vista', 'board'))
+  const [lista, setLista] = useState(() => inOrdine(WIDGET))
+  const [presa, setPresa] = useState<Chiave | null>(null)
   const comando = ruolo === 'ceo'
+
+  // trascina per riordinare: l'ordine vale per il menu, non solo per qui
+  function lascia(sopra: Chiave) {
+    if (!presa || presa === sopra) return
+    const n = [...lista]
+    const da = n.findIndex((w) => w.chiave === presa)
+    const a = n.findIndex((w) => w.chiave === sopra)
+    const [mosso] = n.splice(da, 1)
+    n.splice(a, 0, mosso)
+    setLista(n)
+    salvaOrdine(n.map((w) => w.chiave))
+    setPresa(null)
+    onCambio()
+  }
 
   function scriviNome() {
     salvaNome(bozzaNome)
@@ -110,15 +126,30 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
       <Card>
         <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
           <TitoloCard>Widget</TitoloCard>
-          <Micro>{WIDGET.filter((w) => w.fisso || !spenti.includes(w.chiave)).length} su {WIDGET.length} accesi</Micro>
+          <Micro>trascina per riordinare</Micro>
         </header>
 
-        {WIDGET.map((w) => {
+        {lista.map((w) => {
           const acceso = w.fisso || !spenti.includes(w.chiave)
           const arrivo = ruoliDi(w).includes(ruolo)
           return (
-            <div key={w.chiave} className="border-b border-velo px-4 py-3 last:border-0">
+            <div
+              key={w.chiave}
+              draggable
+              onDragStart={() => setPresa(w.chiave)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => lascia(w.chiave)}
+              onDragEnd={() => setPresa(null)}
+              className={`border-b border-velo px-4 py-3 last:border-0 ${
+                presa === w.chiave ? 'bg-velo opacity-60' : ''
+              }`}
+            >
               <div className="flex items-center gap-3">
+                <span className="cursor-grab text-spento active:cursor-grabbing" aria-hidden>
+                  <svg viewBox="0 0 24 24" className="h-4 w-4">
+                    <path fill="currentColor" d="M9 5h2v2H9zM13 5h2v2h-2zM9 11h2v2H9zM13 11h2v2h-2zM9 17h2v2H9zM13 17h2v2h-2z" />
+                  </svg>
+                </span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
                      className={`h-4 w-4 shrink-0 ${acceso && arrivo ? 'text-navy' : 'text-spento'}`}>
                   <path d={w.icona} strokeLinecap="round" strokeLinejoin="round" />
@@ -128,7 +159,7 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
                   <p className="truncate text-xs text-tenue">{w.cosa}</p>
                 </div>
                 {w.fisso ? (
-                  <Micro>sempre acceso</Micro>
+                  <Micro>sempre</Micro>
                 ) : !arrivo ? (
                   <Micro>non ti arriva</Micro>
                 ) : (
@@ -143,8 +174,8 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
                 )}
               </div>
 
-              {comando && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-7">
+              {comando && !w.fisso && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-14">
                   <Micro>arriva a</Micro>
                   {RUOLI.map(([r, etichetta]) => {
                     const dentro = ruoliDi(w).includes(r)

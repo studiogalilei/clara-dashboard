@@ -28,26 +28,33 @@ export interface Widget {
   zona: 'menu' | 'sistema'
   icona: string                // path SVG 24x24, tratto
   ruoli: Ruolo[]               // chi ci arriva, salvo diverso ordine di Dre
-  fisso?: boolean              // non si spegne: senza, non sapresti dove sei
+  // fisso = l'ossatura della «Dashboard CEO 1» (Dre, 3/9): Dashboard,
+  // Pipeline, Task, Calendario e Vault non si spengono, perche' sono il
+  // lavoro di tutti i giorni e quattro interruttori che nessuno tocca sono
+  // solo roba in mezzo
+  fisso?: boolean
 }
 
 export const WIDGET: Widget[] = [
   { chiave: 'pipeline', nome: 'Dashboard', cosa: 'La giornata: fasi, coda, avvisi', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
-  { chiave: 'prospect', nome: 'Tutti', cosa: 'Prospect e clienti, bacheca ed elenco', zona: 'menu',
+  // nota sui nomi: la chiave 'prospect' e' la sezione che Dre chiama Pipeline
+  // (rinominata il 3/9); la chiave 'pipeline' e' la home. Le chiavi non si
+  // toccano perche' ci sono appese le preferenze salvate.
+  { chiave: 'prospect', nome: 'Pipeline', cosa: 'Prospect e clienti, bacheca ed elenco', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a3 3 0 1 0 0-6M22 21c0-2.8-1.9-5.1-4.5-5.8' },
-  { chiave: 'calendario', nome: 'Calendario', cosa: 'Call, follow-up e scadenze', zona: 'menu',
+  { chiave: 'calendario', nome: 'Calendario', cosa: 'Call, follow-up e scadenze', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 3v4M16 3v4M4 11h16' },
-  { chiave: 'oggi', nome: 'Task', cosa: 'Le tue attività, On go o Week picture', zona: 'menu',
+  { chiave: 'oggi', nome: 'Task', cosa: 'Le tue attività, On go o Week picture', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 6h16M4 12h10M4 18h7' },
   { chiave: 'analytics', nome: 'Analytics', cosa: 'I numeri: funnel, ricorrente, canali', zona: 'sistema',
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 20v-6M11 20V6M17 20v-9M3 20h18' },
-  { chiave: 'vault', nome: 'Vault', cosa: 'I documenti, agganciati ai prospect', zona: 'sistema',
+  { chiave: 'vault', nome: 'Vault', cosa: 'I documenti, agganciati ai prospect', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3' },
   { chiave: 'plugin', nome: 'Agenti e Skills', cosa: 'Cosa sa fare Clara, e i collegamenti', zona: 'sistema',
@@ -79,6 +86,24 @@ export function ruoliDi(w: Widget): Ruolo[] {
   return accessi()[w.chiave] ?? w.ruoli
 }
 
+// ── in che ordine li vuoi ─────────────────────────────────────────
+export function ordine(): Chiave[] {
+  try { return JSON.parse(localStorage.getItem('widget-ordine') ?? '[]') } catch { return [] }
+}
+export function salvaOrdine(o: Chiave[]) {
+  try { localStorage.setItem('widget-ordine', JSON.stringify(o)) } catch { /* niente */ }
+}
+
+// i widget nell'ordine scelto: quelli mai spostati restano dove nascono
+export function inOrdine(lista: Widget[]): Widget[] {
+  const o = ordine()
+  if (o.length === 0) return lista
+  return [...lista].sort((a, b) => {
+    const ia = o.indexOf(a.chiave), ib = o.indexOf(b.chiave)
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+  })
+}
+
 // ── cosa vuoi vedere tu: lo decide ognuno per se' ─────────────────
 export function nascosti(): Chiave[] {
   try { return JSON.parse(localStorage.getItem('widget-nascosti') ?? '[]') } catch { return [] }
@@ -90,6 +115,6 @@ export function salvaNascosti(n: Chiave[]) {
 // il menu vero: quello a cui arrivi, meno quello che hai spento
 export function menuDi(ruolo: Ruolo, zona: 'menu' | 'sistema'): Widget[] {
   const spenti = nascosti()
-  return WIDGET.filter((w) =>
-    w.zona === zona && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave)))
+  return inOrdine(WIDGET.filter((w) =>
+    w.zona === zona && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave))))
 }
