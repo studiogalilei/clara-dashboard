@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, Interaction } from '../lib/types'
 import { vivo } from '../lib/regole'
-import { Card, TitoloCard, fmtNum, daysAgo, giorni } from './ui'
+
+// giusto i pezzi di catena che servono qui
+interface Filtro {
+  eq(c: string, v: unknown): Filtro
+  neq(c: string, v: unknown): Filtro
+  not(c: string, o: string, v: unknown): Filtro
+  or(s: string): Filtro
+}
+import { Card, TitoloCard, fmtNum, daysAgo, giorni, Micro } from './ui'
 
 // Analytics: la FOTO in alto (i numeri col confronto), sotto il PERCHE'
 // in 4 blocchi. Ogni grafico ha sopra una frase-verdetto in italiano.
@@ -23,8 +31,31 @@ function inizioSettimana(offset: number): Date {
 }
 
 export default function Analytics({ onOpen }: Props) {
+  const [canale, setCanale] = useState<Record<string, number> | null>(null)
   const [prospects, setProspects] = useState<Prospect[] | null>(null)
   const [storia, setStoria] = useState<Interaction[] | null>(null)
+
+  // il sommario per canale: i numeri li conta il database, non una lista
+  // troncata. Oggi il sistema conosce solo l'Email (Smartlead): le altre
+  // righe restano da collegare invece di essere inventate (Dre, 3/9)
+  useEffect(() => {
+    const conta = (domanda: (f: Filtro) => Filtro) =>
+      domanda(supabase.from('prospects')
+        .select('*', { count: 'exact', head: true }) as unknown as Filtro) as unknown as Promise<{ count: number | null }>
+    Promise.all([
+      conta((f) => f),   // lead = tutti i contattati, se no il tasso supera il 100%
+      conta((f) => f.not('first_reply_at', 'is', null)),
+      conta((f) => f.or('fuori.eq.true,stage.eq.call_fissata')),
+      conta((f) => f.eq('fuori', true).not('pipeline_stage', 'is', null)),
+    ]).then(([lead, risposte, fissate, fatte]) => {
+      setCanale({
+        lead: lead.count ?? 0,
+        risposte: risposte.count ?? 0,
+        fissate: fissate.count ?? 0,
+        fatte: fatte.count ?? 0,
+      })
+    })
+  }, [])
 
   useEffect(() => {
     supabase
@@ -135,6 +166,47 @@ export default function Analytics({ onOpen }: Props) {
           Numeri sui primi 1.000 prospect e 2.000 interazioni: il totale vero è più alto.
         </p>
       )}
+
+      {/* ── PER CANALE: il sommario che Giacomo riempiva a mano ── */}
+      <Card>
+        <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
+          <TitoloCard>Per canale</TitoloCard>
+          <Micro>da quando esiste il database</Micro>
+        </header>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-velo text-left">
+                {['Canale', 'Lead', 'Risposte', '% reply', 'Call fissate', 'Call fatte'].map((h, i) => (
+                  <th key={h} className={`px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-spento ${i > 0 ? 'text-right' : ''}`}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-velo">
+                <td className="px-4 py-2.5 font-semibold">Email</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{canale ? fmtNum(canale.lead) : '…'}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{canale ? fmtNum(canale.risposte) : '…'}</td>
+                <td className="px-4 py-2.5 text-right font-bold tabular-nums">
+                  {canale && canale.lead > 0 ? `${((canale.risposte / canale.lead) * 100).toFixed(1)}%` : '…'}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{canale ? fmtNum(canale.fissate) : '…'}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{canale ? fmtNum(canale.fatte) : '…'}</td>
+              </tr>
+              {['LinkedIn', 'Instagram', 'Referral', 'Altro'].map((c) => (
+                <tr key={c} className="border-b border-velo last:border-0">
+                  <td className="px-4 py-2.5 font-semibold text-spento">{c}</td>
+                  <td colSpan={5} className="px-4 py-2.5 text-right text-xs text-spento">
+                    non passa ancora dalla Dashboard
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {/* ── LA FOTO ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
