@@ -12,7 +12,7 @@ import Plugin from './components/Plugin'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
-import Clienti from './components/Clienti'
+import TuttiElenco from './components/TuttiElenco'
 import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
@@ -319,8 +319,8 @@ export default function App() {
               <Vault onOpen={setOpenId} />
             ) : tab === 'plugin' ? (
               <Plugin />
-            ) : tab === 'clienti' ? (
-              <Clienti onOpen={setOpenId} />
+            ) : tab === 'tutti' ? (
+              <TuttiElenco onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
               <Impostazioni nome={utente} email={mail} demo={demo} onCambio={() => setVersione((v) => v + 1)} />
             ) : (

@@ -12,7 +12,7 @@
 export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
-  | 'clienti'
+  | 'tutti'
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
@@ -51,7 +51,7 @@ export const WIDGET: Widget[] = [
   { chiave: 'oggi', nome: 'Task', cosa: 'Le tue attività, On go o Week picture', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 6h16M4 12h10M4 18h7' },
-  { chiave: 'clienti', nome: 'Clienti', cosa: 'Chi paga, quanto, e chi lo segue', zona: 'sistema',
+  { chiave: 'tutti', nome: 'Tutti', cosa: 'Clienti e prospect, con canone e chi li segue', zona: 'menu',
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M20 7h-9M14 17H5M17 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM7 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z' },
   { chiave: 'analytics', nome: 'Analytics', cosa: 'I numeri: funnel, ricorrente, canali', zona: 'sistema',
