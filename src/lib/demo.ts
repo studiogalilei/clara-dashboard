@@ -218,8 +218,26 @@ const task: Riga[] = [
   { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1) },
 ]
 
+// le persone dentro la Dashboard: servono per mandarsi le task
+const profili: Riga[] = [
+  { id: 'demo', nome: 'Dre', ruolo: 'ceo' },
+  { id: 'giacomo', nome: 'Giacomo', ruolo: 'coordinamento' },
+]
+
+// i progetti: il lavoro a scadenza del cliente demo (Klavzar, p7)
+const progetti: Riga[] = [
+  { id: 1, at: gg(12), prospect_id: 'p7', nome: 'Sito vetrina', natura: 'sito', chi_segue: 'Alex',
+    scadenza: data(-18), valore: 1500, stato: 'in_corso', note: null, owner: null },
+  { id: 2, at: gg(3), prospect_id: 'p7', nome: 'Setup campagne Google Ads', natura: 'setup', chi_segue: 'Carlo',
+    scadenza: data(-40), valore: 800, stato: 'da_iniziare', note: null, owner: null },
+  { id: 3, at: gg(90), prospect_id: 'p7', nome: 'Audit iniziale', natura: 'audit', chi_segue: 'Carlo',
+    scadenza: data(60), valore: 350, stato: 'consegnato', note: null, owner: null },
+]
+
 const TABELLE: Record<string, Riga[]> = {
   sync_runs,
+  profili,
+  progetti,
   task,
   vault_file: vault_file as unknown as Riga[],
   clara_messaggi: clara_messaggi as unknown as Riga[],
@@ -355,7 +373,7 @@ export const demoClient = {
     },
   },
   auth: {
-    getSession: async () => ({ data: { session: { user: { email: 'demo@studiogalilei' } } } }),
+    getSession: async () => ({ data: { session: { user: { id: 'demo', email: 'demo@studiogalilei' } } } }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     signOut: async () => ({}),
     signInWithPassword: async () => ({ error: null }),
