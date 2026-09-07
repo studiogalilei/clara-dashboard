@@ -102,7 +102,10 @@ il testo della bozza, pronto da incollare, SENZA firma, con [CALENDARIO] e
 Regole che non si discutono: registro «lei», mai «tu»; mai il trattino
 lungo; mai aprire con «volentieri.» o «si'.» secchi; niente firma; se
 l'analisi e' gia' stata inviata non rispiegare cos'e'; se ha chiesto lui una
-call non mandare l'analisi, fissa la call."""
+call non mandare l'analisi, fissa la call. Se l'ultimo messaggio e' un «ok»,
+«grazie», «ricevuto» secco senza una richiesta, NON e' un interessato: metti
+FERMATI: si' («messaggio ambiguo, un ok secco») e scrivi la bozza piu' corta
+possibile."""
 
 
 def chiedi_bozza(p, ultimo, riprova=None):
@@ -118,9 +121,10 @@ def chiedi_bozza(p, ultimo, riprova=None):
     if riprova:
         prompt += f"\n\nLA BOZZA PRECEDENTE NON E' PASSATA IL CANCELLO PER: {riprova}. Riscrivila correggendo solo quello."
     grezzo = cervello._chiedi(prompt)
-    testa, sep, bozza = grezzo.partition("\n---")
-    if not sep:
+    m = re.search(r"\n\s*(?:-{3,}|\*{3,})\s*\n", grezzo)
+    if not m:
         return None
+    testa, bozza = grezzo[:m.start()], grezzo[m.end():]
     campi = {}
     for riga in testa.splitlines():
         if ":" in riga:
@@ -142,7 +146,9 @@ def main():
     for r in righe:
         if r.get("prospect_id") and r["prospect_id"] not in ultima:
             ultima[r["prospect_id"]] = r.get("body") or ""
-    aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.aperta&tipo=in.(risposta,umano)") or [])}
+    # con una proposta aperta di qualunque tipo si aspetta Dre: se la classe e'
+    # in discussione, la bozza sarebbe scritta sulla classe sbagliata
+    aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.aperta") or [])}
 
     fatte, ferme, bocciate = 0, 0, 0
     for p in persone:
