@@ -38,7 +38,7 @@ from stanza import sb                                      # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
-ATTESA_MAX = 1500          # secondi per operazione: il sync su 9.000 lead ne vuole ~700
+ATTESA_MAX = 2400          # secondi per operazione: il sync ne vuole ~600, le bozze ~400
 
 
 def adesso():

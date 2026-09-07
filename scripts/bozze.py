@@ -30,6 +30,7 @@ import datetime
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
@@ -37,7 +38,8 @@ from stanza import sb, proponi                             # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROVA = "--prova" in sys.argv
-QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 40
+QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 25
+IN_PARALLELO = 5
 CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da Dre il 7/9
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
@@ -159,26 +161,38 @@ def main():
     # in discussione, la bozza sarebbe scritta sulla classe sbagliata
     aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.aperta") or [])}
 
-    fatte, ferme, bocciate = 0, 0, 0
+    candidate = []
     for p in persone:
-        if fatte + ferme >= QUANTI:
-            break
         testo = ultima.get(p["id"], "")
         if len(testo.strip()) < 30 or p["id"] in aperte or p.get("stage") in INTOCCABILI:
             continue
+        candidate.append((p, testo))
+        if len(candidate) >= QUANTI:
+            break
+
+    def lavora(coppia):
+        p, testo = coppia
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
         b = chiedi_bozza(p, testo)
         if not b:
-            print(f"  ? {nome}: risposta del cervello non leggibile"); continue
+            return (p, nome, None, [])
         errori = cancello(b["bozza"])
         if errori:
             b2 = chiedi_bozza(p, testo, riprova="; ".join(errori))
             if b2 and not cancello(b2["bozza"]):
-                b = b2; errori = []
-            else:
-                bocciate += 1
+                return (p, nome, b2, [])
+        return (p, nome, b, errori)
+
+    fatte, ferme, bocciate = 0, 0, 0
+    with ThreadPoolExecutor(max_workers=IN_PARALLELO) as pool:
+        esiti = list(pool.map(lavora, candidate))
+    for p, nome, b, errori in esiti:
+        if not b:
+            print(f"  ? {nome}: risposta del cervello non leggibile"); continue
+        if errori:
+            bocciate += 1
         ferma = not b["fermati"].lower().startswith("no")
-        titolo = (f"Da guardare tu: {nome}" if ferma else f"Bozza per {nome}") + f" · intento {b['intento']}"
+        titolo = (f"Da guardare tu: {nome}" if ferma else f"Bozza per {nome}") + f" · {b['intento']}"
         perche = (b["fermati"] if ferma else b["nota"])[:280] + (f" · CANCELLO: {'; '.join(errori)}" if errori else "")
         print(f"\n  [{b['intento']}] {titolo}\n      {perche}\n      " + b["bozza"][:220].replace("\n", " ") + "…")
         if not PROVA:
