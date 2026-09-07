@@ -1,0 +1,31 @@
+# Il backup notturno: ogni notte una copia cifrata di tutto il database,
+# salvata qui su GitHub per 30 giorni. Gira in cloud, non sul Mac di Dre.
+# Quando Drive sara' collegato si sposta li'. (7/9/2026)
+name: backup notturno
+
+on:
+  schedule:
+    - cron: "0 1 * * *"     # 01:00 UTC = 03:00 a Roma d'estate, 02:00 d'inverno
+  workflow_dispatch:         # e a mano, per provare
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: la copia, cifrata
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          BACKUP_FRASE: ${{ secrets.BACKUP_FRASE }}
+        run: python3 scripts/backup.py
+      - name: conservata 30 giorni
+        uses: actions/upload-artifact@v4
+        with:
+          name: clara-backup-${{ github.run_id }}
+          path: clara-backup-*.tar.gz.enc
+          retention-days: 30
+          if-no-files-found: error
