@@ -71,11 +71,18 @@ def tabelle():
 
 
 def scarica(tabella):
-    righe, da = [], 0
+    """A pagine, in ordine di id quando c'e': se la tabella non ha un id
+    (list_members, preferenze) si scarica senza ordine. Il primo giro in
+    cloud si e' fermato proprio li' (7/9)."""
+    righe, da, ordine = [], 0, "&order=id.asc"
     while True:
-        pezzo = prendi(f"/rest/v1/{tabella}?select=*&order=id.asc&limit={PAGINA}&offset={da}") \
-            if tabella not in ("preferenze",) else \
-            prendi(f"/rest/v1/{tabella}?select=*&limit={PAGINA}&offset={da}")
+        try:
+            pezzo = prendi(f"/rest/v1/{tabella}?select=*{ordine}&limit={PAGINA}&offset={da}")
+        except Exception:
+            if not ordine:
+                raise
+            ordine = ""
+            continue
         righe.extend(pezzo)
         if len(pezzo) < PAGINA:
             return righe

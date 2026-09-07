@@ -41,15 +41,24 @@ def riferimento():
 def main():
     if cervello.FORNITORE != "openai":
         sys.exit("metti FORNITORE=openai e OPENAI_API_KEY in .env.local")
-    persone = sb("GET", "/rest/v1/prospects?last_reply_at=not.is.null&select=id,company,name,email,classificazione"
-                        "&order=last_reply_at.desc&limit=400") or []
+    # lo stesso campione della rilettura: cosi' il riferimento esiste
+    persone = sb("GET", "/rest/v1/prospects?last_reply_at=not.is.null&select=id,company,name,email,"
+                        "classificazione,stage,fuori,enriched&order=last_reply_at.desc&limit=2000") or []
     righe = sb("GET", "/rest/v1/interactions?kind=eq.email_in&select=prospect_id,body&order=at.desc&limit=3000") or []
     ultima = {}
     for r in righe:
-        if r.get("prospect_id") and r["prospect_id"] not in ultima and len((r.get("body") or "").strip()) > 60:
-            ultima[r["prospect_id"]] = r["body"]
-    campione = [{"id": p["id"], "testo": ultima[p["id"]], "nome": (p.get("company") or p.get("name") or "")[:30]}
-                for p in persone if p["id"] in ultima][:QUANTI]
+        if r.get("prospect_id") and r["prospect_id"] not in ultima:
+            ultima[r["prospect_id"]] = r.get("body") or ""
+    INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
+    campione = []
+    for p in persone:
+        if p["id"] not in ultima or len(ultima[p["id"]].strip()) < 15:
+            continue
+        if (p.get("enriched") or {}).get("classificazione") == "manual" or p.get("stage") in INTOCCABILI or p.get("fuori"):
+            continue
+        campione.append({"id": p["id"], "testo": ultima[p["id"]], "nome": (p.get("company") or p.get("name") or "")[:30]})
+        if len(campione) >= QUANTI:
+            break
     print(f"{len(campione)} risposte vere, {len(MODELLI)} modelli: {', '.join(MODELLI)}\n")
 
     rif = riferimento()
