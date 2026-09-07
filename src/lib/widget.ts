@@ -68,7 +68,7 @@ export const WIDGET: Widget[] = [
   { chiave: 'vault', nome: 'Documenti', cosa: 'I file, agganciati ai prospect', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3' },
-  { chiave: 'plugin', nome: 'Agenti e Skills', cosa: 'Cosa sa fare Clara, e i collegamenti', zona: 'sistema',
+  { chiave: 'plugin', nome: 'Widget e istruzioni', cosa: 'Cosa sa fare Clara, e i collegamenti', zona: 'sistema',
     ruoli: ['ceo'],
     icona: 'M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7zM12 17v4' },
 ]
