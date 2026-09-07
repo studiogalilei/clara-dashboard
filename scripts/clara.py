@@ -27,8 +27,12 @@ HERMES = os.path.expanduser("~/.hermes/config.yaml")
 
 
 def env():
+    # in cloud il file non c'e': le chiavi arrivano dall'ambiente (righe sotto)
     out = {}
-    with open(os.path.join(ROOT, ".env.local")) as f:
+    p = os.path.join(ROOT, ".env.local")
+    if not os.path.exists(p):
+        return out
+    with open(p) as f:
         for r in f:
             r = r.strip()
             if r and not r.startswith("#") and "=" in r:
