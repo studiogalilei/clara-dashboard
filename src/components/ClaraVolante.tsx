@@ -27,6 +27,8 @@ interface Proposta {
     prospects?: Record<string, unknown>
     task?: { titolo: string; scadenza?: string | null }
     bozza?: string; intento?: string; template?: string
+    // «non e' nel CRM, lo aggiungo?»: il prospect da creare e le call da attaccargli
+    nuovo?: Record<string, unknown>; agenda_ids?: number[]
   }
   stato: 'aperta' | 'si' | 'no' | 'fatta'
 }
@@ -389,6 +391,14 @@ export default function ClaraVolante({ onOpen }: Props) {
       else await supabase.from('prospects').update({ awaiting_us: false }).eq('id', p.prospect_id)
       esito = error ? esito : `Segnata come mandata: ${p.titolo}`
     } else if (si) {
+      if (p.azione?.nuovo) {
+        const { data: creato, error } = await supabase.from('prospects')
+          .insert(p.azione.nuovo).select('id').single()
+        if (error) esito = `Non sono riuscita a crearlo: ${error.message}`
+        else if (p.azione.agenda_ids?.length) {
+          await supabase.from('agenda').update({ prospect_id: (creato as { id: string }).id }).in('id', p.azione.agenda_ids)
+        }
+      }
       if (p.azione?.prospects && p.prospect_id) {
         const { error } = await supabase.from('prospects').update(p.azione.prospects).eq('id', p.prospect_id)
         if (error) esito = `Non sono riuscita a scriverlo: ${error.message}`

@@ -23,11 +23,13 @@ USO
 
 import datetime
 import os
+import re
 import sys
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, proponi                             # noqa: E402
+import calendario                                          # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 ORDINE = {"conoscitiva": 1, "tecnica": 2, "avvio": 3}
@@ -78,7 +80,68 @@ def main():
         else:
             if proponi("avanza", titolo, prospect_id=pid, perche=perche, azione=azione):
                 proposte += 1
-    print(f"tracciato: {proposte} proposte, {len(per_prospect)} prospect con call")
+    # --- le call con gente che nel CRM non c'e' ---
+    nuovi = sconosciuti(prova, adesso)
+    print(f"tracciato: {proposte} proposte, {len(per_prospect)} prospect con call, {nuovi} sconosciuti proposti")
+
+
+GIORNI_SCONOSCIUTI = 120
+
+
+def _azienda(email):
+    dominio = email.split("@")[-1]
+    if dominio in calendario.GENERICI:
+        return None
+    return dominio.split(".")[0].replace("-", " ").title()
+
+
+def _nome(email):
+    locale = email.split("@")[0]
+    pezzi = [p for p in re.split(r"[._-]", locale) if p.isalpha() and len(p) > 1]
+    return " ".join(p.title() for p in pezzi[:2]) if len(pezzi) >= 2 else None
+
+
+def sconosciuti(prova, adesso):
+    """Call passate con un invitato esterno che nel CRM non c'e': Clara chiede se aggiungerlo."""
+    da = (adesso - datetime.timedelta(days=GIORNI_SCONOSCIUTI)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    righe = sb("GET", f"/rest/v1/agenda?select=id,at,titolo,tipo,link&prospect_id=is.null&fonte=eq.gcal"
+                      f"&at=gte.{da}&at=lte.{adesso.strftime('%Y-%m-%dT%H:%M:%SZ')}&order=at.asc&limit=500") or []
+    if not righe:
+        return 0
+    # gli invitati non stanno in agenda: li ripesco dal calendario stesso
+    eventi = {e.get("meet") or e["link"]: e for e in calendario.eventi_correnti()[0]}
+    prospects = calendario.carica_prospects()
+    gia = {(p.get("azione") or {}).get("nuovo", {}).get("email")
+           for p in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.avanza&limit=5000") or [])}
+    per_email = {}
+    for r in righe:
+        e = eventi.get(r["link"])
+        if not e:
+            continue
+        for inv in calendario.esterni(e["invitati"]):
+            if inv in prospects["email"] or inv in gia:
+                continue
+            # stessa azienda, due persone: una proposta sola (Muffin era due volte)
+            chiave = inv.split("@")[-1] if _azienda(inv) else inv
+            per_email.setdefault(chiave, {"email": inv, "calls": []})["calls"].append(r)
+    fatte = 0
+    for voce in per_email.values():
+        email, calls = voce["email"], voce["calls"]
+        azienda = _azienda(email) or _nome(email) or email
+        ultima = calls[-1]
+        quando = datetime.datetime.fromisoformat(ultima["at"].replace("Z", "+00:00")).astimezone(ROMA)
+        fase = max((c["tipo"] for c in calls if c["tipo"] in ORDINE), key=lambda t: ORDINE[t], default="conoscitiva")
+        titolo = f"{azienda}: call «{ultima['titolo'][:50]}» del {quando:%d/%m} con {email}, non e' nel CRM. Lo aggiungo in {NOME[fase]}?"
+        nuovo = {"email": email, "name": _nome(email), "company": _azienda(email), "stage": "risposto",
+                 "classificazione": "positivo", "fuori": True, "fuori_at": adesso.isoformat(), "pipeline_stage": fase,
+                 "first_reply_at": calls[0]["at"], "source": "calendario", "awaiting_us": False}
+        perche = "Call in calendario: " + "; ".join(f"{datetime.datetime.fromisoformat(c['at'].replace('Z', '+00:00')).astimezone(ROMA):%d/%m} {c['titolo'][:40]}" for c in calls)
+        if prova:
+            print(f"  {titolo}")
+            continue
+        if proponi("avanza", titolo, perche=perche[:280], azione={"nuovo": nuovo, "agenda_ids": [c["id"] for c in calls]}):
+            fatte += 1
+    return fatte
 
 
 if __name__ == "__main__":

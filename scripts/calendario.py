@@ -237,19 +237,28 @@ def carica_prospects():
 
 # ---------- scrittura ----------
 
+def eventi_correnti():
+    """Gli eventi dalla fonte che c'e': l'ICS, o l'ultimo export salvato (CALENDARIO_JSON)."""
+    url = env("CALENDARIO_ICS")
+    if url:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "clara-dashboard"}), timeout=60) as r:
+            return da_ics(r.read().decode("utf-8", errors="replace")), "ics"
+    percorso = env("CALENDARIO_JSON")
+    if percorso and os.path.exists(percorso):
+        return da_json(percorso), "export"
+    return [], "niente"
+
+
 def main():
     prova = "--prova" in sys.argv
     if "--da-json" in sys.argv:
         eventi = da_json(sys.argv[sys.argv.index("--da-json") + 1])
         fonte = "export"
     else:
-        url = env("CALENDARIO_ICS")
-        if not url:
+        eventi, fonte = eventi_correnti()
+        if fonte == "niente":
             print("manca CALENDARIO_ICS (l'indirizzo segreto iCal del calendario)")
             sys.exit(1)
-        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "clara-dashboard"}), timeout=60) as r:
-            eventi = da_ics(r.read().decode("utf-8", errors="replace"))
-        fonte = "ics"
 
     adesso = datetime.datetime.now(datetime.timezone.utc)
     da, a = adesso - datetime.timedelta(days=INDIETRO), adesso + datetime.timedelta(days=AVANTI)
