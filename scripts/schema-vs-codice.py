@@ -50,7 +50,10 @@ def schema_vero():
 def sorgenti():
     out = subprocess.run(['git', 'ls-files', 'src', 'scripts'], cwd=RADICE,
                          capture_output=True, text=True).stdout.split()
-    return [f for f in out if f.endswith(('.ts', '.tsx', '.py'))]
+    io = os.path.relpath(__file__, RADICE)
+    # non si controlla da solo: nei suoi commenti c'e' un from('tabella')
+    # di esempio, e si accusava di usare una tabella che non esiste (7/9)
+    return [f for f in out if f.endswith(('.ts', '.tsx', '.py')) and f != io]
 
 
 # from('tabella'), ma non storage.from('secchio'): quello e' un secchio di
