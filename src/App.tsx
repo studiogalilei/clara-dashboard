@@ -16,7 +16,7 @@ import Impostazioni from './components/Impostazioni'
 import TuttiElenco from './components/TuttiElenco'
 import Progetti from './components/Progetti'
 import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
-import { nomeDa, iniziali } from './lib/profilo'
+import { nomeDa } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
 
