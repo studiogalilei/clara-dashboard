@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""IL CERVELLO DI CLARA — la porta, una sola (7/9/2026).
+
+PERCHE' ESISTE
+Fino a oggi Clara non leggeva: la classificazione erano sei espressioni
+regolari, e una diceva che se nel messaggio c'e' scritto «ok» o «aspetto»
+allora e' un lead positivo. Misurato sui dati veri di Dre: su 197 risposte,
+7 risponditori automatici di ferie finivano fra i positivi e 70 messaggi
+(il 35%) venivano marcati «da classificare», cioe' scaricati su di lui.
+
+Le parole chiave non capiranno mai la differenza che a Dre interessa di piu':
+  «parli col nostro direttore marketing per approfondire»  -> caldo
+  «guardi i contatti sul sito»                             -> scaricabarile
+Sono la stessa forma, dicono l'opposto. Serve qualcuno che legga.
+
+PERCHE' UNA PORTA SOLA
+Dre non vuole dipendere da un fornitore. Se il modello si chiama in venti
+punti del codice, cambiarlo e' un progetto; se si chiama qui dentro e basta,
+e' una funzione. Tutto quello che sa parlare con un modello sta in _chiedi().
+Il resto del programma conosce solo leggi().
+
+COSA NON FA
+Non scrive niente da nessuna parte. Legge e restituisce un giudizio. Chi lo
+usa decide cosa farne. E' la stessa regola del pedaggio: Clara propone, Dre
+dispone.
+
+COSA COSTA
+Gira su Claude Code col piano Max di Dre, non sull'API: nessun credito da
+comprare. In cambio funziona solo col suo Mac acceso. Le letture gia' fatte
+restano in cache su disco, quindi rileggere la stessa cosa e' gratis.
+"""
+
+import hashlib
+import json
+import os
+import re
+import subprocess
+
+CACHE = os.path.expanduser("~/.odyn-letture.json")
+A_GRUPPI_DI = 18          # quanti messaggi per volta: piu' su, meno precisione
+ATTESA_MAX = 180          # secondi per gruppo
+
+CLASSI = ("positivo", "tiepido", "negativo", "ooo", "rinvio",
+          "fuori_target", "da_classificare")
+
+# Le regole sono di Dre, non mie: vengono dal Playbook Classificazione e
+# dalle regole d'oro in CLAUDE.md. Se cambiano li', cambiano qui.
+REGOLE = """Sei il lettore dell'inbox di Studio Galilei, agenzia Google Ads che fa
+outbound a freddo. Leggi la risposta di un'azienda e dici cosa vuol dire.
+
+LE CLASSI
+positivo      apre una porta, anche minima: «si'», «mandami», «mi interessa»,
+              chiede prezzi o dettagli col tono aperto, chiede chi siamo per
+              curiosita', oppure ti passa al decisore PER APPROFONDIRE.
+tiepido       non chiude ma non apre: interesse vago, nessuna richiesta.
+rinvio        vuole risentirsi piu' avanti («a ottobre», «dopo le ferie»,
+              «fine anno»). E' un DOPO, non un no: per Dre vale quasi come un
+              positivo, va solo ripreso alla data giusta.
+ooo           risposta automatica di assenza, ferie, fuori ufficio.
+negativo      chiude: «non interessati», «rimuovetemi», «abbiamo gia'
+              un'agenzia» detto come stop senza finestra futura, oppure ti
+              scarica in modo generico («guardi i contatti sul sito»).
+fuori_target  non e' un cliente possibile: agenzie di marketing o concorrenti,
+              caselle privacy/GDPR/legali, aziende senza clienti da acquisire.
+da_classificare  il corpo non e' leggibile (solo firma o disclaimer), o e'
+              davvero ambiguo. Usala poco: e' lavoro che scarichi su Dre.
+
+LA DISTINZIONE CHE CONTA DI PIU'
+Non conta CHE ti rimandi a un altro, conta PERCHE'.
+  «parli col nostro direttore marketing per approfondire» = positivo
+  «guardi i contatti sul sito»                            = negativo
+
+LA TRAPPOLA DELLE RISPOSTE AUTOMATICHE
+Se il messaggio e' una risposta automatica di assenza la classe e' ooo, anche
+se dentro ci sono parole che sembrano positive. MA se sotto o sopra
+l'automatismo c'e' una risposta vera scritta da una persona, vince quella:
+guarda chi ha scritto cosa, non le parole isolate.
+
+QUANDO
+Se il messaggio dice o lascia capire da quando ha senso riparlarne, scrivi la
+data in formato AAAA-MM-GG. Per un fuori ufficio e' il primo giorno dopo il
+rientro. Se non lo dice, scrivi -.
+
+COME RISPONDI
+Una riga per messaggio, niente altro: nessuna introduzione, nessun commento,
+nessuna riga vuota, nessun elenco puntato.
+Formato esatto, con le barre verticali:
+NUMERO | classe | data-o-trattino | perche in massimo 10 parole"""
+
+
+def _cache():
+    try:
+        with open(CACHE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _salva_cache(d):
+    try:
+        with open(CACHE, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False)
+    except Exception:
+        pass          # la cache e' una comodita', non un dato: se salta, pazienza
+
+
+def _impronta(testo):
+    base = REGOLE + "\x00" + " ".join((testo or "").split())
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()[:24]
+
+
+def _chiedi(prompt):
+    """L'unico punto che parla con un modello. Cambiare fornitore = cambiare qui.
+
+    Oggi: Claude Code col piano di Dre (nessun credito API).
+    """
+    r = subprocess.run(["claude", "-p"], input=prompt, capture_output=True,
+                       text=True, timeout=ATTESA_MAX)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or "il cervello non ha risposto")[:200])
+    return r.stdout
+
+
+RIGA = re.compile(r"^\s*(\d+)\s*\|\s*([a-z_]+)\s*\|\s*([\d-]{1,10})\s*\|\s*(.*?)\s*$")
+
+
+def _leggi_gruppo(gruppo):
+    """gruppo: lista di (chiave, testo). Torna {chiave: verdetto}."""
+    pezzi = []
+    for i, (_, testo) in enumerate(gruppo, 1):
+        t = " ".join((testo or "").split())[:1200]
+        pezzi.append(f"--- messaggio {i} ---\n{t}")
+    prompt = REGOLE + "\n\nI MESSAGGI:\n\n" + "\n\n".join(pezzi)
+
+    fuori = {}
+    for riga in _chiedi(prompt).splitlines():
+        m = RIGA.match(riga)
+        if not m:
+            continue                      # le chiacchiere si buttano
+        n, classe, quando, perche = m.groups()
+        i = int(n) - 1
+        if not (0 <= i < len(gruppo)) or classe not in CLASSI:
+            continue
+        fuori[gruppo[i][0]] = {
+            "classe": classe,
+            "quando": quando if re.fullmatch(r"\d{4}-\d{2}-\d{2}", quando) else None,
+            "perche": perche[:120],
+        }
+    return fuori
+
+
+def leggi(messaggi, quando_pronto=None):
+    """Legge dei messaggi e dice cosa vogliono dire.
+
+    messaggi: lista di dizionari con almeno {"id": ..., "testo": ...}
+    torna:    {id: {"classe","quando","perche"}} — solo per quelli capiti.
+
+    Non solleva mai: se il cervello non risponde, torna quello che ha capito
+    fin li'. Chi chiama deve saper vivere con una risposta parziale.
+    """
+    cache = _cache()
+    fuori, da_leggere = {}, []
+    for m in messaggi:
+        testo = m.get("testo") or ""
+        if len(testo.strip()) < 15:
+            continue                      # una firma non e' un messaggio
+        k = _impronta(testo)
+        if k in cache:
+            fuori[m["id"]] = dict(cache[k])
+            continue
+        da_leggere.append((m["id"], testo, k))
+
+    for i in range(0, len(da_leggere), A_GRUPPI_DI):
+        gruppo = da_leggere[i:i + A_GRUPPI_DI]
+        try:
+            letti = _leggi_gruppo([(g[0], g[1]) for g in gruppo])
+        except Exception as e:
+            print(f"  ! il cervello si e' fermato: {str(e)[:120]}")
+            break
+        per_id = {g[0]: g[2] for g in gruppo}
+        for pid, v in letti.items():
+            fuori[pid] = v
+            cache[per_id[pid]] = v
+        _salva_cache(cache)
+        if quando_pronto:
+            quando_pronto(min(i + A_GRUPPI_DI, len(da_leggere)), len(da_leggere))
+
+    return fuori
+
+
+def disponibile():
+    """Il cervello c'e' e risponde?"""
+    try:
+        return "vivo" in _chiedi("Rispondi solo con la parola: vivo").lower()
+    except Exception:
+        return False
+
+
+if __name__ == "__main__":
+    print("cervello disponibile:", disponibile())
+    prova = [
+        {"id": "a", "testo": "Thank you for your email. I am currently out of the office "
+                             "with limited access to email. I will respond upon my return "
+                             "on September 24th."},
+        {"id": "b", "testo": "Buongiorno, guardi trovi tutti i contatti sul nostro sito. Saluti."},
+        {"id": "c", "testo": "Interessante, ne parli col nostro direttore marketing "
+                             "Luca Bianchi per approfondire, lo metto in copia."},
+        {"id": "d", "testo": "Grazie ma siamo un'agenzia di marketing anche noi, "
+                             "facciamo lo stesso lavoro vostro."},
+    ]
+    for k, v in leggi(prova).items():
+        print(f"  {k}: {v['classe']:14} {str(v['quando'] or '-'):12} {v['perche']}")
