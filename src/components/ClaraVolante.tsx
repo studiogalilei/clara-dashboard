@@ -612,7 +612,7 @@ export default function ClaraVolante({ onOpen }: Props) {
 
             {/* LA STANZA: quello che Clara chiede, e che aspetta te */}
             {proposte.length > 0 && (
-              <div className="max-h-[42vh] overflow-y-auto border-b border-velo bg-velo/40 px-4 py-3">
+              <div className="max-h-[42vh] shrink-0 overflow-y-auto border-b border-velo bg-velo/40 px-4 py-3">
                 <p className="mb-2 flex items-baseline gap-2 text-[11px] font-bold uppercase tracking-[0.05em] text-spento">
                   Clara chiede <span className="tabular-nums text-navy">{proposte.length}</span>
                 </p>
@@ -649,7 +649,7 @@ export default function ClaraVolante({ onOpen }: Props) {
             )}
 
             {/* la conversazione */}
-            <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo ai Documenti" className="flex-1 space-y-2.5 overflow-y-auto p-4">
+            <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo ai Documenti" className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
               {messaggi === null ? (
                 <Spinner />
               ) : messaggi.length === 0 ? (
@@ -668,12 +668,14 @@ export default function ClaraVolante({ onOpen }: Props) {
                       </div>
                     )
                   }
-                  const [label, classe] = CHIP[m.tipo] ?? CHIP.promemoria
+                  const [label, classe] = m.tipo === 'clara' ? ['', ''] : (CHIP[m.tipo] ?? CHIP.promemoria)
                   const dentro = (
                     <>
-                      <span className={`mb-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${classe}`}>
-                        {m.tipo === 'brief' ? `${label} · ${fmtDateShort(m.at)}` : label}
-                      </span>
+                      {label && (
+                        <span className={`mb-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${classe}`}>
+                          {m.tipo === 'brief' ? `${label} · ${fmtDateShort(m.at)}` : label}
+                        </span>
+                      )}
                       <p className={`whitespace-pre-wrap text-sm ${m.letto ? 'text-tenue' : 'font-medium'}`}>
                         {m.testo}
                       </p>
