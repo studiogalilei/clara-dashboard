@@ -29,6 +29,18 @@ export function ePerso(p: Fase): boolean {
   return (p.fuori && p.pipeline_stage === 'perso') || (!p.fuori && p.stage === 'perso')
 }
 
+// scartato: non era roba nostra (agenzia, concorrente, casella privacy,
+// mercato che non vale). E' il morto dichiarato che NON e' un perso.
+export function eScartato(p: Fase & Pick<Prospect, 'classificazione'>): boolean {
+  return !vivo(p) && !ePerso(p)
+}
+
+// «quando lo risento» e' una domanda sola e ha un campo solo: next_action_date.
+// Le due colonne vecchie contano finche' quella e' vuota, poi spariranno.
+export function quandoRisentirlo(p: Pick<Prospect, 'next_action_date' | 'ooo_until' | 'followup_due'>): string | null {
+  return p.next_action_date ?? p.ooo_until ?? p.followup_due ?? null
+}
+
 // storia finita: non si conta più il tempo che passa
 export function chiuso(p: Fase & Pick<Prospect, 'classificazione'>): boolean {
   return eCliente(p) || ePerso(p) || !vivo(p)
@@ -102,9 +114,8 @@ export async function ricorrenteMensile(): Promise<{
 // contava sul database, la bacheca contava le 300 righe che era riuscita a
 // scaricare, e lo scriveva in fondo alla pagina come una confessione. Ora la
 // domanda e' una e la fa il database, per tutte e due (revisione 4/9).
-export type Fascia = 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'cliente' | 'perso'
+export type Fascia = 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'cliente' | 'perso' | 'scartato'
 
-const MORTI_QUERY = `and(fuori.eq.false,classificazione.in.("${MORTI.join('","')}"))`
 
 const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
   prospect: soloProspect,
@@ -112,9 +123,10 @@ const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
   tecnica: (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica'),
   avvio: (q) => q.eq('fuori', true).eq('pipeline_stage', 'avvio'),
   cliente: (q) => q.or(CLIENTI_QUERY),
-  // fra i persi ci sono anche i morti dichiarati: non sono piu' prospect
-  perso: (q) => q.or(
-    'and(fuori.eq.true,pipeline_stage.eq.perso),and(fuori.eq.false,stage.eq.perso),' + MORTI_QUERY),
+  perso: (q) => q.or('and(fuori.eq.true,pipeline_stage.eq.perso),and(fuori.eq.false,stage.eq.perso)'),
+  // i morti dichiarati che non sono persi: non era roba nostra
+  // (stage.neq.perso: chi e' negativo E perso conta fra i persi, non due volte)
+  scartato: (q) => q.or(`and(fuori.eq.false,stage.neq.perso,classificazione.in.("${MORTI.join('","')}"))`),
 }
 
 export const FASCE = Object.keys(DOMANDE) as Fascia[]

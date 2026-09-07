@@ -38,6 +38,10 @@ import re
 import subprocess
 
 CACHE = os.path.expanduser("~/.odyn-letture.json")
+# Il modello e' scritto qui, non ereditato da quello che Dre ha selezionato
+# nella sua chat: il 7/9 e' bastato un cambio di modello nella sessione per
+# lasciare il cervello muto. Sonnet legge bene e costa meno sul piano.
+MODELLO = "claude-sonnet-5"
 A_GRUPPI_DI = 18          # quanti messaggi per volta: piu' su, meno precisione
 ATTESA_MAX = 180          # secondi per gruppo
 
@@ -115,10 +119,10 @@ def _chiedi(prompt):
 
     Oggi: Claude Code col piano di Dre (nessun credito API).
     """
-    r = subprocess.run(["claude", "-p"], input=prompt, capture_output=True,
-                       text=True, timeout=ATTESA_MAX)
+    r = subprocess.run(["claude", "-p", "--model", MODELLO], input=prompt,
+                       capture_output=True, text=True, timeout=ATTESA_MAX)
     if r.returncode != 0:
-        raise RuntimeError((r.stderr or "il cervello non ha risposto")[:200])
+        raise RuntimeError((r.stderr or r.stdout or "il cervello non ha risposto")[:200])
     return r.stdout
 
 

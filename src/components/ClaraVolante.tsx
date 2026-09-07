@@ -12,10 +12,24 @@ import { pulisci, creaTask } from '../lib/regole'
 // alla sua conferma, mai in autonomia. Senza l'OAuth, l'evento si apre
 // precompilato su Google Calendar e l'ultimo click resta di Dre.
 
+// una proposta nella stanza di Clara: cosa vuole fare, su chi, perche'.
+// Sul si' si scrive azione.prospects sulla scheda; sul no si annota e basta.
+// Vedi docs/LA-STANZA-DI-CLARA.md
+interface Proposta {
+  id: number
+  at: string
+  tipo: string
+  prospect_id: string | null
+  titolo: string
+  perche: string | null
+  azione: { prospects?: Record<string, unknown>; task?: { titolo: string; scadenza?: string | null } }
+  stato: 'aperta' | 'si' | 'no' | 'fatta'
+}
+
 interface Messaggio {
   id: number
   at: string
-  tipo: 'brief' | 'saluto' | 'promemoria' | 'domanda' | 'controllo' | 'anomalia' | 'dre'
+  tipo: 'brief' | 'saluto' | 'promemoria' | 'domanda' | 'controllo' | 'anomalia' | 'dre' | 'clara'
   testo: string
   prospect_id: string | null
   letto: boolean
@@ -232,10 +246,16 @@ export default function ClaraVolante({ onOpen }: Props) {
   // Clara e' una sola, ma la casella e' di ognuno (Dre, 3/9): si vedono i
   // messaggi indirizzati a te, piu' quelli di tutti che non hanno un
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
+  const [proposte, setProposte] = useState<Proposta[]>([])
+  const [rispondo, setRispondo] = useState<number | null>(null)
+
   const caricaMessaggi = useCallback(() => {
     // la scelta la fa il database, non il browser: se no gli 80 posti se li
     // prende chi ha parlato di piu' e i tuoi messaggi non arrivano mai
     const miei = utenteId ? `owner.is.null,owner.eq.${utenteId}` : 'owner.is.null'
+    supabase.from('proposte').select('*').eq('stato', 'aperta').or(miei)
+      .order('at', { ascending: true }).limit(50)
+      .then(({ data }) => setProposte((data as Proposta[]) ?? []))
     supabase
       .from('clara_messaggi')
       .select('*')
@@ -259,9 +279,9 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   // il giro di Clara scrive mentre la Dashboard è aperta: si ricontrolla
   useEffect(() => {
-    const t = setInterval(caricaMessaggi, 60000)
+    const t = setInterval(caricaMessaggi, aperta ? 8000 : 60000)
     return () => clearInterval(t)
-  }, [caricaMessaggi])
+  }, [caricaMessaggi, aperta])
 
   useEffect(() => {
     fondoRef.current?.scrollIntoView({ block: 'end' })
@@ -312,6 +332,26 @@ export default function ClaraVolante({ onOpen }: Props) {
       .insert({ tipo, testo: pulisci(t), letto: true, prospect_id, owner: utenteId })
       .select().single()
     if (data) setMessaggi((m) => [...(m ?? []), data as Messaggio])
+  }
+
+  async function rispondi(p: Proposta, si: boolean) {
+    setRispondo(p.id)
+    let esito = si ? `Fatto: ${p.titolo}` : `Ok, lascio com'è: ${p.titolo}`
+    if (si) {
+      if (p.azione?.prospects && p.prospect_id) {
+        const { error } = await supabase.from('prospects').update(p.azione.prospects).eq('id', p.prospect_id)
+        if (error) esito = `Non sono riuscita a scriverlo: ${error.message}`
+      }
+      if (p.azione?.task) {
+        const { problema } = await creaTask({ titolo: p.azione.task.titolo, scadenza: p.azione.task.scadenza ?? null, prospect_id: p.prospect_id })
+        if (problema) esito = `La task non si è salvata: ${problema}`
+      }
+    }
+    await supabase.from('proposte')
+      .update({ stato: si ? 'fatta' : 'no', risposta_il: new Date().toISOString() }).eq('id', p.id)
+    setProposte((l) => l.filter((x) => x.id !== p.id))
+    await scriviMessaggio('controllo', esito, p.prospect_id)
+    setRispondo(null)
   }
 
   async function manda(contenuto: string) {
@@ -470,15 +510,6 @@ export default function ClaraVolante({ onOpen }: Props) {
     setInvio(false)
   }
 
-  function apriComando(c: Comando) {
-    setComando(c)
-    setPProspect('')
-    setPInvitati('')
-    setPData('')
-    setPQuando(proposta())
-    setPTitolo(c === 'task' ? '' : CALL[c])
-  }
-
   function scegliProspect(id: string) {
     setPProspect(id)
     const p = prospects.find((x) => x.id === id)
@@ -532,9 +563,9 @@ export default function ClaraVolante({ onOpen }: Props) {
           className="fixed bottom-20 right-4 z-[70] flex h-14 w-14 items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.28)] transition-transform hover:-translate-y-0.5 sm:bottom-6 sm:right-6"
         >
           <ClaraLogo size={38} lavora={pensa} />
-          {nonLetti.length > 0 && (
+          {nonLetti.length + proposte.length > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-              {nonLetti.length}
+              {nonLetti.length + proposte.length}
             </span>
           )}
         </button>
@@ -579,22 +610,43 @@ export default function ClaraVolante({ onOpen }: Props) {
               </button>
             </header>
 
-            {/* comandi rapidi */}
-            <div className="flex gap-1.5 overflow-x-auto border-b border-velo px-4 py-2.5">
-              {([['task', '+ Task'], ['conoscitiva', 'Call conoscitiva'],
-                 ['tecnica', 'Call tecnica'], ['avvio', 'Call di avvio']] as Array<[Comando, string]>)
-                .map(([c, label]) => (
-                <button
-                  key={c}
-                  onClick={() => (comando === c ? setComando(null) : apriComando(c))}
-                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                    comando === c ? 'border-navy bg-navy text-white' : 'border-bordo text-tenue hover:border-spento'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* LA STANZA: quello che Clara chiede, e che aspetta te */}
+            {proposte.length > 0 && (
+              <div className="max-h-[42vh] overflow-y-auto border-b border-velo bg-velo/40 px-4 py-3">
+                <p className="mb-2 flex items-baseline gap-2 text-[11px] font-bold uppercase tracking-[0.05em] text-spento">
+                  Clara chiede <span className="tabular-nums text-navy">{proposte.length}</span>
+                </p>
+                <div className="space-y-2">
+                  {proposte.map((p) => (
+                    <div key={p.id} className="rounded-xl border border-bordo bg-white px-3.5 py-2.5">
+                      <button
+                        onClick={() => p.prospect_id && onOpen(p.prospect_id)}
+                        className="block w-full text-left text-[13px] font-bold leading-snug hover:text-blu"
+                      >
+                        {p.titolo}
+                      </button>
+                      {p.perche && <p className="mt-0.5 text-xs text-tenue">{p.perche}</p>}
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => rispondi(p, true)}
+                          disabled={rispondo === p.id}
+                          className="rounded-full bg-navy px-3.5 py-1 text-xs font-bold text-white disabled:opacity-40"
+                        >
+                          Sì
+                        </button>
+                        <button
+                          onClick={() => rispondi(p, false)}
+                          disabled={rispondo === p.id}
+                          className="rounded-full border border-bordo px-3.5 py-1 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40"
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* la conversazione */}
             <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo ai Documenti" className="flex-1 space-y-2.5 overflow-y-auto p-4">

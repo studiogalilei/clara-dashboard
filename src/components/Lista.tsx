@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, vivo, eProspect, passato, pedaggioPagato, ricorrenteMensile, contaFasi, type Fascia } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, passato, pedaggioPagato, ricorrenteMensile, contaFasi, quandoRisentirlo, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
@@ -27,28 +27,40 @@ const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
   ['Call di Avvio', 'avvio', (p) => p.fuori && p.pipeline_stage === 'avvio'],
   ['Cliente', 'cliente', eCliente],
-  // qui finiscono anche i morti dichiarati (negativo, fuori target, soppresso):
-  // non sono piu' prospect, e cosi' il numero torna con quello della home
-  ['Persi', 'perso', (p) => ePerso(p) || (!p.fuori && !vivo(p))],
+  // perso parla del nostro processo, scartato parla della lista (Dre, 7/9):
+  // ci abbiamo provato e no, oppure non era roba nostra. Due cassetti.
+  ['Persi', 'perso', ePerso],
+  ['Scartati', 'scartato', eScartato],
 ]
 
 // I persi non stanno in fila con gli altri (Dre, 7/9): una corsia sempre
 // aperta accanto alle vive e' un invito a metterci dentro qualcuno. Stanno
 // in fondo, chiusi, come le task completate di Google Task. Si aprono quando
 // li cerchi, e ci si puo' comunque trascinare sopra.
-const VIVE = TAPPE.filter(([, c]) => c !== 'perso')
+const VIVE = TAPPE.filter(([, c]) => c !== 'perso' && c !== 'scartato')
 const PERSI = TAPPE.find(([, c]) => c === 'perso')!
+const SCARTATI = TAPPE.find(([, c]) => c === 'scartato')!
+
+// dentro Prospect si vede chi e' chi senza aprire (Dre, 7/9): non un sacco
+// di 343 carte uguali, ma cinque gruppi con un nome
+const GRUPPI_PROSPECT: Array<[string, (p: Prospect) => boolean]> = [
+  ['Caldi', (p) => p.classificazione === 'positivo'],
+  ['Rinviati', (p) => p.classificazione === 'rinvio'],
+  ['Fuori ufficio', (p) => p.classificazione === 'ooo'],
+  ['Tiepidi', (p) => p.classificazione === 'tiepido'],
+  ['Da capire', (p) => !p.classificazione || p.classificazione === 'da_classificare'],
+]
 
 // i passati a qualcun altro non si trascinano: ci si passa dalla scheda
 const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a ?? ''
 
 const COLORE: Record<Chiave, string> = {
   prospect: 'bg-amber-400', conoscitiva: 'bg-[#6b85e0]', tecnica: 'bg-blu',
-  avvio: 'bg-navy', cliente: 'bg-green-600', perso: 'bg-gray-300',
+  avvio: 'bg-navy', cliente: 'bg-green-600', perso: 'bg-gray-300', scartato: 'bg-gray-200',
 }
 
 const ORDINE: Record<Chiave, number> = {
-  prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, cliente: 4, perso: 99,
+  prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, cliente: 4, perso: 99, scartato: 100,
 }
 
 interface Toast {
@@ -74,6 +86,7 @@ export default function Lista({ onOpen, q }: Props) {
   // una colonna alla volta si puo' allargare per starci dentro
   const [fuoco, setFuoco] = useState<Chiave | null>(null)
   const [persiAperti, setPersiAperti] = useState(false)
+  const [scartatiAperti, setScartatiAperti] = useState(false)
   const [stage, setStage] = useState<Stage | 'attivi' | 'tutti'>('attivi')
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -380,6 +393,8 @@ export default function Lista({ onOpen, q }: Props) {
 
   const cartaBoard = (p: Prospect, fase?: Chiave) => {
     const quando = fase ? calls[p.id]?.[fase] : undefined
+    // in Prospect la data che conta e' «quando lo risento», da un campo solo
+    const risento = fase === 'prospect' ? quandoRisentirlo(p) : null
     const fermo = daysAgo(p.last_reply_at)
     const finito = chiuso(p)
     const tono = finito ? 'ok'
@@ -413,7 +428,9 @@ export default function Lista({ onOpen, q }: Props) {
             {sgid(p.sg_id) && <span className="font-semibold text-blu/80">{sgid(p.sg_id)}</span>}
             {quando
               ? <span className="font-semibold text-navy">· {fmtDateShort(quando)}</span>
-              : fermo !== null && !finito && <span>· {giorni(fermo)}</span>}
+              : risento
+                ? <span className="font-semibold text-navy">· dal {fmtDateShort(risento)}</span>
+                : fermo !== null && !finito && <span>· {giorni(fermo)}</span>}
           </span>
         </span>
       </button>
@@ -559,7 +576,20 @@ export default function Lista({ onOpen, q }: Props) {
                 <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
                   {dentro.length === 0
                     ? <p className="px-1.5 py-1 text-xs text-spento">{evidenziata ? 'Lascia qui' : 'Nessuno'}</p>
-                    : dentro.map((p) => cartaBoard(p, chiave))}
+                    : chiave === 'prospect'
+                      ? GRUPPI_PROSPECT.map(([nome, dentroGruppo]) => {
+                          const suoi = dentro.filter(dentroGruppo)
+                          if (suoi.length === 0) return null
+                          return (
+                            <div key={nome} className="space-y-1.5">
+                              <p className="flex items-baseline gap-1.5 px-1.5 pt-1.5 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                {nome} <span className="tabular-nums text-tenue">{suoi.length}</span>
+                              </p>
+                              {suoi.map((p) => cartaBoard(p, chiave))}
+                            </div>
+                          )
+                        })
+                      : dentro.map((p) => cartaBoard(p, chiave))}
                 </div>
               </section>
             )
@@ -617,6 +647,28 @@ export default function Lista({ onOpen, q }: Props) {
               {rows.filter(PERSI[2]).length === 0
                 ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno.</p>
                 : rows.filter(PERSI[2]).map((p) => cartaBoard(p))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {vista === 'board' && (
+        <section className="mt-1 rounded-2xl">
+          <button
+            onClick={() => setScartatiAperti((v) => !v)}
+            className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left hover:bg-velo"
+          >
+            <span className={`text-[11px] text-spento transition-transform ${scartatiAperti ? 'rotate-90' : ''}`}>▸</span>
+            <Micro className="text-spento">Scartati</Micro>
+            <span className="text-xs font-semibold text-spento">
+              {quanti ? quanti.scartato : rows.filter(SCARTATI[2]).length}
+            </span>
+          </button>
+          {scartatiAperti && (
+            <div className="grid gap-1.5 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+              {rows.filter(SCARTATI[2]).length === 0
+                ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno.</p>
+                : rows.filter(SCARTATI[2]).map((p) => cartaBoard(p))}
             </div>
           )}
         </section>
