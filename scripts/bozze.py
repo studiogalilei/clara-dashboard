@@ -202,6 +202,11 @@ def main():
         else: fatte += 1
 
     print(f"\n  bozze pronte {fatte} · da guardare tu {ferme} · non passate il cancello {bocciate}")
+    # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare
+    if not PROVA and (fatte or ferme):
+        from avvisa import avvisa
+        pezzi = ([f"{fatte} bozze da approvare"] if fatte else []) + ([f"{ferme} da guardare tu"] if ferme else [])
+        avvisa("Clara: " + " · ".join(pezzi), link=None)
 
 
 if __name__ == "__main__":

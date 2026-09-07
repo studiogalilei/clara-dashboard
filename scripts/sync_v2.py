@@ -38,6 +38,13 @@ from datetime import date, datetime, timedelta
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DRY = "--dry-run" in sys.argv
+# INCREMENTALE (7/9/2026): Dre vuole i messaggi nuovi «in realtime o quasi».
+# L'export CSV di ogni campagna costa una chiamata e dice reply_count, categoria,
+# stato: se per un lead non e' cambiato niente da quando l'abbiamo letto
+# (enriched.sl_firma), il thread non si riscarica. Cosi' il giro passa da ~10
+# minuti a meno di uno e puo' girare ogni 15. Il giro completo (--completo)
+# resta una volta al giorno, per non fidarsi mai di una firma sola.
+COMPLETO = "--completo" in sys.argv
 
 # ---------- config ----------
 def load_env():
@@ -251,13 +258,19 @@ def main():
         tot_scanned += len(rows)
 
         with_reply = []
+        invariati = 0
         for r in rows:
             em = (r.get("email") or "").strip().lower()
             if not em:
                 continue
             rc = int(r.get("reply_count") or 0)
             known_replied = em in known and known[em].get("last_reply_at")
+            firma = f"{rc}|{r.get('category') or ''}|{r.get('is_unsubscribed') or ''}|{r.get('status') or ''}"
             if rc > 0 or known_replied:
+                if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma):
+                    invariati += 1
+                    continue
+                r["_firma"] = firma
                 lead = {
                     "id": r.get("id"),
                     "first_name": r.get("first_name"), "last_name": r.get("last_name"),
@@ -266,7 +279,7 @@ def main():
                     "is_unsubscribed": (r.get("is_unsubscribed") or "").lower() == "true",
                 }
                 with_reply.append((em, lead, r))
-        print(f"  [{cid}] {c['name'][:38]:38s} lead={len(rows)} con_reply={len(with_reply)}")
+        print(f"  [{cid}] {c['name'][:38]:38s} lead={len(rows)} con_reply={len(with_reply)}" + (f" invariati={invariati}" if invariati else ""))
 
         for em, lead, wrap in with_reply:
             lid = lead.get("id")
@@ -300,6 +313,7 @@ def main():
             body_last_reply = (last_reply.get("time") or "")[:19]
 
             patch = {
+                "enriched": {**((rec or {}).get("enriched") or {}), "sl_firma": wrap.get("_firma")},
                 "awaiting_us": awaiting,
                 "last_reply_at": body_last_reply or None,
                 "first_reply_at": body_first_reply or None,

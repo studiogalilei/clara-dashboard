@@ -33,6 +33,8 @@ jobs:
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
           GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FORNITORE: openai
           MODELLO_OPENAI: gpt-5
         run: |
