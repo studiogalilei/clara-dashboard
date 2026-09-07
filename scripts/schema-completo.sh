@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ordine=(schema.sql schema_v2.sql schema_v3.sql schema_v4.sql schema_v5.sql schema_v5b.sql schema_v6.sql schema_v7.sql schema_v8.sql schema_v9.sql)
+ordine=(schema.sql schema_v2.sql schema_v3.sql schema_v4.sql schema_v5.sql schema_v5b.sql schema_v6.sql schema_v7.sql schema_v8.sql schema_v9.sql schema_v10.sql)
 mancanti=()
 for f in supabase/*.sql; do
   b=$(basename "$f")
