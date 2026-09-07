@@ -112,8 +112,19 @@ export default function Plugin() {
 
   if (ops === null) return <Spinner />
 
+  // il direttore gira ogni 15 minuti: se nessuna operazione accesa e' partita
+  // da piu' di un'ora, qualcosa a monte e' fermo, e non deve restare muto
+  const vive = ops.filter((o) => o.attiva && o.comando && o.ultima_corsa)
+  const ultimaQualsiasi = vive.length ? Math.max(...vive.map((o) => new Date(o.ultima_corsa!).getTime())) : null
+  const fermoDa = ultimaQualsiasi ? Math.round((Date.now() - ultimaQualsiasi) / 60000) : null
+
   return (
     <div className="space-y-4 pb-24 sm:pb-8">
+      {fermoDa !== null && fermoDa > 75 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Il direttore non fa partire niente da {fermoDa >= 120 ? `${Math.round(fermoDa / 60)} ore` : `${fermoDa} minuti`}: le operazioni potrebbero essere ferme.
+        </div>
+      )}
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span className="flex-1">{problema}</span>

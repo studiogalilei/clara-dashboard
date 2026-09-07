@@ -29,6 +29,7 @@ USO
 """
 
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -40,6 +41,7 @@ QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv
 
 INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 SICURE = {"ooo", "negativo", "rinvio", "tiepido"}
+AUTOMATICA = re.compile(r"automatic|autorispo|auto-?repl|out of office|fuori ufficio|assen|ferie|vacan|rientr|chius", re.I)
 ETICHETTA = {"positivo": "positivo", "tiepido": "tiepido", "negativo": "negativo",
              "ooo": "fuori ufficio", "rinvio": "rinvio", "fuori_target": "fuori target",
              "da_classificare": "da capire"}
@@ -106,6 +108,10 @@ def main():
                 sicure.append((p, prima, v, "data"))
             continue
         calda = prima == "positivo" or v["classe"] == "positivo"
+        # un risponditore automatico fra i positivi non e' una domanda: lo
+        # dice il capitolo «fa da sola» di LA-STANZA-DI-CLARA.md (7/9)
+        if v["classe"] == "ooo" and AUTOMATICA.search(v.get("perche") or ""):
+            calda = False
         if v["classe"] == "fuori_target":
             proposte.append((p, prima, v, "scarta", f"Scarto {nome}?"))
         elif v["classe"] == "da_classificare":
