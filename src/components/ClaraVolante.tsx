@@ -289,7 +289,7 @@ export default function ClaraVolante({ onOpen }: Props) {
       .then(({ data }) => {
         // le bozze prima di tutto: sono lavoro che parte oggi. Poi le
         // domande, poi gli scarti
-        const peso: Record<string, number> = { risposta: 0, umano: 0, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
+        const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
         setProposte(((data as Proposta[]) ?? []).sort((a, b) => (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9)))
       })
     supabase
@@ -686,7 +686,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                 ) : proposte.map((pr, i) => {
                   const aperto = apertaId === pr.id
                   const c = contesto[pr.id]
-                  const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
+                  const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dal calendario', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
                   const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
                   return (
                     <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
