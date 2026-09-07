@@ -202,7 +202,7 @@ export default function App() {
           <span className="absolute left-[1px] top-1/2 h-8 w-[5px] -translate-y-1/2 rounded-full bg-transparent transition-colors group-hover:bg-blu/30" />
         </div>
         <div className="mb-8 flex items-center gap-2.5 px-2">
-          <img src="/sg-simbolo.svg" alt="Studio Galilei" className="h-9 w-auto" />
+          <span className="text-navy"><ClaraLogo size={36} /></span>
           <span className="text-[15px] leading-tight tracking-tight text-navy">
             <span className="font-extrabold">Clara</span>
             <span className="ml-1 font-medium">dashboard</span>
@@ -269,9 +269,7 @@ export default function App() {
               tab === 'impostazioni' ? 'bg-velo' : 'hover:bg-velo/60'
             }`}
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">
-              {iniziali(utente)}
-            </span>
+            <img src="/sg-simbolo.svg" alt="Studio Galilei" className="h-8 w-8 shrink-0 object-contain" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">{utente}</span>
               <span className="block text-[11px] text-spento">Impostazioni</span>
@@ -289,7 +287,7 @@ export default function App() {
 
         {/* barra mobile */}
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5 lg:hidden">
-          <img src="/sg-simbolo.svg" alt="Studio Galilei" className="h-7 w-auto shrink-0" />
+          <span className="shrink-0 text-navy"><ClaraLogo size={28} /></span>
           <div className="relative min-w-0 flex-1">
             <input
               type="search"
