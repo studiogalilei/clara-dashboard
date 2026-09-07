@@ -4,6 +4,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
+import { CLS_LABEL } from '../lib/types'
 import { pulisci, creaTask } from '../lib/regole'
 
 // Clara volante: pannello allargabile (trascina il bordo sinistro), la
@@ -248,6 +249,30 @@ export default function ClaraVolante({ onOpen }: Props) {
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const [proposte, setProposte] = useState<Proposta[]>([])
   const [rispondo, setRispondo] = useState<number | null>(null)
+  const [vista, setVista] = useState<'chat' | 'posta'>('chat')
+  const [apertaId, setApertaId] = useState<number | null>(null)
+  // il contesto di una proposta si carica quando la apri, non prima
+  const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
+
+  async function apriProposta(pr: Proposta) {
+    setApertaId((a) => (a === pr.id ? null : pr.id))
+    if (contesto[pr.id] || !pr.prospect_id) return
+    const [{ data: p }, { data: ult }] = await Promise.all([
+      supabase.from('prospects').select('*').eq('id', pr.prospect_id).single(),
+      supabase.from('interactions').select('body,at').eq('prospect_id', pr.prospect_id)
+        .eq('kind', 'email_in').order('at', { ascending: false }).limit(1),
+    ])
+    const u = (ult as Array<{ body: string | null; at: string }> | null)?.[0]
+    setContesto((c) => ({ ...c, [pr.id]: { p: (p as Prospect) ?? null, ultimo: u?.body ?? null, quando: u?.at ?? null } }))
+  }
+
+  // «Storia»: alla scheda, dritto sulla sua storia
+  function vaiAllaStoria(pr: Proposta) {
+    if (!pr.prospect_id) return
+    setAperta(false)
+    onOpen(pr.prospect_id)
+    setTimeout(() => document.getElementById('storia')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 600)
+  }
 
   const caricaMessaggi = useCallback(() => {
     // la scelta la fa il database, non il browser: se no gli 80 posti se li
@@ -594,61 +619,99 @@ export default function ClaraVolante({ onOpen }: Props) {
             </div>
 
             <header className="flex items-center gap-3 border-b border-velo px-5 py-3.5">
-              <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>
-              <span className="text-[15px] font-extrabold">Clara</span>
-              {nonLetti.length > 0 && (
-                <button onClick={segnaLette} className="ml-auto text-xs font-semibold text-blu hover:underline">
-                  Segna lette
-                </button>
+              {vista === 'posta' ? (
+                <button onClick={() => setVista('chat')} className="-ml-2 rounded-full px-2 py-1 text-sm font-semibold text-tenue hover:bg-velo" aria-label="Torna alla chat">←</button>
+              ) : (
+                <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>
               )}
-              <button
-                onClick={() => setAperta(false)}
-                aria-label="Chiudi"
-                className={`${nonLetti.length > 0 ? '' : 'ml-auto '}flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo`}
-              >
-                ×
-              </button>
+              <span className="text-[15px] font-extrabold">{vista === 'posta' ? 'Clara chiede' : 'Clara'}</span>
+              {vista === 'posta' && <span className="text-sm font-bold tabular-nums text-navy">{proposte.length}</span>}
+              <div className="ml-auto flex items-center gap-1">
+                {vista === 'chat' && nonLetti.length > 0 && (
+                  <button onClick={segnaLette} className="mr-1 text-xs font-semibold text-blu hover:underline">Segna lette</button>
+                )}
+                {vista === 'chat' && (
+                  <button
+                    onClick={() => setVista('posta')}
+                    aria-label="Le cose che Clara chiede"
+                    title="Le cose che Clara chiede"
+                    className="relative flex h-9 w-9 items-center justify-center rounded-full text-navy hover:bg-velo"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                      <path d="M3.5 7l8.5 6 8.5-6" />
+                    </svg>
+                    {proposte.length > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                        {proposte.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+                <button onClick={() => setAperta(false)} aria-label="Chiudi" className="flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo">×</button>
+              </div>
             </header>
 
-            {/* LA STANZA: quello che Clara chiede, e che aspetta te */}
-            {proposte.length > 0 && (
-              <div className="max-h-[42vh] shrink-0 overflow-y-auto border-b border-velo bg-velo/40 px-4 py-3">
-                <p className="mb-2 flex items-baseline gap-2 text-[11px] font-bold uppercase tracking-[0.05em] text-spento">
-                  Clara chiede <span className="tabular-nums text-navy">{proposte.length}</span>
-                </p>
-                <div className="space-y-2">
-                  {proposte.map((p) => (
-                    <div key={p.id} className="rounded-xl border border-bordo bg-white px-3.5 py-2.5">
-                      <button
-                        onClick={() => p.prospect_id && onOpen(p.prospect_id)}
-                        className="block w-full text-left text-[13px] font-bold leading-snug hover:text-blu"
-                      >
-                        {p.titolo}
+            {/* LA POSTA: i quesiti in ordine, uno si allarga col suo contesto */}
+            {vista === 'posta' && (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {proposte.length === 0 ? (
+                  <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
+                ) : proposte.map((pr) => {
+                  const aperto = apertaId === pr.id
+                  const c = contesto[pr.id]
+                  return (
+                    <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
+                      <button onClick={() => apriProposta(pr)} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-velo/60">
+                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${pr.tipo === 'scarta' || pr.tipo === 'perso' ? 'bg-red-500' : pr.tipo === 'classifica' ? 'bg-amber-400' : 'bg-blu'}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-bold leading-snug">{pr.titolo}</span>
+                          <span className="block truncate text-xs text-tenue">{pr.perche}</span>
+                        </span>
+                        <span className={`mt-1 shrink-0 text-[11px] text-spento transition-transform ${aperto ? 'rotate-90' : ''}`}>▸</span>
                       </button>
-                      {p.perche && <p className="mt-0.5 text-xs text-tenue">{p.perche}</p>}
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={() => rispondi(p, true)}
-                          disabled={rispondo === p.id}
-                          className="rounded-full bg-navy px-3.5 py-1 text-xs font-bold text-white disabled:opacity-40"
-                        >
-                          Sì
-                        </button>
-                        <button
-                          onClick={() => rispondi(p, false)}
-                          disabled={rispondo === p.id}
-                          className="rounded-full border border-bordo px-3.5 py-1 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40"
-                        >
-                          No
-                        </button>
-                      </div>
+                      {aperto && (
+                        <div className="salta-su px-5 pb-4 pl-10">
+                          {!c ? (
+                            <p className="text-xs text-spento">carico…</p>
+                          ) : (
+                            <div className="space-y-2 text-sm">
+                              {c.p && (
+                                <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-tenue">
+                                  <span>oggi: <b className="text-inchiostro">{CLS_LABEL[c.p.classificazione ?? 'da_classificare'] ?? c.p.classificazione}</b></span>
+                                  {c.p.last_reply_at && <span>ultima sua mail: <b className="text-inchiostro">{fmtDateShort(c.p.last_reply_at)}</b></span>}
+                                  {c.p.next_action_date && <span>risentirlo: <b className="text-inchiostro">{fmtDateShort(c.p.next_action_date)}</b></span>}
+                                  {c.p.canone && <span>{Number(c.p.canone).toLocaleString('it-IT')} €/mese</span>}
+                                </p>
+                              )}
+                              {c.ultimo && (
+                                <blockquote className="border-l-2 border-bordo pl-3 text-[13px] leading-snug text-tenue">
+                                  <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                    cosa ha scritto{c.quando ? ` · ${fmtDateShort(c.quando)}` : ''}
+                                  </span>
+                                  <span className="line-clamp-5 whitespace-pre-wrap">{c.ultimo}</span>
+                                </blockquote>
+                              )}
+                              {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
+                            </div>
+                          )}
+                          <div className="mt-3 flex items-center gap-2">
+                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Sì</button>
+                            <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
+                            {pr.prospect_id && (
+                              <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Storia →</button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  )
+                })}
               </div>
             )}
 
             {/* la conversazione */}
+            {vista === 'chat' && (
             <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo ai Documenti" className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
               {messaggi === null ? (
                 <Spinner />
@@ -702,7 +765,10 @@ export default function ClaraVolante({ onOpen }: Props) {
               )}
               <div ref={fondoRef} />
             </ZonaFile>
+            )}
 
+            {vista === 'chat' && (
+            <>
             {/* la proposta del comando: lei compila, Dre conferma */}
             {comando && (
               <div className="salta-su space-y-2 border-t border-velo bg-velo/40 p-4">
@@ -801,6 +867,8 @@ export default function ClaraVolante({ onOpen }: Props) {
                 </button>
               </div>
             </div>
+            </>
+            )}
           </aside>
         </>
       )}

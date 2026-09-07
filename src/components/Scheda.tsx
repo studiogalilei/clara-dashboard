@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref } from '../lib/preferenze'
 import {
-  STAGES, STAGE_LABEL, KIND_LABEL,
+  STAGES, STAGE_LABEL,
   PIPELINE_LABEL, PIPELINE_NEXT,
   CLASSIFICAZIONI, CLS_LABEL,
   type Prospect, type Interaction, type Stage, type PipelineStage, type Classificazione,
@@ -11,6 +11,7 @@ import {
 import { mercatoDi } from '../lib/mercato'
 import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
+import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
@@ -97,6 +98,8 @@ export default function Scheda({ id, onClose }: Props) {
   // la terza uscita: passato a qualcun altro (Dre, 3/9)
   const [passoAperto, setPassoAperto] = useState(false)
   const [altroAperto, setAltroAperto] = useState(false)
+  const [storiaAperta, setStoriaAperta] = useState(false)
+  const [agendaSua, setAgendaSua] = useState<AgendaItem[]>([])
   // il ponte verso Obsidian, dove vivono gli originali: acceso o spento
   // dalle Impostazioni, non da qui
   const vault = leggiPref('obsidian-vault').trim()
@@ -133,6 +136,10 @@ export default function Scheda({ id, onClose }: Props) {
     setP(null); setTimeline(null); setDraft({}); setDocumenti([]); setTaskSue([])
     setProssimaCall(null); setTranscript(''); setNota(''); setPremio([]); setProgetti([])
     setErrore(null); setSaved(false); setNoteAperte(false); setAltroAperto(false)
+    setStoriaAperta(false); setAgendaSua([])
+    supabase.from('agenda').select('*').eq('prospect_id', id)
+      .order('at', { ascending: true }).limit(100)
+      .then(({ data }) => { if (vivo) setAgendaSua((data as AgendaItem[]) ?? []) })
     supabase.from('prospects').select('*').eq('id', id).single()
       .then(({ data }) => { if (vivo) setP(data as Prospect) })
     supabase.from('interactions').select('*').eq('prospect_id', id)
@@ -358,16 +365,12 @@ export default function Scheda({ id, onClose }: Props) {
 
   const fermo = daysAgo(p.last_reply_at)
   const next = p.pipeline_stage ? PIPELINE_NEXT[p.pipeline_stage] : undefined
-  const transcripts = (timeline ?? []).filter((t) => t.kind === 'transcript')
   const transcriptCorrente = pagato
   // i post-it sono privati: si vedono i propri, e quelli vecchi senza
   // proprietario restano visibili a chi c'era prima (Dre, 3/9)
   const postit = (timeline ?? []).filter((t) =>
     t.kind === 'postit' && (!(t as { owner?: string }).owner || (t as { owner?: string }).owner === utenteId))
   const prep = [...(timeline ?? [])].reverse().find((t) => t.kind === 'prep')
-  const storia = [...(timeline ?? [])]
-    .filter((t) => t.kind !== 'transcript' && t.kind !== 'postit' && t.kind !== 'prep')
-    .reverse()
   const primaRisposta = (timeline ?? []).find((t) => t.kind === 'email_in')
   const mercato = p.market ?? mercatoDi(p.sector, p.city)
   const soppresso = p.classificazione === 'soppresso'
@@ -1224,32 +1227,9 @@ export default function Scheda({ id, onClose }: Props) {
               </Card>
             )}
 
-            <Card className="p-4">
+            <Card className="p-4" id="storia">
               <TitoloCard>Storia</TitoloCard>
-              {timeline === null ? (
-                <Spinner />
-              ) : storia.length === 0 ? (
-                <p className="text-sm text-spento">Nessun evento ancora.</p>
-              ) : (
-                <ul className="divide-y divide-velo">
-                  {storia.map((t) => (
-                    <li key={t.id} className="grid grid-cols-[52px_1fr] gap-2.5 py-1.5 text-sm">
-                      <span className="pt-px text-[11px] text-spento">{fmtDate(t.at)}</span>
-                      <span>
-                        <span className={`font-semibold ${t.kind === 'email_in' ? 'text-green-700' : ''}`}>
-                          {KIND_LABEL[t.kind] ?? t.kind}
-                        </span>
-                        {t.id === primaRisposta?.id && (
-                          <span className="ml-1.5 rounded-full bg-green-50 px-2 py-px text-[10px] font-semibold text-green-800">
-                            diventa prospect
-                          </span>
-                        )}
-                        {t.body && <span className="block whitespace-pre-wrap text-tenue">{t.body}</span>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <Timeline timeline={timeline} agenda={agendaSua} onTutta={() => setStoriaAperta(true)} />
               <div className="mt-3 flex gap-2">
                 <input
                   value={nota}
@@ -1263,23 +1243,6 @@ export default function Scheda({ id, onClose }: Props) {
             </Card>
 
 
-
-            {transcripts.length > 0 && (
-              <Card className="p-4">
-                <TitoloCard>Call fatte</TitoloCard>
-                <ul className="space-y-2">
-                  {[...transcripts].reverse().map((t) => (
-                    <li key={t.id} className="text-sm">
-                      <span className="text-[11px] text-spento">{fmtDate(t.at)}</span>
-                      <details>
-                        <summary className="cursor-pointer font-semibold text-blu">{(t.body ?? '').slice(0, 70)}…</summary>
-                        <p className="mt-1 whitespace-pre-wrap text-tenue">{t.body}</p>
-                      </details>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
 
             <Card className="bg-velo/40 p-4">
               <TitoloCard>Fuori binario</TitoloCard>
@@ -1305,6 +1268,16 @@ export default function Scheda({ id, onClose }: Props) {
           </div>
         </div>
       </ZonaFile>
+      {storiaAperta && timeline && (
+        <StoriaCompleta
+          prospectId={p.id}
+          nome={p.company || p.name || p.email}
+          timeline={timeline}
+          agenda={agendaSua}
+          prossimoPasso={{ cosa: p.next_action, quando: p.next_action_date }}
+          onChiudi={() => setStoriaAperta(false)}
+        />
+      )}
       {chiedoProgetto && (
         <NuovoProgetto
           prospectId={p.id}

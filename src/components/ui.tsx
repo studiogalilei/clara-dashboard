@@ -182,9 +182,9 @@ export function Empty({ text }: { text: string }) {
 }
 
 // Il contenitore standard: card bianca, bordo netto, angoli appena smussati
-export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+export function Card({ children, className = '', id }: { children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <div className={`overflow-hidden rounded-2xl border border-bordo bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_rgba(16,24,40,0.04)] ${className}`}>
+    <div id={id} className={`overflow-hidden rounded-2xl border border-bordo bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_rgba(16,24,40,0.04)] ${className}`}>
       {children}
     </div>
   )
