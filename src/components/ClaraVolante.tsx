@@ -23,7 +23,11 @@ interface Proposta {
   prospect_id: string | null
   titolo: string
   perche: string | null
-  azione: { prospects?: Record<string, unknown>; task?: { titolo: string; scadenza?: string | null } }
+  azione: {
+    prospects?: Record<string, unknown>
+    task?: { titolo: string; scadenza?: string | null }
+    bozza?: string; intento?: string; template?: string
+  }
   stato: 'aperta' | 'si' | 'no' | 'fatta'
 }
 
@@ -253,6 +257,8 @@ export default function ClaraVolante({ onOpen }: Props) {
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
   const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
+  const [bozze, setBozze] = useState<Record<number, string>>({})
+  const [copiata, setCopiata] = useState<number | null>(null)
 
   async function apriProposta(pr: Proposta) {
     setApertaId((a) => (a === pr.id ? null : pr.id))
@@ -362,7 +368,15 @@ export default function ClaraVolante({ onOpen }: Props) {
   async function rispondi(p: Proposta, si: boolean) {
     setRispondo(p.id)
     let esito = si ? `Fatto: ${p.titolo}` : `Ok, lascio com'è: ${p.titolo}`
-    if (si) {
+    if (si && p.azione?.bozza !== undefined && p.prospect_id) {
+      // «l'ho mandata»: la mail nostra entra nella storia, e lei smette di aspettare
+      const testo = (bozze[p.id] ?? p.azione.bozza).trim()
+      const { error } = await supabase.from('interactions')
+        .insert({ prospect_id: p.prospect_id, at: new Date().toISOString(), kind: 'email_out', body: testo })
+      if (error) esito = `Non sono riuscita a segnarla: ${error.message}`
+      else await supabase.from('prospects').update({ awaiting_us: false }).eq('id', p.prospect_id)
+      esito = error ? esito : `Segnata come mandata: ${p.titolo}`
+    } else if (si) {
       if (p.azione?.prospects && p.prospect_id) {
         const { error } = await supabase.from('prospects').update(p.azione.prospects).eq('id', p.prospect_id)
         if (error) esito = `Non sono riuscita a scriverlo: ${error.message}`
@@ -693,10 +707,34 @@ export default function ClaraVolante({ onOpen }: Props) {
                                 </blockquote>
                               )}
                               {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
+                              {pr.azione?.bozza !== undefined && (
+                                <div className="mt-2">
+                                  <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                    la bozza{pr.azione.template ? ` · ${pr.azione.template}` : ''}
+                                    <button
+                                      onClick={async () => {
+                                        try { await navigator.clipboard.writeText(bozze[pr.id] ?? pr.azione.bozza ?? '') } catch { /* niente */ }
+                                        setCopiata(pr.id); setTimeout(() => setCopiata(null), 1800)
+                                      }}
+                                      className="ml-auto rounded-full border border-bordo px-2.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-navy hover:border-navy"
+                                    >
+                                      {copiata === pr.id ? 'copiata ✓' : 'Copia'}
+                                    </button>
+                                  </p>
+                                  <textarea
+                                    value={bozze[pr.id] ?? pr.azione.bozza}
+                                    onChange={(e) => setBozze((b) => ({ ...b, [pr.id]: e.target.value }))}
+                                    rows={9}
+                                    className="w-full rounded-lg border border-bordo bg-white px-3 py-2 text-[13px] leading-snug outline-none focus:border-blu"
+                                  />
+                                </div>
+                              )}
                             </div>
                           )}
                           <div className="mt-3 flex items-center gap-2">
-                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Sì</button>
+                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                              {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
+                            </button>
                             <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
                             {pr.prospect_id && (
                               <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Storia →</button>
