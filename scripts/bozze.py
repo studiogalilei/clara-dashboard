@@ -38,7 +38,7 @@ from stanza import sb, proponi                             # noqa: E402
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 40
-CALENDARIO = "https://calendar.app.google/WmgWF3rGKXCkBY41A"
+CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da Dre il 7/9
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
 CLASSI = ("positivo", "tiepido", "rinvio", "da_classificare")
@@ -79,33 +79,39 @@ def playbook():
 
 
 def proposta_giorno_ora():
-    """Un giorno lavorativo entro tre giorni, alle 11 o alle 15."""
-    d = datetime.date.today() + datetime.timedelta(days=1)
+    """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
+    stesso giorno; scritto sempre «giorno + data»."""
+    d = datetime.date.today() + datetime.timedelta(days=2)
     while d.weekday() >= 5:
         d += datetime.timedelta(days=1)
     giorni = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
-    return f"{giorni[d.weekday()]} {d.day} alle 11"
+    mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
+            "settembre", "ottobre", "novembre", "dicembre"]
+    return f"{giorni[d.weekday()]} {d.day} {mesi[d.month - 1]} alle 11"
 
 
-ISTRUZIONE = """Sei Clara, che prepara la risposta per Lorenzo (la manda lui). Leggi il
-playbook qui sopra: e' la legge. Poi leggi la scheda e l'ultimo messaggio
-della persona, e rispondi ESATTAMENTE in questo formato, niente altro:
+ISTRUZIONE = """Sei Clara. Prepari la risposta con l'identita' di Lorenzo; la manda lui
+o Dre dopo l'ok (legge zero). Il playbook qui sopra e' la legge: fai gli 8
+controlli del preflight, scegli l'intento nella tabella, applica le regole di
+calendario e di stile. Rispondi ESATTAMENTE in questo formato, niente altro:
 
-INTENTO: una lettera fra A B C D E F G H
-TEMPLATE: il nome del template usato (o «nessuno» per F/G brevi)
-FERMATI: no | si' e il motivo in 10 parole (solo nei casi del capitolo 6)
+INTENTO: INT-xx (il codice della tabella)
+PREFLIGHT: ok | fallito: quale controllo e perche'
+FERMATI: no | si': il motivo in 10 parole (i casi del capitolo 5, o preflight fallito)
 NOTA: una riga su cosa hai adattato e perche'
 ---
-il testo della bozza, pronto da incollare, SENZA firma, con [CALENDARIO] e
-[GIORNO E ORA] gia' sostituiti con i valori che ti do.
+il testo della bozza, pronto da incollare, SENZA firma (la mette Smartlead),
+con {{CALENDARIO}} e {giorno data ora} gia' sostituiti coi valori che ti do.
+Se FERMATI e' si', la bozza e' comunque la migliore che puoi, e dopo il testo
+aggiungi una riga: [ESCALATION] azienda · nome · intento · cosa chiede
+Se INT-25 (non e' chiaro cosa vuole): due bozze alternative, separate da una
+riga «=== ALTERNATIVA ===».
 
 Regole che non si discutono: registro «lei», mai «tu»; mai il trattino
-lungo; mai aprire con «volentieri.» o «si'.» secchi; niente firma; se
-l'analisi e' gia' stata inviata non rispiegare cos'e'; se ha chiesto lui una
-call non mandare l'analisi, fissa la call. Se l'ultimo messaggio e' un «ok»,
-«grazie», «ricevuto» secco senza una richiesta, NON e' un interessato: metti
-FERMATI: si' («messaggio ambiguo, un ok secco») e scrivi la bozza piu' corta
-possibile."""
+lungo; mai aprire con «volentieri.» o «si'.» secchi; niente firma; il link
+del calendario solo a chi e' caldo o l'ha chiesto, mai ai tiepidi o nei
+follow-up; se ha chiesto lui la call non mandare l'analisi, fissa la call;
+se e' un «ok» o «grazie» secco senza richiesta, FERMATI: si'."""
 
 
 def chiedi_bozza(p, ultimo, riprova=None):
@@ -116,7 +122,7 @@ def chiedi_bozza(p, ultimo, riprova=None):
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
     prompt = (playbook() + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") +
-              f"\n\nVALORI DA USARE: [CALENDARIO] = {CALENDARIO} · [GIORNO E ORA] = {proposta_giorno_ora()}"
+              f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO} · slot da proporre = {proposta_giorno_ora()} · oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
         prompt += f"\n\nLA BOZZA PRECEDENTE NON E' PASSATA IL CANCELLO PER: {riprova}. Riscrivila correggendo solo quello."
@@ -131,8 +137,11 @@ def chiedi_bozza(p, ultimo, riprova=None):
             k, v = riga.split(":", 1)
             campi[k.strip().upper()] = v.strip()
     bozza = bozza.strip().strip("`").strip()
-    return {"intento": campi.get("INTENTO", "?")[:1], "template": campi.get("TEMPLATE", ""),
-            "fermati": campi.get("FERMATI", "no"), "nota": campi.get("NOTA", ""), "bozza": bozza}
+    fermati = campi.get("FERMATI", "no")
+    if campi.get("PREFLIGHT", "ok").lower().startswith("fallito") and fermati.lower().startswith("no"):
+        fermati = "si': preflight " + campi["PREFLIGHT"]
+    return {"intento": campi.get("INTENTO", "?")[:6], "template": campi.get("INTENTO", ""),
+            "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza}
 
 
 def main():
