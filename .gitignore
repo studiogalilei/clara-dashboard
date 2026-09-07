@@ -35,3 +35,4 @@ dist-ssr
 *.key
 *.pem
 secrets.env
+.clara/
