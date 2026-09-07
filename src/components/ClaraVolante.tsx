@@ -285,8 +285,13 @@ export default function ClaraVolante({ onOpen }: Props) {
     // prende chi ha parlato di piu' e i tuoi messaggi non arrivano mai
     const miei = utenteId ? `owner.is.null,owner.eq.${utenteId}` : 'owner.is.null'
     supabase.from('proposte').select('*').eq('stato', 'aperta').or(miei)
-      .order('at', { ascending: true }).limit(50)
-      .then(({ data }) => setProposte((data as Proposta[]) ?? []))
+      .order('at', { ascending: true }).limit(300)
+      .then(({ data }) => {
+        // le bozze prima di tutto: sono lavoro che parte oggi. Poi le
+        // domande, poi gli scarti
+        const peso: Record<string, number> = { risposta: 0, umano: 0, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
+        setProposte(((data as Proposta[]) ?? []).sort((a, b) => (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9)))
+      })
     supabase
       .from('clara_messaggi')
       .select('*')
@@ -299,6 +304,13 @@ export default function ClaraVolante({ onOpen }: Props) {
         setMessaggi([...tutti].reverse())
       })
   }, [utenteId])
+
+  // la home dice «N bozze da approvare»: cliccando si apre qui, sulla posta
+  useEffect(() => {
+    function apri() { setAperta(true); setVista('posta') }
+    window.addEventListener('clara:apri-posta', apri)
+    return () => window.removeEventListener('clara:apri-posta', apri)
+  }, [])
 
   useEffect(() => {
     caricaMessaggi()
@@ -671,11 +683,19 @@ export default function ClaraVolante({ onOpen }: Props) {
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {proposte.length === 0 ? (
                   <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
-                ) : proposte.map((pr) => {
+                ) : proposte.map((pr, i) => {
                   const aperto = apertaId === pr.id
                   const c = contesto[pr.id]
+                  const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
+                  const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
                   return (
                     <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
+                      {nuovoGruppo && (
+                        <p className="flex items-baseline gap-2 bg-fondo px-5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                          {GRUPPO[pr.tipo] ?? pr.tipo}
+                          <span className="tabular-nums text-tenue">{proposte.filter((x) => x.tipo === pr.tipo).length}</span>
+                        </p>
+                      )}
                       <button onClick={() => apriProposta(pr)} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-velo/60">
                         <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${pr.tipo === 'scarta' || pr.tipo === 'perso' ? 'bg-red-500' : pr.tipo === 'classifica' ? 'bg-amber-400' : 'bg-blu'}`} />
                         <span className="min-w-0 flex-1">

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
-import { Dot, Card, daysAgo, giorni, fmtDateShort, fmtOra } from './ui'
-import { VIVI, oggi, giorno, codaDiOggi, GIORNI_FOLLOWUP, type VoceCoda } from '../lib/regole'
+import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
+import { VIVI, oggi, giorno, GIORNI_FOLLOWUP } from '../lib/regole'
 
 // Il radar della home: la riga dei 4 numeri (la scura e' «Da fare oggi»,
 // e le call di OGGI vivono li' dentro), la card «Prossima» con il primo
@@ -47,8 +47,9 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   const [aggiornato, setAggiornato] = useState<string | null>(null)
   const [pronto, setPronto] = useState(false)
   const [callDiOggi, setCallDiOggi] = useState<Voce[]>([])
-  const [coda, setCoda] = useState<Voce[]>([])
-  const [tuttaLaCoda, setTuttaLaCoda] = useState(false)
+  const [bozze, setBozze] = useState(0)
+  const [domande, setDomande] = useState(0)
+  const [taskOggi, setTaskOggi] = useState<Array<{ id: number; titolo: string; scadenza: string }>>([])
   const [tuttiAvvisi, setTuttiAvvisi] = useState(false)
 
   useEffect(() => {
@@ -69,28 +70,22 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
     // «cosa devo fare oggi» la decide regole.ts, per tutti. Prima ogni
     // schermata rifaceva le sue query con filtri e tetti diversi, e i due
     // numeri che stanno in testata e qui sotto non tornavano mai (4/9)
-    codaDiOggi().then(({ voci }) => {
-      const nome = (p: Prospect) => p.company || p.name || p.email
-      const riga = (v: VoceCoda): Voce => {
-        const id = v.p.id
-        if (v.ragione === 'rispondi') {
-          const g = daysAgo(v.p.last_reply_at)
-          return { testo: `Rispondere a ${nome(v.p)}`, quando: g !== null ? giorni(g) : '', prospect_id: id }
-        }
-        if (v.ragione === 'followup') {
-          return {
-            testo: `Follow-up a ${nome(v.p)}`,
-            quando: v.p.followup_due ? `dal ${fmtDateShort(v.p.followup_due)}` : v.fermoDa !== null ? giorni(v.fermoDa) : '',
-            prospect_id: id,
-          }
-        }
-        if (v.ragione === 'ricontatto') {
-          return { testo: `${v.p.next_action ?? 'Ricontatto'} · ${nome(v.p)}`, quando: fmtDateShort(v.data), prospect_id: id }
-        }
-        return { testo: `Rientrato: ${nome(v.p)}`, quando: fmtDateShort(v.data), prospect_id: id }
-      }
-      setCoda(voci.map(riga))
-      setPronto(true)
+    // le cose che aspettano DRE oggi: le bozze da approvare nella posta di
+    // Clara, e le sue task in scadenza. La coda delle risposte non sta piu'
+    // qui: da oggi la gestisce Clara con le bozze (Dre, 7/9)
+    supabase.from('proposte').select('tipo').eq('stato', 'aperta').limit(200)
+      .then(({ data }) => {
+        const l = (data as Array<{ tipo: string }>) ?? []
+        setBozze(l.filter((p) => p.tipo === 'risposta' || p.tipo === 'umano').length)
+        setDomande(l.filter((p) => p.tipo !== 'risposta' && p.tipo !== 'umano').length)
+      })
+    supabase.auth.getSession().then(({ data: sess }) => {
+      const io = sess.session?.user?.id
+      const mie = io ? `owner.is.null,owner.eq.${io}` : 'owner.is.null'
+      supabase.from('task').select('id,titolo,scadenza').eq('fatta', false).neq('stato', 'proposta')
+        .or(mie).not('scadenza', 'is', null).lte('scadenza', today)
+        .order('scadenza', { ascending: true }).limit(20)
+        .then(({ data }) => { setTaskOggi((data as Array<{ id: number; titolo: string; scadenza: string }>) ?? []); setPronto(true) })
     })
 
     Promise.all([
@@ -201,9 +196,8 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
 
   // la giornata: prima le call di oggi, poi la coda. Due sorgenti, una
   // lista sola, e il numero in alto conta questa
-  const giornata = [...callDiOggi, ...coda]
-  const PRIME = 5
-  const mostrate = tuttaLaCoda ? giornata : giornata.slice(0, PRIME)
+  const daFare = bozze + domande + callDiOggi.length + taskOggi.length
+  const apriPosta = () => window.dispatchEvent(new CustomEvent('clara:apri-posta'))
 
   const oraControllo = aggiornato ? fmtOra(aggiornato) : fmtOra(new Date().toISOString())
   const visibili = tuttiAvvisi ? avvisi : avvisi.slice(0, 3)
@@ -212,55 +206,53 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   return (
     <div className="space-y-4">
 
-      {/* ── la giornata: una lista, non una giostra ───────────── */}
+      {/* ── da fare oggi: le cose che aspettano TE ─────────────── */}
       <div className="rounded-2xl bg-navy text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]">
         <div className="flex items-baseline justify-between px-4 pb-1 pt-3.5">
           <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
-          {giornata.length > 0 && (
-            <span className="text-lg font-extrabold tabular-nums leading-none">{giornata.length}</span>
-          )}
+          {pronto && daFare > 0 && <span className="text-lg font-extrabold tabular-nums leading-none">{daFare}</span>}
         </div>
-
         {!pronto ? (
           <p className="px-4 pb-4 text-[15px] font-extrabold">…</p>
-        ) : giornata.length === 0 ? (
+        ) : daFare === 0 ? (
           <div className="px-4 pb-4">
             <p className="text-[15px] font-extrabold">Tutto in ordine</p>
-            {prossimo && (
-              <p className="truncate text-[11px] text-white/70">
-                Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}
-              </p>
-            )}
+            {prossimo && <p className="truncate text-[11px] text-white/70">Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}</p>}
           </div>
         ) : (
-          <div className="pb-1.5">
-            {mostrate.map((v, i) => (
-              <button
-                key={`${v.prospect_id ?? 'x'}-${i}`}
-                onClick={() => (v.prospect_id ? onOpen(v.prospect_id) : onOggi?.())}
-                className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10"
-              >
-                <span className="min-w-0 flex-1 truncate text-[15px] font-bold leading-snug">{v.testo}</span>
-                {v.quando && (
-                  <span className="shrink-0 text-[11px] tabular-nums text-white/55">{v.quando}</span>
-                )}
+          <div className="pb-2">
+            {bozze > 0 && (
+              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
+                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{bozze}</span>
+                <span className="min-w-0 flex-1 text-[15px] font-bold">{bozze === 1 ? 'bozza da approvare' : 'bozze da approvare'}</span>
+                <span className="shrink-0 text-[11px] text-white/55">posta di Clara →</span>
               </button>
-            ))}
-            <div className="flex items-center justify-between px-4 pb-2 pt-1">
-              {giornata.length > PRIME ? (
-                <button
-                  onClick={() => setTuttaLaCoda((v) => !v)}
-                  className="text-[11px] font-bold text-white/60 hover:text-white"
-                >
-                  {tuttaLaCoda ? 'mostra le prime 5' : `+ altre ${giornata.length - PRIME}`}
-                </button>
-              ) : <span />}
-              {onOggi && (
-                <button onClick={onOggi} className="text-[11px] font-bold text-white/60 hover:text-white">
-                  apri Task →
-                </button>
-              )}
-            </div>
+            )}
+            {domande > 0 && (
+              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
+                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{domande}</span>
+                <span className="min-w-0 flex-1 text-[15px] font-bold">{domande === 1 ? 'domanda di Clara' : 'domande di Clara'}</span>
+                <span className="shrink-0 text-[11px] text-white/55">posta di Clara →</span>
+              </button>
+            )}
+            {callDiOggi.length > 0 && (
+              <button onClick={onCalendario} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
+                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{callDiOggi.length}</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
+                  {callDiOggi.length === 1 ? 'call oggi' : 'call oggi'} · {callDiOggi[0].quando} {callDiOggi[0].testo}
+                </span>
+                <span className="shrink-0 text-[11px] text-white/55">calendario →</span>
+              </button>
+            )}
+            {taskOggi.length > 0 && (
+              <button onClick={onOggi} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
+                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{taskOggi.length}</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
+                  {taskOggi.length === 1 ? 'task tua in scadenza' : 'task tue in scadenza'} · {taskOggi[0].titolo}
+                </span>
+                <span className="shrink-0 text-[11px] text-white/55">Task →</span>
+              </button>
+            )}
           </div>
         )}
       </div>
