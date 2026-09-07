@@ -31,6 +31,8 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
+          GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
           FORNITORE: openai
           MODELLO_OPENAI: gpt-5
         run: |
