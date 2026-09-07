@@ -36,12 +36,37 @@ import json
 import os
 import re
 import subprocess
+import urllib.error
+import urllib.request
+
+RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _env(nome):
+    v = os.environ.get(nome)
+    if v:
+        return v
+    for f in (".env.local", ".env"):
+        p = os.path.join(RADICE, f)
+        if not os.path.exists(p):
+            continue
+        for riga in open(p, encoding="utf-8"):
+            if riga.strip().startswith(nome + "="):
+                return riga.split("=", 1)[1].strip().strip("\"'")
+    return None
 
 CACHE = os.path.expanduser("~/.odyn-letture.json")
-# Il modello e' scritto qui, non ereditato da quello che Dre ha selezionato
-# nella sua chat: il 7/9 e' bastato un cambio di modello nella sessione per
-# lasciare il cervello muto. Sonnet legge bene e costa meno sul piano.
-MODELLO = "claude-sonnet-5"
+
+# IL FORNITORE (Dre, 7/9): non Anthropic per questo. OpenAI vince perche' ha
+# gia' l'account e perche' la sua API e' la piu' stabile da anni, che conta
+# quanto l'intelligenza quando una cosa deve girare da sola. Il fornitore si
+# sceglie da FORNITORE in .env.local; finche' non c'e' una chiave OpenAI
+# resta Claude Code col piano di Dre, come ponte.
+#   FORNITORE=openai   + OPENAI_API_KEY=sk-...
+#   FORNITORE=claude   (Claude Code sul Mac, solo come ponte)
+FORNITORE = (_env("FORNITORE") or ("openai" if _env("OPENAI_API_KEY") else "claude")).lower()
+MODELLO_OPENAI = _env("MODELLO_OPENAI") or "gpt-5-mini"
+MODELLO_CLAUDE = "claude-sonnet-5"
 A_GRUPPI_DI = 18          # quanti messaggi per volta: piu' su, meno precisione
 ATTESA_MAX = 180          # secondi per gruppo
 
@@ -109,27 +134,67 @@ def _salva_cache(d):
         pass          # la cache e' una comodita', non un dato: se salta, pazienza
 
 
-def _impronta(testo):
-    base = REGOLE + "\x00" + " ".join((testo or "").split())
+def _impronta(testo, modello=None):
+    base = (modello or (MODELLO_OPENAI if FORNITORE == "openai" else MODELLO_CLAUDE)) + "\x00" + REGOLE + "\x00" + " ".join((testo or "").split())
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:24]
 
 
-def _chiedi(prompt):
-    """L'unico punto che parla con un modello. Cambiare fornitore = cambiare qui.
+def _chiedi(prompt, modello=None):
+    """L'unico punto che parla con un modello. Cambiare fornitore = cambiare qui."""
+    if FORNITORE == "openai":
+        return _chiedi_openai(prompt, modello or MODELLO_OPENAI)
+    return _chiedi_claude(prompt, modello or MODELLO_CLAUDE)
 
-    Oggi: Claude Code col piano di Dre (nessun credito API).
-    """
-    r = subprocess.run(["claude", "-p", "--model", MODELLO], input=prompt,
+
+def _chiedi_openai(prompt, modello):
+    chiave = _env("OPENAI_API_KEY")
+    if not chiave:
+        raise RuntimeError("manca OPENAI_API_KEY in .env.local")
+    corpo = json.dumps({
+        "model": modello,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions", data=corpo, method="POST",
+        headers={"Authorization": "Bearer " + chiave, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=ATTESA_MAX) as r:
+            d = json.load(r)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"OpenAI {e.code}: {e.read()[:200].decode(errors='replace')}")
+    uso = d.get("usage", {})
+    _conta_uso(modello, uso.get("prompt_tokens", 0), uso.get("completion_tokens", 0))
+    return d["choices"][0]["message"]["content"] or ""
+
+
+def _chiedi_claude(prompt, modello):
+    """Claude Code sul Mac col piano di Dre: solo come ponte, non va in cloud."""
+    r = subprocess.run(["claude", "-p", "--model", modello], input=prompt,
                        capture_output=True, text=True, timeout=ATTESA_MAX)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout or "il cervello non ha risposto")[:200])
     return r.stdout
 
 
+USO = os.path.expanduser("~/.odyn-uso-cervello.json")
+
+
+def _conta_uso(modello, dentro, fuori):
+    """Quanti token ha consumato il cervello, per modello: cosi' il costo si
+    misura invece di temerlo."""
+    try:
+        d = json.load(open(USO, encoding="utf-8")) if os.path.exists(USO) else {}
+        m = d.setdefault(modello, {"dentro": 0, "fuori": 0, "chiamate": 0})
+        m["dentro"] += dentro; m["fuori"] += fuori; m["chiamate"] += 1
+        json.dump(d, open(USO, "w", encoding="utf-8"))
+    except Exception:
+        pass
+
+
 RIGA = re.compile(r"^\s*(\d+)\s*\|\s*([a-z_]+)\s*\|\s*([\d-]{1,10})\s*\|\s*(.*?)\s*$")
 
 
-def _leggi_gruppo(gruppo):
+def _leggi_gruppo(gruppo, modello=None):
     """gruppo: lista di (chiave, testo). Torna {chiave: verdetto}."""
     pezzi = []
     for i, (_, testo) in enumerate(gruppo, 1):
@@ -138,7 +203,7 @@ def _leggi_gruppo(gruppo):
     prompt = REGOLE + "\n\nI MESSAGGI:\n\n" + "\n\n".join(pezzi)
 
     fuori = {}
-    for riga in _chiedi(prompt).splitlines():
+    for riga in _chiedi(prompt, modello).splitlines():
         m = RIGA.match(riga)
         if not m:
             continue                      # le chiacchiere si buttano
@@ -154,7 +219,7 @@ def _leggi_gruppo(gruppo):
     return fuori
 
 
-def leggi(messaggi, quando_pronto=None):
+def leggi(messaggi, quando_pronto=None, modello=None):
     """Legge dei messaggi e dice cosa vogliono dire.
 
     messaggi: lista di dizionari con almeno {"id": ..., "testo": ...}
@@ -169,7 +234,7 @@ def leggi(messaggi, quando_pronto=None):
         testo = m.get("testo") or ""
         if len(testo.strip()) < 15:
             continue                      # una firma non e' un messaggio
-        k = _impronta(testo)
+        k = _impronta(testo, modello)
         if k in cache:
             fuori[m["id"]] = dict(cache[k])
             continue
@@ -178,7 +243,7 @@ def leggi(messaggi, quando_pronto=None):
     for i in range(0, len(da_leggere), A_GRUPPI_DI):
         gruppo = da_leggere[i:i + A_GRUPPI_DI]
         try:
-            letti = _leggi_gruppo([(g[0], g[1]) for g in gruppo])
+            letti = _leggi_gruppo([(g[0], g[1]) for g in gruppo], modello)
         except Exception as e:
             print(f"  ! il cervello si e' fermato: {str(e)[:120]}")
             break
@@ -202,6 +267,7 @@ def disponibile():
 
 
 if __name__ == "__main__":
+    print(f"fornitore: {FORNITORE} · modello: {MODELLO_OPENAI if FORNITORE == 'openai' else MODELLO_CLAUDE}")
     print("cervello disponibile:", disponibile())
     prova = [
         {"id": "a", "testo": "Thank you for your email. I am currently out of the office "
