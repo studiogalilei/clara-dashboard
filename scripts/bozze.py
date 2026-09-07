@@ -206,7 +206,7 @@ def main():
     if not PROVA and (fatte or ferme):
         from avvisa import avvisa
         pezzi = ([f"{fatte} bozze da approvare"] if fatte else []) + ([f"{ferme} da guardare tu"] if ferme else [])
-        avvisa("Clara: " + " · ".join(pezzi), link=None)
+        avvisa(" · ".join(pezzi) + ". Apri la posta e approva.")
 
 
 if __name__ == "__main__":

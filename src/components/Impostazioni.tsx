@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   WIDGET, RUOLI, accessi, salvaAccessi, nascosti, salvaNascosti,
@@ -7,6 +7,7 @@ import {
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
+import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
 
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
 // proprio nome, in basso a sinistra. Dentro solo cose vere, niente
@@ -43,6 +44,10 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
   // Se il nome del vault e' vuoto il ponte e' spento in tutta l'app.
   const [vault, setVault] = useState(() => leggiPref('obsidian-vault'))
   const [vaultSalvato, setVaultSalvato] = useState(false)
+  // le notifiche sul telefono: il permesso lo da' il browser, noi salviamo l'indirizzo
+  const [notifiche, setNotifiche] = useState<StatoNotifiche | null>(null)
+  const [notificheProblema, setNotificheProblema] = useState<string | null>(null)
+  useEffect(() => { void statoNotifiche().then(setNotifiche) }, [])
   const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
   const [vistaTutti, setVistaTutti] = useState(() => leggiPref('tutti-vista', 'board'))
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
@@ -275,6 +280,39 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
               ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato ✓</span>}</>
               : 'Spento: senza il nome del vault i collegamenti non saprebbero dove andare'}
           </p>
+        </div>
+      </Card>
+
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Notifiche</TitoloCard>
+        </header>
+        <div className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="min-w-[200px] flex-1 text-sm">
+              {notifiche === 'attive' && 'Attive su questo dispositivo: quando ci sono bozze da approvare, Clara ti avvisa qui.'}
+              {notifiche === 'spente' && 'Spente. Accendile e Clara ti avvisa quando c\'è qualcosa da approvare.'}
+              {notifiche === 'negate' && 'Il browser le ha bloccate: si riaccendono dalle impostazioni del sito.'}
+              {notifiche === 'da-installare' && 'Su iPhone prima aggiungi la Dashboard alla schermata Home (condividi → Aggiungi alla schermata Home), poi riapri da lì.'}
+              {notifiche === 'non-supportate' && 'Questo browser non le supporta.'}
+              {notifiche === null && '…'}
+            </p>
+            {(notifiche === 'spente' || notifiche === 'attive') && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setNotificheProblema(null)
+                  if (notifiche === 'attive') { setNotifiche(await spegniNotifiche()); return }
+                  const r = await attivaNotifiche()
+                  setNotifiche(r.stato); setNotificheProblema(r.problema ?? null)
+                }}
+                className="shrink-0 rounded-full border border-bordo px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy"
+              >
+                {notifiche === 'attive' ? 'Spegni' : 'Attiva le notifiche'}
+              </button>
+            )}
+          </div>
+          {notificheProblema && <p className="mt-1.5 text-xs text-red-700">Non si sono accese: {notificheProblema}</p>}
         </div>
       </Card>
 

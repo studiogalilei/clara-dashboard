@@ -25,16 +25,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install -q pywebpush
       - name: le operazioni dovute
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
           GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FORNITORE: openai
           MODELLO_OPENAI: gpt-5
         run: |

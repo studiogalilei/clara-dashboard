@@ -50,7 +50,7 @@ const COLLEGAMENTI: Array<[string, 'ok' | 'attesa' | 'no', string]> = [
   ['Google Calendar', 'attesa', 'primo carico fatto; per il cloud serve l\'indirizzo segreto iCal'],
   ['Google Drive', 'attesa', 'per i backup, stessa utenza'],
   ['Granola', 'attesa', 'piano base, niente API: il transcript si incolla nella Scheda'],
-  ['Telegram', 'attesa', 'la notifica sul telefono: serve il bot'],
+  ['Notifiche iPhone', 'attesa', 'pronte nel codice: si accendono col deploy'],
 ]
 
 export default function Plugin() {
