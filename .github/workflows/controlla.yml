@@ -1,0 +1,24 @@
+# Il cancello automatico: a ogni push GitHub rifà i controlli da solo.
+# Serve a una cosa sola: che non finisca online una versione che non compila
+# o che ha una regola di casa rotta. Non deve fare altro (7/9/2026).
+name: controlla
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: compilatore, lint e prove
+        run: npm run controlla
+      - name: build vera
+        run: npm run build
