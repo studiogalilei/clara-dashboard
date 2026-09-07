@@ -47,9 +47,10 @@ const COLLEGAMENTI: Array<[string, 'ok' | 'attesa' | 'no', string]> = [
   ['GitHub', 'ok', 'codice, backup, direttore'],
   ['Porkbun', 'ok', 'collegato'],
   ['Google Ads API', 'ok', 'collegato'],
-  ['Google Calendar', 'attesa', 'con l\'utenza tecnica di Workspace'],
+  ['Google Calendar', 'attesa', 'primo carico fatto; per il cloud serve l\'indirizzo segreto iCal'],
   ['Google Drive', 'attesa', 'per i backup, stessa utenza'],
-  ['Granola', 'attesa', 'serve la chiave API (piano Business)'],
+  ['Granola', 'attesa', 'piano base, niente API: il transcript si incolla nella Scheda'],
+  ['Telegram', 'attesa', 'la notifica sul telefono: serve il bot'],
 ]
 
 export default function Plugin() {
