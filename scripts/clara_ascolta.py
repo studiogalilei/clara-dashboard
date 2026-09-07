@@ -97,9 +97,14 @@ def contesto(msg):
     testo = msg.get("testo", "")
     if not pid:
         # prova a riconoscere un nome d'azienda nel messaggio
-        parole = [w for w in re.findall(r"[A-Za-zÀ-ÿ][\w&'.-]{3,}", testo)]
-        for w in parole[:6]:
-            trovati = sb("GET", f"/rest/v1/prospects?select=id&company=ilike.*{w}*&limit=1") or []
+        # le parole con la maiuscola in tutto il messaggio, le coppie prima
+        # («Sea Quest»), poi le singole piu' lunghe. Prima provava le prime sei
+        # parole e «Sea Quest Hawaii» non arrivava mai al giro
+        comuni = {"Ciao", "Clara", "Dre", "Cosa", "Come", "Quando", "Chi", "Perche", "Allora", "Grazie"}
+        maiuscole = [w for w in re.findall(r"\b[A-ZÀ-Ý][\w&'.-]{2,}", testo) if w not in comuni]
+        candidati = [f"{a} {b}" for a, b in zip(maiuscole, maiuscole[1:])] + sorted(maiuscole, key=len, reverse=True)
+        for w in candidati[:10]:
+            trovati = sb("GET", f"/rest/v1/prospects?select=id&company=ilike.*{w}*&order=last_reply_at.desc.nullslast&limit=1") or []
             if trovati:
                 pid = trovati[0]["id"]
                 break
@@ -121,6 +126,11 @@ def contesto(msg):
     aspettano = sb("GET", "/rest/v1/prospects?awaiting_us=eq.true&fuori=eq.false"
                           "&select=company,name,classificazione,last_reply_at"
                           "&order=last_reply_at.desc&limit=6") or []
+    caldi = sb("GET", "/rest/v1/prospects?awaiting_us=eq.true&fuori=eq.false&classificazione=eq.positivo"
+                      "&select=company,name,last_reply_at&order=last_reply_at.asc&limit=10") or []
+    if caldi:
+        pezzi.append("I POSITIVI CHE ASPETTANO UNA RISPOSTA DA PIU' TEMPO (dal piu' vecchio):\n" + "\n".join(
+            f"- {c.get('company') or c.get('name')}: ultima sua mail {str(c.get('last_reply_at') or '')[:10]}" for c in caldi))
     pezzi.append("OGGI: " + datetime.now().strftime("%A %d %B %Y, %H:%M") +
                  f". Gli ultimi che aspettano una risposta: " +
                  "; ".join(f"{a.get('company') or a.get('name')} [{a.get('classificazione')}]" for a in aspettano))
