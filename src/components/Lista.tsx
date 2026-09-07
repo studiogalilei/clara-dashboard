@@ -32,6 +32,13 @@ const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   ['Persi', 'perso', (p) => ePerso(p) || (!p.fuori && !vivo(p))],
 ]
 
+// I persi non stanno in fila con gli altri (Dre, 7/9): una corsia sempre
+// aperta accanto alle vive e' un invito a metterci dentro qualcuno. Stanno
+// in fondo, chiusi, come le task completate di Google Task. Si aprono quando
+// li cerchi, e ci si puo' comunque trascinare sopra.
+const VIVE = TAPPE.filter(([, c]) => c !== 'perso')
+const PERSI = TAPPE.find(([, c]) => c === 'perso')!
+
 // i passati a qualcun altro non si trascinano: ci si passa dalla scheda
 const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a ?? ''
 
@@ -61,6 +68,12 @@ export default function Lista({ onOpen, q }: Props) {
   // scaricate sono le prime 300 e non sono un conteggio (revisione 4/9)
   const [quanti, setQuanti] = useState<Record<Fascia, number> | null>(null)
   const [giro, setGiro] = useState(0)   // ogni carta mossa rifa i conti
+  // la data della call di ognuno, per fase: sulla carta serve sapere QUANDO,
+  // non solo che e' in Tecnica (Dre, 7/9)
+  const [calls, setCalls] = useState<Record<string, Record<string, string>>>({})
+  // una colonna alla volta si puo' allargare per starci dentro
+  const [fuoco, setFuoco] = useState<Chiave | null>(null)
+  const [persiAperti, setPersiAperti] = useState(false)
   const [stage, setStage] = useState<Stage | 'attivi' | 'tutti'>('attivi')
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -89,6 +102,22 @@ export default function Lista({ onOpen, q }: Props) {
 
   useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
   useEffect(() => { contaFasi().then(setQuanti) }, [giro])
+
+  useEffect(() => {
+    supabase.from('agenda').select('at,tipo,prospect_id')
+      .not('prospect_id', 'is', null)
+      .order('at', { ascending: false }).limit(1000)
+      .then(({ data }) => {
+        const m: Record<string, Record<string, string>> = {}
+        for (const a of (data as Array<{ at: string; tipo: string | null; prospect_id: string }> ?? [])) {
+          if (!a.tipo) continue
+          const suo = (m[a.prospect_id] ??= {})
+          // la piu' recente per quella fase: l'ordine e' gia' decrescente
+          suo[a.tipo] ??= a.at
+        }
+        setCalls(m)
+      })
+  }, [giro])
 
   useEffect(() => {
     let vivo = true
@@ -349,7 +378,8 @@ export default function Lista({ onOpen, q }: Props) {
     )
   }
 
-  const cartaBoard = (p: Prospect) => {
+  const cartaBoard = (p: Prospect, fase?: Chiave) => {
+    const quando = fase ? calls[p.id]?.[fase] : undefined
     const fermo = daysAgo(p.last_reply_at)
     const finito = chiuso(p)
     const tono = finito ? 'ok'
@@ -381,7 +411,9 @@ export default function Lista({ onOpen, q }: Props) {
           <span className="flex items-center gap-1.5 truncate text-[11px] text-tenue">
             <Dot tone={tono} />
             {sgid(p.sg_id) && <span className="font-semibold text-blu/80">{sgid(p.sg_id)}</span>}
-            {fermo !== null && !finito && <span>· {giorni(fermo)}</span>}
+            {quando
+              ? <span className="font-semibold text-navy">· {fmtDateShort(quando)}</span>
+              : fermo !== null && !finito && <span>· {giorni(fermo)}</span>}
           </span>
         </span>
       </button>
@@ -480,12 +512,15 @@ export default function Lista({ onOpen, q }: Props) {
         <div
           className="grid gap-3"
           style={{
-            gridTemplateColumns: `repeat(${
-              TAPPE.length
-            }, minmax(0, 1fr))`,
+            // la colonna a fuoco si prende meta' della larghezza, le altre si
+            // stringono ma restano visibili: non si perde il quadro (Dre, 7/9)
+            gridTemplateColumns: VIVE.map(([, c]) =>
+              fuoco === null ? 'minmax(0, 1fr)'
+              : fuoco === c ? 'minmax(0, 3fr)'
+              : 'minmax(0, 0.7fr)').join(' '),
           }}
         >
-          {TAPPE.map(([nome, chiave, filtro]) => {
+          {VIVE.map(([nome, chiave, filtro]) => {
             const dentro = rows.filter(filtro)
             // la corsia Persi c'e' sempre: prima compariva quando alzavi una
             // carta e spostava tutte le altre sotto il dito (revisione 4/9)
@@ -507,7 +542,16 @@ export default function Lista({ onOpen, q }: Props) {
                 }`}
               >
                 <header className="flex items-baseline justify-between gap-2 px-3 pb-2 pt-2.5">
-                  <Micro className="text-inchiostro">{nome}</Micro>
+                  <button
+                    onClick={() => setFuoco((f) => (f === chiave ? null : chiave))}
+                    title={fuoco === chiave ? 'Rimetti tutte uguali' : 'Allarga questa colonna'}
+                    className="flex min-w-0 items-baseline gap-1.5 text-left"
+                  >
+                    <Micro className={fuoco === chiave ? 'text-blu' : 'text-inchiostro'}>{nome}</Micro>
+                    <span className={`shrink-0 text-[10px] ${fuoco === chiave ? 'text-blu' : 'text-spento'}`}>
+                      {fuoco === chiave ? '⤡' : '⤢'}
+                    </span>
+                  </button>
                   <span className="text-xs font-semibold text-tenue">
                     {quanti ? quanti[chiave] : dentro.length}
                   </span>
@@ -515,7 +559,7 @@ export default function Lista({ onOpen, q }: Props) {
                 <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
                   {dentro.length === 0
                     ? <p className="px-1.5 py-1 text-xs text-spento">{evidenziata ? 'Lascia qui' : 'Nessuno'}</p>
-                    : dentro.map(cartaBoard)}
+                    : dentro.map((p) => cartaBoard(p, chiave))}
                 </div>
               </section>
             )
@@ -536,12 +580,46 @@ export default function Lista({ onOpen, q }: Props) {
               <div key={chi} className="min-w-[180px] flex-1">
                 <p className="mb-1 px-1 text-xs font-bold text-blu">{chi}</p>
                 <div className="space-y-1.5">
-                  {rows.filter((p) => aChi(p) === chi).map(cartaBoard)}
+                  {rows.filter((p) => aChi(p) === chi).map((p) => cartaBoard(p))}
                 </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {vista === 'board' && (
+        <section
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSopra('perso') }}
+          onDragLeave={(e) => {
+            if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setSopra(null)
+          }}
+          onDrop={(e) => { e.preventDefault(); gestisciDrop('perso') }}
+          className={`mt-3 rounded-2xl transition-all ${
+            sopra === 'perso' && dragId !== null ? 'bg-navy/10 ring-2 ring-navy/40' : ''
+          }`}
+        >
+          <button
+            onClick={() => setPersiAperti((v) => !v)}
+            className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left hover:bg-velo"
+          >
+            <span className={`text-[11px] text-spento transition-transform ${persiAperti ? 'rotate-90' : ''}`}>▸</span>
+            <Micro className="text-spento">Persi</Micro>
+            <span className="text-xs font-semibold text-spento">
+              {quanti ? quanti.perso : rows.filter(PERSI[2]).length}
+            </span>
+            {sopra === 'perso' && dragId !== null && (
+              <span className="ml-2 text-xs font-bold text-navy">lascia qui per segnarlo perso</span>
+            )}
+          </button>
+          {persiAperti && (
+            <div className="grid gap-1.5 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+              {rows.filter(PERSI[2]).length === 0
+                ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno.</p>
+                : rows.filter(PERSI[2]).map((p) => cartaBoard(p))}
+            </div>
+          )}
+        </section>
       )}
 
       {rows.length >= 300 && (
