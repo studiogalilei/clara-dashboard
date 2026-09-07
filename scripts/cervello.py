@@ -99,6 +99,18 @@ LA DISTINZIONE CHE CONTA DI PIU'
 Non conta CHE ti rimandi a un altro, conta PERCHE'.
   «parli col nostro direttore marketing per approfondire» = positivo
   «guardi i contatti sul sito»                            = negativo
+  «scriva a info@ / alla direzione / all'indirizzo generico» = negativo:
+  e' uno scaricabarile cortese, non un passaggio. Nel confronto del 7/9 tutti
+  i modelli lo scambiavano per un'apertura.
+
+DUE ERRORI DA NON FARE
+- Un'agenzia di marketing, di comunicazione, di lead generation o un
+  consulente Google Ads e' fuori_target, NON negativo: non e' un no, e' che
+  non poteva essere un cliente. La differenza conta: negativo parla del nostro
+  processo, fuori_target parla della lista.
+- «Ok grazie», «ricevuto», «va bene» secchi dopo una mail di chiusura non
+  sono un'apertura: sono negativo o tiepido, mai positivo. Le parole positive
+  isolate non contano, conta cosa vuole fare la persona.
 
 LA TRAPPOLA DELLE RISPOSTE AUTOMATICHE
 Se il messaggio e' una risposta automatica di assenza la classe e' ooo, anche
