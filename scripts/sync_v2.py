@@ -58,11 +58,17 @@ if not SB_URL or not SB_KEY:
     sys.exit("ERRORE: compila .env.local (VITE_SUPABASE_URL + SUPABASE_SERVICE_KEY)")
 
 def sl_key():
-    for line in open(os.path.expanduser("~/.hermes/config.yaml")):
-        m = re.match(r"\s*SMARTLEAD_API_KEY:\s*(\S+)", line)
-        if m:
-            return m.group(1).strip().strip('"\'')
-    sys.exit("ERRORE: SMARTLEAD_API_KEY non trovata in ~/.hermes/config.yaml")
+    # in cloud arriva dall'ambiente (o da .env.local); sul Mac di Dre sta in Hermes
+    k = os.environ.get("SMARTLEAD_API_KEY") or ENV.get("SMARTLEAD_API_KEY")
+    if k:
+        return k.strip().strip('"\'')
+    p = os.path.expanduser("~/.hermes/config.yaml")
+    if os.path.exists(p):
+        for line in open(p):
+            m = re.match(r"\s*SMARTLEAD_API_KEY:\s*(\S+)", line)
+            if m:
+                return m.group(1).strip().strip('"\'')
+    sys.exit("ERRORE: SMARTLEAD_API_KEY non trovata (ambiente, .env.local o ~/.hermes/config.yaml)")
 
 SL_KEY = sl_key()
 SL_BASE = "https://server.smartlead.ai/api/v1"

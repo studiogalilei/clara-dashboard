@@ -206,13 +206,25 @@ def _conta_uso(modello, dentro, fuori):
 RIGA = re.compile(r"^\s*(\d+)\s*\|\s*([a-z_]+)\s*\|\s*([\d-]{1,10})\s*\|\s*(.*?)\s*$")
 
 
+def istruzione(chiave):
+    """Le istruzioni che Dre scrive nella sala di controllo (tabella istruzioni).
+    Senza tabella o senza testo si va avanti senza: sono un di piu', non un requisito."""
+    try:
+        from stanza import sb
+        r = sb("GET", f"/rest/v1/istruzioni?chiave=eq.{chiave}&select=testo&limit=1") or []
+        t = (r[0].get("testo") or "").strip() if r else ""
+        return f"\n\nISTRUZIONI DI DRE ({chiave}), che vincono su tutto il resto:\n{t}" if t else ""
+    except Exception:
+        return ""
+
+
 def _leggi_gruppo(gruppo, modello=None):
     """gruppo: lista di (chiave, testo). Torna {chiave: verdetto}."""
     pezzi = []
     for i, (_, testo) in enumerate(gruppo, 1):
         t = " ".join((testo or "").split())[:1200]
         pezzi.append(f"--- messaggio {i} ---\n{t}")
-    prompt = REGOLE + "\n\nI MESSAGGI:\n\n" + "\n\n".join(pezzi)
+    prompt = REGOLE + istruzione("lettura") + "\n\nI MESSAGGI:\n\n" + "\n\n".join(pezzi)
 
     fuori = {}
     for riga in _chiedi(prompt, modello).splitlines():

@@ -137,6 +137,9 @@ def leggi_file_env(percorso):
 
 
 def chiave_smartlead():
+    k = os.environ.get("SMARTLEAD_API_KEY")
+    if k:
+        return k.strip().strip("'\"")
     if not os.path.exists(HERMES):
         return None
     for r in open(HERMES):

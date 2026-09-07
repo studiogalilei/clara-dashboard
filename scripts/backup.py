@@ -117,6 +117,17 @@ def main():
                     "-pass", "env:BACKUP_FRASE"], check=True, env={**os.environ, "BACKUP_FRASE": FRASE})
     mb = os.path.getsize(fuori) / 1e6
     print(f"\n✓ {totale} righe in {fuori} ({mb:.1f} MB, cifrato)")
+    # la riga nel registro della sala di controllo (se le tabelle ci sono)
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from stanza import sb
+        adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        sb("PATCH", "/rest/v1/operazioni?chiave=eq.backup",
+           {"ultima_corsa": adesso, "ultimo_esito": "ok", "ultimo_dettaglio": f"{totale} righe, {mb:.1f} MB"})
+        sb("POST", "/rest/v1/corse", {"operazione": "backup", "esito": "ok",
+                                       "dettaglio": f"{totale} righe, {mb:.1f} MB", "righe": totale})
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

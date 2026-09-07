@@ -71,11 +71,12 @@ def salva_stato(s):
 
 
 def persona():
+    base = PERSONA_BASE + cervello.istruzione("chat")
     try:
         t = open(PERSONA_FILE, encoding="utf-8").read()
-        return PERSONA_BASE + "\n\nIL SUO CARATTERE E MANDATO, DAL FILE DI DRE:\n" + t[:6000]
+        return base + "\n\nIL SUO CARATTERE E MANDATO, DAL FILE DI DRE:\n" + t[:6000]
     except Exception:
-        return PERSONA_BASE
+        return base
 
 
 def contesto(msg):

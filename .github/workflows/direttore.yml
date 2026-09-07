@@ -1,0 +1,41 @@
+# Il direttore: ogni 15 minuti, in cloud, fa partire le operazioni dovute
+# alla cadenza scelta da Dre nella Dashboard. Non sul suo Mac. (7/9/2026)
+name: direttore
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      forza:
+        description: "Fai partire adesso un'operazione (chiave), vuoto = quelle dovute"
+        required: false
+        default: ""
+
+concurrency:
+  group: direttore           # mai due direttori insieme: il sync non va doppiato
+  cancel-in-progress: false
+
+jobs:
+  direttore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: le operazioni dovute
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          FORNITORE: openai
+          MODELLO_OPENAI: gpt-5
+        run: |
+          if [ -n "${{ github.event.inputs.forza }}" ]; then
+            python3 scripts/direttore.py --forza "${{ github.event.inputs.forza }}"
+          else
+            python3 scripts/direttore.py
+          fi
