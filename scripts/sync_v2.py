@@ -52,8 +52,8 @@ def load_env():
     return env
 
 ENV = load_env()
-SB_URL = ENV.get("VITE_SUPABASE_URL", "").rstrip("/")
-SB_KEY = ENV.get("SUPABASE_SERVICE_KEY", "")
+SB_URL = (os.environ.get("VITE_SUPABASE_URL") or ENV.get("VITE_SUPABASE_URL", "")).rstrip("/")
+SB_KEY = os.environ.get("SUPABASE_SERVICE_KEY") or ENV.get("SUPABASE_SERVICE_KEY", "")
 if not SB_URL or not SB_KEY:
     sys.exit("ERRORE: compila .env.local (VITE_SUPABASE_URL + SUPABASE_SERVICE_KEY)")
 

@@ -17,6 +17,9 @@ RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def env(nome):
+    v = os.environ.get(nome)
+    if v:
+        return v
     for f in (".env.local", ".env"):
         p = os.path.join(RADICE, f)
         if not os.path.exists(p):

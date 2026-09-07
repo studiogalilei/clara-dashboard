@@ -38,8 +38,8 @@ def env():
 
 
 ENV = env()
-URL = ENV.get("VITE_SUPABASE_URL", "").rstrip("/")
-KEY = ENV.get("SUPABASE_SERVICE_KEY", "")
+URL = (os.environ.get("VITE_SUPABASE_URL") or ENV.get("VITE_SUPABASE_URL", "")).rstrip("/")
+KEY = os.environ.get("SUPABASE_SERVICE_KEY") or ENV.get("SUPABASE_SERVICE_KEY", "")
 if not URL or not KEY:
     sys.exit("manca VITE_SUPABASE_URL o SUPABASE_SERVICE_KEY in .env.local")
 
