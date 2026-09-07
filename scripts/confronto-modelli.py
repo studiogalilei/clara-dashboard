@@ -69,8 +69,11 @@ def main():
     print(testa)
     disaccordi = {m: 0 for m in MODELLI}
     for c in campione:
-        # il riferimento e' nella cache col modello claude-sonnet-5
-        r = rif.get(cervello._impronta(c["testo"], "claude-sonnet-5"), {}).get("classe", "?")
+        # il riferimento e' nella cache di stamattina, salvata prima che la
+        # chiave della cache portasse il nome del modello: si provano tutte e due
+        import hashlib
+        vecchia = hashlib.sha256((cervello.REGOLE + "\x00" + " ".join(c["testo"].split())).encode("utf-8")).hexdigest()[:24]
+        r = (rif.get(vecchia) or rif.get(cervello._impronta(c["testo"], "claude-sonnet-5")) or {}).get("classe", "?")
         verdetti = [esiti[m].get(c["id"], {}).get("classe", "-") for m in MODELLI]
         if any(v != r for v in verdetti):
             for m, v in zip(MODELLI, verdetti):
