@@ -25,3 +25,13 @@ dist-ssr
 
 # anteprime e output degli strumenti
 .playwright-mcp
+
+# I SEGRETI NON ESCONO DA QUESTO MAC (4/9)
+# Prima erano coperti solo di rimbalzo da «*.local»: un file chiamato .env
+# o .env.production sarebbe finito su GitHub senza che nessuno lo notasse.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.env

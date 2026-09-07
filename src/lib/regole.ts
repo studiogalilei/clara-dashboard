@@ -269,7 +269,11 @@ export function giorniDa(iso: string | null | undefined): number | null {
 
 // ── il giorno, in ora italiana ────────────────────────────────────
 // toISOString() dà il giorno UTC: fra mezzanotte e le 2 era ancora ieri.
-export function giorno(d: Date | string = new Date()): string {
+export function giorno(d: Date | string | null | undefined = new Date()): string {
+  // accetta il vuoto come tutte le sue sorelle (fmtDate, daysAgo): era
+  // l'unica a spaccarsi su null, e le colonne di date nel database sono
+  // quasi tutte nullable. Trovata dal primo giro di test (7/9)
+  if (d == null) return ''
   const x = typeof d === 'string' ? new Date(d) : d
   if (Number.isNaN(x.getTime())) return ''
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
