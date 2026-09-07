@@ -686,7 +686,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                 ) : proposte.map((pr, i) => {
                   const aperto = apertaId === pr.id
                   const c = contesto[pr.id]
-                  const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dal calendario', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
+                  const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
                   const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
                   return (
                     <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
