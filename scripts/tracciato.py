@@ -113,6 +113,7 @@ def sconosciuti(prova, adesso):
     prospects = calendario.carica_prospects()
     gia = {(p.get("azione") or {}).get("nuovo", {}).get("email")
            for p in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.avanza&limit=5000") or [])}
+    gia_domini = {g.split("@")[-1] for g in gia if g and _azienda(g)}
     per_email = {}
     for r in righe:
         e = eventi.get(r["link"])
@@ -121,6 +122,8 @@ def sconosciuti(prova, adesso):
         for inv in calendario.esterni(e["invitati"]):
             if inv in prospects["email"] or inv in gia:
                 continue
+            if _azienda(inv) and inv.split("@")[-1] in gia_domini:
+                continue                       # gia' chiesto per un collega della stessa azienda
             # stessa azienda, due persone: una proposta sola (Muffin era due volte)
             chiave = inv.split("@")[-1] if _azienda(inv) else inv
             per_email.setdefault(chiave, {"email": inv, "calls": []})["calls"].append(r)
