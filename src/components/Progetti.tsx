@@ -110,6 +110,7 @@ export default function Progetti({ onOpen }: Props) {
   function campo(p: Progetto, k: Campo, v: string) {
     const patch: Partial<Progetto> = {}
     if (k === 'valore') patch.valore = v.trim() ? Number(v.replace(',', '.')) : null
+    else if (k === 'nome') patch.nome = v.trim()          // nome non ammette il vuoto nel database
     else patch[k] = v.trim() ? v : null
     void scrivi(p, patch)
   }
