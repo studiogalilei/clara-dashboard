@@ -9,6 +9,9 @@ import { giorno } from '../lib/regole'
 // Trial, Retainer, onboarding. Il cliente si scrive libero (non tutti sono
 // prospect del CRM); se e' un prospect, il nome porta alla sua scheda.
 // Il dettaglio con i documenti resta nella scheda del cliente.
+// 9/9, Dre: «ogni progetto connesso a quell'unico id». Il cliente non si
+// scrive piu' a mano: si sceglie fra quelli del CRM (con l'SG-ID accanto) e
+// se non c'e' si crea da qui, e nasce gia' con il suo ID.
 
 export interface Progetto {
   id: number
@@ -76,6 +79,8 @@ function Cella({ valore, tipo = 'text', su, className = '', placeholder }: {
 export default function Progetti({ onOpen }: Props) {
   const [righe, setRighe] = useState<Progetto[] | null>(null)
   const [nomi, setNomi] = useState<Record<string, string>>({})
+  const [sg, setSg] = useState<Record<string, number | null>>({})
+  const [scelgo, setScelgo] = useState<number | null>(null)     // la riga con il selettore cliente aperto
   const [chiusi, setChiusi] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
 
@@ -86,14 +91,16 @@ export default function Progetti({ onOpen }: Props) {
         if (error) setProblema('Il foglio non si legge: ' + error.message)
         setRighe((data as Progetto[]) ?? [])
       })
-    supabase.from('prospects').select('id,company,name,email').neq('stage', 'nuovo')
-      .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(500)
+    supabase.from('prospects').select('id,company,name,email,sg_id').neq('stage', 'nuovo')
+      .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(1000)
       .then(({ data }) => {
         const m: Record<string, string> = {}
-        for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string }>) ?? []) {
+        const ids: Record<string, number | null> = {}
+        for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string; sg_id: number | null }>) ?? []) {
           m[p.id] = p.company || p.name || p.email
+          ids[p.id] = p.sg_id
         }
-        setNomi(m)
+        setNomi(m); setSg(ids)
       })
   }, [])
 
@@ -122,6 +129,24 @@ export default function Progetti({ onOpen }: Props) {
     setRighe((r) => [...(r ?? []), data as Progetto])
   }
 
+  // il cliente che nel CRM non c'e': nasce adesso, come cliente, con il suo SG-ID
+  async function creaCliente(p: Progetto, nome: string) {
+    const n = nome.trim()
+    if (!n) return
+    const oggi = new Date().toISOString()
+    const email = `da-completare+${n.toLowerCase().replace(/[^a-z0-9]+/g, '')}@studiogalilei.com`
+    const { data, error } = await supabase.from('prospects').insert({
+      email, company: n, name: n, stage: 'cliente', fuori: true, fuori_at: oggi, pipeline_stage: 'cliente',
+      first_reply_at: oggi, source: 'foglio_progetti', classificazione: 'positivo', awaiting_us: false, no_followup: true,
+      notes: 'Creato dal foglio progetti. Email da completare.',
+    }).select('id,sg_id').single()
+    if (error || !data) { setProblema(`«${n}» non si è creato: ${error?.message ?? ''}`); return }
+    const c = data as { id: string; sg_id: number | null }
+    setNomi((m) => ({ ...m, [c.id]: n })); setSg((m) => ({ ...m, [c.id]: c.sg_id }))
+    await scrivi(p, { prospect_id: c.id, cliente: n })
+    setScelgo(null)
+  }
+
   async function togli(p: Progetto) {
     if (!confirm(`Tolgo «${p.nome || p.cliente || 'questa riga'}» dal foglio?`)) return
     const { error } = await supabase.from('progetti').delete().eq('id', p.id)
@@ -143,12 +168,22 @@ export default function Progetti({ onOpen }: Props) {
     return (
       <tr key={p.id} className="border-b border-velo last:border-0 hover:bg-velo/30">
         <td className="border-r border-velo">
-          {p.prospect_id ? (
-            <button onClick={() => onOpen(p.prospect_id!)} className="w-full px-2 py-1.5 text-left text-sm font-semibold text-blu hover:underline">
-              {nomeCliente}
-            </button>
+          {p.prospect_id && scelgo !== p.id ? (
+            <div className="group flex items-center">
+              <button onClick={() => onOpen(p.prospect_id!)} className="min-w-0 flex-1 px-2 py-1.5 text-left text-sm font-semibold text-blu hover:underline">
+                {sg[p.prospect_id] != null && <span className="mr-1.5 font-mono text-[11px] font-normal text-spento">SG-{sg[p.prospect_id]}</span>}
+                {nomeCliente}
+              </button>
+              <button onClick={() => setScelgo(p.id)} aria-label="Cambia cliente" title="Cambia cliente"
+                      className="mr-1 hidden rounded px-1 text-xs text-spento hover:bg-velo hover:text-navy group-hover:block">⇄</button>
+            </div>
           ) : (
-            <Cella valore={nomeCliente} su={(v) => campo(p, 'cliente', v)} className="font-semibold" placeholder="cliente" />
+            <SceltaCliente
+              nomi={nomi} sg={sg}
+              onScegli={(id) => { void scrivi(p, { prospect_id: id, cliente: nomi[id] ?? null }); setScelgo(null) }}
+              onCrea={(nome) => creaCliente(p, nome)}
+              onAnnulla={p.prospect_id ? () => setScelgo(null) : undefined}
+            />
           )}
         </td>
         <td className="border-r border-velo"><Cella valore={p.nome} su={(v) => campo(p, 'nome', v)} placeholder="cosa gli facciamo" /></td>
@@ -252,6 +287,47 @@ export default function Progetti({ onOpen }: Props) {
             </div>
           )}
         </Card>
+      )}
+    </div>
+  )
+}
+
+// il selettore del cliente: si scrive, si sceglie fra quelli del CRM (con
+// l'SG-ID), o si crea. Niente nomi liberi: ogni progetto appeso al suo ID.
+function SceltaCliente({ nomi, sg, onScegli, onCrea, onAnnulla }: {
+  nomi: Record<string, string>; sg: Record<string, number | null>
+  onScegli: (id: string) => void; onCrea: (nome: string) => void; onAnnulla?: () => void
+}) {
+  const [testo, setTesto] = useState('')
+  const [aperto, setAperto] = useState(false)
+  const q = testo.trim().toLowerCase()
+  const trovati = q.length < 2 ? [] : Object.entries(nomi)
+    .filter(([id, n]) => n.toLowerCase().includes(q) || (sg[id] != null && String(sg[id]) === q.replace(/^sg-?/, '')))
+    .slice(0, 8)
+  return (
+    <div className="relative">
+      <input
+        autoFocus={Boolean(onAnnulla)}
+        value={testo}
+        onChange={(e) => { setTesto(e.target.value); setAperto(true) }}
+        onFocus={() => setAperto(true)}
+        onBlur={() => setTimeout(() => setAperto(false), 150)}
+        onKeyDown={(e) => { if (e.key === 'Escape' && onAnnulla) onAnnulla(); if (e.key === 'Enter' && trovati[0]) onScegli(trovati[0][0]) }}
+        placeholder="cerca il cliente o l'SG-ID"
+        className="w-full min-w-0 bg-transparent px-2 py-1.5 text-sm font-semibold outline-none focus:bg-blu/5 focus:ring-1 focus:ring-blu"
+      />
+      {aperto && q.length >= 2 && (
+        <div className="absolute left-0 top-full z-20 mt-0.5 w-72 overflow-hidden rounded-lg border border-bordo bg-white shadow-lg">
+          {trovati.map(([id, n]) => (
+            <button key={id} onMouseDown={() => onScegli(id)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-velo">
+              {sg[id] != null && <span className="font-mono text-[11px] text-spento">SG-{sg[id]}</span>}
+              <span className="truncate">{n}</span>
+            </button>
+          ))}
+          <button onMouseDown={() => onCrea(testo)} className="flex w-full items-center gap-2 border-t border-velo px-3 py-1.5 text-left text-sm font-semibold text-navy hover:bg-velo">
+            + Crea «{testo.trim()}» come cliente nuovo
+          </button>
+        </div>
       )}
     </div>
   )
