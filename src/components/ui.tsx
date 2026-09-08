@@ -1,3 +1,4 @@
+import { eCliente } from '../lib/regole'
 import { useRef, useState } from 'react'
 import {
   STAGE_LABEL, CLS_LABEL, PIPELINE_LABEL,
@@ -76,7 +77,7 @@ export function Faccia({ p, size = 36 }: { p: FacciaP; size?: number }) {
   const cifre = p.sg_id != null ? String(p.sg_id % 100).padStart(2, '0') : null
   return (
     <span
-      title={sgid(p.sg_id) ?? undefined}
+      title={sgid(p.sg_id, p) ?? undefined}
       className={`flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums ${
         cifre ? tonoFase(p) : 'bg-velo text-navy'
       }`}
@@ -140,10 +141,14 @@ export function fmtNum(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
 
-// L'ID permanente nel formato di Dre: SG-000127
-export function sgid(n: number | null | undefined): string | null {
+// L'ID permanente nel formato di Dre: PR-000127 finche' e' prospect,
+// CL-000127 quando diventa cliente. Il numero non cambia mai, e' la fila in
+// cui e' arrivato; cambia solo la sigla, nel momento canonico (Dre, 9/9).
+// Senza la fase (vecchie chiamate) resta SG-.
+export function sgid(n: number | null | undefined, p?: FacciaP | null): string | null {
   if (n == null) return null
-  return 'SG-' + String(n).padStart(6, '0')
+  const sigla = p ? (eCliente(p) ? 'CL' : 'PR') : 'SG'
+  return sigla + '-' + String(n).padStart(6, '0')
 }
 
 export function giorni(n: number): string {

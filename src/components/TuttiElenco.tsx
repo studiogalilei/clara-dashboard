@@ -81,8 +81,8 @@ export default function TuttiElenco({ onOpen }: Props) {
       <button onClick={() => onOpen(p.id)} className="min-w-0 flex-1 text-left">
         <p className="truncate text-sm font-semibold">{p.company || p.name || p.email}</p>
         <p className="truncate text-xs text-tenue">
-          {sgid(p.sg_id) && <span className="font-semibold text-blu">{sgid(p.sg_id)}</span>}
-          {sgid(p.sg_id) && ' · '}
+          {sgid(p.sg_id, p) && <span className="font-semibold text-blu">{sgid(p.sg_id, p)}</span>}
+          {sgid(p.sg_id, p) && ' · '}
           {p.email}
         </p>
       </button>

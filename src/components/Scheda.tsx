@@ -375,7 +375,7 @@ export default function Scheda({ id, onClose }: Props) {
   const mercato = p.market ?? mercatoDi(p.sector, p.city)
   const soppresso = p.classificazione === 'soppresso'
   const tappa = tappaCorrente(p)
-  const codice = sgid(p.sg_id)
+  const codice = sgid(p.sg_id, p)
   const val = (k: keyof Prospect) =>
     (draft[k] !== undefined ? draft[k] : p[k]) as string | number | null
 

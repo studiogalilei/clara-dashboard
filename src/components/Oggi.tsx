@@ -211,7 +211,7 @@ export default function Oggi({ onOpen }: Props) {
       }
       const sotto = (v: VoceCoda): Sotto => ({
         chiave: `coda-${v.p.id}`, nome: v.p.company || v.p.name || v.p.email,
-        nota: nota(v), prospect_id: v.p.id, sg: sgid(v.p.sg_id),
+        nota: nota(v), prospect_id: v.p.id, sg: sgid(v.p.sg_id, v.p),
       })
       const gruppo = (r: VoceCoda['ragione'], titolo: string, ordina?: (a: VoceCoda, b: VoceCoda) => number) => {
         const sue = voci.filter((v) => v.ragione === r)

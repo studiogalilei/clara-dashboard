@@ -164,7 +164,7 @@ export default function Lista({ onOpen, q }: Props) {
       if (pulito) {
         const term = pulito.toLowerCase()
         out = out.filter((p) =>
-          [p.company, p.name, p.email, sgid(p.sg_id)].some((v) => v?.toLowerCase().includes(term)))
+          [p.company, p.name, p.email, sgid(p.sg_id, p)].some((v) => v?.toLowerCase().includes(term)))
       }
       setRows(out)
     }, 200)
@@ -365,8 +365,8 @@ export default function Lista({ onOpen, q }: Props) {
             {p.company && p.name ? <span className="font-normal text-tenue"> · {p.name}</span> : null}
           </p>
           <p className="truncate text-xs text-tenue">
-            {sgid(p.sg_id) && <span className="font-semibold text-blu">{sgid(p.sg_id)}</span>}
-            {sgid(p.sg_id) && ' · '}
+            {sgid(p.sg_id, p) && <span className="font-semibold text-blu">{sgid(p.sg_id, p)}</span>}
+            {sgid(p.sg_id, p) && ' · '}
             {p.email}
             {p.last_reply_at && <> · ultima risposta {fmtDateShort(p.last_reply_at)}</>}
           </p>
@@ -425,7 +425,7 @@ export default function Lista({ onOpen, q }: Props) {
           <span className="block truncate text-[13px] font-semibold">{p.company || p.name || p.email}</span>
           <span className="flex items-center gap-1.5 truncate text-[11px] text-tenue">
             <Dot tone={tono} />
-            {sgid(p.sg_id) && <span className="font-semibold text-blu/80">{sgid(p.sg_id)}</span>}
+            {sgid(p.sg_id, p) && <span className="font-semibold text-blu/80">{sgid(p.sg_id, p)}</span>}
             {quando
               ? <span className="font-semibold text-navy">· {fmtDateShort(quando)}</span>
               : risento

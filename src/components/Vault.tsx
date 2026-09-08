@@ -146,7 +146,7 @@ export default function Vault({ onOpen }: Props) {
     const p2 = prospects.find((x) => x.id === f.prospect_id)
     return f.nome.toLowerCase().includes(t)
       || (nomeProspect(f.prospect_id) ?? '').toLowerCase().includes(t)
-      || (sgid(p2?.sg_id) ?? '').toLowerCase().includes(t)
+      || (sgid(p2?.sg_id, p2) ?? '').toLowerCase().includes(t)
   })
 
   return (
@@ -175,7 +175,7 @@ export default function Vault({ onOpen }: Props) {
               <option value="">Scegli il cliente…</option>
               {prospects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.company || p.name || p.email}{sgid(p.sg_id) ? ` · ${sgid(p.sg_id)}` : ''}
+                  {p.company || p.name || p.email}{sgid(p.sg_id, p) ? ` · ${sgid(p.sg_id, p)}` : ''}
                 </option>
               ))}
             </select>
@@ -255,7 +255,7 @@ export default function Vault({ onOpen }: Props) {
                   {f.dimensione ? ` · ${fmtNum(Math.round(f.dimensione / 1024))} KB` : ''}
                   {(() => {
                     const p2 = prospects.find((x) => x.id === f.prospect_id)
-                    const c = sgid(p2?.sg_id)
+                    const c = sgid(p2?.sg_id, p2)
                     return c ? <span className="ml-1.5 font-semibold text-blu/70">{c}</span> : null
                   })()}
                 </p>
@@ -268,7 +268,7 @@ export default function Vault({ onOpen }: Props) {
                     <option value="">nessun aggancio</option>
                     {prospects.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {sgid(p.sg_id) ? `${sgid(p.sg_id)} · ` : ''}{p.company || p.name || p.email}
+                        {sgid(p.sg_id, p) ? `${sgid(p.sg_id, p)} · ` : ''}{p.company || p.name || p.email}
                       </option>
                     ))}
                   </select>
