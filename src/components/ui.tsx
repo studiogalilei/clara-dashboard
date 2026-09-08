@@ -1,4 +1,3 @@
-import { eCliente } from '../lib/regole'
 import { useRef, useState } from 'react'
 import {
   STAGE_LABEL, CLS_LABEL, PIPELINE_LABEL,
@@ -141,14 +140,14 @@ export function fmtNum(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
 
-// L'ID permanente nel formato di Dre: PR-000127 finche' e' prospect,
-// CL-000127 quando diventa cliente. Il numero non cambia mai, e' la fila in
-// cui e' arrivato; cambia solo la sigla, nel momento canonico (Dre, 9/9).
-// Senza la fase (vecchie chiamate) resta SG-.
-export function sgid(n: number | null | undefined, p?: FacciaP | null): string | null {
+// L'ID permanente: SG-1481. Non cambia mai, per nessun motivo: ne' se il
+// prospect diventa cliente, ne' se cambia nome o referente (Giacomo, 9/9:
+// «l'ID non deve codificare informazioni che possono cambiare»). Lo stato lo
+// dice l'etichetta di fase accanto. Il secondo parametro resta per le vecchie
+// chiamate e non fa niente.
+export function sgid(n: number | null | undefined, _p?: FacciaP | null): string | null {
   if (n == null) return null
-  const sigla = p ? (eCliente(p) ? 'CL' : 'PR') : 'SG'
-  return sigla + '-' + String(n).padStart(6, '0')
+  return 'SG-' + String(n)
 }
 
 export function giorni(n: number): string {

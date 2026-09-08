@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro } from './ui'
-import { giorno, eCliente } from '../lib/regole'
+import { giorno } from '../lib/regole'
 
 // PROGETTI = IL FOGLIO DI GIACOMO (Dre, 8/9): «un excel con selettore, serve
 // per seguire i progetti in corso». Una riga per progetto, si scrive dentro
@@ -80,7 +80,6 @@ export default function Progetti({ onOpen }: Props) {
   const [righe, setRighe] = useState<Progetto[] | null>(null)
   const [nomi, setNomi] = useState<Record<string, string>>({})
   const [sg, setSg] = useState<Record<string, number | null>>({})
-  const [sigla, setSigla] = useState<Record<string, string>>({})   // PR o CL, dalla fase
   const [scelgo, setScelgo] = useState<number | null>(null)     // la riga con il selettore cliente aperto
   const [chiusi, setChiusi] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
@@ -92,18 +91,16 @@ export default function Progetti({ onOpen }: Props) {
         if (error) setProblema('Il foglio non si legge: ' + error.message)
         setRighe((data as Progetto[]) ?? [])
       })
-    supabase.from('prospects').select('id,company,name,email,sg_id,fuori,stage,pipeline_stage').neq('stage', 'nuovo')
+    supabase.from('prospects').select('id,company,name,email,sg_id').neq('stage', 'nuovo')
       .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(1000)
       .then(({ data }) => {
         const m: Record<string, string> = {}
         const ids: Record<string, number | null> = {}
-        const sig: Record<string, string> = {}
-        for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string; sg_id: number | null; fuori: boolean; stage: string; pipeline_stage: string | null }>) ?? []) {
+        for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string; sg_id: number | null }>) ?? []) {
           m[p.id] = p.company || p.name || p.email
           ids[p.id] = p.sg_id
-          sig[p.id] = eCliente(p as Parameters<typeof eCliente>[0]) ? 'CL' : 'PR'
         }
-        setNomi(m); setSg(ids); setSigla(sig)
+        setNomi(m); setSg(ids)
       })
   }, [])
 
@@ -145,7 +142,7 @@ export default function Progetti({ onOpen }: Props) {
     }).select('id,sg_id').single()
     if (error || !data) { setProblema(`«${n}» non si è creato: ${error?.message ?? ''}`); return }
     const c = data as { id: string; sg_id: number | null }
-    setNomi((m) => ({ ...m, [c.id]: n })); setSg((m) => ({ ...m, [c.id]: c.sg_id })); setSigla((m) => ({ ...m, [c.id]: 'CL' }))
+    setNomi((m) => ({ ...m, [c.id]: n })); setSg((m) => ({ ...m, [c.id]: c.sg_id }))
     await scrivi(p, { prospect_id: c.id, cliente: n })
     setScelgo(null)
   }
@@ -174,7 +171,7 @@ export default function Progetti({ onOpen }: Props) {
           {p.prospect_id && scelgo !== p.id ? (
             <div className="group flex items-center">
               <button onClick={() => onOpen(p.prospect_id!)} className="min-w-0 flex-1 px-2 py-1.5 text-left text-sm font-semibold text-blu hover:underline">
-                {sg[p.prospect_id] != null && <span className="mr-1.5 font-mono text-[11px] font-normal text-spento">{sigla[p.prospect_id] ?? 'SG'}-{sg[p.prospect_id]}</span>}
+                {sg[p.prospect_id] != null && <span className="mr-1.5 font-mono text-[11px] font-normal text-spento">SG-{sg[p.prospect_id]}</span>}
                 {nomeCliente}
               </button>
               <button onClick={() => setScelgo(p.id)} aria-label="Cambia cliente" title="Cambia cliente"
@@ -182,7 +179,7 @@ export default function Progetti({ onOpen }: Props) {
             </div>
           ) : (
             <SceltaCliente
-              nomi={nomi} sg={sg} sigla={sigla}
+              nomi={nomi} sg={sg}
               onScegli={(id) => { void scrivi(p, { prospect_id: id, cliente: nomi[id] ?? null }); setScelgo(null) }}
               onCrea={(nome) => creaCliente(p, nome)}
               onAnnulla={p.prospect_id ? () => setScelgo(null) : undefined}
@@ -297,15 +294,15 @@ export default function Progetti({ onOpen }: Props) {
 
 // il selettore del cliente: si scrive, si sceglie fra quelli del CRM (con
 // l'SG-ID), o si crea. Niente nomi liberi: ogni progetto appeso al suo ID.
-function SceltaCliente({ nomi, sg, sigla, onScegli, onCrea, onAnnulla }: {
-  nomi: Record<string, string>; sg: Record<string, number | null>; sigla: Record<string, string>
+function SceltaCliente({ nomi, sg, onScegli, onCrea, onAnnulla }: {
+  nomi: Record<string, string>; sg: Record<string, number | null>
   onScegli: (id: string) => void; onCrea: (nome: string) => void; onAnnulla?: () => void
 }) {
   const [testo, setTesto] = useState('')
   const [aperto, setAperto] = useState(false)
   const q = testo.trim().toLowerCase()
   const trovati = q.length < 2 ? [] : Object.entries(nomi)
-    .filter(([id, n]) => n.toLowerCase().includes(q) || (sg[id] != null && String(sg[id]) === q.replace(/^(sg|pr|cl)-?0*/, '')))
+    .filter(([id, n]) => n.toLowerCase().includes(q) || (sg[id] != null && String(sg[id]) === q.replace(/^sg-?0*/, '')))
     .slice(0, 8)
   return (
     <div className="relative">
@@ -316,14 +313,14 @@ function SceltaCliente({ nomi, sg, sigla, onScegli, onCrea, onAnnulla }: {
         onFocus={() => setAperto(true)}
         onBlur={() => setTimeout(() => setAperto(false), 150)}
         onKeyDown={(e) => { if (e.key === 'Escape' && onAnnulla) onAnnulla(); if (e.key === 'Enter' && trovati[0]) onScegli(trovati[0][0]) }}
-        placeholder="cerca il cliente o l'ID (PR-… / CL-…)"
+        placeholder="cerca il cliente o l'SG-ID"
         className="w-full min-w-0 bg-transparent px-2 py-1.5 text-sm font-semibold outline-none focus:bg-blu/5 focus:ring-1 focus:ring-blu"
       />
       {aperto && q.length >= 2 && (
         <div className="absolute left-0 top-full z-20 mt-0.5 w-72 overflow-hidden rounded-lg border border-bordo bg-white shadow-lg">
           {trovati.map(([id, n]) => (
             <button key={id} onMouseDown={() => onScegli(id)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-velo">
-              {sg[id] != null && <span className="font-mono text-[11px] text-spento">{sigla[id] ?? 'SG'}-{sg[id]}</span>}
+              {sg[id] != null && <span className="font-mono text-[11px] text-spento">SG-{sg[id]}</span>}
               <span className="truncate">{n}</span>
             </button>
           ))}
