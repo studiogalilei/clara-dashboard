@@ -182,7 +182,7 @@ export default function Progetti({ onOpen }: Props) {
             </div>
           ) : (
             <SceltaCliente
-              nomi={nomi} sg={sg}
+              nomi={nomi} sg={sg} sigla={sigla}
               onScegli={(id) => { void scrivi(p, { prospect_id: id, cliente: nomi[id] ?? null }); setScelgo(null) }}
               onCrea={(nome) => creaCliente(p, nome)}
               onAnnulla={p.prospect_id ? () => setScelgo(null) : undefined}
@@ -297,8 +297,8 @@ export default function Progetti({ onOpen }: Props) {
 
 // il selettore del cliente: si scrive, si sceglie fra quelli del CRM (con
 // l'SG-ID), o si crea. Niente nomi liberi: ogni progetto appeso al suo ID.
-function SceltaCliente({ nomi, sg, onScegli, onCrea, onAnnulla }: {
-  nomi: Record<string, string>; sg: Record<string, number | null>
+function SceltaCliente({ nomi, sg, sigla, onScegli, onCrea, onAnnulla }: {
+  nomi: Record<string, string>; sg: Record<string, number | null>; sigla: Record<string, string>
   onScegli: (id: string) => void; onCrea: (nome: string) => void; onAnnulla?: () => void
 }) {
   const [testo, setTesto] = useState('')
