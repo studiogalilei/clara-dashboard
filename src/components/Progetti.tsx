@@ -61,6 +61,7 @@ export default function Progetti({ onOpen }: Props) {
   const [sg, setSg] = useState<Record<string, number | null>>({})
   const [facce, setFacce] = useState<Record<string, FacciaP>>({})   // per la foto con le cifre dell'ID
   const [scelgo, setScelgo] = useState<number | null>(null)     // la riga con il selettore cliente aperto
+  const [menuRiga, setMenuRiga] = useState<number | null>(null)  // il menu ⋯ della riga
   const [chiusi, setChiusi] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
 
@@ -149,7 +150,7 @@ export default function Progetti({ onOpen }: Props) {
     const nomeCliente = p.prospect_id ? (nomi[p.prospect_id] ?? p.cliente ?? '') : (p.cliente ?? '')
     return (
       <tr key={p.id} className="h-12 border-b border-velo last:border-0 hover:bg-velo/30">
-        <td className="">
+        <td className="sticky left-0 z-10 bg-white">
           {p.prospect_id && scelgo !== p.id ? (
             <div className="group flex items-center">
               <button onClick={() => onOpen(p.prospect_id!)} title={sgid(sg[p.prospect_id]) ?? undefined}
@@ -186,17 +187,18 @@ export default function Progetti({ onOpen }: Props) {
         <td className=""><Cella tipo="date" valore={p.scadenza ?? ''} su={(v) => campo(p, 'scadenza', v)} className={`tabular-nums ${tardi ? 'text-red-700 font-semibold' : ''}`} /></td>
         <td className=""><Cella valore={p.natura ?? ''} su={(v) => campo(p, 'natura', v)} placeholder="sito vetrina, ads…" /></td>
         <td className=""><Cella valore={p.note ?? ''} su={(v) => campo(p, 'note', v)} placeholder="note" /></td>
-        <td className="px-1">
-          <select
-            value={p.stato}
-            onChange={(e) => scrivi(p, { stato: e.target.value as Progetto['stato'] })}
-            className={`w-full rounded-md border-0 px-2 py-1 text-xs font-semibold outline-none ${STATI.find(([s]) => s === p.stato)?.[2] ?? ''}`}
-          >
-            {STATI.map(([s, etichetta]) => <option key={s} value={s}>{etichetta}</option>)}
-          </select>
-        </td>
-        <td className="px-1 text-center">
-          <button onClick={() => togli(p)} aria-label="Togli la riga" className="rounded px-1.5 text-spento hover:bg-red-50 hover:text-red-700">×</button>
+        <td className="relative px-1 text-center">
+          <button onClick={() => setMenuRiga(menuRiga === p.id ? null : p.id)} aria-label="Altro" className="rounded px-1.5 text-spento hover:bg-velo hover:text-navy">⋯</button>
+          {menuRiga === p.id && (
+            <div className="absolute right-1 top-9 z-20 w-44 overflow-hidden rounded-lg border border-bordo bg-white text-left shadow-lg" onMouseLeave={() => setMenuRiga(null)}>
+              {p.stato !== 'consegnato' ? (
+                <button onClick={() => { void scrivi(p, { stato: 'consegnato' }); setMenuRiga(null) }} className="block w-full px-3 py-2 text-sm hover:bg-velo">Segna consegnato</button>
+              ) : (
+                <button onClick={() => { void scrivi(p, { stato: 'in_corso' }); setMenuRiga(null) }} className="block w-full px-3 py-2 text-sm hover:bg-velo">Riporta in corso</button>
+              )}
+              <button onClick={() => { setMenuRiga(null); void togli(p) }} className="block w-full px-3 py-2 text-sm text-red-700 hover:bg-red-50">Togli la riga</button>
+            </div>
+          )}
         </td>
       </tr>
     )
@@ -205,16 +207,15 @@ export default function Progetti({ onOpen }: Props) {
   const testata = (
     <thead>
       <tr className="bg-velo/60 text-left text-[11px] font-bold uppercase tracking-wide text-tenue">
-        <th className="min-w-[200px] px-3 py-2.5">Cliente</th>
-        <th className="min-w-[180px] px-3 py-2.5">Progetto</th>
+        <th className="sticky left-0 z-10 min-w-[220px] bg-velo/60 px-3 py-2.5 backdrop-blur">Cliente</th>
+        <th className="min-w-[150px] px-3 py-2.5">Progetto</th>
         <th className="min-w-[130px] px-3 py-2.5">Inizio</th>
-        <th className="min-w-[90px] px-3 py-2.5 text-right">€</th>
-        <th className="min-w-[130px] px-3 py-2.5">Trial o Retainer</th>
+        <th className="min-w-[90px] px-3 py-2.5 text-right">Prezzo</th>
+        <th className="min-w-[130px] px-3 py-2.5">Stato</th>
         <th className="min-w-[100px] px-3 py-2.5">Chi segue</th>
         <th className="min-w-[130px] px-3 py-2.5">Scadenza</th>
-        <th className="min-w-[140px] px-3 py-2.5">Natura</th>
-        <th className="min-w-[220px] px-3 py-2.5">Note</th>
-        <th className="min-w-[120px] px-3 py-2.5">Stato</th>
+        <th className="min-w-[120px] px-3 py-2.5">Natura</th>
+        <th className="min-w-[180px] px-3 py-2.5">Note</th>
         <th className="w-8"></th>
       </tr>
     </thead>
@@ -249,7 +250,7 @@ export default function Progetti({ onOpen }: Props) {
             {testata}
             <tbody>
               {vivi.length === 0 ? (
-                <tr><td colSpan={11} className="px-4 py-6 text-center text-sm text-spento">Foglio vuoto. «+ Riga» e scrivi dentro le celle, come in un foglio.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-6 text-center text-sm text-spento">Foglio vuoto. «+ Riga» e scrivi dentro le celle, come in un foglio.</td></tr>
               ) : vivi.map(riga)}
             </tbody>
           </table>
