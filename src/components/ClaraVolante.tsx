@@ -481,6 +481,11 @@ export default function ClaraVolante({ onOpen }: Props) {
   // un messaggio si segna letto da dentro, dopo averlo aperto (Dre, 9/9)
   const [apertoMsg, setApertoMsg] = useState<number | null>(null)
   const [inChat, setInChat] = useState(5)     // quante proposte in chat per volta
+  // dove sta la pallina: dove l'hai messa tu, se l'hai spostata
+  const [pallina, setPallina] = useState<{ x: number; y: number } | null>(() => {
+    try { const v = localStorage.getItem('clara-pallina'); return v ? JSON.parse(v) : null } catch { return null }
+  })
+  const presa = useRef<{ x: number; y: number; mosso: boolean; t: number } | null>(null)
   async function segnaLetto(m: Messaggio) {
     await supabase.from('clara_messaggi').update({ letto: true }).eq('id', m.id).select().single()
     setMessaggi((l) => (l ?? []).map((x) => (x.id === m.id ? { ...x, letto: true } : x)))
@@ -732,18 +737,48 @@ export default function ClaraVolante({ onOpen }: Props) {
   return (
     <>
       {!aperta && (
-        <button
-          onClick={() => setAperta(true)}
-          aria-label="Clara"
-          className="fixed bottom-20 right-4 z-[70] flex h-14 w-14 items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.28)] transition-transform hover:-translate-y-0.5 sm:bottom-6 sm:right-6"
+        // la pallina (Dre, 9/9): un po' piu' grande, il nome sotto, e si sposta dove vuoi
+        <div
+          style={pallina ? { left: pallina.x, top: pallina.y, right: 'auto', bottom: 'auto' } : undefined}
+          className="fixed bottom-20 right-4 z-[70] flex flex-col items-center gap-1 sm:bottom-6 sm:right-6"
         >
-          <ClaraLogo size={38} lavora={pensa} />
-          {nonLetti.length + proposte.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-              {nonLetti.length + proposte.length}
-            </span>
-          )}
-        </button>
+          <button
+            onPointerDown={(e) => {
+              presa.current = { x: e.clientX, y: e.clientY, mosso: false, t: Date.now() }
+              ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            }}
+            onPointerMove={(e) => {
+              const p = presa.current
+              if (!p) return
+              const dx = e.clientX - p.x, dy = e.clientY - p.y
+              if (!p.mosso && Math.hypot(dx, dy) < 5) return
+              p.mosso = true
+              const el = (e.currentTarget as HTMLElement).parentElement!
+              const r = el.getBoundingClientRect()
+              const x = Math.min(Math.max(r.left + dx, 6), window.innerWidth - r.width - 6)
+              const y = Math.min(Math.max(r.top + dy, 6), window.innerHeight - r.height - 6)
+              p.x = e.clientX; p.y = e.clientY
+              setPallina({ x, y })
+            }}
+            onPointerUp={() => {
+              const p = presa.current
+              presa.current = null
+              if (p && !p.mosso) setAperta(true)
+              else if (pallina) { try { localStorage.setItem('clara-pallina', JSON.stringify(pallina)) } catch { /* niente */ } }
+            }}
+            aria-label="Clara"
+            title="Trascinami dove vuoi"
+            className="relative flex h-16 w-16 cursor-grab touch-none items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-transform hover:-translate-y-0.5 active:cursor-grabbing"
+          >
+            <ClaraLogo size={44} lavora={pensa} />
+            {nonLetti.length + proposte.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                {nonLetti.length + proposte.length}
+              </span>
+            )}
+          </button>
+          <span className="text-[13px] font-semibold tracking-tight text-blu">Clara</span>
+        </div>
       )}
 
       {aperta && (

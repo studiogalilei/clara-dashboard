@@ -220,9 +220,9 @@ export default function App() {
         </div>
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <span className="text-navy"><ClaraLogo size={36} /></span>
-          <span className="text-[15px] leading-tight tracking-tight text-navy">
-            <span className="font-extrabold">Studio Galilei</span>
-            <span className="block text-[11px] font-semibold text-inchiostro">Workspace, con Clara</span>
+          <span className="text-[17px] leading-tight tracking-tight text-navy">
+            <span className="font-black">SG</span>
+            <span className="ml-1.5 font-bold">Workspace</span>
           </span>
         </div>
 
