@@ -56,14 +56,14 @@ def main():
 
     momento = "pomeriggio" if adesso.hour < 16 else "sera"
     if righe:
-        testo = f"Punto del {momento}. Resta aperto:\n" + "\n".join(righe)
+        testo = f"Punto {'del pomeriggio' if momento == 'pomeriggio' else 'della sera'}. Resta aperto:\n" + "\n".join(righe)
     else:
-        testo = f"Punto del {momento}: non resta niente di aperto. Bella giornata."
+        testo = f"Punto {'del pomeriggio' if momento == 'pomeriggio' else 'della sera'}: non resta niente di aperto. Bella giornata."
     if prova:
         print(testo); return
     # uno per momento: se e' gia' scritto, non si ripete
     da = adesso.replace(hour=12 if momento == "pomeriggio" else 16, minute=0, second=0).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    gia = sb("GET", f"/rest/v1/clara_messaggi?select=id&tipo=eq.promemoria&at=gte.{da}&testo=like.Punto%20del%20{momento}*&limit=1")
+    gia = sb("GET", f"/rest/v1/clara_messaggi?select=id&tipo=eq.promemoria&at=gte.{da}&testo=like.Punto%20*{momento}*&limit=1")
     if gia:
         print("recap gia' scritto"); return
     sb("POST", "/rest/v1/clara_messaggi", {"tipo": "promemoria", "testo": testo})
