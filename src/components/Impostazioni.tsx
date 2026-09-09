@@ -231,7 +231,7 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
             <p className="text-sm font-semibold">Task</p>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
-            {[['ongo', 'On go'], ['big', 'Week picture']].map(([v, etichetta]) => (
+            {[['ongo', 'On go'], ['big', 'Questa settimana']].map(([v, etichetta]) => (
               <button key={v} onClick={() => preferenza('task-vista', v, setVistaTask)}
                 className={`px-3 py-1 text-xs font-bold ${vistaTask === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
                 {etichetta}

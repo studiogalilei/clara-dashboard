@@ -596,7 +596,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       )}
 
       {/* le due viste: stesse task, due modi di guardarle. Il commutatore non sta
-          piu' in cima alla home (Dre, 9/9): la Week picture resta raggiungibile da qui sotto */}
+          piu' in cima alla home (Dre, 9/9): «Questa settimana» resta raggiungibile da qui sotto */}
       <div className="hidden items-center justify-end gap-3 sm:flex">
         {vistaVera === 'big' && (
           <div className="mr-auto flex items-center gap-1">
@@ -611,7 +611,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
           </div>
         )}
         <button onClick={() => cambiaVista(vistaVera === 'big' ? 'ongo' : 'big')} className="text-xs font-semibold text-tenue hover:text-navy">
-          {vistaVera === 'big' ? '‹ Torna alla lista' : 'Week picture ›'}
+          {vistaVera === 'big' ? '‹ Torna alla lista' : 'Questa settimana ›'}
         </button>
       </div>
 
@@ -629,7 +629,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             <svg viewBox="0 0 24 24" className={`h-4 w-4 text-tenue transition-transform ${claraAperta ? 'rotate-90' : ''}`}>
               <path fill="currentColor" d="M9 6l6 6-6 6z" />
             </svg>
-            <span className="text-sm font-semibold">Da Clara</span>
+            <span className="text-sm font-semibold">Promemoria di Clara</span>
             <span className="text-xs text-spento">{gruppiVivi.reduce((t, g) => t + g.sotto.length, 0)}</span>
             {!claraAperta && (
               <span className="ml-auto truncate text-xs text-tenue">{gruppiVivi.map((g) => `${g.titolo} ${g.sotto.length}`).join(' · ')}</span>
