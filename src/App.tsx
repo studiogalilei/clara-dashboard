@@ -287,7 +287,7 @@ export default function App() {
               tab === 'impostazioni' ? 'bg-velo' : 'hover:bg-velo/60'
             }`}
           >
-            <img src="/sg-simbolo.svg" alt="Studio Galilei" className="h-8 w-8 shrink-0 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-8 w-8 shrink-0 object-contain" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">{utente}</span>
               <span className="block text-[11px] text-spento">Impostazioni</span>

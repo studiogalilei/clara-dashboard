@@ -1,0 +1,47 @@
+# La dashboard online, su GitHub Pages (9/9/2026).
+# Dre non vuole Clara su un account che puo' sparire (Vercel con la 2FA
+# persa): sta su GitHub, dove stanno gia' codice, backup e direttore.
+# A ogni salvataggio su main: build con la base /clara/ e i file compilati
+# vanno nel repo pubblico studiogalilei/clara (solo i compilati: il codice
+# resta qui, privato). Indirizzo: https://studiogalilei.github.io/clara/
+name: pubblica
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'public/**', 'index.html', 'vite.config.ts', 'package.json', 'package-lock.json', '.github/workflows/pubblica.yml']
+  workflow_dispatch:
+concurrency:
+  group: pubblica
+  cancel-in-progress: true
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: build
+        env:
+          BASE_PATH: /clara/
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPID_PUBLIC: ${{ secrets.VAPID_PUBLIC }}
+        run: |
+          npm run build
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+      - name: nel repo pubblico
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          external_repository: studiogalilei/clara
+          publish_branch: main
+          publish_dir: ./dist
+          force_orphan: true
+          user_name: clara-dashboard
+          user_email: clara@studiogalilei.com
+          commit_message: "dashboard ${{ github.sha }}"
