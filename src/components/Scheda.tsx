@@ -88,6 +88,7 @@ export default function Scheda({ id, onClose }: Props) {
   const [draft, setDraft] = useState<Partial<Prospect>>({})
   const [nota, setNota] = useState('')
   const [transcript, setTranscript] = useState('')
+  const [avanzaAperto, setAvanzaAperto] = useState(false)   // il riassunto si chiede solo quando premi Avanza
   const [modifica, setModifica] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -820,6 +821,14 @@ export default function Scheda({ id, onClose }: Props) {
                 fermo da {giorni(fermo)}
               </span>
             )}
+            {p.fuori && next && !soppresso && (
+              <button
+                onClick={() => { setAvanzaAperto(true); setTimeout(() => transcriptRef.current?.focus(), 50) }}
+                className={`${fermo !== null && p.pipeline_stage !== 'cliente' ? 'ml-3' : 'ml-auto'} shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro`}
+              >
+                Avanza →
+              </button>
+            )}
           </div>
         </Card>
 
@@ -1061,6 +1070,51 @@ export default function Scheda({ id, onClose }: Props) {
 
           {/* CENTRO: il vivo */}
           <div className="space-y-3">
+            {/* il pedaggio: chiuso finche' non premi «Avanza» accanto alle fasi (Dre, 9/9) */}
+            {p.fuori && next && !soppresso && avanzaAperto && (
+              <Card className="salta-su border-blu/30">
+                <header className="flex items-baseline gap-2 border-b border-velo px-4 py-2.5">
+                  <h3 className="text-sm font-bold">Avanza a {PIPELINE_LABEL[next]}</h3>
+                  <span className="text-xs text-tenue">prima il riassunto della call, poi si avanza</span>
+                  <button onClick={() => setAvanzaAperto(false)} className="ml-auto text-xs font-semibold text-tenue hover:text-inchiostro">chiudi</button>
+                </header>
+                <div className="p-4">
+                  <textarea
+                    ref={transcriptRef}
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    placeholder="Incolla il transcript di Granola, o scrivi cosa vi siete detti e i prossimi passi"
+                    className="min-h-24 w-full rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+                  />
+                  {premio.length > 0 && (
+                    <div className="salta-su mt-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+                      <p className="text-xs font-bold text-green-800">Riassunto salvato ✓</p>
+                      {premio.map((r, i) => (
+                        <p key={i} className="text-xs text-green-900">{r}</p>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={salvaTranscript}
+                      disabled={!transcript.trim()}
+                      className="rounded-full border border-navy px-5 py-2 text-sm font-bold text-navy hover:bg-navy/5 disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      Salva il riassunto
+                    </button>
+                    <button
+                      onClick={portaAvanti}
+                      disabled={!transcriptCorrente}
+                      title={transcriptCorrente ? undefined : 'Prima il riassunto: senza non si avanza'}
+                      className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      Avanza → {PIPELINE_LABEL[next]}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* LA CARTELLA (Dre, 2/9): una sola e cresce. Nasce con quello
                 che gia' sappiamo di lui, senza che nessuno lo debba scrivere:
                 l'analisi ricevuta, chi sono, se vale la pena */}
@@ -1203,50 +1257,6 @@ export default function Scheda({ id, onClose }: Props) {
               </Card>
             )}
 
-
-            {/* il pedaggio, quando serve */}
-            {p.fuori && next && !soppresso && (
-              <Card className="border-amber-200">
-                <header className="flex flex-wrap items-baseline gap-2 border-b border-velo bg-amber-50/60 px-4 py-2.5">
-                  <h3 className="text-xs font-bold">Riassunto di fase</h3>
-
-                </header>
-                <div className="p-4">
-                  <textarea
-                    ref={transcriptRef}
-                    value={transcript}
-                    onChange={(e) => setTranscript(e.target.value)}
-                    placeholder="Incolla il transcript di Granola o scrivi il riassunto e i prossimi passi"
-                    className="min-h-24 w-full rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
-                  />
-                  {premio.length > 0 && (
-                    <div className="salta-su mt-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
-                      <p className="text-xs font-bold text-green-800">Riassunto salvato ✓</p>
-                      {premio.map((r, i) => (
-                        <p key={i} className="text-xs text-green-900">{r}</p>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-2 flex flex-wrap items-center gap-2.5">
-                    <button
-                      onClick={salvaTranscript}
-                      disabled={!transcript.trim()}
-                      className="rounded-full border border-navy px-5 py-2 text-sm font-bold text-navy hover:bg-navy/5 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      Salva il riassunto
-                    </button>
-                    <button
-                      onClick={portaAvanti}
-                      disabled={!transcriptCorrente}
-                      title={transcriptCorrente ? undefined : 'Prima il riassunto: senza non si avanza'}
-                      className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      Porta avanti → {PIPELINE_LABEL[next]}
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            )}
 
             <Card className="p-4" id="storia">
               <TitoloCard>Storia</TitoloCard>
