@@ -14,7 +14,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from './preferenze'
 export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
-  | 'tutti'
+  | 'tutti' | 'clara'
   | 'progetti'
 
 export type Ruolo = 'ceo' | 'coordinamento'
@@ -39,38 +39,30 @@ export interface Widget {
 }
 
 export const WIDGET: Widget[] = [
-  { chiave: 'pipeline', nome: 'Oggi', cosa: 'La coda, la prossima call, cosa non va', zona: 'menu', fisso: true,
+  // Intervista a Dre (9/9): cinque voci, meno pagine, ci si perde meno.
+  // Le chiavi non si toccano: ci sono appese le preferenze salvate.
+  // 'pipeline' = Oggi (la giornata, con le task sotto); 'prospect' = Aziende
+  // (bacheca, foglio, preventivi). Task ('oggi') e Tutti ('tutti') non sono
+  // piu' voci: vivono dentro Oggi e Aziende. Numeri e Widget stanno in
+  // Impostazioni.
+  { chiave: 'pipeline', nome: 'Oggi', cosa: 'Cosa aspetta te, poi le tue task', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
-  // nota sui nomi: la chiave 'prospect' e' la sezione che Dre chiama Pipeline
-  // (rinominata il 3/9); la chiave 'pipeline' e' la home. Le chiavi non si
-  // toccano perche' ci sono appese le preferenze salvate.
-  { chiave: 'prospect', nome: 'Pipeline', cosa: 'Prospect e clienti, bacheca ed elenco', zona: 'menu', fisso: true,
+  { chiave: 'prospect', nome: 'Aziende', cosa: 'Prospect e clienti: bacheca, foglio, preventivi', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a3 3 0 1 0 0-6M22 21c0-2.8-1.9-5.1-4.5-5.8' },
+  { chiave: 'progetti', nome: 'Progetti', cosa: 'Il foglio dei progetti e la roadmap', zona: 'menu', fisso: true,
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M4 7h16v13H4zM4 7l2-3h12l2 3M9 12h6' },
   { chiave: 'calendario', nome: 'Calendario', cosa: 'Call, follow-up e scadenze', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 3v4M16 3v4M4 11h16' },
-  { chiave: 'oggi', nome: 'Task', cosa: 'Le tue attività, On go o Week picture', zona: 'menu', fisso: true,
+  { chiave: 'clara', nome: 'Clara', cosa: 'Le cose che chiede, e la chat', zona: 'menu', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
-    icona: 'M4 6h16M4 12h10M4 18h7' },
-  { chiave: 'tutti', nome: 'Tutti', cosa: 'Clienti e prospect, con canone e chi li segue', zona: 'menu',
-    ruoli: ['ceo', 'coordinamento'],
-    icona: 'M20 7h-9M14 17H5M17 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM7 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z' },
-  // solo per il coordinamento (Dre, 4/9): i progetti sono il mondo della
-  // delivery. Dre li vede comunque nella scheda del suo cliente.
-  { chiave: 'progetti', nome: 'Progetti', cosa: 'Il lavoro a scadenza: chi, quando, quanto', zona: 'menu',
-    ruoli: ['coordinamento'],
-    icona: 'M4 7h16v13H4zM4 7l2-3h12l2 3M9 12h6' },
-  { chiave: 'analytics', nome: 'Numeri', cosa: 'Funnel, ricorrente, canali', zona: 'sistema',
-    ruoli: ['ceo', 'coordinamento'],
-    icona: 'M5 20v-6M11 20V6M17 20v-9M3 20h18' },
-  { chiave: 'vault', nome: 'Documenti', cosa: 'I file, agganciati ai prospect', zona: 'sistema', fisso: true,
+    icona: 'M12 3a9 9 0 1 0 9 9M12 3v6l4 2M12 3l-6 4M12 9l-3 6M12 9l6 3' },
+  { chiave: 'vault', nome: 'Documenti', cosa: 'I file, agganciati alle aziende', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3' },
-  { chiave: 'plugin', nome: 'Widget e istruzioni', cosa: 'Cosa sa fare Clara, e i collegamenti', zona: 'sistema',
-    ruoli: ['ceo'],
-    icona: 'M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7zM12 17v4' },
 ]
 
 export const widgetDi = (c: Chiave) => WIDGET.find((w) => w.chiave === c)

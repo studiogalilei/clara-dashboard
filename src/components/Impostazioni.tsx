@@ -18,6 +18,8 @@ interface Props {
   email: string
   demo: boolean
   onCambio: () => void
+  onNumeri?: () => void
+  onWidget?: () => void
 }
 
 function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick: () => void; etichetta: string }) {
@@ -34,7 +36,7 @@ function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick
 
 
 
-export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
+export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, onWidget }: Props) {
   const [ruolo, setRuolo] = useState<Ruolo>(mioRuolo)
   const [spenti, setSpenti] = useState<Chiave[]>(nascosti)
   const [acc, setAcc] = useState(accessi)
@@ -280,6 +282,21 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
               ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato ✓</span>}</>
               : 'Spento: senza il nome del vault i collegamenti non saprebbero dove andare'}
           </p>
+        </div>
+      </Card>
+
+      {/* Numeri e Widget stanno qui dentro (intervista 9/9): non sono lavoro di tutti i giorni */}
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Strumenti</TitoloCard>
+        </header>
+        <div className="divide-y divide-velo">
+          <button onClick={onNumeri} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-velo/50">
+            <span>Numeri<span className="ml-2 font-normal text-tenue">funnel, ricorrente, canali</span></span><span className="text-spento">›</span>
+          </button>
+          <button onClick={onWidget} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-velo/50">
+            <span>Widget e istruzioni<span className="ml-2 font-normal text-tenue">cosa sa fare Clara, e i collegamenti</span></span><span className="text-spento">›</span>
+          </button>
         </div>
       </Card>
 

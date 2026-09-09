@@ -207,50 +207,50 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
     <div className="space-y-4">
 
       {/* ── da fare oggi: le cose che aspettano TE ─────────────── */}
-      <div className="rounded-2xl bg-blu text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]">
+      <div className="rounded-2xl border border-bordo bg-white">
         <div className="flex items-baseline justify-between px-4 pb-1 pt-3.5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
-          {pronto && daFare > 0 && <span className="text-lg font-extrabold tabular-nums leading-none">{daFare}</span>}
+          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-blu">Da fare oggi</p>
+          {pronto && daFare > 0 && <span className="text-lg font-extrabold tabular-nums leading-none text-navy">{daFare}</span>}
         </div>
         {!pronto ? (
           <p className="px-4 pb-4 text-[15px] font-extrabold">…</p>
         ) : daFare === 0 ? (
           <div className="px-4 pb-4">
-            <p className="text-[15px] font-extrabold">Tutto in ordine</p>
-            {prossimo && <p className="truncate text-[11px] text-white/70">Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}</p>}
+            <p className="text-[17px] font-extrabold text-navy">Tutto in ordine</p>
+            {prossimo && <p className="truncate text-[11px] text-tenue">Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}</p>}
           </div>
         ) : (
           <div className="pb-2">
             {bozze > 0 && (
-              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
-                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{bozze}</span>
+              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
+                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{bozze}</span>
                 <span className="min-w-0 flex-1 text-[15px] font-bold">{bozze === 1 ? 'bozza da approvare' : 'bozze da approvare'}</span>
-                <span className="shrink-0 text-[11px] text-white/55">posta di Clara →</span>
+                <span className="shrink-0 text-[11px] text-spento">posta di Clara →</span>
               </button>
             )}
             {domande > 0 && (
-              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
-                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{domande}</span>
+              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
+                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{domande}</span>
                 <span className="min-w-0 flex-1 text-[15px] font-bold">{domande === 1 ? 'domanda di Clara' : 'domande di Clara'}</span>
-                <span className="shrink-0 text-[11px] text-white/55">posta di Clara →</span>
+                <span className="shrink-0 text-[11px] text-spento">posta di Clara →</span>
               </button>
             )}
             {callDiOggi.length > 0 && (
-              <button onClick={onCalendario} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
-                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{callDiOggi.length}</span>
+              <button onClick={onCalendario} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
+                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{callDiOggi.length}</span>
                 <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
                   {callDiOggi.length === 1 ? 'call oggi' : 'call oggi'} · {callDiOggi[0].quando} {callDiOggi[0].testo}
                 </span>
-                <span className="shrink-0 text-[11px] text-white/55">calendario →</span>
+                <span className="shrink-0 text-[11px] text-spento">calendario →</span>
               </button>
             )}
             {taskOggi.length > 0 && (
-              <button onClick={onOggi} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-white/10">
-                <span className="w-7 shrink-0 text-right text-[17px] font-extrabold tabular-nums">{taskOggi.length}</span>
+              <button onClick={onOggi} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
+                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{taskOggi.length}</span>
                 <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
                   {taskOggi.length === 1 ? 'task tua in scadenza' : 'task tue in scadenza'} · {taskOggi[0].titolo}
                 </span>
-                <span className="shrink-0 text-[11px] text-white/55">Task →</span>
+                <span className="shrink-0 text-[11px] text-spento">Task →</span>
               </button>
             )}
           </div>

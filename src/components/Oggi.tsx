@@ -84,6 +84,7 @@ interface Gruppo {
 
 interface Props {
   onOpen: (id: string) => void
+  onCalendario?: () => void
 }
 
 const OGGI_CHIAVE = () => `task-fatte-${oggi()}`
@@ -118,7 +119,7 @@ function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; o
   )
 }
 
-export default function Oggi({ onOpen }: Props) {
+export default function Oggi({ onOpen, onCalendario }: Props) {
   const [attivita, setAttivita] = useState<TaskDre[] | null>(null)
   const [gruppi, setGruppi] = useState<Gruppo[] | null>(null)
   const [fatteCoda, setFatteCoda] = useState<Set<string>>(leggiFatte)
@@ -145,6 +146,7 @@ export default function Oggi({ onOpen }: Props) {
   // telefono sta sotto e si apre solo se serve. La scheda di una persona
   // mostra cosa ha in mano prima di caricarla.
   const [latoAperto, setLatoAperto] = useState(false)
+  const [claraAperta, setClaraAperta] = useState(false)   // la sezione «Da Clara», richiusa
   const [persona, setPersona] = useState<Persona | null>(null)
   const [taskDiPersona, setTaskDiPersona] = useState<TaskDre[] | null>(null)
   const [mandate, setMandate] = useState<TaskDre[]>([])
@@ -584,9 +586,8 @@ export default function Oggi({ onOpen }: Props) {
 
   return (
     <div className="space-y-4 pb-28 sm:pb-8">
-      <div className="lg:hidden">
-        <Radar onOpen={onOpen} />
-      </div>
+      {/* la giornata (intervista 9/9): sopra le cose che aspettano te, sotto le tue task */}
+      <Radar onOpen={onOpen} onCalendario={onCalendario} />
 
       {problema && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">
@@ -626,6 +627,64 @@ export default function Oggi({ onOpen }: Props) {
       {vistaVera === 'big' ? bigPicture() : (
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-4">
       <div className="space-y-4">
+      {/* Dre (9/9): «le task le aggiungo io; sopra, Clara mette le sue cose da
+          sola, richiuse, si aprono al click come le Completate». */}
+      {gruppiVivi.length > 0 && (
+        <Card className="p-3">
+          <button
+            onClick={() => setClaraAperta(!claraAperta)}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-velo/50"
+          >
+            <svg viewBox="0 0 24 24" className={`h-4 w-4 text-tenue transition-transform ${claraAperta ? 'rotate-90' : ''}`}>
+              <path fill="currentColor" d="M9 6l6 6-6 6z" />
+            </svg>
+            <span className="text-sm font-semibold">Da Clara</span>
+            <span className="text-xs text-spento">{gruppiVivi.reduce((t, g) => t + g.sotto.length, 0)}</span>
+            {!claraAperta && (
+              <span className="ml-auto truncate text-xs text-tenue">{gruppiVivi.map((g) => `${g.titolo} ${g.sotto.length}`).join(' · ')}</span>
+            )}
+          </button>
+          {claraAperta && (
+          <div>
+        {/* la coda dai dati: un titolo, i nomi come sottopunti */}
+          {gruppiVivi.map((g) => (
+          <div key={g.chiave} className="mt-1">
+            <div className="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-velo/50">
+              <Cerchio
+                fatta={false}
+                mezzo
+                onClick={() => spuntaCoda(g.sotto.map((s) => s.chiave))}
+              />
+              <p className="flex-1 text-sm font-semibold">{g.titolo}</p>
+              <span className="text-xs text-spento">{g.sotto.length}</span>
+            </div>
+            <div className="ml-[1.35rem] border-l border-velo pl-1">
+              {g.sotto.map((s) => (
+                <div
+                  key={s.chiave}
+                  className={`flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-velo/50 ${
+                    spuntando === s.chiave ? 'opacity-40' : ''
+                  }`}
+                >
+                  <Cerchio fatta={spuntando === s.chiave} onClick={() => spuntaCoda([s.chiave])} />
+                  <button onClick={() => onOpen(s.prospect_id)} className="min-w-0 flex-1 text-left">
+                    <p className={`text-sm ${spuntando === s.chiave ? 'text-spento line-through' : ''}`}>
+                      {s.nome}
+                      {s.sg && <span className="ml-1.5 text-[10px] font-semibold text-blu/70">{s.sg}</span>}
+                    </p>
+                    <p className="truncate text-xs text-tenue">{s.nota}</p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+          </div>
+          )}
+        </Card>
+      )}
+
       <Card className="p-3">
         {aggiungo ? (
           <div className="flex items-start gap-3 rounded-lg px-2 py-2">
@@ -740,42 +799,8 @@ export default function Oggi({ onOpen }: Props) {
           </div>
         ))}
 
-        {/* la coda dai dati: un titolo, i nomi come sottopunti */}
-        {gruppiVivi.map((g) => (
-          <div key={g.chiave} className="mt-1">
-            <div className="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-velo/50">
-              <Cerchio
-                fatta={false}
-                mezzo
-                onClick={() => spuntaCoda(g.sotto.map((s) => s.chiave))}
-              />
-              <p className="flex-1 text-sm font-semibold">{g.titolo}</p>
-              <span className="text-xs text-spento">{g.sotto.length}</span>
-            </div>
-            <div className="ml-[1.35rem] border-l border-velo pl-1">
-              {g.sotto.map((s) => (
-                <div
-                  key={s.chiave}
-                  className={`flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-velo/50 ${
-                    spuntando === s.chiave ? 'opacity-40' : ''
-                  }`}
-                >
-                  <Cerchio fatta={spuntando === s.chiave} onClick={() => spuntaCoda([s.chiave])} />
-                  <button onClick={() => onOpen(s.prospect_id)} className="min-w-0 flex-1 text-left">
-                    <p className={`text-sm ${spuntando === s.chiave ? 'text-spento line-through' : ''}`}>
-                      {s.nome}
-                      {s.sg && <span className="ml-1.5 text-[10px] font-semibold text-blu/70">{s.sg}</span>}
-                    </p>
-                    <p className="truncate text-xs text-tenue">{s.nota}</p>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        {mieDaFare.length === 0 && gruppiVivi.length === 0 && !aggiungo && (
-          <p className="px-2 py-6 text-center text-sm text-spento">Tutte le attività completate</p>
+        {mieDaFare.length === 0 && !aggiungo && (
+          <p className="px-2 py-6 text-center text-sm text-spento">Nessuna task. «Aggiungi un'attività» e scrivi.</p>
         )}
       </Card>
 

@@ -4,8 +4,7 @@ import { supabase, configured, demo } from './lib/supabase'
 import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
-import Lista from './components/Lista'
-import Pipeline from './components/Pipeline'
+import Aziende from './components/Aziende'
 import ClaraVolante from './components/ClaraVolante'
 import ClaraLogo from './components/ClaraLogo'
 import Vault from './components/Vault'
@@ -13,7 +12,6 @@ import Plugin from './components/Plugin'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
-import Tutti from './components/Tutti'
 import Progetti from './components/Progetti'
 import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
 import { nomeDa } from './lib/profilo'
@@ -189,7 +187,7 @@ export default function App() {
 
   const mail = demo ? '' : (session.user.email ?? '')
   const utente = nomeDa(mail, demo)
-  const titolo = widgetDi(tab)?.nome ?? (tab === 'impostazioni' ? 'Impostazioni' : '')
+  const titolo = widgetDi(tab)?.nome ?? (tab === 'impostazioni' ? 'Impostazioni' : tab === 'oggi' ? 'Oggi' : tab === 'tutti' ? 'Aziende' : tab === 'analytics' ? 'Numeri' : tab === 'plugin' ? 'Widget e istruzioni' : '')
   const ruolo = mioRuolo()
   const voci = menuDi(ruolo, 'menu')
   const vociSistema = menuDi(ruolo, 'sistema')
@@ -236,7 +234,7 @@ export default function App() {
             return (
               <button
                 key={t}
-                onClick={() => { setTab(t); setOpenId(null) }}
+                onClick={() => { if (t === 'clara') { window.dispatchEvent(new Event('clara:apri-posta')); return } setTab(t); setOpenId(null) }}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   attivo ? 'bg-velo text-inchiostro' : 'text-tenue hover:bg-velo/60 hover:text-inchiostro'
                 }`}
@@ -335,6 +333,10 @@ export default function App() {
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
+              {/* briciole (intervista 9/9): da dove vengo e come torno, sempre in alto */}
+              {(tab === 'analytics' || tab === 'plugin') && (
+                <button onClick={() => setTab('impostazioni')} className="mb-1 text-sm font-semibold text-blu hover:underline">‹ Impostazioni</button>
+              )}
               <h1 className="flex items-center gap-2 text-[24px] font-extrabold tracking-tight lg:text-[28px]">
                 {tab === 'pipeline' && <span className="text-navy"><ClaraLogo size={26} /></span>}
                 {tab === 'pipeline' ? saluto()[0] : titolo}
@@ -372,10 +374,8 @@ export default function App() {
           </div>
 
           <div key={versione}>
-            {tab === 'oggi' ? (
-              <Oggi onOpen={setOpenId} />
-            ) : tab === 'pipeline' ? (
-              <Pipeline onOpen={setOpenId} onOggi={() => setTab('oggi')} onCalendario={() => setTab('calendario')} onTutti={() => setTab('prospect')} />
+            {tab === 'oggi' || tab === 'pipeline' ? (
+              <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
             ) : tab === 'calendario' ? (
               <Calendario onOpen={setOpenId} />
             ) : tab === 'analytics' ? (
@@ -386,12 +386,11 @@ export default function App() {
               <Plugin />
             ) : tab === 'progetti' ? (
               <Progetti onOpen={setOpenId} />
-            ) : tab === 'tutti' ? (
-              <Tutti onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
-              <Impostazioni nome={utente} email={mail} demo={demo} onCambio={() => setVersione((v) => v + 1)} />
+              <Impostazioni nome={utente} email={mail} demo={demo} onCambio={() => setVersione((v) => v + 1)}
+                            onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />
             ) : (
-              <Lista onOpen={setOpenId} q={q} />
+              <Aziende onOpen={setOpenId} q={q} />
             )}
           </div>
         </main>
