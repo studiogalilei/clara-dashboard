@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   STAGE_LABEL, CLS_LABEL, PIPELINE_LABEL,
   type Stage, type Classificazione, type PipelineStage, type Market, type Prospect,
@@ -252,5 +252,27 @@ export function ZonaFile({ onFile, messaggio = 'Lascia qui il file', className =
         </div>
       )}
     </div>
+  )
+}
+
+// una cella di foglio: si scrive dentro, si salva quando esci (blur o Invio).
+// E' la cella del foglio di Giacomo: Progetti, Tutti, i preventivi.
+export function Cella({ valore, tipo = 'text', su, className = '', placeholder }: {
+  valore: string; tipo?: 'text' | 'date' | 'number'; su: (v: string) => void; className?: string; placeholder?: string
+}) {
+  const [v, setV] = useState(valore)
+  const ultimo = useRef(valore)
+  useEffect(() => { setV(valore); ultimo.current = valore }, [valore])
+  function chiudi() { if (v !== ultimo.current) { ultimo.current = v; su(v) } }
+  return (
+    <input
+      type={tipo}
+      value={v}
+      placeholder={placeholder}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={chiudi}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+      className={`w-full min-w-0 bg-transparent px-2 py-1.5 text-sm outline-none focus:bg-blu/5 focus:ring-1 focus:ring-blu ${className}`}
+    />
   )
 }

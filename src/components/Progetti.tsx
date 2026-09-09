@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Card, Spinner, Micro } from './ui'
+import { Card, Spinner, Micro, Cella } from './ui'
 import { giorno } from '../lib/regole'
 
 // PROGETTI = IL FOGLIO DI GIACOMO (Dre, 8/9): «un excel con selettore, serve
@@ -54,27 +54,6 @@ export const TIPI: Array<[NonNullable<Progetto['tipo']>, string, string]> = [
 interface Props { onOpen: (id: string) => void }
 
 type Campo = 'cliente' | 'nome' | 'natura' | 'chi_segue' | 'data_inizio' | 'scadenza' | 'valore' | 'note'
-
-// una cella del foglio: si scrive dentro, si salva quando esci (blur o Invio)
-function Cella({ valore, tipo = 'text', su, className = '', placeholder }: {
-  valore: string; tipo?: 'text' | 'date' | 'number'; su: (v: string) => void; className?: string; placeholder?: string
-}) {
-  const [v, setV] = useState(valore)
-  const ultimo = useRef(valore)
-  useEffect(() => { setV(valore); ultimo.current = valore }, [valore])
-  function chiudi() { if (v !== ultimo.current) { ultimo.current = v; su(v) } }
-  return (
-    <input
-      type={tipo}
-      value={v}
-      placeholder={placeholder}
-      onChange={(e) => setV(e.target.value)}
-      onBlur={chiudi}
-      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-      className={`w-full min-w-0 bg-transparent px-2 py-1.5 text-sm outline-none focus:bg-blu/5 focus:ring-1 focus:ring-blu ${className}`}
-    />
-  )
-}
 
 export default function Progetti({ onOpen }: Props) {
   const [righe, setRighe] = useState<Progetto[] | null>(null)

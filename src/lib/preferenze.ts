@@ -21,6 +21,7 @@ export const CHIAVI = [
   'task-vista',
   'tutti-vista',
   'tutti-filtro',
+  'tutti-modo',
   'clara-larghezza',
   'menu-larghezza',
   'obsidian-vault',

@@ -13,7 +13,7 @@ import Plugin from './components/Plugin'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
-import TuttiElenco from './components/TuttiElenco'
+import Tutti from './components/Tutti'
 import Progetti from './components/Progetti'
 import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
 import { nomeDa } from './lib/profilo'
@@ -387,7 +387,7 @@ export default function App() {
             ) : tab === 'progetti' ? (
               <Progetti onOpen={setOpenId} />
             ) : tab === 'tutti' ? (
-              <TuttiElenco onOpen={setOpenId} />
+              <Tutti onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
               <Impostazioni nome={utente} email={mail} demo={demo} onCambio={() => setVersione((v) => v + 1)} />
             ) : (
