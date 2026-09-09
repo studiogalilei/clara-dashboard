@@ -48,6 +48,8 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
   const [vaultSalvato, setVaultSalvato] = useState(false)
   // le notifiche sul telefono: il permesso lo da' il browser, noi salviamo l'indirizzo
   const [notifiche, setNotifiche] = useState<StatoNotifiche | null>(null)
+  const [nuovaPassword, setNuovaPassword] = useState('')
+  const [passwordEsito, setPasswordEsito] = useState<string | null>(null)
   const [notificheProblema, setNotificheProblema] = useState<string | null>(null)
   useEffect(() => { void statoNotifiche().then(setNotifiche) }, [])
   const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
@@ -284,6 +286,38 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
           </p>
         </div>
       </Card>
+
+      {/* la password: al primo accesso ognuno si mette la sua (accessi creati il 9/9) */}
+      {!demo && (
+        <Card>
+          <header className="border-b border-velo px-4 py-3">
+            <TitoloCard>Password</TitoloCard>
+          </header>
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+            <input
+              type="password"
+              value={nuovaPassword}
+              onChange={(e) => { setNuovaPassword(e.target.value); setPasswordEsito(null) }}
+              placeholder="Nuova password (almeno 8 caratteri)"
+              autoComplete="new-password"
+              className="min-w-[240px] flex-1 rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+            />
+            <button
+              type="button"
+              disabled={nuovaPassword.length < 8}
+              onClick={async () => {
+                const { error } = await supabase.auth.updateUser({ password: nuovaPassword })
+                setPasswordEsito(error ? 'Non è cambiata: ' + error.message : 'Password cambiata ✓')
+                if (!error) setNuovaPassword('')
+              }}
+              className="rounded-full bg-blu px-4 py-2 text-sm font-semibold text-white hover:bg-blu-scuro disabled:opacity-40"
+            >
+              Cambia
+            </button>
+            {passwordEsito && <p className={`w-full text-xs ${passwordEsito.startsWith('Non') ? 'text-red-700' : 'text-green-700'}`}>{passwordEsito}</p>}
+          </div>
+        </Card>
+      )}
 
       {/* Numeri e Widget stanno qui dentro (intervista 9/9): non sono lavoro di tutti i giorni */}
       <Card>
