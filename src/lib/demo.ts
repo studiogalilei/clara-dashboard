@@ -13,7 +13,7 @@ const vuoto = {
   role: null, phone: null, linkedin: null, website: null, owner_name: null,
   socials: {}, first_reply_at: null, analysis_pdf: null, next_action: null,
   next_action_date: null, no_followup: false, deal_value: null, lost_reason: null,
-  notes: null, enriched: {}, followup_due: null, ooo_until: null,
+  notes: null, enriched: {}, followup_due: null, ooo_until: null, prova_inizio: null, prova_fine: null,
   fuori: false, fuori_at: null, pipeline_stage: null,
   fuori_binario: null, market: null, contratto: null, canone: null,
   descrizione: null, sg_id: null,
