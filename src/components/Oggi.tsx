@@ -586,8 +586,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
 
   return (
     <div className="space-y-4 pb-28 sm:pb-8">
-      {/* la giornata (intervista 9/9): sopra le cose che aspettano te, sotto le tue task */}
-      <Radar onOpen={onOpen} onCalendario={onCalendario} />
+      {/* la giornata (Dre, 9/9): in alto la prossima call, sotto le task, in fondo gli avvisi */}
+      <Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" />
 
       {problema && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">
@@ -595,23 +595,11 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         </p>
       )}
 
-      {/* le due viste: stesse task, due modi di guardarle */}
-      <div className="hidden items-center gap-2 sm:flex">
-        <div className="flex overflow-hidden rounded-full border border-bordo bg-white">
-          {(['ongo', 'big'] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => cambiaVista(v)}
-              className={`px-4 py-1.5 text-xs font-bold transition-colors ${
-                vista === v ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'
-              }`}
-            >
-              {v === 'ongo' ? 'On go' : 'Week picture'}
-            </button>
-          ))}
-        </div>
+      {/* le due viste: stesse task, due modi di guardarle. Il commutatore non sta
+          piu' in cima alla home (Dre, 9/9): la Week picture resta raggiungibile da qui sotto */}
+      <div className="hidden items-center justify-end gap-3 sm:flex">
         {vistaVera === 'big' && (
-          <div className="ml-auto flex items-center gap-1">
+          <div className="mr-auto flex items-center gap-1">
             <button onClick={() => setSettimana(settimana - 1)} aria-label="Settimana prima"
               className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm text-tenue hover:border-navy">‹</button>
             <button onClick={() => setSettimana(0)} disabled={settimana === 0}
@@ -622,6 +610,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
               className="rounded-full border border-bordo bg-white px-2.5 py-1 text-sm text-tenue hover:border-navy">›</button>
           </div>
         )}
+        <button onClick={() => cambiaVista(vistaVera === 'big' ? 'ongo' : 'big')} className="text-xs font-semibold text-tenue hover:text-navy">
+          {vistaVera === 'big' ? '‹ Torna alla lista' : 'Week picture ›'}
+        </button>
       </div>
 
       {vistaVera === 'big' ? bigPicture() : (
@@ -836,6 +827,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       </aside>
       </div>
       )}
+
+      <Radar onOpen={onOpen} onCalendario={onCalendario} parte="avvisi" />
 
       <button
         onClick={() => { setAggiungo(true); setTimeout(() => nuovoRef.current?.focus(), 50) }}

@@ -23,6 +23,9 @@ interface Props {
   onOpen: (id: string) => void
   onOggi?: () => void
   onCalendario?: () => void
+  // Dre (9/9): in alto la prossima call, sotto le task, in fondo gli avvisi.
+  // Il radar si divide in due: la parte «call» sta sopra la lista, «avvisi» sotto.
+  parte?: 'call' | 'avvisi' | 'tutto'
 }
 
 interface Voce {
@@ -40,7 +43,7 @@ function fraQuanto(at: string): string {
   return `fra ${gg} giorni`
 }
 
-export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
+export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }: Props) {
   const [avvisi, setAvvisi] = useState<Avviso[]>([])
   const [prossimo, setProssimo] = useState<AgendaItem | null>(null)
   const [settimana, setSettimana] = useState(0)
@@ -213,68 +216,8 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   return (
     <div className="space-y-4">
 
-      {/* ── da fare oggi: le cose che aspettano TE ─────────────── */}
-      <div className="rounded-2xl border border-bordo bg-white">
-        <div className="flex items-baseline justify-between px-4 pb-1 pt-3.5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-blu">Da fare oggi</p>
-          {pronto && daFare > 0 && <span className="text-lg font-extrabold tabular-nums leading-none text-navy">{daFare}</span>}
-        </div>
-        {!pronto ? (
-          <p className="px-4 pb-4 text-[15px] font-extrabold">…</p>
-        ) : daFare === 0 ? (
-          <div className="px-4 pb-4">
-            <p className="text-[17px] font-extrabold text-navy">Tutto in ordine</p>
-            {prossimo && <p className="truncate text-[11px] text-tenue">Prossima: {prossimo.titolo} · {fmtDateShort(prossimo.at)}</p>}
-          </div>
-        ) : (
-          <div className="pb-2">
-            {bozze > 0 && (
-              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
-                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{bozze}</span>
-                <span className="min-w-0 flex-1 text-[15px] font-bold">{bozze === 1 ? 'bozza da approvare' : 'bozze da approvare'}</span>
-                <span className="shrink-0 text-[11px] text-spento">posta di Clara →</span>
-              </button>
-            )}
-            {domande > 0 && (
-              <button onClick={apriPosta} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
-                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{domande}</span>
-                <span className="min-w-0 flex-1 text-[15px] font-bold">{domande === 1 ? 'domanda di Clara' : 'domande di Clara'}</span>
-                <span className="shrink-0 text-[11px] text-spento">posta di Clara →</span>
-              </button>
-            )}
-            {callDiOggi.length > 0 && (
-              <button onClick={onCalendario} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
-                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{callDiOggi.length}</span>
-                <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
-                  {callDiOggi.length === 1 ? 'call oggi' : 'call oggi'} · {callDiOggi[0].quando} {callDiOggi[0].testo}
-                </span>
-                <span className="shrink-0 text-[11px] text-spento">calendario →</span>
-              </button>
-            )}
-            {proveInScadenza.length > 0 && (
-              <button onClick={() => onOpen(proveInScadenza[0].id)} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
-                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{proveInScadenza.length}</span>
-                <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
-                  {proveInScadenza.length === 1 ? 'prova che finisce' : 'prove che finiscono'} · {proveInScadenza[0].nome} il {fmtDateShort(proveInScadenza[0].fine)}
-                </span>
-                <span className="shrink-0 text-[11px] text-spento">riaccordarsi →</span>
-              </button>
-            )}
-            {taskOggi.length > 0 && (
-              <button onClick={onOggi} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
-                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{taskOggi.length}</span>
-                <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
-                  {taskOggi.length === 1 ? 'task tua in scadenza' : 'task tue in scadenza'} · {taskOggi[0].titolo}
-                </span>
-                <span className="shrink-0 text-[11px] text-spento">Task →</span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* ── la Prossima: un solo evento, grande ───────────────── */}
-      {prossimo && (
+      {parte !== 'avvisi' && prossimo && (
         <Card className="border-l-4 border-l-navy">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5">
             <button
@@ -295,10 +238,27 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
               </button>
             )}
           </div>
+          {/* la riga di oggi: quello che aspetta te, secco, senza riquadro (Dre, 9/9) */}
+          {pronto && daFare > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-velo px-5 py-2 text-xs text-tenue">
+              {callDiOggi.length > 0 && <button onClick={onCalendario} className="hover:text-navy"><b className="text-inchiostro">{callDiOggi.length}</b> call oggi · {callDiOggi[0].quando} {callDiOggi[0].testo}</button>}
+              {bozze > 0 && <button onClick={apriPosta} className="hover:text-navy"><b className="text-inchiostro">{bozze}</b> {bozze === 1 ? 'bozza da approvare' : 'bozze da approvare'}</button>}
+              {domande > 0 && <button onClick={apriPosta} className="hover:text-navy"><b className="text-inchiostro">{domande}</b> {domande === 1 ? 'domanda di Clara' : 'domande di Clara'}</button>}
+              {proveInScadenza.length > 0 && <button onClick={() => onOpen(proveInScadenza[0].id)} className="hover:text-navy"><b className="text-inchiostro">{proveInScadenza.length}</b> {proveInScadenza.length === 1 ? 'prova che finisce' : 'prove che finiscono'} · {proveInScadenza[0].nome} il {fmtDateShort(proveInScadenza[0].fine)}</button>}
+            </div>
+          )}
         </Card>
+      )}
+      {parte !== 'avvisi' && !prossimo && pronto && daFare > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-tenue">
+          {bozze > 0 && <button onClick={apriPosta} className="hover:text-navy"><b className="text-inchiostro">{bozze}</b> {bozze === 1 ? 'bozza da approvare' : 'bozze da approvare'}</button>}
+          {domande > 0 && <button onClick={apriPosta} className="hover:text-navy"><b className="text-inchiostro">{domande}</b> {domande === 1 ? 'domanda di Clara' : 'domande di Clara'}</button>}
+          {proveInScadenza.length > 0 && <button onClick={() => onOpen(proveInScadenza[0].id)} className="hover:text-navy"><b className="text-inchiostro">{proveInScadenza.length}</b> {proveInScadenza.length === 1 ? 'prova che finisce' : 'prove che finiscono'}</button>}
+        </div>
       )}
 
       {/* ── avvisi ────────────────────────────────────────────── */}
+      {parte !== 'call' && (
       <div id="avvisi" className="scroll-mt-4">
         {avvisi.length === 0 ? (
           <p className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800">
@@ -349,6 +309,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
           </Card>
         )}
       </div>
+    )}
     </div>
   )
 }
