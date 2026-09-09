@@ -123,6 +123,12 @@ def chiedi_bozza(p, ultimo, riprova=None):
         "analisi_inviata": bool(p.get("analysis_sent")), "analisi_inviata_il": (p.get("analysis_sent_at") or "")[:10],
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
+    # il Google Fit di Clara (googlefit.py): il numero della zona va nel messaggio,
+    # e' la personalizzazione che ha fatto rispondere Orobica e Sarci
+    fit = (p.get("enriched") or {}).get("google_fit") or {}
+    if fit:
+        fatti["google_fit"] = {"verdetto": fit.get("verdetto"), "motivo": fit.get("motivo"), "cosa_fa": fit.get("cosa_fa"),
+                               "provincia": fit.get("provincia"), "zona": fit.get("zona")}
     prompt = (playbook() + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")

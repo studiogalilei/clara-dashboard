@@ -1,0 +1,142 @@
+settore,tipo,ticket_cliente,domanda_nazionale,cpc_medio,trend_3anni_pct,trend_12m_pct,picco,pavimento_pct,mese_contatto,zone_misurate,zone_verdi,zone_gialle,top_province
+elettrodomestici,B2C,2000,1152546,0.32,-14,-4,nov,89,set,98,95,2,"Milano (201,850) | Roma Capitale (116,050) | Città Metropolitana di Napoli (48,740) | Città Metropolitana di Torino (40,300) | Città Metropolitana di Bologna (26,990)"
+stufe_pellet,B2C,4000,1302479,0.46,-1,5,nov,32,set,98,92,6,"Milano (227,840) | Roma Capitale (76,930) | Città Metropolitana di Torino (40,930) | Città Metropolitana di Napoli (28,930) | Città Metropolitana di Bologna (26,030)"
+autonoleggio_lt,misto,15000,814217,0.85,-11,-14,gen,86,nov,98,88,9,"Milano (139,190) | Roma Capitale (94,020) | Città Metropolitana di Napoli (45,770) | Città Metropolitana di Torino (28,590) | Città Metropolitana di Bologna (17,850)"
+noleggio_edile,B2B,2500,578882,1.28,-10,-21,mar,73,gen,98,87,11,"Milano (105,230) | Roma Capitale (51,800) | Città Metropolitana di Torino (16,790) | Città Metropolitana di Napoli (15,380) | Città Metropolitana di Bologna (14,410)"
+case_legno,B2C,40000,872398,0.38,-20,0,ago,71,giu,98,86,11,"Milano (137,580) | Roma Capitale (77,110) | Città Metropolitana di Napoli (24,110) | Città Metropolitana di Bari (21,510) | Città Metropolitana di Bologna (18,360)"
+noleggio_barche,B2C,2000,530402,0.58,-37,-40,ago,40,giu,98,78,13,"Milano (80,370) | Roma Capitale (60,560) | Città Metropolitana di Napoli (32,620) | Cagliari (23,700) | Palermo (20,750)"
+fotovoltaico_casa,misto,20000,439422,1.69,-44,-23,mar,78,gen,98,71,22,"Milano (67,540) | Roma Capitale (39,270) | Città Metropolitana di Napoli (12,500) | Città Metropolitana di Torino (12,120) | Città Metropolitana di Bologna (8,840)"
+agenzie_immobiliari,misto,8000,407496,0.31,-26,-20,set,70,lug,98,67,18,"Milano (58,120) | Roma Capitale (34,650) | Città Metropolitana di Torino (14,930) | Città Metropolitana di Napoli (12,750) | Palermo (10,810)"
+ticket_eventi,B2C,200,410827,0.17,-28,-14,giu,67,apr,98,65,16,"Milano (83,570) | Roma Capitale (46,150) | Città Metropolitana di Napoli (23,470) | Città Metropolitana di Torino (13,680) | Città Metropolitana di Bologna (13,130)"
+pompe_calore_casa,misto,12000,376558,0.77,-33,-15,gen,76,nov,98,62,28,"Milano (60,320) | Roma Capitale (29,720) | Città Metropolitana di Torino (12,310) | Città Metropolitana di Napoli (9,020) | Città Metropolitana di Bologna (7,730)"
+veterinari,B2C,600,289408,0.65,6,-7,ago,84,giu,98,60,24,"Roma Capitale (47,910) | Milano (45,820) | Città Metropolitana di Napoli (12,440) | Città Metropolitana di Torino (11,750) | Bergamo (7,410)"
+onoranze_funebri,B2C,3500,356548,2.67,12,2,gen,93,nov,98,53,12,"Milano (35,270) | Brescia (29,000) | Belluno (23,400) | Treviso (22,200) | Città Metropolitana di Venezia (17,490)"
+ferro_battuto,B2C,4000,330812,0.55,-22,-9,mar,70,gen,98,52,22,"Milano (47,630) | Roma Capitale (29,790) | Città Metropolitana di Napoli (11,310) | Città Metropolitana di Torino (6,150) | Cagliari (5,860)"
+corsi_sicurezza,B2B,1500,183732,1.48,-10,-4,ott,80,lug,98,52,27,"Milano (41,620) | Roma Capitale (23,360) | Città Metropolitana di Torino (8,060) | Città Metropolitana di Napoli (8,020) | Città Metropolitana di Bologna (6,670)"
+colonnine_ricarica,misto,3000,259637,1.73,56,25,lug,92,mag,98,50,31,"Milano (36,620) | Roma Capitale (23,870) | Città Metropolitana di Torino (6,680) | Brescia (6,360) | Città Metropolitana di Napoli (6,290)"
+pavimentazioni_esterne,B2C,8000,318959,0.53,-23,-13,mar,54,gen,98,48,23,"Milano (45,430) | Roma Capitale (28,380) | Città Metropolitana di Napoli (9,950) | Città Metropolitana di Torino (7,720) | Città Metropolitana di Bologna (5,410)"
+tour_operator,B2C,1500,243757,1.0,-21,-16,gen,68,nov,98,48,33,"Milano (32,540) | Roma Capitale (20,860) | Città Metropolitana di Napoli (10,660) | Città Metropolitana di Torino (9,220) | Padova (6,080)"
+assistenza_elettro_top,B2C,400,402460,1.28,-2,-4,lug,83,mag,98,47,13,"Milano (53,830) | Roma Capitale (32,660) | Città Metropolitana di Torino (13,170) | Città Metropolitana di Napoli (12,770) | Città Metropolitana di Bologna (7,400)"
+camperizzazione,B2C,15000,232443,0.4,-16,-22,ago,49,giu,98,45,20,"Milano (63,250) | Roma Capitale (13,900) | Città Metropolitana di Torino (9,870) | Città Metropolitana di Bologna (8,450) | Città Metropolitana di Firenze (4,770)"
+sicurezza_lavoro,B2B,3000,147910,1.61,-13,-5,ott,83,lug,98,41,30,"Milano (34,930) | Roma Capitale (19,390) | Città Metropolitana di Torino (6,910) | Città Metropolitana di Napoli (6,580) | Città Metropolitana di Bologna (5,170)"
+noleggio_lungo_termine,B2B,15000,181026,0.89,-13,-20,gen,86,nov,98,36,33,"Milano (30,680) | Roma Capitale (20,020) | Città Metropolitana di Napoli (8,890) | Città Metropolitana di Torino (5,880) | Città Metropolitana di Bologna (4,170)"
+allestimento_negozi,B2B,20000,225808,0.67,-26,-19,gen,77,nov,98,34,22,"Milano (35,110) | Roma Capitale (22,920) | Città Metropolitana di Napoli (10,370) | Città Metropolitana di Torino (7,080) | Città Metropolitana di Bologna (4,160)"
+recinzioni_cancelli,B2C,4000,197668,0.51,-36,-14,apr,62,feb,98,31,28,"Milano (29,400) | Roma Capitale (15,680) | Città Metropolitana di Napoli (4,990) | Città Metropolitana di Torino (4,790) | Città Metropolitana di Bologna (3,540)"
+noleggio_piattaforme,B2B,2500,141131,1.47,-3,-37,ott,72,lug,98,31,21,"Milano (18,210) | Roma Capitale (12,100) | Città Metropolitana di Napoli (5,570) | Città Metropolitana di Bari (3,900) | Palermo (3,430)"
+carrozzeria_pdr,B2C,1500,130144,1.08,-23,-20,ago,78,giu,98,26,27,"Milano (20,700) | Roma Capitale (12,060) | Città Metropolitana di Torino (7,580) | Città Metropolitana di Bologna (3,530) | Città Metropolitana di Napoli (3,200)"
+serramenti,B2C,8000,167351,0.9,-32,-10,ott,76,lug,98,24,27,"Milano (23,550) | Roma Capitale (14,740) | Città Metropolitana di Napoli (7,920) | Palermo (3,840) | Città Metropolitana di Torino (3,110)"
+addolcitori,B2C,2500,127774,1.01,-10,-3,set,85,lug,98,24,24,"Milano (17,520) | Roma Capitale (12,840) | Città Metropolitana di Napoli (8,030) | Città Metropolitana di Torino (2,830) | Città Metropolitana di Bologna (2,760)"
+noleggio_camper,B2C,1500,101554,0.62,-28,-19,lug,49,mag,98,24,26,"Milano (17,820) | Roma Capitale (8,020) | Città Metropolitana di Torino (3,790) | Città Metropolitana di Bologna (2,680) | Città Metropolitana di Napoli (2,560)"
+medicina_estetica,B2C,1500,139117,0.69,6,-4,mar,82,gen,98,22,15,"Milano (24,380) | Roma Capitale (15,090) | Città Metropolitana di Napoli (6,690) | Città Metropolitana di Torino (3,530) | Città Metropolitana di Bologna (3,040)"
+ncc_transfer,misto,600,120171,0.8,3,-10,mar,88,gen,98,19,11,"Milano (28,420) | Roma Capitale (24,060) | Città Metropolitana di Napoli (5,810) | Palermo (3,850) | Catania (2,660)"
+corsi_academy,B2C,2500,100622,1.31,-15,-14,set,79,lug,98,19,16,"Milano (17,200) | Roma Capitale (9,010) | Città Metropolitana di Torino (8,510) | Città Metropolitana di Napoli (4,230) | Città Metropolitana di Bari (2,030)"
+scuole_musica_danza,B2C,900,151674,0.51,-16,-13,set,85,lug,98,17,10,"Milano (25,720) | Roma Capitale (13,570) | Città Metropolitana di Napoli (6,560) | Città Metropolitana di Torino (4,030) | Palermo (3,210)"
+etichette,B2B,6000,83461,1.25,-18,-9,set,84,lug,98,16,15,"Milano (12,200) | Roma Capitale (6,130) | Città Metropolitana di Napoli (2,960) | Città Metropolitana di Torino (2,580) | Città Metropolitana di Bologna (1,680)"
+consulenza_lavoro,B2B,4000,35148,2.34,-25,-7,giu,62,apr,98,15,20,"Roma Capitale (10,120) | Milano (8,500) | Città Metropolitana di Napoli (4,300) | Città Metropolitana di Torino (2,140) | Città Metropolitana di Bari (1,860)"
+cartongesso,B2C,4000,141169,0.92,-41,-22,ott,73,lug,98,14,12,"Milano (18,310) | Roma Capitale (10,360) | Città Metropolitana di Napoli (5,720) | Città Metropolitana di Torino (2,760) | Palermo (2,390)"
+porte_blindate,B2C,3000,91855,0.8,-38,-10,gen,79,nov,98,13,12,"Milano (15,190) | Roma Capitale (8,170) | Città Metropolitana di Napoli (2,780) | Città Metropolitana di Torino (2,520) | Città Metropolitana di Bologna (1,580)"
+manutenzione_verde,B2B,3000,127454,0.55,-20,-15,feb,53,dic,98,12,12,"Milano (15,100) | Roma Capitale (8,940) | Città Metropolitana di Torino (2,140) | Città Metropolitana di Bologna (1,990) | Città Metropolitana di Napoli (1,550)"
+ascensori,misto,20000,80227,1.62,-40,-26,gen,81,nov,98,12,11,"Milano (11,750) | Roma Capitale (5,930) | Città Metropolitana di Napoli (3,490) | Città Metropolitana di Torino (2,250) | Città Metropolitana di Bologna (1,470)"
+patenti_nautiche,B2C,900,70412,0.46,-10,-16,ago,40,giu,98,12,13,"Milano (12,390) | Roma Capitale (6,020) | Città Metropolitana di Napoli (2,700) | Città Metropolitana di Torino (1,470) | Città Metropolitana di Bologna (1,340)"
+traslochi,misto,1500,67564,2.31,-42,-33,mar,83,gen,98,12,10,"Milano (14,260) | Roma Capitale (7,300) | Città Metropolitana di Napoli (2,720) | Città Metropolitana di Torino (2,570) | Brescia (1,790)"
+allestimento_lavoro,B2B,4000,51843,0.33,-55,-54,ott,65,lug,98,12,11,"Milano (9,580) | Roma Capitale (4,220) | Città Metropolitana di Bari (2,020) | Città Metropolitana di Torino (1,820) | Città Metropolitana di Napoli (1,180)"
+depilazione_laser,B2C,1200,71220,1.04,-37,-25,mar,80,gen,98,11,12,"Milano (12,350) | Roma Capitale (6,620) | Città Metropolitana di Napoli (2,640) | Città Metropolitana di Torino (2,230) | Città Metropolitana di Bologna (1,510)"
+carpenteria_metallica,B2B,25000,59430,1.11,-2,-8,mar,85,gen,98,11,13,"Milano (7,530) | Roma Capitale (3,610) | Brescia (2,430) | Città Metropolitana di Torino (1,870) | Città Metropolitana di Napoli (1,780)"
+gallerie_arte,B2C,3000,129694,0.67,124,-8,mar,81,gen,98,10,4,"Roma Capitale (80,870) | Città Metropolitana di Venezia (5,630) | Milano (5,630) | Palermo (3,840) | Verona (3,600)"
+patenti_superiori,B2C,2000,77035,0.44,-19,-22,ott,77,lug,98,9,17,"Milano (15,970) | Roma Capitale (5,620) | Città Metropolitana di Torino (2,580) | Città Metropolitana di Bologna (2,070) | Città Metropolitana di Firenze (1,820)"
+giardini_irrigazione,B2C,6000,63174,0.4,-32,-16,giu,31,apr,98,8,11,"Milano (9,450) | Roma Capitale (5,310) | Città Metropolitana di Torino (1,650) | Città Metropolitana di Bologna (1,180) | Città Metropolitana di Napoli (1,180)"
+addestramento_cani,B2C,800,46214,1.08,-34,-45,feb,76,dic,98,8,13,"Milano (10,320) | Roma Capitale (5,960) | Città Metropolitana di Napoli (1,940) | Città Metropolitana di Torino (1,800) | Città Metropolitana di Bologna (1,240)"
+fotovoltaico,misto,30000,45308,3.9,-24,-25,mag,72,mar,98,8,15,"Milano (6,660) | Roma Capitale (4,180) | Città Metropolitana di Napoli (1,590) | Città Metropolitana di Torino (1,290) | Palermo (1,080)"
+cucine_esterne,B2C,7000,56693,0.33,-32,-4,apr,41,feb,98,7,7,"Milano (7,770) | Roma Capitale (5,760) | Città Metropolitana di Napoli (1,230) | Città Metropolitana di Torino (1,110) | Città Metropolitana di Firenze (1,030)"
+piscine_spa,B2C,25000,45260,0.51,-58,-30,lug,60,mag,98,7,14,"Milano (6,700) | Roma Capitale (4,250) | Città Metropolitana di Torino (1,460) | Città Metropolitana di Napoli (1,310) | Brescia (1,010)"
+ems_personal,B2C,1500,49132,1.15,-28,-24,set,79,lug,98,6,13,"Milano (9,280) | Roma Capitale (5,060) | Città Metropolitana di Napoli (2,150) | Città Metropolitana di Torino (1,720) | Città Metropolitana di Bologna (980)"
+pulizie_industriali,B2B,8000,36718,1.47,-25,-38,set,87,lug,98,6,13,"Milano (9,320) | Roma Capitale (3,370) | Città Metropolitana di Napoli (2,760) | Città Metropolitana di Torino (1,690) | Brescia (1,650)"
+parquet,B2C,5000,56652,0.63,-20,-11,gen,82,nov,98,5,5,"Milano (11,180) | Roma Capitale (5,190) | Città Metropolitana di Torino (1,580) | Città Metropolitana di Napoli (1,030) | Città Metropolitana di Bologna (1,000)"
+allarmi_videosorv,misto,3500,55049,3.84,-26,-26,gen,80,nov,98,5,12,"Milano (9,340) | Roma Capitale (4,830) | Città Metropolitana di Torino (2,390) | Città Metropolitana di Napoli (2,310) | Città Metropolitana di Bologna (860)"
+software_gestionale,B2B,8000,42576,4.22,-35,-56,lug,66,mag,98,4,9,"Milano (6,220) | Roma Capitale (2,980) | Città Metropolitana di Napoli (1,630) | Città Metropolitana di Torino (1,040)"
+cabine_armadio,B2C,6000,32582,0.62,-16,-2,gen,77,nov,98,4,2,"Milano (5,310) | Roma Capitale (3,930) | Città Metropolitana di Torino (1,050) | Città Metropolitana di Napoli (1,030)"
+fabbro,B2C,300,26111,8.9,-35,-16,set,70,lug,98,4,2,"Milano (13,130) | Roma Capitale (2,370) | Città Metropolitana di Bologna (1,080) | Città Metropolitana di Torino (1,020)"
+sgomberi,B2C,800,18171,1.8,-33,-17,set,71,lug,98,4,3,"Milano (4,520) | Brescia (2,450) | Roma Capitale (2,390) | Città Metropolitana di Torino (990)"
+tinteggiature,B2C,3000,28973,0.6,-33,-30,mag,59,mar,98,3,2,"Milano (4,050) | Roma Capitale (2,150) | Città Metropolitana di Napoli (850)"
+patentini_muletto,B2B,1200,27929,1.18,9,0,mar,73,gen,98,3,8,"Milano (6,580) | Roma Capitale (1,310) | Città Metropolitana di Torino (940)"
+montascale,B2C,8000,24966,3.43,-82,-60,set,82,lug,98,3,3,"Milano (4,750) | Roma Capitale (1,850) | Città Metropolitana di Napoli (980)"
+zanzariere,B2C,2500,23661,0.65,-25,7,giu,22,apr,98,3,6,"Milano (3,660) | Roma Capitale (2,490) | Città Metropolitana di Torino (1,030)"
+automazione_industriale,B2B,20000,20696,1.62,35,-21,mag,83,mar,98,3,4,"Milano (3,850) | Roma Capitale (1,560) | Città Metropolitana di Torino (990)"
+dentisti,B2C,3000,20314,1.24,-26,-16,gen,83,nov,98,3,3,"Milano (3,630) | Roma Capitale (2,020) | Città Metropolitana di Napoli (910)"
+ristrutturazione_bagno,B2C,9000,19474,1.5,-72,-43,lug,86,mag,98,3,3,"Milano (3,710) | Roma Capitale (1,900) | Città Metropolitana di Torino (970)"
+sartoria,B2C,2000,13938,0.79,-26,-10,gen,83,nov,98,3,0,"Milano (1,960) | Roma Capitale (1,810) | Città Metropolitana di Napoli (960)"
+vigilanza,B2B,6000,12755,2.45,-2,-9,ott,88,lug,98,3,1,"Milano (1,980) | Roma Capitale (1,330) | Città Metropolitana di Napoli (980)"
+grandi_cucine,B2B,15000,152931,0.95,-5,2,mar,80,gen,10,2,1,"Città Metropolitana di Torino (4,110) | Cuneo (840)"
+bonifica_amianto,B2B,6000,25022,1.58,-24,-17,mar,66,gen,98,2,4,"Milano (3,730) | Roma Capitale (2,030)"
+wrapping_ppf,misto,2500,22432,0.39,-25,-17,mar,81,gen,98,2,3,"Milano (3,840) | Roma Capitale (1,810)"
+caldaie,B2C,3000,22208,2.15,-35,-21,nov,61,set,98,2,2,"Milano (3,150) | Roma Capitale (1,610)"
+cucine_misura,B2C,12000,22143,1.02,-23,-7,gen,77,nov,98,2,2,"Milano (3,820) | Roma Capitale (1,830)"
+saune_wellness,B2C,8000,18638,0.89,-24,-4,gen,57,nov,98,2,2,"Milano (2,940) | Roma Capitale (1,120)"
+marmisti,B2C,5000,18596,0.58,-35,-19,gen,79,nov,98,2,1,"Milano (3,200) | Roma Capitale (1,600)"
+impianti_elettrici_domotica,misto,8000,18592,0.73,-29,-15,gen,78,nov,98,2,2,"Milano (2,810) | Roma Capitale (1,520)"
+restauro_mobili,B2C,1500,17048,0.36,-21,-11,gen,76,nov,98,2,0,"Milano (2,650) | Roma Capitale (1,260)"
+certificazioni_iso,B2B,5000,17005,8.61,-17,-16,mar,82,gen,98,2,2,"Milano (2,380) | Roma Capitale (1,370)"
+recupero_crediti,B2B,3000,14410,1.84,-25,-19,ott,85,lug,98,2,1,"Milano (2,120) | Roma Capitale (1,340)"
+corsi_sub_volo,B2C,1500,14258,0.64,-31,-21,ago,78,giu,98,2,0,"Milano (2,810) | Roma Capitale (1,320)"
+resine_pavimenti_ind,B2B,12000,12526,1.53,-24,-33,mar,85,gen,98,2,0,"Milano (1,540) | Roma Capitale (900)"
+car_detailing,B2C,800,12472,0.45,-8,-9,mar,83,gen,98,2,1,"Milano (2,100) | Roma Capitale (1,250)"
+wedding_catering,B2C,6000,10519,1.11,-39,5,giu,54,apr,98,2,0,"Milano (1,600) | Roma Capitale (920)"
+insegne_stampa,B2B,3000,10468,1.59,-27,-21,ott,80,lug,98,2,0,"Milano (1,490) | Roma Capitale (930)"
+terzo_responsabile,B2B,4000,8755,1.44,-9,-2,nov,72,set,98,2,1,"Milano (1,580) | Roma Capitale (890)"
+medicina_lavoro,B2B,5000,3273,1.56,-34,-22,ott,88,lug,98,2,3,"Milano (2,560) | Roma Capitale (1,650)"
+impianti_audio_auto,B2C,1200,9210,0.17,-37,-24,ott,83,lug,98,1,1,"Milano (1,510)"
+stampaggio_plastica,B2B,20000,8604,2.79,-37,-37,gen,73,nov,98,1,1,"Milano (1,280)"
+scarichi_sportivi,B2C,1500,7506,0.21,-32,-27,ott,81,lug,98,1,1,"Milano (1,070)"
+sicurezza_informatica,B2B,12000,6933,3.8,131,100,dic,65,ott,98,1,1,"Milano (1,270)"
+disinfestazione,B2B,2500,6622,1.94,-50,-53,giu,54,apr,98,1,1,"Milano (1,150)"
+antincendio,B2B,3000,6108,1.44,-8,-26,mar,82,gen,98,1,1,Milano (910)
+formazione_aziendale,B2B,5000,4168,3.07,-26,-57,mag,89,mar,98,1,0,Milano (900)
+parrucchieri,B2C,500,860584,0.51,-7,-18,ago,87,giu,0,0,0,
+integratori_sportivi,B2C,100,358552,0.62,16,19,mar,66,gen,0,0,0,
+abbigliamento_sci,misto,2000,233284,0.27,-42,-22,gen,8,nov,0,0,0,
+cornici_specchi,misto,800,136110,0.33,-28,-12,gen,73,nov,0,0,0,
+prodotti_maternita,B2C,200,71133,0.26,-14,-6,gen,89,nov,0,0,0,
+esperienze_turistiche,B2C,500,53900,0.69,-10,-8,dic,71,ott,0,0,0,
+biotech_ambientale,B2B,15000,42247,1.39,-14,-9,gen,77,nov,0,0,0,
+forniture_gelaterie,B2B,4000,20563,0.78,-8,-10,giu,48,apr,0,0,0,
+comunita_energetiche,misto,5000,17536,0.84,-39,-22,mar,79,gen,0,0,0,
+dolciaria_lusso,B2C,150,14310,0.62,20,1,ott,31,lug,0,0,0,
+esg_rating,B2B,8000,9333,1.91,-41,-43,ott,81,lug,0,0,0,
+verande,B2C,15000,6547,0.86,-41,-32,gen,75,nov,98,0,3,
+scale_soppalchi,B2C,7000,5514,1.01,-35,-10,gen,73,nov,98,0,1,
+home_staging,B2B,2000,4948,1.02,-25,-19,nov,81,set,0,0,0,
+tappezzeria_nautica,B2C,8000,4441,0.45,-29,-16,lug,52,mag,98,0,1,
+tappezzieri_divani,B2C,1500,4061,0.85,-44,-21,gen,71,nov,98,0,1,
+packaging,B2B,12000,4052,1.79,-3,-24,mar,77,gen,98,0,1,
+catering_az,misto,4000,3799,1.99,-39,-24,mag,63,mar,98,0,1,
+rimessaggio,B2C,3000,3452,0.34,-14,-12,mag,47,mar,98,0,2,
+eventi_aziendali,B2B,8000,3368,2.96,-26,-30,mar,74,gen,98,0,1,
+lavaggio_tappeti,B2C,600,3244,1.55,-78,-45,lug,69,mag,98,0,1,
+laboratori_analisi,B2B,4000,3135,0.84,-21,-21,mar,71,gen,98,0,1,
+assistenza_informatica,B2B,6000,3110,2.29,-38,-17,set,81,lug,98,0,1,
+grossista_horeca,B2B,8000,2938,1.44,-38,-28,mar,81,gen,0,0,0,
+lavorazioni_cnc,B2B,15000,2896,2.5,-21,-14,mar,90,gen,98,0,0,
+self_checkin,B2B,2000,2742,2.48,-20,-40,dic,81,ott,0,0,0,
+calcestruzzo_inerti,B2B,20000,2568,1.03,35,-1,mag,75,mar,98,0,0,
+climatizzazione_ind,B2B,25000,2509,1.39,-6,-20,lug,51,mag,98,0,1,
+audioprotesisti,B2C,2500,2471,1.26,-23,-18,set,76,lug,98,0,0,
+traduzioni,B2B,2500,2233,2.77,-19,-15,set,63,lug,98,0,0,
+officine_veicoli_ind,B2B,3000,2183,1.02,-7,-11,ott,85,lug,98,0,0,
+prelievi_domicilio,B2C,300,1592,1.33,-22,-10,gen,83,nov,0,0,0,
+elettronica_industriale,B2B,5000,1431,0.28,-23,-12,ott,88,lug,0,0,0,
+restauro_strumenti,B2C,900,1252,0.59,-26,-21,gen,79,nov,98,0,0,
+assetti_preparazioni,B2C,2000,1157,0.19,-40,-18,ago,79,giu,98,0,0,
+eventi_auto_storiche,misto,10000,1032,0,-49,-3,set,33,lug,0,0,0,
+officine_marchio,B2C,800,868,1.08,86,15,nov,89,set,98,0,0,
+orologiai,B2C,800,753,0.42,-37,-21,gen,74,nov,98,0,0,
+consulenza_aziendale,B2B,6000,732,2.18,-45,-27,giu,74,apr,98,0,0,
+logistica_ecommerce,B2B,20000,685,7.34,-96,-75,ago,19,giu,98,0,0,
+carpenteria_meccanica,B2B,25000,664,1.07,-34,-16,mar,68,gen,98,0,0,
+logistica_3pl,B2B,20000,603,2.41,-25,-32,set,84,lug,98,0,0,
+sport_welfare_online,B2B,1000,602,1.63,-33,-20,set,75,lug,0,0,0,
+turismo_accessibile,misto,3000,548,0.62,-42,-28,gen,72,nov,0,0,0,
+pompe_calore,B2B,15000,497,2.24,-14,-8,gen,76,nov,98,0,0,
+nautica_varo,B2C,2000,447,0,-44,-30,ago,54,giu,98,0,0,
+logopedia,B2C,1500,382,0.51,-15,-20,nov,82,set,98,0,0,
+centralini_voip,B2B,3000,372,4.95,-41,-44,apr,58,feb,98,0,0,
+demolizioni_smaltimento,B2B,8000,342,1.5,-38,-24,mar,69,gen,98,0,0,

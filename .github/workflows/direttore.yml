@@ -32,6 +32,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
