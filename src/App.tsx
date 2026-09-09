@@ -70,6 +70,23 @@ export default function App() {
     typeof window !== 'undefined' && window.innerWidth < 1024 ? 'oggi' : 'pipeline')
   const [openId, setOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
+  // tu le accetti. Ogni minuto, e quando cambi pagina. Niente rumore in piu'.
+  const [inArrivo, setInArrivo] = useState(0)
+  useEffect(() => {
+    let vivo = true
+    async function conta() {
+      const { data } = await supabase.auth.getSession()
+      const io = data.session?.user?.id
+      if (!io) return
+      const { count } = await supabase.from('task').select('id', { count: 'exact', head: true })
+        .eq('owner', io).eq('stato', 'proposta').eq('fatta', false)
+      if (vivo) setInArrivo(count ?? 0)
+    }
+    void conta()
+    const t = setInterval(conta, 60_000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [tab])
   // alla chiusura della scheda le viste si ricaricano: la bacheca non deve
   // mai mentire su una fase appena cambiata
   const [versione, setVersione] = useState(0)
@@ -231,6 +248,9 @@ export default function App() {
                   <path d={icona} />
                 </svg>
                 {label}
+                {t === 'oggi' && inArrivo > 0 && (
+                  <span className="ml-auto rounded-full bg-navy px-1.5 py-px text-[10px] font-bold text-white" title="Task in arrivo da accettare">{inArrivo}</span>
+                )}
               </button>
             )
           })}

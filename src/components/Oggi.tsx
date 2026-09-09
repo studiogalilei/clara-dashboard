@@ -141,6 +141,12 @@ export default function Oggi({ onOpen }: Props) {
   const [io, setIo] = useState<string | null>(null)
   const [persone, setPersone] = useState<Persona[]>([])
   const [perChi, setPerChi] = useState<string>('')      // '' = per me
+  // la colonna di lato (Dre, 9/9): in arrivo e mandate, silenziose; sul
+  // telefono sta sotto e si apre solo se serve. La scheda di una persona
+  // mostra cosa ha in mano prima di caricarla.
+  const [latoAperto, setLatoAperto] = useState(false)
+  const [persona, setPersona] = useState<Persona | null>(null)
+  const [taskDiPersona, setTaskDiPersona] = useState<TaskDre[] | null>(null)
   const [mandate, setMandate] = useState<TaskDre[]>([])
   const [tavolozza, setTavolozza] = useState<number | null>(null)
 
@@ -186,6 +192,16 @@ export default function Oggi({ onOpen }: Props) {
 
   const nomeDi = (id: string | null) =>
     persone.find((p) => p.id === id)?.nome ?? 'qualcuno'
+
+  async function apriPersona(id: string | null) {
+    const p = persone.find((x) => x.id === id)
+    if (!p) return
+    setPersona(p); setTaskDiPersona(null)
+    const { data } = await supabase.from('task').select('*')
+      .eq('owner', p.id).eq('fatta', false).neq('stato', 'rimandata')
+      .order('scadenza', { ascending: true, nullsFirst: false }).limit(30)
+    setTaskDiPersona((data as TaskDre[]) ?? [])
+  }
 
   // una task che arriva non entra nella lista finche' non la accetti
   async function rispondiAllaProposta(t: TaskDre, accetto: boolean, motivo?: string) {
@@ -492,6 +508,80 @@ export default function Oggi({ onOpen }: Props) {
     </span>
   )
 
+  const inArrivo = proposte.length
+  const lato = persona ? (
+    <Card>
+      <header className="flex items-center gap-2 border-b border-velo px-3 py-2.5">
+        <button onClick={() => setPersona(null)} aria-label="Torna" className="rounded px-1 text-tenue hover:text-navy">‹</button>
+        <p className="text-sm font-bold">{persona.nome ?? 'Senza nome'}</p>
+        <span className="ml-auto text-[11px] text-spento">{taskDiPersona ? `${taskDiPersona.length} in mano` : '…'}</span>
+      </header>
+      {taskDiPersona === null ? <Spinner /> : taskDiPersona.length === 0 ? (
+        <p className="px-3 py-4 text-center text-xs text-spento">Niente in mano adesso</p>
+      ) : taskDiPersona.map((t) => (
+        <div key={t.id} className="border-b border-velo px-3 py-2 last:border-0">
+          <p className="text-sm">{t.titolo}</p>
+          <p className="text-[11px] text-tenue">
+            {t.stato === 'proposta' ? 'da accettare' : 'in corso'}{t.scadenza ? ` · ${fmtDateShort(t.scadenza)}` : ''}
+          </p>
+        </div>
+      ))}
+      <p className="border-t border-velo px-3 py-2 text-[11px] text-spento">Solo lettura: le sue task le muove {persona.nome ?? 'lui'}.</p>
+    </Card>
+  ) : (
+    <div className="space-y-3">
+      {/* in arrivo: quello che ti hanno mandato, non entra nella tua coda finche' non accetti (Dre, 3/9) */}
+      <Card className={inArrivo ? 'border-blu/30' : ''}>
+        <header className="flex items-baseline justify-between gap-2 border-b border-velo px-3 py-2.5">
+          <p className="text-sm font-bold">In arrivo</p>
+          <span className={`text-[11px] font-semibold ${inArrivo ? 'text-navy' : 'text-spento'}`}>{inArrivo || 'niente'}</span>
+        </header>
+        {proposte.map((t) => (
+          <div key={t.id} className="border-b border-velo px-3 py-2.5 last:border-0">
+            <p className="text-sm font-semibold">{t.titolo}</p>
+            <p className="text-[11px] text-tenue">
+              da <button onClick={() => apriPersona(t.da)} className="font-semibold text-navy hover:underline">{nomeDi(t.da)}</button>
+              {t.scadenza ? ` · per il ${fmtDateShort(t.scadenza)}` : ''}
+            </p>
+            <div className="mt-1.5 flex gap-1.5">
+              <button onClick={() => rispondiAllaProposta(t, true)}
+                className="rounded-full bg-navy px-3 py-1 text-[11px] font-bold text-white hover:bg-navy-scuro">Accetta</button>
+              <button onClick={() => { const m = window.prompt('Perché la rimandi indietro?'); if (m !== null) rispondiAllaProposta(t, false, m) }}
+                className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">Rimanda</button>
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      {/* mandate: quelle che hai passato ad altri, per sapere a che punto sono senza chiedere */}
+      <Card>
+        <header className="flex items-baseline justify-between gap-2 border-b border-velo px-3 py-2.5">
+          <p className="text-sm font-bold">Mandate</p>
+          <span className="text-[11px] text-spento">{mandate.length || 'niente'}</span>
+        </header>
+        {mandate.map((t) => (
+          <div key={t.id} className="flex items-start gap-2 border-b border-velo px-3 py-2 last:border-0">
+            <div className="min-w-0 flex-1">
+              <p className={`truncate text-sm ${t.fatta ? 'text-spento line-through' : ''}`}>{t.titolo}</p>
+              <p className="text-[11px] text-tenue">
+                a <button onClick={() => apriPersona(t.owner)} className="font-semibold text-navy hover:underline">{nomeDi(t.owner)}</button>
+                {t.stato === 'rimandata' && t.motivo ? ` · ${t.motivo}` : ''}
+              </p>
+            </div>
+            <span className={`mt-0.5 shrink-0 rounded-full px-2 py-px text-[10px] font-semibold ${
+              t.fatta ? 'bg-green-50 text-green-800'
+              : t.stato === 'proposta' ? 'bg-amber-50 text-amber-800'
+              : t.stato === 'rimandata' ? 'bg-red-50 text-red-700'
+              : 'bg-velo text-tenue'
+            }`}>
+              {t.fatta ? 'fatta' : t.stato === 'proposta' ? 'da accettare' : t.stato === 'rimandata' ? 'rimandata' : 'presa'}
+            </span>
+          </div>
+        ))}
+      </Card>
+    </div>
+  )
+
   return (
     <div className="space-y-4 pb-28 sm:pb-8">
       <div className="lg:hidden">
@@ -533,76 +623,9 @@ export default function Oggi({ onOpen }: Props) {
         )}
       </div>
 
-      {/* quello che ti hanno mandato: sta sopra, e non entra nella tua coda
-          finche' non lo accetti (Dre, 3/9) */}
-      {proposte.length > 0 && (
-        <Card className="border-blu/30">
-          <header className="border-b border-velo bg-blu/5 px-4 py-2.5">
-            <p className="text-sm font-bold text-navy">
-              {proposte.length === 1 ? 'Una task per te' : `${proposte.length} task per te`}
-            </p>
-          </header>
-          {proposte.map((t) => (
-            <div key={t.id} className="flex flex-wrap items-center gap-3 border-b border-velo px-4 py-3 last:border-0">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{t.titolo}</p>
-                <p className="text-xs text-tenue">
-                  da {nomeDi(t.da)}
-                  {t.scadenza ? ` · per il ${fmtDateShort(t.scadenza)}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  onClick={() => {
-                    const m = window.prompt('Perché la rimandi indietro?')
-                    if (m !== null) rispondiAllaProposta(t, false, m)
-                  }}
-                  className="rounded-full border border-bordo px-3 py-1.5 text-xs font-semibold text-tenue hover:border-spento"
-                >
-                  Rimanda indietro
-                </button>
-                <button
-                  onClick={() => rispondiAllaProposta(t, true)}
-                  className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-navy-scuro"
-                >
-                  Accetta
-                </button>
-              </div>
-            </div>
-          ))}
-        </Card>
-      )}
-
-      {/* quelle che hai mandato tu: per sapere a che punto sono senza chiedere */}
-      {mandate.length > 0 && vistaVera === 'ongo' && (
-        <Card>
-          <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
-            <p className="text-sm font-bold">Mandate da te</p>
-            <span className="text-xs text-spento">{mandate.length}</span>
-          </header>
-          {mandate.map((t) => (
-            <div key={t.id} className="flex items-center gap-3 border-b border-velo px-4 py-2.5 last:border-0">
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm ${t.fatta ? 'text-spento line-through' : 'font-semibold'}`}>{t.titolo}</p>
-                <p className="text-xs text-tenue">
-                  a {nomeDi(t.owner)}
-                  {t.stato === 'rimandata' && t.motivo ? ` · rimandata indietro: ${t.motivo}` : ''}
-                </p>
-              </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                t.fatta ? 'bg-green-50 text-green-800'
-                : t.stato === 'proposta' ? 'bg-amber-50 text-amber-800'
-                : t.stato === 'rimandata' ? 'bg-red-50 text-red-700'
-                : 'bg-velo text-tenue'
-              }`}>
-                {t.fatta ? 'fatta' : t.stato === 'proposta' ? 'da accettare' : t.stato === 'rimandata' ? 'rimandata' : 'in corso'}
-              </span>
-            </div>
-          ))}
-        </Card>
-      )}
-
       {vistaVera === 'big' ? bigPicture() : (
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-4">
+      <div className="space-y-4">
       <Card className="p-3">
         {aggiungo ? (
           <div className="flex items-start gap-3 rounded-lg px-2 py-2">
@@ -755,7 +778,6 @@ export default function Oggi({ onOpen }: Props) {
           <p className="px-2 py-6 text-center text-sm text-spento">Tutte le attività completate</p>
         )}
       </Card>
-      )}
 
       {completate.length > 0 && (
         <Card className="p-3">
@@ -775,6 +797,19 @@ export default function Oggi({ onOpen }: Props) {
             </div>
           ))}
         </Card>
+      )}
+      </div>
+
+      {/* la colonna di lato: sul telefono sta sotto e si apre solo se serve */}
+      <aside className="mt-4 lg:mt-0">
+        <button onClick={() => setLatoAperto(!latoAperto)}
+          className="mb-2 flex w-full items-center justify-between rounded-xl border border-bordo bg-white px-3 py-2 text-sm font-semibold lg:hidden">
+          <span>In arrivo e mandate</span>
+          <span className={`text-xs ${inArrivo ? 'font-bold text-navy' : 'text-spento'}`}>{inArrivo ? `${inArrivo} da accettare` : (latoAperto ? 'chiudi' : 'apri')}</span>
+        </button>
+        <div className={latoAperto ? '' : 'hidden lg:block'}>{lato}</div>
+      </aside>
+      </div>
       )}
 
       <button
