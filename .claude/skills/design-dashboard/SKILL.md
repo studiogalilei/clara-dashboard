@@ -64,6 +64,12 @@ fare adesso.
     Claude. Nessun `max-w` fisso che spreca lo schermo (7/9).
 13. **Testi: italiano informale, secchi.** «Accetta», «Rimanda», «+ Riga».
     Niente «Clicca qui per…», niente emoji decorative, niente trattino lungo.
+14. **Mai il puntino «·».** Dre lo odia («sa troppo di AI»). Si separa con la
+    virgola, con lo spazio, o si va a capo. Vale per la UI, gli script, i
+    messaggi di Clara, i titoli delle proposte. (9/9)
+15. **Clara parla come una persona su WhatsApp.** Messaggi brevi e naturali,
+    i bottoni sotto al messaggio, niente elenchi a tab. La chat sta dietro la
+    pallina; le cose che chiede e propone arrivano in chat, poche alla volta. (9/9)
 
 
 ## Apple e Google, assorbiti (9/9)
