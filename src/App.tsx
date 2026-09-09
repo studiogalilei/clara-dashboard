@@ -419,7 +419,7 @@ export default function App() {
 
       {openId && <Scheda key={openId} id={openId} onClose={chiudiScheda} />}
 
-      {/* Clara è dappertutto, anche sopra la scheda */}
+      {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} />
     </div>
   )

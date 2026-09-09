@@ -225,9 +225,16 @@ export default function ClaraVolante({ onOpen }: Props) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUtenteId(data.session?.user?.id ?? null))
   }, [])
-  const [aperta, setAperta] = useState(false)
+  // Intervista a Dre (9/9): sul desktop Clara e' una colonna fissa a destra,
+  // stretta (320), aperta di default sulla posta; la chiudi se vuoi e torna
+  // il logo. Sul telefono resta il pannello che si apre sopra.
+  const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  const [aperta, setApertaStato] = useState<boolean>(() => desktop && leggiPref('clara-aperta') !== 'no')
+  const setAperta = (v: boolean) => { setApertaStato(v); if (desktop) scriviPref('clara-aperta', v ? 'si' : 'no') }
+  const fissa = desktop && aperta
   const [larghezza, setLarghezza] = useState<number>(() => {
-    return Number(leggiPref('clara-larghezza')) || 420
+    const salvata = Number(leggiPref('clara-larghezza')) || 320
+    return salvata > 480 ? 320 : salvata      // la colonna fissa e' stretta: sopra i 480 era il vecchio pannello
   })
   const [messaggi, setMessaggi] = useState<Messaggio[] | null>(null)
   const [prospects, setProspects] = useState<Prospect[]>([])
@@ -255,7 +262,8 @@ export default function ClaraVolante({ onOpen }: Props) {
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const [proposte, setProposte] = useState<Proposta[]>([])
   const [rispondo, setRispondo] = useState<number | null>(null)
-  const [vista, setVista] = useState<'chat' | 'posta'>('chat')
+  const [vista, setVista] = useState<'chat' | 'posta'>(desktop ? 'posta' : 'chat')
+  const toccata = useRef(false)   // se Dre ha scelto lui la vista, non gliela cambio
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
   const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
@@ -292,7 +300,10 @@ export default function ClaraVolante({ onOpen }: Props) {
         // le bozze prima di tutto: sono lavoro che parte oggi. Poi le
         // domande, poi gli scarti
         const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
-        setProposte(((data as Proposta[]) ?? []).sort((a, b) => (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9)))
+        const l = ((data as Proposta[]) ?? []).sort((a, b) => (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9))
+        setProposte(l)
+        // colonna fissa e niente da chiedere: si apre sulla chat, non su una pagina vuota
+        if (fissa && l.length === 0) setVista((v) => (v === 'posta' && !toccata.current ? 'chat' : v))
       })
     supabase
       .from('clara_messaggi')
@@ -340,11 +351,11 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   useEffect(() => {
     function esc(e: KeyboardEvent) {
-      if (e.key === 'Escape') { setComando(null); setPendente(null); setAperta(false) }
+      if (e.key === 'Escape') { setComando(null); setPendente(null); if (!fissa) setAperta(false) }
     }
     function muovi(e: PointerEvent) {
       if (!tiro.current.attivo) return
-      const w = Math.min(Math.max(window.innerWidth - e.clientX, 360), Math.min(760, window.innerWidth - 40))
+      const w = Math.min(Math.max(window.innerWidth - e.clientX, 300), Math.min(fissa ? 480 : 760, window.innerWidth - 40))
       setLarghezza(w)
     }
     function su() {
@@ -634,14 +645,18 @@ export default function ClaraVolante({ onOpen }: Props) {
 
       {aperta && (
         <>
-          <button
-            aria-label="Chiudi"
-            onClick={() => setAperta(false)}
-            className="fixed inset-0 z-[64] bg-inchiostro/20"
-          />
+          {!fissa && (
+            <button
+              aria-label="Chiudi"
+              onClick={() => setAperta(false)}
+              className="fixed inset-0 z-[64] bg-inchiostro/20"
+            />
+          )}
           <aside
-            style={{ width: `min(${larghezza}px, 100vw)` }}
-            className="salta-su fixed bottom-0 right-0 top-0 z-[65] flex flex-col bg-white shadow-[-8px_0_40px_rgba(16,24,40,0.15)]"
+            style={{ width: `min(${fissa ? Math.min(larghezza, 480) : larghezza}px, 100vw)` }}
+            className={fissa
+              ? 'sticky top-0 flex h-dvh shrink-0 flex-col border-l border-bordo bg-white'
+              : 'salta-su fixed bottom-0 right-0 top-0 z-[65] flex flex-col bg-white shadow-[-8px_0_40px_rgba(16,24,40,0.15)]'}
           >
             {/* la maniglia per allargare: si vede, se no nessuno sa che
                 c'e' (Dre, 4/9). Il filo si scurisce quando ci passi sopra */}

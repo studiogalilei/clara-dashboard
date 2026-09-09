@@ -23,6 +23,7 @@ export const CHIAVI = [
   'tutti-filtro',
   'tutti-modo',
   'clara-larghezza',
+  'clara-aperta',
   'menu-larghezza',
   'obsidian-vault',
 ] as const
