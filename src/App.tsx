@@ -329,7 +329,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className={`mx-auto px-4 py-5 lg:px-8 lg:py-7 ${tab === 'calendario' ? '' : 'max-w-6xl'}`}>
+        <main className={`px-4 py-5 lg:px-8 lg:py-7 ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">

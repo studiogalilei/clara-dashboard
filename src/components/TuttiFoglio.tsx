@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import { eCliente, ePerso, giorno } from '../lib/regole'
-import { Card, Spinner, Cella, sgid, fmtDateShort } from './ui'
+import { Card, Spinner, Cella, sgid, fmtDateShort, Faccia } from './ui'
 
 // TUTTI COME IL FOGLIO DI GIACOMO (Dre, 9/9): i nomi in fila, lo stato in
 // un selettore (Prospect / Preventivo inviato / Cliente / Perso), chi lo
@@ -141,16 +141,16 @@ export default function TuttiFoglio({ onOpen }: Props) {
 
   const rigaPreventivo = (q: Preventivo) => (
     <tr key={q.id} className="border-b border-velo last:border-0">
-      <td className="border-r border-velo"><Cella valore={q.titolo ?? ''} su={(v) => scriviPreventivo(q, { titolo: v.trim() || null })} placeholder="cosa gli abbiamo proposto" /></td>
-      <td className="border-r border-velo w-28"><Cella tipo="number" valore={q.importo == null ? '' : String(q.importo)} su={(v) => scriviPreventivo(q, { importo: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
-      <td className="border-r border-velo w-36"><Cella tipo="date" valore={q.inviato_il} su={(v) => v && scriviPreventivo(q, { inviato_il: v })} className="tabular-nums" /></td>
-      <td className="border-r border-velo w-32 px-1">
+      <td className=""><Cella valore={q.titolo ?? ''} su={(v) => scriviPreventivo(q, { titolo: v.trim() || null })} placeholder="cosa gli abbiamo proposto" /></td>
+      <td className="w-28"><Cella tipo="number" valore={q.importo == null ? '' : String(q.importo)} su={(v) => scriviPreventivo(q, { importo: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
+      <td className="w-36"><Cella tipo="date" valore={q.inviato_il} su={(v) => v && scriviPreventivo(q, { inviato_il: v })} className="tabular-nums" /></td>
+      <td className="w-32 px-1">
         <select value={q.stato} onChange={(e) => scriviPreventivo(q, { stato: e.target.value as Preventivo['stato'] })}
           className={`w-full rounded-md border-0 px-2 py-1 text-xs font-semibold outline-none ${STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[2] ?? ''}`}>
           {STATI_PREVENTIVO.map(([s, e]) => <option key={s} value={s}>{e}</option>)}
         </select>
       </td>
-      <td className="border-r border-velo w-44 px-2">
+      <td className="w-44 px-3">
         <label className="flex items-center gap-2 text-xs">
           <input type="checkbox" checked={Boolean(q.pagato_il)}
             onChange={(e) => scriviPreventivo(q, { pagato_il: e.target.checked ? oggi : null, ...(e.target.checked && q.stato === 'inviato' ? { stato: 'accettato' } : {}) })}
@@ -158,7 +158,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
           {q.pagato_il ? <span className="font-semibold text-green-800">pagato il {fmtDateShort(q.pagato_il)}</span> : <span className="text-spento">pagamento arrivato</span>}
         </label>
       </td>
-      <td className="border-r border-velo"><Cella valore={q.note ?? ''} su={(v) => scriviPreventivo(q, { note: v.trim() || null })} placeholder="note" /></td>
+      <td className=""><Cella valore={q.note ?? ''} su={(v) => scriviPreventivo(q, { note: v.trim() || null })} placeholder="note" /></td>
       <td className="w-8 text-center"><button onClick={() => togliPreventivo(q)} aria-label="Togli" className="rounded px-1.5 text-spento hover:bg-red-50 hover:text-red-700">×</button></td>
     </tr>
   )
@@ -191,11 +191,11 @@ export default function TuttiFoglio({ onOpen }: Props) {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-velo/60 text-left text-[11px] font-bold uppercase tracking-wide text-tenue">
-                <th className="min-w-[220px] border-r border-velo px-2 py-2">Azienda</th>
-                <th className="min-w-[150px] border-r border-velo px-2 py-2">Stato</th>
-                <th className="min-w-[110px] border-r border-velo px-2 py-2">Chi segue</th>
-                <th className="min-w-[100px] border-r border-velo px-2 py-2 text-right">Canone/mese</th>
-                <th className="min-w-[200px] border-r border-velo px-2 py-2">Ultimo preventivo</th>
+                <th className="min-w-[220px] px-3 py-2.5">Azienda</th>
+                <th className="min-w-[150px] px-3 py-2.5">Stato</th>
+                <th className="min-w-[110px] px-3 py-2.5">Chi segue</th>
+                <th className="min-w-[100px] px-3 py-2.5 text-right">Canone/mese</th>
+                <th className="min-w-[200px] px-3 py-2.5">Ultimo preventivo</th>
                 <th className="min-w-[220px] px-2 py-2">Note</th>
               </tr>
             </thead>
@@ -208,22 +208,23 @@ export default function TuttiFoglio({ onOpen }: Props) {
                 const ultimo = suoi[suoi.length - 1]
                 const apertaQui = aperta === p.id
                 return [
-                  <tr key={p.id} className="border-b border-velo hover:bg-velo/30">
-                    <td className="border-r border-velo">
-                      <button onClick={() => onOpen(p.id)} className="w-full px-2 py-1.5 text-left text-sm font-semibold hover:underline">
-                        {sgid(p.sg_id) && <span className="mr-1.5 font-mono text-[11px] font-normal text-spento">{sgid(p.sg_id)}</span>}
-                        {p.company || p.name || p.email}
+                  <tr key={p.id} className="h-12 border-b border-velo hover:bg-velo/30">
+                    <td className="">
+                      <button onClick={() => onOpen(p.id)} title={sgid(p.sg_id) ?? undefined}
+                              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-semibold hover:text-navy">
+                        <Faccia p={p} size={28} />
+                        <span className="truncate">{p.company || p.name || p.email}</span>
                       </button>
                     </td>
-                    <td className="border-r border-velo px-1">
+                    <td className="px-1">
                       <select value={s} onChange={(e) => cambiaStato(p, e.target.value as StatoFoglio)}
                         className={`w-full rounded-md border-0 px-2 py-1 text-xs font-semibold outline-none ${STATI_FOGLIO.find(([x]) => x === s)?.[2] ?? ''}`}>
                         {STATI_FOGLIO.map(([x, e]) => <option key={x} value={x}>{e}</option>)}
                       </select>
                     </td>
-                    <td className="border-r border-velo"><Cella valore={p.chi_segue ?? ''} su={(v) => scriviRiga(p, { chi_segue: v.trim() || null })} placeholder="chi" /></td>
-                    <td className="border-r border-velo"><Cella tipo="number" valore={p.canone == null ? '' : String(p.canone)} su={(v) => scriviRiga(p, { canone: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
-                    <td className="border-r border-velo px-2">
+                    <td className=""><Cella valore={p.chi_segue ?? ''} su={(v) => scriviRiga(p, { chi_segue: v.trim() || null })} placeholder="chi" /></td>
+                    <td className=""><Cella tipo="number" valore={p.canone == null ? '' : String(p.canone)} su={(v) => scriviRiga(p, { canone: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
+                    <td className="px-3">
                       <button onClick={() => setAperta(apertaQui ? null : p.id)} className="flex w-full items-center gap-2 py-1.5 text-left text-sm hover:text-navy">
                         <span className={`shrink-0 rounded-full border px-1.5 text-[11px] font-bold ${suoi.length ? 'border-navy text-navy' : 'border-bordo text-spento'}`}>€</span>
                         {ultimo ? (

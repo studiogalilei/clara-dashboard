@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Card, Spinner, Micro, Cella } from './ui'
+import { Card, Spinner, Micro, Cella, Faccia, sgid, type FacciaP } from './ui'
 import { giorno } from '../lib/regole'
 
 // PROGETTI = IL FOGLIO DI GIACOMO (Dre, 8/9): «un excel con selettore, serve
@@ -59,6 +59,7 @@ export default function Progetti({ onOpen }: Props) {
   const [righe, setRighe] = useState<Progetto[] | null>(null)
   const [nomi, setNomi] = useState<Record<string, string>>({})
   const [sg, setSg] = useState<Record<string, number | null>>({})
+  const [facce, setFacce] = useState<Record<string, FacciaP>>({})   // per la foto con le cifre dell'ID
   const [scelgo, setScelgo] = useState<number | null>(null)     // la riga con il selettore cliente aperto
   const [chiusi, setChiusi] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
@@ -70,16 +71,18 @@ export default function Progetti({ onOpen }: Props) {
         if (error) setProblema('Il foglio non si legge: ' + error.message)
         setRighe((data as Progetto[]) ?? [])
       })
-    supabase.from('prospects').select('id,company,name,email,sg_id').neq('stage', 'nuovo')
+    supabase.from('prospects').select('id,company,name,email,sg_id,fuori,stage,pipeline_stage').neq('stage', 'nuovo')
       .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(1000)
       .then(({ data }) => {
         const m: Record<string, string> = {}
         const ids: Record<string, number | null> = {}
-        for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string; sg_id: number | null }>) ?? []) {
+        const ff: Record<string, FacciaP> = {}
+        for (const p of (data as Array<{ id: string; company: string | null; name: string | null; email: string; sg_id: number | null; fuori: boolean; stage: FacciaP['stage']; pipeline_stage: FacciaP['pipeline_stage'] }>) ?? []) {
           m[p.id] = p.company || p.name || p.email
           ids[p.id] = p.sg_id
+          ff[p.id] = p
         }
-        setNomi(m); setSg(ids)
+        setNomi(m); setSg(ids); setFacce(ff)
       })
   }, [])
 
@@ -145,13 +148,14 @@ export default function Progetti({ onOpen }: Props) {
     const tardi = p.scadenza && p.scadenza < oggi && p.stato !== 'consegnato'
     const nomeCliente = p.prospect_id ? (nomi[p.prospect_id] ?? p.cliente ?? '') : (p.cliente ?? '')
     return (
-      <tr key={p.id} className="border-b border-velo last:border-0 hover:bg-velo/30">
-        <td className="border-r border-velo">
+      <tr key={p.id} className="h-12 border-b border-velo last:border-0 hover:bg-velo/30">
+        <td className="">
           {p.prospect_id && scelgo !== p.id ? (
             <div className="group flex items-center">
-              <button onClick={() => onOpen(p.prospect_id!)} className="min-w-0 flex-1 px-2 py-1.5 text-left text-sm font-semibold text-blu hover:underline">
-                {sg[p.prospect_id] != null && <span className="mr-1.5 font-mono text-[11px] font-normal text-spento">SG-{sg[p.prospect_id]}</span>}
-                {nomeCliente}
+              <button onClick={() => onOpen(p.prospect_id!)} title={sgid(sg[p.prospect_id]) ?? undefined}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left text-sm font-semibold hover:text-navy">
+                {facce[p.prospect_id] && <Faccia p={facce[p.prospect_id]} size={28} />}
+                <span className="truncate">{nomeCliente}</span>
               </button>
               <button onClick={() => setScelgo(p.id)} aria-label="Cambia cliente" title="Cambia cliente"
                       className="mr-1 hidden rounded px-1 text-xs text-spento hover:bg-velo hover:text-navy group-hover:block">⇄</button>
@@ -165,10 +169,10 @@ export default function Progetti({ onOpen }: Props) {
             />
           )}
         </td>
-        <td className="border-r border-velo"><Cella valore={p.nome} su={(v) => campo(p, 'nome', v)} placeholder="cosa gli facciamo" /></td>
-        <td className="border-r border-velo"><Cella tipo="date" valore={p.data_inizio ?? ''} su={(v) => campo(p, 'data_inizio', v)} className="tabular-nums" /></td>
-        <td className="border-r border-velo"><Cella tipo="number" valore={p.valore == null ? '' : String(p.valore)} su={(v) => campo(p, 'valore', v)} className="text-right tabular-nums" placeholder="€" /></td>
-        <td className="border-r border-velo px-1">
+        <td className=""><Cella valore={p.nome} su={(v) => campo(p, 'nome', v)} placeholder="cosa gli facciamo" /></td>
+        <td className=""><Cella tipo="date" valore={p.data_inizio ?? ''} su={(v) => campo(p, 'data_inizio', v)} className="tabular-nums" /></td>
+        <td className=""><Cella tipo="number" valore={p.valore == null ? '' : String(p.valore)} su={(v) => campo(p, 'valore', v)} className="text-right tabular-nums" placeholder="€" /></td>
+        <td className="px-1">
           <select
             value={p.tipo ?? ''}
             onChange={(e) => scrivi(p, { tipo: (e.target.value || null) as Progetto['tipo'] })}
@@ -178,11 +182,11 @@ export default function Progetti({ onOpen }: Props) {
             {TIPI.map(([t, etichetta]) => <option key={t} value={t}>{etichetta}</option>)}
           </select>
         </td>
-        <td className="border-r border-velo"><Cella valore={p.chi_segue ?? ''} su={(v) => campo(p, 'chi_segue', v)} placeholder="chi" /></td>
-        <td className="border-r border-velo"><Cella tipo="date" valore={p.scadenza ?? ''} su={(v) => campo(p, 'scadenza', v)} className={`tabular-nums ${tardi ? 'text-red-700 font-semibold' : ''}`} /></td>
-        <td className="border-r border-velo"><Cella valore={p.natura ?? ''} su={(v) => campo(p, 'natura', v)} placeholder="sito vetrina, ads…" /></td>
-        <td className="border-r border-velo"><Cella valore={p.note ?? ''} su={(v) => campo(p, 'note', v)} placeholder="note" /></td>
-        <td className="border-r border-velo px-1">
+        <td className=""><Cella valore={p.chi_segue ?? ''} su={(v) => campo(p, 'chi_segue', v)} placeholder="chi" /></td>
+        <td className=""><Cella tipo="date" valore={p.scadenza ?? ''} su={(v) => campo(p, 'scadenza', v)} className={`tabular-nums ${tardi ? 'text-red-700 font-semibold' : ''}`} /></td>
+        <td className=""><Cella valore={p.natura ?? ''} su={(v) => campo(p, 'natura', v)} placeholder="sito vetrina, ads…" /></td>
+        <td className=""><Cella valore={p.note ?? ''} su={(v) => campo(p, 'note', v)} placeholder="note" /></td>
+        <td className="px-1">
           <select
             value={p.stato}
             onChange={(e) => scrivi(p, { stato: e.target.value as Progetto['stato'] })}
@@ -201,16 +205,16 @@ export default function Progetti({ onOpen }: Props) {
   const testata = (
     <thead>
       <tr className="bg-velo/60 text-left text-[11px] font-bold uppercase tracking-wide text-tenue">
-        <th className="min-w-[160px] border-r border-velo px-2 py-2">Cliente</th>
-        <th className="min-w-[180px] border-r border-velo px-2 py-2">Progetto</th>
-        <th className="min-w-[130px] border-r border-velo px-2 py-2">Inizio</th>
-        <th className="min-w-[90px] border-r border-velo px-2 py-2 text-right">€</th>
-        <th className="min-w-[130px] border-r border-velo px-2 py-2">Trial o Retainer</th>
-        <th className="min-w-[100px] border-r border-velo px-2 py-2">Chi segue</th>
-        <th className="min-w-[130px] border-r border-velo px-2 py-2">Scadenza</th>
-        <th className="min-w-[140px] border-r border-velo px-2 py-2">Natura</th>
-        <th className="min-w-[220px] border-r border-velo px-2 py-2">Note</th>
-        <th className="min-w-[120px] border-r border-velo px-2 py-2">Stato</th>
+        <th className="min-w-[200px] px-3 py-2.5">Cliente</th>
+        <th className="min-w-[180px] px-3 py-2.5">Progetto</th>
+        <th className="min-w-[130px] px-3 py-2.5">Inizio</th>
+        <th className="min-w-[90px] px-3 py-2.5 text-right">€</th>
+        <th className="min-w-[130px] px-3 py-2.5">Trial o Retainer</th>
+        <th className="min-w-[100px] px-3 py-2.5">Chi segue</th>
+        <th className="min-w-[130px] px-3 py-2.5">Scadenza</th>
+        <th className="min-w-[140px] px-3 py-2.5">Natura</th>
+        <th className="min-w-[220px] px-3 py-2.5">Note</th>
+        <th className="min-w-[120px] px-3 py-2.5">Stato</th>
         <th className="w-8"></th>
       </tr>
     </thead>
@@ -299,8 +303,9 @@ function SceltaCliente({ nomi, sg, onScegli, onCrea, onAnnulla }: {
         <div className="absolute left-0 top-full z-20 mt-0.5 w-72 overflow-hidden rounded-lg border border-bordo bg-white shadow-lg">
           {trovati.map(([id, n]) => (
             <button key={id} onMouseDown={() => onScegli(id)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-velo">
-              {sg[id] != null && <span className="font-mono text-[11px] text-spento">SG-{sg[id]}</span>}
+              {facce[id] && <Faccia p={facce[id]} size={22} />}
               <span className="truncate">{n}</span>
+              {sg[id] != null && <span className="ml-auto text-[11px] text-spento">{sgid(sg[id])}</span>}
             </button>
           ))}
           <button onMouseDown={() => onCrea(testo)} className="flex w-full items-center gap-2 border-t border-velo px-3 py-1.5 text-left text-sm font-semibold text-navy hover:bg-velo">

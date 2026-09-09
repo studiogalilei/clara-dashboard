@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Card, Spinner, Micro, sgid, fmtDateShort } from './ui'
+import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
 import { STATI_PREVENTIVO, euro, type Preventivo } from './TuttiFoglio'
 
 // TUTTI I PREVENTIVI (Dre, 9/9): una lista sola, dal primo all'ultimo, con
@@ -8,7 +8,7 @@ import { STATI_PREVENTIVO, euro, type Preventivo } from './TuttiFoglio'
 // dentro dal foglio (il «€» sulla riga), qui si guarda.
 
 interface Props { onOpen: (id: string) => void }
-interface Nome { company: string | null; name: string | null; email: string; sg_id: number | null }
+type Nome = FacciaP & { email: string }
 
 export default function Preventivi({ onOpen }: Props) {
   const [righe, setRighe] = useState<Preventivo[] | null>(null)
@@ -21,7 +21,7 @@ export default function Preventivi({ onOpen }: Props) {
         setRighe(l)
         const ids = [...new Set(l.map((q) => q.prospect_id))]
         if (ids.length === 0) return
-        const { data: p } = await supabase.from('prospects').select('id,company,name,email,sg_id').in('id', ids)
+        const { data: p } = await supabase.from('prospects').select('id,company,name,email,sg_id,fuori,stage,pipeline_stage').in('id', ids)
         const m: Record<string, Nome> = {}
         for (const x of (p as Array<Nome & { id: string }>) ?? []) m[x.id] = x
         setNomi(m)
@@ -80,9 +80,10 @@ export default function Preventivi({ onOpen }: Props) {
                     <td className="px-2 py-2 font-mono text-[11px] text-spento">{i + 1}</td>
                     <td className="px-2 py-2 text-sm tabular-nums">{fmtDateShort(q.inviato_il)}</td>
                     <td className="px-2 py-2">
-                      <button onClick={() => onOpen(q.prospect_id)} className="text-left text-sm font-semibold hover:underline">
-                        {n?.sg_id != null && <span className="mr-1.5 font-mono text-[11px] font-normal text-spento">{sgid(n.sg_id)}</span>}
-                        {n ? (n.company || n.name || n.email) : '…'}
+                      <button onClick={() => onOpen(q.prospect_id)} title={n ? (sgid(n.sg_id) ?? undefined) : undefined}
+                              className="flex items-center gap-2.5 text-left text-sm font-semibold hover:text-navy">
+                        {n && <Faccia p={n} size={28} />}
+                        <span className="truncate">{n ? (n.company || n.name || n.email) : '…'}</span>
                       </button>
                     </td>
                     <td className="px-2 py-2 text-sm">{q.titolo || <span className="text-spento">—</span>}</td>

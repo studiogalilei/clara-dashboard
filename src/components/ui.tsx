@@ -55,7 +55,7 @@ export function Avatar({ nome, azienda }: { nome: string | null; azienda: string
 // Il colore della fase, unico in tutta l'app: ambra = prospect (come il
 // badge PROSPECT), poi il blu si scurisce man mano che avanza nelle call,
 // verde = cliente, grigio = perso. Il colore dice dov'e', senza leggere.
-type FacciaP = Pick<Prospect, 'sg_id' | 'name' | 'company' | 'fuori' | 'stage' | 'pipeline_stage'>
+export type FacciaP = Pick<Prospect, 'sg_id' | 'name' | 'company' | 'fuori' | 'stage' | 'pipeline_stage'>
 
 export function tonoFase(p: Pick<FacciaP, 'fuori' | 'stage' | 'pipeline_stage'>): string {
   const perso = (p.fuori && p.pipeline_stage === 'perso') || (!p.fuori && p.stage === 'perso')
@@ -262,18 +262,31 @@ export function Cella({ valore, tipo = 'text', su, className = '', placeholder }
   valore: string; tipo?: 'text' | 'date' | 'number'; su: (v: string) => void; className?: string; placeholder?: string
 }) {
   const [v, setV] = useState(valore)
+  const [attiva, setAttiva] = useState(false)      // vuota e non toccata: mostra «—», non «dd/mm/yyyy»
   const ultimo = useRef(valore)
   useEffect(() => { setV(valore); ultimo.current = valore }, [valore])
-  function chiudi() { if (v !== ultimo.current) { ultimo.current = v; su(v) } }
+  function chiudi() { setAttiva(false); if (v !== ultimo.current) { ultimo.current = v; su(v) } }
+  if (!v && !attiva) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAttiva(true)}
+        title={placeholder}
+        className={`flex h-12 w-full items-center px-3 text-sm text-spento hover:text-tenue ${className.includes('text-right') ? 'justify-end' : ''}`}
+      >
+        —
+      </button>
+    )
+  }
   return (
     <input
       type={tipo}
       value={v}
-      placeholder={placeholder}
+      autoFocus={attiva}
       onChange={(e) => setV(e.target.value)}
       onBlur={chiudi}
-      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-      className={`w-full min-w-0 bg-transparent px-2 py-1.5 text-sm outline-none focus:bg-blu/5 focus:ring-1 focus:ring-blu ${className}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur() }}
+      className={`h-12 w-full min-w-0 bg-transparent px-3 text-sm outline-none focus:bg-blu/5 ${className}`}
     />
   )
 }
