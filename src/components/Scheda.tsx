@@ -182,6 +182,12 @@ export default function Scheda({ id, onClose }: Props) {
     if (dirty) await save()
     onClose()
   }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') void chiudi() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty])
 
   function edit(key: keyof Prospect, value: string) {
     setSaved(false)
@@ -363,11 +369,14 @@ export default function Scheda({ id, onClose }: Props) {
   }
 
   if (!p) return (
-    <div className="fixed inset-0 z-50 bg-fondo">
-      <div className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-2">
-        <button onClick={onClose} className="text-sm font-semibold text-tenue hover:text-inchiostro">← Indietro</button>
-      </div>
-      <Spinner />
+    <div className="fixed inset-0 z-50">
+      <div onClick={onClose} className="absolute inset-0 bg-inchiostro/15" />
+      <aside className="scivola absolute inset-y-0 right-0 w-full max-w-[760px] overflow-y-auto overflow-x-hidden border-l border-bordo bg-fondo">
+        <div className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5">
+          <button onClick={onClose} className="text-sm font-semibold text-blu hover:underline">‹ Torna</button>
+        </div>
+        <Spinner />
+      </aside>
     </div>
   )
 
@@ -448,14 +457,18 @@ export default function Scheda({ id, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-fondo">
-      {/* barra alta */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordo bg-white px-4 py-2">
-        <button onClick={chiudi} className="text-sm font-semibold text-tenue hover:text-inchiostro">
-          ← Indietro
+    <div className="fixed inset-0 z-50">
+      {/* la scheda scivola da destra e la pagina resta dietro (intervista a Dre, 9/9):
+          chiudi e sei dove eri. Un click fuori, o Esc, la chiude. */}
+      <div onClick={chiudi} className="absolute inset-0 bg-inchiostro/15" />
+      <aside className="scivola absolute inset-y-0 right-0 w-full max-w-[760px] overflow-y-auto overflow-x-hidden border-l border-bordo bg-fondo">
+      {/* barra alta: briciole e Torna */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5">
+        <button onClick={chiudi} className="shrink-0 text-sm font-semibold text-blu hover:underline">
+          ‹ Torna
         </button>
-        <p className="min-w-0 flex-1 truncate text-center text-sm font-bold">
-          {p.company || p.name || p.email}
+        <p className="min-w-0 flex-1 truncate text-sm text-tenue">
+          Aziende <span className="mx-1 text-spento">›</span> <span className="font-bold text-inchiostro">{p.company || p.name || p.email}</span>
         </p>
         <button
           onClick={save}
@@ -558,7 +571,7 @@ export default function Scheda({ id, onClose }: Props) {
       <ZonaFile
         onFile={(f) => { setNoteAperte(true); allegaDocumento(f) }}
         messaggio={`Lascia qui: nei Documenti, agganciato a ${p.company || p.name}`}
-        className="mx-auto max-w-5xl space-y-3 px-4 py-4 pb-16"
+        className="space-y-3 px-4 py-4 pb-16 sm:px-6"
       >
 
         {binarioSegnato && (
@@ -901,7 +914,7 @@ export default function Scheda({ id, onClose }: Props) {
         )}
 
         {/* ── due colonne: identita' | il vivo ─────────────────── */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[250px_1fr]">
+        <div className="grid grid-cols-1 gap-3">
 
           {/* SX: l'identita' */}
           <div className="space-y-3">
@@ -1299,6 +1312,7 @@ export default function Scheda({ id, onClose }: Props) {
         />
       )}
 
+      </aside>
     </div>
   )
 }

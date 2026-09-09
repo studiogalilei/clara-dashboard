@@ -49,6 +49,16 @@ body {
 }
 .salta-su { animation: salta-su 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
 
+/* la scheda che scivola da destra: 200 ms, ease-out, solo transform e opacity */
+@keyframes scivola {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.scivola { animation: scivola 0.2s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .scivola, .salta-su, .atterra { animation: none; }
+}
+
 /* dal video UI/UX (31/8): i titoli grandi si stringono (tracking -2%,
    line-height ~115%) e ogni bottone risponde alla pressione */
 h1, h2 {
