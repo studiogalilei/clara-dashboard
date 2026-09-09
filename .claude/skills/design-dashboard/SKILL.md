@@ -134,6 +134,37 @@ in `riferimenti/`. Quello che vale per noi, in regole:
 2. Lo spazio bianco e' un materiale: si compra togliendo, non aggiungendo.
 3. Se serve una didascalia per capire un controllo, il controllo e' sbagliato.
 
+
+## L'intervista a Dre (9/9): le sue risposte, che valgono come specifica
+
+- Sensazione al mattino: **calma e controllo** (Apple Notes/Calendar/Reminders
+  e' il riferimento del «bello»). Non cabina di regia, non to-do.
+- Densita' tabelle: **ariosa**, righe 48-52px, poche colonne, molto bianco.
+- Colore: **bianco e nero, dettagli in blu SG**. Il blu sta su: bottone
+  principale (uno per pagina), titoli e intestazioni. Gli stati con pillole
+  tonali (verde cliente, azzurro preventivo, ambra prospect, grigio perso).
+  Due blu del brand: navy `#1C2E6E` per titoli e testo importante, blu
+  `#2979C4` per bottoni e link. Niente altro colore.
+- Superfici: carte bianche su fondo chiarissimo, bordi sottili, nessuna
+  ombra. Angoli **arrotondati Apple** (12-16px carte, 10px bottoni, pillole).
+- Testo **piu' grande**: corpo 15px, righe 48px, titolo pagina 28px.
+- Menu: a sinistra, testo e icone, come ora. **Cinque voci**: Oggi · Aziende ·
+  Progetti · Calendario · Clara. Aziende = Pipeline + Tutti + Preventivi
+  (tab). Task dentro Oggi. Numeri e Widget e istruzioni finiscono sotto
+  Impostazioni.
+- Orientamento: **briciole e ‹ Torna** sempre in alto; meno pagine.
+- Home (Oggi): **sopra le cose che aspettano me**, sotto le mie task; a
+  destra In arrivo e Mandate.
+- Celle: **click e scrivi, salva da solo** (Sheets).
+- Apertura azienda: **pannello a lato** che scivola da destra; in alto **chi
+  e' e come contattarlo**, poi la storia.
+- Fasi: **bacheca a colonne, trascinando** (col pedaggio del transcript).
+- Clara: **pannello a destra sempre aperto, 320px, apre sulla posta**; la
+  chat sotto, si espande quando scrivi.
+- Telefono: approvare bozze e proposte, vedere la giornata, scrivere task
+  e note. **Barra in basso con 5 icone**.
+- Fastidi di oggi: «brutto da vedere» e «non capisco dove sono».
+
 ## Come si costruisce una schermata nuova
 
 1. Dire in una riga chi la apre e cosa deve decidere in tre secondi.
