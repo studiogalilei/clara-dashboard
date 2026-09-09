@@ -1,0 +1,63 @@
+States
+States show the interaction status of a component or UI element
+Overview
+State layers
+Applying states
+On this page
+Resources
+link
+Copy link
+States have two visual indicators to ensure accessibility
+States can be combined, such as selection and hover
+Apply states consistently across components
+link
+Copy link
+Resources
+link
+Copy link
+Type	Link	Status
+Design	Design Kit	Available
+link
+Copy link
+
+1. Enabled
+An enabled state communicates an interactive component or element.
+
+2. Disabled
+A disabled state communicates an inoperable component or element.
+
+
+
+
+Enabled button
+
+Disabled button
+
+link
+Copy link
+
+3. Hover
+A hover state communicates when a user has placed a cursor above an interactive element.
+
+4. Focused
+A focused state communicates when a user has highlighted an element, using an input method such as a keyboard or voice.
+
+Hovered button
+
+Focused button
+
+link
+Copy link
+
+5. Pressed
+A pressed state communicates a user tap.
+
+6. Dragged
+A dragged state communicates when a user presses and moves an element.
+
+
+
+
+Pressed button
+
+Dragged chip

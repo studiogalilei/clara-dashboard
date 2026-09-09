@@ -65,6 +65,75 @@ fare adesso.
 13. **Testi: italiano informale, secchi.** «Accetta», «Rimanda», «+ Riga».
     Niente «Clicca qui per…», niente emoji decorative, niente trattino lungo.
 
+
+## Apple e Google, assorbiti (9/9)
+
+Dre: «Google semplifica le cose, Apple fa diventare bello il fatto di
+lavorare». Letti dal vivo Apple HIG (layout, tipografia, colore, liste e
+tabelle, sidebar, toolbar, scrittura, macOS, iOS) e Material 3 (layout,
+breakpoint, tipografia, ruoli colore, stati, motion). Il testo integrale sta
+in `riferimenti/`. Quello che vale per noi, in regole:
+
+**Da Apple: chiarezza, deferenza, profondita'.**
+- Raggruppa con lo spazio prima che con le linee. Spazio vuoto, sfondi
+  leggeri, separatori sottili: mai tutte e tre le cose insieme. Contenuto e
+  controlli devono restare distinti.
+- L'informazione essenziale ha spazio; il secondario va altrove (dettaglio,
+  scheda, disclosure), non nella stessa riga. Ordine di lettura: alto e
+  sinistra sono i posti importanti.
+- Allinea tutto: l'allineamento e' la gerarchia che non si vede.
+- Disclosure progressiva: se non ci sta tutto, mostra che c'e' altro
+  (freccina, riga che continua), non tutto piu' piccolo.
+- Controlli con aria intorno e in gruppi logici; mai due controlli estranei
+  vicini. Sul Mac niente di critico in fondo alla finestra.
+- Tipografia: un typeface (Plus Jakarta), pesi Regular/Medium/Semibold/Bold,
+  mai Light. Default 13-14px, minimo 11px, e i titoli fanno la gerarchia con
+  peso e colore prima che con la dimensione.
+- Colore: lo stesso colore vuol dire sempre la stessa cosa. Il navy e' solo
+  «interattivo o attivo»: non si usa per decorare testo non cliccabile. Il
+  colore non e' mai l'unico segnale (etichetta o forma accanto).
+- Tabelle: testo corto nelle righe, intestazioni con nomi (niente frasi),
+  sul Mac colonne ridimensionabili e ordinabili cliccando l'intestazione,
+  righe alternate solo se la tabella e' larga. Selezione persistente quando
+  la riga apre qualcosa.
+- Sidebar: massimo due livelli, etichette secche, icone di un colore solo
+  (l'accento), nascondibile. Niente di critico in fondo.
+- Scrittura: verbi sui bottoni («Manda», non «Fatto!»), niente possessivi
+  («Progetti», non «I tuoi progetti»), niente «noi», errori vicino al campo e
+  che dicono cosa fare («Scegli una data» non «Data non valida»), stati vuoti
+  con il passo successivo e un bottone, niente «oops».
+- iPhone: default 17px, tocco 44px, niente bottoni a tutta larghezza
+  incollati ai bordi, la barra di stato resta.
+
+**Da Google: struttura, ruoli, breakpoint.**
+- Layout a pannelli: uno sul telefono (< 600), due dal desktop (840-1199),
+  tre solo sopra i 1600. Per noi: telefono = un pannello e menu in basso;
+  desktop = menu + contenuto (+ pannello di Clara). Le tabelle dense non si
+  dividono mai in due pannelli sul medio.
+- Passando da uno schermo all'altro ci si chiede: cosa si rivela, come si
+  divide, cosa si ridimensiona, cosa si sposta, cosa si scambia. Mai
+  «la stessa cosa piu' grande».
+- Testo fra 40 e 60 caratteri per riga; numeri tabulari ovunque si
+  allineano; interlinea 1.2 sui titoli, 1.5 sul corpo.
+- Ruoli di colore, non colori: `primary` (navy) per l'azione che conta,
+  `secondary` per chip e selezioni, `tertiary` per badge e avvisi piccoli,
+  `error`, `surface` e `outline`. Ogni colore ha il suo «on» (testo sopra)
+  con contrasto 4.5:1 (3:1 per testo grande). Contenitori tonali (verde
+  chiaro / testo verde scuro) per gli stati: e' il pattern delle pillole.
+- Stati, sempre e uguali ovunque: enabled, disabled, hover, focused, pressed,
+  dragged; due indicatori visivi per stato (colore + qualcos'altro).
+- Motion: «standard», niente rimbalzi. 120-250 ms, ease-out in entrata,
+  ease-in in uscita; il movimento spiega da dove viene una cosa.
+- Tipo in cinque ruoli: display (mai qui), headline (titolo pagina 26px),
+  title (carte, 15-16px semibold), body (14px), label (11-12px per chip,
+  bottoni, intestazioni di tabella).
+
+**Le tre frasi da tenere a mente**
+1. Ogni schermata risponde a una domanda sola, e la risposta sta in alto a
+   sinistra.
+2. Lo spazio bianco e' un materiale: si compra togliendo, non aggiungendo.
+3. Se serve una didascalia per capire un controllo, il controllo e' sbagliato.
+
 ## Come si costruisce una schermata nuova
 
 1. Dire in una riga chi la apre e cosa deve decidere in tre secondi.
@@ -92,3 +161,13 @@ Formato: data · cosa ha detto Dre · problema · causa · regola.
 - 9/9 · «falla meno invasiva, le persone devono essere focus sulle proprie
   task» · le task in arrivo stavano sopra la lista · avevo dato priorita'
   visiva a cio' che arriva · regola 9.
+- 9/9 · «fa tanto cagare la UI/UX» · tutto uguale, due file di pillole,
+  celle piene di segnaposto, select nativi, bordi verticali da Excel ·
+  avevo costruito «un form che sembra un foglio» senza gerarchia · titolo
+  grande + tab sotto, filtri con i conteggi, vuoto = trattino, pillole
+  colorate custom, solo righe orizzontali, piede coi tre numeri.
+- 9/9 · «c'e' ancora confusione, e il codice e' brutto da vedere» · SG-ID in
+  monospazio davanti a ogni nome · avevo mostrato un identificatore tecnico
+  come contenuto · la «foto» con le due cifre sul colore di fase, l'ID
+  intero solo al passaggio del mouse e nella scheda; meno filtri, una
+  colonna preventivo sola.
