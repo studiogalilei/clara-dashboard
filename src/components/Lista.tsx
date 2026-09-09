@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, passato, pedaggioPagato, ricorrenteMensile, contaFasi, quandoRisentirlo, type Fascia } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, pedaggioPagato, ricorrenteMensile, contaFasi, quandoRisentirlo, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
@@ -22,6 +22,8 @@ type Chiave = Fascia
 
 // le colonne della bacheca: le fasi vere (ordine di Dre, 1/9)
 const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
+  // ha risposto, l'analisi non e' ancora partita: Clara prepara, Dre manda (Dre, 9/9)
+  ['In arrivo', 'arrivo', eInArrivo],
   ['Prospect', 'prospect', eProspect],
   ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva'],
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
@@ -56,12 +58,12 @@ const GRUPPI_PROSPECT: Array<[string, (p: Prospect) => boolean]> = [
 const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a ?? ''
 
 const COLORE: Record<Chiave, string> = {
-  prospect: 'bg-amber-400', conoscitiva: 'bg-[#6b85e0]', tecnica: 'bg-blu',
+  arrivo: 'bg-amber-200', prospect: 'bg-amber-400', conoscitiva: 'bg-[#6b85e0]', tecnica: 'bg-blu',
   avvio: 'bg-navy', prova: 'bg-teal-600', cliente: 'bg-green-600', perso: 'bg-gray-300', scartato: 'bg-gray-200',
 }
 
 const ORDINE: Record<Chiave, number> = {
-  prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, prova: 4, cliente: 5, perso: 99, scartato: 100,
+  arrivo: -1, prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, prova: 4, cliente: 5, perso: 99, scartato: 100,
 }
 
 interface Toast {

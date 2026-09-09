@@ -103,7 +103,7 @@ def scrivi(tipo, testo, prospect_id=None):
     print(f"  {tipo}: {testo[:70]}")
 
 
-GIORNI_FOLLOWUP = 5
+GIORNI_FOLLOWUP = 6   # Dre (9/9)
 
 
 def dovuto(p, oggi):

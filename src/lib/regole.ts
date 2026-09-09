@@ -51,11 +51,23 @@ export function passato(p: Fase): boolean {
   return Boolean((p as { passato_a?: string | null }).passato_a)
 }
 
-// un prospect e' chi non e' ancora in pipeline e non e' uscito da nessuna
-// delle tre porte. Prima questa regola era scritta in tre punti diversi e i
-// tre numeri non tornavano (revisione 4/9)
-export function eProspect(p: Fase & Pick<Prospect, 'classificazione'>): boolean {
+// Dre (9/9): «si diventa prospect solo dopo che gli abbiamo mandato l'analisi».
+// Chi ha risposto ma l'analisi non e' ancora partita e' «in arrivo»: Clara
+// gli prepara il pacchetto (fit, analisi, bozza) e Dre lo manda. Il pedaggio
+// e' l'invio. Prima questa regola era scritta in tre punti diversi e i tre
+// numeri non tornavano (revisione 4/9): resta una sola.
+type Ingresso = Fase & Pick<Prospect, 'classificazione' | 'analysis_sent'>
+
+function haRisposto(p: Ingresso): boolean {
   return !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p) && !passato(p)
+}
+
+export function eInArrivo(p: Ingresso): boolean {
+  return haRisposto(p) && !p.analysis_sent
+}
+
+export function eProspect(p: Ingresso): boolean {
+  return haRisposto(p) && Boolean(p.analysis_sent)
 }
 
 // le stesse domande nella lingua di PostgREST, per quando a contare e' il
@@ -73,11 +85,17 @@ export interface Filtro {
   or(s: string): Filtro
 }
 
-export function soloProspect(q: Filtro): Filtro {
+function soloRisposto(q: Filtro): Filtro {
   return q.eq('fuori', false)
     .neq('stage', 'nuovo').neq('stage', 'perso').neq('stage', 'cliente')
     .is('passato_a', null)
     .or(VIVI)
+}
+export function soloProspect(q: Filtro): Filtro {
+  return soloRisposto(q).eq('analysis_sent', true)
+}
+export function soloInArrivo(q: Filtro): Filtro {
+  return soloRisposto(q).eq('analysis_sent', false)
 }
 
 // in pipeline: fra la prima call e la firma
@@ -114,10 +132,11 @@ export async function ricorrenteMensile(): Promise<{
 // contava sul database, la bacheca contava le 300 righe che era riuscita a
 // scaricare, e lo scriveva in fondo alla pagina come una confessione. Ora la
 // domanda e' una e la fa il database, per tutte e due (revisione 4/9).
-export type Fascia = 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'prova' | 'cliente' | 'perso' | 'scartato'
+export type Fascia = 'arrivo' | 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'prova' | 'cliente' | 'perso' | 'scartato'
 
 
 const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
+  arrivo: soloInArrivo,
   prospect: soloProspect,
   conoscitiva: (q) => q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva'),
   tecnica: (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica'),
@@ -226,7 +245,9 @@ export interface VoceCoda {
 }
 
 // quanti giorni di silenzio dopo l'analisi prima di considerarlo dovuto
-export const GIORNI_FOLLOWUP = 5
+// Dre (9/9): follow-up a 6 giorni dall'analisi; a 10 giorni di silenzio esce dai prospect
+export const GIORNI_FOLLOWUP = 6
+export const GIORNI_SILENZIO = 10
 
 export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string | null }> {
   const today = oggi()

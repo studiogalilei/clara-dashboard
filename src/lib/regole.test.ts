@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  vivo, eCliente, ePerso, chiuso, passato, eProspect, inPipeline,
+  vivo, eCliente, ePerso, chiuso, passato, eProspect, eInArrivo, inPipeline,
   giorno, pulisci, MORTI,
 } from './regole'
 
@@ -63,8 +63,14 @@ describe('perso, e la storia finita', () => {
 })
 
 describe('prospect: la stessa risposta in tutte le schermate', () => {
-  it('chi ha risposto e non e\' ancora uscito da nessuna porta', () => {
-    expect(eProspect(p({ stage: 'risposto' }))).toBe(true)
+  it('chi ha risposto e ha ricevuto l\'analisi: il pedaggio e\' l\'invio (Dre, 9/9)', () => {
+    expect(eProspect(p({ stage: 'risposto', analysis_sent: true }))).toBe(true)
+    expect(eProspect(p({ stage: 'risposto', analysis_sent: false }))).toBe(false)
+  })
+  it('chi ha risposto e l\'analisi non e\' partita e\' in arrivo, non prospect', () => {
+    expect(eInArrivo(p({ stage: 'risposto', analysis_sent: false }))).toBe(true)
+    expect(eInArrivo(p({ stage: 'risposto', analysis_sent: true }))).toBe(false)
+    expect(eInArrivo(p({ stage: 'risposto', analysis_sent: false, classificazione: 'negativo' }))).toBe(false)
   })
   it('chi e\' entrato in pipeline non e\' piu\' un prospect', () => {
     expect(eProspect(p({ fuori: true, pipeline_stage: 'conoscitiva' }))).toBe(false)

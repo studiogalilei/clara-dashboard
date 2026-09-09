@@ -339,7 +339,7 @@ def main():
             if cur.get("analysis_sent") and cur.get("analysis_sent_at") and not awaiting:
                 try:
                     d0 = datetime.fromisoformat(cur["analysis_sent_at"][:19])
-                    proposta = (d0 + timedelta(days=5)).date().isoformat()
+                    proposta = (d0 + timedelta(days=6)).date().isoformat()   # Dre (9/9): follow-up a 6 giorni
                     esistente = cur.get("followup_due")
                     if not esistente or esistente < proposta:
                         patch["followup_due"] = proposta
