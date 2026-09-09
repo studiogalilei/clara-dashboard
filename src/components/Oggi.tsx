@@ -586,8 +586,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
 
   return (
     <div className="space-y-4 pb-28 sm:pb-8">
-      {/* la giornata (Dre, 9/9): in alto la prossima call, sotto le task, in fondo gli avvisi */}
-      <Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" />
+      {/* la giornata (Dre, 9/9): la prossima call sta in testata (App), qui le task e in fondo gli avvisi;
+          sul telefono la call resta qui sopra */}
+      <div className="lg:hidden"><Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" /></div>
 
       {problema && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">

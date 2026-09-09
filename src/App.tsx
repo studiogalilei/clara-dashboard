@@ -4,6 +4,7 @@ import { supabase, configured, demo } from './lib/supabase'
 import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
+import Radar from './components/Radar'
 import Aziende from './components/Aziende'
 import ClaraVolante from './components/ClaraVolante'
 import ClaraLogo from './components/ClaraLogo'
@@ -68,6 +69,7 @@ export default function App() {
     typeof window !== 'undefined' && window.innerWidth < 1024 ? 'oggi' : 'pipeline')
   const [openId, setOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [cercaAperta, setCercaAperta] = useState(false)
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
   // tu le accetti. Ogni minuto, e quando cambi pagina. Niente rumore in piu'.
   const [inArrivo, setInArrivo] = useState(0)
@@ -161,7 +163,7 @@ export default function App() {
       if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !dentroUnCampo)) {
         e.preventDefault()
         setOpenId(null)
-        cercaRef.current?.focus()
+        { setCercaAperta(true); setTimeout(() => cercaRef.current?.focus(), 30) }
       }
     }
     window.addEventListener('keydown', giu)
@@ -341,32 +343,39 @@ export default function App() {
                 {tab === 'pipeline' ? saluto()[0] : titolo}
               </h1>
               {tab === 'pipeline' && (salutoClara ? (
-                <p className="text-sm font-medium">
+                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">
                   {salutoClara.replace(/^buon\w*[,.]?\s+dre[.,]?\s*/i, '')}
                 </p>
               ) : saluto()[1] ? (
-                <p className="text-sm font-medium">{saluto()[1]}</p>
+                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto()[1]}</p>
               ) : null)}
             </div>
-            <div className="relative hidden w-72 lg:block">
-              <input
-                ref={cercaRef}
-                type="search"
-                placeholder="Cerca…   ⌘K"
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value)
-                  if (e.target.value.trim()) { setTab('prospect'); setOpenId(null) }
-                }}
-                className="w-full rounded-full border border-bordo bg-white px-4 py-2 pr-8 text-sm shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none focus:border-blu"
-              />
-              {q && (
-                <button
-                  onClick={() => setQ('')}
-                  aria-label="Pulisci la ricerca"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-spento hover:text-inchiostro"
-                >
-                  ×
+            {tab === 'pipeline' && (
+              <div className="hidden w-[440px] shrink-0 lg:block">
+                <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
+              </div>
+            )}
+            {/* la ricerca: una lente, si apre quando serve o con ⌘K (Dre, 9/9) */}
+            <div className="relative hidden lg:block">
+              {cercaAperta || q ? (
+                <input
+                  ref={cercaRef}
+                  autoFocus
+                  type="search"
+                  placeholder="Cerca…"
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value)
+                    if (e.target.value.trim()) { setTab('prospect'); setOpenId(null) }
+                  }}
+                  onBlur={() => { if (!q) setCercaAperta(false) }}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { setQ(''); setCercaAperta(false) } }}
+                  className="w-64 rounded-full border border-blu bg-white px-4 py-2 text-sm outline-none"
+                />
+              ) : (
+                <button onClick={() => setCercaAperta(true)} aria-label="Cerca (⌘K)" title="Cerca  ⌘K"
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-bordo bg-white text-tenue hover:border-navy hover:text-navy">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-[18px] w-[18px]"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
                 </button>
               )}
             </div>
