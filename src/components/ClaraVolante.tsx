@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
+import ClaraPensa from './ClaraPensa'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
 import { CLS_LABEL } from '../lib/types'
 import { pulisci, creaTask } from '../lib/regole'
@@ -339,9 +340,23 @@ export default function ClaraVolante({ onOpen }: Props) {
     return () => clearInterval(t)
   }, [caricaMessaggi, aperta])
 
+  // Clara sta pensando: l'ultimo messaggio e' di Dre (o si sta mandando) e
+  // la risposta non e' ancora arrivata. Dopo due minuti smette: se non ha
+  // risposto, e' un problema, non un pensiero lungo.
+  const ultimo = messaggi && messaggi.length > 0 ? messaggi[messaggi.length - 1] : null
+  const inAttesa = invio ? Date.now()
+    : ultimo && ultimo.tipo === 'dre' && Date.now() - new Date(ultimo.at).getTime() < 120_000 ? new Date(ultimo.at).getTime()
+    : null
   useEffect(() => {
     fondoRef.current?.scrollIntoView({ block: 'end' })
-  }, [messaggi, aperta, comando])
+  }, [messaggi, aperta, comando, inAttesa])
+  // finche' aspetta, si ricontrolla piu' spesso e il logo lavora
+  useEffect(() => {
+    if (!inAttesa) return
+    setPensa(true)
+    const t = setInterval(caricaMessaggi, 2500)
+    return () => { clearInterval(t); setPensa(false) }
+  }, [inAttesa, caricaMessaggi])
 
   useEffect(() => {
     if (invio) { setPensa(true); return }
@@ -699,7 +714,12 @@ export default function ClaraVolante({ onOpen }: Props) {
                     )}
                   </button>
                 )}
-                <button onClick={() => setAperta(false)} aria-label="Chiudi" className="flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo">×</button>
+                <button onClick={() => setAperta(false)} aria-label={fissa ? 'Metti da parte Clara' : 'Chiudi'} title={fissa ? 'Metti da parte' : 'Chiudi'}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo hover:text-navy">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                    {fissa ? <path d="M9 6l6 6-6 6M4 12h11" /> : <path d="M6 6l12 12M18 6L6 18" />}
+                  </svg>
+                </button>
               </div>
             </header>
 
@@ -846,6 +866,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                   )
                 })
               )}
+              {inAttesa && <ClaraPensa da={inAttesa} />}
               <div ref={fondoRef} />
             </ZonaFile>
             )}

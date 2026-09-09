@@ -90,14 +90,35 @@ export default function ClaraLogo({ size = 40, lavora = false }: Props) {
 
         <g>
           {attiva && (
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              from="0 50 50"
-              to="360 50 50"
-              dur={`${ROTAZIONE}s`}
-              repeatCount="indefinite"
-            />
+            <>
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                from="0 50 50"
+                to="360 50 50"
+                dur={`${ROTAZIONE}s`}
+                repeatCount="indefinite"
+              />
+              {/* e cambia forma (Dre, 9/9): la rete si stira e si stringe, fili e punti insieme */}
+              <animateTransform
+                attributeName="transform"
+                type="scale"
+                additive="sum"
+                values="1 1;1.08 0.93;0.94 1.07;1.04 1.04;1 1"
+                keyTimes="0;0.3;0.55;0.8;1"
+                dur="3.6s"
+                repeatCount="indefinite"
+              />
+              <animateTransform
+                attributeName="transform"
+                type="translate"
+                additive="sum"
+                values="0 0;-3 3;3 -3;-2 -2;0 0"
+                keyTimes="0;0.3;0.55;0.8;1"
+                dur="3.6s"
+                repeatCount="indefinite"
+              />
+            </>
           )}
 
           {/* i fili: a riposo pieni, mentre lavora si abbassano e li
