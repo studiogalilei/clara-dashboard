@@ -768,16 +768,17 @@ export default function ClaraVolante({ onOpen }: Props) {
             }}
             aria-label="Clara"
             title="Trascinami dove vuoi"
-            className="relative flex h-16 w-16 cursor-grab touch-none items-center justify-center rounded-full border border-bordo bg-white text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-transform hover:-translate-y-0.5 active:cursor-grabbing"
+            className="relative flex w-[76px] cursor-grab touch-none flex-col items-center gap-0.5 rounded-[22px] border border-bordo bg-white px-2 pb-2 pt-2.5 text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-transform hover:-translate-y-0.5 active:cursor-grabbing"
           >
             <ClaraLogo size={44} lavora={pensa} />
+            {/* il nome fa parte del logo: stesso blu, stessa forma bianca (Dre, 9/9) */}
+            <span className="text-[13px] font-bold leading-none tracking-tight">Clara</span>
             {nonLetti.length + proposte.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
                 {nonLetti.length + proposte.length}
               </span>
             )}
           </button>
-          <span className="text-[13px] font-semibold tracking-tight text-blu">Clara</span>
         </div>
       )}
 
