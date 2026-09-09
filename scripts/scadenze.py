@@ -42,7 +42,7 @@ def main():
         giorni = (fine - oggi).days
         quando = f"finisce il {fine:%d/%m}" if giorni >= 0 else f"e' finita il {fine:%d/%m}"
         titolo = f"{nome}: la prova {quando}. Ti riaccordi per il retainer?"
-        perche = f"Prova dal {p['prova_inizio'] or '?'} al {p['prova_fine']}" + (f" · canone {p['canone']} €" if p.get("canone") else "")
+        perche = f"Prova dal {p['prova_inizio'] or '?'} al {p['prova_fine']}" + (f", canone {p['canone']} €" if p.get("canone") else "")
         azione = {"prova_fine": p["prova_fine"],
                   "task": {"titolo": f"Riaccordarsi con {nome} per il retainer", "scadenza": max(oggi, fine - datetime.timedelta(days=7)).isoformat()}}
         if prova:

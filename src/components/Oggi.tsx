@@ -524,7 +524,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         <div key={t.id} className="border-b border-velo px-3 py-2 last:border-0">
           <p className="text-sm">{t.titolo}</p>
           <p className="text-[11px] text-tenue">
-            {t.stato === 'proposta' ? 'da accettare' : 'in corso'}{t.scadenza ? ` · ${fmtDateShort(t.scadenza)}` : ''}
+            {t.stato === 'proposta' ? 'da accettare' : 'in corso'}{t.scadenza ? `, ${fmtDateShort(t.scadenza)}` : ''}
           </p>
         </div>
       ))}
@@ -543,7 +543,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             <p className="text-sm font-semibold">{t.titolo}</p>
             <p className="text-[11px] text-tenue">
               da <button onClick={() => apriPersona(t.da)} className="font-semibold text-navy hover:underline">{nomeDi(t.da)}</button>
-              {t.scadenza ? ` · per il ${fmtDateShort(t.scadenza)}` : ''}
+              {t.scadenza ? `, per il ${fmtDateShort(t.scadenza)}` : ''}
             </p>
             <div className="mt-1.5 flex gap-1.5">
               <button onClick={() => rispondiAllaProposta(t, true)}
@@ -567,7 +567,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
               <p className={`truncate text-sm ${t.fatta ? 'text-spento line-through' : ''}`}>{t.titolo}</p>
               <p className="text-[11px] text-tenue">
                 a <button onClick={() => apriPersona(t.owner)} className="font-semibold text-navy hover:underline">{nomeDi(t.owner)}</button>
-                {t.stato === 'rimandata' && t.motivo ? ` · ${t.motivo}` : ''}
+                {t.stato === 'rimandata' && t.motivo ? `, ${t.motivo}` : ''}
               </p>
             </div>
             <span className={`mt-0.5 shrink-0 rounded-full px-2 py-px text-[10px] font-semibold ${
@@ -632,7 +632,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             <span className="text-sm font-semibold">Promemoria di Clara</span>
             <span className="text-xs text-spento">{gruppiVivi.reduce((t, g) => t + g.sotto.length, 0)}</span>
             {!claraAperta && (
-              <span className="ml-auto truncate text-xs text-tenue">{gruppiVivi.map((g) => `${g.titolo} ${g.sotto.length}`).join(' · ')}</span>
+              <span className="ml-auto truncate text-xs text-tenue">{gruppiVivi.map((g) => `${g.titolo} ${g.sotto.length}`).join(', ')}</span>
             )}
           </button>
           {claraAperta && (

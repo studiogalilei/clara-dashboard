@@ -229,7 +229,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
               </span>
               <span className="min-w-0 truncate text-sm font-semibold">{prossimo.titolo}</span>
               <span className="text-xs text-spento">
-                {fmtDateShort(prossimo.at)} · {fmtOra(prossimo.at)}
+                {fmtDateShort(prossimo.at)}, {fmtOra(prossimo.at)}
               </span>
             </button>
             {settimana > 1 && onCalendario && (
@@ -241,10 +241,10 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
           {/* la riga di oggi: quello che aspetta te, secco, senza riquadro (Dre, 9/9) */}
           {pronto && daFare > 0 && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-velo px-5 py-2 text-xs text-tenue">
-              {callDiOggi.length > 0 && <button onClick={onCalendario} className="hover:text-navy"><b className="text-inchiostro">{callDiOggi.length}</b> call oggi · {callDiOggi[0].quando} {callDiOggi[0].testo}</button>}
+              {callDiOggi.length > 0 && <button onClick={onCalendario} className="hover:text-navy"><b className="text-inchiostro">{callDiOggi.length}</b> call oggi, {callDiOggi[0].quando} {callDiOggi[0].testo}</button>}
               {bozze > 0 && <button onClick={apriPosta} className="hover:text-navy"><b className="text-inchiostro">{bozze}</b> {bozze === 1 ? 'bozza da approvare' : 'bozze da approvare'}</button>}
               {domande > 0 && <button onClick={apriPosta} className="hover:text-navy"><b className="text-inchiostro">{domande}</b> {domande === 1 ? 'domanda di Clara' : 'domande di Clara'}</button>}
-              {proveInScadenza.length > 0 && <button onClick={() => onOpen(proveInScadenza[0].id)} className="hover:text-navy"><b className="text-inchiostro">{proveInScadenza.length}</b> {proveInScadenza.length === 1 ? 'prova che finisce' : 'prove che finiscono'} · {proveInScadenza[0].nome} il {fmtDateShort(proveInScadenza[0].fine)}</button>}
+              {proveInScadenza.length > 0 && <button onClick={() => onOpen(proveInScadenza[0].id)} className="hover:text-navy"><b className="text-inchiostro">{proveInScadenza.length}</b> {proveInScadenza.length === 1 ? 'prova che finisce' : 'prove che finiscono'}, {proveInScadenza[0].nome} il {fmtDateShort(proveInScadenza[0].fine)}</button>}
             </div>
           )}
         </Card>

@@ -182,7 +182,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
           ))}
         </div>
         <span className="text-xs text-tenue">
-          {conta('cliente')} clienti · {conta('prova')} in prova · {conta('preventivo')} con preventivo · {conta('prospect')} prospect · {conta('perso')} persi
+          {conta('cliente')} clienti, {conta('prova')} in prova, {conta('preventivo')} con preventivo, {conta('prospect')} prospect, {conta('perso')} persi
         </span>
       </div>
 
@@ -230,9 +230,9 @@ export default function TuttiFoglio({ onOpen }: Props) {
                         {ultimo ? (
                           <span className="truncate text-xs">
                             <span className="font-semibold tabular-nums">{euro(ultimo.importo)}</span>
-                            {` · ${fmtDateShort(ultimo.inviato_il)} · ${ultimo.stato}`}
-                            {ultimo.pagato_il ? <span className="text-green-800"> · pagato</span> : ''}
-                            {suoi.length > 1 ? <span className="text-spento"> · {suoi.length} in tutto</span> : ''}
+                            {`, ${fmtDateShort(ultimo.inviato_il)}, ${ultimo.stato}`}
+                            {ultimo.pagato_il ? <span className="text-green-800">, pagato</span> : ''}
+                            {suoi.length > 1 ? <span className="text-spento">, {suoi.length} in tutto</span> : ''}
                           </span>
                         ) : <span className="text-xs text-spento">nessun preventivo</span>}
                       </button>

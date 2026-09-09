@@ -51,7 +51,7 @@ function tipoAgenda(t: string | null): Tipo {
 
 // il pezzo corto per la chip nella cella
 function corto(titolo: string): string {
-  const dopo = titolo.split('·').pop()?.trim() ?? titolo
+  const dopo = titolo.split('-').pop()?.trim() ?? titolo
   return dopo.length > 14 ? dopo.slice(0, 13) + '…' : dopo
 }
 
@@ -113,7 +113,7 @@ export default function Calendario({ onOpen }: Props) {
         if (conEvento.has(`${p.id}|${p.next_action_date}`)) continue
         out.push({
           at: p.next_action_date! + 'T09:00:00',
-          titolo: `${p.next_action ?? 'Prossimo passo'} · ${p.company || p.name || p.email}`,
+          titolo: `${p.next_action ?? 'Prossimo passo'}, ${p.company || p.name || p.email}`,
           tipo: 'altro',
           prospect_id: p.id,
         })
@@ -121,7 +121,7 @@ export default function Calendario({ onOpen }: Props) {
       for (const p of (fu.data as Prospect[]) ?? []) {
         out.push({
           at: p.followup_due!.slice(0, 10) + 'T09:00:00',
-          titolo: `Follow-up · ${p.company || p.name || p.email}`,
+          titolo: `Follow-up, ${p.company || p.name || p.email}`,
           tipo: 'followup',
           prospect_id: p.id,
         })
@@ -157,7 +157,7 @@ export default function Calendario({ onOpen }: Props) {
     weekday: 'long', day: 'numeric', month: 'long',
   })
 
-  // «Prossimi 7 giorni: N call · M follow-up»
+  // «Prossimi 7 giorni: N call, M follow-up»
   const adesso = new Date().toISOString()
   const fraSette = new Date(Date.now() + 7 * 86400e3).toISOString()
   const prossimi = voci.filter((v) => v.at >= adesso && v.at <= fraSette)
@@ -188,8 +188,8 @@ export default function Calendario({ onOpen }: Props) {
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{v.titolo}</span>
           <span className="block text-xs text-tenue">
-            {fmtDateShort(v.at)} · {fmtOra(v.at)}
-            {v.tipo === 'followup' ? ' · follow-up' : v.tipo === 'altro' ? ' · scadenza' : ''}
+            {fmtDateShort(v.at)}, {fmtOra(v.at)}
+            {v.tipo === 'followup' ? ', follow-up' : v.tipo === 'altro' ? ', scadenza' : ''}
           </span>
         </span>
       </>
@@ -241,7 +241,7 @@ export default function Calendario({ onOpen }: Props) {
                   const delMese = voci.filter((v) => v.at.startsWith(meseStr))
                   const c = delMese.filter((v) => v.tipo === 'call').length
                   const f = delMese.filter((v) => v.tipo === 'followup').length
-                  return delMese.length === 0 ? 'mese libero' : `${c} call · ${f} follow-up`
+                  return delMese.length === 0 ? 'mese libero' : `${c} call, ${f} follow-up`
                 })()}
               </span>
             </div>
@@ -263,7 +263,7 @@ export default function Calendario({ onOpen }: Props) {
               onClick={() => { setAnno(oggi.getFullYear()); setMese(oggi.getMonth()); setScelto(oggiChiave) }}
               className="mb-3 w-full rounded-xl bg-velo px-3 py-2 text-left text-xs font-semibold text-tenue hover:bg-velo/70"
             >
-              Prossimi 7 giorni: {nCall} call · {nFu} follow-up
+              Prossimi 7 giorni: {nCall} call, {nFu} follow-up
             </button>
           )}
 

@@ -82,7 +82,7 @@ export default function TuttiElenco({ onOpen }: Props) {
         <p className="truncate text-sm font-semibold">{p.company || p.name || p.email}</p>
         <p className="truncate text-xs text-tenue">
           {sgid(p.sg_id, p) && <span className="font-semibold text-blu">{sgid(p.sg_id, p)}</span>}
-          {sgid(p.sg_id, p) && ' · '}
+          {sgid(p.sg_id, p) && ', '}
           {p.email}
         </p>
       </button>
@@ -94,7 +94,7 @@ export default function TuttiElenco({ onOpen }: Props) {
           </span>
           <span className="block text-spento">
             {p.contratto === 'prova' ? 'in prova' : p.contratto === 'stable' ? 'stabile' : 'contratto da scegliere'}
-            {p.fuori_at ? ` · da ${fmtDateShort(p.fuori_at)}` : ''}
+            {p.fuori_at ? `, da ${fmtDateShort(p.fuori_at)}` : ''}
           </span>
         </span>
       ) : p.fuori && p.pipeline_stage ? (
@@ -173,7 +173,7 @@ export default function TuttiElenco({ onOpen }: Props) {
             <Card key={chi || 'nessuno'}>
               <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
                 <TitoloCard>{chi || 'Non assegnati'}</TitoloCard>
-                <Micro>{suoi.length} · {loro.toLocaleString('it-IT')} €/mese</Micro>
+                <Micro>{suoi.length}, {loro.toLocaleString('it-IT')} €/mese</Micro>
               </header>
               {suoi.map(riga)}
             </Card>

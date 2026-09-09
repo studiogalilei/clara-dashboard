@@ -87,7 +87,7 @@ def main():
         da_leggere.append({"id": p["id"], "testo": msg.get("body") or ""})
         if QUANTI and len(da_leggere) >= QUANTI:
             break
-    print(f"  {len(persone)} hanno risposto · {len(da_leggere)} da rileggere\n")
+    print(f"  {len(persone)} hanno risposto, {len(da_leggere)} da rileggere\n")
     if not da_leggere:
         return
 
@@ -122,8 +122,8 @@ def main():
         elif v["classe"] in SICURE:
             sicure.append((p, prima, v, "classe"))
 
-    print(f"\n  confermate {uguali} · archivio vuoto {vuoti} · "
-          f"correggo da sola {len(sicure)} · chiedo a Dre {len(proposte)}\n")
+    print(f"\n  confermate {uguali}, archivio vuoto {vuoti}, "
+          f"correggo da sola {len(sicure)}, chiedo a Dre {len(proposte)}\n")
     for p, prima, v, cosa in sicure[:25]:
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
         print(f"  faccio   {nome:36} {str(prima):14} -> {v['classe']:12} {v['perche']}")

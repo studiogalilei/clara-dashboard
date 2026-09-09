@@ -220,7 +220,7 @@ export default function App() {
           <span className="text-navy"><ClaraLogo size={36} /></span>
           <span className="text-[15px] leading-tight tracking-tight text-navy">
             <span className="font-extrabold">Studio Galilei</span>
-            <span className="block text-[11px] font-semibold text-inchiostro">Workspace · con Clara</span>
+            <span className="block text-[11px] font-semibold text-inchiostro">Workspace, con Clara</span>
           </span>
         </div>
 

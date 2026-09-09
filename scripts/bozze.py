@@ -105,7 +105,7 @@ NOTA: una riga su cosa hai adattato e perche'
 il testo della bozza, pronto da incollare, SENZA firma (la mette Smartlead),
 con {{CALENDARIO}} e {giorno data ora} gia' sostituiti coi valori che ti do.
 Se FERMATI e' si', la bozza e' comunque la migliore che puoi, e dopo il testo
-aggiungi una riga: [ESCALATION] azienda · nome · intento · cosa chiede
+aggiungi una riga: [ESCALATION] azienda, nome, intento, cosa chiede
 Se INT-25 (non e' chiaro cosa vuole): due bozze alternative, separate da una
 riga «=== ALTERNATIVA ===».
 
@@ -124,7 +124,7 @@ def chiedi_bozza(p, ultimo, riprova=None):
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
     prompt = (playbook() + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") +
-              f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO} · slot da proporre = {proposta_giorno_ora()} · oggi e' {datetime.date.today():%A %d %B %Y}"
+              f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
         prompt += f"\n\nLA BOZZA PRECEDENTE NON E' PASSATA IL CANCELLO PER: {riprova}. Riscrivila correggendo solo quello."
@@ -192,8 +192,8 @@ def main():
         if errori:
             bocciate += 1
         ferma = not b["fermati"].lower().startswith("no")
-        titolo = (f"Da guardare tu: {nome}" if ferma else f"Bozza per {nome}") + f" · {b['intento']}"
-        perche = (b["fermati"] if ferma else b["nota"])[:280] + (f" · CANCELLO: {'; '.join(errori)}" if errori else "")
+        titolo = (f"Da guardare tu: {nome}" if ferma else f"Bozza per {nome}") + f", {b['intento']}"
+        perche = (b["fermati"] if ferma else b["nota"])[:280] + (f", CANCELLO: {'; '.join(errori)}" if errori else "")
         print(f"\n  [{b['intento']}] {titolo}\n      {perche}\n      " + b["bozza"][:220].replace("\n", " ") + "…")
         if not PROVA:
             proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche,
@@ -201,12 +201,12 @@ def main():
         if ferma: ferme += 1
         else: fatte += 1
 
-    print(f"\n  bozze pronte {fatte} · da guardare tu {ferme} · non passate il cancello {bocciate}")
+    print(f"\n  bozze pronte {fatte}, da guardare tu {ferme}, non passate il cancello {bocciate}")
     # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare
     if not PROVA and (fatte or ferme):
         from avvisa import avvisa
         pezzi = ([f"{fatte} bozze da approvare"] if fatte else []) + ([f"{ferme} da guardare tu"] if ferme else [])
-        avvisa(" · ".join(pezzi) + ". Apri la posta e approva.")
+        avvisa(", ".join(pezzi) + ". Apri la posta e approva.")
 
 
 if __name__ == "__main__":

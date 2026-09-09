@@ -137,7 +137,7 @@ for (const [giorniFa, out, dentro, analisi, followup, call] of RITMO) {
 // la prep pre-call di esempio (il formato vero del protocollo)
 interactions.push({
   id: 'prep-1', prospect_id: 'p5', at: gg(0), kind: 'prep',
-  body: `PREP · Conoscitiva Venice Design Week (Anna)
+  body: `PREP, Conoscitiva Venice Design Week (Anna)
 
 CHI SONO
 Organizzano la settimana del design a Venezia, terza settimana di ottobre.
@@ -169,10 +169,10 @@ Budget reale, chi decide, accesso al sito/tag, obiettivo (biglietti o espositori
 })
 
 export const agenda: AgendaItem[] = [
-  { id: 4, at: gg(3).slice(0, 11) + '11:00:00', titolo: 'Conoscitiva · Zeni Sicurezza', tipo: 'conoscitiva', prospect_id: 'p6', fonte: 'gcal' },
-  { id: 5, at: fra(12).slice(0, 11) + '10:00:00', titolo: 'Check mensile · Klavzar', tipo: 'altro', prospect_id: 'p7', fonte: 'gcal' },
-  { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva · Venice Design Week', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal' },
-  { id: 2, at: fra(4).slice(0, 11) + '09:00:00', titolo: 'Invio follow-up · 30 mail pronte', tipo: 'invio', prospect_id: null, fonte: 'gcal' },
+  { id: 4, at: gg(3).slice(0, 11) + '11:00:00', titolo: 'Conoscitiva, Zeni Sicurezza', tipo: 'conoscitiva', prospect_id: 'p6', fonte: 'gcal' },
+  { id: 5, at: fra(12).slice(0, 11) + '10:00:00', titolo: 'Check mensile, Klavzar', tipo: 'altro', prospect_id: 'p7', fonte: 'gcal' },
+  { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva, Venice Design Week', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal' },
+  { id: 2, at: fra(4).slice(0, 11) + '09:00:00', titolo: 'Invio follow-up, 30 mail pronte', tipo: 'invio', prospect_id: null, fonte: 'gcal' },
   { id: 3, at: fra(8).slice(0, 11) + '09:00:00', titolo: 'Ripartono le campagne', tipo: 'altro', prospect_id: null, fonte: 'gcal' },
 ]
 
@@ -183,7 +183,7 @@ export const clara_messaggi = [
   },
   {
     id: 1, at: gg(0).slice(0, 11) + '08:00:00', tipo: 'brief', letto: true, prospect_id: null,
-    testo: 'Buongiorno Dre. Il punto di oggi:\n• 15:00: Conoscitiva · Venice Design Week (domani, ti preparo il foglio)\n• In coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io. Il resto è nella sezione Task.',
+    testo: 'Buongiorno Dre. Il punto di oggi:\n• 15:00: Conoscitiva, Venice Design Week (domani, ti preparo il foglio)\n• In coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io. Il resto è nella sezione Task.',
   },
   {
     id: 2, at: gg(0).slice(0, 11) + '08:00:10', tipo: 'promemoria', letto: false, prospect_id: 'p7',

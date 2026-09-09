@@ -188,7 +188,7 @@ export default function Plugin() {
               </div>
               <p className="mt-1.5 pl-5 text-[11px] text-spento">
                 {op.ultima_corsa
-                  ? <>ultima {fmtDateShort(op.ultima_corsa)} · {fmtOra(op.ultima_corsa)} · <span className={op.ultimo_esito === 'errore' ? 'font-bold text-red-700' : 'text-green-700'}>{op.ultimo_esito}</span>{op.ultima_durata_ms ? ` · ${Math.round(op.ultima_durata_ms / 1000)}s` : ''}{op.ultimo_dettaglio && op.ultimo_esito === 'errore' ? ` · ${op.ultimo_dettaglio.slice(-120)}` : ''}</>
+                  ? <>ultima {fmtDateShort(op.ultima_corsa)}, {fmtOra(op.ultima_corsa)}, <span className={op.ultimo_esito === 'errore' ? 'font-bold text-red-700' : 'text-green-700'}>{op.ultimo_esito}</span>{op.ultima_durata_ms ? `, ${Math.round(op.ultima_durata_ms / 1000)}s` : ''}{op.ultimo_dettaglio && op.ultimo_esito === 'errore' ? `, ${op.ultimo_dettaglio.slice(-120)}` : ''}</>
                   : 'mai partita'}
               </p>
             </div>
@@ -272,7 +272,7 @@ export default function Plugin() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{w.nome}</p>
                 <p className="text-xs text-tenue">{w.cosa}</p>
-                <p className="mt-0.5 text-[11px] text-spento">{[w.fonte, w.cadenza, w.per_chi].filter(Boolean).join(' · ')} · chiesto il {fmtDateShort(w.at)}</p>
+                <p className="mt-0.5 text-[11px] text-spento">{[w.fonte, w.cadenza, w.per_chi].filter(Boolean).join(', ')}, chiesto il {fmtDateShort(w.at)}</p>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${classe}`}>{eti}</span>
             </div>

@@ -227,9 +227,9 @@ export default function Analytics({ onOpen }: Props) {
           confronto={`${delta(call30, callPrec)} sul mese prima`} />
       </div>
 
-      {/* ── 1 · il battito ──────────────────────────────────── */}
+      {/* ── 1, il battito ──────────────────────────────────── */}
       <Card className="p-5">
-        <TitoloCard>Battito · ultime {SETTIMANE} settimane</TitoloCard>
+        <TitoloCard>Battito, ultime {SETTIMANE} settimane</TitoloCard>
         <p className="mb-4 text-sm font-semibold">{verdettoBattito}</p>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {[
@@ -261,7 +261,7 @@ export default function Analytics({ onOpen }: Props) {
         </div>
       </Card>
 
-      {/* ── 2 · il funnel coi tassi ─────────────────────────── */}
+      {/* ── 2, il funnel coi tassi ─────────────────────────── */}
       <Card className="p-5">
         <TitoloCard>Funnel</TitoloCard>
         <p className="mb-4 text-sm font-semibold">
@@ -286,7 +286,7 @@ export default function Analytics({ onOpen }: Props) {
         </div>
       </Card>
 
-      {/* ── 3 · la velocita' e i fermi ───────────────────────── */}
+      {/* ── 3, la velocita' e i fermi ───────────────────────── */}
       <Card className="p-5">
         <TitoloCard>Velocità</TitoloCard>
         <div className="mb-4 grid grid-cols-2 gap-3">
@@ -316,7 +316,7 @@ export default function Analytics({ onOpen }: Props) {
         )}
       </Card>
 
-      {/* ── 4 · le campagne a confronto ─────────────────────── */}
+      {/* ── 4, le campagne a confronto ─────────────────────── */}
       {campagne.length > 0 && (
         <Card className="p-5">
           <TitoloCard>Campagne</TitoloCard>

@@ -230,7 +230,7 @@ export default function ClaraVolante({ onOpen }: Props) {
   // stretta (320), aperta di default sulla posta; la chiudi se vuoi e torna
   // il logo. Sul telefono resta il pannello che si apre sopra.
   const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
-  const [aperta, setApertaStato] = useState<boolean>(() => desktop && leggiPref('clara-aperta') !== 'no')
+  const [aperta, setApertaStato] = useState<boolean>(() => desktop && leggiPref('clara-aperta') === 'si')
   const setAperta = (v: boolean) => { setApertaStato(v); if (desktop) scriviPref('clara-aperta', v ? 'si' : 'no') }
   const fissa = desktop && aperta
   const [larghezza, setLarghezza] = useState<number>(() => {
@@ -269,6 +269,89 @@ export default function ClaraVolante({ onOpen }: Props) {
   const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
   const [bozze, setBozze] = useState<Record<number, string>>({})
   const [copiata, setCopiata] = useState<number | null>(null)
+
+  // il corpo di una proposta: lo stesso in posta e in chat. In chat parla come
+  // una persona (Dre, 9/9): breve, naturale, e i bottoni subito sotto.
+  function aParole(pr: Proposta): string {
+    const nome = pr.titolo.split(':')[0].replace(/^Bozza per |^Da guardare tu: /, '').split(',')[0].trim()
+    if (pr.tipo === 'risposta') return `${nome} ha risposto, ti ho preparato la risposta. La leggi?`
+    if (pr.tipo === 'umano') return `${nome}: qui serve tu. ${(pr.perche ?? '').split('.')[0]}`.trim()
+    return pr.titolo
+  }
+  function corpoProposta(pr: Proposta, stile: 'posta' | 'chat') {
+    const aperto = apertaId === pr.id
+    const c = contesto[pr.id]
+    return (
+      <>
+                      <button onClick={() => apriProposta(pr)} className={stile === 'chat' ? 'flex w-full items-start gap-2 text-left' : 'flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-velo/60'}>
+                        {stile === 'posta' && <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${pr.tipo === 'scarta' || pr.tipo === 'perso' ? 'bg-red-500' : pr.tipo === 'classifica' ? 'bg-amber-400' : 'bg-blu'}`} />}
+                        <span className="min-w-0 flex-1">
+                          <span className={`block leading-snug ${stile === 'chat' ? 'text-sm' : 'text-[14px] font-bold'}`}>{stile === 'chat' ? aParole(pr) : pr.titolo}</span>
+                          {stile === 'posta' && <span className="block truncate text-xs text-tenue">{pr.perche}</span>}
+                        </span>
+                        <span className={`mt-1 shrink-0 text-[11px] text-spento transition-transform ${aperto ? 'rotate-90' : ''}`}>▸</span>
+                      </button>
+                      {aperto && (
+                        <div className={stile === 'chat' ? 'salta-su pt-2' : 'salta-su px-5 pb-4 pl-10'}>
+                          {!c ? (
+                            <p className="text-xs text-spento">carico…</p>
+                          ) : (
+                            <div className="space-y-2 text-sm">
+                              {c.p && (
+                                <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-tenue">
+                                  <span>oggi: <b className="text-inchiostro">{CLS_LABEL[c.p.classificazione ?? 'da_classificare'] ?? c.p.classificazione}</b></span>
+                                  {c.p.last_reply_at && <span>ultima sua mail: <b className="text-inchiostro">{fmtDateShort(c.p.last_reply_at)}</b></span>}
+                                  {c.p.next_action_date && <span>risentirlo: <b className="text-inchiostro">{fmtDateShort(c.p.next_action_date)}</b></span>}
+                                  {c.p.canone && <span>{Number(c.p.canone).toLocaleString('it-IT')} €/mese</span>}
+                                </p>
+                              )}
+                              {c.ultimo && (
+                                <blockquote className="border-l-2 border-bordo pl-3 text-[13px] leading-snug text-tenue">
+                                  <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                    cosa ha scritto{c.quando ? `, ${fmtDateShort(c.quando)}` : ''}
+                                  </span>
+                                  <span className="line-clamp-5 whitespace-pre-wrap">{c.ultimo}</span>
+                                </blockquote>
+                              )}
+                              {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
+                              {pr.azione?.bozza !== undefined && (
+                                <div className="mt-2">
+                                  <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                    la bozza{pr.azione.template ? `, ${pr.azione.template}` : ''}
+                                    <button
+                                      onClick={async () => {
+                                        try { await navigator.clipboard.writeText(bozze[pr.id] ?? pr.azione.bozza ?? '') } catch { /* niente */ }
+                                        setCopiata(pr.id); setTimeout(() => setCopiata(null), 1800)
+                                      }}
+                                      className="ml-auto rounded-full border border-bordo px-2.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-navy hover:border-navy"
+                                    >
+                                      {copiata === pr.id ? 'copiata ✓' : 'Copia'}
+                                    </button>
+                                  </p>
+                                  <textarea
+                                    value={bozze[pr.id] ?? pr.azione.bozza}
+                                    onChange={(e) => setBozze((b) => ({ ...b, [pr.id]: e.target.value }))}
+                                    rows={9}
+                                    className="w-full rounded-lg border border-bordo bg-white px-3 py-2 text-[13px] leading-snug outline-none focus:border-blu"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="mt-3 flex items-center gap-2">
+                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                              {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
+                            </button>
+                            <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
+                            {pr.prospect_id && (
+                              <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Storia →</button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+      </>
+    )
+  }
 
   async function apriProposta(pr: Proposta) {
     setApertaId((a) => (a === pr.id ? null : pr.id))
@@ -397,6 +480,7 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   // un messaggio si segna letto da dentro, dopo averlo aperto (Dre, 9/9)
   const [apertoMsg, setApertoMsg] = useState<number | null>(null)
+  const [inChat, setInChat] = useState(5)     // quante proposte in chat per volta
   async function segnaLetto(m: Messaggio) {
     await supabase.from('clara_messaggi').update({ letto: true }).eq('id', m.id).select().single()
     setMessaggi((l) => (l ?? []).map((x) => (x.id === m.id ? { ...x, letto: true } : x)))
@@ -596,7 +680,7 @@ export default function ClaraVolante({ onOpen }: Props) {
       await supabase.from('vault_file')
         .insert({ nome, path, mime: f.type || null, dimensione: f.size })
         .select().single()
-      await scriviMessaggio('dre', `📎 ${f.name} · messo nei Documenti`)
+      await scriviMessaggio('dre', `📎 ${f.name}, messo nei Documenti`)
     }
     setInvio(false)
   }
@@ -621,7 +705,7 @@ export default function ClaraVolante({ onOpen }: Props) {
       setComando(null)
       return
     }
-    await scriviMessaggio('controllo', `Task aggiunta: «${t}»${pData ? ` · ${fmtDateShort(pData)}` : ''}`)
+    await scriviMessaggio('controllo', `Task aggiunta: «${t}»${pData ? `, ${fmtDateShort(pData)}` : ''}`)
     setComando(null)
   }
 
@@ -636,8 +720,8 @@ export default function ClaraVolante({ onOpen }: Props) {
       fonte: 'clara',
     }).select().single()
     await scriviMessaggio('controllo',
-      `Preparata: ${pTitolo.trim()} · ${fmtDateShort(pQuando)} ${fmtOra(pQuando)}` +
-      `${pInvitati ? ` · con ${pInvitati}` : ''}; confermala su Calendar`,
+      `Preparata: ${pTitolo.trim()}, ${fmtDateShort(pQuando)} ${fmtOra(pQuando)}` +
+      `${pInvitati ? `, con ${pInvitati}` : ''}; confermala su Calendar`,
       pProspect || null)
     window.open(url, '_blank')
     setComando(null)
@@ -734,7 +818,6 @@ export default function ClaraVolante({ onOpen }: Props) {
                   <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
                 ) : proposte.map((pr, i) => {
                   const aperto = apertaId === pr.id
-                  const c = contesto[pr.id]
                   const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
                   const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
                   return (
@@ -745,72 +828,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                           <span className="tabular-nums text-tenue">{proposte.filter((x) => x.tipo === pr.tipo).length}</span>
                         </p>
                       )}
-                      <button onClick={() => apriProposta(pr)} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-velo/60">
-                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${pr.tipo === 'scarta' || pr.tipo === 'perso' ? 'bg-red-500' : pr.tipo === 'classifica' ? 'bg-amber-400' : 'bg-blu'}`} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-bold leading-snug">{pr.titolo}</span>
-                          <span className="block truncate text-xs text-tenue">{pr.perche}</span>
-                        </span>
-                        <span className={`mt-1 shrink-0 text-[11px] text-spento transition-transform ${aperto ? 'rotate-90' : ''}`}>▸</span>
-                      </button>
-                      {aperto && (
-                        <div className="salta-su px-5 pb-4 pl-10">
-                          {!c ? (
-                            <p className="text-xs text-spento">carico…</p>
-                          ) : (
-                            <div className="space-y-2 text-sm">
-                              {c.p && (
-                                <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-tenue">
-                                  <span>oggi: <b className="text-inchiostro">{CLS_LABEL[c.p.classificazione ?? 'da_classificare'] ?? c.p.classificazione}</b></span>
-                                  {c.p.last_reply_at && <span>ultima sua mail: <b className="text-inchiostro">{fmtDateShort(c.p.last_reply_at)}</b></span>}
-                                  {c.p.next_action_date && <span>risentirlo: <b className="text-inchiostro">{fmtDateShort(c.p.next_action_date)}</b></span>}
-                                  {c.p.canone && <span>{Number(c.p.canone).toLocaleString('it-IT')} €/mese</span>}
-                                </p>
-                              )}
-                              {c.ultimo && (
-                                <blockquote className="border-l-2 border-bordo pl-3 text-[13px] leading-snug text-tenue">
-                                  <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
-                                    cosa ha scritto{c.quando ? ` · ${fmtDateShort(c.quando)}` : ''}
-                                  </span>
-                                  <span className="line-clamp-5 whitespace-pre-wrap">{c.ultimo}</span>
-                                </blockquote>
-                              )}
-                              {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
-                              {pr.azione?.bozza !== undefined && (
-                                <div className="mt-2">
-                                  <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
-                                    la bozza{pr.azione.template ? ` · ${pr.azione.template}` : ''}
-                                    <button
-                                      onClick={async () => {
-                                        try { await navigator.clipboard.writeText(bozze[pr.id] ?? pr.azione.bozza ?? '') } catch { /* niente */ }
-                                        setCopiata(pr.id); setTimeout(() => setCopiata(null), 1800)
-                                      }}
-                                      className="ml-auto rounded-full border border-bordo px-2.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-navy hover:border-navy"
-                                    >
-                                      {copiata === pr.id ? 'copiata ✓' : 'Copia'}
-                                    </button>
-                                  </p>
-                                  <textarea
-                                    value={bozze[pr.id] ?? pr.azione.bozza}
-                                    onChange={(e) => setBozze((b) => ({ ...b, [pr.id]: e.target.value }))}
-                                    rows={9}
-                                    className="w-full rounded-lg border border-bordo bg-white px-3 py-2 text-[13px] leading-snug outline-none focus:border-blu"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          <div className="mt-3 flex items-center gap-2">
-                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
-                              {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
-                            </button>
-                            <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
-                            {pr.prospect_id && (
-                              <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Storia →</button>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                      {corpoProposta(pr, 'posta')}
                     </div>
                   )
                 })}
@@ -843,7 +861,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                     <>
                       {label && (
                         <span className={`mb-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${classe}`}>
-                          {m.tipo === 'brief' ? `${label} · ${fmtDateShort(m.at)}` : label}
+                          {m.tipo === 'brief' ? `${label}, ${fmtDateShort(m.at)}` : label}
                         </span>
                       )}
                       <p className={`whitespace-pre-wrap text-sm ${m.letto ? 'text-tenue' : 'font-medium'}`}>
@@ -872,6 +890,30 @@ export default function ClaraVolante({ onOpen }: Props) {
                     </div>
                   )
                 })
+              )}
+              {/* le cose che Clara chiede e propone: messaggi come gli altri, le piu' vecchie prima, cinque alla volta */}
+              {proposte.slice(0, inChat).map((pr) => (
+                <div key={`pr-${pr.id}`} className="flex justify-start">
+                  <div className={`w-full max-w-[92%] rounded-2xl rounded-bl-md px-3.5 py-2.5 ${apertaId === pr.id ? 'bg-white ring-1 ring-blu/40' : 'bg-white ring-1 ring-blu/20'}`}>
+                    {corpoProposta(pr, 'chat')}
+                    {apertaId !== pr.id && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        {pr.azione?.bozza !== undefined ? (
+                          <button onClick={() => apriProposta(pr)} className="rounded-full bg-blu px-3.5 py-1 text-xs font-bold text-white">Leggi</button>
+                        ) : (
+                          <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-blu px-3.5 py-1 text-xs font-bold text-white disabled:opacity-40">Sì</button>
+                        )}
+                        <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
+                        {pr.azione?.bozza === undefined && <button onClick={() => apriProposta(pr)} className="ml-auto text-[11px] font-semibold text-blu hover:underline">contesto</button>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {proposte.length > inChat && (
+                <button onClick={() => setInChat((n) => n + 5)} className="w-full rounded-xl border border-dashed border-bordo py-2 text-xs font-semibold text-tenue hover:border-navy hover:text-navy">
+                  altre {proposte.length - inChat} cose: mostrane 5
+                </button>
               )}
               {inAttesa && <ClaraPensa da={inAttesa} />}
               <div ref={fondoRef} />

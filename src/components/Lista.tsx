@@ -337,7 +337,7 @@ export default function Lista({ onOpen, q }: Props) {
       setToast({ testo: `${nome} riaperta in ${PIPELINE_LABEL[target]}`, tono: 'ok', id })
     } else if (target === 'cliente') {
       setNuovoCliente(data as Prospect)
-      setToast({ testo: `🏆 ${nome} è CLIENTE · apri la scheda e scegli il contratto`, tono: 'oro', id })
+      setToast({ testo: `🏆 ${nome} è CLIENTE, apri la scheda e scegli il contratto`, tono: 'oro', id })
     } else if (salto > 0) {
       setToast({ testo: `${nome} → ${PIPELINE_LABEL[target]} ✓`, tono: 'ok', id })
     } else {
@@ -363,13 +363,13 @@ export default function Lista({ onOpen, q }: Props) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">
             {p.company || p.name || p.email}
-            {p.company && p.name ? <span className="font-normal text-tenue"> · {p.name}</span> : null}
+            {p.company && p.name ? <span className="font-normal text-tenue">, {p.name}</span> : null}
           </p>
           <p className="truncate text-xs text-tenue">
             {sgid(p.sg_id, p) && <span className="font-semibold text-blu">{sgid(p.sg_id, p)}</span>}
-            {sgid(p.sg_id, p) && ' · '}
+            {sgid(p.sg_id, p) && ', '}
             {p.email}
-            {p.last_reply_at && <> · ultima risposta {fmtDateShort(p.last_reply_at)}</>}
+            {p.last_reply_at && <>, ultima risposta {fmtDateShort(p.last_reply_at)}</>}
           </p>
         </div>
         {eCliente(p) ? (
@@ -379,7 +379,7 @@ export default function Lista({ onOpen, q }: Props) {
             </span>
             <span className="block text-spento">
               {p.contratto === 'prova' ? 'in prova' : p.contratto === 'stable' ? 'stabile' : 'contratto da scegliere'}
-              {p.fuori_at ? ` · da ${fmtDateShort(p.fuori_at)}` : ''}
+              {p.fuori_at ? `, da ${fmtDateShort(p.fuori_at)}` : ''}
             </span>
           </span>
         ) : fermo !== null && !finito ? (
@@ -428,12 +428,12 @@ export default function Lista({ onOpen, q }: Props) {
             <Dot tone={tono} />
             {sgid(p.sg_id, p) && <span className="font-semibold text-blu/80">{sgid(p.sg_id, p)}</span>}
             {fase === 'prova' && p.prova_fine
-              ? <span className={`font-semibold ${p.prova_fine <= new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10) ? 'text-amber-700' : 'text-navy'}`}>· fino al {fmtDateShort(p.prova_fine)}</span>
+              ? <span className={`font-semibold ${p.prova_fine <= new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10) ? 'text-amber-700' : 'text-navy'}`}>fino al {fmtDateShort(p.prova_fine)}</span>
               : quando
-              ? <span className="font-semibold text-navy">· {fmtDateShort(quando)}</span>
+              ? <span className="font-semibold text-navy">{fmtDateShort(quando)}</span>
               : risento
-                ? <span className="font-semibold text-navy">· dal {fmtDateShort(risento)}</span>
-                : fermo !== null && !finito && <span>· {giorni(fermo)}</span>}
+                ? <span className="font-semibold text-navy">dal {fmtDateShort(risento)}</span>
+                : fermo !== null && !finito && <span>{giorni(fermo)}</span>}
           </span>
         </span>
       </button>
@@ -690,7 +690,7 @@ export default function Lista({ onOpen, q }: Props) {
             <p className="text-base font-extrabold">Riassunto di fase</p>
             <p className="mt-1 text-sm text-tenue">
               {pedaggio.p.company || pedaggio.p.name}
-              {` · ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} → ${PIPELINE_LABEL[pedaggio.target]}`}
+              {`, ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} → ${PIPELINE_LABEL[pedaggio.target]}`}
             </p>
             <textarea
               autoFocus

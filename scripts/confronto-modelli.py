@@ -71,7 +71,7 @@ def main():
         dentro, fuori = u1["dentro"] - u0["dentro"], u1["fuori"] - u0["fuori"]
         pin, pout = PREZZO.get(m, (0, 0))
         costo = dentro / 1e6 * pin + fuori / 1e6 * pout
-        print(f"  {m:12} letti {len(esiti[m])}/{len(campione)} · token {dentro}+{fuori} · costo {costo:.4f} $")
+        print(f"  {m:12} letti {len(esiti[m])}/{len(campione)}, token {dentro}+{fuori}, costo {costo:.4f} $")
 
     print("\nDOVE NON SONO D'ACCORDO (riferimento = la lettura approvata il 7/9):\n")
     testa = f"  {'chi':30} {'riferimento':16}" + "".join(f"{m:16}" for m in MODELLI)

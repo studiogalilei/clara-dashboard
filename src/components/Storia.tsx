@@ -108,7 +108,7 @@ export function Timeline({ timeline, agenda, onTutta }: {
         onClick={onTutta}
         className="mt-3 w-full rounded-full border border-bordo py-1.5 text-xs font-bold text-navy hover:border-navy"
       >
-        Visualizza tutta la storia{tutte.length > poche.length ? ` · ${tutte.length} eventi` : ''}
+        Visualizza tutta la storia{tutte.length > poche.length ? `, ${tutte.length} eventi` : ''}
       </button>
     </div>
   )
@@ -138,7 +138,7 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
   const eventi = [
     ...timeline.filter((t) => t.kind !== 'postit' && t.kind !== 'prep')
       .map((t) => ({ chiave: t.id, at: t.at, tipo: t.kind as string, testo: t.body ?? '' })),
-    ...agenda.map((a) => ({ chiave: `ag-${a.id}`, at: a.at, tipo: 'agenda', testo: `${a.titolo}${a.tipo ? ` · ${a.tipo}` : ''}` })),
+    ...agenda.map((a) => ({ chiave: `ag-${a.id}`, at: a.at, tipo: 'agenda', testo: `${a.titolo}${a.tipo ? `, ${a.tipo}` : ''}` })),
     ...task.map((t) => ({ chiave: `task-${t.id}`, at: t.scadenza ?? '', tipo: t.fatta ? 'task_fatta' : 'task', testo: t.titolo })),
   ].filter((e) => e.at).sort((x, y) => x.at.localeCompare(y.at))
 
@@ -155,7 +155,7 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
       <header className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-3 lg:px-8">
         <button onClick={onChiudi} className="rounded-full px-3 py-1.5 text-sm font-semibold text-tenue hover:bg-velo">← Indietro</button>
         <h1 className="text-[17px] font-extrabold">{nome}</h1>
-        <Micro className="ml-1">tutta la storia · {eventi.length} eventi</Micro>
+        <Micro className="ml-1">tutta la storia, {eventi.length} eventi</Micro>
         <span className="ml-auto text-xs text-spento">Esc per chiudere</span>
       </header>
       <div className="mx-auto w-full max-w-3xl flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-8">
@@ -163,7 +163,7 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
           <Card className="border-l-4 border-l-navy px-5 py-3">
             <Micro>Prossimo passo</Micro>
             <p className="mt-0.5 text-sm font-semibold">
-              {prossimoPasso.cosa ?? 'Da decidere'}{prossimoPasso.quando ? ` · ${fmtDate(prossimoPasso.quando)}` : ''}
+              {prossimoPasso.cosa ?? 'Da decidere'}{prossimoPasso.quando ? `, ${fmtDate(prossimoPasso.quando)}` : ''}
             </p>
           </Card>
         )}
@@ -174,7 +174,7 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
           return (
             <Card key={e.chiave} className="px-5 py-3.5">
               <p className="flex items-baseline gap-2">
-                <span className="text-[11px] tabular-nums text-spento">{fmtDate(e.at)}{e.tipo === 'agenda' ? ` · ${fmtOra(e.at)}` : ''}</span>
+                <span className="text-[11px] tabular-nums text-spento">{fmtDate(e.at)}{e.tipo === 'agenda' ? `, ${fmtOra(e.at)}` : ''}</span>
                 <span className={`text-xs font-bold uppercase tracking-[0.05em] ${colore}`}>{eti}</span>
               </p>
               {e.testo && (lungo

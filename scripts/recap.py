@@ -42,7 +42,7 @@ def main():
 
     righe = []
     if call:
-        righe.append("• " + " · ".join(f"{datetime.datetime.fromisoformat(c['at'].replace('Z', '+00:00')).astimezone(ROMA):%H:%M} {c['titolo'][:40]}" for c in call[:3]) + (f" (+{len(call) - 3})" if len(call) > 3 else ""))
+        righe.append("• " + ", ".join(f"{datetime.datetime.fromisoformat(c['at'].replace('Z', '+00:00')).astimezone(ROMA):%H:%M} {c['titolo'][:40]}" for c in call[:3]) + (f" (+{len(call) - 3})" if len(call) > 3 else ""))
     if bozze:
         righe.append(f"• {bozze} bozz{'a' if bozze == 1 else 'e'} da approvare nella posta")
     if domande:

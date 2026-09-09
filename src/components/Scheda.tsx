@@ -364,7 +364,7 @@ export default function Scheda({ id, onClose }: Props) {
     await supabase.from('vault_file')
       .insert({ nome, path, mime: f.type || null, dimensione: f.size, prospect_id: p!.id })
       .select().single()
-    await segna('nota', `📎 ${f.name} · nei Documenti`)
+    await segna('nota', `📎 ${f.name}, nei Documenti`)
     setNotaEsito(`«${nome}» nei Documenti, agganciato a ${p!.company || p!.name} ✓`)
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)
   }
@@ -435,10 +435,10 @@ export default function Scheda({ id, onClose }: Props) {
   async function salvaNota() {
     const t = notaTesto.trim()
     if (!t) return
-    await segna('postit', notaData ? `${t} · ricordamelo il ${fmtDateShort(notaData)}` : t)
+    await segna('postit', notaData ? `${t}, ricordamelo il ${fmtDateShort(notaData)}` : t)
     if (notaData) {
       const { problema } = await creaTask({
-        titolo: `${t.slice(0, 60)} · ${p!.company || p!.name}`,
+        titolo: `${t.slice(0, 60)}, ${p!.company || p!.name}`,
         scadenza: notaData,
         prospect_id: p!.id,
       })
@@ -450,7 +450,7 @@ export default function Scheda({ id, onClose }: Props) {
         testo: `[Nota su ${p!.company || p!.name}] ${t}${notaData ? `; ricordamelo il ${fmtDateShort(notaData)}` : ''}`,
       }).select().single()
     }
-    setNotaEsito(`Post-it attaccato ✓${notaData ? ' · promemoria in Task' : ''}${notaClara ? ' · girata a Clara' : ''}`)
+    setNotaEsito(`Post-it attaccato ✓${notaData ? ', promemoria in Task' : ''}${notaClara ? ', girata a Clara' : ''}`)
     setNotaTesto('')
     setNotaData('')
     setNotaClara(false)
@@ -518,7 +518,7 @@ export default function Scheda({ id, onClose }: Props) {
           {avanzataA === 'cliente' ? (
             <div className="rounded-2xl bg-blu px-5 py-4 text-white shadow-[0_8px_24px_rgba(6,23,115,0.3)]">
               <p className="text-lg font-extrabold">
-                🏆 Nuovo cliente · {p.company || p.name} {codice && <span className="font-semibold text-white/70">{codice}</span>}
+                🏆 Nuovo cliente, {p.company || p.name} {codice && <span className="font-semibold text-white/70">{codice}</span>}
               </p>
               <p className="mt-0.5 text-sm text-white/80">
                 Da prospect a cliente: è l'obiettivo del gioco. L'ID resta lo stesso, cambia la relazione.
@@ -534,7 +534,7 @@ export default function Scheda({ id, onClose }: Props) {
                   }}
                   className="rounded-full border border-white/40 px-4 py-1.5 text-sm font-bold hover:bg-white/10"
                 >
-                  {c === 'prova' ? 'Prova · 1.500 € × 2' : 'Stable · 1.400 €/mese'}
+                  {c === 'prova' ? 'Prova, 1.500 € × 2' : 'Stable, 1.400 €/mese'}
                 </button>
               ))}
               </div>
@@ -577,7 +577,7 @@ export default function Scheda({ id, onClose }: Props) {
 
         {binarioSegnato && (
           <p className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-            Segnato ✓ · non te lo chiedo più per questa scheda.
+            Segnato ✓, non te lo chiedo più per questa scheda.
           </p>
         )}
 
@@ -622,7 +622,7 @@ export default function Scheda({ id, onClose }: Props) {
                       : 'border border-bordo text-tenue hover:border-navy hover:text-navy'
                     }`}
                   >
-                    {presoDa === utenteId ? 'Ce l\'hai in mano · lascia' : presoDa ? 'Lo tiene un altro' : 'Prendo io'}
+                    {presoDa === utenteId ? 'Ce l\'hai in mano, lascia' : presoDa ? 'Lo tiene un altro' : 'Prendo io'}
                   </button>
                 )
               })()}
@@ -846,7 +846,7 @@ export default function Scheda({ id, onClose }: Props) {
                   <span className="min-w-0 truncate text-sm font-semibold">{prossimaCall.titolo}</span>
                 </p>
                 <p className="text-xs text-spento">
-                  {fmtDate(prossimaCall.at)} · {fmtOra(prossimaCall.at)}
+                  {fmtDate(prossimaCall.at)}, {fmtOra(prossimaCall.at)}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -984,7 +984,7 @@ export default function Scheda({ id, onClose }: Props) {
                     </span>
                     <span className="text-sm font-semibold">
                       Vale la pena: <span className={mercato.fit === 'si' ? 'text-green-700' : 'text-red-700'}>{mercato.fit === 'si' ? 'Sì' : 'No'}</span>
-                      <span className="font-normal text-tenue"> · {fmtNum(mercato.ricerche)}/mese · CPC {mercato.cpc.toLocaleString('it-IT', { minimumFractionDigits: 2 })} €</span>
+                      <span className="font-normal text-tenue">, {fmtNum(mercato.ricerche)}/mese, CPC {mercato.cpc.toLocaleString('it-IT', { minimumFractionDigits: 2 })} €</span>
                     </span>
                   </summary>
                   <div className="space-y-3 border-t border-velo p-4">
@@ -993,7 +993,7 @@ export default function Scheda({ id, onClose }: Props) {
                       <span className="text-tenue">Mesi vivi</span>
                       <span className="font-bold">{mercato.mesi_vivi} su 12</span>
                     </div>
-                    <p className="text-[11px] text-spento">{mercato.zona} · misurato il {fmtDate(mercato.misurato_il)}</p>
+                    <p className="text-[11px] text-spento">{mercato.zona}, misurato il {fmtDate(mercato.misurato_il)}</p>
                   </div>
                 </details>
               </Card>
@@ -1010,7 +1010,7 @@ export default function Scheda({ id, onClose }: Props) {
                     </span>
                     <span className="text-sm font-semibold">
                       {p.classificazione ? CLS_LABEL[p.classificazione] : '—'}
-                      <span className="font-normal text-tenue"> · {STAGE_LABEL[p.stage]}</span>
+                      <span className="font-normal text-tenue">, {STAGE_LABEL[p.stage]}</span>
                     </span>
                   </summary>
                   <div className="space-y-3 border-t border-velo p-4">
@@ -1060,7 +1060,7 @@ export default function Scheda({ id, onClose }: Props) {
                         p.contratto === c ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
                       }`}
                     >
-                      {c === 'prova' ? 'Prova · 1.500 € × 2' : 'Stable · 1.400 €/mese'}
+                      {c === 'prova' ? 'Prova, 1.500 € × 2' : 'Stable, 1.400 €/mese'}
                     </button>
                   ))}
                 </div>
@@ -1132,7 +1132,7 @@ export default function Scheda({ id, onClose }: Props) {
                     {p.analysis_sent ? (
                       <p className="text-xs text-tenue">
                         Ricevuta il {fmtDateShort(p.analysis_sent_at)}
-                        {p.analysis_pdf ? '' : ' · il file non è agganciato qui'}
+                        {p.analysis_pdf ? '' : ', il file non è agganciato qui'}
                       </p>
                     ) : (
                       <p className="text-xs text-tenue">Non ancora inviata</p>

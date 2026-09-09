@@ -60,7 +60,7 @@ def main():
         righe = sl.sl_export(cid)
         con_reply = [r for r in righe if int(r.get("reply_count") or 0) > 0]
         print(f"[{cid}] {nome[:44]}  con risposta: {len(con_reply)}")
-        out = [f"# {nome}\n\n*Campagna {cid} · {len(con_reply)} conversazioni · esportato il {datetime.date.today():%d/%m/%Y}*\n"]
+        out = [f"# {nome}\n\n*Campagna {cid}, {len(con_reply)} conversazioni, esportato il {datetime.date.today():%d/%m/%Y}*\n"]
         n_msg = 0
         for r in con_reply:
             em = (r.get("email") or "").strip().lower()
@@ -75,14 +75,14 @@ def main():
                 continue
             rec = noti.get(em) or {}
             cls = rec.get("classificazione") or ""
-            out.append(f"\n## {r.get('company_name') or '?'} · {(r.get('first_name') or '').strip()} {(r.get('last_name') or '').strip()}".rstrip())
-            out.append(f"*{em}* · classificato oggi: **{cls or 'da classificare'}** · stage: {rec.get('stage') or '?'}\n")
+            out.append(f"\n## {r.get('company_name') or '?'}, {(r.get('first_name') or '').strip()} {(r.get('last_name') or '').strip()}".rstrip())
+            out.append(f"*{em}*, classificato oggi: **{cls or 'da classificare'}**, stage: {rec.get('stage') or '?'}\n")
             for m in msgs:
                 chi = "**LORO**" if m.get("type") == "REPLY" else "noi"
                 quando = (m.get("time") or "")[:16].replace("T", " ")
                 corpo = sl.corpo_pulito(m.get("email_body")) if m.get("type") == "REPLY" else pulito(m.get("email_body"))
                 corpo = re.sub(r"\n{3,}", "\n\n", corpo).strip()
-                out.append(f"**{chi}** · {quando}\n\n{corpo[:3000] if corpo else '*(corpo vuoto)*'}\n")
+                out.append(f"**{chi}**, {quando}\n\n{corpo[:3000] if corpo else '*(corpo vuoto)*'}\n")
                 n_msg += 1
             out.append("---")
             # il nono buco: il corpo vuoto in archivio si riempie col thread vero
@@ -98,7 +98,7 @@ def main():
             time.sleep(0.12)
         percorso = os.path.join(VAULT, f"{slug(nome)}.md")
         open(percorso, "w", encoding="utf-8").write("\n".join(out))
-        indice.append(f"- [[Thread Smartlead/{slug(nome)}|{nome}]] · {len(con_reply)} conversazioni, {n_msg} messaggi")
+        indice.append(f"- [[Thread Smartlead/{slug(nome)}|{nome}]], {len(con_reply)} conversazioni, {n_msg} messaggi")
         tot_lead += len(con_reply); tot_msg += n_msg
 
     open(os.path.join(VAULT, "INDICE.md"), "w", encoding="utf-8").write("\n".join(indice) + "\n")

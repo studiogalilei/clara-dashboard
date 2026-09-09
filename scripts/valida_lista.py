@@ -14,7 +14,7 @@ Uso:
   python3 scripts/valida_lista.py lista.csv --nome "Hotel lago di Garda" --scopo outbound --fonte "maps-scraper" [--dry-run]
 
 CSV: colonne riconosciute (case-insensitive, in qualsiasi ordine):
-  email (obbligatoria) · company/azienda · website/sito · name/nome · phone/telefono · linkedin
+  email (obbligatoria), company/azienda, website/sito, name/nome, phone/telefono, linkedin
 """
 import argparse, csv, json, os, re, sys, urllib.request, urllib.parse
 

@@ -291,7 +291,7 @@ def disponibile():
 
 
 if __name__ == "__main__":
-    print(f"fornitore: {FORNITORE} · modello: {MODELLO_OPENAI if FORNITORE == 'openai' else MODELLO_CLAUDE}")
+    print(f"fornitore: {FORNITORE}, modello: {MODELLO_OPENAI if FORNITORE == 'openai' else MODELLO_CLAUDE}")
     print("cervello disponibile:", disponibile())
     prova = [
         {"id": "a", "testo": "Thank you for your email. I am currently out of the office "
