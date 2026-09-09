@@ -119,7 +119,7 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
                 key={r}
                 onClick={() => { setRuolo(r); scegliRuolo(r); onCambio() }}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                  ruolo === r ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-navy'
+                  ruolo === r ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-navy'
                 }`}
               >
                 {etichetta}
@@ -229,7 +229,7 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['ongo', 'On go'], ['big', 'Week picture']].map(([v, etichetta]) => (
               <button key={v} onClick={() => preferenza('task-vista', v, setVistaTask)}
-                className={`px-3 py-1 text-xs font-bold ${vistaTask === v ? 'bg-navy text-white' : 'bg-white text-tenue'}`}>
+                className={`px-3 py-1 text-xs font-bold ${vistaTask === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
                 {etichetta}
               </button>
             ))}
@@ -242,7 +242,7 @@ export default function Impostazioni({ nome, email, demo, onCambio }: Props) {
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['board', 'Bacheca'], ['elenco', 'Elenco']].map(([v, etichetta]) => (
               <button key={v} onClick={() => preferenza('tutti-vista', v, setVistaTutti)}
-                className={`px-3 py-1 text-xs font-bold ${vistaTutti === v ? 'bg-navy text-white' : 'bg-white text-tenue'}`}>
+                className={`px-3 py-1 text-xs font-bold ${vistaTutti === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
                 {etichetta}
               </button>
             ))}

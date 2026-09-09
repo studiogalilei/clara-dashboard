@@ -169,7 +169,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
         <div className="flex overflow-hidden rounded-full border border-bordo bg-white">
           {(['tutti', 'clienti', 'prospect'] as Filtro[]).map((f) => (
             <button key={f} onClick={() => { setFiltro(f); scriviPref('tutti-filtro', f) }}
-              className={`px-4 py-1.5 text-xs font-bold transition-colors ${filtro === f ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'}`}>
+              className={`px-4 py-1.5 text-xs font-bold transition-colors ${filtro === f ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'}`}>
               {f === 'tutti' ? 'Tutti' : f === 'clienti' ? 'Clienti' : 'Prospect'}
             </button>
           ))}
@@ -236,7 +236,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
                       <td colSpan={6} className="px-3 py-2">
                         <div className="flex items-center justify-between gap-2 pb-1.5">
                           <p className="text-[11px] font-bold uppercase tracking-wide text-tenue">Preventivi di {p.company || p.name}</p>
-                          <button onClick={() => nuovoPreventivo(p)} className="rounded-full bg-navy px-3 py-1 text-[11px] font-bold text-white hover:bg-navy/90">+ Preventivo</button>
+                          <button onClick={() => nuovoPreventivo(p)} className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">+ Preventivo</button>
                         </div>
                         {suoi.length === 0 ? (
                           <p className="py-2 text-xs text-spento">Nessun preventivo ancora.</p>

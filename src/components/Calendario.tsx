@@ -32,7 +32,7 @@ const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
 const GIORNI_LUNGHI = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
 
 const COLORE: Record<Tipo, string> = {
-  call: 'bg-navy text-white',
+  call: 'bg-blu text-white',
   followup: 'bg-amber-100 text-amber-900',
   altro: 'bg-red-100 text-red-900',
 }
@@ -292,7 +292,7 @@ export default function Calendario({ onOpen }: Props) {
                   } ${weekend ? 'bg-velo/40' : ''}`}
                 >
                   <span className={`self-start text-sm font-bold ${
-                    eOggi ? 'flex h-6 w-6 items-center justify-center rounded-full bg-navy text-white' : 'text-tenue'
+                    eOggi ? 'flex h-6 w-6 items-center justify-center rounded-full bg-blu text-white' : 'text-tenue'
                   }`}>
                     {d.getDate()}
                   </span>
@@ -342,7 +342,7 @@ export default function Calendario({ onOpen }: Props) {
                   <button
                     onClick={aggiungiTask}
                     disabled={!titoloTask.trim() || salvo}
-                    className="shrink-0 rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30"
+                    className="shrink-0 rounded-full bg-blu px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30"
                   >
                     {salvo ? 'Salvo…' : 'Metti in Task'}
                   </button>

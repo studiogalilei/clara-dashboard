@@ -182,7 +182,7 @@ export default function Vault({ onOpen }: Props) {
             <button
               onClick={() => carica(inAttesa)}
               disabled={!aCasaDi || caricando}
-              className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
             >
               {caricando ? 'Carico…' : 'Metti nella sua cartella'}
             </button>
@@ -206,7 +206,7 @@ export default function Vault({ onOpen }: Props) {
         <button
           onClick={() => inputRef.current?.click()}
           disabled={caricando}
-          className="rounded-full bg-navy px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-navy-scuro disabled:opacity-40"
+          className="rounded-full bg-blu px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro disabled:opacity-40"
         >
           {caricando ? 'Carico…' : '+ Aggiungi file'}
         </button>

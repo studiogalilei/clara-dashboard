@@ -234,7 +234,7 @@ export default function Progetti({ onOpen }: Props) {
             {vivi.filter((p) => p.scadenza && p.scadenza < oggi).length} oltre la scadenza
           </span>
         )}
-        <button onClick={aggiungi} className="ml-auto rounded-full bg-navy px-4 py-1.5 text-sm font-semibold text-white hover:bg-navy/90">
+        <button onClick={aggiungi} className="ml-auto rounded-full bg-blu px-4 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">
           + Riga
         </button>
       </div>

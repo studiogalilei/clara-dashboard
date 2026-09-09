@@ -41,7 +41,7 @@ export default function Login() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-full bg-navy py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:opacity-50"
+          className="w-full rounded-full bg-blu py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-50"
         >
           {busy ? 'Accesso…' : 'Entra'}
         </button>

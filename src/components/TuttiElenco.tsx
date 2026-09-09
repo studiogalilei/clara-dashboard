@@ -141,7 +141,7 @@ export default function TuttiElenco({ onOpen }: Props) {
               key={f}
               onClick={() => cambia(f)}
               className={`px-4 py-1.5 text-xs font-bold transition-colors ${
-                filtro === f ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'
+                filtro === f ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'
               }`}
             >
               {etichetta}

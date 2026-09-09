@@ -249,7 +249,7 @@ export default function App() {
                 </svg>
                 {label}
                 {t === 'oggi' && inArrivo > 0 && (
-                  <span className="ml-auto rounded-full bg-navy px-1.5 py-px text-[10px] font-bold text-white" title="Task in arrivo da accettare">{inArrivo}</span>
+                  <span className="ml-auto rounded-full bg-blu px-1.5 py-px text-[10px] font-bold text-white" title="Task in arrivo da accettare">{inArrivo}</span>
                 )}
               </button>
             )
@@ -335,7 +335,7 @@ export default function App() {
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
-              <h1 className="flex items-center gap-2 text-[19px] font-extrabold tracking-tight lg:text-[21px]">
+              <h1 className="flex items-center gap-2 text-[24px] font-extrabold tracking-tight lg:text-[28px]">
                 {tab === 'pipeline' && <span className="text-navy"><ClaraLogo size={26} /></span>}
                 {tab === 'pipeline' ? saluto()[0] : titolo}
               </h1>

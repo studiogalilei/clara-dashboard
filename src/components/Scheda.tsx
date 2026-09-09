@@ -453,7 +453,7 @@ export default function Scheda({ id, onClose }: Props) {
           onClick={save}
           disabled={!dirty || saving}
           className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-            dirty ? 'bg-navy text-white hover:bg-navy-scuro' : 'text-bordo'
+            dirty ? 'bg-blu text-white hover:bg-blu-scuro' : 'text-bordo'
           }`}
         >
           {saving ? 'Salvo…' : saved ? 'Salvato ✓' : 'Salva'}
@@ -475,7 +475,7 @@ export default function Scheda({ id, onClose }: Props) {
               </button>
               <button
                 onClick={() => rispondiCancello('no')}
-                className="flex-1 rounded-full bg-navy py-2 text-sm font-bold text-white hover:bg-navy-scuro"
+                className="flex-1 rounded-full bg-blu py-2 text-sm font-bold text-white hover:bg-blu-scuro"
               >
                 No, mai
               </button>
@@ -494,7 +494,7 @@ export default function Scheda({ id, onClose }: Props) {
       {avanzataA && (
         <div className="mx-auto mt-3 max-w-5xl px-4">
           {avanzataA === 'cliente' ? (
-            <div className="rounded-2xl bg-navy px-5 py-4 text-white shadow-[0_8px_24px_rgba(6,23,115,0.3)]">
+            <div className="rounded-2xl bg-blu px-5 py-4 text-white shadow-[0_8px_24px_rgba(6,23,115,0.3)]">
               <p className="text-lg font-extrabold">
                 🏆 Nuovo cliente · {p.company || p.name} {codice && <span className="font-semibold text-white/70">{codice}</span>}
               </p>
@@ -534,7 +534,7 @@ export default function Scheda({ id, onClose }: Props) {
                   setAvanzataA(null); setDataPasso('')
                 }}
                 disabled={!dataPasso}
-                className="rounded-full bg-navy px-3.5 py-1 text-xs font-bold text-white disabled:opacity-30"
+                className="rounded-full bg-blu px-3.5 py-1 text-xs font-bold text-white disabled:opacity-30"
               >
                 Segna
               </button>
@@ -613,7 +613,7 @@ export default function Scheda({ id, onClose }: Props) {
               <button
                 onClick={() => { setNoteAperte(!noteAperte); setNotaEsito(null) }}
                 className={`rounded-full border px-4 py-2.5 text-sm font-bold transition-colors ${
-                  noteAperte ? 'border-navy bg-navy text-white' : 'border-bordo text-tenue hover:border-navy hover:text-navy'
+                  noteAperte ? 'border-navy bg-blu text-white' : 'border-bordo text-tenue hover:border-navy hover:text-navy'
                 }`}
               >
                 ✎ Nota
@@ -681,7 +681,7 @@ export default function Scheda({ id, onClose }: Props) {
                   Annulla
                 </button>
                 <button onClick={passaA} disabled={!aChi.trim()}
-                  className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-navy-scuro disabled:opacity-30">
+                  className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro disabled:opacity-30">
                   Passa a {aChi.trim() || '…'}
                 </button>
               </div>
@@ -768,7 +768,7 @@ export default function Scheda({ id, onClose }: Props) {
                       <button
                         onClick={salvaNota}
                         disabled={!notaTesto.trim()}
-                        className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30"
+                        className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30"
                       >
                         Salva
                       </button>
@@ -785,7 +785,7 @@ export default function Scheda({ id, onClose }: Props) {
               <div key={t} className="flex shrink-0 items-center gap-1">
                 {i > 0 && <span className={`h-px w-4 ${i <= tappa ? 'bg-navy' : 'bg-bordo'}`} />}
                 <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                  i === tappa ? 'bg-navy text-white'
+                  i === tappa ? 'bg-blu text-white'
                   : i < tappa ? 'text-navy'
                   : 'text-spento'
                 }`}>
@@ -833,7 +833,7 @@ export default function Scheda({ id, onClose }: Props) {
                 <button
                   onClick={() => setPrepAperta(!prepAperta)}
                   className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${
-                    prepAperta ? 'bg-navy text-white' : prep ? 'bg-navy text-white' : 'border border-navy text-navy hover:bg-navy/5'
+                    prepAperta ? 'bg-blu text-white' : prep ? 'bg-blu text-white' : 'border border-navy text-navy hover:bg-navy/5'
                   }`}
                 >
                   Preparazione pre-call
@@ -853,7 +853,7 @@ export default function Scheda({ id, onClose }: Props) {
                     <p className="text-sm text-tenue">La prep non è ancora pronta.</p>
                     <button
                       onClick={chiediPrep}
-                      className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-navy-scuro"
+                      className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
                     >
                       Chiedila a Clara
                     </button>
@@ -990,7 +990,7 @@ export default function Scheda({ id, onClose }: Props) {
                           key={c}
                           onClick={() => setCls(c)}
                           className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                            p.classificazione === c ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
+                            p.classificazione === c ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
                           }`}
                         >
                           {CLS_LABEL[c]}
@@ -1006,7 +1006,7 @@ export default function Scheda({ id, onClose }: Props) {
                           key={s}
                           onClick={() => aggiorna({ stage: s as Stage })}
                           className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                            p.stage === s ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
+                            p.stage === s ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
                           }`}
                         >
                           {STAGE_LABEL[s]}
@@ -1027,7 +1027,7 @@ export default function Scheda({ id, onClose }: Props) {
                       key={c}
                       onClick={() => aggiorna({ contratto: c, canone: c === 'prova' ? 1500 : 1400 })}
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                        p.contratto === c ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
+                        p.contratto === c ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
                       }`}
                     >
                       {c === 'prova' ? 'Prova · 1.500 € × 2' : 'Stable · 1.400 €/mese'}
@@ -1218,7 +1218,7 @@ export default function Scheda({ id, onClose }: Props) {
                       onClick={portaAvanti}
                       disabled={!transcriptCorrente}
                       title={transcriptCorrente ? undefined : 'Prima il riassunto: senza non si avanza'}
-                      className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:cursor-not-allowed disabled:opacity-30"
+                      className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       Porta avanti → {PIPELINE_LABEL[next]}
                     </button>
@@ -1238,7 +1238,7 @@ export default function Scheda({ id, onClose }: Props) {
                   placeholder="Aggiungi una nota…"
                   className="flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu"
                 />
-                <button onClick={addNota} className="rounded-full bg-navy px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-navy-scuro">+</button>
+                <button onClick={addNota} className="rounded-full bg-blu px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">+</button>
               </div>
             </Card>
 

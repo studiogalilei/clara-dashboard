@@ -207,7 +207,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
     <div className="space-y-4">
 
       {/* ── da fare oggi: le cose che aspettano TE ─────────────── */}
-      <div className="rounded-2xl bg-navy text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]">
+      <div className="rounded-2xl bg-blu text-white shadow-[0_8px_24px_rgba(6,23,115,0.25)]">
         <div className="flex items-baseline justify-between px-4 pb-1 pt-3.5">
           <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/60">Da fare oggi</p>
           {pronto && daFare > 0 && <span className="text-lg font-extrabold tabular-nums leading-none">{daFare}</span>}

@@ -20,7 +20,7 @@ export default function Tutti({ onOpen }: Props) {
       <div className="flex overflow-hidden rounded-full border border-bordo bg-white self-start w-fit">
         {MODI.map(([m, etichetta]) => (
           <button key={m} onClick={() => cambia(m)}
-            className={`px-4 py-1.5 text-xs font-bold transition-colors ${modo === m ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'}`}>
+            className={`px-4 py-1.5 text-xs font-bold transition-colors ${modo === m ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'}`}>
             {etichetta}
           </button>
         ))}

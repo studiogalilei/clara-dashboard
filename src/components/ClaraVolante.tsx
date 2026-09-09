@@ -762,7 +762,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                             </div>
                           )}
                           <div className="mt-3 flex items-center gap-2">
-                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
                               {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
                             </button>
                             <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
@@ -792,7 +792,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                   if (m.tipo === 'dre') {
                     return (
                       <div key={m.id} className="flex justify-end">
-                        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-navy px-3.5 py-2 text-white">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-blu px-3.5 py-2 text-white">
                           <p className="whitespace-pre-wrap text-sm">{m.testo}</p>
                           <p className="mt-0.5 text-right text-[10px] text-white/60">{fmtOra(m.at)} ✓</p>
                         </div>
@@ -859,7 +859,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                       <button
                         onClick={confermaTask}
                         disabled={!pTitolo.trim()}
-                        className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30"
+                        className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30"
                       >
                         Aggiungi
                       </button>
@@ -884,7 +884,7 @@ export default function ClaraVolante({ onOpen }: Props) {
                       <button
                         onClick={confermaCall}
                         disabled={!pTitolo.trim() || !pQuando}
-                        className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30"
+                        className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30"
                       >
                         Conferma su Calendar →
                       </button>

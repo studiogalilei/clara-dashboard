@@ -445,7 +445,7 @@ export default function Lista({ onOpen, q }: Props) {
           <button
             onClick={() => cambiaVista('board')}
             aria-label="Vista bacheca"
-            className={`px-3 py-1.5 ${vista === 'board' ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'}`}
+            className={`px-3 py-1.5 ${vista === 'board' ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path d="M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z" />
@@ -454,7 +454,7 @@ export default function Lista({ onOpen, q }: Props) {
           <button
             onClick={() => cambiaVista('elenco')}
             aria-label="Vista elenco"
-            className={`px-3 py-1.5 ${vista === 'elenco' ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'}`}
+            className={`px-3 py-1.5 ${vista === 'elenco' ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
               <path d="M4 6h16M4 12h16M4 18h16" />
@@ -468,7 +468,7 @@ export default function Lista({ onOpen, q }: Props) {
             onClick={() => setStage(s)}
             className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
               stage === s
-                ? 'border-navy bg-navy text-white'
+                ? 'border-navy bg-blu text-white'
                 : 'border-bordo bg-white text-tenue hover:border-spento'
             }`}
           >
@@ -742,7 +742,7 @@ export default function Lista({ onOpen, q }: Props) {
                   setPedaggio(null); setRiassunto('')
                 }}
                 disabled={!riassunto.trim() || salvando}
-                className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:cursor-not-allowed disabled:opacity-30"
+                className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
               >
                 {salvando ? 'Salvo…' : 'Salva e porta avanti →'}
               </button>
@@ -804,7 +804,7 @@ export default function Lista({ onOpen, q }: Props) {
                 }}
                 disabled={conferma.tipo === 'perso' && !motivo.trim()}
                 className={`rounded-full px-5 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-30 ${
-                  conferma.tipo === 'perso' ? 'bg-red-700 hover:bg-red-800' : 'bg-navy hover:bg-navy-scuro'
+                  conferma.tipo === 'perso' ? 'bg-red-700 hover:bg-red-800' : 'bg-navy hover:bg-blu-scuro'
                 }`}
               >
                 {conferma.tipo === 'perso' ? 'Segna come perso'
@@ -829,7 +829,7 @@ export default function Lista({ onOpen, q }: Props) {
         <button
           onClick={() => { if (toast.id) onOpen(toast.id); setToast(null) }}
           className={`salta-su fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full px-5 py-2.5 text-sm font-bold shadow-[0_8px_24px_rgba(16,24,40,0.2)] sm:bottom-6 ${
-            toast.tono === 'oro' ? 'bg-navy text-white'
+            toast.tono === 'oro' ? 'bg-blu text-white'
             : toast.tono === 'stop' ? 'border border-amber-300 bg-amber-50 text-amber-900'
             : 'border border-green-200 bg-green-50 text-green-800'
           }`}

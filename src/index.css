@@ -7,15 +7,19 @@
 @theme {
   --font-sans: "Plus Jakarta Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 
-  --color-navy: #061773;
-  --color-navy-scuro: #040f52;
-  --color-inchiostro: #1c2030;
-  --color-tenue: #5d6377;
-  --color-spento: #8f94a6;
-  --color-bordo: #e4e6ee;
-  --color-velo: #eef0f5;
-  --color-fondo: #f5f6f9;
-  --color-blu: #1a49c9;
+  /* 9/9, intervista a Dre: bianco e nero con i dettagli in blu SG. Il navy
+     del brand per titoli e testo importante, il blu del brand per bottoni e
+     link. Neutri freddi della stessa temperatura, nessun grigio a caso. */
+  --color-navy: #1C2E6E;
+  --color-navy-scuro: #14225a;
+  --color-blu: #2979C4;
+  --color-blu-scuro: #1f63a3;
+  --color-inchiostro: #17191f;
+  --color-tenue: #5b6170;
+  --color-spento: #8d92a1;
+  --color-bordo: #e5e7ec;
+  --color-velo: #f1f2f6;
+  --color-fondo: #f7f8fa;
 }
 
 html {
@@ -23,7 +27,8 @@ html {
 }
 
 body {
-  font-size: 13.5px;
+  font-size: 15px;            /* Dre 9/9: «piu' grandi di ora», si legge senza sforzo */
+  line-height: 1.5;
   color: var(--color-inchiostro);
   background: var(--color-fondo);
   font-variant-numeric: tabular-nums;
@@ -49,7 +54,11 @@ body {
 h1, h2 {
   letter-spacing: -0.02em;
   line-height: 1.15;
+  color: var(--color-navy);   /* i titoli sono in navy SG: e' il blu dei titoli */
 }
+/* focus visibile, sempre: mai outline none senza sostituto */
+:focus-visible { outline: 2px solid var(--color-blu); outline-offset: 2px; }
+button, a, select, input[type=checkbox] { cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) {
   button:active {
     transform: scale(0.985);

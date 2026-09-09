@@ -405,7 +405,7 @@ export default function Oggi({ onOpen }: Props) {
               <div
                 key={`t-${c.chiave}`}
                 className={`border-b border-bordo px-2.5 py-1.5 last:border-r-0 [&:not(:last-child)]:border-r ${
-                  c.oggi ? 'bg-navy text-white' : 'bg-navy/10 text-navy'
+                  c.oggi ? 'bg-blu text-white' : 'bg-navy/10 text-navy'
                 }`}
               >
                 <span className="block truncate text-lg font-extrabold uppercase leading-tight tracking-tight">
@@ -545,7 +545,7 @@ export default function Oggi({ onOpen }: Props) {
             </p>
             <div className="mt-1.5 flex gap-1.5">
               <button onClick={() => rispondiAllaProposta(t, true)}
-                className="rounded-full bg-navy px-3 py-1 text-[11px] font-bold text-white hover:bg-navy-scuro">Accetta</button>
+                className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">Accetta</button>
               <button onClick={() => { const m = window.prompt('Perché la rimandi indietro?'); if (m !== null) rispondiAllaProposta(t, false, m) }}
                 className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">Rimanda</button>
             </div>
@@ -602,7 +602,7 @@ export default function Oggi({ onOpen }: Props) {
               key={v}
               onClick={() => cambiaVista(v)}
               className={`px-4 py-1.5 text-xs font-bold transition-colors ${
-                vista === v ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'
+                vista === v ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'
               }`}
             >
               {v === 'ongo' ? 'On go' : 'Week picture'}

@@ -93,7 +93,7 @@ export default function NuovoProgetto({ prospectId, nomeCliente, onFatto }: Prop
           <button
             onClick={salva}
             disabled={!nome.trim() || salvo}
-            className="rounded-full bg-navy px-5 py-2 text-sm font-bold text-white hover:bg-navy-scuro disabled:cursor-not-allowed disabled:opacity-30"
+            className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
           >
             {salvo ? 'Salvo…' : 'Passa alla delivery →'}
           </button>

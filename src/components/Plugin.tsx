@@ -169,7 +169,7 @@ export default function Plugin() {
                     )}
                     <button
                       onClick={() => cambia(op, { attiva: !op.attiva })}
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${op.attiva ? 'bg-navy text-white' : 'border border-bordo text-tenue'}`}
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${op.attiva ? 'bg-blu text-white' : 'border border-bordo text-tenue'}`}
                     >
                       {op.attiva ? 'accesa' : 'spenta'}
                     </button>
@@ -217,7 +217,7 @@ export default function Plugin() {
               <button
                 onClick={() => salvaIstruzione(i.chiave)}
                 disabled={(bozze[i.chiave] ?? '') === i.testo}
-                className="rounded-full bg-navy px-4 py-1 text-xs font-bold text-white disabled:opacity-30"
+                className="rounded-full bg-blu px-4 py-1 text-xs font-bold text-white disabled:opacity-30"
               >
                 Salva
               </button>
@@ -233,7 +233,7 @@ export default function Plugin() {
         <header className="flex items-center gap-3 border-b border-velo px-4 py-3">
           <span className="text-[13px] font-bold">Widget</span>
           <Micro>quello che chiedi, con il suo stato</Micro>
-          <button onClick={() => setNuovo((v) => !v)} className="ml-auto rounded-full bg-navy px-3.5 py-1 text-xs font-bold text-white">
+          <button onClick={() => setNuovo((v) => !v)} className="ml-auto rounded-full bg-blu px-3.5 py-1 text-xs font-bold text-white">
             {nuovo ? 'Annulla' : '+ Chiedi un widget'}
           </button>
         </header>
@@ -258,7 +258,7 @@ export default function Plugin() {
             </div>
             <div className="flex justify-end">
               <button onClick={chiediWidget} disabled={!r.nome.trim() || !r.cosa.trim()}
-                className="rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30">
+                className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-30">
                 Chiedilo
               </button>
             </div>

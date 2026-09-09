@@ -64,7 +64,7 @@ export function tonoFase(p: Pick<FacciaP, 'fuori' | 'stage' | 'pipeline_stage'>)
   if (cliente) return 'bg-green-600 text-white'
   if (p.fuori) {
     if (p.pipeline_stage === 'tecnica') return 'bg-blu text-white'
-    if (p.pipeline_stage === 'avvio') return 'bg-navy text-white'
+    if (p.pipeline_stage === 'avvio') return 'bg-blu text-white'
     return 'bg-[#6b85e0] text-white'
   }
   return 'bg-amber-400 text-amber-950'
@@ -188,7 +188,7 @@ export function Empty({ text }: { text: string }) {
 // Il contenitore standard: card bianca, bordo netto, angoli appena smussati
 export function Card({ children, className = '', id }: { children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <div id={id} className={`overflow-hidden rounded-2xl border border-bordo bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_rgba(16,24,40,0.04)] ${className}`}>
+    <div id={id} className={`overflow-hidden rounded-2xl border border-bordo bg-white ${className}`}>
       {children}
     </div>
   )
@@ -246,7 +246,7 @@ export function ZonaFile({ onFile, messaggio = 'Lascia qui il file', className =
       <div className={className}>{children}</div>
       {sopra && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-navy bg-navy/5">
-          <span className="rounded-full bg-navy px-4 py-2 text-sm font-bold text-white shadow-lg">
+          <span className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white shadow-lg">
             {messaggio}
           </span>
         </div>
