@@ -263,8 +263,7 @@ export default function ClaraVolante({ onOpen }: Props) {
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const [proposte, setProposte] = useState<Proposta[]>([])
   const [rispondo, setRispondo] = useState<number | null>(null)
-  const [vista, setVista] = useState<'chat' | 'posta'>(desktop ? 'posta' : 'chat')
-  const toccata = useRef(false)   // se Dre ha scelto lui la vista, non gliela cambio
+  const [vista, setVista] = useState<'chat' | 'posta'>('chat')
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
   const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
@@ -303,8 +302,6 @@ export default function ClaraVolante({ onOpen }: Props) {
         const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
         const l = ((data as Proposta[]) ?? []).sort((a, b) => (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9))
         setProposte(l)
-        // colonna fissa e niente da chiedere: si apre sulla chat, non su una pagina vuota
-        if (fissa && l.length === 0) setVista((v) => (v === 'posta' && !toccata.current ? 'chat' : v))
       })
     supabase
       .from('clara_messaggi')
@@ -390,12 +387,19 @@ export default function ClaraVolante({ onOpen }: Props) {
   }, [larghezza])
 
   const nonLetti = (messaggi ?? []).filter((m) => !m.letto && m.tipo !== 'dre')
+  // la presenza (Dre, 9/9): cosa sta facendo Clara adesso, in una riga, come una collega
+  const bozzeAperte = proposte.filter((p) => p.tipo === 'risposta' || p.tipo === 'umano').length
+  const presenza = pensa ? 'Sto pensando…'
+    : bozzeAperte > 0 ? `Ho ${bozzeAperte} bozz${bozzeAperte === 1 ? 'a' : 'e'} pronte per te`
+    : proposte.length > 0 ? `Ho ${proposte.length} cos${proposte.length === 1 ? 'a' : 'e'} da chiederti`
+    : nonLetti.length > 0 ? `${nonLetti.length} messagg${nonLetti.length === 1 ? 'io' : 'i'} da leggere`
+    : 'Tutto letto, ti aspetto'
 
-  async function segnaLette() {
-    for (const m of nonLetti) {
-      await supabase.from('clara_messaggi').update({ letto: true }).eq('id', m.id).select().single()
-    }
-    setMessaggi(messaggi!.map((m) => ({ ...m, letto: true })))
+  // un messaggio si segna letto da dentro, dopo averlo aperto (Dre, 9/9)
+  const [apertoMsg, setApertoMsg] = useState<number | null>(null)
+  async function segnaLetto(m: Messaggio) {
+    await supabase.from('clara_messaggi').update({ letto: true }).eq('id', m.id).select().single()
+    setMessaggi((l) => (l ?? []).map((x) => (x.id === m.id ? { ...x, letto: true } : x)))
   }
 
   async function scriviMessaggio(tipo: Messaggio['tipo'], t: string, prospect_id: string | null = null) {
@@ -690,12 +694,12 @@ export default function ClaraVolante({ onOpen }: Props) {
               ) : (
                 <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>
               )}
-              <span className="text-[15px] font-extrabold">{vista === 'posta' ? 'Clara chiede' : 'Clara'}</span>
+              <span className="min-w-0">
+                <span className="block text-[15px] font-extrabold leading-tight">{vista === 'posta' ? 'Clara chiede' : 'Clara'}</span>
+                {vista === 'chat' && <span className="block truncate text-[11px] text-tenue">{presenza}</span>}
+              </span>
               {vista === 'posta' && <span className="text-sm font-bold tabular-nums text-navy">{proposte.length}</span>}
               <div className="ml-auto flex items-center gap-1">
-                {vista === 'chat' && nonLetti.length > 0 && (
-                  <button onClick={segnaLette} className="mr-1 text-xs font-semibold text-blu hover:underline">Segna lette</button>
-                )}
                 {vista === 'chat' && (
                   <button
                     onClick={() => setVista('posta')}
@@ -845,23 +849,26 @@ export default function ClaraVolante({ onOpen }: Props) {
                       <p className={`whitespace-pre-wrap text-sm ${m.letto ? 'text-tenue' : 'font-medium'}`}>
                         {m.testo}
                       </p>
-                      <p className="mt-0.5 text-[10px] text-spento">{fmtOra(m.at)}</p>
+                      <p className="mt-0.5 flex items-center gap-2 text-[10px] text-spento">
+                        {fmtOra(m.at)}
+                        {!m.letto && <span className="h-1.5 w-1.5 rounded-full bg-blu" aria-label="da leggere" />}
+                      </p>
+                      {apertoMsg === m.id && (
+                        <p className="salta-su mt-1.5 flex gap-3 text-[11px] font-semibold">
+                          {!m.letto && <button onClick={(e) => { e.stopPropagation(); void segnaLetto(m) }} className="text-blu hover:underline">Segna letto</button>}
+                          {m.prospect_id && <button onClick={(e) => { e.stopPropagation(); if (!fissa) setAperta(false); onOpen(m.prospect_id!) }} className="text-navy hover:underline">Apri la scheda ›</button>}
+                        </p>
+                      )}
                     </>
                   )
                   return (
                     <div key={m.id} className="flex justify-start">
-                      {m.prospect_id ? (
-                        <button
-                          onClick={() => { setAperta(false); onOpen(m.prospect_id!) }}
-                          className="max-w-[85%] rounded-2xl rounded-bl-md bg-velo/70 px-3.5 py-2 text-left hover:bg-velo"
-                        >
-                          {dentro}
-                        </button>
-                      ) : (
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-velo/70 px-3.5 py-2">
-                          {dentro}
-                        </div>
-                      )}
+                      <button
+                        onClick={() => setApertoMsg(apertoMsg === m.id ? null : m.id)}
+                        className={`max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2 text-left ${m.letto ? 'bg-velo/60 hover:bg-velo' : 'bg-white ring-1 ring-blu/25 hover:ring-blu/50'}`}
+                      >
+                        {dentro}
+                      </button>
                     </div>
                   )
                 })

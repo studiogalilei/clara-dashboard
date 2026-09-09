@@ -16,9 +16,9 @@ export default defineConfig({
       manifest: {
         start_url: './',
         scope: './',
-        name: 'Clara — Studio Galilei',
+        name: 'Studio Galilei Workspace',
         short_name: 'Clara',
-        description: 'La dashboard di Studio Galilei, con Clara',
+        description: 'Il workspace di Studio Galilei, con Clara',
         theme_color: '#111827',
         background_color: '#ffffff',
         display: 'standalone',
