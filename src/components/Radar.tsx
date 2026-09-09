@@ -50,6 +50,8 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
   const [bozze, setBozze] = useState(0)
   const [domande, setDomande] = useState(0)
   const [taskOggi, setTaskOggi] = useState<Array<{ id: number; titolo: string; scadenza: string }>>([])
+  // le prove che finiscono entro due settimane: e' il momento di riaccordarsi (Dre, 9/9)
+  const [proveInScadenza, setProveInScadenza] = useState<Array<{ id: string; nome: string; fine: string }>>([])
   const [tuttiAvvisi, setTuttiAvvisi] = useState(false)
 
   useEffect(() => {
@@ -79,6 +81,11 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         setBozze(l.filter((p) => p.tipo === 'risposta' || p.tipo === 'umano').length)
         setDomande(l.filter((p) => p.tipo !== 'risposta' && p.tipo !== 'umano').length)
       })
+    supabase.from('prospects').select('id,company,name,email,prova_fine').eq('fuori', true).eq('pipeline_stage', 'prova')
+      .not('prova_fine', 'is', null).lte('prova_fine', new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10))
+      .order('prova_fine', { ascending: true }).limit(20)
+      .then(({ data }) => setProveInScadenza(((data as Array<{ id: string; company: string | null; name: string | null; email: string; prova_fine: string }>) ?? [])
+        .map((p) => ({ id: p.id, nome: p.company || p.name || p.email, fine: p.prova_fine }))))
     supabase.auth.getSession().then(({ data: sess }) => {
       const io = sess.session?.user?.id
       const mie = io ? `owner.is.null,owner.eq.${io}` : 'owner.is.null'
@@ -109,7 +116,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
         .from('prospects')
         .select('*')
         .eq('fuori', true)
-        .in('pipeline_stage', ['conoscitiva', 'tecnica', 'avvio']),
+        .in('pipeline_stage', ['conoscitiva', 'tecnica', 'avvio', 'prova']),
       supabase
         .from('prospects')
         .select('*')
@@ -196,7 +203,7 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
 
   // la giornata: prima le call di oggi, poi la coda. Due sorgenti, una
   // lista sola, e il numero in alto conta questa
-  const daFare = bozze + domande + callDiOggi.length + taskOggi.length
+  const daFare = bozze + domande + callDiOggi.length + taskOggi.length + proveInScadenza.length
   const apriPosta = () => window.dispatchEvent(new CustomEvent('clara:apri-posta'))
 
   const oraControllo = aggiornato ? fmtOra(aggiornato) : fmtOra(new Date().toISOString())
@@ -242,6 +249,15 @@ export default function Radar({ onOpen, onOggi, onCalendario }: Props) {
                   {callDiOggi.length === 1 ? 'call oggi' : 'call oggi'} · {callDiOggi[0].quando} {callDiOggi[0].testo}
                 </span>
                 <span className="shrink-0 text-[11px] text-spento">calendario →</span>
+              </button>
+            )}
+            {proveInScadenza.length > 0 && (
+              <button onClick={() => onOpen(proveInScadenza[0].id)} className="flex w-full items-baseline gap-3 px-4 py-1.5 text-left hover:bg-velo/50">
+                <span className="w-7 shrink-0 text-right text-[19px] font-extrabold tabular-nums text-navy">{proveInScadenza.length}</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] font-bold">
+                  {proveInScadenza.length === 1 ? 'prova che finisce' : 'prove che finiscono'} · {proveInScadenza[0].nome} il {fmtDateShort(proveInScadenza[0].fine)}
+                </span>
+                <span className="shrink-0 text-[11px] text-spento">riaccordarsi →</span>
               </button>
             )}
             {taskOggi.length > 0 && (

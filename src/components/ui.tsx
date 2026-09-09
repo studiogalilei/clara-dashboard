@@ -65,6 +65,7 @@ export function tonoFase(p: Pick<FacciaP, 'fuori' | 'stage' | 'pipeline_stage'>)
   if (p.fuori) {
     if (p.pipeline_stage === 'tecnica') return 'bg-blu text-white'
     if (p.pipeline_stage === 'avvio') return 'bg-blu text-white'
+    if (p.pipeline_stage === 'prova') return 'bg-teal-600 text-white'
     return 'bg-[#6b85e0] text-white'
   }
   return 'bg-amber-400 text-amber-950'

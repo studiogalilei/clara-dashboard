@@ -31,8 +31,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, proponi                             # noqa: E402
 import cervello                                            # noqa: E402
 
-FASI = ("conoscitiva", "tecnica", "avvio", "cliente", "perso")
-NOME = {"conoscitiva": "Conoscitiva", "tecnica": "Call tecnica", "avvio": "Avvio", "cliente": "Cliente", "perso": "Perso"}
+FASI = ("conoscitiva", "tecnica", "avvio", "prova", "cliente", "perso")
+NOME = {"conoscitiva": "Conoscitiva", "tecnica": "Call tecnica", "avvio": "Avvio", "prova": "Periodo di prova", "cliente": "Cliente", "perso": "Perso"}
 
 PROMPT = """Sei l'assistente commerciale di Studio Galilei, agenzia Google Ads.
 Dre ha appena fatto una call con un'azienda e ti passa il transcript (o il suo
@@ -41,10 +41,11 @@ riassunto). Leggi e rispondi SOLO con queste quattro righe, niente altro:
 RIASSUNTO: due frasi, cosa si sono detti e a che punto e' il rapporto
 PROSSIMO_PASSO: una frase operativa, quello che dobbiamo fare noi (es. «mandare la proposta con i tre pacchetti», «call tecnica con Carlo»)
 QUANDO: la data in formato YYYY-MM-DD se e' stata detta o si deduce (oggi e' {oggi}), altrimenti -
-FASE: una fra conoscitiva | tecnica | avvio | cliente | perso, oppure - se non cambia rispetto a «{fase}»
+FASE: una fra conoscitiva | tecnica | avvio | prova | cliente | perso, oppure - se non cambia rispetto a «{fase}»
 
 Le fasi: conoscitiva = prima call di conoscenza; tecnica = call tecnica e
-proposta economica; avvio = ha accettato, si parte con l'onboarding;
+proposta economica; avvio = ha accettato, si parte con l'onboarding; prova = i due
+mesi di periodo di prova sono partiti (1.500 € × 2);
 cliente = attivo e paga; perso = ha detto no o e' sparito dopo la proposta.
 Non inventare date: se non c'e', metti -.
 

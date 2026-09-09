@@ -25,12 +25,13 @@ export interface Preventivo {
 }
 
 type Riga = Prospect & { chi_segue?: string | null; notes?: string | null }
-type StatoFoglio = 'prospect' | 'preventivo' | 'cliente' | 'perso'
+type StatoFoglio = 'prospect' | 'preventivo' | 'prova' | 'cliente' | 'perso'
 type Filtro = 'clienti' | 'prospect' | 'tutti'
 
 export const STATI_FOGLIO: Array<[StatoFoglio, string, string]> = [
   ['prospect', 'Prospect', 'bg-amber-50 text-amber-900'],
   ['preventivo', 'Preventivo inviato', 'bg-sky-100 text-sky-900'],
+  ['prova', 'In prova', 'bg-teal-100 text-teal-900'],
   ['cliente', 'Cliente', 'bg-green-100 text-green-900'],
   ['perso', 'Perso', 'bg-velo text-spento'],
 ]
@@ -45,6 +46,7 @@ export const STATI_PREVENTIVO: Array<[Preventivo['stato'], string, string]> = [
 export function statoFoglio(p: Riga, suoi: Preventivo[]): StatoFoglio {
   if (eCliente(p)) return 'cliente'
   if (ePerso(p)) return 'perso'
+  if (p.fuori && p.pipeline_stage === 'prova') return 'prova'
   if (suoi.some((q) => q.stato === 'inviato')) return 'preventivo'
   return 'prospect'
 }
@@ -106,7 +108,12 @@ export default function TuttiFoglio({ onOpen }: Props) {
 
   // il selettore di stato: cambia la fase vera, non un'etichetta a parte
   async function cambiaStato(p: Riga, s: StatoFoglio) {
-    if (s === 'cliente') await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'cliente', awaiting_us: false, no_followup: true })
+    if (s === 'cliente') await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'cliente', contratto: 'stable', awaiting_us: false, no_followup: true })
+    else if (s === 'prova') {
+      const d = new Date(); const inizio = d.toISOString().slice(0, 10); d.setMonth(d.getMonth() + 2)
+      await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'prova', contratto: 'prova',
+        prova_inizio: p.prova_inizio ?? inizio, prova_fine: p.prova_fine ?? d.toISOString().slice(0, 10), awaiting_us: false, no_followup: true })
+    }
     else if (s === 'perso') await scriviRiga(p, p.fuori ? { pipeline_stage: 'perso', awaiting_us: false, no_followup: true } : { stage: 'perso', awaiting_us: false, no_followup: true })
     else if (s === 'preventivo') {
       // preventivo inviato = call tecnica fatta: entra in pipeline in Tecnica e nasce il preventivo
@@ -127,8 +134,8 @@ export default function TuttiFoglio({ onOpen }: Props) {
   for (const q of preventivi) perProspect.set(q.prospect_id, [...(perProspect.get(q.prospect_id) ?? []), q])
   const conStato = righe.map((p) => ({ p, s: statoFoglio(p, perProspect.get(p.id) ?? []) }))
   const mostrate = conStato.filter(({ s }) =>
-    filtro === 'clienti' ? s === 'cliente' : filtro === 'prospect' ? s === 'prospect' || s === 'preventivo' : true)
-  const ordine: Record<StatoFoglio, number> = { cliente: 0, preventivo: 1, prospect: 2, perso: 3 }
+    filtro === 'clienti' ? s === 'cliente' || s === 'prova' : filtro === 'prospect' ? s === 'prospect' || s === 'preventivo' : true)
+  const ordine: Record<StatoFoglio, number> = { cliente: 0, prova: 1, preventivo: 2, prospect: 3, perso: 4 }
   mostrate.sort((a, b) => ordine[a.s] - ordine[b.s] || (a.p.company || a.p.name || '').localeCompare(b.p.company || b.p.name || ''))
   const conta = (s: StatoFoglio) => conStato.filter((x) => x.s === s).length
 
@@ -175,7 +182,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
           ))}
         </div>
         <span className="text-xs text-tenue">
-          {conta('cliente')} clienti · {conta('preventivo')} con preventivo · {conta('prospect')} prospect · {conta('perso')} persi
+          {conta('cliente')} clienti · {conta('prova')} in prova · {conta('preventivo')} con preventivo · {conta('prospect')} prospect · {conta('perso')} persi
         </span>
       </div>
 

@@ -26,6 +26,7 @@ const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva'],
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
   ['Call di Avvio', 'avvio', (p) => p.fuori && p.pipeline_stage === 'avvio'],
+  ['Periodo di prova', 'prova', (p) => p.fuori && p.pipeline_stage === 'prova'],
   ['Cliente', 'cliente', eCliente],
   // perso parla del nostro processo, scartato parla della lista (Dre, 7/9):
   // ci abbiamo provato e no, oppure non era roba nostra. Due cassetti.
@@ -56,11 +57,11 @@ const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a
 
 const COLORE: Record<Chiave, string> = {
   prospect: 'bg-amber-400', conoscitiva: 'bg-[#6b85e0]', tecnica: 'bg-blu',
-  avvio: 'bg-navy', cliente: 'bg-green-600', perso: 'bg-gray-300', scartato: 'bg-gray-200',
+  avvio: 'bg-navy', prova: 'bg-teal-600', cliente: 'bg-green-600', perso: 'bg-gray-300', scartato: 'bg-gray-200',
 }
 
 const ORDINE: Record<Chiave, number> = {
-  prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, cliente: 4, perso: 99, scartato: 100,
+  prospect: 0, conoscitiva: 1, tecnica: 2, avvio: 3, prova: 4, cliente: 5, perso: 99, scartato: 100,
 }
 
 interface Toast {
@@ -426,7 +427,9 @@ export default function Lista({ onOpen, q }: Props) {
           <span className="flex items-center gap-1.5 truncate text-[11px] text-tenue">
             <Dot tone={tono} />
             {sgid(p.sg_id, p) && <span className="font-semibold text-blu/80">{sgid(p.sg_id, p)}</span>}
-            {quando
+            {fase === 'prova' && p.prova_fine
+              ? <span className={`font-semibold ${p.prova_fine <= new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10) ? 'text-amber-700' : 'text-navy'}`}>· fino al {fmtDateShort(p.prova_fine)}</span>
+              : quando
               ? <span className="font-semibold text-navy">· {fmtDateShort(quando)}</span>
               : risento
                 ? <span className="font-semibold text-navy">· dal {fmtDateShort(risento)}</span>

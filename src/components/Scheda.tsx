@@ -10,6 +10,8 @@ import {
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
 import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask } from '../lib/regole'
+const giornoOggi = () => new Date().toISOString().slice(0, 10)
+const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
 import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
@@ -43,6 +45,8 @@ const CAMPI: Array<{ key: keyof Prospect; label: string; type?: string }> = [
   { key: 'campaign', label: 'Campagna' },
   { key: 'next_action', label: 'Prossima azione' },
   { key: 'next_action_date', label: 'Data prossima azione', type: 'date' },
+  { key: 'prova_inizio', label: 'Prova: inizio', type: 'date' },
+  { key: 'prova_fine', label: 'Prova: fine', type: 'date' },
   { key: 'lost_reason', label: 'Motivo perso / rinvio' },
 ]
 
@@ -58,15 +62,15 @@ function spiegaErrore(e: { message?: string; code?: string } | null): string {
 }
 
 // le sette tappe del percorso, per lo stepper in testata
-const TAPPE = ['Risposta', 'Analisi', 'Follow-up', 'Conoscitiva', 'Tecnica', 'Avvio', 'Cliente']
+const TAPPE = ['Risposta', 'Analisi', 'Follow-up', 'Conoscitiva', 'Tecnica', 'Avvio', 'Prova', 'Cliente']
 
 function tappaCorrente(p: Prospect): number {
   // stessa regola del resto dell'app: un cliente vecchio stile e' arrivato in
   // fondo anche se non e' mai passato dalla pipeline (revisione 4/9)
-  if (eCliente(p)) return 6
+  if (eCliente(p)) return 7
   if (ePerso(p)) return 0
   if (p.fuori && p.pipeline_stage) {
-    return { conoscitiva: 3, tecnica: 4, avvio: 5, cliente: 6, perso: 0 }[p.pipeline_stage] ?? 3
+    return { conoscitiva: 3, tecnica: 4, avvio: 5, prova: 6, cliente: 7, perso: 0 }[p.pipeline_stage] ?? 3
   }
   if (p.stage === 'in_follow_up') return 2
   if (p.stage === 'analisi_inviata') return 1
@@ -262,7 +266,11 @@ export default function Scheda({ id, onClose }: Props) {
     if (!p || !p.pipeline_stage) return
     const next = PIPELINE_NEXT[p.pipeline_stage]
     if (!next) return
-    if (await aggiorna({ pipeline_stage: next, next_action: null, next_action_date: null })) {
+    // entrando in prova le date si mettono da sole: oggi, e fra due mesi (Dre, 9/9)
+    const date = next === 'prova' && !p.prova_inizio
+      ? { prova_inizio: giornoOggi(), prova_fine: fraDueMesi(), contratto: 'prova' as const }
+      : next === 'cliente' ? { contratto: 'stable' as const } : {}
+    if (await aggiorna({ pipeline_stage: next, next_action: null, next_action_date: null, ...date })) {
       await segna('nota', next === 'cliente' ? 'DIVENTA CLIENTE.' : `Passa a ${PIPELINE_LABEL[next]}`)
       setAvanzataA(next)
       if (next === 'cliente') setChiedoProgetto(true)

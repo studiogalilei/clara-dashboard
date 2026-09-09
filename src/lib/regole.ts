@@ -114,7 +114,7 @@ export async function ricorrenteMensile(): Promise<{
 // contava sul database, la bacheca contava le 300 righe che era riuscita a
 // scaricare, e lo scriveva in fondo alla pagina come una confessione. Ora la
 // domanda e' una e la fa il database, per tutte e due (revisione 4/9).
-export type Fascia = 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'cliente' | 'perso' | 'scartato'
+export type Fascia = 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio' | 'prova' | 'cliente' | 'perso' | 'scartato'
 
 
 const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
@@ -122,6 +122,7 @@ const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
   conoscitiva: (q) => q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva'),
   tecnica: (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica'),
   avvio: (q) => q.eq('fuori', true).eq('pipeline_stage', 'avvio'),
+  prova: (q) => q.eq('fuori', true).eq('pipeline_stage', 'prova'),
   cliente: (q) => q.or(CLIENTI_QUERY),
   perso: (q) => q.or('and(fuori.eq.true,pipeline_stage.eq.perso),and(fuori.eq.false,stage.eq.perso)'),
   // i morti dichiarati che non sono persi: non era roba nostra

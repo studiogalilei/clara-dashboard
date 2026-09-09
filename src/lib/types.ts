@@ -32,12 +32,15 @@ export const STAGE_LABEL: Record<Stage, string> = {
 
 // Le fasi della pipeline agenzia — i nomi di Dre (28/8).
 // prospect NON e' un pipeline_stage: e' chi ha risposto e non e' ancora fuori.
-export type PipelineStage = 'conoscitiva' | 'tecnica' | 'avvio' | 'cliente' | 'perso'
+// 9/9, Dre: fra avvio e cliente c'e' il periodo di prova (due mesi, con le date):
+// quasi tutti i clienti cominciano da li'. Poi si ridiscute e si passa al retainer.
+export type PipelineStage = 'conoscitiva' | 'tecnica' | 'avvio' | 'prova' | 'cliente' | 'perso'
 
 export const PIPELINE_STAGES: PipelineStage[] = [
   'conoscitiva',
   'tecnica',
   'avvio',
+  'prova',
   'cliente',
   'perso',
 ]
@@ -46,6 +49,7 @@ export const PIPELINE_LABEL: Record<PipelineStage, string> = {
   conoscitiva: 'Conoscitiva',
   tecnica: 'Tecnica',
   avvio: 'Avvio',
+  prova: 'Prova',
   cliente: 'Cliente',
   perso: 'Perso',
 }
@@ -54,7 +58,8 @@ export const PIPELINE_HINT: Record<PipelineStage, string> = {
   conoscitiva: 'Prima call: chi sono, cosa vogliono',
   tecnica: 'Con Carlo: il come',
   avvio: 'Hanno detto sì',
-  cliente: 'Pagano',
+  prova: 'Due mesi di prova, poi si ridiscute',
+  cliente: 'Retainer',
   perso: 'Non se ne fa niente',
 }
 
@@ -62,7 +67,8 @@ export const PIPELINE_HINT: Record<PipelineStage, string> = {
 export const PIPELINE_NEXT: Partial<Record<PipelineStage, PipelineStage>> = {
   conoscitiva: 'tecnica',
   tecnica: 'avvio',
-  avvio: 'cliente',
+  avvio: 'prova',
+  prova: 'cliente',
 }
 
 export type Classificazione =
@@ -143,6 +149,8 @@ export interface Prospect {
   classificazione: Classificazione | null
   followup_due: string | null
   ooo_until: string | null
+  prova_inizio: string | null
+  prova_fine: string | null
   // pipeline agenzia
   fuori: boolean
   fuori_at: string | null
