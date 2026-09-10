@@ -72,7 +72,8 @@ def righe_stripe():
         righe.append({"id": ch["id"], "genere": "addebito", "importo": ch["amount"] / 100, "valuta": ch["currency"],
                       "stato": ch["status"], "quando": quando(ch["created"]), "ricorrenza": None,
                       "cliente_nome": nome, "cliente_email": mail or (ch.get("receipt_email") or "").lower() or None,
-                      "stripe_cliente": cus, "descrizione": (ch.get("description") or "")[:200] or None})
+                      "stripe_cliente": cus, "descrizione": (ch.get("description") or "")[:200] or None,
+                      "metodo": {"sepa_debit": "sepa", "card": "carta", "customer_balance": "bonifico"}.get(((ch.get("payment_method_details") or {}).get("type")) or "", None)})
     for inv in stripe("invoices"):
         if inv.get("status") not in ("paid", "open"):
             continue
@@ -82,14 +83,23 @@ def righe_stripe():
                       "valuta": inv["currency"], "stato": inv["status"], "quando": quando(inv.get("status_transitions", {}).get("paid_at") or inv["created"]),
                       "ricorrenza": None, "cliente_nome": nome, "cliente_email": mail, "stripe_cliente": cus,
                       "descrizione": (linee[0].get("description") if linee else "")[:200] or None})
-    for s in stripe("subscriptions", status="all"):
+    for s in stripe("subscriptions", status="all", **{"expand[]": "data.default_payment_method"}):
         nome, mail, cus = chi(s.get("customer"))
         voci = s.get("items", {}).get("data", [])
         prezzo = (voci[0].get("price") or {}) if voci else {}
+        pm = s.get("default_payment_method")
+        tipo_pm = pm.get("type") if isinstance(pm, dict) else None
+        metodo = {"sepa_debit": "sepa", "card": "carta", "customer_balance": "bonifico"}.get(tipo_pm or "", "altro" if tipo_pm else None)
+        if s.get("collection_method") == "send_invoice":
+            metodo = metodo or "bonifico"
+        fine = s.get("cancel_at") or s.get("canceled_at") or s.get("ended_at")
+        prossimo = s.get("current_period_end") or (voci[0].get("current_period_end") if voci else None)
+        attivo = s["status"] in ("active", "trialing", "past_due", "unpaid")
         righe.append({"id": s["id"], "genere": "abbonamento", "importo": (prezzo.get("unit_amount") or 0) / 100 * (voci[0].get("quantity", 1) if voci else 1),
                       "valuta": prezzo.get("currency") or "eur", "stato": s["status"], "quando": quando(s["created"]),
                       "ricorrenza": (prezzo.get("recurring") or {}).get("interval"), "cliente_nome": nome, "cliente_email": mail,
-                      "stripe_cliente": cus, "descrizione": ((prezzo.get("nickname") or prezzo.get("product") or "") if isinstance(prezzo.get("product"), str) else "")[:200] or None})
+                      "stripe_cliente": cus, "descrizione": ((prezzo.get("nickname") or prezzo.get("product") or "") if isinstance(prezzo.get("product"), str) else "")[:200] or None,
+                      "metodo": metodo, "prossimo_il": quando(prossimo) if attivo else None, "fine_il": quando(fine)})
     return righe
 
 
@@ -161,8 +171,11 @@ def main():
                   f"{'azienda ok' if r['prospect_id'] else '-':10} {'prev ' + str(r['preventivo_id']) if r['preventivo_id'] else ''}")
     if not prova and righe:
         r0 = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        chiavi = {k for r in righe for k in r}          # PostgREST vuole le stesse chiavi su ogni riga
         for r in righe:
             r["letto_il"] = r0
+            for k in chiavi:
+                r.setdefault(k, None)
         sb("POST", "/rest/v1/incassi", righe, {"Prefer": "resolution=merge-duplicates"})
     print(f"stripe: {len(righe)} righe ({nuovi} nuove), {collegati} con azienda, {pagati} preventivi segnati pagati, {chiesti} domande")
 

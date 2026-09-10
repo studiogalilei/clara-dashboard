@@ -57,9 +57,31 @@ export function euro(n: number | null | undefined): string {
 
 interface Props { onOpen: (id: string) => void }
 
+// IL BLOCCO PAGAMENTI (Dre, 10/9): sulla riga del cliente come paga, quanto al
+// mese, prossimo addebito; in cima il mese. Viene da `incassi` (Stripe, letto
+// da Clara ogni ora). Chi non e' ceo non riceve le righe: il blocco sparisce.
+export interface Incasso {
+  id: string
+  genere: 'addebito' | 'fattura' | 'abbonamento'
+  importo: number
+  valuta: string
+  stato: string | null
+  quando: string | null
+  ricorrenza: string | null
+  metodo: string | null
+  prossimo_il: string | null
+  fine_il: string | null
+  cliente_nome: string | null
+  prospect_id: string | null
+}
+const METODO: Record<string, string> = { sepa: 'SEPA', carta: 'carta', bonifico: 'bonifico', altro: 'altro' }
+const ATTIVO = new Set(['active', 'trialing', 'past_due', 'unpaid'])
+export function mensile(i: Incasso) { return i.ricorrenza === 'year' ? i.importo / 12 : i.importo }
+
 export default function TuttiFoglio({ onOpen }: Props) {
   const [righe, setRighe] = useState<Riga[] | null>(null)
   const [preventivi, setPreventivi] = useState<Preventivo[]>([])
+  const [incassi, setIncassi] = useState<Incasso[] | null>(null)
   const [filtro, setFiltro] = useState<Filtro>(() => (leggiPref('tutti-filtro') as Filtro) || 'tutti')
   const [aperta, setAperta] = useState<string | null>(null)     // la riga con i preventivi aperti
   const [problema, setProblema] = useState<string | null>(null)
@@ -74,6 +96,9 @@ export default function TuttiFoglio({ onOpen }: Props) {
         if (error) setProblema('I preventivi non si leggono: ' + error.message)
         setPreventivi((data as Preventivo[]) ?? [])
       })
+    supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')
+      .order('quando', { ascending: false }).limit(1000)
+      .then(({ data, error }) => { if (!error && data && data.length) setIncassi(data as Incasso[]) })
   }, [])
 
   async function scriviRiga(p: Riga, patch: Partial<Riga>) {
@@ -139,6 +164,21 @@ export default function TuttiFoglio({ onOpen }: Props) {
   mostrate.sort((a, b) => ordine[a.s] - ordine[b.s] || (a.p.company || a.p.name || '').localeCompare(b.p.company || b.p.name || ''))
   const conta = (s: StatoFoglio) => conStato.filter((x) => x.s === s).length
 
+  // il mese, dai pagamenti
+  const perIncasso = new Map<string, Incasso[]>()
+  for (const i of incassi ?? []) if (i.prospect_id) perIncasso.set(i.prospect_id, [...(perIncasso.get(i.prospect_id) ?? []), i])
+  const mese = oggi.slice(0, 7)
+  const abbonamentiAttivi = (incassi ?? []).filter((i) => i.genere === 'abbonamento' && ATTIVO.has(i.stato ?? ''))
+  const attesoMese = abbonamentiAttivi.reduce((t, i) => t + mensile(i), 0)
+  const entratoMese = (incassi ?? []).filter((i) => i.genere === 'addebito' && i.stato === 'succeeded' && (i.quando ?? '').startsWith(mese)).reduce((t, i) => t + i.importo, 0)
+  const inRitardo = abbonamentiAttivi.filter((i) => i.stato === 'past_due' || i.stato === 'unpaid')
+  const pagamentoDi = (id: string) => {
+    const suoi = perIncasso.get(id) ?? []
+    const abb = suoi.find((i) => i.genere === 'abbonamento' && ATTIVO.has(i.stato ?? '')) ?? suoi.find((i) => i.genere === 'abbonamento')
+    const ultimo = suoi.find((i) => i.genere === 'addebito' && i.stato === 'succeeded')
+    return { abb, ultimo }
+  }
+
   const rigaPreventivo = (q: Preventivo) => (
     <tr key={q.id} className="border-b border-velo last:border-0">
       <td className=""><Cella valore={q.titolo ?? ''} su={(v) => scriviPreventivo(q, { titolo: v.trim() || null })} placeholder="cosa gli abbiamo proposto" /></td>
@@ -186,6 +226,22 @@ export default function TuttiFoglio({ onOpen }: Props) {
         </span>
       </div>
 
+      {incassi && (
+        <div className="flex flex-wrap gap-2">
+          {[
+            ['Atteso questo mese', attesoMese, `${abbonamentiAttivi.length} abbonament${abbonamentiAttivi.length === 1 ? 'o' : 'i'} attiv${abbonamentiAttivi.length === 1 ? 'o' : 'i'}`, ''],
+            ['Entrato', entratoMese, 'pagamenti riusciti su Stripe', 'text-green-800'],
+            ['In ritardo', inRitardo.reduce((t, i) => t + mensile(i), 0), inRitardo.length ? inRitardo.map((i) => i.cliente_nome).filter(Boolean).join(', ') : 'nessuno', inRitardo.length ? 'text-red-700' : ''],
+          ].map(([n, v, sotto, tono]) => (
+            <div key={n as string} className="min-w-[150px] flex-1 rounded-xl border border-bordo bg-white px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-tenue">{n as string}</p>
+              <p className={`text-xl font-extrabold tabular-nums ${tono as string}`}>{Math.round(v as number).toLocaleString('it-IT')} €</p>
+              <p className="truncate text-[11px] text-spento">{sotto as string}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -195,13 +251,14 @@ export default function TuttiFoglio({ onOpen }: Props) {
                 <th className="min-w-[150px] px-3 py-2.5">Stato</th>
                 <th className="min-w-[110px] px-3 py-2.5">Chi segue</th>
                 <th className="min-w-[100px] px-3 py-2.5 text-right">Canone/mese</th>
+                {incassi && <th className="min-w-[210px] px-3 py-2.5">Pagamenti</th>}
                 <th className="min-w-[200px] px-3 py-2.5">Ultimo preventivo</th>
                 <th className="min-w-[220px] px-2 py-2">Note</th>
               </tr>
             </thead>
             <tbody>
               {mostrate.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-spento">Nessuno qui dentro.</td></tr>
+                <tr><td colSpan={incassi ? 7 : 6} className="px-4 py-6 text-center text-sm text-spento">Nessuno qui dentro.</td></tr>
               )}
               {mostrate.map(({ p, s }) => {
                 const suoi = perProspect.get(p.id) ?? []
@@ -224,6 +281,27 @@ export default function TuttiFoglio({ onOpen }: Props) {
                     </td>
                     <td className=""><Cella valore={p.chi_segue ?? ''} su={(v) => scriviRiga(p, { chi_segue: v.trim() || null })} placeholder="chi" /></td>
                     <td className=""><Cella tipo="number" valore={p.canone == null ? '' : String(p.canone)} su={(v) => scriviRiga(p, { canone: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
+                    {incassi && (() => {
+                      const { abb, ultimo } = pagamentoDi(p.id)
+                      if (!abb && !ultimo) return <td className="px-3 text-xs text-spento">{s === 'cliente' || s === 'prova' ? 'non su Stripe' : ''}</td>
+                      const vivo = abb && ATTIVO.has(abb.stato ?? '')
+                      const male = abb && (abb.stato === 'past_due' || abb.stato === 'unpaid')
+                      return (
+                        <td className="px-3 py-1 text-xs">
+                          {abb && (
+                            <p className={`font-semibold ${male ? 'text-red-700' : vivo ? '' : 'text-spento'}`}>
+                              {Math.round(mensile(abb)).toLocaleString('it-IT')} € al mese{abb.metodo ? `, ${METODO[abb.metodo] ?? abb.metodo}` : ''}
+                              {male ? ', in ritardo' : vivo ? '' : abb.fine_il ? `, finito il ${fmtDateShort(abb.fine_il.slice(0, 10))}` : ', non attivo'}
+                            </p>
+                          )}
+                          <p className="text-spento">
+                            {vivo && abb?.prossimo_il ? `prossimo ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}
+                            {vivo && abb?.prossimo_il && ultimo ? ', ' : ''}
+                            {ultimo ? `ultimo pagato ${fmtDateShort((ultimo.quando ?? '').slice(0, 10))}` : ''}
+                          </p>
+                        </td>
+                      )
+                    })()}
                     <td className="px-3">
                       <button onClick={() => setAperta(apertaQui ? null : p.id)} className="flex w-full items-center gap-2 py-1.5 text-left text-sm hover:text-navy">
                         <span className={`shrink-0 rounded-full border px-1.5 text-[11px] font-bold ${suoi.length ? 'border-navy text-navy' : 'border-bordo text-spento'}`}>€</span>
@@ -241,7 +319,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
                   </tr>,
                   apertaQui && (
                     <tr key={`${p.id}-prev`} className="bg-velo/30">
-                      <td colSpan={6} className="px-3 py-2">
+                      <td colSpan={incassi ? 7 : 6} className="px-3 py-2">
                         <div className="flex items-center justify-between gap-2 pb-1.5">
                           <p className="text-[11px] font-bold uppercase tracking-wide text-tenue">Preventivi di {p.company || p.name}</p>
                           <button onClick={() => nuovoPreventivo(p)} className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">+ Preventivo</button>
