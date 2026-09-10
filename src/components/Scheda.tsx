@@ -15,6 +15,7 @@ const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); r
 import NuovoProgetto from './NuovoProgetto'
 import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
+import { mensile, type Incasso } from './TuttiFoglio'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
   fmtDate, fmtDateShort, fmtOra, daysAgo, giorni, fmtNum, sgid,
@@ -126,6 +127,7 @@ export default function Scheda({ id, onClose }: Props) {
   // su di lui (Dre, 4/9)
   const [documenti, setDocumenti] = useState<Array<{ id: number; nome: string; path: string; at: string }>>([])
   const [progetti, setProgetti] = useState<Progetto[]>([])
+  const [incassi, setIncassi] = useState<Incasso[]>([])          // da Stripe; vuoto per chi non vede i soldi
   const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
   const [prepAperta, setPrepAperta] = useState(false)
@@ -139,7 +141,7 @@ export default function Scheda({ id, onClose }: Props) {
     // poteva essere scritta sul prospect sbagliato (revisione 4/9)
     let vivo = true
     setP(null); setTimeline(null); setDraft({}); setDocumenti([]); setTaskSue([])
-    setProssimaCall(null); setTranscript(''); setNota(''); setPremio([]); setProgetti([])
+    setProssimaCall(null); setTranscript(''); setNota(''); setPremio([]); setProgetti([]); setIncassi([])
     setErrore(null); setSaved(false); setNoteAperte(false); setAltroAperto(false)
     setStoriaAperta(false); setAgendaSua([])
     supabase.from('agenda').select('*').eq('prospect_id', id)
@@ -165,6 +167,9 @@ export default function Scheda({ id, onClose }: Props) {
     supabase.from('progetti').select('*').eq('prospect_id', id)
       .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
       .then(({ data }) => { if (vivo) setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)) })
+    supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')
+      .eq('prospect_id', id).order('quando', { ascending: false }).limit(50)
+      .then(({ data }) => { if (vivo) setIncassi((data as Incasso[]) ?? []) })
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .gte('at', new Date().toISOString())
       .order('at', { ascending: true }).limit(1)
@@ -1219,6 +1224,44 @@ export default function Scheda({ id, onClose }: Props) {
                 )}
               </Card>
             )}
+
+            {/* I SUOI PAGAMENTI (10/9): quello che Stripe dice di lui. Solo per chi
+                vede i soldi (Dre e Giacomo): agli altri la tabella non risponde. */}
+            {incassi.length > 0 && !modifica && (() => {
+              const ATTIVI = new Set(['active', 'trialing', 'past_due', 'unpaid'])
+              const abb = incassi.find((i) => i.genere === 'abbonamento' && ATTIVI.has(i.stato ?? ''))
+              const pagati = incassi.filter((i) => i.genere === 'addebito' && i.stato === 'succeeded')
+              const totale = pagati.reduce((t, i) => t + i.importo, 0)
+              const male = abb && (abb.stato === 'past_due' || abb.stato === 'unpaid')
+              const METODO: Record<string, string> = { sepa: 'addebito SEPA', carta: 'carta', bonifico: 'bonifico', altro: 'altro' }
+              return (
+                <Card className="p-4">
+                  <TitoloCard>Pagamenti</TitoloCard>
+                  {abb ? (
+                    <p className={`text-sm font-semibold ${male ? 'text-red-700' : ''}`}>
+                      {Math.round(mensile(abb)).toLocaleString('it-IT')} € al mese{abb.metodo ? `, ${METODO[abb.metodo] ?? abb.metodo}` : ''}
+                      {male ? ', in ritardo' : abb.prossimo_il ? `, prossimo il ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-spento">Nessun abbonamento attivo.</p>
+                  )}
+                  <p className="text-xs text-tenue">
+                    {pagati.length ? `${pagati.length} pagament${pagati.length === 1 ? 'o' : 'i'} riuscit${pagati.length === 1 ? 'o' : 'i'}, ${Math.round(totale).toLocaleString('it-IT')} € in tutto` : 'Nessun pagamento riuscito ancora.'}
+                  </p>
+                  {pagati.length > 0 && (
+                    <ul className="mt-2 divide-y divide-velo">
+                      {pagati.slice(0, 6).map((i) => (
+                        <li key={i.id} className="flex items-center gap-3 py-1.5 text-sm">
+                          <span className="w-16 shrink-0 text-xs tabular-nums text-tenue">{fmtDateShort((i.quando ?? '').slice(0, 10))}</span>
+                          <span className="min-w-0 flex-1 truncate text-xs text-tenue">{i.cliente_nome ?? ''}</span>
+                          <span className="shrink-0 font-bold tabular-nums">{i.importo.toLocaleString('it-IT')} {i.valuta.toUpperCase()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+              )
+            })()}
 
             {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro.
                 Sta sempre, anche vuota: se no non sai dove finiscono quando
