@@ -1,10 +1,10 @@
-# Il direttore: ogni 15 minuti, in cloud, fa partire le operazioni dovute
+# Il direttore: ogni ora (e subito, quando Smartlead bussa), in cloud, fa partire le operazioni dovute
 # alla cadenza scelta da Dre nella Dashboard. Non sul suo Mac. (7/9/2026)
 name: direttore
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7 * * * *"      # ogni ora, rete di sicurezza: le risposte arrivano via webhook (10/9)
   workflow_dispatch:
     inputs:
       forza:
@@ -33,6 +33,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
           SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
+          WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}

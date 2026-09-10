@@ -107,13 +107,20 @@ def main():
             print(f"  {op['chiave']:16} {'acceso' if op['attiva'] else 'spento':7} ogni {op['cadenza_minuti']:5} min  "
                   f"ultima {str(op.get('ultima_corsa') or 'mai')[:16]}  {op.get('ultimo_esito') or ''}")
         return
+    # --forza accetta anche una catena: sync_smartlead,googlefit,bozze
+    # (e' quella che manda Smartlead via webhook, 10/9). Nell'ordine dato.
     forza = sys.argv[sys.argv.index("--forza") + 1] if "--forza" in sys.argv else None
     fatte = 0
+    if forza:
+        per_chiave = {op["chiave"]: op for op in ops}
+        for chiave in [c.strip() for c in forza.split(",") if c.strip()]:
+            if chiave in per_chiave:
+                corri(per_chiave[chiave]); fatte += 1
+            else:
+                print(f"operazione sconosciuta: {chiave}")
+        print(f"{fatte} operazioni fatte (forzate)")
+        return
     for op in ops:
-        if forza:
-            if op["chiave"] == forza:
-                corri(op); fatte += 1
-            continue
         if dovuta(op):
             corri(op); fatte += 1
     print(f"{fatte} operazioni fatte" if fatte else "niente di dovuto adesso")
