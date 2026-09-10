@@ -34,6 +34,7 @@ jobs:
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
           SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
           WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
