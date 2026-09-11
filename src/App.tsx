@@ -13,7 +13,7 @@ import Plugin from './components/Plugin'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
-import Progetti from './components/Progetti'
+import Clienti from './components/Clienti'
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import { chiSono, vediCome, type ChiSono } from './lib/accessi'
 import { nomeDa } from './lib/profilo'
@@ -198,7 +198,7 @@ export default function App() {
 
   const mail = demo ? '' : (session.user.email ?? '')
   const utente = nomeDa(mail, demo)
-  const titolo = widgetDi(tab)?.nome ?? (tab === 'impostazioni' ? 'Impostazioni' : tab === 'oggi' ? 'Oggi' : tab === 'tutti' ? 'Aziende' : tab === 'analytics' ? 'Numeri' : tab === 'plugin' ? 'Widget e istruzioni' : '')
+  const titolo = widgetDi(tab)?.nome ?? (tab === 'impostazioni' ? 'Impostazioni' : tab === 'oggi' ? 'Oggi' : tab === 'tutti' ? 'Pipeline' : tab === 'analytics' ? 'Numeri' : tab === 'plugin' ? 'Widget e istruzioni' : '')
   const ruolo: Ruolo = demo ? mioRuolo() : ruoloDb
   const voci = menuDi(ruolo, 'menu', concessi)
   const vociSistema = menuDi(ruolo, 'sistema', concessi)
@@ -408,7 +408,7 @@ export default function App() {
             ) : tab === 'plugin' ? (
               <Plugin />
             ) : tab === 'progetti' ? (
-              <Progetti onOpen={setOpenId} />
+              <Clienti onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
               <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} onCambio={() => setVersione((v) => v + 1)}
                             onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />

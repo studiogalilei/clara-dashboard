@@ -477,7 +477,7 @@ export default function Scheda({ id, onClose }: Props) {
           ‹ Torna
         </button>
         <p className="min-w-0 flex-1 truncate text-sm text-tenue">
-          Aziende <span className="mx-1 text-spento">›</span> <span className="font-bold text-inchiostro">{p.company || p.name || p.email}</span>
+          {eCliente(p) ? 'Clienti' : 'Pipeline'} <span className="mx-1 text-spento">›</span> <span className="font-bold text-inchiostro">{p.company || p.name || p.email}</span>
         </p>
         <button
           onClick={save}

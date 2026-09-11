@@ -2,21 +2,18 @@ import { useState } from 'react'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import Lista from './Lista'
 import TuttiFoglio from './TuttiFoglio'
-import Preventivi from './Preventivi'
 
-// AZIENDE (intervista a Dre, 9/9): una pagina sola per prospect e clienti.
-// Tre modi di guardare le stesse aziende: la bacheca a colonne (le fasi, si
-// trascina), il foglio di Giacomo (stato, chi segue, canone, preventivi) e
-// tutti i preventivi in fila. Pipeline e Tutti erano due pagine: ora sono
-// due tab, e non ci si perde piu'.
+// PIPELINE (Dre, 12/9): chi sta arrivando, dalla risposta alla firma. Una
+// lista sola in due forme: la bacheca a colonne (le fasi, si trascina) e il
+// foglio. I preventivi e i clienti stanno in Clienti: qui c'e' la vendita.
 
-type Modo = 'bacheca' | 'foglio' | 'preventivi'
-const MODI: Array<[Modo, string]> = [['bacheca', 'Bacheca'], ['foglio', 'Foglio'], ['preventivi', 'Preventivi']]
+type Modo = 'bacheca' | 'foglio'
+const MODI: Array<[Modo, string]> = [['bacheca', 'Bacheca'], ['foglio', 'Foglio']]
 
 interface Props { onOpen: (id: string) => void; q: string }
 
 export default function Aziende({ onOpen, q }: Props) {
-  const [modo, setModo] = useState<Modo>(() => (leggiPref('tutti-modo') as Modo) || 'bacheca')
+  const [modo, setModo] = useState<Modo>(() => ((leggiPref('tutti-modo') as Modo) === 'foglio' ? 'foglio' : 'bacheca'))
   function cambia(m: Modo) { setModo(m); scriviPref('tutti-modo', m) }
   return (
     <div className="space-y-4">
@@ -29,7 +26,7 @@ export default function Aziende({ onOpen, q }: Props) {
           </button>
         ))}
       </div>
-      {modo === 'bacheca' ? <Lista onOpen={onOpen} q={q} /> : modo === 'foglio' ? <TuttiFoglio onOpen={onOpen} /> : <Preventivi onOpen={onOpen} />}
+      {modo === 'bacheca' ? <Lista onOpen={onOpen} q={q} /> : <TuttiFoglio onOpen={onOpen} />}
     </div>
   )
 }

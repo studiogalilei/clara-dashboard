@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
-import { STAGES, STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
+import { STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
 import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, pedaggioPagato, ricorrenteMensile, contaFasi, quandoRisentirlo, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
@@ -467,7 +467,8 @@ export default function Lista({ onOpen, q }: Props) {
           </button>
         </div>
 
-        {(['attivi', 'tutti', ...STAGES] as const).map((s) => (
+        {/* le colonne sono gia' le fasi: i filtri per stato erano un doppione (Dre, 12/9) */}
+        {(['attivi', 'tutti', 'perso'] as const).map((s) => (
           <button
             key={s}
             onClick={() => setStage(s)}
