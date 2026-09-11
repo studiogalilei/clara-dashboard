@@ -8,6 +8,7 @@ import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
 import Firma from './Firma'
+import { collegato as googleCollegato, entraConGoogle } from '../lib/google'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
 
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
@@ -49,10 +50,11 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
   const [vaultSalvato, setVaultSalvato] = useState(false)
   // le notifiche sul telefono: il permesso lo da' il browser, noi salviamo l'indirizzo
   const [notifiche, setNotifiche] = useState<StatoNotifiche | null>(null)
+  const [google, setGoogle] = useState<boolean | null>(null)
   const [nuovaPassword, setNuovaPassword] = useState('')
   const [passwordEsito, setPasswordEsito] = useState<string | null>(null)
   const [notificheProblema, setNotificheProblema] = useState<string | null>(null)
-  useEffect(() => { void statoNotifiche().then(setNotifiche) }, [])
+  useEffect(() => { void statoNotifiche().then(setNotifiche); if (!demo) void googleCollegato().then(setGoogle) }, [demo])
   const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
   const [vistaTutti, setVistaTutti] = useState(() => leggiPref('tutti-vista', 'board'))
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
@@ -136,6 +138,22 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
           </p>
         </div>
       </Card>
+
+      {/* ── GOOGLE (11/9): Drive, Chat e Calendar a nome tuo ─────── */}
+      {!demo && (
+        <Card className="p-5">
+          <TitoloCard>Google</TitoloCard>
+          <p className="mt-1 text-xs text-tenue">Con il collegamento Clara legge il tuo Drive (gli appunti delle call) e scrive in SG Chat a nome tuo.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {google === null ? <span className="text-sm text-spento">controllo…</span>
+              : google ? <span className="text-sm font-semibold text-green-800">Collegato ✓</span>
+              : <span className="text-sm text-tenue">Non ancora collegato.</span>}
+            <button onClick={() => void entraConGoogle()} className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
+              {google ? 'Rinnova il collegamento' : 'Collega Google'}
+            </button>
+          </div>
+        </Card>
+      )}
 
       {/* ── LA FIRMA (Dre, 11/9) ───────────────────────────────── */}
       {!demo && <Firma ceo={ruolo === 'ceo'} />}

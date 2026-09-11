@@ -29,12 +29,20 @@ export async function entraConGoogle(): Promise<string | null> {
 }
 
 // dopo il login: se Google ha dato il refresh token, lo teniamo (una riga per persona)
-export async function salvaTokenGoogle(s: Session | null): Promise<void> {
-  const rt = s?.provider_refresh_token
-  if (!rt || !s?.user) return
-  try {
-    await supabase.from('google_token').upsert(
-      { user_id: s.user.id, email: s.user.email ?? null, refresh_token: rt, scopes: SCOPI, aggiornato_il: new Date().toISOString() },
-      { onConflict: 'user_id' })
-  } catch { /* se non si salva, Clara non agisce a nome suo: lo si rivede al prossimo login */ }
+export async function salvaTokenGoogle(s: Session | null): Promise<string | null> {
+  let rt = s?.provider_refresh_token ?? null
+  if (!rt) { try { rt = localStorage.getItem('google-refresh') } catch { /* niente */ } }
+  if (!rt || !s?.user) return 'nessun token da salvare'
+  const { error } = await supabase.from('google_token').upsert(
+    { user_id: s.user.id, email: s.user.email ?? null, refresh_token: rt, scopes: SCOPI, aggiornato_il: new Date().toISOString() },
+    { onConflict: 'user_id' })
+  if (error) { console.warn('google_token non salvato:', error.message); return error.message }
+  try { localStorage.removeItem('google-refresh') } catch { /* niente */ }
+  return null
+}
+
+// c'e' il token di chi e' dentro? (funzione security definer, schema_v20)
+export async function collegato(): Promise<boolean> {
+  const { data } = await supabase.rpc('ho_il_token_google')
+  return Boolean(data)
 }

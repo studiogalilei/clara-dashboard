@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { salvaTokenGoogle } from './lib/google'
 import { supabase, configured, demo } from './lib/supabase'
 import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
 import Login from './components/Login'
@@ -135,10 +134,7 @@ export default function App() {
       if (data.session && await scaricaPreferenze()) setVersione((v) => v + 1)
       setReady(true)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
-      setSession(s)
-      if (e === 'SIGNED_IN') void salvaTokenGoogle(s)   // il refresh token di Google, se c'e' (schema_v20)
-    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => sub?.subscription.unsubscribe()
   }, [])
 

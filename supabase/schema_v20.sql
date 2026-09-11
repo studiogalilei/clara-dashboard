@@ -29,3 +29,8 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 select 'schema v20 applicato: login con Google' as esito;
+
+-- aggiunta (11/9 sera): l'upsert (on conflict do update) deve poter leggere la propria riga
+drop policy if exists "ognuno vede il suo token google" on google_token;
+create policy "ognuno vede il suo token google" on google_token
+  for select to authenticated using (user_id = auth.uid());
