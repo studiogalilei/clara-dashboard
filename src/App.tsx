@@ -15,7 +15,7 @@ import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Progetti from './components/Progetti'
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
-import { ruoloVero, mieiAccessi } from './lib/accessi'
+import { chiSono, vediCome, type ChiSono } from './lib/accessi'
 import { nomeDa } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
@@ -93,6 +93,7 @@ export default function App() {
   const [versione, setVersione] = useState(0)
   const [ruoloDb, setRuoloDb] = useState<Ruolo>('coordinamento')     // il ruolo vero, dal database (profili)
   const [concessi, setConcessi] = useState<Set<Chiave>>(new Set())      // i widget a richiesta che ho
+  const [vista, setVista] = useState<ChiSono['vista']>(null)           // un ceo nei panni di qualcun altro
   // il menu si allarga e si stringe trascinando il filo, come su Claude
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
@@ -175,8 +176,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session || demo) return
-    void ruoloVero().then(setRuoloDb)
-    void mieiAccessi().then((m) => setConcessi(new Set((Object.keys(m) as Chiave[]).filter((k) => m[k] === 'approvato'))))
+    void chiSono().then((c) => { setRuoloDb(c.ruolo); setConcessi(new Set(c.concessi)); setVista(c.vista) })
   }, [session, versione])
 
   if (!configured) {
@@ -205,6 +205,12 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
+      {vista && (
+        <div className="fixed inset-x-0 top-0 z-[70] flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-900">
+          Stai vedendo il Workspace come {vista.nome ?? 'un\'altra persona'}: menu, aziende e chat sono i suoi.
+          <button onClick={() => { void vediCome(null).then(() => window.location.reload()) }} className="rounded-full bg-amber-900 px-3 py-0.5 text-white">Torna a te</button>
+        </div>
+      )}
 
       {/* ── sidebar (solo desktop) ─────────────────────────────── */}
       <aside

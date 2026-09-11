@@ -15,8 +15,26 @@ export async function sonoCeo(): Promise<boolean> {
   return Boolean(data)
 }
 
-export async function ruoloVero(): Promise<'ceo' | 'coordinamento'> {
-  return (await sonoCeo()) ? 'ceo' : 'coordinamento'
+// CHI SONO, in una chiamata (schema_v23): l'utente effettivo, il ruolo vero,
+// i widget concessi, e se un ceo sta guardando il Workspace nei panni di
+// qualcun altro («vedi come»). Tutto il resto del database ragiona uguale.
+export interface ChiSono { uid: string | null; nome: string | null; ruolo: 'ceo' | 'coordinamento'; concessi: Chiave[]; vista: { id: string; nome: string | null } | null }
+export async function chiSono(): Promise<ChiSono> {
+  const { data } = await supabase.rpc('chi_sono')
+  const d = (data ?? {}) as Partial<ChiSono>
+  return { uid: d.uid ?? null, nome: d.nome ?? null, ruolo: d.ruolo === 'ceo' ? 'ceo' : 'coordinamento', concessi: (d.concessi ?? []) as Chiave[], vista: d.vista ?? null }
+}
+
+// un ceo si mette nei panni di una persona (null = torna a se')
+export async function vediCome(come_id: string | null): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 'Non sei dentro'
+  if (!come_id) {
+    const { error } = await supabase.from('vista_come').delete().eq('ceo_id', user.id)
+    return error ? error.message : null
+  }
+  const { error } = await supabase.from('vista_come').upsert({ ceo_id: user.id, come_id, da: new Date().toISOString() }, { onConflict: 'ceo_id' })
+  return error ? error.message : null
 }
 
 // i miei: chiave → stato

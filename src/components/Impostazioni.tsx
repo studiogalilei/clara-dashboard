@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import {
   WIDGET, RUOLI, nascosti, haAccesso, inOrdine, salvaOrdine, type Chiave, type Ruolo,
 } from '../lib/widget'
-import { mieiAccessi, tuttiAccessi, chiedi, decidi, type StatoAccesso, type Accesso } from '../lib/accessi'
+import { mieiAccessi, tuttiAccessi, chiedi, decidi, vediCome, type StatoAccesso, type Accesso } from '../lib/accessi'
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
@@ -227,6 +227,22 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
           )
         })}
       </Card>
+
+      {/* ── VEDI COME (solo ceo, 12/9): il Workspace nei panni di una persona ── */}
+      {ruolo === 'ceo' && !demo && persone.length > 0 && (
+        <Card className="p-5">
+          <TitoloCard>Vedi come</TitoloCard>
+          <p className="mt-1 text-xs text-tenue">Ti metti nei panni di una persona: menu, aziende, chat e task diventano i suoi, davvero (lo decide il database). In alto compare la striscia per tornare a te.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {persone.filter((p) => p.ruolo !== 'ceo').map((p) => (
+              <button key={p.id} onClick={() => { void vediCome(p.id).then(() => window.location.reload()) }}
+                      className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
+                {p.nome ?? p.id.slice(0, 8)}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* ── CHI HA COSA (solo ceo): la mappa, e si da' o si toglie da qui ── */}
       {ruolo === 'ceo' && !demo && persone.some((p) => p.ruolo !== 'ceo') && (
