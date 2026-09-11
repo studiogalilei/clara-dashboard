@@ -147,16 +147,22 @@ def main():
         # un incasso vero, di un'azienda nota, senza preventivo collegato: cerco il preventivo
         incassato = (r["genere"] == "addebito" and r["stato"] == "succeeded") or (r["genere"] == "fattura" and r["stato"] == "paid")
         if incassato and r["prospect_id"] and not r["preventivo_id"]:
+            # inviati o accettati, non ancora pagati: pagare vale come accettare
             aperti = sb("GET", f"/rest/v1/preventivi?select=id,importo,titolo&prospect_id=eq.{r['prospect_id']}"
-                               "&stato=eq.accettato&pagato_il=is.null") or []
-            giusti = [q for q in aperti if q.get("importo") is not None and abs(float(q["importo"]) - r["importo"]) <= 1]
-            if len(giusti) == 1:
+                               "&stato=in.(inviato,accettato)&pagato_il=is.null") or []
+            con_importo = [q for q in aperti if q.get("importo") is not None]
+            giusti = [q for q in con_importo if abs(float(q["importo"]) - r["importo"]) <= 1]
+            # un pagamento solo per piu' preventivi (es. sito + prova in un link): la somma torna
+            if not giusti and len(con_importo) > 1 and abs(sum(float(q["importo"]) for q in con_importo) - r["importo"]) <= 1:
+                giusti = con_importo
+            if giusti and (len(giusti) == 1 or len(giusti) == len(con_importo)):
                 r["preventivo_id"] = giusti[0]["id"]
                 if not prova:
-                    sb("PATCH", f"/rest/v1/preventivi?id=eq.{giusti[0]['id']}",
-                       {"pagato_il": (r["quando"] or "")[:10] or datetime.date.today().isoformat(),
-                        "note": f"pagato su Stripe ({r['id']})"})
-                pagati += 1
+                    for q in giusti:
+                        sb("PATCH", f"/rest/v1/preventivi?id=eq.{q['id']}",
+                           {"stato": "accettato", "pagato_il": (r["quando"] or "")[:10] or datetime.date.today().isoformat(),
+                            "note": f"pagato su Stripe ({r['id']})"})
+                pagati += len(giusti)
             elif aperti and not prova:
                 if proponi("richiesta", f"Incasso di {r['importo']:.0f} {r['valuta'].upper()} su Stripe: quale preventivo segno pagato?",
                            prospect_id=r["prospect_id"],
