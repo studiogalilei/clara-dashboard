@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { lazy, Suspense } from 'react'
+const CompilaPdf = lazy(() => import('./CompilaPdf'))
 import { leggi as leggiPref } from '../lib/preferenze'
 import {
   STAGES, STAGE_LABEL,
@@ -128,6 +130,7 @@ export default function Scheda({ id, onClose }: Props) {
   const [documenti, setDocumenti] = useState<Array<{ id: number; nome: string; path: string; at: string }>>([])
   const [progetti, setProgetti] = useState<Progetto[]>([])
   const [incassi, setIncassi] = useState<Incasso[]>([])          // da Stripe; vuoto per chi non vede i soldi
+  const [compila, setCompila] = useState<{ id: number; nome: string; path: string } | null>(null)
   const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
   const [prepAperta, setPrepAperta] = useState(false)
@@ -1293,10 +1296,19 @@ export default function Scheda({ id, onClose }: Props) {
                       >
                         {d.nome}
                       </a>
+                      {/\.pdf$/i.test(d.path) && (
+                        <button onClick={() => setCompila(d)} className="shrink-0 rounded-full border border-bordo px-2 py-0.5 text-[11px] font-bold text-navy hover:border-navy">compila</button>
+                      )}
                       <span className="shrink-0 text-xs text-spento">{fmtDateShort(d.at)}</span>
                     </li>
                   ))}
                 </ul>
+                {compila && (
+                  <Suspense fallback={null}>
+                    <CompilaPdf file={{ ...compila, prospect_id: p.id }} onClose={() => setCompila(null)}
+                                onSalvato={(nuovo) => setDocumenti((v) => [{ id: nuovo.id, nome: nuovo.nome, path: nuovo.path, at: nuovo.at }, ...v])} />
+                  </Suspense>
+                )}
               </Card>
             )}
 

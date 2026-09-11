@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { lazy, Suspense } from 'react'
+const CompilaPdf = lazy(() => import('./CompilaPdf'))
 import type { Prospect } from '../lib/types'
 import { Card, Spinner, Empty, ZonaFile, fmtNum, fmtDateShort, sgid } from './ui'
 
@@ -59,6 +61,7 @@ export default function Vault({ onOpen }: Props) {
   const [toast, setToast] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [problema, setProblema] = useState<string | null>(null)
+  const [compila, setCompila] = useState<FileVault | null>(null)   // il PDF aperto in «Compila»
 
   useEffect(() => {
     supabase.from('vault_file').select('*').order('at', { ascending: false }).limit(200)
@@ -272,6 +275,15 @@ export default function Vault({ onOpen }: Props) {
                       </option>
                     ))}
                   </select>
+                  {(f.mime?.includes('pdf') || /\.pdf$/i.test(f.path)) && (
+                    <button
+                      onClick={() => setCompila(f)}
+                      title="Scrivi sopra: testo, data, firma, timbro"
+                      className="shrink-0 rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-navy hover:border-navy"
+                    >
+                      compila
+                    </button>
+                  )}
                   {f.prospect_id && (
                     <button
                       onClick={() => onOpen(f.prospect_id!)}
@@ -285,6 +297,13 @@ export default function Vault({ onOpen }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {compila && (
+        <Suspense fallback={null}>
+          <CompilaPdf file={compila} onClose={() => setCompila(null)}
+                      onSalvato={(nuovo) => { setFile((v) => [nuovo as FileVault, ...(v ?? [])]); setToast(`«${nuovo.nome}» salvato ✓`) }} />
+        </Suspense>
       )}
 
       {toast && (

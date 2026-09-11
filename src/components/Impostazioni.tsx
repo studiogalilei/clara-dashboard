@@ -7,6 +7,7 @@ import {
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
+import Firma from './Firma'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
 
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
@@ -135,6 +136,9 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
           </p>
         </div>
       </Card>
+
+      {/* ── LA FIRMA (Dre, 11/9) ───────────────────────────────── */}
+      {!demo && <Firma ceo={ruolo === 'ceo'} />}
 
       {/* ── WIDGET ─────────────────────────────────────────────── */}
       <Card>
