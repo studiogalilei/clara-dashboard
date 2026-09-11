@@ -173,6 +173,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', giu)
   }, [])
 
+  useEffect(() => {
+    if (!session || demo) return
+    void ruoloVero().then(setRuoloDb)
+    void mieiAccessi().then((m) => setConcessi(new Set((Object.keys(m) as Chiave[]).filter((k) => m[k] === 'approvato'))))
+  }, [session, versione])
+
   if (!configured) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-fondo px-6">
@@ -186,12 +192,6 @@ export default function App() {
       </div>
     )
   }
-
-  useEffect(() => {
-    if (!session || demo) return
-    void ruoloVero().then(setRuoloDb)
-    void mieiAccessi().then((m) => setConcessi(new Set((Object.keys(m) as Chiave[]).filter((k) => m[k] === 'approvato'))))
-  }, [session, versione])
 
   if (!ready) return null
   if (!session) return <Login />

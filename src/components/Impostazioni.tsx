@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
-  WIDGET, RUOLI, nascosti, salvaNascosti, haAccesso, inOrdine, salvaOrdine, type Chiave, type Ruolo,
+  WIDGET, RUOLI, nascosti, haAccesso, inOrdine, salvaOrdine, type Chiave, type Ruolo,
 } from '../lib/widget'
 import { mieiAccessi, tuttiAccessi, chiedi, decidi, type StatoAccesso, type Accesso } from '../lib/accessi'
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
@@ -40,7 +40,7 @@ function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick
 
 
 export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNumeri, onWidget }: Props) {
-  const [spenti, setSpenti] = useState<Chiave[]>(nascosti)
+  const [spenti] = useState<Chiave[]>(nascosti)
   // i widget a richiesta (Dre, 11/9): i miei, e per i ceo la mappa di tutti
   const [miei, setMiei] = useState<Partial<Record<Chiave, StatoAccesso>>>({})
   const [mappa, setMappa] = useState<Accesso[]>([])
@@ -83,7 +83,6 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
   const [presa, setPresa] = useState<Chiave | null>(null)
   const [sopra, setSopra] = useState<Chiave | null>(null)
-  const comando = ruolo === 'ceo'
 
   // trascina per riordinare: l'ordine vale per il menu, non solo per qui
   function lascia(sopra: Chiave) {
