@@ -27,7 +27,7 @@ const MODELLO = Deno.env.get("MODELLO_OPENAI") ?? "gpt-5";
 const sb = createClient(URL, CHIAVE);
 
 const PERSONA = `Sei Clara, la segretaria di Studio Galilei (agenzia Google Ads). Parli con
-Dre, il fondatore. Italiano informale e diretto, frasi corte, niente fuffa,
+{CHI}. Italiano informale e diretto, frasi corte, niente fuffa,
 niente elenchi puntati se non servono, mai il trattino lungo. Dai del tu.
 Non inventare dati: se non sai una cosa lo dici. Se Dre ti chiede di fare
 qualcosa che cambia la pipeline (spostare, scartare, segnare perso, cambiare
@@ -65,6 +65,30 @@ async function trovaPersona(testo: string): Promise<string | null> {
     if (data?.[0]) return data[0].id;
   }
   return null;
+}
+
+async function chiParla(owner: string | null): Promise<{ nome: string; ceo: boolean }> {
+  if (!owner) return { nome: "Dre, il fondatore", ceo: true };
+  const { data } = await sb.from("profili").select("nome,ruolo").eq("id", owner).maybeSingle();
+  const nome = (data?.nome ?? "").split(" ")[0];
+  const ceo = data?.ruolo === "ceo";
+  if (!nome) return { nome: "Dre, il fondatore", ceo: true };
+  return { nome: ceo ? `${nome}, uno dei due che guidano lo Studio` : `${nome}, del team di Studio Galilei`, ceo };
+}
+
+// IL DIARIO (12/9): se l'ultima cosa che Clara ha detto a questa persona era
+// una domanda del diario (comincia con 📔), la risposta va nel diario, non a
+// GPT. Un grazie breve, e basta.
+async function eRispostaAlDiario(msg: { testo: string; owner: string | null }): Promise<boolean> {
+  if (!msg.owner) return false;
+  const { data } = await sb.from("clara_messaggi").select("tipo,testo").eq("owner", msg.owner)
+    .neq("tipo", "dre").order("at", { ascending: false }).limit(1);
+  const ultima = data?.[0];
+  if (!ultima || ultima.tipo !== "domanda" || !String(ultima.testo).startsWith("📔")) return false;
+  await sb.from("diario").insert({ user_id: msg.owner, domanda: String(ultima.testo).replace(/^📔\s*/, ""), testo: msg.testo });
+  const grazie = ["Grazie, me lo segno. Lo leggono solo Dre e Giacomo.", "Preso, grazie. Resta tra noi e la direzione.", "Grazie, lo tengo. Se vuoi aggiungere altro, scrivi pure."];
+  await sb.from("clara_messaggi").insert({ tipo: "clara", testo: grazie[Math.floor(Math.random() * grazie.length)], owner: msg.owner, letto: false });
+  return true;
 }
 
 async function contesto(msg: { testo: string; owner: string | null; prospect_id: string | null }) {
@@ -119,9 +143,12 @@ Deno.serve(async (req) => {
 
   const msg = { testo: rec.testo as string, owner: rec.owner ?? null, prospect_id: rec.prospect_id ?? null };
   try {
+    if (await eRispostaAlDiario(msg)) return new Response("diario", { status: 200 });
+    const chi = await chiParla(msg.owner);
     const { testo: ctx, pid } = await contesto(msg);
-    const prompt = PERSONA + await istruzione("chat") + "\n\n" + ctx + "\n\n" + ISTRUZIONI +
-      "\n\nL'ULTIMO MESSAGGIO DI DRE:\n" + msg.testo;
+    const prompt = PERSONA.replace("{CHI}", chi.nome) + await istruzione("chat") + "\n\n" + ctx + "\n\n" + ISTRUZIONI +
+      (chi.ceo ? "" : "\n\nChi ti scrive non e' Dre: e' una persona del team. Aiutala sul suo lavoro; le decisioni sulla pipeline restano a Dre e Giacomo.") +
+      `\n\nL'ULTIMO MESSAGGIO DI ${chi.nome.split(",")[0].toUpperCase()}:\n` + msg.testo;
     const grezzo = (await chiedi(prompt)).trim();
 
     for (const m of grezzo.matchAll(RIGA_PROPOSTA)) {
