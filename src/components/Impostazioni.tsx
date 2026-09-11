@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
-  WIDGET, RUOLI, accessi, salvaAccessi, nascosti, salvaNascosti,
-  mioRuolo, scegliRuolo, ruoliDi, inOrdine, salvaOrdine, type Chiave, type Ruolo,
+  WIDGET, RUOLI, nascosti, salvaNascosti, haAccesso, inOrdine, salvaOrdine, type Chiave, type Ruolo,
 } from '../lib/widget'
+import { mieiAccessi, tuttiAccessi, chiedi, decidi, type StatoAccesso, type Accesso } from '../lib/accessi'
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
@@ -19,6 +19,7 @@ interface Props {
   nome: string
   email: string
   demo: boolean
+  ruolo: Ruolo                 // quello vero, dal database (App lo legge da profili)
   onCambio: () => void
   onNumeri?: () => void
   onWidget?: () => void
@@ -38,10 +39,32 @@ function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick
 
 
 
-export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, onWidget }: Props) {
-  const [ruolo, setRuolo] = useState<Ruolo>(mioRuolo)
+export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNumeri, onWidget }: Props) {
   const [spenti, setSpenti] = useState<Chiave[]>(nascosti)
-  const [acc, setAcc] = useState(accessi)
+  // i widget a richiesta (Dre, 11/9): i miei, e per i ceo la mappa di tutti
+  const [miei, setMiei] = useState<Partial<Record<Chiave, StatoAccesso>>>({})
+  const [mappa, setMappa] = useState<Accesso[]>([])
+  const [persone, setPersone] = useState<Array<{ id: string; nome: string | null; ruolo: string }>>([])
+  const [accessoEsito, setAccessoEsito] = useState<string | null>(null)
+  useEffect(() => {
+    if (demo) return
+    void mieiAccessi().then(setMiei)
+    if (ruolo === 'ceo') {
+      void tuttiAccessi().then(setMappa)
+      void supabase.from('profili').select('id,nome,ruolo').then(({ data }) => setPersone((data as typeof persone) ?? []))
+    }
+  }, [demo, ruolo])
+  async function chiediAccesso(w: Chiave) {
+    const err = await chiedi(w, bozzaNome || nome)
+    setAccessoEsito(err ? 'Richiesta non partita: ' + err : 'Richiesta mandata a Dre e Giacomo ✓')
+    setMiei(await mieiAccessi())
+    setTimeout(() => setAccessoEsito(null), 3000)
+  }
+  async function concedi(user_id: string, w: Chiave, si: boolean) {
+    const err = await decidi(user_id, w, si)
+    if (err) { setAccessoEsito('Non salvato: ' + err); return }
+    setMappa(await tuttiAccessi())
+  }
   const [bozzaNome, setBozzaNome] = useState(nomeSalvato() || nome)
   const [salvato, setSalvato] = useState(false)
   // il ponte verso Obsidian: qui dentro sta la spina, non il gesto (Dre, 3/9).
@@ -120,22 +143,8 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
 
         <div className="mt-4 border-t border-velo pt-3">
           <Micro>Il tuo ruolo</Micro>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {RUOLI.map(([r, etichetta]) => (
-              <button
-                key={r}
-                onClick={() => { setRuolo(r); scegliRuolo(r); onCambio() }}
-                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                  ruolo === r ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-navy'
-                }`}
-              >
-                {etichetta}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1.5 text-xs text-spento">
-            {WIDGET.filter((w) => ruoliDi(w).includes(ruolo)).length} widget su {WIDGET.length}
-          </p>
+          <p className="mt-1 text-sm font-semibold">{RUOLI.find(([r]) => r === ruolo)?.[1] ?? ruolo}</p>
+          <p className="mt-0.5 text-xs text-spento">{ruolo === 'ceo' ? 'Vedi tutto e decidi chi ha cosa.' : 'Le voci di base le hai; il resto lo chiedi qui sotto.'}</p>
         </div>
       </Card>
 
@@ -158,23 +167,24 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
       {/* ── LA FIRMA (Dre, 11/9) ───────────────────────────────── */}
       {!demo && <Firma ceo={ruolo === 'ceo'} />}
 
-      {/* ── WIDGET ─────────────────────────────────────────────── */}
+      {/* ── WIDGET (Dre, 11/9): il catalogo, e la richiesta ───────── */}
       <Card>
         <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
           <TitoloCard>Widget</TitoloCard>
           <Micro>trascina per riordinare</Micro>
         </header>
+        {accessoEsito && <p className="border-b border-velo bg-velo px-4 py-2 text-xs font-semibold">{accessoEsito}</p>}
 
         {lista.map((w) => {
           const acceso = w.fisso || !spenti.includes(w.chiave)
-          const arrivo = ruoliDi(w).includes(ruolo)
+          const stato = miei[w.chiave]
+          const mio = haAccesso(w, ruolo, new Set(stato === 'approvato' ? [w.chiave] : []))
           return (
             <div
               key={w.chiave}
               draggable
               onDragStart={(e) => {
                 setPresa(w.chiave)
-                // Firefox non avvia il trascinamento senza dati (revisione 4/9)
                 e.dataTransfer.setData('text/plain', w.chiave)
                 e.dataTransfer.effectAllowed = 'move'
               }}
@@ -192,56 +202,72 @@ export default function Impostazioni({ nome, email, demo, onCambio, onNumeri, on
                   </svg>
                 </span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                     className={`h-4 w-4 shrink-0 ${acceso && arrivo ? 'text-navy' : 'text-spento'}`}>
+                     className={`h-4 w-4 shrink-0 ${acceso && mio ? 'text-navy' : 'text-spento'}`}>
                   <path d={w.icona} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{w.nome}</p>
                   <p className="truncate text-xs text-tenue">{w.cosa}</p>
                 </div>
-                {w.fisso ? (
-                  <Micro>sempre</Micro>
-                ) : !arrivo ? (
-                  <Micro>non ti arriva</Micro>
+                {w.base ? (
+                  <Micro>per tutti</Micro>
+                ) : ruolo === 'ceo' ? (
+                  <Micro>tuo</Micro>
+                ) : stato === 'approvato' ? (
+                  <Micro>concesso</Micro>
+                ) : stato === 'richiesto' ? (
+                  <Micro>richiesta inviata</Micro>
                 ) : (
-                  <Interruttore
-                    acceso={acceso}
-                    etichetta={acceso ? `Spegni ${w.nome}` : `Accendi ${w.nome}`}
-                    onClick={() => {
-                      const n = acceso ? [...spenti, w.chiave] : spenti.filter((x) => x !== w.chiave)
-                      setSpenti(n); salvaNascosti(n); onCambio()
-                    }}
-                  />
+                  <button onClick={() => void chiediAccesso(w.chiave)}
+                          className="shrink-0 rounded-full border border-bordo px-3 py-1 text-[11px] font-bold text-navy hover:border-navy">
+                    {stato === 'negato' ? 'Chiedi di nuovo' : "Chiedi l'accesso"}
+                  </button>
                 )}
               </div>
-
-              {comando && !w.fisso && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-14">
-                  <Micro>arriva a</Micro>
-                  {RUOLI.map(([r, etichetta]) => {
-                    const dentro = ruoliDi(w).includes(r)
-                    return (
-                      <button
-                        key={r}
-                        onClick={() => {
-                          const ora = acc[w.chiave] ?? w.ruoli
-                          const n = { ...acc, [w.chiave]: dentro ? ora.filter((x) => x !== r) : [...new Set([...ora, r])] }
-                          setAcc(n); salvaAccessi(n); onCambio()
-                        }}
-                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
-                          dentro ? 'bg-blu/10 text-blu' : 'border border-bordo text-spento hover:border-spento'
-                        }`}
-                      >
-                        {etichetta}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
             </div>
           )
         })}
       </Card>
+
+      {/* ── CHI HA COSA (solo ceo): la mappa, e si da' o si toglie da qui ── */}
+      {ruolo === 'ceo' && !demo && persone.some((p) => p.ruolo !== 'ceo') && (
+        <Card>
+          <header className="border-b border-velo px-4 py-3">
+            <TitoloCard>Chi ha cosa</TitoloCard>
+            <p className="mt-0.5 text-xs text-tenue">Le voci di base le hanno tutti. Queste si danno una a una.</p>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wide text-tenue">
+                  <th className="px-4 py-2">Persona</th>
+                  {WIDGET.filter((w) => !w.base).map((w) => <th key={w.chiave} className="px-3 py-2">{w.nome}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {persone.filter((p) => p.ruolo !== 'ceo').map((p) => (
+                  <tr key={p.id} className="border-t border-velo">
+                    <td className="px-4 py-2 font-semibold">{p.nome ?? p.id.slice(0, 8)}</td>
+                    {WIDGET.filter((w) => !w.base).map((w) => {
+                      const r = mappa.find((a) => a.user_id === p.id && a.widget === w.chiave)
+                      const ha = r?.stato === 'approvato'
+                      return (
+                        <td key={w.chiave} className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <Interruttore acceso={ha} etichetta={`${ha ? 'Togli' : 'Dai'} ${w.nome} a ${p.nome ?? ''}`}
+                                          onClick={() => void concedi(p.id, w.chiave, !ha)} />
+                            {r?.stato === 'richiesto' && <span className="text-[11px] font-semibold text-amber-800">chiesto</span>}
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* ── COME SI APRE ───────────────────────────────────────── */}
       <Card>

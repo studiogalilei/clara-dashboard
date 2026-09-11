@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { decidi as decidiAccesso, sonoCeo } from '../lib/accessi'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
@@ -30,6 +31,8 @@ interface Proposta {
     bozza?: string; intento?: string; template?: string
     // «non e' nel CRM, lo aggiungo?»: il prospect da creare e le call da attaccargli
     nuovo?: Record<string, unknown>; agenda_ids?: number[]
+    // «X chiede il widget Y»: la decide un ceo (lib/accessi.ts)
+    accesso?: { user_id: string; widget: string; nome?: string }
   }
   stato: 'aperta' | 'si' | 'no' | 'fatta'
 }
@@ -223,6 +226,8 @@ function trovaMail(testo: string): string[] {
 
 export default function ClaraVolante({ onOpen }: Props) {
   const [utenteId, setUtenteId] = useState<string | null>(null)
+  const [ceo, setCeo] = useState(false)
+  useEffect(() => { void sonoCeo().then(setCeo) }, [utenteId])
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUtenteId(data.session?.user?.id ?? null))
   }, [])
@@ -276,6 +281,7 @@ export default function ClaraVolante({ onOpen }: Props) {
     const nome = pr.titolo.split(':')[0].replace(/^Bozza per |^Da guardare tu: /, '').split(',')[0].trim()
     if (pr.tipo === 'risposta') return `${nome} ha risposto, ti ho preparato la risposta. La leggi?`
     if (pr.tipo === 'umano') return `${nome}: qui serve tu. ${(pr.perche ?? '').split('.')[0]}`.trim()
+    if (pr.tipo === 'accesso') return `${pr.titolo}. Glielo do?`
     return pr.titolo
   }
   function corpoProposta(pr: Proposta, stile: 'posta' | 'chat') {
@@ -379,7 +385,8 @@ export default function ClaraVolante({ onOpen }: Props) {
     const miei = utenteId ? `owner.is.null,owner.eq.${utenteId}` : 'owner.is.null'
     supabase.from('proposte').select('*').eq('stato', 'aperta').or(miei)
       .order('at', { ascending: true }).limit(300)
-      .then(({ data }) => {
+      .then(({ data: grezzi }) => {
+        const data = (grezzi as Proposta[] | null)?.filter((p) => p.tipo !== 'accesso' || ceo) ?? null
         // le bozze prima di tutto: sono lavoro che parte oggi. Poi le
         // domande, poi gli scarti
         const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
@@ -397,7 +404,7 @@ export default function ClaraVolante({ onOpen }: Props) {
         const tutti = (data as Array<Messaggio & { owner?: string | null }>) ?? []
         setMessaggi([...tutti].reverse())
       })
-  }, [utenteId])
+  }, [utenteId, ceo])
 
   // la home dice «N bozze da approvare»: cliccando si apre qui, sulla posta
   useEffect(() => {
@@ -509,6 +516,9 @@ export default function ClaraVolante({ onOpen }: Props) {
       if (error) esito = `Non sono riuscita a segnarla: ${error.message}`
       else await supabase.from('prospects').update({ awaiting_us: false }).eq('id', p.prospect_id)
       esito = error ? esito : `Segnata come mandata: ${p.titolo}`
+    } else if (p.azione?.accesso) {
+      const err = await decidiAccesso(p.azione.accesso.user_id, p.azione.accesso.widget, si)
+      esito = err ? `Non sono riuscita a scriverlo: ${err}` : si ? `Fatto: ${p.azione.accesso.nome ?? 'la persona'} ha il widget` : `Ok, non lo do: ${p.titolo}`
     } else if (si) {
       if (p.azione?.nuovo) {
         const { data: creato, error } = await supabase.from('prospects')

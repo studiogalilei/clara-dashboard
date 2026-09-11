@@ -14,7 +14,8 @@ import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Progetti from './components/Progetti'
-import { menuDi, mioRuolo, widgetDi, type Chiave } from './lib/widget'
+import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
+import { ruoloVero, mieiAccessi } from './lib/accessi'
 import { nomeDa } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
@@ -90,6 +91,8 @@ export default function App() {
   // alla chiusura della scheda le viste si ricaricano: la bacheca non deve
   // mai mentire su una fase appena cambiata
   const [versione, setVersione] = useState(0)
+  const [ruoloDb, setRuoloDb] = useState<Ruolo>('coordinamento')     // il ruolo vero, dal database (profili)
+  const [concessi, setConcessi] = useState<Set<Chiave>>(new Set())      // i widget a richiesta che ho
   // il menu si allarga e si stringe trascinando il filo, come su Claude
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
@@ -184,15 +187,21 @@ export default function App() {
     )
   }
 
+  useEffect(() => {
+    if (!session || demo) return
+    void ruoloVero().then(setRuoloDb)
+    void mieiAccessi().then((m) => setConcessi(new Set((Object.keys(m) as Chiave[]).filter((k) => m[k] === 'approvato'))))
+  }, [session, versione])
+
   if (!ready) return null
   if (!session) return <Login />
 
   const mail = demo ? '' : (session.user.email ?? '')
   const utente = nomeDa(mail, demo)
   const titolo = widgetDi(tab)?.nome ?? (tab === 'impostazioni' ? 'Impostazioni' : tab === 'oggi' ? 'Oggi' : tab === 'tutti' ? 'Aziende' : tab === 'analytics' ? 'Numeri' : tab === 'plugin' ? 'Widget e istruzioni' : '')
-  const ruolo = mioRuolo()
-  const voci = menuDi(ruolo, 'menu')
-  const vociSistema = menuDi(ruolo, 'sistema')
+  const ruolo: Ruolo = demo ? mioRuolo() : ruoloDb
+  const voci = menuDi(ruolo, 'menu', concessi)
+  const vociSistema = menuDi(ruolo, 'sistema', concessi)
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
@@ -395,7 +404,7 @@ export default function App() {
             ) : tab === 'progetti' ? (
               <Progetti onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
-              <Impostazioni nome={utente} email={mail} demo={demo} onCambio={() => setVersione((v) => v + 1)}
+              <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} onCambio={() => setVersione((v) => v + 1)}
                             onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />
             ) : (
               <Aziende onOpen={setOpenId} q={q} />
