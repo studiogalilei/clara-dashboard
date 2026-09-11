@@ -88,6 +88,9 @@ function linkCalendar(titolo: string, quando: string, invitati: string): string 
 
 interface Props {
   onOpen: (id: string) => void
+  // Dre, 12/9: la posta (bozze, richieste, domande) e' una sezione sua nel
+  // menu in basso; la pallina e' solo la chat. Stesso componente, due modi.
+  modo?: 'volante' | 'posta'
 }
 
 // ── capire i comandi detti in chat (dominio stretto: call e task) ──
@@ -224,7 +227,8 @@ function trovaMail(testo: string): string[] {
   return (testo.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []).map((m) => m.replace(/\.+$/, ''))
 }
 
-export default function ClaraVolante({ onOpen }: Props) {
+export default function ClaraVolante({ onOpen, modo = 'volante' }: Props) {
+  const pagina = modo === 'posta'
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [ceo, setCeo] = useState(false)
   useEffect(() => { void sonoCeo().then(setCeo) }, [utenteId])
@@ -408,7 +412,7 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   // la home dice «N bozze da approvare»: cliccando si apre qui, sulla posta
   useEffect(() => {
-    function apri() { setAperta(true); setVista('posta') }
+    function apri() { window.dispatchEvent(new Event('clara:vai-posta')) }
     window.addEventListener('clara:apri-posta', apri)
     return () => window.removeEventListener('clara:apri-posta', apri)
   }, [])
@@ -487,7 +491,6 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   // un messaggio si segna letto da dentro, dopo averlo aperto (Dre, 9/9)
   const [apertoMsg, setApertoMsg] = useState<number | null>(null)
-  const [inChat, setInChat] = useState(5)     // quante proposte in chat per volta
   // dove sta la pallina: dove l'hai messa tu, se l'hai spostata
   const [pallina, setPallina] = useState<{ x: number; y: number } | null>(() => {
     try { const v = localStorage.getItem('clara-pallina'); return v ? JSON.parse(v) : null } catch { return null }
@@ -744,6 +747,48 @@ export default function ClaraVolante({ onOpen }: Props) {
 
   const campo = 'w-full rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu'
 
+
+  // LA POSTA: i quesiti in ordine, uno si allarga col suo contesto
+  function listaPosta() {
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {proposte.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
+        ) : proposte.map((pr, i) => {
+          const aperto = apertaId === pr.id
+          const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
+          const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
+          return (
+            <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
+              {nuovoGruppo && (
+                <p className="flex items-baseline gap-2 bg-fondo px-5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                  {GRUPPO[pr.tipo] ?? pr.tipo}
+                  <span className="tabular-nums text-tenue">{proposte.filter((x) => x.tipo === pr.tipo).length}</span>
+                </p>
+              )}
+              {corpoProposta(pr, 'posta')}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // la pagina della posta (voce di menu in basso): niente chat, solo le cose da decidere
+  if (pagina) {
+    return (
+      <div className="pb-24 sm:pb-8">
+        <div className="mb-3 flex items-baseline gap-3">
+          <p className="text-sm text-tenue">Bozze, richieste e domande. Decidi qui; per parlarle, la pallina.</p>
+          <span className="ml-auto text-sm font-bold tabular-nums text-navy">{proposte.length}</span>
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-bordo bg-white">
+          {listaPosta()}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {!aperta && (
@@ -783,9 +828,9 @@ export default function ClaraVolante({ onOpen }: Props) {
             <ClaraLogo size={44} lavora={pensa} />
             {/* il nome fa parte del logo: stesso blu, stessa forma bianca (Dre, 9/9) */}
             <span className="text-[13px] font-bold leading-none tracking-tight">Clara</span>
-            {nonLetti.length + proposte.length > 0 && (
+            {nonLetti.length > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-                {nonLetti.length + proposte.length}
+                {nonLetti.length}
               </span>
             )}
           </button>
@@ -832,7 +877,7 @@ export default function ClaraVolante({ onOpen }: Props) {
               <div className="ml-auto flex items-center gap-1">
                 {vista === 'chat' && (
                   <button
-                    onClick={() => setVista('posta')}
+                    onClick={() => { if (!fissa) setAperta(false); window.dispatchEvent(new Event('clara:vai-posta')) }}
                     aria-label="Le cose che Clara chiede"
                     title="Le cose che Clara chiede"
                     className="relative flex h-9 w-9 items-center justify-center rounded-full text-navy hover:bg-velo"
@@ -856,30 +901,6 @@ export default function ClaraVolante({ onOpen }: Props) {
                 </button>
               </div>
             </header>
-
-            {/* LA POSTA: i quesiti in ordine, uno si allarga col suo contesto */}
-            {vista === 'posta' && (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {proposte.length === 0 ? (
-                  <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
-                ) : proposte.map((pr, i) => {
-                  const aperto = apertaId === pr.id
-                  const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
-                  const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
-                  return (
-                    <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
-                      {nuovoGruppo && (
-                        <p className="flex items-baseline gap-2 bg-fondo px-5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
-                          {GRUPPO[pr.tipo] ?? pr.tipo}
-                          <span className="tabular-nums text-tenue">{proposte.filter((x) => x.tipo === pr.tipo).length}</span>
-                        </p>
-                      )}
-                      {corpoProposta(pr, 'posta')}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
 
             {/* la conversazione */}
             {vista === 'chat' && (
@@ -936,30 +957,6 @@ export default function ClaraVolante({ onOpen }: Props) {
                     </div>
                   )
                 })
-              )}
-              {/* le cose che Clara chiede e propone: messaggi come gli altri, le piu' vecchie prima, cinque alla volta */}
-              {proposte.slice(0, inChat).map((pr) => (
-                <div key={`pr-${pr.id}`} className="flex justify-start">
-                  <div className={`w-full max-w-[92%] rounded-2xl rounded-bl-md px-3.5 py-2.5 ${apertaId === pr.id ? 'bg-white ring-1 ring-blu/40' : 'bg-white ring-1 ring-blu/20'}`}>
-                    {corpoProposta(pr, 'chat')}
-                    {apertaId !== pr.id && (
-                      <div className="mt-1.5 flex items-center gap-2">
-                        {pr.azione?.bozza !== undefined ? (
-                          <button onClick={() => apriProposta(pr)} className="rounded-full bg-blu px-3.5 py-1 text-xs font-bold text-white">Leggi</button>
-                        ) : (
-                          <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-blu px-3.5 py-1 text-xs font-bold text-white disabled:opacity-40">Sì</button>
-                        )}
-                        <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
-                        {pr.azione?.bozza === undefined && <button onClick={() => apriProposta(pr)} className="ml-auto text-[11px] font-semibold text-blu hover:underline">contesto</button>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {proposte.length > inChat && (
-                <button onClick={() => setInChat((n) => n + 5)} className="w-full rounded-xl border border-dashed border-bordo py-2 text-xs font-semibold text-tenue hover:border-navy hover:text-navy">
-                  altre {proposte.length - inChat} cose: mostrane 5
-                </button>
               )}
               {inAttesa && <ClaraPensa da={inAttesa} />}
               <div ref={fondoRef} />

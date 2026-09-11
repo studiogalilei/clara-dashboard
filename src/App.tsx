@@ -74,6 +74,17 @@ export default function App() {
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
   // tu le accetti. Ogni minuto, e quando cambi pagina. Niente rumore in piu'.
   const [inArrivo, setInArrivo] = useState(0)
+  const [daDecidere, setDaDecidere] = useState(0)     // le proposte aperte: il badge della Posta di Clara
+  useEffect(() => {
+    if (demo) return
+    const conta = () => { void supabase.from('proposte').select('id', { count: 'exact', head: true }).eq('stato', 'aperta').then(({ count }) => setDaDecidere(count ?? 0)) }
+    conta()
+    const t = setInterval(conta, 60_000)
+    const vai = () => { setTab('clara'); setOpenId(null) }
+    window.addEventListener('clara:vai-posta', vai)
+    window.addEventListener('clara:apri-posta', vai)
+    return () => { clearInterval(t); window.removeEventListener('clara:vai-posta', vai); window.removeEventListener('clara:apri-posta', vai) }
+  }, [])
   useEffect(() => {
     let vivo = true
     async function conta() {
@@ -250,7 +261,7 @@ export default function App() {
             return (
               <button
                 key={t}
-                onClick={() => { if (t === 'clara') { window.dispatchEvent(new Event('clara:apri-posta')); return } setTab(t); setOpenId(null) }}
+                onClick={() => { setTab(t); setOpenId(null) }}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   attivo ? 'bg-velo text-inchiostro' : 'text-tenue hover:bg-velo/60 hover:text-inchiostro'
                 }`}
@@ -264,6 +275,9 @@ export default function App() {
                 {label}
                 {t === 'oggi' && inArrivo > 0 && (
                   <span className="ml-auto rounded-full bg-blu px-1.5 py-px text-[10px] font-bold text-white" title="Task in arrivo da accettare">{inArrivo}</span>
+                )}
+                {t === 'clara' && daDecidere > 0 && (
+                  <span className="ml-auto rounded-full bg-red-600 px-1.5 py-px text-[10px] font-bold text-white" title="Cose da decidere">{daDecidere}</span>
                 )}
               </button>
             )
@@ -291,6 +305,9 @@ export default function App() {
                   <path d={icona} />
                 </svg>
                 {label}
+                {t === 'clara' && daDecidere > 0 && (
+                  <span className="ml-auto rounded-full bg-red-600 px-1.5 py-px text-[10px] font-bold text-white" title="Cose da decidere">{daDecidere}</span>
+                )}
               </button>
             )
           })}
@@ -409,6 +426,8 @@ export default function App() {
               <Plugin />
             ) : tab === 'progetti' ? (
               <Clienti onOpen={setOpenId} />
+            ) : tab === 'clara' ? (
+              <ClaraVolante modo="posta" onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
               <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} onCambio={() => setVersione((v) => v + 1)}
                             onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />
