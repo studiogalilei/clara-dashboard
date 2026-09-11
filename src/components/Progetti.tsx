@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, Cella, Faccia, sgid, type FacciaP } from './ui'
 import { giorno } from '../lib/regole'
+import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 
 // PROGETTI = IL FOGLIO DI GIACOMO (Dre, 8/9): «un excel con selettore, serve
 // per seguire i progetti in corso». Una riga per progetto, si scrive dentro
@@ -51,6 +52,12 @@ export const TIPI: Array<[NonNullable<Progetto['tipo']>, string, string]> = [
   ['onboarding', 'onboarding', 'bg-sky-100 text-sky-900'],
 ]
 
+// L'ORDINE DEL FOGLIO (Dre, 11/9): «prima i clienti, poi a scendere», o lo
+// scegli tu. Di default comanda lo stato: Retainer, Trial, onboarding, senza.
+type Ordine = 'stato' | 'cliente' | 'inizio' | 'prezzo' | 'chi_segue'
+const ORDINI: Array<[Ordine, string]> = [['stato', 'Stato'], ['cliente', 'Cliente'], ['inizio', 'Inizio'], ['prezzo', 'Prezzo'], ['chi_segue', 'Chi segue']]
+const PESO_TIPO: Record<string, number> = { retainer: 0, trial: 1, onboarding: 2 }
+
 interface Props { onOpen: (id: string) => void }
 
 type Campo = 'cliente' | 'nome' | 'natura' | 'chi_segue' | 'data_inizio' | 'scadenza' | 'valore' | 'note'
@@ -58,6 +65,7 @@ type Campo = 'cliente' | 'nome' | 'natura' | 'chi_segue' | 'data_inizio' | 'scad
 export default function Progetti({ onOpen }: Props) {
   const [righe, setRighe] = useState<Progetto[] | null>(null)
   const [nomi, setNomi] = useState<Record<string, string>>({})
+  const [ordine, setOrdine] = useState<Ordine>(() => (leggiPref('progetti-ordine') as Ordine) || 'stato')
   const [sg, setSg] = useState<Record<string, number | null>>({})
   const [facce, setFacce] = useState<Record<string, FacciaP>>({})   // per la foto con le cifre dell'ID
   const [scelgo, setScelgo] = useState<number | null>(null)     // la riga con il selettore cliente aperto
@@ -139,9 +147,18 @@ export default function Progetti({ onOpen }: Props) {
 
   if (righe === null) return <Spinner />
 
-  const vivi = righe.filter((p) => p.stato !== 'consegnato')
-  const fatti = righe.filter((p) => p.stato === 'consegnato')
   const oggi = giorno()
+  const nomeDi = (p: Progetto) => (p.prospect_id ? (nomi[p.prospect_id] ?? p.cliente ?? '') : (p.cliente ?? '')).toLowerCase()
+  const confronta = (a: Progetto, b: Progetto): number => {
+    const perCliente = nomeDi(a).localeCompare(nomeDi(b)) || (a.nome ?? '').localeCompare(b.nome ?? '')
+    if (ordine === 'cliente') return perCliente
+    if (ordine === 'inizio') return (b.data_inizio ?? '').localeCompare(a.data_inizio ?? '') || perCliente   // i piu' recenti sopra, senza data in coda
+    if (ordine === 'prezzo') return (Number(b.valore) || 0) - (Number(a.valore) || 0) || perCliente
+    if (ordine === 'chi_segue') return (a.chi_segue ?? 'zzz').localeCompare(b.chi_segue ?? 'zzz') || perCliente
+    return (PESO_TIPO[a.tipo ?? ''] ?? 3) - (PESO_TIPO[b.tipo ?? ''] ?? 3) || perCliente
+  }
+  const vivi = righe.filter((p) => p.stato !== 'consegnato').sort(confronta)
+  const fatti = righe.filter((p) => p.stato === 'consegnato').sort(confronta)
   const retainer = vivi.filter((p) => p.tipo === 'retainer').reduce((t, p) => t + (Number(p.valore) || 0), 0)
   const totale = vivi.reduce((t, p) => t + (Number(p.valore) || 0), 0)
 
@@ -239,7 +256,14 @@ export default function Progetti({ onOpen }: Props) {
             {vivi.filter((p) => p.scadenza && p.scadenza < oggi).length} oltre la scadenza
           </span>
         )}
-        <button onClick={aggiungi} className="ml-auto rounded-full bg-blu px-4 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">
+        <label className="ml-auto flex items-center gap-1.5 text-xs text-tenue">
+          Ordina per
+          <select value={ordine} onChange={(e) => { const o = e.target.value as Ordine; setOrdine(o); scriviPref('progetti-ordine', o) }}
+                  className="rounded-md border border-bordo bg-white px-2 py-1 text-xs font-semibold text-inchiostro outline-none focus:border-blu">
+            {ORDINI.map(([o, e]) => <option key={o} value={o}>{e}</option>)}
+          </select>
+        </label>
+        <button onClick={aggiungi} className="rounded-full bg-blu px-4 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">
           + Riga
         </button>
       </div>

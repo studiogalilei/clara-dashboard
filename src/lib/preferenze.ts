@@ -22,6 +22,7 @@ export const CHIAVI = [
   'tutti-vista',
   'tutti-filtro',
   'tutti-modo',
+  'progetti-ordine',
   'clara-larghezza',
   'clara-aperta',
   'menu-larghezza',
