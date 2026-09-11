@@ -35,6 +35,8 @@ jobs:
           SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
           WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
