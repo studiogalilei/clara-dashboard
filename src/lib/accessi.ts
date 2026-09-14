@@ -18,11 +18,14 @@ export async function sonoCeo(): Promise<boolean> {
 // CHI SONO, in una chiamata (schema_v23): l'utente effettivo, il ruolo vero,
 // i widget concessi, e se un ceo sta guardando il Workspace nei panni di
 // qualcun altro («vedi come»). Tutto il resto del database ragiona uguale.
-export interface ChiSono { uid: string | null; nome: string | null; ruolo: 'ceo' | 'coordinamento'; concessi: Chiave[]; vista: { id: string; nome: string | null } | null }
+export interface Persona { id: string; nome: string | null; ruolo: string }
+export interface ChiSono { uid: string | null; nome: string | null; ruolo: 'ceo' | 'coordinamento'; ruoloVero: string; pod: Persona[]; concessi: Chiave[]; vista: { id: string; nome: string | null } | null }
 export async function chiSono(): Promise<ChiSono> {
   const { data } = await supabase.rpc('chi_sono')
-  const d = (data ?? {}) as Partial<ChiSono>
-  return { uid: d.uid ?? null, nome: d.nome ?? null, ruolo: d.ruolo === 'ceo' ? 'ceo' : 'coordinamento', concessi: (d.concessi ?? []) as Chiave[], vista: d.vista ?? null }
+  const d = (data ?? {}) as Partial<ChiSono> & { ruolo?: string }
+  // per i widget contano due ruoli (ceo, o non ceo); il ruolo vero (manager, specialist, frontend) serve al pod
+  return { uid: d.uid ?? null, nome: d.nome ?? null, ruolo: d.ruolo === 'ceo' ? 'ceo' : 'coordinamento', ruoloVero: d.ruolo ?? 'coordinamento',
+           pod: (d.pod ?? []) as Persona[], concessi: (d.concessi ?? []) as Chiave[], vista: d.vista ?? null }
 }
 
 // un ceo si mette nei panni di una persona (null = torna a se')

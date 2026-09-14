@@ -36,6 +36,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 import zoneinfo
 
@@ -249,6 +250,62 @@ def eventi_correnti():
     return [], "niente"
 
 
+# ── I CALENDARI DELLE PERSONE (14/9): chi e' entrato con Google ha lasciato il
+# permesso di lettura sul suo calendario. Il manager vede quelli del suo pod
+# (richiesta di Carlo), ognuno il suo. Dre resta sull'ICS (owner null).
+def eventi_google(email):
+    from google_api import g
+    adesso = datetime.datetime.now(datetime.timezone.utc)
+    p = urllib.parse.urlencode({"timeMin": (adesso - datetime.timedelta(days=7)).isoformat(), "timeMax": (adesso + datetime.timedelta(days=60)).isoformat(),
+                                "singleEvents": "true", "orderBy": "startTime", "maxResults": 250})
+    d = g("GET", f"https://www.googleapis.com/calendar/v3/calendars/primary/events?{p}", email=email) or {}
+    eventi = []
+    for it in d.get("items", []):
+        inizio = it.get("start") or {}
+        if inizio.get("dateTime"):
+            at = datetime.datetime.fromisoformat(inizio["dateTime"].replace("Z", "+00:00"))
+            giornata = False
+        elif inizio.get("date"):
+            at = datetime.datetime.fromisoformat(inizio["date"] + "T09:00:00+02:00")
+            giornata = True
+        else:
+            continue
+        eventi.append({"titolo": (it.get("summary") or "").strip(), "at": at, "giornata": giornata, "stato": (it.get("status") or "confirmed").upper(),
+                       "invitati": [(a.get("email") or "").lower() for a in it.get("attendees", [])], "meet": it.get("hangoutLink"),
+                       "link": it.get("htmlLink") or it.get("id"), "descrizione": it.get("description") or ""})
+    return eventi
+
+
+def calendari_persone(prova, prospects):
+    persone = sb("GET", "/rest/v1/google_token?select=user_id,email") or []
+    for u in persone:
+        if u["email"] == "dramane@studiogalilei.com":
+            continue                                   # il suo e' l'ICS dello Studio
+        try:
+            eventi = eventi_google(u["email"])
+        except Exception as e:
+            print(f"  calendario di {u['email']}: {str(e)[:120]}")
+            continue
+        esistenti = {r["link"]: r for r in (sb("GET", f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
+        nuovi = agg = 0
+        for e in eventi:
+            if not e["titolo"] or e["stato"] == "CANCELLED":
+                continue
+            pid, _ = riconosci(e, prospects)
+            riga = {"at": e["at"].astimezone(datetime.timezone.utc).isoformat(), "titolo": e["titolo"][:200], "tipo": tipo_di(e["titolo"]),
+                    "prospect_id": pid, "link": e.get("meet") or e["link"], "fonte": f"gcal:{u['email']}", "owner": u["user_id"]}
+            vecchia = esistenti.get(riga["link"])
+            if prova:
+                print(f"  {u['email'][:12]:12} {e['at'].astimezone(ROMA):%d/%m %H:%M} {e['titolo'][:50]}")
+                continue
+            if vecchia:
+                if vecchia["at"] != riga["at"] or vecchia["titolo"] != riga["titolo"]:
+                    sb("PATCH", f"/rest/v1/agenda?id=eq.{vecchia['id']}", riga); agg += 1
+            else:
+                sb("POST", "/rest/v1/agenda", riga); nuovi += 1
+        print(f"  calendario di {u['email']}: {nuovi} nuovi, {agg} aggiornati, {len(eventi)} letti")
+
+
 def main():
     prova = "--prova" in sys.argv
     if "--da-json" in sys.argv:
@@ -296,6 +353,7 @@ def main():
             nuovi += 1
 
     print(f"calendario ({fonte}): {nuovi} nuovi, {aggiornati} aggiornati, {saltati} personali saltati, {len(eventi)} letti")
+    calendari_persone(prova, prospects)
 
 
 if __name__ == "__main__":

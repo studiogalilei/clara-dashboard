@@ -517,7 +517,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante' }: Props) {
       const { error } = await supabase.from('interactions')
         .insert({ prospect_id: p.prospect_id, at: new Date().toISOString(), kind: 'email_out', body: testo })
       if (error) esito = `Non sono riuscita a segnarla: ${error.message}`
-      else await supabase.from('prospects').update({ awaiting_us: false }).eq('id', p.prospect_id)
+      else if (p.azione.intento === 'INT-GB') {
+        // il gigante buono (14/9): una volta sola, poi silenzio. L'analisi e' partita, niente follow-up
+        await supabase.from('prospects').update({ awaiting_us: false, analysis_sent: true, analysis_sent_at: new Date().toISOString(), no_followup: true }).eq('id', p.prospect_id)
+      } else await supabase.from('prospects').update({ awaiting_us: false }).eq('id', p.prospect_id)
       esito = error ? esito : `Segnata come mandata: ${p.titolo}`
     } else if (p.azione?.accesso) {
       const err = await decidiAccesso(p.azione.accesso.user_id, p.azione.accesso.widget, si)

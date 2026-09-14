@@ -15,7 +15,7 @@ import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
-import { chiSono, vediCome, type ChiSono } from './lib/accessi'
+import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
@@ -105,6 +105,7 @@ export default function App() {
   const [ruoloDb, setRuoloDb] = useState<Ruolo>('coordinamento')     // il ruolo vero, dal database (profili)
   const [concessi, setConcessi] = useState<Set<Chiave>>(new Set())      // i widget a richiesta che ho
   const [vista, setVista] = useState<ChiSono['vista']>(null)           // un ceo nei panni di qualcun altro
+  const [pod, setPod] = useState<Persona[]>([])                           // le persone del mio pod, se sono manager
   // il menu si allarga e si stringe trascinando il filo, come su Claude
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
@@ -187,7 +188,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session || demo) return
-    void chiSono().then((c) => { setRuoloDb(c.ruolo); setConcessi(new Set(c.concessi)); setVista(c.vista) })
+    void chiSono().then((c) => { setRuoloDb(c.ruolo); setConcessi(new Set(c.concessi)); setVista(c.vista); setPod(c.pod) })
   }, [session, versione])
 
   if (!configured) {
@@ -417,7 +418,7 @@ export default function App() {
             {tab === 'oggi' || tab === 'pipeline' ? (
               <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
             ) : tab === 'calendario' ? (
-              <Calendario onOpen={setOpenId} />
+              <Calendario onOpen={setOpenId} pod={pod} />
             ) : tab === 'analytics' ? (
               <Analytics onOpen={setOpenId} />
             ) : tab === 'vault' ? (

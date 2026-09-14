@@ -21,10 +21,14 @@ interface Voce {
   titolo: string
   tipo: Tipo
   prospect_id: string | null
+  chi?: string          // del pod: il nome della persona
 }
 
 interface Props {
   onOpen: (id: string) => void
+  // IL POD (Carlo, 14/9): il manager vede anche calendario, task e scadenze
+  // dei progetti delle persone del suo pod, con il nome davanti
+  pod?: Array<{ id: string; nome: string | null }>
 }
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -55,7 +59,8 @@ function corto(titolo: string): string {
   return dopo.length > 14 ? dopo.slice(0, 13) + '…' : dopo
 }
 
-export default function Calendario({ onOpen }: Props) {
+export default function Calendario({ onOpen, pod = [] }: Props) {
+  const [conPod, setConPod] = useState(true)
   const oggi = new Date()
   const [voci, setVoci] = useState<Voce[] | null>(null)
   const [anno, setAnno] = useState(oggi.getFullYear())
@@ -102,10 +107,25 @@ export default function Calendario({ onOpen }: Props) {
         .not('followup_due', 'is', null)
         .order('followup_due', { ascending: true })
         .limit(200),
-    ]).then(([ag, pa, fu]) => {
-      const out: Voce[] = ((ag.data as AgendaItem[]) ?? []).map((a) => ({
+      pod.length ? supabase.from('agenda').select('*').in('owner', pod.map((p) => p.id))
+        .gte('at', new Date(Date.now() - 7 * 86400e3).toISOString()).order('at', { ascending: true }).limit(300) : Promise.resolve({ data: [] }),
+      pod.length ? supabase.from('task').select('id,titolo,scadenza,owner,fatta').in('owner', pod.map((p) => p.id))
+        .eq('fatta', false).not('scadenza', 'is', null).limit(300) : Promise.resolve({ data: [] }),
+      pod.length ? supabase.from('progetti').select('id,nome,scadenza,chi_segue,stato,prospect_id').not('scadenza', 'is', null).neq('stato', 'consegnato').limit(300) : Promise.resolve({ data: [] }),
+    ]).then(([ag, pa, fu, agPod, taskPod, progPod]) => {
+      const nome = (id: string | null) => pod.find((p) => p.id === id)?.nome?.split(' ')[0] ?? ''
+      const out: Voce[] = ((ag.data as Array<AgendaItem & { owner?: string | null }>) ?? []).filter((a) => !a.owner).map((a) => ({
         at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
       }))
+      for (const a of (agPod.data as Array<AgendaItem & { owner: string }>) ?? []) {
+        out.push({ at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id, chi: nome(a.owner) })
+      }
+      for (const t of (taskPod.data as Array<{ titolo: string; scadenza: string; owner: string }>) ?? []) {
+        out.push({ at: t.scadenza + 'T09:00:00', titolo: t.titolo, tipo: 'altro', prospect_id: null, chi: nome(t.owner) })
+      }
+      for (const g of (progPod.data as Array<{ nome: string; scadenza: string; chi_segue: string | null; prospect_id: string | null }>) ?? []) {
+        out.push({ at: g.scadenza + 'T09:00:00', titolo: `Scadenza: ${g.nome}`, tipo: 'altro', prospect_id: g.prospect_id, chi: g.chi_segue ?? 'progetto' })
+      }
       const conEvento = new Set(
         out.filter((v) => v.prospect_id).map((v) => `${v.prospect_id}|${giorno(v.at)}`)
       )
@@ -129,16 +149,17 @@ export default function Calendario({ onOpen }: Props) {
       out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
       setVoci(out)
     })
-  }, [])
+  }, [pod])
 
+  const visibili = useMemo(() => (voci ?? []).filter((v) => conPod || !v.chi), [voci, conPod])
   const perGiorno = useMemo(() => {
     const m = new Map<string, Voce[]>()
-    for (const v of voci ?? []) {
+    for (const v of visibili) {
       const g = giorno(v.at)
       m.set(g, [...(m.get(g) ?? []), v])
     }
     return m
-  }, [voci])
+  }, [visibili])
 
   if (voci === null) return null
 
@@ -160,7 +181,7 @@ export default function Calendario({ onOpen }: Props) {
   // «Prossimi 7 giorni: N call, M follow-up»
   const adesso = new Date().toISOString()
   const fraSette = new Date(Date.now() + 7 * 86400e3).toISOString()
-  const prossimi = voci.filter((v) => v.at >= adesso && v.at <= fraSette)
+  const prossimi = visibili.filter((v) => v.at >= adesso && v.at <= fraSette)
   const nCall = prossimi.filter((v) => v.tipo === 'call').length
   const nFu = prossimi.filter((v) => v.tipo === 'followup').length
 
@@ -173,7 +194,7 @@ export default function Calendario({ onOpen }: Props) {
   // la lista raggruppata (telefono)
   const domani = giorno(new Date(Date.now() + 86400e3))
   const settimanaFine = fraSette.slice(0, 10)
-  const futureVoci = voci.filter((v) => v.at >= adesso)
+  const futureVoci = visibili.filter((v) => v.at >= adesso)
   const gruppi: Array<[string, Voce[]]> = [
     ['Oggi', futureVoci.filter((v) => giorno(v.at) === oggiChiave)],
     ['Domani', futureVoci.filter((v) => giorno(v.at) === domani)],
@@ -186,7 +207,7 @@ export default function Calendario({ onOpen }: Props) {
       <>
         <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${PALLINO[v.tipo]}`} />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">{v.titolo}</span>
+          <span className="block text-sm font-semibold">{v.chi ? <span className="mr-1.5 rounded-md bg-velo px-1.5 py-0.5 text-[11px] font-bold text-navy">{v.chi}</span> : null}{v.titolo}</span>
           <span className="block text-xs text-tenue">
             {fmtDateShort(v.at)}, {fmtOra(v.at)}
             {v.tipo === 'followup' ? ', follow-up' : v.tipo === 'altro' ? ', scadenza' : ''}
@@ -264,6 +285,12 @@ export default function Calendario({ onOpen }: Props) {
               className="mb-3 w-full rounded-xl bg-velo px-3 py-2 text-left text-xs font-semibold text-tenue hover:bg-velo/70"
             >
               Prossimi 7 giorni: {nCall} call, {nFu} follow-up
+              {pod.length > 0 && (
+                <button onClick={() => setConPod((v) => !v)}
+                        className={`ml-3 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${conPod ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue'}`}>
+                  Il mio pod{conPod ? '' : ': nascosto'}
+                </button>
+              )}
             </button>
           )}
 

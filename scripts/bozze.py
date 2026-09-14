@@ -46,6 +46,30 @@ CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da D
 CLASSI = ("positivo", "tiepido", "rinvio", "da_classificare")
 INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 
+# IL GIGANTE BUONO (Dre, 14/9): ai negativi cortesi mandiamo lo stesso
+# l'analisi che avevamo preparato, una volta sola, con il calendario e un
+# saluto. Mai a chi chiede di non essere contattato, cita la privacy o e'
+# scortese: quelli restano fuori, e' la regola sacra. Passa dalla Posta.
+QUANTI_GB = 10
+NON_TOCCARE = re.compile(r"rimuov|cancell|non (vogliamo|voglio|desider)|non (ci|mi) contatt|non (ci|mi) scriv|privacy|gdpr|"
+                         r"diffid|denunc|garante|spam|molest|smett|basta\b|lasciateci|lasciatemi|opt.?out|unsubscribe|disiscri", re.I)
+ISTRUZIONE_GB = """Scrivi la risposta a un'azienda che ci ha detto di NO in modo cortese (non
+interessati, hanno gia' un'agenzia, non e' il momento). L'analisi della sua zona
+l'avevamo gia' preparata: gliela lasciamo lo stesso, senza chiedere niente in
+cambio. Tono: il gigante buono. Grato, leggero, zero vendita, zero insistenza.
+
+Rispondi con queste righe, poi una riga «---», poi il testo:
+INTENTO: INT-GB
+FERMATI: no | si': il motivo (solo se il no era in realta' scortese o chiedeva di non essere contattato)
+NOTA: una riga su cosa hai usato dell'analisi
+---
+Il testo: registro «lei», 5-7 righe, mai il trattino lungo, niente firma.
+1) ringrazia della risposta e prendi atto del no senza discuterlo;
+2) di' che l'analisi della loro zona era gia' pronta e gliela lasciamo in
+   allegato, con UN numero vero se c'e' (le ricerche al mese nella provincia);
+3) chiudi: se un giorno vorranno piu' clienti, noi siamo qui, con {{CALENDARIO}};
+4) un saluto gentile. Nessun follow-up promesso, nessuna domanda."""
+
 # ── il cancello qualita' (da lint_risposta.py, 3/7) ─────────────────
 TU = re.compile(r"\b(tu|ti|te|tuo|tua|tuoi|tue|puoi|hai|sei|vuoi|pensi|trovi|scegli)\b", re.I)
 LEI = re.compile(r"\b(lei|le|la ringrazio|suo|sua|suoi|sue|puo'|può|vorra'|vorrà|preferisce)\b", re.I)
@@ -208,6 +232,48 @@ def main():
         else: fatte += 1
 
     print(f"\n  bozze pronte {fatte}, da guardare tu {ferme}, non passate il cancello {bocciate}")
+
+    # ── il gigante buono: i negativi cortesi, una volta sola ────────
+    negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
+                         "&select=id,name,company,email,classificazione,stage,analysis_sent,last_reply_at,sector,city,enriched,no_followup"
+                         "&order=last_reply_at.desc&limit=200") or []
+    soppresse = sb("GET", "/rest/v1/suppressions?select=email,domain&limit=5000") or []
+    mail_no = {(x.get("email") or "").lower() for x in soppresse}
+    dom_no = {(x.get("domain") or "").lower() for x in soppresse if x.get("domain")}
+    gb = 0
+    for p in negativi:
+        if gb >= QUANTI_GB or p["id"] in aperte or p.get("stage") in INTOCCABILI:
+            continue
+        testo = ultima.get(p["id"], "")
+        mail = (p.get("email") or "").lower()
+        if len(testo.strip()) < 20 or NON_TOCCARE.search(testo) or mail in mail_no or mail.split("@")[-1] in dom_no:
+            continue
+        fit = (p.get("enriched") or {}).get("google_fit") or {}
+        if fit.get("verdetto") == "NO":
+            continue                       # se non era un cliente possibile, l'analisi non ha senso
+        nome = (p.get("company") or p.get("name") or mail)[:34]
+        fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
+                 "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
+        prompt = (ISTRUZIONE_GB + cervello.istruzione("chat") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
+                  f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
+        grezzo = cervello._chiedi(prompt) or ""
+        m = re.search(r"\n\s*-{3,}\s*\n", grezzo)
+        if not m:
+            continue
+        testa, bozza = grezzo[:m.start()], grezzo[m.end():].strip().strip("`").strip()
+        fermati = next((r.split(":", 1)[1].strip() for r in testa.splitlines() if r.upper().startswith("FERMATI")), "no")
+        nota = next((r.split(":", 1)[1].strip() for r in testa.splitlines() if r.upper().startswith("NOTA")), "")
+        errori = cancello(bozza)
+        if errori or not fermati.lower().startswith("no"):
+            print(f"  [GB] salto {nome}: {fermati if not fermati.lower().startswith('no') else '; '.join(errori)}")
+            continue
+        print(f"\n  [GB] Gigante buono per {nome}\n      " + bozza[:200].replace("\n", " ") + "…")
+        if not PROVA:
+            proponi("risposta", f"Gigante buono per {nome}, INT-GB", prospect_id=p["id"],
+                    perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
+                    azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB"})
+        gb += 1
+    print(f"  giganti buoni pronti: {gb}")
     # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare
     if not PROVA and (fatte or ferme):
         from avvisa import avvisa
