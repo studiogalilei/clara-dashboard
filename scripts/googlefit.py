@@ -189,7 +189,15 @@ def main():
                           "&fuori=eq.false&analysis_sent=eq.false&awaiting_us=eq.true&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=200") or []
-        righe = [p for p in righe if not (p.get("enriched") or {}).get("google_fit")][:QUANTI]
+        righe = [p for p in righe if not (p.get("enriched") or {}).get("google_fit")]
+        # anche i negativi cortesi degli ultimi 45 giorni: il gigante buono (bozze.py)
+        # lascia loro l'analisi, quindi l'analisi deve esistere
+        da = (datetime.date.today() - datetime.timedelta(days=45)).isoformat()
+        negativi = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched"
+                             f"&fuori=eq.false&analysis_sent=eq.false&classificazione=eq.negativo&last_reply_at=gte.{da}"
+                             "&order=last_reply_at.desc&limit=100") or []
+        righe += [p for p in negativi if not (p.get("enriched") or {}).get("google_fit")]
+        righe = righe[:QUANTI]
     fatti = 0
     for p in righe:
         fit = valuta(p, zone, settori)
