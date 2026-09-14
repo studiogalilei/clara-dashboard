@@ -50,7 +50,8 @@ INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 # l'analisi che avevamo preparato, una volta sola, con il calendario e un
 # saluto. Mai a chi chiede di non essere contattato, cita la privacy o e'
 # scortese: quelli restano fuori, e' la regola sacra. Passa dalla Posta.
-QUANTI_GB = 10
+QUANTI_GB = 5        # per giro, cosi' la Posta non si riempie
+GIORNI_GB = 45       # oltre, «l'avevamo gia' preparata» suona strano
 NON_TOCCARE = re.compile(r"rimuov|cancell|non (vogliamo|voglio|desider)|non (ci|mi) contatt|non (ci|mi) scriv|privacy|gdpr|"
                          r"diffid|denunc|garante|spam|molest|smett|basta\b|lasciateci|lasciatemi|opt.?out|unsubscribe|disiscri", re.I)
 ISTRUZIONE_GB = """Scrivi la risposta a un'azienda che ci ha detto di NO in modo cortese (non
@@ -249,8 +250,11 @@ def main():
         if len(testo.strip()) < 20 or NON_TOCCARE.search(testo) or mail in mail_no or mail.split("@")[-1] in dom_no:
             continue
         fit = (p.get("enriched") or {}).get("google_fit") or {}
-        if fit.get("verdetto") == "NO":
-            continue                       # se non era un cliente possibile, l'analisi non ha senso
+        if fit.get("verdetto") == "NO" or not fit.get("zona"):
+            continue                       # senza un'analisi vera (la zona misurata) non c'e' niente da lasciare
+        ultimo_no = (p.get("last_reply_at") or "")[:10]
+        if ultimo_no and (datetime.date.today() - datetime.date.fromisoformat(ultimo_no)).days > GIORNI_GB:
+            continue
         nome = (p.get("company") or p.get("name") or mail)[:34]
         fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
                  "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
