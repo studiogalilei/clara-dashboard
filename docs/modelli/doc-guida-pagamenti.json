@@ -1,0 +1,47 @@
+{
+  "tipo": "Guida ai pagamenti",
+  "blocchi": [
+    { "tipo": "kicker", "testo": "Guida operativa" },
+    { "tipo": "h1", "testo": "Come funzionano i pagamenti" },
+    { "tipo": "p", "testo": "Dal passaggio al lavoro continuativo i pagamenti diventano ricorrenti su Stripe. Si imposta insieme in quindici minuti di chiamata: non ti arriva niente prima e le date le scegli tu." },
+    { "tipo": "riquadro", "titolo": "Cosa non succede", "voci": [
+      "Nessun addebito parte prima della data che hai scelto tu",
+      "Non ti chiediamo i dati della carta: li inserisci tu su Stripe, e restano lì",
+      "Nessun vincolo di durata, nessun preavviso da rispettare",
+      "Niente da ricordare ogni mese: né bonifici, né scadenze, né solleciti"
+    ] },
+    { "tipo": "h2", "testo": "Cosa succede nella chiamata" },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "Passo 1", "titolo": "Si scelgono le date", "testo": "Giorno di partenza e giorno di rinnovo. Se preferisci allinearli alla tua contabilità, si fissano su quelli." },
+      { "quando": "Passo 2", "titolo": "Si crea il link in diretta", "testo": "Prepariamo il pagamento con l'importo concordato mentre siamo in chiamata, davanti a te." },
+      { "quando": "Passo 3", "titolo": "Confermi una volta sola", "testo": "Lo apri, inserisci i dati e confermi. Da quel momento non devi più farci niente." },
+      { "quando": "Poi", "titolo": "I rinnovi vanno da soli", "testo": "Alla stessa data ogni mese. La fattura arriva per email o per messaggio, come da accordi." }
+    ] },
+    { "tipo": "h2", "testo": "Perché Stripe" },
+    { "tipo": "p", "testo": "Stripe è la piattaforma di pagamenti usata da Amazon, Airbnb e Shopify. I dati della tua carta restano sui loro sistemi, certificati PCI DSS di livello 1, e non passano mai da noi." },
+    { "tipo": "p", "testo": "Per noi è un metodo unico su tutte le collaborazioni: meno tempo perso da entrambe le parti a rincorrere una cosa che può funzionare da sola." },
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Prima della chiamata" },
+    { "tipo": "h2", "testo": "Cosa portare" },
+    { "tipo": "p", "testo": "Bastano quindici minuti, se il materiale è a portata di mano. Se manca qualcosa prepariamo comunque il link e lo attivi con calma dopo." },
+    { "tipo": "elenco", "voci": [
+      "Il metodo di pagamento: carta aziendale, oppure le coordinate per l'addebito diretto SEPA",
+      "I dati di fatturazione: ragione sociale, indirizzo, partita IVA, codice destinatario o PEC",
+      "Chi decide: se serve l'approvazione di qualcun altro, meglio averlo in chiamata, si chiude in una volta"
+    ] },
+    { "tipo": "h2", "testo": "Le domande che ci fanno sempre" },
+    { "tipo": "tabella", "colonne": [ { "testo": "Domanda", "larghezza": 45 }, { "testo": "Risposta", "larghezza": 55 } ], "righe": [
+      [ { "testo": "Quando parte il primo addebito", "forte": true }, { "testo": "Alla data che hai scelto in chiamata, non alla firma" } ],
+      [ { "testo": "Quando partono i successivi", "forte": true }, { "testo": "Alla stessa data ogni mese" } ],
+      [ { "testo": "Dove arriva la fattura", "forte": true }, { "testo": "Email o messaggio, come concordato" } ],
+      [ { "testo": "Chi conserva i dati della carta", "forte": true }, { "testo": "Stripe, mai Studio Galilei" } ],
+      [ { "testo": "Serve un preavviso per fermare", "forte": true }, { "testo": "No, basta un messaggio" } ],
+      [ { "testo": "C'è un vincolo di durata", "forte": true }, { "testo": "No" } ],
+      [ { "testo": "Si può cambiare la data di rinnovo", "forte": true }, { "testo": "Sì, si sposta quando serve" } ]
+    ] },
+    { "tipo": "h2", "testo": "Si interrompe quando vuoi" },
+    { "tipo": "p", "testo": "Basta un messaggio: fermiamo il rinnovo e non parte nessun addebito successivo. Non serve motivare la scelta." },
+    { "tipo": "p", "testo": "Se qualcosa non torna in fattura, o l'importo non corrisponde agli accordi, scrivici prima di fare qualsiasi altra cosa. Si sistema in giornata, e nel frattempo il rinnovo resta fermo." }
+  ],
+  "piede": "settembre 2026"
+}

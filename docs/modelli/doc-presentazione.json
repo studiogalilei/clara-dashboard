@@ -1,0 +1,221 @@
+{
+  "tipo": "Presentazione",
+  "copertina": {
+    "linea": "istituzionale",
+    "occhiello": "presentazione",
+    "titolo": "Misura prima di promettere",
+    "sottotitolo": "Marketing, intelligenza artificiale e sviluppo software: un unico team che progetta, implementa e gestisce i sistemi che fanno crescere la tua azienda.",
+    "riferimento": "SG-AZ-2026-001",
+    "data": "settembre 2026"
+  },
+  "blocchi": [
+    { "tipo": "h1", "testo": "Indice" },
+    { "tipo": "elenco", "voci": [
+      "Chi siamo: le tre linee e perché lavoriamo come un partner solo.",
+      "Da dove cominciare: due percorsi di lettura, a seconda di quanto è chiaro cosa ti serve.",
+      "Le tre aree: marketing, intelligenza artificiale e sviluppo software.",
+      "Metodo e valori: come ragioniamo su qualunque progetto e cosa non siamo disposti a fare.",
+      "Casi e clienti: lavori documentati con i numeri presi dalle dashboard.",
+      "Come si parte: il primo passo cambia a seconda dell'area, e cosa copre la garanzia."
+    ]},
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Chi siamo" },
+    { "tipo": "h1", "testo": "Chi siamo" },
+    { "tipo": "p", "testo": "Studio Galilei è uno studio italiano che lavora su tre linee: Marketing, Intelligenza artificiale e Sviluppo software. Facciamo pubblicità online, automazioni e software su misura per aziende italiane e statunitensi." },
+    { "tipo": "p", "testo": "Le tre linee stanno sotto lo stesso tetto perché nella pratica si toccano di continuo. Una campagna che porta contatti ha bisogno di un posto dove metterli e di qualcuno che li segua. Un gestionale senza i dati del marketing lavora al buio." },
+    { "tipo": "p", "testo": "Il team si compone sul progetto: la struttura interna resta stretta e le competenze si aggiungono quando il lavoro le richiede, in Italia e fuori." },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Chi siamo" },
+    { "tipo": "h1", "testo": "Un partner, non tre fornitori" },
+    { "tipo": "p", "testo": "La maggior parte delle aziende coordina agenzie, sviluppatori e consulenti diversi, e ogni fornitore vede solo una parte del problema. Studio Galilei è costruito per eliminare questa frammentazione." },
+    { "tipo": "h2", "testo": "Un interlocutore" },
+    { "tipo": "p", "testo": "Un referente che risponde del progetto nel suo insieme." },
+    { "tipo": "h2", "testo": "Un team" },
+    { "tipo": "p", "testo": "Le tre linee condividono informazioni, obiettivi e priorità." },
+    { "tipo": "h2", "testo": "Una strategia" },
+    { "tipo": "p", "testo": "Una direzione sola, non tre piani che si contendono il budget." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "riquadro", "titolo": "TRE ESEMPI PRATICI", "voci": [
+      "Se una campagna richiede un'automazione: la sviluppiamo noi, senza spiegare il progetto da capo a qualcun altro.",
+      "Se un software ha bisogno di clienti: interviene il marketing, che conosce già il prodotto.",
+      "Se un processo si può velocizzare con l'AI: la competenza è già al tavolo e sa dove si rompe."
+    ]},
+    { "tipo": "p", "testo": "Ogni persona coinvolta conosce il progetto nel suo insieme. Di ogni cliente conserviamo la storia del lavoro: quando torna una domanda, la risposta parte da lì e non da zero. E al tavolo siedono solo persone che il proprio mestiere lo sanno fare." },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Da dove cominciare" },
+    { "tipo": "h1", "testo": "Due modi di leggere questo documento" },
+    { "tipo": "p", "testo": "In tutti e due i casi si parte dal punto dove si può creare più valore, e si allarga da lì." },
+    { "tipo": "due_colonne",
+      "sinistra": { "titolo": "SE SAI GIÀ COSA TI SERVE", "voci": [
+        "Vai al percorso che ti riguarda: ogni linea ha la sua pagina e racconta cosa succede, in che ordine e cosa ti serve fare.",
+        "Puoi partire da una sola e lasciare ferme le altre.",
+        "Vedi il capitolo Le tre aree."
+      ]},
+      "destra": { "titolo": "SE NON LO SAI ANCORA", "voci": [
+        "Si parte da una lettura della tua situazione: guardiamo dove sta già la domanda per quello che vendi e dove oggi si perde valore ogni giorno.",
+        "Da lì esce il punto da cui conviene cominciare.",
+        "Vedi il capitolo Come si parte."
+      ]}
+    },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Le tre aree" },
+    { "tipo": "h1", "testo": "Marketing" },
+    { "tipo": "p", "testo": "Campagne Google e Meta che portano clienti, non clic. Misurabili dal primo giorno." },
+    { "tipo": "elenco", "voci": ["Google Ads", "Meta Ads", "LinkedIn Ads", "Contenuti", "Pagine di destinazione", "Retargeting", "Siti web"] },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Dove sta la domanda", "testo": "Verifichiamo se le persone cercano già quello che vendi. Se sì si parte da Google, se no da Meta." },
+      { "quando": "2", "titolo": "Il messaggio e la pagina", "testo": "Copy, visual e pagina costruiti sul caso che il cliente ha davvero sul tavolo." },
+      { "quando": "3", "titolo": "Il presidio", "testo": "La campagna resta accesa e si corregge sui dati, non sulle impressioni." },
+      { "quando": "4", "titolo": "Come si allarga", "testo": "Retargeting, sequenze e nuovi canali entrano man mano, sulla base di quello che i dati mostrano." }
+    ]},
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "p", "testo": "Onlysolutions, e-commerce di tecnologia. Gestione Google Ads, dal 1 novembre al 15 dicembre 2024." },
+    { "tipo": "numeri", "voci": [
+      { "valore": "66.453", "etichetta": "clic generati" },
+      { "valore": "0,28 €", "etichetta": "CPC medio" },
+      { "valore": "3,93 €", "etichetta": "costo per conversione" },
+      { "valore": "687.546 €", "etichetta": "fatturato del negozio nel periodo" }
+    ]},
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Le tre aree" },
+    { "tipo": "h1", "testo": "Intelligenza artificiale" },
+    { "tipo": "p", "testo": "AI applicata ai processi che contano: analisi, automazioni e strumenti che lavorano per te." },
+    { "tipo": "elenco", "voci": ["Comunicazione automatica", "Preventivi", "Smistamento richieste", "Report ricorrenti", "Assistenti interni"] },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Cosa si ripete ogni giorno", "testo": "Mappiamo le attività manuali che tornano uguali e quanto tempo costano davvero in una settimana." },
+      { "quando": "2", "titolo": "Il punto più costoso", "testo": "Automatizziamo quello, e uno solo: preventivi, risposte ai clienti, smistamento delle richieste." },
+      { "quando": "3", "titolo": "La misura", "testo": "Si guarda quanto tempo è tornato indietro prima di toccare qualsiasi altra cosa." },
+      { "quando": "4", "titolo": "L'estensione", "testo": "Gli altri processi entrano man mano, sulla base di quello che il primo ha già dimostrato." }
+    ]},
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "p", "testo": "Azienda di servizi B2B. Automazione di un processo ripetitivo interno." },
+    { "tipo": "numeri", "voci": [
+      { "valore": "30", "etichetta": "ore di lavoro manuale in meno ogni mese, sullo stesso volume di richieste gestite" }
+    ]},
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Le tre aree" },
+    { "tipo": "h1", "testo": "Sviluppo software" },
+    { "tipo": "p", "testo": "Strumenti su misura che restano tuoi: gestionali, portali e integrazioni che semplificano il lavoro. La capacità di sviluppo si dimensiona sul progetto, con un team che si estende su più sedi quando la portata lo richiede." },
+    { "tipo": "elenco", "voci": ["Gestionali", "Portali", "CRM", "Dashboard", "Integrazioni"] },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Come lavori oggi", "testo": "Mappiamo il processo reale, fogli di calcolo e note operative compresi." },
+      { "quando": "2", "titolo": "Dove si rompe", "testo": "Individuiamo i passaggi manuali che creano più rischio o più ritardo." },
+      { "quando": "3", "titolo": "La soluzione della scala giusta", "testo": "Un modulo che risolve un punto o una piattaforma completa, a seconda di quanto è grande il problema." },
+      { "quando": "4", "titolo": "Come cresce", "testo": "Il sistema si estende per moduli, seguendo quello che il lavoro richiede davvero." }
+    ]},
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "p", "testo": "Tour operator, Nord Italia. App operativa privata su misura. Prenotazioni, liste passeggeri, assegnazione guide e comunicazione ai clienti riunite in una dashboard sola. I controlli manuali quotidiani sono diventati una pagina da guardare." },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Metodo e valori" },
+    { "tipo": "h1", "testo": "Metodo e valori" },
+    { "tipo": "p", "testo": "Il nome dello studio non è decorativo. Ragioniamo come si ragiona in laboratorio: si osserva prima di concludere, si cambia una variabile per volta, si tiene solo quello che regge alla verifica." },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Si parte dai numeri che ci sono già", "testo": "Prima di proporre qualcosa guardiamo cosa dicono i dati che l'azienda ha già in casa." },
+      { "quando": "2", "titolo": "Si cambia una cosa per volta", "testo": "Se si muovono cinque variabili insieme, un risultato non dice più niente." },
+      { "quando": "3", "titolo": "Si tiene quello che regge", "testo": "Quello che funziona si sviluppa. Quello che non porta risultati si spegne, senza affezionarsi all'idea di partenza." }
+    ]},
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "h2", "testo": "Onestà prima della vendita" },
+    { "tipo": "p", "testo": "Se un progetto non ha senso lo diciamo, anche quando saremmo noi a farlo." },
+    { "tipo": "h2", "testo": "Sistemi che restano" },
+    { "tipo": "p", "testo": "Quello che costruiamo resta tuo e funziona anche senza di noi." },
+    { "tipo": "h2", "testo": "Risultati misurabili" },
+    { "tipo": "p", "testo": "Numeri che si possono controllare alla fonte." },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Metodo e valori" },
+    { "tipo": "h1", "testo": "Cosa ricevi" },
+    { "tipo": "p", "testo": "Ogni fase produce un documento che resta: l'analisi iniziale, i report periodici, la documentazione del sistema costruito. Sono documenti che puoi far leggere anche a chi non ha seguito il progetto." },
+    { "tipo": "p", "testo": "Dentro c'è sempre il metodo con cui è stato calcolato ogni numero, e i limiti dichiarati dove i dati non bastano." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "riquadro", "titolo": "ESEMPIO: STUDIO DI MERCATO", "voci": [
+      "Dimensionamento di un mercato per un cliente software.",
+      "Ogni numero risale a una fonte e ogni stima dichiara il proprio metodo.",
+      "È il tipo di documento che riceve chi lavora con noi."
+    ]},
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Casi e clienti" },
+    { "tipo": "h1", "testo": "Casi documentati" },
+    { "tipo": "h2", "testo": "Dän Ink by Steven Basalari" },
+    { "tipo": "numeri", "voci": [
+      { "valore": "-20%", "etichetta": "costi di acquisizione" },
+      { "valore": "+56%", "etichetta": "lead generati" },
+      { "valore": "8", "etichetta": "store attivi in Italia" }
+    ]},
+    { "tipo": "p", "testo": "Fonte: Il Tempo.it, articolo su Dän Ink.", "piccolo": true },
+    { "tipo": "p", "testo": "Franchising tattoo, campagne di acquisizione per i negozi in tutta Italia. Li seguiamo da quando gli store erano due." },
+    { "tipo": "p", "testo": "Il caso è raccontato per intero nel portfolio casi studio: contesto, lavoro svolto e numeri presi dalle dashboard del cliente." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "h2", "testo": "Altri lavori documentati" },
+    { "tipo": "elenco", "voci": [
+      "Manifattura B2B: 64% in più di richieste qualificate in quattro mesi.",
+      "Servizi: trenta ore di lavoro manuale in meno ogni mese."
+    ]},
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Casi e clienti" },
+    { "tipo": "h1", "testo": "Aziende che ci hanno scelto" },
+    { "tipo": "elenco", "voci": ["H-Farm", "Nestlé", "Wagamama", "Sistema Arredo", "BF", "Stride Group"] },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Come si parte" },
+    { "tipo": "h1", "testo": "Come si parte" },
+    { "tipo": "p", "testo": "Quello che ferma la maggior parte delle aziende non è il budget. È l'esperienza precedente: agenzie sparite dopo la firma, progetti pagati e mai finiti. Per questo il primo periodo di lavoro insieme è coperto dalla formula soddisfatti o rimborsati." },
+    { "tipo": "p", "testo": "Non serve a convincerti che siamo bravi. Serve a togliere di mezzo l'unica cosa che, dopo qualche brutta esperienza, blocca una decisione sensata." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "h2", "testo": "Marketing" },
+    { "tipo": "p", "testo": "Se sai già su quale canale lavorare, partiamo da lì. Altrimenti il primo passo è capire dove sta già la domanda, e da lì si sceglie il canale." },
+    { "tipo": "h2", "testo": "Intelligenza artificiale" },
+    { "tipo": "p", "testo": "Dopo la chiamata facciamo un audit dei processi: cosa si ripete, quante ore costa, cosa è automatizzabile davvero. Ne esce l'elenco degli interventi in ordine di ritorno." },
+    { "tipo": "h2", "testo": "Sviluppo software" },
+    { "tipo": "p", "testo": "Si parte dalla tua idea o dal problema. Lo mettiamo su carta come processo e proponiamo la soluzione della scala giusta, dal modulo alla piattaforma." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "p", "testo": "Il primo incontro serve a capire se c'è un progetto sensato da fare. Se non c'è, te lo diciamo." },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "Come si parte" },
+    { "tipo": "h1", "testo": "Le tre partenze" },
+    { "tipo": "p", "testo": "Ogni area ha il suo percorso di avvio. Sotto, cosa succede dal primo incontro in poi." },
+    { "tipo": "h2", "testo": "Marketing" },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Fase pilota", "testo": "Un periodo di prova con un obiettivo solo, coperto da soddisfatti o rimborsati. Serve a conoscerci e a vedere come lavoriamo sui tuoi numeri." },
+      { "quando": "2", "titolo": "Messa a regime", "testo": "Chiuso il pilota si passa al lavoro continuativo, con budget e obiettivi definiti insieme. Da qui i pagamenti diventano ricorrenti su Stripe." },
+      { "quando": "3", "titolo": "Crescita", "testo": "Si allarga sui canali che i dati hanno già premiato, uno per volta." }
+    ]},
+    { "tipo": "spazio", "mm": 5 },
+    { "tipo": "h2", "testo": "Intelligenza artificiale" },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Audit completo", "testo": "Che tu sappia già come usarla o no, si parte da una mappatura dei processi: quali ci sono, quante ore costano, cosa ha davvero senso automatizzare." },
+      { "quando": "2", "titolo": "Priorità e formazione", "testo": "Dall'audit esce l'ordine degli interventi per ritorno. In parallelo mettiamo il team in condizione di usare gli strumenti." },
+      { "quando": "3", "titolo": "Si costruisce", "testo": "Si costruisce il primo intervento, si misura il tempo recuperato, si estende." }
+    ]},
+    { "tipo": "spazio", "mm": 5 },
+    { "tipo": "h2", "testo": "Sviluppo software" },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "1", "titolo": "Punto di partenza", "testo": "Se sai già cosa vuoi, si parte dalla tua idea. Se vuoi prima capire come lavoriamo, guardiamo insieme un sistema già costruito." },
+      { "quando": "2", "titolo": "Progetto e fasi", "testo": "Il processo messo su carta, la soluzione della scala giusta e le fasi con le date." },
+      { "quando": "3", "titolo": "Rilascio e crescita", "testo": "Si rilascia il primo blocco utile e si aggiungono moduli dove servono davvero." }
+    ]},
+
+    { "tipo": "pagina" },
+    { "tipo": "h1", "testo": "Parliamo della tua azienda" },
+    { "tipo": "p", "testo": "Una chiamata conoscitiva, senza impegno. Se c'è qualcosa da costruire, lo vediamo insieme." },
+    { "tipo": "spazio", "mm": 6 },
+    { "tipo": "anagrafica", "colonne": [
+      { "titolo": "EMAIL", "righe": ["dramane@studiogalilei.com", "lorenzo@studiogalilei.com"] },
+      { "titolo": "TELEFONO", "righe": ["+39 371 11 69430"] }
+    ]}
+  ],
+  "piede": "settembre 2026"
+}
