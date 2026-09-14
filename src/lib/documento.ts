@@ -17,7 +17,7 @@ export const BIANCO = rgb(1, 1, 1)
 export const GRIGIO = rgb(118 / 255, 118 / 255, 135 / 255)
 
 export * from './tono'
-import { controllaTono, testoDi, type Documento, type Blocco, type Copertina, type Linea, type Risorse } from './tono'
+import { controllaTono, testoDi, type Documento, type Blocco, type Copertina, type Risorse } from './tono'
 
 // ── misure ──────────────────────────────────────────────────────────────
 const MM = 72 / 25.4
