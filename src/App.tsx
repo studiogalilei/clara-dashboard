@@ -105,8 +105,11 @@ export default function App() {
     const t = setInterval(conta, 60_000)
     const vai = () => { setTab('clara'); setOpenId(null) }
     window.addEventListener('clara:vai-posta', vai)
+    // «+ Nuovo preventivo» dalla scheda: si va al widget, che apre il pannello con l'azienda scelta
+    const nuovoPrev = () => { setTab('preventivi'); setOpenId(null) }
+    window.addEventListener('preventivo:nuovo', nuovoPrev)
     window.addEventListener('clara:apri-posta', vai)
-    return () => { clearInterval(t); window.removeEventListener('clara:vai-posta', vai); window.removeEventListener('clara:apri-posta', vai) }
+    return () => { clearInterval(t); window.removeEventListener('clara:vai-posta', vai); window.removeEventListener('clara:apri-posta', vai); window.removeEventListener('preventivo:nuovo', nuovoPrev) }
   }, [])
   useEffect(() => {
     let vivo = true

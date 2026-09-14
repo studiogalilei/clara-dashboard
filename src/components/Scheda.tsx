@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { sonoCeo } from '../lib/accessi'
 import { lazy, Suspense } from 'react'
 const CompilaPdf = lazy(() => import('./CompilaPdf'))
 import { leggi as leggiPref } from '../lib/preferenze'
@@ -130,6 +131,8 @@ export default function Scheda({ id, onClose }: Props) {
   const [documenti, setDocumenti] = useState<Array<{ id: number; nome: string; path: string; at: string }>>([])
   const [progetti, setProgetti] = useState<Progetto[]>([])
   const [incassi, setIncassi] = useState<Incasso[]>([])          // da Stripe; vuoto per chi non vede i soldi
+  const [preventivi, setPreventivi] = useState<Array<{ id: number; numero: string | null; titolo: string | null; importo: number | null; mensile: number | null; stato: string; pagato_il: string | null; inviato_il: string | null; pdf_path: string | null }>>([])
+  const [ceo, setCeo] = useState(false)
   const [compila, setCompila] = useState<{ id: number; nome: string; path: string } | null>(null)
   const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
@@ -173,6 +176,10 @@ export default function Scheda({ id, onClose }: Props) {
     supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')
       .eq('prospect_id', id).order('quando', { ascending: false }).limit(50)
       .then(({ data }) => { if (vivo) setIncassi((data as Incasso[]) ?? []) })
+    supabase.from('preventivi').select('id,numero,titolo,importo,mensile,stato,pagato_il,inviato_il,pdf_path').eq('prospect_id', id)
+      .order('creato_il', { ascending: false }).limit(20)
+      .then(({ data }) => { if (vivo) setPreventivi((data as typeof preventivi) ?? []) })
+    void sonoCeo().then((v) => { if (vivo) setCeo(v) })
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .gte('at', new Date().toISOString())
       .order('at', { ascending: true }).limit(1)
@@ -1221,6 +1228,32 @@ export default function Scheda({ id, onClose }: Props) {
                         }`}>
                           {STATI.find(([st]) => st === g.stato)?.[1]}
                         </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
+
+            {/* I PREVENTIVI (14/9): cosa gli abbiamo proposto e a che punto e'. Il
+                nuovo si fa dal widget Preventivi, gia' con questa azienda scelta */}
+            {ceo && !modifica && (
+              <Card className="p-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <TitoloCard>Preventivi</TitoloCard>
+                  <button onClick={() => { try { sessionStorage.setItem('preventivo:nuovo', id) } catch { /* niente */ } window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: id })) }}
+                          className="text-xs font-bold text-blu hover:underline">+ Nuovo preventivo</button>
+                </div>
+                {preventivi.length === 0 ? <p className="text-sm text-spento">Nessun preventivo ancora.</p> : (
+                  <ul className="mt-1 divide-y divide-velo">
+                    {preventivi.map((q) => (
+                      <li key={q.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-sm">
+                        <span className="min-w-0 flex-1 truncate font-semibold">{q.titolo || 'Preventivo'} <span className="font-normal text-spento">{q.numero}</span></span>
+                        <span className="font-bold tabular-nums">{q.importo ? `${Number(q.importo).toLocaleString('it-IT')} €` : ''}{q.mensile ? `${q.importo ? ' + ' : ''}${Number(q.mensile).toLocaleString('it-IT')} €/mese` : ''}</span>
+                        <span className={`text-[11px] font-semibold ${q.pagato_il ? 'text-green-800' : q.stato === 'accettato' ? 'text-amber-800' : q.stato === 'rifiutato' ? 'text-red-700' : 'text-tenue'}`}>
+                          {q.pagato_il ? `pagato il ${fmtDateShort(q.pagato_il)}` : q.stato === 'inviato' && q.inviato_il ? `inviato il ${fmtDateShort(q.inviato_il)}` : q.stato}
+                        </span>
+                        {q.pdf_path && <a href={supabase.storage.from('vault').getPublicUrl(q.pdf_path).data.publicUrl} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-blu hover:underline">PDF</a>}
                       </li>
                     ))}
                   </ul>

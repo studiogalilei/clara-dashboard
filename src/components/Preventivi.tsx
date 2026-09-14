@@ -81,6 +81,15 @@ export default function Preventivi({ onOpen }: Props) {
       .then(({ data, error }) => { if (!error && data && data.length) setIncassi(data as Incasso[]) })
   }, [])
 
+  // arrivo dalla scheda di un'azienda: il pannello si apre gia' su di lei.
+  // Il widget non era montato quando la scheda ha chiesto: l'azienda aspetta in sessionStorage
+  useEffect(() => {
+    if (Object.keys(nomi).length === 0) return
+    let id: string | null = null
+    try { id = sessionStorage.getItem('preventivo:nuovo'); sessionStorage.removeItem('preventivo:nuovo') } catch { /* niente */ }
+    if (id) apriNuovo(id)
+  }, [nomi])   // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 2800)
