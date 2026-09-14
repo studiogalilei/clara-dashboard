@@ -91,6 +91,7 @@ interface Props {
   // Dre, 12/9: la posta (bozze, richieste, domande) e' una sezione sua nel
   // menu in basso; la pallina e' solo la chat. Stesso componente, due modi.
   modo?: 'volante' | 'posta'
+  compatta?: boolean      // schermo intero: niente colonna fissa, resta la pallina
 }
 
 // ── capire i comandi detti in chat (dominio stretto: call e task) ──
@@ -227,7 +228,7 @@ function trovaMail(testo: string): string[] {
   return (testo.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []).map((m) => m.replace(/\.+$/, ''))
 }
 
-export default function ClaraVolante({ onOpen, modo = 'volante' }: Props) {
+export default function ClaraVolante({ onOpen, modo = 'volante', compatta = false }: Props) {
   const pagina = modo === 'posta'
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [ceo, setCeo] = useState(false)
@@ -241,7 +242,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante' }: Props) {
   const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
   const [aperta, setApertaStato] = useState<boolean>(() => desktop && leggiPref('clara-aperta') === 'si')
   const setAperta = (v: boolean) => { setApertaStato(v); if (desktop) scriviPref('clara-aperta', v ? 'si' : 'no') }
-  const fissa = desktop && aperta
+  const fissa = desktop && aperta && !compatta
   const [larghezza, setLarghezza] = useState<number>(() => {
     const salvata = Number(leggiPref('clara-larghezza')) || 320
     return salvata > 480 ? 320 : salvata      // la colonna fissa e' stretta: sopra i 480 era il vecchio pannello

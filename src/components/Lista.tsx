@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
-import { StageBadge, PipelineBadge, Card, Micro, Dot, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, pedaggioPagato, ricorrenteMensile, contaFasi, quandoRisentirlo, type Fascia } from '../lib/regole'
+import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, pedaggioPagato, ricorrenteMensile, contaFasi, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
+import { statoVivo, COLORE_STATO } from '../lib/stato'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
 // (le fasi a colonne, statica: tutto nella larghezza, niente scroll);
@@ -86,6 +87,8 @@ export default function Lista({ onOpen, q }: Props) {
   // la data della call di ognuno, per fase: sulla carta serve sapere QUANDO,
   // non solo che e' in Tecnica (Dre, 7/9)
   const [calls, setCalls] = useState<Record<string, Record<string, string>>>({})
+  // cosa Clara ha di aperto su ognuno (bozza da approvare, domanda): va sulla carta
+  const [aperte, setAperte] = useState<Record<string, { bozza: boolean; domanda: boolean }>>({})
   // una colonna alla volta si puo' allargare per starci dentro
   const [fuoco, setFuoco] = useState<Chiave | null>(null)
   const [persiAperti, setPersiAperti] = useState(false)
@@ -132,6 +135,17 @@ export default function Lista({ onOpen, q }: Props) {
           suo[a.tipo] ??= a.at
         }
         setCalls(m)
+      })
+    supabase.from('proposte').select('prospect_id,tipo').eq('stato', 'aperta').limit(1000)
+      .then(({ data }) => {
+        const m: Record<string, { bozza: boolean; domanda: boolean }> = {}
+        for (const pr of (data as Array<{ prospect_id: string | null; tipo: string }> ?? [])) {
+          if (!pr.prospect_id) continue
+          const suo = (m[pr.prospect_id] ??= { bozza: false, domanda: false })
+          if (pr.tipo === 'risposta') suo.bozza = true
+          else if (pr.tipo !== 'accesso') suo.domanda = true
+        }
+        setAperte(m)
       })
   }, [giro])
 
@@ -396,19 +410,16 @@ export default function Lista({ onOpen, q }: Props) {
 
   const cartaBoard = (p: Prospect, fase?: Chiave) => {
     const quando = fase ? calls[p.id]?.[fase] : undefined
-    // in Prospect la data che conta e' «quando lo risento», da un campo solo
-    const risento = fase === 'prospect' ? quandoRisentirlo(p) : null
-    const fermo = daysAgo(p.last_reply_at)
-    const finito = chiuso(p)
-    const tono = finito ? 'ok'
-      : fermo !== null && fermo >= 30 ? 'fermo'
-      : fermo !== null && fermo >= 10 ? 'attesa'
-      : 'ok'
+    // LO STATO VIVO (Dre, 14/9): la riga sotto il nome dice la verita' di
+    // oggi. Rassicura o dice chiaro che c'e' qualcosa da fare.
+    const stato = statoVivo(p, { call: quando ?? null, fase, bozza: aperte[p.id]?.bozza, domanda: aperte[p.id]?.domanda })
+    const colore = COLORE_STATO[stato.tono]
     // i chiusi «vecchio stile» (mai passati dalla pipeline) non si trascinano
     // un passato a qualcun altro non si trascina, se no dopo il rilascio
     // compariva in due colonne insieme (revisione 4/9)
     const trascinabile = !passato(p) && !((!p.fuori) && (p.stage === 'cliente' || p.stage === 'perso'))
     const inPresa = dragId === p.id
+    const codice = sgid(p.sg_id, p)
     return (
       <button
         key={p.id}
@@ -419,24 +430,18 @@ export default function Lista({ onOpen, q }: Props) {
           e.dataTransfer.effectAllowed = 'move'
         }}
         onDragEnd={() => { setDragId(null); setSopra(null) }}
-        className={`flex w-full items-center gap-2 rounded-xl border bg-white px-2.5 py-2 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:border-blu ${
-          inPresa ? 'rotate-2 scale-[1.04] border-navy opacity-50 shadow-[0_12px_28px_rgba(6,23,115,0.2)]' : 'border-bordo'
+        className={`flex w-full flex-col gap-1.5 rounded-xl border bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:border-blu ${
+          inPresa ? 'rotate-2 scale-[1.04] border-navy opacity-50 shadow-[0_12px_28px_rgba(6,23,115,0.2)]' : stato.tono === 'azione' ? 'border-red-200' : 'border-bordo'
         } ${mosso === p.id ? 'atterra' : ''} ${trascinabile ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
-        <Faccia p={p} size={26} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold">{p.company || p.name || p.email}</span>
-          <span className="flex items-center gap-1.5 truncate text-[11px] text-tenue">
-            <Dot tone={tono} />
-            {sgid(p.sg_id, p) && <span className="font-semibold text-blu/80">{sgid(p.sg_id, p)}</span>}
-            {fase === 'prova' && p.prova_fine
-              ? <span className={`font-semibold ${p.prova_fine <= new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10) ? 'text-amber-700' : 'text-navy'}`}>fino al {fmtDateShort(p.prova_fine)}</span>
-              : quando
-              ? <span className="font-semibold text-navy">{fmtDateShort(quando)}</span>
-              : risento
-                ? <span className="font-semibold text-navy">dal {fmtDateShort(risento)}</span>
-                : fermo !== null && !finito && <span>{giorni(fermo)}</span>}
-          </span>
+        <span className="flex items-center gap-2">
+          <Faccia p={p} size={24} />
+          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{p.company || p.name || p.email}</span>
+          {codice && <span className="shrink-0 text-[10px] font-bold text-blu/70">{codice}</span>}
+        </span>
+        <span className="flex items-start gap-1.5 text-[12px] leading-snug">
+          <span className={`mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full ${colore.pallino}`} />
+          <span className={colore.testo}>{stato.testo}</span>
         </span>
       </button>
     )
@@ -533,14 +538,16 @@ export default function Lista({ onOpen, q }: Props) {
         </>
       ) : (
         <div
-          className="grid gap-3"
+          className="-mx-4 grid gap-3 overflow-x-auto px-4 pb-2 lg:-mx-8 lg:px-8"
           style={{
-            // la colonna a fuoco si prende meta' della larghezza, le altre si
-            // stringono ma restano visibili: non si perde il quadro (Dre, 7/9)
+            // ogni colonna ha una larghezza minima da leggere (Dre, 14/9: le
+            // carte strette «danno l'impressione di cose chiuse»): se non ci
+            // stanno tutte, si scorre di lato come su Trello. La colonna a fuoco
+            // si prende piu' spazio, le altre si stringono ma restano (Dre, 7/9)
             gridTemplateColumns: VIVE.map(([, c]) =>
-              fuoco === null ? 'minmax(0, 1fr)'
-              : fuoco === c ? 'minmax(0, 3fr)'
-              : 'minmax(0, 0.7fr)').join(' '),
+              fuoco === null ? 'minmax(236px, 1fr)'
+              : fuoco === c ? 'minmax(380px, 3fr)'
+              : 'minmax(170px, 0.7fr)').join(' '),
           }}
         >
           {VIVE.map(([nome, chiave, filtro]) => {

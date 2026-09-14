@@ -63,6 +63,20 @@ function saluto(): [string, string] {
   return pool[giorno % pool.length]
 }
 
+// l'icona di una voce: il tratto SVG, oppure un'immagine di public/ usata come
+// maschera cosi' prende il colore del testo (il marchio SG per i Documenti)
+function Icona({ icona, immagine, className }: { icona: string; immagine?: string; className: string }) {
+  if (immagine) {
+    const url = `url(${import.meta.env.BASE_URL}${immagine})`
+    return <span aria-hidden className={className} style={{ backgroundColor: 'currentColor', WebkitMaskImage: url, maskImage: url, WebkitMaskSize: 'contain', maskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }} />
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d={icona} />
+    </svg>
+  )
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
@@ -74,6 +88,14 @@ export default function App() {
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
   // tu le accetti. Ogni minuto, e quando cambi pagina. Niente rumore in piu'.
   const [inArrivo, setInArrivo] = useState(0)
+  // schermo intero (Dre, 14/9): via menu, testata e Clara fissa, resta solo la pagina. Esc per uscire
+  const [pieno, setPieno] = useState(false)
+  useEffect(() => {
+    if (!pieno) return
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPieno(false) }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [pieno])
   const [daDecidere, setDaDecidere] = useState(0)     // le proposte aperte: il badge della Posta di Clara
   useEffect(() => {
     if (demo) return
@@ -227,7 +249,7 @@ export default function App() {
       {/* ── sidebar (solo desktop) ─────────────────────────────── */}
       <aside
         style={{ width: menuLargo }}
-        className="sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-bordo bg-white px-4 py-5 lg:flex"
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-bordo bg-white px-4 py-5 ${pieno ? '' : 'lg:flex'}`}
       >
         {/* il filo per allargare: si scurisce quando ci passi sopra */}
         <div
@@ -257,7 +279,7 @@ export default function App() {
           Menu
         </p>
         <nav className="space-y-1">
-          {voci.map(({ chiave: t, nome: label, icona }) => {
+          {voci.map(({ chiave: t, nome: label, icona, immagine }) => {
             const attivo = tab === t
             return (
               <button
@@ -268,11 +290,7 @@ export default function App() {
                 }`}
               >
                 {attivo && <span className="absolute -left-4 h-6 w-1 rounded-r-full bg-navy" />}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                     strokeLinecap="round" strokeLinejoin="round"
-                     className={`h-[18px] w-[18px] ${attivo ? 'text-navy' : ''}`}>
-                  <path d={icona} />
-                </svg>
+                <Icona icona={icona} immagine={immagine} className={`h-[18px] w-[18px] ${attivo ? 'text-navy' : ''}`} />
                 {label}
                 {t === 'oggi' && inArrivo > 0 && (
                   <span className="ml-auto rounded-full bg-blu px-1.5 py-px text-[10px] font-bold text-white" title="Task in arrivo da accettare">{inArrivo}</span>
@@ -289,7 +307,7 @@ export default function App() {
           Sistema
         </p>
         <nav className="space-y-1">
-          {vociSistema.map(({ chiave: t, nome: label, icona }) => {
+          {vociSistema.map(({ chiave: t, nome: label, icona, immagine }) => {
             const attivo = tab === t
             return (
               <button
@@ -300,11 +318,7 @@ export default function App() {
                 }`}
               >
                 {attivo && <span className="absolute -left-4 h-6 w-1 rounded-r-full bg-navy" />}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                     strokeLinecap="round" strokeLinejoin="round"
-                     className={`h-[18px] w-[18px] ${attivo ? 'text-navy' : ''}`}>
-                  <path d={icona} />
-                </svg>
+                <Icona icona={icona} immagine={immagine} className={`h-[18px] w-[18px] ${attivo ? 'text-navy' : ''}`} />
                 {label}
                 {t === 'clara' && daDecidere > 0 && (
                   <span className="ml-auto rounded-full bg-red-600 px-1.5 py-px text-[10px] font-bold text-white" title="Cose da decidere">{daDecidere}</span>
@@ -363,7 +377,8 @@ export default function App() {
           </div>
         </header>
 
-        <main className={`px-4 py-5 lg:px-8 lg:py-7 ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
+        <main className={`${pieno ? 'px-4 py-4' : 'px-4 py-5 lg:px-8 lg:py-7'} ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
+          {!pieno && (<>
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
@@ -373,6 +388,7 @@ export default function App() {
               )}
               <h1 className="flex items-center gap-2 text-[24px] font-extrabold tracking-tight lg:text-[28px]">
                 {tab === 'pipeline' && <span className="text-navy"><ClaraLogo size={26} /></span>}
+                {tab === 'vault' && <Icona icona="" immagine="sg-intreccio.svg" className="h-8 w-8 shrink-0 text-navy" />}
                 {tab === 'pipeline' ? saluto()[0] : titolo}
               </h1>
               {tab === 'pipeline' && (salutoClara ? (
@@ -388,6 +404,11 @@ export default function App() {
                 <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
               </div>
             )}
+            {/* schermo intero (Dre, 14/9): sparisce tutto intorno e resta la pagina */}
+            <button onClick={() => setPieno(true)} aria-label="Schermo intero" title="Schermo intero (Esc per uscire)"
+                    className="hidden h-10 w-10 items-center justify-center rounded-full border border-bordo bg-white text-tenue hover:border-navy hover:text-navy lg:flex">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+            </button>
             {/* la ricerca: una lente, si apre quando serve o con ⌘K (Dre, 9/9) */}
             <div className="relative hidden lg:block">
               {cercaAperta || q ? (
@@ -414,6 +435,14 @@ export default function App() {
             </div>
           </div>
 
+          </>)}
+          {pieno && (
+            <button onClick={() => setPieno(false)} title="Esci dallo schermo intero (Esc)"
+                    className="fixed right-4 top-3 z-50 flex items-center gap-1.5 rounded-full border border-bordo bg-white px-3 py-1.5 text-xs font-bold text-tenue shadow-[0_4px_14px_rgba(16,24,40,0.12)] hover:border-navy hover:text-navy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+              {titolo}: esci
+            </button>
+          )}
           <div key={versione}>
             {tab === 'oggi' || tab === 'pipeline' ? (
               <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
@@ -440,9 +469,9 @@ export default function App() {
       </div>
 
       {/* navigazione mobile */}
-      <nav className="fixed inset-x-0 bottom-0 border-t border-bordo bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className={`fixed inset-x-0 bottom-0 border-t border-bordo bg-white pb-[env(safe-area-inset-bottom)] lg:hidden ${pieno ? 'hidden' : ''}`}>
         <div className="flex">
-          {voci.map(({ chiave: t, nome: label, icona }) => (
+          {voci.map(({ chiave: t, nome: label, icona, immagine }) => (
             <button
               key={t}
               onClick={() => { setTab(t); setOpenId(null) }}
@@ -450,10 +479,7 @@ export default function App() {
                 tab === t ? 'text-navy' : 'text-spento'
               }`}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                   strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                <path d={icona} />
-              </svg>
+              <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
               {label}
             </button>
           ))}
@@ -463,7 +489,7 @@ export default function App() {
       {openId && <Scheda key={openId} id={openId} onClose={chiudiScheda} />}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
-      <ClaraVolante onOpen={(id) => setOpenId(id)} />
+      <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} />
     </div>
   )
 }

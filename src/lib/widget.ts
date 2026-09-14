@@ -30,6 +30,7 @@ export interface Widget {
   cosa: string                 // una riga: cosa mostra, non cosa e'
   zona: 'menu' | 'sistema'
   icona: string                // path SVG 24x24, tratto
+  immagine?: string            // in alternativa: un file in public/, usato come maschera (il marchio)
   ruoli: Ruolo[]               // chi ci arriva, salvo diverso ordine di Dre
   // fisso = l'ossatura della «Dashboard CEO 1» (Dre, 3/9): Dashboard,
   // Pipeline, Task, Calendario e Vault non si spengono, perche' sono il
@@ -62,7 +63,7 @@ export const WIDGET: Widget[] = [
   { chiave: 'calendario', nome: 'Calendario', cosa: 'Call, follow-up e scadenze', zona: 'menu', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 3v4M16 3v4M4 11h16' },
-  { chiave: 'vault', nome: 'Documenti', cosa: 'I file, agganciati alle aziende', zona: 'sistema', fisso: true, base: true,
+  { chiave: 'vault', nome: 'Documenti', cosa: 'La cassaforte: brand, modelli, file dei clienti', immagine: 'sg-intreccio.svg', zona: 'sistema', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M5 8h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM8 8V6a4 4 0 0 1 8 0v2M12 13v3' },
   { chiave: 'clara', nome: 'Posta di Clara', cosa: 'Bozze, richieste e domande da decidere', zona: 'sistema', fisso: true, base: true,
