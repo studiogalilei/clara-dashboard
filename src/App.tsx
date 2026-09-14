@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configured, demo } from './lib/supabase'
 import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
@@ -14,7 +14,7 @@ import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
-import Preventivi from './components/Preventivi'
+const Preventivi = lazy(() => import('./components/Preventivi'))
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa } from './lib/profilo'
@@ -458,7 +458,7 @@ export default function App() {
             ) : tab === 'progetti' ? (
               <Clienti onOpen={setOpenId} />
             ) : tab === 'preventivi' ? (
-              <Preventivi onOpen={setOpenId} />
+              <Suspense fallback={null}><Preventivi onOpen={setOpenId} /></Suspense>
             ) : tab === 'clara' ? (
               <ClaraVolante modo="posta" onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (

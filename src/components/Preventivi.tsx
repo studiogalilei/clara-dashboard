@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
 import { creaTask } from '../lib/regole'
-import { LINEA_NOME, controllaTono, testoDi } from '../lib/documento'
+import { LINEA_NOME, controllaTono, testoDi } from '../lib/tono'
 import {
   STATI, alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
   type Preventivo, type Voce, type VoceListino, type Fatturazione,

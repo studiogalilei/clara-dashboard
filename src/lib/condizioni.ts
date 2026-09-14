@@ -1,4 +1,4 @@
-import { euroTesto, type Documento, type Blocco } from './documento'
+import { euroTesto, type Documento, type Blocco } from './tono'
 
 // LE CONDIZIONI ECONOMICHE: il documento formale dello Studio, puro (senza
 // database): lo usano il widget Preventivi e lo script dei modelli.
