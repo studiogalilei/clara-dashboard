@@ -38,9 +38,9 @@ const SEZIONI: Array<[Sezione, string, string]> = [
 ]
 const GRUPPO_NOME: Record<string, string> = {
   marchio: 'Il marchio', loghi: 'Loghi', copertine: 'Copertine', sfondi: 'Sfondi delle copertine',
-  segni: 'Segni a pennarello', incisioni: 'Incisioni', regole: 'Regole e Clara Capsule', esempi: 'Esempi pubblicati',
+  segni: 'Segni a pennarello', incisioni: 'Incisioni', regole: 'Regole e Clara Capsule', modelli: 'I modelli dello Studio', esempi: 'Esempi pubblicati',
 }
-const ORDINE_GRUPPI = ['marchio', 'loghi', 'copertine', 'sfondi', 'segni', 'incisioni', 'regole', 'esempi']
+const ORDINE_GRUPPI = ['marchio', 'loghi', 'copertine', 'sfondi', 'segni', 'incisioni', 'regole', 'modelli', 'esempi']
 const DRIVE = 'https://drive.google.com/drive/folders/0APZrGzxULiREUk9PVA'
 
 interface Props {
@@ -324,7 +324,7 @@ export default function Vault({ onOpen }: Props) {
                 ))}
               </optgroup>
               <optgroup label="Brand">
-                {ORDINE_GRUPPI.filter((g) => g !== 'esempi').map((g) => <option key={g} value={`brand:${g}`}>{GRUPPO_NOME[g]}</option>)}
+                {ORDINE_GRUPPI.filter((g) => g !== 'esempi' && g !== 'modelli').map((g) => <option key={g} value={`brand:${g}`}>{GRUPPO_NOME[g]}</option>)}
               </optgroup>
               <option value="modelli">Modelli</option>
               <option value="azienda">Azienda (documento interno)</option>

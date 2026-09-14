@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       // le notifiche le riceve public/push.js, importato dentro il service worker
-      workbox: { importScripts: ['push.js'] },
+      workbox: { importScripts: ['push.js'], globIgnores: ['**/brand/**'] },
       manifest: {
         start_url: './',
         scope: './',

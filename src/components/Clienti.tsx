@@ -4,7 +4,6 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { Card, Spinner, Faccia, sgid, fmtDateShort } from './ui'
 import Progetti, { STATI, TIPI, ordineProgetti, type Progetto } from './Progetti'
-import Preventivi from './Preventivi'
 import { euro, mensile, type Preventivo, type Incasso } from './TuttiFoglio'
 
 // CLIENTI (Dre, 12/9): «non sono solo progetti, sono proprio i clienti».
@@ -13,8 +12,8 @@ import { euro, mensile, type Preventivo, type Incasso } from './TuttiFoglio'
 // pagamenti, il prossimo passo). Il foglio di Giacomo e i preventivi sono
 // altre due forme della stessa pagina, non altre pagine.
 
-type Modo = 'elenco' | 'foglio' | 'preventivi'
-const MODI: Array<[Modo, string]> = [['elenco', 'Clienti'], ['foglio', 'Foglio progetti'], ['preventivi', 'Preventivi e incassi']]
+type Modo = 'elenco' | 'foglio'
+const MODI: Array<[Modo, string]> = [['elenco', 'Clienti'], ['foglio', 'Foglio progetti']]
 const DENTRO: PipelineStage[] = ['avvio', 'prova', 'cliente']
 const TONO: Record<string, string> = { avvio: 'bg-sky-100 text-sky-900', prova: 'bg-amber-100 text-amber-900', cliente: 'bg-green-100 text-green-900' }
 const ATTIVI = new Set(['active', 'trialing', 'past_due', 'unpaid'])
@@ -35,7 +34,7 @@ export default function Clienti({ onOpen }: Props) {
           </button>
         ))}
       </div>
-      {modo === 'elenco' ? <Elenco onOpen={onOpen} /> : modo === 'foglio' ? <Progetti onOpen={onOpen} /> : <Preventivi onOpen={onOpen} />}
+      {modo === 'elenco' ? <Elenco onOpen={onOpen} /> : <Progetti onOpen={onOpen} />}
     </div>
   )
 }

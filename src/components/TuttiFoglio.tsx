@@ -11,18 +11,8 @@ import { Card, Spinner, Cella, sgid, fmtDateShort, Faccia } from './ui'
 // preventivi di quell'azienda: importo, data, stato, e «pagamento arrivato»
 // che spunta Giacomo a mano. Tutto appeso all'SG-ID.
 
-export interface Preventivo {
-  id: number
-  prospect_id: string
-  progetto_id: number | null
-  titolo: string | null
-  importo: number | null
-  inviato_il: string
-  stato: 'inviato' | 'accettato' | 'rifiutato'
-  pagato_il: string | null
-  pagamento_atteso_il: string | null
-  note: string | null
-}
+export type { Preventivo } from '../lib/preventivo'
+import type { Preventivo } from '../lib/preventivo'
 
 type Riga = Prospect & { chi_segue?: string | null; notes?: string | null }
 type StatoFoglio = 'prospect' | 'preventivo' | 'prova' | 'cliente' | 'perso'
@@ -36,11 +26,8 @@ export const STATI_FOGLIO: Array<[StatoFoglio, string, string]> = [
   ['perso', 'Perso', 'bg-velo text-spento'],
 ]
 
-export const STATI_PREVENTIVO: Array<[Preventivo['stato'], string, string]> = [
-  ['inviato', 'inviato', 'bg-sky-100 text-sky-900'],
-  ['accettato', 'accettato', 'bg-green-100 text-green-900'],
-  ['rifiutato', 'rifiutato', 'bg-red-50 text-red-700'],
-]
+export { STATI as STATI_PREVENTIVO } from '../lib/preventivo'
+import { STATI as STATI_PREVENTIVO } from '../lib/preventivo'
 
 // lo stato che si vede nel foglio: una lettura sola, da regole.ts + preventivi
 export function statoFoglio(p: Riga, suoi: Preventivo[]): StatoFoglio {
@@ -183,7 +170,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
     <tr key={q.id} className="border-b border-velo last:border-0">
       <td className=""><Cella valore={q.titolo ?? ''} su={(v) => scriviPreventivo(q, { titolo: v.trim() || null })} placeholder="cosa gli abbiamo proposto" /></td>
       <td className="w-28"><Cella tipo="number" valore={q.importo == null ? '' : String(q.importo)} su={(v) => scriviPreventivo(q, { importo: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
-      <td className="w-36"><Cella tipo="date" valore={q.inviato_il} su={(v) => v && scriviPreventivo(q, { inviato_il: v })} className="tabular-nums" /></td>
+      <td className="w-36"><Cella tipo="date" valore={q.inviato_il ?? ''} su={(v) => v && scriviPreventivo(q, { inviato_il: v })} className="tabular-nums" /></td>
       <td className="w-32 px-1">
         <select value={q.stato} onChange={(e) => scriviPreventivo(q, { stato: e.target.value as Preventivo['stato'] })}
           className={`w-full rounded-md border-0 px-2 py-1 text-xs font-semibold outline-none ${STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[2] ?? ''}`}>
