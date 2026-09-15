@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
-import { eCliente, ePerso, giorno } from '../lib/regole'
+import { eCliente, ePerso, giorno, MOTIVI_PERSO } from '../lib/regole'
 import { Card, Spinner, Cella, sgid, fmtDateShort, Faccia } from './ui'
 
 // TUTTI COME IL FOGLIO DI GIACOMO (Dre, 9/9): i nomi in fila, lo stato in
@@ -202,10 +202,17 @@ export default function TuttiFoglio({ onOpen }: Props) {
       {perdo && (
         <div className="salta-su flex flex-wrap items-center gap-2 rounded-xl border border-blu/40 bg-white px-4 py-3">
           <span className="text-sm font-semibold">Perché abbiamo perso {perdo.p.company || perdo.p.name}?</span>
+          {MOTIVI_PERSO.map((m) => (
+            <button key={m} onClick={() => setPerdo({ ...perdo, motivo: m })}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      perdo.motivo === m ? 'border-navy bg-blu text-white' : 'border-bordo bg-white text-tenue hover:border-navy hover:text-navy'}`}>
+              {m}
+            </button>
+          ))}
           <input autoFocus value={perdo.motivo} onChange={(e) => setPerdo({ ...perdo, motivo: e.target.value })}
                  onKeyDown={(e) => { if (e.key === 'Escape') setPerdo(null) }}
-                 placeholder="In due parole: prezzo, tempi, ha scelto un altro…"
-                 className="min-w-[260px] flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu" />
+                 placeholder="O scrivilo con parole tue"
+                 className="min-w-[200px] flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu" />
           <button disabled={!perdo.motivo.trim()}
                   onClick={async () => {
                     const { p, motivo } = perdo

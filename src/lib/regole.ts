@@ -107,6 +107,11 @@ export function inPipeline(p: Fase): boolean {
   return p.fuori && p.pipeline_stage !== 'cliente' && p.pipeline_stage !== 'perso'
 }
 
+// PERCHE' LO ABBIAMO PERSO (15/9): sono sempre le stesse quattro frasi, e
+// riscriverle ogni volta e' un attrito inutile. Si propongono, il campo
+// resta libero per il caso raro.
+export const MOTIVI_PERSO = ['Prezzo', 'Tempi', 'Ha scelto un altro', 'Non risponde più', 'Non era il momento']
+
 // ── il ricorrente mensile, un numero solo ─────────────────────────
 // Prima ognuna delle tre schermate lo sommava sulla propria pagina di
 // risultati: la bacheca su 300 righe, Tutti su 500, i Numeri su un altro

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, type Fascia, type Appunto } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
@@ -895,13 +895,26 @@ export default function Lista({ onOpen, q }: Props) {
               {' Resta scritto nella storia.'}
             </p>
             {conferma.tipo === 'perso' && (
-              <textarea
-                autoFocus
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Perché è saltata? (prezzo, tempi, ha scelto un altro…)"
-                className="mt-3 min-h-24 w-full rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
-              />
+              <>
+                {/* sono sempre le stesse quattro frasi: un clic invece di
+                    riscriverle ogni volta (rapporto attriti, 15/9) */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {MOTIVI_PERSO.map((m) => (
+                    <button key={m} onClick={() => setMotivo(m)}
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                              motivo === m ? 'border-navy bg-blu text-white' : 'border-bordo bg-white text-tenue hover:border-navy hover:text-navy'}`}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  autoFocus
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="O scrivilo con parole tue"
+                  className="mt-2 min-h-20 w-full rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+                />
+              </>
             )}
             <div className="mt-4 flex items-center justify-end gap-2.5">
               <button

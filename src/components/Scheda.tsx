@@ -16,7 +16,7 @@ import {
   type AgendaItem,
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
-import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, type Appunto } from '../lib/regole'
+import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, MOTIVI_PERSO, type Appunto } from '../lib/regole'
 const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
@@ -701,12 +701,21 @@ export default function Scheda({ id, onClose }: Props) {
 
           {persoAperto && (
             <div className="salta-su mt-3 rounded-xl border border-red-200 bg-red-50/60 p-3">
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {MOTIVI_PERSO.map((m) => (
+                  <button key={m} onClick={() => setMotivoPerso(m)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                            motivoPerso === m ? 'border-navy bg-blu text-white' : 'border-bordo bg-white text-tenue hover:border-navy hover:text-navy'}`}>
+                    {m}
+                  </button>
+                ))}
+              </div>
               <textarea
                 autoFocus
                 rows={2}
                 value={motivoPerso}
                 onChange={(e) => setMotivoPerso(e.target.value)}
-                placeholder="Perché è saltata? (prezzo, tempi, ha scelto un altro…)"
+                placeholder="O scrivilo con parole tue"
                 className="w-full resize-none rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-red-400"
               />
               <div className="mt-2 flex justify-end gap-2">
