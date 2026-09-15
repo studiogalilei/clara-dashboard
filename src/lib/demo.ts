@@ -235,9 +235,9 @@ const profili: Riga[] = [
 
 // la chat della squadra: due scambi, uno con un documento taggato al cliente
 const chat: Riga[] = [
-  { id: 1, at: oreFa(20), da: 'carlo', a: null, testo: 'Buongiorno. Oggi audit sugli account di Salvatore, poi la tecnica con Klavzar.', prospect_id: null, file_id: null, letto: false },
-  { id: 2, at: oreFa(4), da: 'carlo', a: 'demo', testo: 'Dre, ti ho messo il contratto firmato nella cartella di Klavzar.', prospect_id: 'p7', file_id: 2, letto: false },
-  { id: 3, at: oreFa(3.5), da: 'demo', a: 'carlo', testo: 'Perfetto, grazie. Domani lo mando a Giacomo per la fattura.', prospect_id: null, file_id: null, letto: true },
+  { id: 1, at: oreFa(20), da: 'carlo', a: null, testo: 'Il modello delle condizioni economiche, aggiornato: usate questo.', prospect_id: 'p7', file_id: 4, letto: true },
+  { id: 2, at: oreFa(4), da: 'carlo', a: 'demo', testo: 'Il contratto firmato, da mandare a Giacomo per la fattura.', prospect_id: 'p7', file_id: 2, letto: false },
+  { id: 3, at: oreFa(2), da: 'demo', a: 'salvatore', testo: 'L\'analisi che gli abbiamo mandato: guarda le campagne prima della call.', prospect_id: 'p1', file_id: 1, letto: false },
 ]
 
 // i progetti: il lavoro a scadenza del cliente demo (Klavzar, p7)
