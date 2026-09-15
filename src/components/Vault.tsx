@@ -68,7 +68,11 @@ function fondoDi(f: FileVault): string {
 
 // L'anteprima: si intravede gia' il documento. Immagini e PDF veri si
 // mostrano; per il resto, il foglio con l'estensione.
-function Anteprima({ f, url }: { f: FileVault; url: string | null }) {
+function Anteprima({ f, url: grezzo }: { f: FileVault; url: string | null }) {
+  // '#' e' il finto link della demo: un object con quell'indirizzo ridisegna
+  // dentro la carta tutta l'app (QA browser, 15/9). Senza link vero si mostra
+  // il foglio disegnato.
+  const url = grezzo && grezzo !== '#' ? grezzo : null
   if (url && eImmagine(f)) {
     return (
       <div className="flex h-full w-full items-center justify-center p-4" style={{ backgroundColor: fondoDi(f) }}>
@@ -107,6 +111,7 @@ export default function Vault({ onOpen }: Props) {
   const [compila, setCompila] = useState<FileVault | null>(null)
   const [url, setUrl] = useState<Record<string, string>>({})   // le URL firmate dei file che si vedono
   const inputRef = useRef<HTMLInputElement>(null)
+  const [sposto, setSposto] = useState<number | null>(null)   // il file che sta cambiando cartella
 
   useEffect(() => {
     supabase.from('vault_file').select('*').order('at', { ascending: false }).limit(1000)
@@ -253,24 +258,38 @@ export default function Vault({ onOpen }: Props) {
             {formati.map((x) => (
               <button key={x.id} onClick={() => void apriFile(x.path)}
                       className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-navy hover:border-navy">
-                {formati.length > 1 ? estensione(x.path).toUpperCase() : 'apri'}
+                {formati.length > 1 ? estensione(x.path).toUpperCase() : 'Apri'}
               </button>
             ))}
-            <button onClick={() => copiaLink(f)} className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">link</button>
+            <button onClick={() => copiaLink(f)} className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">Copia il link</button>
             {ePdf(f) && (
               <button onClick={() => setCompila(f)} title="Scrivi sopra: testo, data, firma, timbro"
-                      className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-navy hover:border-navy">compila</button>
+                      className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-navy hover:border-navy">Compila</button>
             )}
             {f.prospect_id && (
-              <button onClick={() => onOpen(f.prospect_id!)} className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-blu hover:border-blu">scheda</button>
+              <button onClick={() => onOpen(f.prospect_id!)} className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-blu hover:border-blu">Apri la scheda</button>
             )}
             {(f.sezione === 'clienti' || f.sezione === 'azienda') && (
-              <select value={f.prospect_id ?? ''}
-                      onChange={(e) => aggiorna(f.id, { prospect_id: e.target.value || null, sezione: e.target.value ? 'clienti' : 'azienda' })}
-                      className="ml-auto max-w-[120px] truncate rounded-full border border-bordo bg-white px-2 py-1 text-[11px] text-tenue outline-none focus:border-blu">
-                <option value="">interno</option>
-                {prospects.map((p) => <option key={p.id} value={p.id}>{p.company || p.name || p.email}</option>)}
-              </select>
+              sposto === f.id ? (
+                <div className="mt-1 w-full">
+                  <CercaAzienda placeholder="In quale cartella lo metto?"
+                    onScegli={(a) => {
+                      setProspects((v) => (v.some((x) => x.id === a.id) ? v : [...v, a as unknown as Prospect]))
+                      void aggiorna(f.id, { prospect_id: a.id, sezione: 'clienti' })
+                      setSposto(null)
+                    }} />
+                  <div className="mt-1 flex gap-2">
+                    <button onClick={() => { void aggiorna(f.id, { prospect_id: null, sezione: 'azienda' }); setSposto(null) }}
+                            className="text-[11px] font-semibold text-tenue hover:text-inchiostro">Mettilo fra i documenti interni</button>
+                    <button onClick={() => setSposto(null)} className="text-[11px] text-spento hover:text-inchiostro">Annulla</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setSposto(f.id)}
+                        className="ml-auto max-w-[130px] truncate rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-navy hover:text-navy">
+                  {f.prospect_id ? nomeProspect(f.prospect_id) : 'interno'}
+                </button>
+              )
             )}
           </div>
         </div>

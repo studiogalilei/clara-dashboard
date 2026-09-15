@@ -207,8 +207,11 @@ export const clara_messaggi = [
 ]
 
 export const vault_file = [
-  { id: 1, at: gg(4), nome: 'Analisi Google Ads, Serenergy', path: 'demo/analisi-serenergy.pdf', mime: 'application/pdf', dimensione: 482000, prospect_id: 'p1' },
-  { id: 2, at: gg(1), nome: 'Contratto Klavzar firmato', path: 'demo/contratto-klavzar.pdf', mime: 'application/pdf', dimensione: 130000, prospect_id: 'p7' },
+  { id: 1, at: gg(4), nome: 'Analisi Google Ads, Serenergy', path: 'demo/analisi-serenergy.pdf', mime: 'application/pdf', dimensione: 482000, prospect_id: 'p1', sezione: 'clienti', gruppo: null, nota: null },
+  { id: 2, at: gg(1), nome: 'Contratto Klavzar firmato', path: 'demo/contratto-klavzar.pdf', mime: 'application/pdf', dimensione: 130000, prospect_id: 'p7', sezione: 'clienti', gruppo: null, nota: null },
+  { id: 3, at: gg(20), nome: 'sg-logo-blu.svg', path: 'demo/sg-logo-blu.svg', mime: 'image/svg+xml', dimensione: 8400, prospect_id: null, sezione: 'brand', gruppo: 'loghi', nota: null },
+  { id: 4, at: gg(20), nome: 'sg-condizioni-modello.pdf', path: 'demo/sg-condizioni-modello.pdf', mime: 'application/pdf', dimensione: 96000, prospect_id: null, sezione: 'modelli', gruppo: 'modelli', nota: 'Le condizioni economiche, il modello' },
+  { id: 5, at: gg(30), nome: 'Visura camerale', path: 'demo/visura.pdf', mime: 'application/pdf', dimensione: 210000, prospect_id: null, sezione: 'azienda', gruppo: null, nota: null },
 ]
 
 // ---- il finto Supabase: quel poco che serve alle viste --------------------

@@ -251,7 +251,9 @@ export default function Progetti({ onOpen }: Props) {
       )}
 
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-3">
-        {vedoSoldi && <>
+        {/* uno zero grande in cima non decide niente e sembra un errore:
+            il retainer si mostra quando c'e' (QA browser, 15/9) */}
+        {vedoSoldi && retainer > 0 && <>
           <span className="text-xl font-extrabold tabular-nums">{retainer.toLocaleString('it-IT')} €</span>
           <Micro>di retainer al mese</Micro>
         </>}
