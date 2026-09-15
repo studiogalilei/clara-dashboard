@@ -28,6 +28,8 @@ export const CHIAVI = [
   'clara-aperta',
   'menu-larghezza',
   'obsidian-vault',
+  'chat-con',
+  'chat-visto',
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]

@@ -227,7 +227,17 @@ const task: Riga[] = [
 // le persone dentro la Dashboard: servono per mandarsi le task
 const profili: Riga[] = [
   { id: 'demo', nome: 'Dre', ruolo: 'ceo' },
-  { id: 'giacomo', nome: 'Giacomo', ruolo: 'coordinamento' },
+  { id: 'giacomo', nome: 'Giacomo Facchin', ruolo: 'ceo' },
+  { id: 'carlo', nome: 'Carlo Durigon', ruolo: 'manager' },
+  { id: 'salvatore', nome: 'Salvatore', ruolo: 'specialist' },
+  { id: 'alex', nome: 'Alex', ruolo: 'frontend' },
+]
+
+// la chat della squadra: due scambi, uno con un documento taggato al cliente
+const chat: Riga[] = [
+  { id: 1, at: oreFa(20), da: 'carlo', a: null, testo: 'Buongiorno. Oggi audit sugli account di Salvatore, poi la tecnica con Klavzar.', prospect_id: null, file_id: null, letto: false },
+  { id: 2, at: oreFa(4), da: 'carlo', a: 'demo', testo: 'Dre, ti ho messo il contratto firmato nella cartella di Klavzar.', prospect_id: 'p7', file_id: 2, letto: false },
+  { id: 3, at: oreFa(3.5), da: 'demo', a: 'carlo', testo: 'Perfetto, grazie. Domani lo mando a Giacomo per la fattura.', prospect_id: null, file_id: null, letto: true },
 ]
 
 // i progetti: il lavoro a scadenza del cliente demo (Klavzar, p7)
@@ -301,6 +311,7 @@ const proposte: Riga[] = [
 
 const TABELLE: Record<string, Riga[]> = {
   proposte,
+  chat,
   sync_runs,
   listino,
   preventivi,

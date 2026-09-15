@@ -15,7 +15,7 @@ export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
   | 'tutti' | 'clara'
-  | 'progetti' | 'preventivi'
+  | 'progetti' | 'preventivi' | 'chat'
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
@@ -71,6 +71,11 @@ export const WIDGET: Widget[] = [
     icona: 'M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5v-9zM3.5 8l8.5 6 8.5-6' },
   { chiave: 'preventivi', nome: 'Preventivi', cosa: 'Crea, manda, segna accettato: e vedi cosa gira', zona: 'menu', ruoli: ['ceo'], fisso: true,
     icona: 'M7 3h7l5 5v13H7zM14 3v5h5M10 12h6M10 16h6' },
+  // la chat della squadra (Dre, 15/9): «un WhatsApp interno». Ce l'hanno
+  // tutti, e' il posto dove ci si parla e ci si passano i documenti
+  { chiave: 'chat', nome: 'Chat', cosa: 'Parlarsi e passarsi documenti, taggando il cliente', zona: 'sistema', fisso: true, base: true,
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.5a8.4 8.4 0 0 1-.9-3.8 8.4 8.4 0 0 1 8.4-8.4h.5a8.4 8.4 0 0 1 8 8z' },
   { chiave: 'analytics', nome: 'Numeri', cosa: 'Risposte, conversioni e andamento dell\'outbound', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 19h16M6 16V9M10 16V5M14 16v-6M18 16v-9' },

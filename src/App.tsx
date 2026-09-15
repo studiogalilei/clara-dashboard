@@ -15,6 +15,7 @@ import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
+import Chat from './components/Chat'
 // dopo un aggiornamento il pezzo vecchio non esiste piu': si ricarica una volta
 // sola invece di lasciare lo schermo bianco (QA backend, 14/9)
 // Il segno restava scritto per sempre: dopo il primo aggiornamento della
@@ -116,9 +117,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', esc)
   }, [pieno])
   const [daDecidere, setDaDecidere] = useState(0)     // le proposte aperte: il badge della Posta di Clara
+  const [daLeggere, setDaLeggere] = useState(0)       // i messaggi della squadra non letti
   useEffect(() => {
     if (demo) return
-    const conta = () => { void supabase.from('proposte').select('id', { count: 'exact', head: true }).eq('stato', 'aperta').then(({ count }) => setDaDecidere(count ?? 0)) }
+    const conta = () => {
+      void supabase.from('proposte').select('id', { count: 'exact', head: true }).eq('stato', 'aperta').then(({ count }) => setDaDecidere(count ?? 0))
+      // i messaggi che ti hanno mandato e non hai ancora aperto
+      void supabase.auth.getSession().then(({ data }) => {
+        const io = data.session?.user?.id
+        if (!io) return
+        void supabase.from('chat').select('id', { count: 'exact', head: true })
+          .eq('a', io).eq('letto', false)
+          .then(({ count }) => setDaLeggere(count ?? 0))
+      })
+    }
     conta()
     const t = setInterval(conta, 60_000)
     const vai = () => { setTab('clara'); setOpenId(null) }
@@ -346,6 +358,9 @@ export default function App() {
                 {t === 'clara' && daDecidere > 0 && (
                   <span className="ml-auto rounded-full bg-red-600 px-1.5 py-px text-[10px] font-bold text-white" title="Cose da decidere">{daDecidere}</span>
                 )}
+                {t === 'chat' && daLeggere > 0 && (
+                  <span className="ml-auto rounded-full bg-blu px-1.5 py-px text-[10px] font-bold text-white" title="Messaggi da leggere">{daLeggere}</span>
+                )}
               </button>
             )
           })}
@@ -407,6 +422,9 @@ export default function App() {
               <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
               {t === 'clara' && daDecidere > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-red-600 px-1 text-[9px] font-bold leading-4 text-white">{daDecidere}</span>
+              )}
+              {t === 'chat' && daLeggere > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-blu px-1 text-[9px] font-bold leading-4 text-white">{daLeggere}</span>
               )}
             </button>
           ))}
@@ -505,6 +523,8 @@ export default function App() {
               <Clienti onOpen={setOpenId} />
             ) : tab === 'preventivi' ? (
               <Suspense fallback={null}><Preventivi onOpen={setOpenId} /></Suspense>
+            ) : tab === 'chat' ? (
+              <Chat onOpen={setOpenId} />
             ) : tab === 'clara' ? (
               <ClaraVolante modo="posta" onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
