@@ -19,14 +19,21 @@ export type Azienda = FacciaP & {
 export const nomeAzienda = (a: { company?: string | null; name?: string | null; email?: string }) =>
   a.company || a.name || a.email || 'senza nome'
 
-export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder, piccolo }: {
+export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder, piccolo, iniziale = '', sopra = false }: {
   onScegli: (a: T) => void
   placeholder: string
   piccolo?: boolean
+  // in fondo alla pagina i suggerimenti si aprono in su, se no coprono
+  // il campo dove stai per scrivere
+  sopra?: boolean
+  // quello che l'app ha gia' capito da sola: il nome dentro il file, la
+  // parola che hai appena scritto. Si parte da li' invece che dal vuoto.
+  iniziale?: string
 }) {
-  const [testo, setTesto] = useState('')
+  const [testo, setTesto] = useState(iniziale)
   const [lista, setLista] = useState<T[]>([])
   const [cercando, setCercando] = useState(false)
+  const [scelto, setScelto] = useState(false)
 
   useEffect(() => {
     const s = testo.trim().replace(/[,()"%]/g, ' ').trim()
@@ -45,16 +52,24 @@ export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder,
 
   return (
     <div className="relative">
-      <input autoFocus={!piccolo} value={testo} onChange={(e) => setTesto(e.target.value)} placeholder={placeholder}
+      <input autoFocus={!piccolo} value={testo}
+             onChange={(e) => { setScelto(false); setTesto(e.target.value) }}
+             onKeyDown={(e) => {
+               // Invio prende il primo suggerimento: cercare e scegliere
+               // senza staccare le mani dalla tastiera
+               if (e.key === 'Enter' && lista[0]) { e.preventDefault(); setScelto(true); onScegli(lista[0]); setTesto('') }
+             }}
+             placeholder={placeholder}
              className={`w-full rounded-xl border border-bordo bg-white outline-none focus:border-blu ${piccolo ? 'px-2 py-1 text-[11px]' : 'px-3 py-2 text-sm'}`} />
-      {testo.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-bordo bg-white shadow-[0_8px_24px_rgba(16,24,40,0.12)]">
+      {testo.trim().length >= 2 && !scelto && (
+        <div className={`absolute z-20 w-full overflow-hidden rounded-xl border border-bordo bg-white shadow-[0_8px_24px_rgba(16,24,40,0.12)] ${
+          sopra ? 'bottom-full mb-1' : 'mt-1'}`}>
           {lista.length === 0
             ? <p className="px-3 py-2 text-xs text-spento">
                 {cercando ? 'Cerco…' : 'Nessuna azienda con questo nome: prima entra in Pipeline, poi torna qui'}
               </p>
             : lista.map((a) => (
-              <button key={a.id} onClick={() => { onScegli(a); setTesto('') }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">
+              <button key={a.id} onClick={() => { setScelto(true); onScegli(a); setTesto('') }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">
                 <Faccia p={a} size={24} />
                 <span className="min-w-0 flex-1 truncate">{nomeAzienda(a)}</span>
                 {sgid(a.sg_id, a) && <span className="text-[11px] font-semibold text-spento">{sgid(a.sg_id, a)}</span>}

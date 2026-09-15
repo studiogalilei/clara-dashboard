@@ -74,7 +74,7 @@ export const WIDGET: Widget[] = [
   // i passaggi (Dre, 15/9): «il mood non e' conversazionale, e' il luogo
   // per mandare documenti: tanto su WhatsApp ci parliamo, ma i documenti
   // li' si perdono». Ce l'hanno tutti. La chiave resta 'chat'.
-  { chiave: 'chat', nome: 'Passaggi', cosa: 'Passarsi documenti, legati al cliente', zona: 'sistema', fisso: true, base: true,
+  { chiave: 'chat', nome: 'Condividi', cosa: 'Passarsi documenti, legati al cliente', zona: 'sistema', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.5a8.4 8.4 0 0 1-.9-3.8 8.4 8.4 0 0 1 8.4-8.4h.5a8.4 8.4 0 0 1 8 8z' },
   { chiave: 'analytics', nome: 'Numeri', cosa: 'Risposte, conversioni e andamento dell\'outbound', zona: 'sistema', fisso: true,
