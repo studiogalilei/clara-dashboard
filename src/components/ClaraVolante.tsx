@@ -241,7 +241,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // il logo. Sul telefono resta il pannello che si apre sopra.
   const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
   const [aperta, setApertaStato] = useState<boolean>(() => desktop && leggiPref('clara-aperta') === 'si')
-  const setAperta = (v: boolean) => { setApertaStato(v); if (desktop) scriviPref('clara-aperta', v ? 'si' : 'no') }
+  const setAperta = useCallback((v: boolean) => {
+    setApertaStato(v)
+    if (desktop) scriviPref('clara-aperta', v ? 'si' : 'no')
+  }, [desktop])
   const fissa = desktop && aperta && !compatta
   const [larghezza, setLarghezza] = useState<number>(() => {
     const salvata = Number(leggiPref('clara-larghezza')) || 320
@@ -273,12 +276,16 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const [proposte, setProposte] = useState<Proposta[]>([])
   const [rispondo, setRispondo] = useState<number | null>(null)
+  // quello che non e' riuscito resta scritto, e la proposta resta nella Posta
+  const [guaio, setGuaio] = useState<string | null>(null)
   const [vista, setVista] = useState<'chat' | 'posta'>('chat')
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
   const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
   const [bozze, setBozze] = useState<Record<number, string>>({})
   const [copiata, setCopiata] = useState<number | null>(null)
+  // il gigante buono spegne i follow-up per sempre: si chiede due volte
+  const [chiedoConferma, setChiedoConferma] = useState<number | null>(null)
 
   // il corpo di una proposta: lo stesso in posta e in chat. In chat parla come
   // una persona (Dre, 9/9): breve, naturale, e i bottoni subito sotto.
@@ -349,11 +356,29 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                               )}
                             </div>
                           )}
-                          <div className="mt-3 flex items-center gap-2">
-                            <button onClick={() => rispondi(pr, true)} disabled={rispondo === pr.id} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {/* il giro vero e' «leggi, manda, torna e conferma»: la mail
+                                si apre gia' scritta, cosi' dal telefono non e' un
+                                copia e incolla in sei passaggi (QA Dre, 14/9) */}
+                            {pr.azione?.bozza !== undefined && c?.p?.email && (
+                              <a
+                                href={`mailto:${encodeURIComponent(c.p.email)}?subject=${encodeURIComponent(pr.titolo)}&body=${encodeURIComponent(bozze[pr.id] ?? pr.azione.bozza ?? '')}`}
+                                className="rounded-full border border-navy px-4 py-1.5 text-xs font-bold text-navy hover:bg-velo"
+                              >
+                                Aprila già scritta
+                              </a>
+                            )}
+                            <button onClick={() => { if (pr.azione?.intento === 'INT-GB' && chiedoConferma !== pr.id) { setChiedoConferma(pr.id); return } rispondi(pr, true) }}
+                                    disabled={rispondo === pr.id}
+                                    className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
                               {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
                             </button>
                             <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
+                            {chiedoConferma === pr.id && (
+                              <span className="w-full text-[11px] font-semibold text-amber-800">
+                                Questa è l'ultima mail che gli mandiamo: dopo non lo risentiamo più. Ripremi «L'ho mandata» per confermare.
+                              </span>
+                            )}
                             {pr.prospect_id && (
                               <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Storia</button>
                             )}
@@ -479,7 +504,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       window.removeEventListener('pointermove', muovi)
       window.removeEventListener('pointerup', su)
     }
-  }, [larghezza])
+    // `fissa` e `setAperta` cambiano entrando e uscendo dallo schermo intero
+    // senza che la larghezza si muova: senza di loro qui, Esc si comportava
+    // in due modi diversi (QA Dre, 15/9)
+  }, [larghezza, fissa, setAperta])
 
   const nonLetti = (messaggi ?? []).filter((m) => !m.letto && m.tipo !== 'dre')
   // la presenza (Dre, 9/9): cosa sta facendo Clara adesso, in una riga, come una collega
@@ -511,13 +539,17 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
 
   async function rispondi(p: Proposta, si: boolean) {
     setRispondo(p.id)
+    setGuaio(null)
     let esito = si ? `Fatto: ${p.titolo}` : `Ok, lascio com'è: ${p.titolo}`
+    // se l'azione vera non riesce, la proposta NON si chiude: prima spariva
+    // dalla Posta lo stesso e il lavoro era perso senza saperlo (QA Dre, 15/9)
+    let riuscito = true
     if (si && p.azione?.bozza !== undefined && p.prospect_id) {
       // «l'ho mandata»: la mail nostra entra nella storia, e lei smette di aspettare
       const testo = (bozze[p.id] ?? p.azione.bozza).trim()
       const { error } = await supabase.from('interactions')
         .insert({ prospect_id: p.prospect_id, at: new Date().toISOString(), kind: 'email_out', body: testo })
-      if (error) esito = `Non sono riuscita a segnarla: ${error.message}`
+      if (error) { esito = `Non sono riuscita a segnarla: ${error.message}`; riuscito = false }
       else if (p.azione.intento === 'INT-GB') {
         // il gigante buono (14/9): una volta sola, poi silenzio. L'analisi e' partita, niente follow-up
         await supabase.from('prospects').update({ awaiting_us: false, analysis_sent: true, analysis_sent_at: new Date().toISOString(), no_followup: true }).eq('id', p.prospect_id)
@@ -525,28 +557,33 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       esito = error ? esito : `Segnata come mandata: ${p.titolo}`
     } else if (p.azione?.accesso) {
       const err = await decidiAccesso(p.azione.accesso.user_id, p.azione.accesso.widget, si)
+      if (err) riuscito = false
       esito = err ? `Non sono riuscita a scriverlo: ${err}` : si ? `Fatto: ${p.azione.accesso.nome ?? 'la persona'} ha il widget` : `Ok, non lo do: ${p.titolo}`
     } else if (si) {
       if (p.azione?.nuovo) {
         const { data: creato, error } = await supabase.from('prospects')
           .insert(p.azione.nuovo).select('id').single()
-        if (error) esito = `Non sono riuscita a crearlo: ${error.message}`
+        if (error) { esito = `Non sono riuscita a crearlo: ${error.message}`; riuscito = false }
         else if (p.azione.agenda_ids?.length) {
           await supabase.from('agenda').update({ prospect_id: (creato as { id: string }).id }).in('id', p.azione.agenda_ids)
         }
       }
       if (p.azione?.prospects && p.prospect_id) {
         const { error } = await supabase.from('prospects').update(p.azione.prospects).eq('id', p.prospect_id)
-        if (error) esito = `Non sono riuscita a scriverlo: ${error.message}`
+        if (error) { esito = `Non sono riuscita a scriverlo: ${error.message}`; riuscito = false }
       }
       if (p.azione?.task) {
         const { problema } = await creaTask({ titolo: p.azione.task.titolo, scadenza: p.azione.task.scadenza ?? null, prospect_id: p.prospect_id })
-        if (problema) esito = `La task non si è salvata: ${problema}`
+        if (problema) { esito = `La task non si è salvata: ${problema}`; riuscito = false }
       }
     }
-    await supabase.from('proposte')
-      .update({ stato: si ? 'fatta' : 'no', risposta_il: new Date().toISOString() }).eq('id', p.id)
-    setProposte((l) => l.filter((x) => x.id !== p.id))
+    if (riuscito) {
+      await supabase.from('proposte')
+        .update({ stato: si ? 'fatta' : 'no', risposta_il: new Date().toISOString() }).eq('id', p.id)
+      setProposte((l) => l.filter((x) => x.id !== p.id))
+    } else {
+      setGuaio(esito)
+    }
     await scriviMessaggio('controllo', esito, p.prospect_id)
     setRispondo(null)
   }
@@ -756,6 +793,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   function listaPosta() {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {guaio && (
+          <div className="m-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+            <span className="flex-1">{guaio}</span>
+            <button onClick={() => setGuaio(null)} className="shrink-0 font-bold text-red-600">Chiudi</button>
+          </div>
+        )}
         {proposte.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
         ) : proposte.map((pr, i) => {
