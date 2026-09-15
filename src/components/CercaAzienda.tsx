@@ -50,7 +50,9 @@ export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder,
       {testo.trim().length >= 2 && (
         <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-bordo bg-white shadow-[0_8px_24px_rgba(16,24,40,0.12)]">
           {lista.length === 0
-            ? <p className="px-3 py-2 text-xs text-spento">{cercando ? 'Cerco…' : 'Nessuna azienda con questo nome'}</p>
+            ? <p className="px-3 py-2 text-xs text-spento">
+                {cercando ? 'Cerco…' : 'Nessuna azienda con questo nome: prima entra in Pipeline, poi torna qui'}
+              </p>
             : lista.map((a) => (
               <button key={a.id} onClick={() => { onScegli(a); setTesto('') }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">
                 <Faccia p={a} size={24} />

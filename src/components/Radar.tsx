@@ -36,6 +36,10 @@ interface Voce {
 
 function fraQuanto(at: string): string {
   const ms = new Date(at).getTime() - Date.now()
+  // «fra 0 ore» non vuol dire niente: sotto l'ora si contano i minuti
+  const minuti = Math.round(ms / 60e3)
+  if (minuti <= 0) return 'adesso'
+  if (minuti < 60) return `fra ${minuti} minut${minuti === 1 ? 'o' : 'i'}`
   const ore = Math.round(ms / 3600e3)
   if (ore < 24) return `fra ${ore} or${ore === 1 ? 'a' : 'e'}`
   const gg = Math.round(ms / 86400e3)
