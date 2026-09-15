@@ -120,10 +120,6 @@ export default function Scheda({ id, onClose }: Props) {
   const [aChi, setAChi] = useState('')
   const [perche, setPerche] = useState('')
   const [giro, setGiro] = useState(0)
-  const [binarioSegnato, setBinarioSegnato] = useState(false)
-  // il cancello: se fuori_binario e' null, la prima azione di scrittura
-  // apre la domanda e l'azione riparte dopo la risposta
-  const [cancello, setCancello] = useState<(() => void) | null>(null)
   const [noteAperte, setNoteAperte] = useState(false)
   const [notaTesto, setNotaTesto] = useState('')
   const [notaData, setNotaData] = useState('')
@@ -355,19 +351,6 @@ export default function Scheda({ id, onClose }: Props) {
     setNota('')
   }
 
-  async function rispondiCancello(risposta: 'si' | 'no') {
-    const poi = cancello
-    setCancello(null)
-    await aggiorna({ fuori_binario: risposta })
-    await segna('nota', risposta === 'si'
-      ? 'Fuori binario: SÌ, già sentito fuori dai sistemi.'
-      : 'Fuori binario: no, mai sentito prima.')
-    setBinarioSegnato(true)
-    setTimeout(() => setBinarioSegnato(false), 6000)
-    if (risposta === 'si') appuntiRef.current?.focus()
-    else poi?.()
-  }
-
   async function chiediPrep() {
     const { error } = await supabase.from('clara_messaggi').insert({
       tipo: 'dre', letto: true, prospect_id: p!.id, owner: utenteId,
@@ -510,30 +493,6 @@ export default function Scheda({ id, onClose }: Props) {
         </button>
       </div>
 
-      {/* IL CANCELLO: domanda al primo gesto di scrittura */}
-      {cancello && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-inchiostro/30 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <p className="text-base font-bold">L'hai già sentito tu, fuori dai sistemi?</p>
-            <p className="mt-1 text-sm text-tenue">Telefono, WhatsApp, di persona.</p>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => rispondiCancello('si')}
-                className="flex-1 rounded-full border border-bordo py-2 text-sm font-bold hover:border-spento"
-              >
-                Sì, l'ho sentito
-              </button>
-              <button
-                onClick={() => rispondiCancello('no')}
-                className="flex-1 rounded-full bg-blu py-2 text-sm font-bold text-white hover:bg-blu-scuro"
-              >
-                No, mai
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {errore && (
         <div className="mx-auto mt-3 max-w-5xl px-4">
           <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">{errore}</p>
@@ -602,12 +561,6 @@ export default function Scheda({ id, onClose }: Props) {
         messaggio={`Lascia qui: nei Documenti, agganciato a ${p.company || p.name}`}
         className="space-y-3 px-4 py-4 pb-16 sm:px-6"
       >
-
-        {binarioSegnato && (
-          <p className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-            Segnato, non te lo chiedo più per questa scheda.
-          </p>
-        )}
 
         {soppresso && (
           <p className="rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-800">
@@ -1108,6 +1061,11 @@ export default function Scheda({ id, onClose }: Props) {
                   <button onClick={() => setAvanzaAperto(false)} className="ml-auto text-xs font-semibold text-tenue hover:text-inchiostro">chiudi</button>
                 </header>
                 <div className="p-4">
+                  {p.pipeline_stage === 'prova' && (
+                    <p className="mb-2 text-sm text-tenue">
+                      In prova non c'è una call da riassumere: scrivi com'è andata se vuoi, poi scegli il contratto.
+                    </p>
+                  )}
                   <textarea
                     ref={transcriptRef}
                     value={transcript}
@@ -1133,8 +1091,8 @@ export default function Scheda({ id, onClose }: Props) {
                     </button>
                     <button
                       onClick={portaAvanti}
-                      disabled={!transcriptCorrente}
-                      title={transcriptCorrente ? undefined : 'Prima il riassunto: senza non si avanza'}
+                      disabled={!transcriptCorrente && p.pipeline_stage !== 'prova'}
+                      title={transcriptCorrente || p.pipeline_stage === 'prova' ? undefined : 'Prima il riassunto: senza non si avanza'}
                       className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       Avanza {PIPELINE_LABEL[next]}
@@ -1147,7 +1105,7 @@ export default function Scheda({ id, onClose }: Props) {
             {/* LA CARTELLA (Dre, 2/9): una sola e cresce. Nasce con quello
                 che gia' sappiamo di lui, senza che nessuno lo debba scrivere:
                 l'analisi ricevuta, chi sono, se vale la pena */}
-            {!modifica && (
+            {(
               <Card>
                 <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
                   <TitoloCard>Cartella</TitoloCard>
@@ -1213,7 +1171,7 @@ export default function Scheda({ id, onClose }: Props) {
 
             {/* PROGETTI: il lavoro a scadenza, quello che non e' canone. Si vedono
                 da quando il cliente e' in avvio: e' li' che il pod comincia */}
-            {(eCliente(p) || progetti.length > 0 || ['avvio', 'prova'].includes(p.pipeline_stage ?? '')) && !modifica && (
+            {(eCliente(p) || progetti.length > 0 || ['avvio', 'prova'].includes(p.pipeline_stage ?? '')) && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Progetti</TitoloCard>
@@ -1252,7 +1210,7 @@ export default function Scheda({ id, onClose }: Props) {
 
             {/* I PREVENTIVI (14/9): cosa gli abbiamo proposto e a che punto e'. Il
                 nuovo si fa dal widget Preventivi, gia' con questa azienda scelta */}
-            {ceo && !modifica && (
+            {ceo && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Preventivi</TitoloCard>
@@ -1278,7 +1236,7 @@ export default function Scheda({ id, onClose }: Props) {
 
             {/* I SUOI PAGAMENTI (10/9): quello che Stripe dice di lui. Solo per chi
                 vede i soldi (Dre e Giacomo): agli altri la tabella non risponde. */}
-            {incassi.length > 0 && !modifica && (() => {
+            {incassi.length > 0 && (() => {
               const ATTIVI = new Set(['active', 'trialing', 'past_due', 'unpaid'])
               const abb = incassi.find((i) => i.genere === 'abbonamento' && ATTIVI.has(i.stato ?? ''))
               const pagati = incassi.filter((i) => i.genere === 'addebito' && i.stato === 'succeeded')
@@ -1289,10 +1247,19 @@ export default function Scheda({ id, onClose }: Props) {
                 <Card className="p-4">
                   <TitoloCard>Pagamenti</TitoloCard>
                   {abb ? (
-                    <p className={`text-sm font-semibold ${male ? 'text-red-700' : ''}`}>
-                      {Math.round(mensile(abb)).toLocaleString('it-IT')} € al mese{abb.metodo ? `, ${METODO[abb.metodo] ?? abb.metodo}` : ''}
-                      {male ? ', in ritardo' : abb.prossimo_il ? `, prossimo il ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}
-                    </p>
+                    <>
+                      <p className={`text-sm font-semibold ${male ? 'text-red-700' : ''}`}>
+                        {Math.round(mensile(abb)).toLocaleString('it-IT')} € al mese su Stripe{abb.metodo ? `, ${METODO[abb.metodo] ?? abb.metodo}` : ''}
+                        {male ? ', in ritardo' : abb.prossimo_il ? `, prossimo il ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}
+                      </p>
+                      {/* due numeri per la stessa domanda, uno accanto all'altro:
+                          si dice quale e' quello che paga davvero (QA Dre, 15/9) */}
+                      {p.canone != null && Math.round(Number(p.canone)) !== Math.round(mensile(abb)) && (
+                        <p className="text-xs font-semibold text-amber-800">
+                          Nel contratto c'è scritto {Number(p.canone).toLocaleString('it-IT')} €: quello che incassiamo è quello di Stripe
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <p className="text-sm text-spento">Nessun abbonamento attivo.</p>
                   )}
@@ -1317,7 +1284,7 @@ export default function Scheda({ id, onClose }: Props) {
             {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro.
                 Sta sempre, anche vuota: se no non sai dove finiscono quando
                 li salvi (Dre, 4/9) */}
-            {!modifica && (
+            {(
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Documenti</TitoloCard>

@@ -275,8 +275,11 @@ export default function Lista({ onOpen, q }: Props) {
       return
     }
 
-    // avanti di una fase: serve il transcript della call di QUESTA fase
-    if (da !== 'prospect' && salto === 1) {
+    // avanti di una fase: serve il transcript della call di QUESTA fase.
+    // Dalla prova al cliente no: in prova non c'e' nessuna call da
+    // riassumere, il pedaggio e' il contratto (QA Dre, 14/9) e lo chiede
+    // la finestra che si apre dopo
+    if (da !== 'prospect' && da !== 'prova' && salto === 1) {
       const pagato = await pedaggioPagato(id, da as PipelineStage)
       if (!pagato) {
         setRiassunto('')
