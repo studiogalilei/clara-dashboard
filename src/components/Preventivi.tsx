@@ -8,7 +8,7 @@ import { LINEA_NOME, controllaTono, ripulisciTono, testoDi } from '../lib/tono'
 import { cosaManca } from '../lib/condizioni'
 import { datiStudio, mancaStudio, scriviStudio, STUDIO_VUOTO, type DatiStudio } from '../lib/studio'
 import {
-  STATI, alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
+  alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
   type Preventivo, type Voce, type VoceListino, type Fatturazione,
 } from '../lib/preventivo'
 
@@ -72,6 +72,8 @@ export default function Preventivi({ onOpen }: Props) {
   const [testoChiesto, setTestoChiesto] = useState('')
   const [studio, setStudio] = useState<DatiStudio>(STUDIO_VUOTO)
   const [studioAperto, setStudioAperto] = useState(false)
+  const [menu, setMenu] = useState<number | null>(null)   // i tre puntini di una riga
+  const [incassiAperti, setIncassiAperti] = useState(false)
   // una domanda di conferma dentro la pagina, non il popup del browser
   const [conferma, setConferma] = useState<{ testo: string; fai: () => void } | null>(null)
   // il lucchetto: due clic ravvicinati su «Genera il PDF» facevano due
@@ -371,21 +373,39 @@ export default function Preventivi({ onOpen }: Props) {
   const scaduti = inGiro.filter(scaduto)
   const daIncassare = righe.filter((q) => q.stato === 'accettato' && !q.pagato_il)
   const incassati = righe.filter((q) => q.pagato_il)
-  const anno = new Date().getFullYear()
   // sotto l'euro sono le prove fatte da noi: non sono incassi
   const veri = (incassi ?? []).filter((i) => i.importo >= 1)
-  const incassatiStripe = veri.filter((i) => i.genere === 'addebito' && i.stato === 'succeeded' && (i.quando ?? '').startsWith(String(anno)))
+  const senzaAzienda = veri.filter((i) => !i.prospect_id).length
   const abbonamenti = veri.filter((i) => i.genere === 'abbonamento' && (i.stato === 'active' || i.stato === 'trialing'))
   const mensile = abbonamenti.reduce((s, i) => s + (i.ricorrenza === 'year' ? i.importo / 12 : i.importo), 0)
 
-  const tessera = (n: string, v: number, quanti: number, tono = '', su?: Filtro) => (
-    <button onClick={() => su && setFiltro(su)} disabled={!su}
-            className={`min-w-[150px] flex-1 rounded-xl border bg-white px-4 py-3 text-left ${su && filtro === su ? 'border-navy' : 'border-bordo'} ${su ? 'hover:border-navy' : ''}`}>
-      <Micro>{n}</Micro>
-      <p className={`text-xl font-extrabold tabular-nums ${tono}`}>{v.toLocaleString('it-IT')} €</p>
-      <p className="text-[11px] text-spento">{quanti} preventiv{quanti === 1 ? 'o' : 'i'}</p>
-    </button>
-  )
+  // IL PROSSIMO PASSO (Dre, 15/9): su ogni riga un'azione sola, quella che
+  // faresti adesso. Il resto sta sotto i tre puntini. Prima erano sei
+  // bottoni uguali in fila e non si capiva cosa fare.
+  function prossimoPasso(q: Preventivo): { testo: string; fai: () => void; tono: string } | null {
+    if (q.stato === 'bozza' && !q.pdf_path) return { testo: 'Genera il PDF', fai: () => apriModifica(q), tono: 'bg-blu hover:bg-blu-scuro' }
+    if (q.stato === 'bozza') return { testo: 'Segna mandato', fai: () => void segnaInviato(q), tono: 'bg-navy hover:bg-blu' }
+    if (q.stato === 'inviato') return { testo: 'Ha accettato', fai: () => void segnaAccettato(q), tono: 'bg-green-700 hover:bg-green-800' }
+    if (q.stato === 'accettato' && !q.pagato_il) return { testo: 'Segna pagato', fai: () => void segnaPagato(q), tono: 'bg-green-700 hover:bg-green-800' }
+    return null
+  }
+
+  // lo stato in una riga, come sulle carte della Pipeline: un pallino e una
+  // frase, non un'etichetta colorata che compete col nome del cliente
+  function statoRiga(q: Preventivo): { testo: string; pallino: string; testo_colore: string } {
+    if (q.pagato_il) return { testo: `Pagato il ${fmtDateShort(q.pagato_il)}`, pallino: 'bg-green-600', testo_colore: 'text-green-800' }
+    if (q.stato === 'rifiutato') return { testo: `Ha detto no${q.motivo ? `: ${q.motivo}` : ''}`, pallino: 'bg-gray-300', testo_colore: 'text-spento' }
+    if (q.stato === 'accettato') return { testo: `Accettato il ${fmtDateShort(q.accettato_il)}, da incassare`, pallino: 'bg-amber-500', testo_colore: 'text-amber-800' }
+    if (q.stato === 'inviato') {
+      if (scaduto(q)) return { testo: `Scaduto il ${fmtDateShort(q.valido_fino)}, nessuna risposta`, pallino: 'bg-amber-500', testo_colore: 'font-semibold text-amber-800' }
+      const g = q.inviato_il ? Math.max(0, Math.round((Date.now() - new Date(`${q.inviato_il}T12:00:00`).getTime()) / 86400e3)) : null
+      return {
+        testo: `Mandato il ${fmtDateShort(q.inviato_il)}${g && g > 1 ? `, aspetta da ${g} giorni` : ''}`,
+        pallino: 'bg-sky-500', testo_colore: 'text-tenue',
+      }
+    }
+    return { testo: q.pdf_path ? 'Bozza, il PDF è pronto' : 'Bozza, senza PDF', pallino: 'bg-gray-300', testo_colore: 'text-spento' }
+  }
 
   return (
     <div className="space-y-4 pb-24 sm:pb-8">
@@ -424,17 +444,28 @@ export default function Preventivi({ onOpen }: Props) {
         </Card>
       )}
 
-      {/* le tessere: un colpo d'occhio, e cliccando filtrano */}
-      <div className="flex flex-wrap gap-2">
-        {tessera('In giro, in attesa', somma(inGiro), inGiro.length, scaduti.length ? 'text-amber-800' : '', 'giro')}
-        {tessera('Accettati, da incassare', somma(daIncassare), daIncassare.length, daIncassare.length ? 'text-amber-800' : '', 'accettati')}
-        {tessera('Incassati', somma(incassati), incassati.length, 'text-green-800', 'pagati')}
+      {/* I NUMERI: uno grande, quello che aspetta una risposta. Gli altri
+          sono di contorno: prima erano quattro riquadri uguali e uno diceva
+          zero, quindi non guardavi nessuno (Dre, 15/9) */}
+      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 rounded-2xl border border-bordo bg-white px-5 py-4">
+        <span className="flex items-baseline gap-2">
+          <span className="text-[26px] font-extrabold leading-none tabular-nums">{somma(inGiro).toLocaleString('it-IT')} €</span>
+          <Micro>in giro, in attesa</Micro>
+        </span>
+        {scaduti.length > 0 && (
+          <span className="text-sm font-bold text-amber-800">{scaduti.length} scadut{scaduti.length === 1 ? 'o' : 'i'}</span>
+        )}
+        <span className="text-sm text-tenue">
+          <b className="font-bold tabular-nums text-inchiostro">{somma(daIncassare).toLocaleString('it-IT')} €</b> da incassare
+        </span>
+        <span className="text-sm text-tenue">
+          <b className="font-bold tabular-nums text-green-800">{somma(incassati).toLocaleString('it-IT')} €</b> incassati
+        </span>
         {incassi && (
-          <div className="min-w-[150px] flex-1 rounded-xl border border-bordo bg-white px-4 py-3">
-            <Micro>Abbonamenti su Stripe</Micro>
-            <p className="text-xl font-extrabold tabular-nums">{Math.round(mensile).toLocaleString('it-IT')} € <span className="text-sm font-semibold text-tenue">al mese</span></p>
-            <p className="text-[11px] text-spento">{abbonamenti.length} attiv{abbonamenti.length === 1 ? 'o' : 'i'}, {incassatiStripe.length} pagament{incassatiStripe.length === 1 ? 'o' : 'i'} nel {anno}</p>
-          </div>
+          <span className="ml-auto text-sm text-tenue">
+            <b className="font-bold tabular-nums text-inchiostro">{Math.round(mensile).toLocaleString('it-IT')} €</b> al mese su Stripe,{' '}
+            {abbonamenti.length} attiv{abbonamenti.length === 1 ? 'o' : 'i'}
+          </span>
         )}
       </div>
 
@@ -443,15 +474,15 @@ export default function Preventivi({ onOpen }: Props) {
         <div className="flex flex-wrap gap-1.5">
           {([['giro', 'In giro'], ['accettati', 'Da incassare'], ['pagati', 'Pagati'], ['rifiutati', 'Rifiutati'], ['bozze', 'Bozze'], ['tutti', 'Tutti']] as Array<[Filtro, string]>).map(([k, n]) => (
             <button key={k} onClick={() => setFiltro(k)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-semibold ${filtro === k ? 'bg-navy text-white' : 'bg-white text-tenue ring-1 ring-bordo hover:text-inchiostro'}`}>{n}</button>
+                    className={`rounded-full px-3 py-1 text-[13px] font-semibold ${filtro === k ? 'bg-navy text-white' : 'bg-white text-tenue ring-1 ring-bordo hover:text-inchiostro'}`}>{n}</button>
           ))}
         </div>
         <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <input type="search" value={cerca} onChange={(e) => setCerca(e.target.value)} placeholder="Cerca azienda o numero…"
-                 className="min-w-0 flex-1 rounded-full border border-bordo bg-white px-4 py-2 text-sm outline-none focus:border-blu sm:w-56 sm:flex-none" />
+                 className="min-w-0 flex-1 rounded-full border border-bordo bg-white px-4 py-1.5 text-sm outline-none focus:border-blu sm:w-48 sm:flex-none" />
           <button onClick={() => setStudioAperto((v) => !v)} title="Ragione sociale, P.IVA, IVA, termini: vanno nei PDF"
-                  className="rounded-full border border-bordo bg-white px-3.5 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy">Dati Studio</button>
-          <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Crea preventivo</button>
+                  className="rounded-full px-2 py-1.5 text-sm font-semibold text-tenue hover:text-navy">Dati Studio</button>
+          <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Crea preventivo</button>
         </div>
       </div>
 
@@ -609,85 +640,131 @@ export default function Preventivi({ onOpen }: Props) {
         <div className="space-y-2">
           {visibili.map((q) => {
             const n = nomi[q.prospect_id]
-            const tono = STATI.find(([s]) => s === q.stato)?.[2] ?? ''
-            const vecchio = scaduto(q)
+            const st = statoRiga(q)
+            const passo = prossimoPasso(q)
+            const apertoQui = menu === q.id
             return (
-              <Card key={q.id} className="p-3.5">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <button onClick={() => onOpen(q.prospect_id)} className="flex min-w-0 items-center gap-2.5 text-left hover:text-navy">
-                    {n && <Faccia p={n} size={32} />}
+              <Card key={q.id} className="px-4 py-3">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <button onClick={() => onOpen(q.prospect_id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    {n && <Faccia p={n} size={36} />}
                     <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-bold">{nomeDi(q.prospect_id)}</span>
-                      <span className="block truncate text-xs text-tenue">{q.titolo || 'preventivo'}</span>
+                      <span className="flex items-baseline gap-2">
+                        <span className="truncate text-[15px] font-bold">{nomeDi(q.prospect_id)}</span>
+                        <span className="shrink-0 text-[11px] text-spento">{q.numero}</span>
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1.5">
+                        <span className={`inline-block h-[7px] w-[7px] shrink-0 rounded-full ${st.pallino}`} />
+                        <span className={`truncate text-[12px] ${st.testo_colore}`}>{st.testo}</span>
+                      </span>
                     </span>
                   </button>
-                  <span className="text-[11px] font-semibold text-spento">{q.numero}</span>
-                  <span className="ml-auto text-right">
-                    {q.importo ? <span className="block text-[15px] font-extrabold tabular-nums">{euro(q.importo)}</span> : null}
-                    {q.mensile ? <span className="block text-xs font-semibold tabular-nums text-tenue">{euro(q.mensile)} al mese</span> : null}
+
+                  <span className="shrink-0 text-right sm:w-32">
+                    <span className="block text-[17px] font-extrabold leading-tight tabular-nums">
+                      {q.importo ? euro(q.importo) : q.mensile ? euro(q.mensile) : '0 €'}
+                    </span>
+                    <span className="block truncate text-[11px] text-tenue">
+                      {q.mensile && q.importo ? `più ${euro(q.mensile)} al mese` : q.mensile ? 'al mese' : (q.titolo || 'una tantum')}
+                    </span>
                   </span>
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${q.pagato_il ? 'bg-green-100 text-green-900' : vecchio ? 'bg-amber-100 text-amber-900' : tono}`}>
-                    {q.pagato_il ? `pagato il ${fmtDateShort(q.pagato_il)}` : vecchio ? `scaduto il ${fmtDateShort(q.valido_fino)}` : q.stato === 'inviato' ? `inviato il ${fmtDateShort(q.inviato_il)}` : q.stato === 'accettato' ? `accettato il ${fmtDateShort(q.accettato_il)}, da incassare` : q.stato === 'rifiutato' ? `rifiutato${q.motivo ? `: ${q.motivo}` : ''}` : 'bozza'}
+
+                  <span className="flex shrink-0 items-center justify-end gap-2 sm:w-[250px]">
+                    {passo && (
+                      <button onClick={passo.fai}
+                              className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold text-white ${passo.tono}`}>
+                        {passo.testo}
+                      </button>
+                    )}
+                    {q.stato === 'inviato' && (
+                      <button onClick={() => { setChiedo({ id: q.id, cosa: 'rifiuto' }); setTestoChiesto('') }}
+                              className="whitespace-nowrap px-1 text-xs font-semibold text-tenue hover:text-red-700">
+                        Ha detto no
+                      </button>
+                    )}
+                    <div className="relative">
+                      <button onClick={() => setMenu(apertoQui ? null : q.id)} aria-label="Altro"
+                              className="flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo hover:text-inchiostro">
+                        <svg viewBox="0 0 24 24" className="h-4 w-4"><path fill="currentColor" d="M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" /></svg>
+                      </button>
+                      {apertoQui && (
+                        <>
+                          <button className="fixed inset-0 z-10 cursor-default" aria-label="Chiudi" onClick={() => setMenu(null)} />
+                          <div className="absolute right-0 top-9 z-20 w-56 overflow-hidden rounded-xl border border-bordo bg-white py-1 text-left shadow-[0_12px_32px_rgba(16,24,40,0.16)]">
+                            {q.pdf_path && (
+                              <button onClick={() => { setMenu(null); void apri(q) }} className="block w-full px-3.5 py-2 text-sm hover:bg-velo">Apri il PDF</button>
+                            )}
+                            {(q.stato === 'bozza' || q.stato === 'inviato') && (
+                              <button onClick={() => { setMenu(null); apriModifica(q) }} className="block w-full px-3.5 py-2 text-left text-sm hover:bg-velo">Modifica</button>
+                            )}
+                            <button onClick={() => { setMenu(null); void copiaLink(q) }} className="block w-full px-3.5 py-2 text-left text-sm hover:bg-velo">
+                              {q.link_pagamento ? 'Copia il link di pagamento' : 'Metti il link di pagamento'}
+                            </button>
+                            <button onClick={() => { setMenu(null); onOpen(q.prospect_id) }} className="block w-full px-3.5 py-2 text-left text-sm hover:bg-velo">Apri la scheda</button>
+                            {(q.stato === 'accettato' || q.stato === 'rifiutato') && !q.pagato_il && (
+                              <button onClick={() => { setMenu(null); void riapri(q) }} className="block w-full px-3.5 py-2 text-left text-sm hover:bg-velo">Rimetti in attesa</button>
+                            )}
+                            {q.stato === 'bozza' && (
+                              <button onClick={() => { setMenu(null); elimina(q) }} className="block w-full px-3.5 py-2 text-left text-sm text-red-700 hover:bg-red-50">Elimina</button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </span>
                 </div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                  {q.pdf_path
-                    ? <button onClick={() => void apri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Apri il PDF</button>
-                    : <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Genera il PDF</button>}
-                  {(q.stato === 'bozza' || q.stato === 'inviato') && <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">Modifica</button>}
-                  {q.stato === 'bozza' && <button onClick={() => segnaInviato(q)} className="rounded-full bg-navy px-3 py-1 text-xs font-bold text-white hover:bg-blu">Segna mandato</button>}
-                  {q.stato === 'inviato' && <>
-                    <button onClick={() => segnaAccettato(q)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">Segna accettato</button>
-                    <button onClick={() => { setChiedo({ id: q.id, cosa: 'rifiuto' }); setTestoChiesto('') }} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:border-red-300">Segna rifiutato</button>
-                  </>}
-                  {q.stato === 'accettato' && !q.pagato_il && <button onClick={() => segnaPagato(q)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">Segna pagato</button>}
-                  {(q.stato === 'accettato' || q.stato === 'rifiutato') && !q.pagato_il && <button onClick={() => riapri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">Rimetti in attesa</button>}
-                  <button onClick={() => copiaLink(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">{q.link_pagamento ? 'Copia il link di pagamento' : 'Metti il link di pagamento'}</button>
-                  <button onClick={() => onOpen(q.prospect_id)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-blu hover:border-blu">Apri la scheda</button>
-                  {q.stato === 'bozza' && <button onClick={() => elimina(q)} className="ml-auto text-xs text-spento hover:text-red-700">Elimina</button>}
-                  {q.note && <span className="ml-auto text-xs text-spento">{q.note}</span>}
-                </div>
+                {q.note && <p className="mt-1.5 pl-[48px] text-[11px] text-spento">{q.note}</p>}
               </Card>
             )
           })}
         </div>
       )}
 
-      {/* GLI INCASSI DA STRIPE: Clara li legge ogni ora (stripe_sync.py) */}
+      {/* GLI INCASSI DA STRIPE: Clara li legge ogni ora (stripe_sync.py).
+          Stanno chiusi: si aprono quando si cerca un pagamento */}
       {incassi && (
-        <>
-          <div className="pt-2">
-            <h2 className="text-base font-extrabold text-navy">Incassi su Stripe</h2>
-          </div>
-          <Card>
-            <div className="overflow-x-auto">
+        <section className="rounded-2xl border border-bordo bg-white">
+          <button onClick={() => setIncassiAperti((v) => !v)}
+                  className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                 className={`h-3.5 w-3.5 text-spento transition-transform ${incassiAperti ? 'rotate-90' : ''}`}>
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+            <span className="text-sm font-bold">Incassi su Stripe</span>
+            <span className="text-sm text-tenue">
+              {veri.length} movimenti, {senzaAzienda > 0 ? `${senzaAzienda} da collegare a un'azienda` : 'tutti collegati'}
+            </span>
+          </button>
+          {incassiAperti && (
+            <div className="overflow-x-auto border-t border-velo">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-velo/60 text-left text-[11px] font-bold uppercase tracking-wide text-tenue">
-                    <th className="min-w-[110px] px-2 py-2">Quando</th>
-                    <th className="min-w-[110px] px-2 py-2">Cosa</th>
-                    <th className="min-w-[220px] px-2 py-2">Cliente</th>
-                    <th className="min-w-[200px] px-2 py-2">Descrizione</th>
-                    <th className="min-w-[100px] px-2 py-2 text-right">Importo</th>
-                    <th className="min-w-[100px] px-2 py-2">Stato</th>
-                    <th className="min-w-[160px] px-2 py-2">Azienda</th>
+                  <tr className="border-b border-velo text-left text-[11px] font-semibold text-spento">
+                    <th className="min-w-[88px] px-3 py-2 font-semibold">Quando</th>
+                    <th className="min-w-[96px] px-3 py-2 font-semibold">Cosa</th>
+                    <th className="min-w-[160px] px-3 py-2 font-semibold">Cliente</th>
+                    <th className="min-w-[160px] px-3 py-2 font-semibold">Descrizione</th>
+                    <th className="min-w-[90px] px-3 py-2 text-right font-semibold">Importo</th>
+                    <th className="min-w-[150px] px-3 py-2 font-semibold">Azienda</th>
                   </tr>
                 </thead>
                 <tbody>
                   {veri.map((i) => (
-                    <tr key={i.id} className="border-b border-velo last:border-0 hover:bg-velo/30">
-                      <td className="px-2 py-2 text-sm tabular-nums">{fmtDateShort(i.quando ? i.quando.slice(0, 10) : null)}</td>
-                      <td className="px-2 py-2 text-sm">{GENERE[i.genere]}{i.ricorrenza ? <span className="text-spento"> / {i.ricorrenza === 'year' ? 'anno' : 'mese'}</span> : null}</td>
-                      <td className="px-2 py-2">
-                        <p className="text-sm font-semibold">{i.cliente_nome || <span className="text-spento">senza nome</span>}</p>
+                    <tr key={i.id} className="border-b border-velo last:border-0 hover:bg-velo/40">
+                      <td className="px-3 py-2 text-sm tabular-nums">{fmtDateShort(i.quando ? i.quando.slice(0, 10) : null)}</td>
+                      <td className="px-3 py-2 text-sm">
+                        {GENERE[i.genere]}{i.ricorrenza ? <span className="text-spento">, {i.ricorrenza === 'year' ? 'ogni anno' : 'ogni mese'}</span> : null}
+                        <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${tonoStato(i.stato)}`}>{statoIt(i.stato)}</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <p className="text-sm font-semibold">{i.cliente_nome || <span className="font-normal text-spento">senza nome</span>}</p>
                         {i.cliente_email && <p className="text-[11px] text-spento">{i.cliente_email}</p>}
                       </td>
-                      <td className="px-2 py-2 text-sm text-tenue">{i.descrizione || <span className="text-spento">senza descrizione</span>}</td>
-                      <td className="px-2 py-2 text-right text-sm font-semibold tabular-nums">{i.importo.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {i.valuta.toUpperCase()}</td>
-                      <td className="px-2 py-2"><span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${tonoStato(i.stato)}`}>{statoIt(i.stato)}</span></td>
-                      <td className="px-2 py-2 text-xs">
+                      <td className="px-3 py-2 text-sm text-tenue">{i.descrizione || <span className="text-spento">senza descrizione</span>}</td>
+                      <td className="px-3 py-2 text-right text-sm font-bold tabular-nums">{i.importo.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {i.valuta.toUpperCase()}</td>
+                      <td className="px-3 py-2 text-xs">
                         {i.prospect_id
-                          ? <button onClick={() => onOpen(i.prospect_id!)} className="font-semibold hover:text-navy">{nomeDi(i.prospect_id)}{i.preventivo_id ? <span className="text-spento"> (preventivo pagato)</span> : null}</button>
+                          ? <button onClick={() => onOpen(i.prospect_id!)} className="font-semibold hover:text-navy">{nomeDi(i.prospect_id)}{i.preventivo_id ? <span className="text-spento">, preventivo pagato</span> : null}</button>
                           : <CercaAzienda piccolo placeholder="collega a un'azienda…" onScegli={(a) => { setNomi((m) => ({ ...m, [a.id]: comeNome(a) })); void collega(i.id, a.id) }} />}
                       </td>
                     </tr>
@@ -695,8 +772,8 @@ export default function Preventivi({ onOpen }: Props) {
                 </tbody>
               </table>
             </div>
-          </Card>
-        </>
+          )}
+        </section>
       )}
 
       {toast && (
