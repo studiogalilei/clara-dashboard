@@ -8,6 +8,7 @@ const CompilaPdf = lazy(() => import('./CompilaPdf').catch((e) => {
 import type { Prospect } from '../lib/types'
 import { Card, Spinner, Empty, ZonaFile, fmtNum, fmtDateShort, sgid } from './ui'
 import { urlFileTanti, apriFile, dimenticaFile } from '../lib/file'
+import CercaAzienda, { CAMPI_AZIENDA } from './CercaAzienda'
 
 // I DOCUMENTI: la cassaforte dello Studio (Dre, 14/9). «Che ci deve fare
 // una persona qui?» Trovare subito un logo, una copertina, il contratto
@@ -113,9 +114,22 @@ export default function Vault({ onOpen }: Props) {
         if (error) setProblema(`Non riesco a leggere i Documenti: ${error.message}`)
         setFile((data as FileVault[]) ?? [])
       })
-    supabase.from('prospects').select('id,company,name,email,sg_id,stage,pipeline_stage,fuori').order('company').limit(2000)
-      .then(({ data }) => setProspects((data as Prospect[]) ?? []))
+    // le prime 2000 in ordine alfabetico non bastavano: i file dei clienti
+    // oltre la «C» finivano sotto «Senza azienda» (QA Dre, 14/9). Si chiedono
+    // quelle dei file che ci sono, e per il resto c'e' la ricerca.
   }, [])
+
+  // i nomi delle aziende dei file che ci sono
+  useEffect(() => {
+    const ids = [...new Set((file ?? []).map((f) => f.prospect_id).filter(Boolean) as string[])]
+    const mancanti = ids.filter((id) => !prospects.some((p) => p.id === id))
+    if (mancanti.length === 0) return
+    void supabase.from('prospects').select(CAMPI_AZIENDA).in('id', mancanti).limit(1000)
+      .then(({ data }) => setProspects((v) => {
+        const visti = new Set(v.map((x) => x.id))
+        return [...v, ...((data as unknown as Prospect[]) ?? []).filter((x) => !visti.has(x.id))]
+      }))
+  }, [file, prospects])
 
   // le URL firmate dei file che stanno per comparire: una chiamata sola per schermata
   useEffect(() => {
@@ -316,7 +330,7 @@ export default function Vault({ onOpen }: Props) {
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
-          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">chiudi</button>
+          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">Chiudi</button>
         </div>
       )}
 
@@ -324,30 +338,37 @@ export default function Vault({ onOpen }: Props) {
         <Card className="salta-su border-blu/40 p-4">
           <p className="text-sm font-bold">Dove va «{inAttesa.name.replace(/\.[^.]+$/, '')}»?</p>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <select autoFocus value={dove} onChange={(e) => setDove(e.target.value)}
-                    className="min-w-[260px] flex-1 rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-blu">
-              <option value="">Scegli…</option>
-              <optgroup label="Nella cartella di un cliente">
-                {prospects.filter((p) => p.fuori || p.stage === 'cliente').map((p) => (
-                  <option key={p.id} value={`cliente:${p.id}`}>{p.company || p.name || p.email}{sgid(p.sg_id, p) ? `, ${sgid(p.sg_id, p)}` : ''}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Nella cartella di un'altra azienda">
-                {prospects.filter((p) => !(p.fuori || p.stage === 'cliente')).map((p) => (
-                  <option key={p.id} value={`cliente:${p.id}`}>{p.company || p.name || p.email}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Brand">
-                {ORDINE_GRUPPI.filter((g) => g !== 'esempi' && g !== 'modelli').map((g) => <option key={g} value={`brand:${g}`}>{GRUPPO_NOME[g]}</option>)}
-              </optgroup>
-              <option value="modelli">Modelli</option>
-              <option value="azienda">Azienda (documento interno)</option>
-            </select>
+            <div className="min-w-[260px] flex-1">
+              {dove.startsWith('cliente:') ? (
+                <div className="flex items-center gap-2 rounded-lg border border-bordo bg-white px-3 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-semibold">{nomeProspect(dove.slice(8))}</span>
+                  <button onClick={() => setDove('')} className="text-xs font-semibold text-blu hover:underline">Cambia</button>
+                </div>
+              ) : (
+                <CercaAzienda
+                  placeholder="Nella cartella di… scrivi il nome dell'azienda"
+                  onScegli={(a) => {
+                    setProspects((v) => (v.some((x) => x.id === a.id) ? v : [...v, a as unknown as Prospect]))
+                    setDove(`cliente:${a.id}`)
+                  }}
+                />
+              )}
+            </div>
             <button onClick={() => carica(inAttesa)} disabled={!dove || caricando}
                     className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30">
               {caricando ? 'Carico…' : 'Metti qui'}
             </button>
-            <button onClick={() => { setInAttesa(null); setDove('') }} className="text-xs text-spento hover:text-inchiostro">annulla</button>
+            <button onClick={() => { setInAttesa(null); setDove('') }} className="text-xs text-spento hover:text-inchiostro">Annulla</button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-spento">oppure</span>
+            {[...ORDINE_GRUPPI.filter((g) => g !== 'esempi' && g !== 'modelli').map((g) => [`brand:${g}`, GRUPPO_NOME[g]] as [string, string]),
+              ['modelli', 'Modelli'], ['azienda', 'Azienda']].map(([v, n]) => (
+              <button key={v} onClick={() => setDove(v)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${dove === v ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-navy hover:text-navy'}`}>
+                {n}
+              </button>
+            ))}
           </div>
         </Card>
       )}

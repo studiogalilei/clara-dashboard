@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
+import CercaAzienda, { CAMPI_AZIENDA } from './CercaAzienda'
 import { creaTask, giorno } from '../lib/regole'
 import { apriFile } from '../lib/file'
 import { LINEA_NOME, controllaTono, ripulisciTono, testoDi } from '../lib/tono'
@@ -19,7 +20,8 @@ import {
 
 interface Props { onOpen: (id: string) => void }
 type Nome = FacciaP & { id: string; email: string; fatturazione: Fatturazione | null }
-const CAMPI = 'id,company,name,email,sg_id,fuori,stage,pipeline_stage,fatturazione'
+const comeNome = (a: { id: string }) => a as unknown as Nome
+const CAMPI = CAMPI_AZIENDA
 const nomeAzienda = (a: Nome) => a.company || a.name || a.email
 type Filtro = 'giro' | 'tutti' | 'accettati' | 'pagati' | 'rifiutati' | 'bozze'
 
@@ -53,55 +55,6 @@ interface Bozza {
   fatturazione: Fatturazione
 }
 const vuota = (): Bozza => ({ id: null, prospect_id: '', voci: [], valido_fino: fraGiorni(30), note: '', fatturazione: {} })
-
-// LA RICERCA DELL'AZIENDA (QA Dre, 14/9). Prima il pannello si scaricava
-// le prime 3000 aziende in ordine alfabetico e cercava li' dentro: dei 4
-// clienti veri non ne trovava tre, perche' stavano oltre la 3000esima.
-// Adesso la domanda va al database mentre scrivi, su tutte le 13.193.
-function ScegliAzienda({ onScegli, placeholder, piccolo }: {
-  onScegli: (a: Nome) => void
-  placeholder: string
-  piccolo?: boolean
-}) {
-  const [testo, setTesto] = useState('')
-  const [lista, setLista] = useState<Nome[]>([])
-  const [cercando, setCercando] = useState(false)
-
-  useEffect(() => {
-    const s = testo.trim().replace(/[,()"%]/g, ' ').trim()
-    if (s.length < 2) { setLista([]); setCercando(false); return }
-    setCercando(true)
-    const t = setTimeout(async () => {
-      const term = `%${s}%`
-      const { data } = await supabase.from('prospects').select(CAMPI)
-        .or(`company.ilike.${term},name.ilike.${term},email.ilike.${term}`)
-        .order('company').limit(8)
-      setLista((data as Nome[]) ?? [])
-      setCercando(false)
-    }, 220)
-    return () => clearTimeout(t)
-  }, [testo])
-
-  return (
-    <div className="relative">
-      <input autoFocus={!piccolo} value={testo} onChange={(e) => setTesto(e.target.value)} placeholder={placeholder}
-             className={`w-full rounded-xl border border-bordo bg-white outline-none focus:border-blu ${piccolo ? 'px-2 py-1 text-[11px]' : 'px-3 py-2 text-sm'}`} />
-      {testo.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-bordo bg-white shadow-[0_8px_24px_rgba(16,24,40,0.12)]">
-          {lista.length === 0
-            ? <p className="px-3 py-2 text-xs text-spento">{cercando ? 'Cerco…' : 'Nessuna azienda con questo nome'}</p>
-            : lista.map((a) => (
-              <button key={a.id} onClick={() => { onScegli(a); setTesto('') }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">
-                <Faccia p={a} size={24} />
-                <span className="min-w-0 flex-1 truncate">{nomeAzienda(a)}</span>
-                {sgid(a.sg_id, a) && <span className="text-[11px] font-semibold text-spento">{sgid(a.sg_id, a)}</span>}
-              </button>
-            ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 export default function Preventivi({ onOpen }: Props) {
   const [righe, setRighe] = useState<Preventivo[] | null>(null)
@@ -518,7 +471,7 @@ export default function Preventivi({ onOpen }: Props) {
                 </div>
               ) : (
                 <div className="mt-1">
-                  <ScegliAzienda onScegli={scegliAzienda} placeholder="Scrivi il nome dell'azienda…" />
+                  <CercaAzienda onScegli={(a) => scegliAzienda(comeNome(a))} placeholder="Scrivi il nome dell'azienda…" />
                 </div>
               )}
             </div>
@@ -723,7 +676,7 @@ export default function Preventivi({ onOpen }: Props) {
                       <td className="px-2 py-2 text-xs">
                         {i.prospect_id
                           ? <button onClick={() => onOpen(i.prospect_id!)} className="font-semibold hover:text-navy">{nomeDi(i.prospect_id)}{i.preventivo_id ? <span className="text-spento"> (preventivo pagato)</span> : null}</button>
-                          : <ScegliAzienda piccolo placeholder="collega a un'azienda…" onScegli={(a) => { setNomi((m) => ({ ...m, [a.id]: a })); void collega(i.id, a.id) }} />}
+                          : <CercaAzienda piccolo placeholder="collega a un'azienda…" onScegli={(a) => { setNomi((m) => ({ ...m, [a.id]: comeNome(a) })); void collega(i.id, a.id) }} />}
                       </td>
                     </tr>
                   ))}
