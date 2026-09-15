@@ -7,6 +7,7 @@ import { mieiAccessi, tuttiAccessi, chiedi, decidi, vediCome, type StatoAccesso,
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
+import { incassiSenzaAzienda, mensile, type Incasso } from './TuttiFoglio'
 import Firma from './Firma'
 import { collegato as googleCollegato, entraConGoogle } from '../lib/google'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
@@ -20,6 +21,17 @@ const NOME_RUOLO: Record<string, string> = {
   ceo: 'CEO', coordinamento: 'Coordinamento', manager: 'Marketing manager',
   specialist: 'Ad specialist', frontend: 'Frontend',
 }
+
+// SALUTE DEI DATI (Okay, 15/9): le incoerenze fra tabelle che oggi si
+// scoprono solo leggendo il database a mano. Una riga per incoerenza, con
+// dentro il numero e, dove esiste un posto per sistemarla, il modo di
+// arrivarci. Il campo di battaglia e' sempre un'altra schermata: qui si dice
+// solo quanto e' grosso il buco.
+interface Incoerenza { chiave: string; testo: string; quanti: number; vai?: () => void }
+const CAMPI_INCASSO = 'id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id'
+// «cliente» e' la stessa cosa che legge il Foglio (regole.ts eCliente, piu'
+// le prove): un cliente in prova senza canone e' un buco come gli altri
+const CLIENTI = 'and(fuori.eq.true,pipeline_stage.in.(cliente,prova)),and(fuori.eq.false,stage.eq.cliente)'
 
 interface Props {
   nome: string
@@ -72,6 +84,45 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
     if (err) { setAccessoEsito('Non salvato: ' + err); return }
     setMappa(await tuttiAccessi())
   }
+  // la card la vedono i ceo e chi ha i Numeri: e' lo stesso mestiere, guardare
+  // se i dati tornano prima di fidarsi dei totali
+  const vedeSalute = ruolo === 'ceo' || miei['analytics'] === 'approvato'
+  const [salute, setSalute] = useState<Incoerenza[] | null>(null)
+  useEffect(() => {
+    if (!vedeSalute) return
+    let vivo = true
+    const apriPosta = () => window.dispatchEvent(new CustomEvent('clara:apri-posta'))
+    const apriPreventivi = () => window.dispatchEvent(new CustomEvent('preventivo:nuovo'))
+    const treGiorniFa = new Date(Date.now() - 3 * 86400e3).toISOString()
+    void Promise.all([
+      supabase.from('incassi').select('prospect_id,importo,ricorrenza').eq('genere', 'abbonamento')
+        .in('stato', ['active', 'trialing']).not('prospect_id', 'is', null).limit(500),
+      supabase.from('prospects').select('id,canone').or(CLIENTI).limit(2000),
+      supabase.from('progetti').select('id', { count: 'exact', head: true }).is('prospect_id', null),
+      supabase.from('proposte').select('id', { count: 'exact', head: true }).eq('stato', 'aperta').lte('at', treGiorniFa),
+      supabase.from('incassi').select(CAMPI_INCASSO).is('prospect_id', null).limit(500),
+    ]).then(([abb, cli, prog, prop, inc]) => {
+      if (!vivo) return
+      const clienti = (cli.data as Array<{ id: string; canone: number | null }>) ?? []
+      const canoneDi = new Map(clienti.map((c) => [c.id, c.canone]))
+      // il canone nullo ha gia' la sua riga qui sotto: contarlo anche come
+      // «diverso da Stripe» sarebbe lo stesso buco contato due volte
+      const diversi = ((abb.data as Array<{ prospect_id: string; importo: number; ricorrenza: string | null }>) ?? [])
+        .filter((i) => {
+          const c = canoneDi.get(i.prospect_id)
+          return c != null && Math.round(Number(c)) !== Math.round(mensile(i as Incasso))
+        }).length
+      setSalute([
+        { chiave: 'canone-stripe', testo: 'Clienti col canone diverso da Stripe', quanti: diversi },
+        { chiave: 'canone-vuoto', testo: 'Clienti senza canone', quanti: clienti.filter((c) => c.canone == null).length },
+        { chiave: 'progetti', testo: 'Progetti senza cliente', quanti: prog.count ?? 0 },
+        { chiave: 'proposte', testo: 'Proposte di Clara aperte da più di 3 giorni', quanti: prop.count ?? 0, vai: apriPosta },
+        { chiave: 'incassi', testo: 'Incassi senza azienda', quanti: incassiSenzaAzienda((inc.data as Incasso[]) ?? []).length, vai: apriPreventivi },
+      ])
+    })
+    return () => { vivo = false }
+  }, [vedeSalute])
+
   const [bozzaNome, setBozzaNome] = useState(nomeSalvato() || nome)
   const [salvato, setSalvato] = useState(false)
   // il ponte verso Obsidian: qui dentro sta la spina, non il gesto (Dre, 3/9).
@@ -437,6 +488,35 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           </button>
         </div>
       </Card>
+      )}
+
+      {vedeSalute && salute && (
+        <Card>
+          <header className="border-b border-velo px-4 py-3">
+            <TitoloCard>Salute dei dati</TitoloCard>
+          </header>
+          <div className="divide-y divide-velo">
+            {salute.filter((x) => x.quanti > 0).length === 0 ? (
+              <p className="px-4 py-3 text-sm text-spento">Tutto in ordine.</p>
+            ) : salute.filter((x) => x.quanti > 0).map((x) => {
+              const dentro = (
+                <>
+                  <span className="min-w-0 flex-1 text-sm font-semibold">{x.testo}</span>
+                  <span className="shrink-0 text-sm font-extrabold tabular-nums">{x.quanti}</span>
+                </>
+              )
+              return x.vai ? (
+                <button key={x.chiave} onClick={x.vai} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-velo/50">
+                  {dentro}<span className="shrink-0 text-spento">›</span>
+                </button>
+              ) : (
+                <div key={x.chiave} className="flex items-center gap-3 px-4 py-3">
+                  {dentro}<span className="w-2 shrink-0" />
+                </div>
+              )
+            })}
+          </div>
+        </Card>
       )}
 
       <Card>

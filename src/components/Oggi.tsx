@@ -257,6 +257,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     setPossoVedere(true)
     const p = persone.find((x) => x.id === id)
     if (!p) return
+    // sul telefono la colonna di lato sta chiusa: senza questo, toccare una
+    // persona apriva una scheda che non si vedeva e sembrava non fare niente
+    setLatoAperto(true); setLatoToccato(true)
     setPersona(p); setTaskDiPersona(null)
     const { data } = await supabase.from('task').select('*')
       .eq('owner', p.id).eq('fatta', false).neq('stato', 'rimandata')
