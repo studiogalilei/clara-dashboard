@@ -3,7 +3,7 @@
   "blocchi": [
     { "tipo": "kicker", "testo": "Guida operativa" },
     { "tipo": "h1", "testo": "Come funzionano i pagamenti" },
-    { "tipo": "p", "testo": "Dal passaggio al lavoro continuativo i pagamenti diventano ricorrenti su Stripe. Si imposta insieme in quindici minuti di chiamata: non ti arriva niente prima e le date le scegli tu." },
+    { "tipo": "p", "testo": "Dal passaggio al lavoro continuativo i pagamenti diventano ricorrenti su Stripe. Si imposta insieme in 15 minuti di chiamata: non ti arriva niente prima e le date le scegli tu." },
     { "tipo": "riquadro", "titolo": "Cosa non succede", "voci": [
       "Nessun addebito parte prima della data che hai scelto tu",
       "Non ti chiediamo i dati della carta: li inserisci tu su Stripe, e restano lì",
@@ -23,7 +23,7 @@
     { "tipo": "pagina" },
     { "tipo": "kicker", "testo": "Prima della chiamata" },
     { "tipo": "h2", "testo": "Cosa portare" },
-    { "tipo": "p", "testo": "Bastano quindici minuti, se il materiale è a portata di mano. Se manca qualcosa prepariamo comunque il link e lo attivi con calma dopo." },
+    { "tipo": "p", "testo": "Bastano 15 minuti, se il materiale è a portata di mano. Se manca qualcosa prepariamo comunque il link e lo attivi con calma dopo." },
     { "tipo": "elenco", "voci": [
       "Il metodo di pagamento: carta aziendale, oppure le coordinate per l'addebito diretto SEPA",
       "I dati di fatturazione: ragione sociale, indirizzo, partita IVA, codice destinatario o PEC",

@@ -10,194 +10,890 @@
     "data": "settembre 2026"
   },
   "blocchi": [
-    { "tipo": "kicker", "testo": "il premio" },
-    { "tipo": "h1", "testo": "Il numero che serve" },
-    { "tipo": "p", "testo": "Dati dal 2023 al 2026. Rilevazione di agosto 2026.", "piccolo": true },
-    { "tipo": "p", "testo": "655.000 aziende agricole italiane oggi non usano alcuno strumento digitale, e dovranno dotarsene per effetto dell'obbligo di registro elettronico." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "655.608", "etichetta": "aziende senza alcuno strumento digitale" },
-      { "valore": "101.732", "etichetta": "aziende che oggi pagano per un gestionale" },
-      { "valore": "31.12.2026", "etichetta": "scadenza per il registro elettronico" }
-    ] },
-    { "tipo": "p", "testo": "Il bacino è enorme, la consapevolezza è minima. Un terzo delle aziende agricole dichiara di non conoscere le soluzioni digitali disponibili. La leva competitiva non sta nel confronto funzionale con gli altri gestionali: sta nell'arrivare per primi davanti a chi cerca come si fa, non quale software comprare." },
-    { "tipo": "h2", "testo": "Tre letture del mercato" },
-    { "tipo": "elenco", "voci": [
-      "Il 42% delle aziende usa almeno una soluzione smart, solo il 9% è digitalmente maturo. Il divario tra chi prova e chi paga è il mercato reale su cui si compete.",
-      "Il mercato dell'agricoltura 4.0 vale 2,5 miliardi di euro nel 2025, in crescita del 9%. La componente che cresce di più è quella dei software gestionali, con un +17%, seguita dai sistemi di supporto alle decisioni, a +26%.",
-      "La digitalizzazione riguarda il 78,2% delle grandi aziende contro l'8,8% delle piccole. Il milione di micro-aziende è un bacino statistico: il mercato commerciale coincide con le aziende strutturate."
-    ] },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "il metodo, con i suoi limiti" },
-    { "tipo": "h1", "testo": "La catena di calcolo" },
-    { "tipo": "p", "testo": "Quattro passaggi, ognuno con la sua fonte. Tutti i valori derivati sono ricalcolabili dai dati di input riportati in questo documento." },
-    { "tipo": "tabella", "colonne": [
-      { "testo": "Passaggio", "larghezza": 44 },
-      { "testo": "Fonte", "larghezza": 36 },
-      { "testo": "Aziende", "larghezza": 20, "destra": true }
-    ], "righe": [
-      [ { "testo": "Aziende agricole attive in Italia", "forte": true }, { "testo": "ISTAT, focus 2023 sulle strutture agricole" }, { "testo": "1.130.358" } ],
-      [ { "testo": "Con almeno una soluzione digitale", "sotto": "42% del totale attivo", "forte": true }, { "testo": "Osservatorio Smart AgriFood, Politecnico di Milano e Università di Brescia, edizione 2025" }, { "testo": "474.750" } ],
-      [ { "testo": "Digitalmente mature", "sotto": "9% del totale, la base che rinnova un abbonamento a pagamento", "forte": true }, { "testo": "Stesso osservatorio" }, { "testo": "101.732" } ],
-      [ { "testo": "Senza alcuno strumento digitale", "sotto": "differenza tra il totale attivo e la base già digitalizzata", "forte": true }, { "testo": "Calcolo su ISTAT e Osservatorio Smart AgriFood" }, { "testo": "655.608" } ]
-    ] },
-    { "tipo": "h2", "testo": "Verifica indipendente" },
-    { "tipo": "p", "testo": "Il principale operatore del settore dichiara di supportare 169.000 imprese agricole italiane sulla propria piattaforma. Nell'ambito dell'accordo con la maggiore confederazione agricola, circa 3.000 associati hanno sottoscritto un abbonamento a pagamento. Due strade diverse, portano allo stesso ordine di grandezza." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "169.000", "etichetta": "imprese registrate sulla piattaforma leader" },
-      { "valore": "circa 9%", "etichetta": "quota pagante, confermata da due fonti" }
-    ] },
-    { "tipo": "p", "testo": "Primo avvertimento: in questo mercato il modello gratuito raccoglie volumi molto ampi e converte poco. Il collo di bottiglia non è acquisire utenti, è portarli al pagamento." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "il metodo, con i suoi limiti" },
-    { "tipo": "h1", "testo": "I segmenti a confronto" },
-    { "tipo": "p", "testo": "Quattro bacini con dimensioni, ticket e canali di acquisizione completamente diversi. Trattarli con la stessa campagna è il primo errore da evitare." },
-    { "tipo": "tabella", "colonne": [
-      { "testo": "Segmento", "larghezza": 30 },
-      { "testo": "Bacino", "larghezza": 30 },
-      { "testo": "Ticket", "larghezza": 16 },
-      { "testo": "Canale coerente", "larghezza": 24 }
-    ], "righe": [
-      [ { "testo": "Aziende agricole" }, { "testo": "circa 102.000 paganti" }, { "testo": "Basso" }, { "testo": "Ricerca e contenuto" } ],
-      [ { "testo": "Agronomi e studi" }, { "testo": "da acquisire dagli albi professionali" }, { "testo": "Medio, multi-cliente" }, { "testo": "Ricerca e LinkedIn" } ],
-      [ { "testo": "Organizzazioni di produttori" }, { "testo": "circa 315" }, { "testo": "Alto" }, { "testo": "Contatto diretto" } ],
-      [ { "testo": "Cooperative agricole" }, { "testo": "1.396, associate a una sola centrale" }, { "testo": "Alto" }, { "testo": "Contatto diretto" } ],
-      [ { "testo": "Cantine con etichetta digitale" }, { "testo": "driver normativo autonomo" }, { "testo": "Medio" }, { "testo": "Ricerca stagionale" } ]
-    ] },
-    { "tipo": "p", "testo": "Il numero delle organizzazioni di produttori deriva dall'elenco ministeriale disponibile. Il dato sulle cooperative si riferisce alle sole associate a Legacoop Agroalimentare al 2024 e sottostima l'universo complessivo. Il bacino degli agronomi va acquisito dagli albi professionali.", "piccolo": true },
-    { "tipo": "h2", "testo": "Il limite da dichiarare" },
-    { "tipo": "p", "testo": "Il 42% e il 9% sono rilevazioni campionarie nazionali, non censimenti. Il valore di 102.000 aziende paganti è un ordine di grandezza affidabile, non una misura puntuale. Non esiste in fonti pubbliche una disaggregazione regionale della maturità digitale per classe dimensionale." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "primo dato scomodo" },
-    { "tipo": "h1", "testo": "La domanda digitale è settentrionale" },
-    { "tipo": "p", "testo": "Distribuzione delle aziende agricole informatizzate sul territorio. È il dato che decide da dove si parte, prima ancora di scegliere le parole chiave." },
-    { "tipo": "tabella", "colonne": [
-      { "testo": "Area", "larghezza": 60 },
-      { "testo": "Quota", "larghezza": 24, "destra": true }
-    ], "righe": [
-      [ { "testo": "Nord", "sotto": "di cui Nord-est, 34,8 punti" }, { "testo": "55,8%" } ],
-      [ { "testo": "Mezzogiorno" }, { "testo": "28,1%" } ],
-      [ { "testo": "Centro" }, { "testo": "16,1%" } ]
-    ] },
-    { "tipo": "p", "testo": "Fonte: elaborazione su dati del 7° Censimento generale dell'Agricoltura. Il dato è riferito al censimento 2020 e viene assunto stabile nella ripartizione, non nel valore assoluto.", "piccolo": true },
-    { "tipo": "p", "testo": "Un terzo del mercato digitale italiano è nel Nord-est: è la concentrazione più alta del Paese e va presidiata per prima. Il Mezzogiorno vale quasi il doppio del Centro e resta meno conteso: è un'area dove una presenza radicata produce un vantaggio difendibile, a condizione che la comunicazione sia esplicitamente territoriale." },
-    { "tipo": "h2", "testo": "Cosa comporta per il presidio" },
-    { "tipo": "elenco", "voci": [
-      "Si parte dal Nord-est: è dove la densità di aziende già informatizzate rende più corta la distanza tra ricerca e contratto.",
-      "Il Mezzogiorno si tratta come mercato separato: vale quasi il doppio del Centro ed è meno conteso, ma va aggredito con comunicazione territoriale esplicita, non con la stessa campagna nazionale.",
-      "Il Centro non giustifica un budget dedicato in fase iniziale: entra nella copertura nazionale, non in una campagna propria."
-    ] },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "secondo dato scomodo" },
-    { "tipo": "h1", "testo": "Quanto cerca davvero il mercato" },
-    { "tipo": "p", "testo": "Rilevazione sui motori di ricerca con geotargeting nazionale, agosto 2026. Il dato misura la domanda già formulata: non il potenziale, ma quello che le aziende stanno effettivamente cercando oggi." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "13.430", "etichetta": "ricerche mensili totali sul settore" },
-      { "valore": "960", "etichetta": "ricerche mensili con intento di acquisto" },
-      { "valore": "0,70-2,50 €", "etichetta": "intervallo del costo per clic" }
-    ] },
-    { "tipo": "tabella", "colonne": [
-      { "testo": "Categoria di intento", "larghezza": 46 },
-      { "testo": "Ricerche al mese", "larghezza": 30, "destra": true },
-      { "testo": "Quota", "larghezza": 20, "destra": true }
-    ], "righe": [
-      [ { "testo": "Nomi di operatori concorrenti" }, { "testo": "5.950" }, { "testo": "44,3%" } ],
-      [ { "testo": "Adempimento normativo e burocrazia" }, { "testo": "5.390" }, { "testo": "40,1%" } ],
-      [ { "testo": "Ricerca di una soluzione digitale" }, { "testo": "960" }, { "testo": "7,1%" } ],
-      [ { "testo": "Contesto di settore e incentivi" }, { "testo": "770" }, { "testo": "5,7%" } ],
-      [ { "testo": "Filiera vitivinicola ed etichetta digitale" }, { "testo": "190" }, { "testo": "1,4%" } ],
-      [ { "testo": "Funzioni e moduli specifici" }, { "testo": "170" }, { "testo": "1,3%" } ],
-      [ { "testo": "Totale rilevato", "forte": true }, { "testo": "13.430" }, { "testo": "100%" } ]
-    ] },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "secondo dato scomodo" },
-    { "tipo": "h1", "testo": "Tre segnali che cambiano le priorità" },
-    { "tipo": "h2", "testo": "Il mercato cerca i nomi, non la categoria" },
-    { "tipo": "p", "testo": "Per ogni ricerca generica su un gestionale agricolo ce ne sono trentuno che contengono il nome di un operatore preciso. Chi è consapevole del problema ha già un marchio in testa: la partita non si vince presidiando la categoria, si vince intercettando la domanda prima che si trasformi in un nome." },
-    { "tipo": "h2", "testo": "La domanda è burocratica, non commerciale" },
-    { "tipo": "p", "testo": "Il 40% del volume riguarda come si compila un adempimento, non quale strumento acquistare. Le formulazioni più cercate chiedono il modulo, l'esempio, il fac-simile. È domanda calda su un bisogno reale, ma espressa in un momento che precede di mesi la valutazione d'acquisto." },
-    { "tipo": "h2", "testo": "La conversazione si sposta, ma i volumi restano minimi" },
-    { "tipo": "p", "testo": "Le formulazioni tradizionali calano su base annua fino al 46%, mentre quelle legate all'obbligo digitale crescono a tre cifre e usano termini che un anno fa non esistevano. La transizione è cominciata, ma parliamo di circa 900 ricerche al mese contro 655.000 aziende che devono adeguarsi." },
-    { "tipo": "h2", "testo": "Domanda e mercato a confronto" },
-    { "tipo": "p", "testo": "Incrociando il volume di ricerca con il bacino da digitalizzare si ottiene la base dello studio di fattibilità: quanta domanda espressa esiste per ogni azienda che dovrà adottare uno strumento." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "11.520", "etichetta": "ricerche con intento di acquisto in un anno" },
-      { "valore": "655.608", "etichetta": "aziende da convertire al digitale" },
-      { "valore": "1 a 57", "etichetta": "rapporto tra domanda e bacino" },
-      { "valore": "44%", "etichetta": "del volume già intestato a un concorrente" }
-    ] },
-    { "tipo": "p", "testo": "La domanda esiste, ma non è ancora espressa. L'obbligo c'è, la scadenza c'è, il bisogno è reale. Le aziende però non stanno cercando la soluzione: stanno cercando l'adempimento. È una differenza che cambia l'ordine delle priorità di investimento." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "il tetto" },
-    { "tipo": "h1", "testo": "Il volume sostenibile di acquisizione" },
-    { "tipo": "p", "testo": "Applicando alla domanda rilevata tassi di intercettazione prudenti e un tasso di conversione della pagina di destinazione del 10%, si ottiene il tetto realistico del canale di ricerca." },
-    { "tipo": "tabella", "colonne": [
-      { "testo": "Fonte di traffico", "larghezza": 34 },
-      { "testo": "Ricerche al mese", "larghezza": 18, "destra": true },
-      { "testo": "Quota catturata", "larghezza": 16, "destra": true },
-      { "testo": "Contatti al mese", "larghezza": 16, "destra": true },
-      { "testo": "Budget stimato", "larghezza": 16, "destra": true }
-    ], "righe": [
-      [ { "testo": "Domanda di soluzione" }, { "testo": "960" }, { "testo": "25%" }, { "testo": "circa 24" }, { "testo": "290 €" } ],
-      [ { "testo": "Domanda intestata ai concorrenti" }, { "testo": "5.950" }, { "testo": "10%" }, { "testo": "circa 13" }, { "testo": "660 €" } ],
-      [ { "testo": "Totale canale di ricerca", "forte": true }, { "testo": "6.910" }, { "testo": "-" }, { "testo": "da 35 a 40" }, { "testo": "circa 1.000 €" } ]
-    ] },
-    { "tipo": "p", "testo": "Costo per contatto risultante compreso tra 12 e 25 euro, in funzione della categoria. Il presidio della domanda intestata ai concorrenti è consentito in fase di offerta, ma il nome del marchio non può comparire nel testo dell'annuncio né nella pagina di destinazione.", "piccolo": true },
-    { "tipo": "h2", "testo": "Il vincolo vero è il volume, non il costo" },
-    { "tipo": "p", "testo": "Il costo per clic è basso, e i conti dell'acquisizione tornano. Quello che non cresce con il budget è la quantità di domanda disponibile: oltre questa soglia, più budget non produce più contatti, perché le ricerche in più non esistono." },
-    { "tipo": "h2", "testo": "Tre parametri da confermare insieme" },
-    { "tipo": "p", "testo": "Con questi tre dati il modello si chiude e diventa un obiettivo, non una stima:" },
-    { "tipo": "elenco", "voci": [
-      "Valore medio effettivo per cliente e peso dei moduli aggiuntivi.",
-      "Tasso di conversione dal piano gratuito a quello a pagamento.",
-      "Tasso di chiusura commerciale sui contatti già in ingresso."
-    ] },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "la leva vera" },
-    { "tipo": "h1", "testo": "Non è un mercato stagionale, è a scadenza" },
-    { "tipo": "p", "testo": "Il regolamento europeo impone che i registri per l'uso dei prodotti fitosanitari siano convertiti in formato elettronico entro il 31 dicembre 2026, con obbligatorietà piena dal 1 gennaio 2027. Il decreto attuativo nazionale ha completato il proprio iter a fine 2025." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "31.12.2026", "etichetta": "termine per la conversione dei registri" },
-      { "valore": "01.01.2027", "etichetta": "obbligatorietà piena" },
-      { "valore": "5 mesi", "etichetta": "tempo residuo alla data di rilevazione" }
-    ] },
-    { "tipo": "h2", "testo": "Quando conviene partire" },
-    { "tipo": "p", "testo": "La rilevazione di agosto mostra tutti gli indicatori in forte calo sul trimestre: è il minimo stagionale, agricolo e burocratico insieme. La curva risale in autunno e culmina in primavera con le scadenze di domanda unica. Sovrapposta al termine di dicembre, la finestra di massima urgenza si apre in ottobre. Una fase di prova avviata a settembre arriva a regime esattamente dentro quella finestra." },
-    { "tipo": "h2", "testo": "La differenza rispetto a un mercato ciclico" },
-    { "tipo": "p", "testo": "La stagionalità torna ogni anno e permette di sbagliare la partenza senza conseguenze definitive. Una scadenza normativa si apre una volta sola: il bacino di 655.000 aziende viene assorbito nei diciotto mesi attorno al termine, e chi arriva dopo trova un mercato già scelto." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "fonti e limiti" },
-    { "tipo": "h1", "testo": "Ogni numero risale a una fonte" },
-    { "tipo": "h2", "testo": "Fonti utilizzate" },
-    { "tipo": "p", "testo": "ISTAT, 7° Censimento generale dell'Agricoltura e focus 2023 sulle strutture agricole: aziende attive, superficie, informatizzazione per ripartizione territoriale e classe dimensionale.", "piccolo": true },
-    { "tipo": "p", "testo": "Osservatorio Smart AgriFood, Politecnico di Milano e Università degli Studi di Brescia, edizione 2025: valore del mercato, tassi di adozione e maturità digitale.", "piccolo": true },
-    { "tipo": "p", "testo": "Regolamento di esecuzione (UE) 2025/2203 e decreto attuativo del Ministero dell'Agricoltura: termini della conversione al registro elettronico.", "piccolo": true },
-    { "tipo": "p", "testo": "Elenco ministeriale delle organizzazioni di produttori riconosciute e dati associativi delle centrali cooperative.", "piccolo": true },
-    { "tipo": "p", "testo": "Rilevazione diretta sulla domanda di ricerca con geotargeting nazionale, agosto 2026.", "piccolo": true },
-    { "tipo": "h2", "testo": "Limiti dichiarati" },
-    { "tipo": "p", "testo": "I tassi di adozione e maturità digitale sono rilevazioni campionarie nazionali, non censimenti: il bacino pagante è un ordine di grandezza.", "piccolo": true },
-    { "tipo": "p", "testo": "Non esiste in fonti pubbliche una disaggregazione regionale della maturità digitale per classe dimensionale.", "piccolo": true },
-    { "tipo": "p", "testo": "Il dato sull'informatizzazione territoriale è riferito al censimento 2020 e viene assunto stabile nella ripartizione, non nel valore assoluto.", "piccolo": true },
-    { "tipo": "p", "testo": "Il numero delle cooperative copre le sole associate a una centrale e sottostima l'universo.", "piccolo": true },
-    { "tipo": "p", "testo": "La rilevazione della domanda cade nel minimo stagionale: i valori annui medi sono verosimilmente superiori.", "piccolo": true },
-    { "tipo": "p", "testo": "I parametri economici del cliente, cioè valore medio, conversione dal piano gratuito e chiusura commerciale, non sono ancora disponibili e restano esclusi dal modello.", "piccolo": true },
-    { "tipo": "p", "testo": "Nessuna stima è stata introdotta senza dichiararne il metodo. Tutti i valori derivati sono ricalcolabili a partire dai dati di input riportati in questo documento." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "la proposta" },
-    { "tipo": "h1", "testo": "La domanda c'è, non è ancora formulata" },
-    { "tipo": "p", "testo": "Quello che questo studio dice in una riga: il bacino è enorme, la domanda espressa è piccola, e la finestra si apre in ottobre." },
-    { "tipo": "p", "testo": "Per chiudere il modello e trasformarlo in un obiettivo ti servono tre dati che stanno solo dentro Agriverse: valore medio effettivo per cliente, conversione dal piano gratuito a quello a pagamento, chiusura commerciale sui contatti già in ingresso." },
-    { "tipo": "p", "testo": "Con quei tre numeri passiamo dalla stima al piano, con budget, tempi e soglia di rinuncia definiti prima di spendere il primo euro." },
-    { "tipo": "p", "testo": "Dramane Yigo e Lorenzo Fornasier, Studio Galilei, studiogalilei.com", "piccolo": true },
-    { "tipo": "p", "testo": "Documento riservato al destinatario.", "piccolo": true }
+    {
+      "tipo": "kicker",
+      "testo": "il premio"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Il bacino da digitalizzare"
+    },
+    {
+      "tipo": "p",
+      "testo": "Dati dal 2023 al 2026. Rilevazione di agosto 2026.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "655.000 aziende agricole italiane oggi non usano alcuno strumento digitale, e dovranno dotarsene per effetto dell'obbligo di registro elettronico."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "655.608",
+          "etichetta": "aziende senza digitale"
+        },
+        {
+          "valore": "101.732",
+          "etichetta": "aziende che oggi pagano"
+        },
+        {
+          "valore": "31/12/2026",
+          "etichetta": "per il registro elettronico"
+        }
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "Il bacino è enorme, la consapevolezza è minima. Un terzo delle aziende agricole dichiara di non conoscere le soluzioni digitali disponibili. La leva competitiva non sta nel confronto funzionale con gli altri gestionali: sta nell'arrivare per primi davanti a chi cerca come si fa, non quale software comprare."
+    },
+    {
+      "tipo": "h2",
+      "testo": "Tre letture del mercato"
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Il 42% delle aziende usa almeno una soluzione smart, solo il 9% è digitalmente maturo. Il divario tra chi prova e chi paga è il mercato reale su cui si compete.",
+        "Il mercato dell'agricoltura 4.0 vale 2,5 miliardi di euro nel 2025, in crescita del 9%. La componente che cresce di più è quella dei software gestionali, con un +17%, seguita dai sistemi di supporto alle decisioni, a +26%.",
+        "La digitalizzazione riguarda il 78,2% delle grandi aziende contro l'8,8% delle piccole. Il milione di micro-aziende è un bacino statistico: il mercato commerciale coincide con le aziende strutturate."
+      ]
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "il metodo, con i suoi limiti"
+    },
+    {
+      "tipo": "h1",
+      "testo": "La catena di calcolo"
+    },
+    {
+      "tipo": "p",
+      "testo": "Quattro passaggi, ognuno con la sua fonte. Tutti i valori derivati sono ricalcolabili dai dati di input riportati in questo documento."
+    },
+    {
+      "tipo": "tabella",
+      "colonne": [
+        {
+          "testo": "Passaggio",
+          "larghezza": 44
+        },
+        {
+          "testo": "Fonte",
+          "larghezza": 36
+        },
+        {
+          "testo": "Aziende",
+          "larghezza": 20,
+          "destra": true
+        }
+      ],
+      "righe": [
+        [
+          {
+            "testo": "Aziende agricole attive in Italia",
+            "forte": true
+          },
+          {
+            "testo": "ISTAT, focus 2023 sulle strutture agricole"
+          },
+          {
+            "testo": "1.130.358"
+          }
+        ],
+        [
+          {
+            "testo": "Con almeno una soluzione digitale",
+            "sotto": "42% del totale attivo",
+            "forte": true
+          },
+          {
+            "testo": "Osservatorio Smart AgriFood, Politecnico di Milano e Università di Brescia, edizione 2025"
+          },
+          {
+            "testo": "474.750"
+          }
+        ],
+        [
+          {
+            "testo": "Digitalmente mature",
+            "sotto": "9% del totale, la base che rinnova un abbonamento a pagamento",
+            "forte": true
+          },
+          {
+            "testo": "Stesso osservatorio"
+          },
+          {
+            "testo": "101.732"
+          }
+        ],
+        [
+          {
+            "testo": "Senza alcuno strumento digitale",
+            "sotto": "differenza tra il totale attivo e la base già digitalizzata",
+            "forte": true
+          },
+          {
+            "testo": "Calcolo su ISTAT e Osservatorio Smart AgriFood"
+          },
+          {
+            "testo": "655.608"
+          }
+        ]
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Verifica indipendente"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il principale operatore del settore dichiara di supportare 169.000 imprese agricole italiane sulla propria piattaforma. Nell'ambito dell'accordo con la maggiore confederazione agricola, circa 3.000 associati hanno sottoscritto un abbonamento a pagamento. Due strade diverse, portano allo stesso ordine di grandezza."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "169.000",
+          "etichetta": "imprese sulla piattaforma più grande"
+        },
+        {
+          "valore": "circa 9%",
+          "etichetta": "quota pagante, da due fonti"
+        }
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "Primo avvertimento: in questo mercato il modello gratuito raccoglie volumi molto ampi e converte poco. Il collo di bottiglia non è acquisire utenti, è portarli al pagamento."
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "il metodo, con i suoi limiti"
+    },
+    {
+      "tipo": "h1",
+      "testo": "I segmenti a confronto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Quattro bacini con dimensioni, ticket e canali di acquisizione completamente diversi. Trattarli con la stessa campagna è il primo errore da evitare."
+    },
+    {
+      "tipo": "tabella",
+      "colonne": [
+        {
+          "testo": "Segmento",
+          "larghezza": 30
+        },
+        {
+          "testo": "Bacino",
+          "larghezza": 30
+        },
+        {
+          "testo": "Ticket",
+          "larghezza": 16
+        },
+        {
+          "testo": "Canale coerente",
+          "larghezza": 24
+        }
+      ],
+      "righe": [
+        [
+          {
+            "testo": "Aziende agricole"
+          },
+          {
+            "testo": "circa 102.000 paganti"
+          },
+          {
+            "testo": "Basso"
+          },
+          {
+            "testo": "Ricerca e contenuto"
+          }
+        ],
+        [
+          {
+            "testo": "Agronomi e studi"
+          },
+          {
+            "testo": "da acquisire dagli albi professionali"
+          },
+          {
+            "testo": "Medio, multi-cliente"
+          },
+          {
+            "testo": "Ricerca e LinkedIn"
+          }
+        ],
+        [
+          {
+            "testo": "Organizzazioni di produttori"
+          },
+          {
+            "testo": "circa 315"
+          },
+          {
+            "testo": "Alto"
+          },
+          {
+            "testo": "Contatto diretto"
+          }
+        ],
+        [
+          {
+            "testo": "Cooperative agricole"
+          },
+          {
+            "testo": "1.396, associate a una sola centrale"
+          },
+          {
+            "testo": "Alto"
+          },
+          {
+            "testo": "Contatto diretto"
+          }
+        ],
+        [
+          {
+            "testo": "Cantine con etichetta digitale"
+          },
+          {
+            "testo": "driver normativo autonomo"
+          },
+          {
+            "testo": "Medio"
+          },
+          {
+            "testo": "Ricerca stagionale"
+          }
+        ]
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "Il numero delle organizzazioni di produttori deriva dall'elenco ministeriale disponibile. Il dato sulle cooperative si riferisce alle sole associate a Legacoop Agroalimentare al 2024 e sottostima l'universo complessivo. Il bacino degli agronomi va acquisito dagli albi professionali.",
+      "piccolo": true
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il limite da dichiarare"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il 42% e il 9% sono rilevazioni campionarie nazionali, non censimenti. Il valore di 102.000 aziende paganti è un ordine di grandezza affidabile, non una misura puntuale. Non esiste in fonti pubbliche una disaggregazione regionale della maturità digitale per classe dimensionale."
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "primo dato scomodo"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Dove sta la domanda digitale"
+    },
+    {
+      "tipo": "p",
+      "testo": "Distribuzione delle aziende agricole informatizzate sul territorio. È il dato che decide da dove si parte, prima ancora di scegliere le parole chiave."
+    },
+    {
+      "tipo": "tabella",
+      "colonne": [
+        {
+          "testo": "Area",
+          "larghezza": 60
+        },
+        {
+          "testo": "Quota",
+          "larghezza": 24,
+          "destra": true
+        }
+      ],
+      "righe": [
+        [
+          {
+            "testo": "Nord",
+            "sotto": "di cui Nord-est, 34,8 punti"
+          },
+          {
+            "testo": "55,8%"
+          }
+        ],
+        [
+          {
+            "testo": "Mezzogiorno"
+          },
+          {
+            "testo": "28,1%"
+          }
+        ],
+        [
+          {
+            "testo": "Centro"
+          },
+          {
+            "testo": "16,1%"
+          }
+        ]
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "Fonte: elaborazione su dati del 7° Censimento generale dell'Agricoltura. Il dato è riferito al censimento 2020 e viene assunto stabile nella ripartizione, non nel valore assoluto.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Un terzo del mercato digitale italiano è nel Nord-est: è la concentrazione più alta del Paese e va presidiata per prima. Il Mezzogiorno vale quasi il doppio del Centro e resta meno conteso: è un'area dove una presenza radicata produce un vantaggio difendibile, a condizione che la comunicazione sia esplicitamente territoriale."
+    },
+    {
+      "tipo": "h2",
+      "testo": "Cosa comporta per il presidio"
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Si parte dal Nord-est: è dove la densità di aziende già informatizzate rende più corta la distanza tra ricerca e contratto.",
+        "Il Mezzogiorno si tratta come mercato separato: vale quasi il doppio del Centro ed è meno conteso, ma va aggredito con comunicazione territoriale esplicita, non con la stessa campagna nazionale.",
+        "Il Centro non giustifica un budget dedicato in fase iniziale: entra nella copertura nazionale, non in una campagna propria."
+      ]
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "secondo dato scomodo"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Quanto cerca il mercato"
+    },
+    {
+      "tipo": "p",
+      "testo": "Rilevazione sui motori di ricerca con geotargeting nazionale, agosto 2026. Il dato misura la domanda già formulata: non il potenziale, ma quello che le aziende stanno effettivamente cercando oggi. Il costo per clic rilevato sta tra 0,70 e 2,50 euro, secondo la categoria."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "13.430",
+          "etichetta": "ricerche al mese, totale"
+        },
+        {
+          "valore": "960",
+          "etichetta": "di cui con intento di acquisto"
+        }
+      ]
+    },
+    {
+      "tipo": "tabella",
+      "colonne": [
+        {
+          "testo": "Categoria di intento",
+          "larghezza": 46
+        },
+        {
+          "testo": "Ricerche al mese",
+          "larghezza": 30,
+          "destra": true
+        },
+        {
+          "testo": "Quota",
+          "larghezza": 20,
+          "destra": true
+        }
+      ],
+      "righe": [
+        [
+          {
+            "testo": "Nomi di operatori concorrenti"
+          },
+          {
+            "testo": "5.950"
+          },
+          {
+            "testo": "44,3%"
+          }
+        ],
+        [
+          {
+            "testo": "Adempimento normativo e burocrazia"
+          },
+          {
+            "testo": "5.390"
+          },
+          {
+            "testo": "40,1%"
+          }
+        ],
+        [
+          {
+            "testo": "Ricerca di una soluzione digitale"
+          },
+          {
+            "testo": "960"
+          },
+          {
+            "testo": "7,1%"
+          }
+        ],
+        [
+          {
+            "testo": "Contesto di settore e incentivi"
+          },
+          {
+            "testo": "770"
+          },
+          {
+            "testo": "5,7%"
+          }
+        ],
+        [
+          {
+            "testo": "Filiera vitivinicola ed etichetta digitale"
+          },
+          {
+            "testo": "190"
+          },
+          {
+            "testo": "1,4%"
+          }
+        ],
+        [
+          {
+            "testo": "Funzioni e moduli specifici"
+          },
+          {
+            "testo": "170"
+          },
+          {
+            "testo": "1,3%"
+          }
+        ],
+        [
+          {
+            "testo": "Totale rilevato",
+            "forte": true
+          },
+          {
+            "testo": "13.430"
+          },
+          {
+            "testo": "100%"
+          }
+        ]
+      ]
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "secondo dato scomodo"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Tre segnali che cambiano le priorità"
+    },
+    {
+      "tipo": "h2",
+      "testo": "Le ricerche vanno ai nomi dei concorrenti"
+    },
+    {
+      "tipo": "p",
+      "testo": "Per ogni ricerca generica su un gestionale agricolo ce ne sono trentuno che contengono il nome di un operatore preciso. Chi è consapevole del problema ha già un marchio in testa: la partita non si vince presidiando la categoria, si vince intercettando la domanda prima che si trasformi in un nome."
+    },
+    {
+      "tipo": "h2",
+      "testo": "La domanda è burocratica"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il 40% del volume riguarda come si compila un adempimento, non quale strumento acquistare. Le formulazioni più cercate chiedono il modulo, l'esempio, il fac-simile. È domanda calda su un bisogno reale, ma espressa in un momento che precede di mesi la valutazione d'acquisto."
+    },
+    {
+      "tipo": "h2",
+      "testo": "I volumi restano minimi"
+    },
+    {
+      "tipo": "p",
+      "testo": "Le formulazioni tradizionali calano su base annua fino al 46%, mentre quelle legate all'obbligo digitale crescono a tre cifre e usano termini che un anno fa non esistevano. La transizione è cominciata, ma parliamo di circa 900 ricerche al mese contro 655.000 aziende che devono adeguarsi."
+    },
+    {
+      "tipo": "h2",
+      "testo": "Domanda e mercato a confronto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Incrociando il volume di ricerca con il bacino da digitalizzare si ottiene la base dello studio di fattibilità: quanta domanda espressa esiste per ogni azienda che dovrà adottare uno strumento."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "11.520",
+          "etichetta": "ricerche annue con intento"
+        },
+        {
+          "valore": "655.608",
+          "etichetta": "aziende da convertire"
+        },
+        {
+          "valore": "1 a 57",
+          "etichetta": "domanda su bacino"
+        },
+        {
+          "valore": "44%",
+          "etichetta": "volume intestato ai concorrenti"
+        }
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "La domanda esiste, ma non è ancora espressa. L'obbligo c'è, la scadenza c'è, il bisogno è reale. Le aziende però non stanno cercando la soluzione: stanno cercando l'adempimento. È una differenza che cambia l'ordine delle priorità di investimento."
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "il tetto"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Il volume sostenibile di acquisizione"
+    },
+    {
+      "tipo": "p",
+      "testo": "Applicando alla domanda rilevata tassi di intercettazione prudenti e un tasso di conversione della pagina di destinazione del 10%, si ottiene il tetto realistico del canale di ricerca."
+    },
+    {
+      "tipo": "tabella",
+      "colonne": [
+        {
+          "testo": "Fonte di traffico",
+          "larghezza": 36
+        },
+        {
+          "testo": "Ricerche",
+          "larghezza": 16,
+          "destra": true
+        },
+        {
+          "testo": "Cattura",
+          "larghezza": 15,
+          "destra": true
+        },
+        {
+          "testo": "Contatti",
+          "larghezza": 16,
+          "destra": true
+        },
+        {
+          "testo": "Budget",
+          "larghezza": 17,
+          "destra": true
+        }
+      ],
+      "righe": [
+        [
+          {
+            "testo": "Domanda di soluzione"
+          },
+          {
+            "testo": "960"
+          },
+          {
+            "testo": "25%"
+          },
+          {
+            "testo": "circa 24"
+          },
+          {
+            "testo": "290 €"
+          }
+        ],
+        [
+          {
+            "testo": "Domanda intestata ai concorrenti"
+          },
+          {
+            "testo": "5.950"
+          },
+          {
+            "testo": "10%"
+          },
+          {
+            "testo": "circa 13"
+          },
+          {
+            "testo": "660 €"
+          }
+        ],
+        [
+          {
+            "testo": "Totale canale di ricerca",
+            "forte": true
+          },
+          {
+            "testo": "6.910"
+          },
+          {
+            "testo": "-"
+          },
+          {
+            "testo": "da 35 a 40"
+          },
+          {
+            "testo": "circa 1.000 €"
+          }
+        ]
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "Costo per contatto risultante compreso tra 12 e 25 euro, in funzione della categoria. Il presidio della domanda intestata ai concorrenti è consentito in fase di offerta, ma il nome del marchio non può comparire nel testo dell'annuncio né nella pagina di destinazione.",
+      "piccolo": true
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il vincolo è il volume"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il costo per clic è basso, e i conti dell'acquisizione tornano. Quello che non cresce con il budget è la quantità di domanda disponibile: oltre questa soglia, più budget non produce più contatti, perché le ricerche in più non esistono."
+    },
+    {
+      "tipo": "h2",
+      "testo": "Tre parametri da confermare insieme"
+    },
+    {
+      "tipo": "p",
+      "testo": "Con questi tre dati il modello si chiude e diventa un obiettivo, non una stima:"
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Valore medio effettivo per cliente e peso dei moduli aggiuntivi.",
+        "Tasso di conversione dal piano gratuito a quello a pagamento.",
+        "Tasso di chiusura commerciale sui contatti già in ingresso."
+      ]
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "la leva vera"
+    },
+    {
+      "tipo": "h1",
+      "testo": "La scadenza normativa"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il regolamento europeo impone che i registri per l'uso dei prodotti fitosanitari siano convertiti in formato elettronico entro il 31 dicembre 2026, con obbligatorietà piena dal 1 gennaio 2027. Il decreto attuativo nazionale ha completato il proprio iter a fine 2025."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "31/12/2026",
+          "etichetta": "conversione dei registri"
+        },
+        {
+          "valore": "01/01/2027",
+          "etichetta": "obbligo pieno"
+        },
+        {
+          "valore": "5 mesi",
+          "etichetta": "alla data di rilevazione"
+        }
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Quando conviene partire"
+    },
+    {
+      "tipo": "p",
+      "testo": "La rilevazione di agosto mostra tutti gli indicatori in forte calo sul trimestre: è il minimo stagionale, agricolo e burocratico insieme. La curva risale in autunno e culmina in primavera con le scadenze di domanda unica. Sovrapposta al termine di dicembre, la finestra di massima urgenza si apre in ottobre. Una fase di prova avviata a settembre arriva a regime esattamente dentro quella finestra."
+    },
+    {
+      "tipo": "h2",
+      "testo": "La differenza da un mercato ciclico"
+    },
+    {
+      "tipo": "p",
+      "testo": "La stagionalità torna ogni anno e permette di sbagliare la partenza senza conseguenze definitive. Una scadenza normativa si apre una volta sola: il bacino di 655.000 aziende viene assorbito nei 18 mesi attorno al termine, e chi arriva dopo trova un mercato già scelto."
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "fonti e limiti"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Da dove vengono i numeri"
+    },
+    {
+      "tipo": "h2",
+      "testo": "Fonti utilizzate"
+    },
+    {
+      "tipo": "p",
+      "testo": "ISTAT, 7° Censimento generale dell'Agricoltura e focus 2023 sulle strutture agricole: aziende attive, superficie, informatizzazione per ripartizione territoriale e classe dimensionale.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Osservatorio Smart AgriFood, Politecnico di Milano e Università degli Studi di Brescia, edizione 2025: valore del mercato, tassi di adozione e maturità digitale.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Regolamento di esecuzione (UE) 2025/2203 e decreto attuativo del Ministero dell'Agricoltura: termini della conversione al registro elettronico.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Elenco ministeriale delle organizzazioni di produttori riconosciute e dati associativi delle centrali cooperative.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Rilevazione diretta sulla domanda di ricerca con geotargeting nazionale, agosto 2026.",
+      "piccolo": true
+    },
+    {
+      "tipo": "h2",
+      "testo": "Limiti dichiarati"
+    },
+    {
+      "tipo": "p",
+      "testo": "I tassi di adozione e maturità digitale sono rilevazioni campionarie nazionali, non censimenti: il bacino pagante è un ordine di grandezza.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Non esiste in fonti pubbliche una disaggregazione regionale della maturità digitale per classe dimensionale.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Il dato sull'informatizzazione territoriale è riferito al censimento 2020 e viene assunto stabile nella ripartizione, non nel valore assoluto.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Il numero delle cooperative copre le sole associate a una centrale e sottostima l'universo.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "La rilevazione della domanda cade nel minimo stagionale: i valori annui medi sono verosimilmente superiori.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "I parametri economici del cliente, cioè valore medio, conversione dal piano gratuito e chiusura commerciale, non sono ancora disponibili e restano esclusi dal modello.",
+      "piccolo": true
+    },
+    {
+      "tipo": "p",
+      "testo": "Nessuna stima è stata introdotta senza dichiararne il metodo. Tutti i valori derivati sono ricalcolabili a partire dai dati di input riportati in questo documento."
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "la proposta"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Cosa serve per chiudere il modello"
+    },
+    {
+      "tipo": "p",
+      "testo": "Quello che questo studio dice in una riga: il bacino è enorme, la domanda espressa è piccola, e la finestra si apre in ottobre."
+    },
+    {
+      "tipo": "p",
+      "testo": "Per trasformare la stima in un obiettivo servono tre dati che stanno solo dentro Agriverse."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 3
+    },
+    {
+      "tipo": "riquadro",
+      "titolo": "I TRE DATI CHE MANCANO",
+      "voci": [
+        "Valore medio effettivo per cliente, con il peso dei moduli aggiuntivi.",
+        "Conversione dal piano gratuito a quello a pagamento.",
+        "Chiusura commerciale sui contatti già in ingresso."
+      ]
+    },
+    {
+      "tipo": "spazio",
+      "mm": 3
+    },
+    {
+      "tipo": "p",
+      "testo": "Con quei tre numeri passiamo dalla stima al piano, con budget, tempi e soglia di rinuncia definiti prima di spendere il primo euro."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 4
+    },
+    {
+      "tipo": "anagrafica",
+      "colonne": [
+        {
+          "titolo": "EMAIL",
+          "righe": [
+            "dramane@studiogalilei.com",
+            "lorenzo@studiogalilei.com"
+          ]
+        },
+        {
+          "titolo": "TELEFONO",
+          "righe": [
+            "+39 371 11 69430"
+          ]
+        },
+        {
+          "titolo": "SITO",
+          "righe": [
+            "studiogalilei.com"
+          ]
+        }
+      ]
+    },
+    {
+      "tipo": "spazio",
+      "mm": 3
+    },
+    {
+      "tipo": "p",
+      "piccolo": true,
+      "testo": "Dramane Yigo e Lorenzo Fornasier, Studio Galilei. Documento riservato al destinatario."
+    }
   ],
   "piede": "settembre 2026"
 }

@@ -9,87 +9,394 @@
     "data": "settembre 2026"
   },
   "blocchi": [
-    { "tipo": "kicker", "testo": "casi studio" },
-    { "tipo": "h2", "testo": "Tre casi, un metodo" },
-    { "tipo": "p", "testo": "Un franchising che doveva riempire l'agenda in tutta Italia. Un e-commerce da rimettere in crescita nei due mesi che contano di più. Un tour operator che aveva bisogno di vedere la propria giornata in un posto solo. Tre lavori diversi, con lo stesso modo di lavorare: partire dai dati che il cliente ha già, capire dove si perde valore, costruire la cosa più piccola che risolve il problema." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "caso studio 01, acquisizione clienti, franchising tattoo" },
-    { "tipo": "h1", "testo": "Dän Ink, appuntamenti fisici in tutta Italia per il franchising di tatuaggi" },
-    { "tipo": "p", "testo": "Il caso più recente sull'acquisizione clienti per il franchising Dän Ink di Steven Basalari. Quello che è cambiato in quarantacinque giorni di lavoro." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "-20%", "etichetta": "costi di acquisizione" },
-      { "valore": "+56%", "etichetta": "lead generati" },
-      { "valore": "8", "etichetta": "store attivi in Italia" }
-    ] },
-
-    { "tipo": "h2", "testo": "Il contesto" },
-    { "tipo": "p", "testo": "Dän Ink è un franchising di tatuaggi in rapida espansione, con otto store attivi in Italia: oggi è la realtà più rilevante a livello nazionale nel settore. Dietro la crescita c'è un modello che regge, una qualità di servizio costante e la capacità di attrarre un pubblico ogni anno più ampio." },
-    { "tipo": "p", "testo": "Il network ci ha chiesto di riempire le agende degli store con appuntamenti fisici, in città diverse, mantenendo il controllo sul costo di acquisizione: contatti distribuiti su otto sedi, progetti di valore e non curiosi, spesa pubblicitaria sotto controllo." },
-    { "tipo": "p", "testo": "La gestione precedente aveva tre problemi. Il target: parametri troppo generici e dispersivi, la campagna parlava a tutti e quindi a nessuno. Le impostazioni: un setting tecnico da rifare e un budget distribuito senza uno studio dietro. L'analisi: superficiale dove c'era, assente dove serviva di più." },
-
-    { "tipo": "h2", "testo": "Il lavoro svolto" },
-    { "tipo": "p", "testo": "Prima di cambiare una sola impostazione abbiamo studiato chi compra e perché: è la parte che non si vede nei report ma che decide il risultato. Abbiamo mappato bisogni, problemi, leve emotive e razionali, intenzioni di ricerca. Abbiamo individuato cosa ferma una persona prima di prenotare, per correggere comunicazione e posizionamento. Abbiamo integrato i dati demografici e gli insight qualitativi e quantitativi già presenti in azienda. Da questo lavoro sono usciti gli spunti per contenuti, sequenze e proposte personalizzate." },
-    { "tipo": "p", "testo": "Abbiamo poi seguito ogni contatto per stato di avanzamento, per vedere dove il funnel perde: quanti prenotano una consulenza, quanti si perdono, quanti vanno risentiti e quanti non rispondono mai. È il dato che permette di correggere la campagna sulla qualità e non solo sul volume." },
-
-    { "tipo": "h2", "testo": "I risultati" },
-    { "tipo": "p", "testo": "Nel periodo abbiamo risparmiato diverse migliaia di euro di spesa pubblicitaria. Il costo per lead medio è sceso di oltre il 36% nel primo mese. La qualità dei contatti è migliorata insieme al tasso di conversione in appuntamento: il 70% dei progetti classificabili è di media o grande entità, calcolato solo sui contatti in cui il progetto era classificabile come grande o piccolo." },
-    { "tipo": "p", "piccolo": true, "testo": "«Dan Ink e Christopher Dän: il franchising che in poco più di un anno si impone come leader nazionale nel settore tattoo». Il Tempo, quotidiano indipendente, da un articolo su Dän Ink pubblicato su Iltempo.it." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "caso studio 02, e-commerce, tecnologia" },
-    { "tipo": "h1", "testo": "Onlysolutions, 687.546 euro di vendite online in quarantacinque giorni" },
-    { "tipo": "p", "testo": "Come abbiamo riportato in crescita un e-commerce di tecnologia nei due mesi di picco della domanda, spendendo meno in pubblicità e aumentando il profitto. Periodo analizzato: dal primo novembre al 15 dicembre 2024." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "687.546 €", "etichetta": "fatturato negozio" },
-      { "valore": "2.145", "etichetta": "ordini" },
-      { "valore": "26,2x", "etichetta": "ROAS complessivo" }
-    ] },
-
-    { "tipo": "h2", "testo": "Il contesto" },
-    { "tipo": "p", "testo": "Onlysolutions è un e-commerce nato nel 2021 da Sandra e Fabrizio. All'inizio vendeva tecnologia in tutta Italia, poi il catalogo si è ampliato e le vendite si sono estese a Europa e Stati Uniti." },
-    { "tipo": "p", "testo": "Studio Galilei è entrato nel progetto nel 2024, in un momento di fatturato in calo, spese pubblicitarie alte e alcuni problemi tecnici sul negozio. L'obiettivo era riportare Onlysolutions in crescita e prepararlo a novembre e dicembre, i mesi in cui la domanda dei suoi prodotti è più alta, per chiudere il periodo con il massimo profitto possibile." },
-
-    { "tipo": "h2", "testo": "Il lavoro svolto" },
-    { "tipo": "p", "testo": "Abbiamo ridisegnato la comunicazione visiva sui social. Poi abbiamo analizzato la strategia pubblicitaria in corso e i suoi risultati, e ne abbiamo costruita una nuova: stessa direzione, meno spesa, più ritorno." },
-    { "tipo": "p", "testo": "Subito dopo siamo intervenuti sul sito e sui sistemi collegati: individuati e risolti diversi problemi tecnici, introdotte alcune migliorie." },
-    { "tipo": "p", "testo": "Con ogni piattaforma sistemata, abbiamo testato campagne e impostazioni fino a trovare la combinazione che ha portato ai risultati di questo caso." },
-
-    { "tipo": "h2", "testo": "I risultati" },
-    { "tipo": "p", "testo": "Dal primo novembre al 15 dicembre 2024 il negozio ha fatturato 687.545,50 euro, con una spesa pubblicitaria di 26.194,16 euro e 2.145 ordini. Il valore medio ordine è stato di 320,53 euro, il costo pubblicitario per ordine di 12,21 euro, il ROAS complessivo di 26,2 volte la spesa." },
-    { "tipo": "p", "piccolo": true, "testo": "Come si leggono i dati: il valore medio per ordine è il fatturato diviso gli ordini. Il costo pubblicitario per ordine è la spesa pubblicitaria divisa gli ordini. Il ROAS complessivo è il fatturato totale del negozio diviso la spesa pubblicitaria totale nel periodo. Tutti i numeri sono rilevati dalle dashboard Shopify e Google Ads del cliente." },
-    { "tipo": "p", "testo": "Google Ads ha assorbito circa il 70% del budget pubblicitario ed è stato il canale che ha guidato il periodo: 18.300,59 euro di spesa, 66.453 clic, un CPC medio di 0,28 euro e un costo per conversione di 3,93 euro." },
-    { "tipo": "p", "piccolo": true, "testo": "I numeri di questa pagina vengono dalle schermate delle piattaforme del cliente nel periodo analizzato: dashboard Shopify sull'andamento delle vendite dal primo novembre al 16 dicembre 2024, dashboard Google Ads sulla panoramica campagne dal primo novembre al 15 dicembre 2024. Nessun dato è stato riscritto a mano." },
-
-    { "tipo": "pagina" },
-    { "tipo": "kicker", "testo": "caso studio 03, sistemi per tour operator" },
-    { "tipo": "h1", "testo": "Tour operator, le operazioni quotidiane spostate in un'unica app privata" },
-    { "tipo": "p", "testo": "Un caso pratico per operatori che gestiscono prenotazioni, liste passeggeri, guide, messaggi ai clienti, report e stato quotidiano su troppi strumenti scollegati." },
-    { "tipo": "numeri", "voci": [
-      { "valore": "1", "etichetta": "dashboard privata" },
-      { "valore": "5", "etichetta": "aree operative collegate" },
-      { "valore": "2", "etichetta": "canali di messaggistica monitorati" },
-      { "valore": "24h", "etichetta": "durata dei link alle liste" }
-    ] },
-
-    { "tipo": "h2", "testo": "Il contesto" },
-    { "tipo": "p", "testo": "Il cliente è un tour operator: il progetto era un'app operativa su 5 aree del lavoro quotidiano. I processi c'erano, mancava vederli. L'operatore gestiva le operazioni con controlli manuali e file di lavoro sparsi: le prenotazioni stavano nella piattaforma di booking, le assegnazioni delle guide nei fogli di calcolo, le liste passeggeri venivano preparate e inviate a mano, gli aggiornamenti ai clienti scritti uno per uno. Il lavoro veniva fatto, ma dipendeva da troppi passaggi e da troppi controlli del team." },
-    { "tipo": "p", "testo": "Gli attriti principali: dati di prenotazione, capienza e tour da controllare e riconciliare a mano, liste passeggeri da preparare, esportare, ordinare e mandare alle persone giuste, comunicazione WhatsApp e SMS dipendente da follow up manuali, aggiornamenti urgenti mandati caso per caso senza un percorso controllato, assegnazioni di guide e autisti che vivevano nei fogli di calcolo e nelle note." },
-
-    { "tipo": "h2", "testo": "Il lavoro svolto" },
-    { "tipo": "p", "testo": "Il sistema è stato costruito sul lavoro quotidiano reale: prenotazioni in arrivo, preparazione delle liste, assegnazioni delle guide, comunicazione con i clienti, allerte urgenti, controllo degli accessi." },
-    { "tipo": "p", "testo": "Sulle prenotazioni: visibilità mensile per prodotto, pressione sulla capienza, note per data e stati di allerta. Sulle liste passeggeri: finestre di report serale e mattutina, indicatori di stato, PDF generati, controlli di stop e ripresa, condivisione sicura. Su guide e autisti: anagrafica, idoneità dei veicoli, contatto di riserva predefinito, destinatari multipli delle liste, indicatori di assegnazione." },
-    { "tipo": "p", "testo": "Sulla comunicazione con i clienti: dal follow up manuale a flussi WhatsApp e SMS monitorati, con fallback e visibilità sui messaggi falliti. Sull'affidabilità operativa: protezione dai duplicati, regole di retry, gestione dello stato del provider, record clienti saltati, accesso più sicuro ai report. Sull'accesso del team: login per utenti approvati, ruoli admin e viewer, flusso di invito, log di controllo, archiviazione privata per i file sensibili." },
-
-    { "tipo": "h2", "testo": "I risultati" },
-    { "tipo": "p", "testo": "I flussi di lavoro sono diventati più facili da monitorare e da controllare. Invece di dipendere da verifiche manuali in posti separati, il team rivede prenotazioni, report, messaggi e assegnazioni da un'unica app privata: controlli più rapidi su liste, messaggi e sincronizzazione, vista chiara su messaggi falliti, invii in fallback e clienti saltati, stato dei report e PDF condivisibili dalla dashboard, assegnazioni visibili nella stessa app dello stato quotidiano." },
-    { "tipo": "p", "testo": "Sul fronte dell'affidabilità: protezione dai duplicati su messaggi automatici e report, accesso ai PDF con percorsi autenticati e link a scadenza breve, accesso per ruoli agli utenti approvati, alert SMS manuali per la comunicazione urgente." },
-    { "tipo": "p", "testo": "Prima, prenotazioni, liste, assegnazioni e aggiornamenti dipendevano da controlli manuali in posti separati e da follow up caso per caso, con guide e autisti nei fogli di calcolo e nelle note. Dopo, i segnali operativi principali si controllano da un'unica app privata, gli indicatori di stato rendono i problemi visibili subito, gli utenti approvati mandano alert SMS controllati dalla dashboard e le assegnazioni stanno nello stesso sistema di report e messaggi." },
-
-    { "tipo": "pagina" },
-    { "tipo": "h2", "testo": "Come lavoriamo" },
-    { "tipo": "p", "testo": "Questi tre casi hanno in comune il metodo, non il settore. Partiamo dai dati che l'azienda ha già, capiamo dove si perde valore, costruiamo la cosa più piccola che risolve il problema e allarghiamo solo dove serve." },
-    { "tipo": "p", "testo": "Se vuoi capire come si applica alla tua attività, ne parliamo in una chiamata conoscitiva, senza impegno e senza una presentazione da vendere." }
+    {
+      "tipo": "h1",
+      "testo": "I tre casi"
+    },
+    {
+      "tipo": "p",
+      "testo": "Un franchising che doveva riempire l'agenda in tutta Italia. Un e-commerce da rimettere in crescita nei due mesi che contano di più. Un tour operator che aveva bisogno di vedere la propria giornata in un posto solo. Tre lavori diversi, con lo stesso modo di lavorare: partire dai dati che il cliente ha già, capire dove si perde valore, costruire la cosa più piccola che risolve il problema."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 3
+    },
+    {
+      "tipo": "tabella",
+      "colonne": [
+        {
+          "testo": "Caso",
+          "larghezza": 30
+        },
+        {
+          "testo": "Cosa abbiamo fatto",
+          "larghezza": 38
+        },
+        {
+          "testo": "Esito",
+          "larghezza": 32
+        }
+      ],
+      "righe": [
+        [
+          {
+            "testo": "Dän Ink",
+            "sotto": "franchising di tatuaggi, 8 store",
+            "forte": true
+          },
+          {
+            "testo": "Acquisizione clienti su Google e Meta per le agende degli store"
+          },
+          {
+            "testo": "-20% costo di acquisizione, +56% lead in 45 giorni"
+          }
+        ],
+        [
+          {
+            "testo": "Onlysolutions",
+            "sotto": "e-commerce di tecnologia",
+            "forte": true
+          },
+          {
+            "testo": "Strategia pubblicitaria rifatta e sistemi del negozio sistemati"
+          },
+          {
+            "testo": "687.546 € di fatturato dal 1° novembre al 15 dicembre 2024"
+          }
+        ],
+        [
+          {
+            "testo": "Tour operator",
+            "sotto": "turismo organizzato, Nord Italia",
+            "forte": true
+          },
+          {
+            "testo": "App operativa privata su cinque aree del lavoro quotidiano"
+          },
+          {
+            "testo": "Prenotazioni, liste, guide e messaggi in un posto solo"
+          }
+        ]
+      ]
+    },
+    {
+      "tipo": "p",
+      "piccolo": true,
+      "testo": "I numeri di ogni caso vengono dalle dashboard delle piattaforme del cliente, nel periodo indicato nella pagina del caso."
+    },
+    {
+      "tipo": "pagina"
+    },
+    {
+      "tipo": "kicker",
+      "testo": "caso studio 01, acquisizione clienti, franchising tattoo"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Dän Ink, agende piene in tutta Italia"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il caso più recente sull'acquisizione clienti per il franchising Dän Ink di Steven Basalari. Quello che è cambiato in 45 giorni di lavoro."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "-20%",
+          "etichetta": "costi di acquisizione"
+        },
+        {
+          "valore": "+56%",
+          "etichetta": "lead generati"
+        },
+        {
+          "valore": "8",
+          "etichetta": "store attivi in Italia"
+        }
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il contesto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Dän Ink è un franchising di tatuaggi in rapida espansione, con otto store attivi in Italia: oggi è la realtà più rilevante a livello nazionale nel settore. Dietro la crescita c'è un modello che regge, una qualità di servizio costante e la capacità di attrarre un pubblico ogni anno più ampio."
+    },
+    {
+      "tipo": "p",
+      "testo": "Il network ci ha chiesto di riempire le agende degli store con appuntamenti fisici, in città diverse, mantenendo il controllo sul costo di acquisizione: contatti distribuiti su otto sedi, progetti di valore e non curiosi, spesa pubblicitaria sotto controllo."
+    },
+    {
+      "tipo": "p",
+      "testo": "La gestione precedente aveva tre problemi. Il target: parametri troppo generici e dispersivi, la campagna parlava a tutti e quindi a nessuno. Le impostazioni: un setting tecnico da rifare e un budget distribuito senza uno studio dietro. L'analisi: superficiale dove c'era, assente dove serviva di più."
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il lavoro svolto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Prima di cambiare una sola impostazione abbiamo studiato chi compra e perché: è la parte che non si vede nei report ma che decide il risultato. Abbiamo mappato bisogni, problemi, leve emotive e razionali, intenzioni di ricerca. Abbiamo individuato cosa ferma una persona prima di prenotare, per correggere comunicazione e posizionamento. Abbiamo integrato i dati demografici e gli insight qualitativi e quantitativi già presenti in azienda. Da questo lavoro sono usciti gli spunti per contenuti, sequenze e proposte personalizzate."
+    },
+    {
+      "tipo": "p",
+      "testo": "Abbiamo poi seguito ogni contatto per stato di avanzamento, per vedere dove il funnel perde: quanti prenotano una consulenza, quanti si perdono, quanti vanno risentiti e quanti non rispondono mai. È il dato che permette di correggere la campagna sulla qualità e non solo sul volume."
+    },
+    {
+      "tipo": "h2",
+      "testo": "I risultati"
+    },
+    {
+      "tipo": "p",
+      "testo": "Nel periodo abbiamo risparmiato diverse migliaia di euro di spesa pubblicitaria. Il costo per lead medio è sceso di oltre il 36% nel primo mese. La qualità dei contatti è migliorata insieme al tasso di conversione in appuntamento: il 70% dei progetti classificabili è di media o grande entità, calcolato solo sui contatti in cui il progetto era classificabile come grande o piccolo."
+    },
+    {
+      "tipo": "p",
+      "piccolo": true,
+      "testo": "«Dan Ink e Christopher Dän: il franchising che in poco più di un anno si impone come leader nazionale nel settore tattoo». Il Tempo, quotidiano indipendente, da un articolo su Dän Ink pubblicato su Iltempo.it."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 6
+    },
+    {
+      "tipo": "kicker",
+      "testo": "caso studio 02, e-commerce, tecnologia"
+    },
+    {
+      "tipo": "h1",
+      "testo": "Onlysolutions, 687.546 euro"
+    },
+    {
+      "tipo": "p",
+      "testo": "Come abbiamo riportato in crescita un e-commerce di tecnologia nei due mesi di picco della domanda, spendendo meno in pubblicità e aumentando il profitto. Periodo analizzato: dal 1° novembre al 15 dicembre 2024."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "687.546 €",
+          "etichetta": "fatturato negozio"
+        },
+        {
+          "valore": "2.145",
+          "etichetta": "ordini"
+        },
+        {
+          "valore": "26,2x",
+          "etichetta": "ROAS complessivo"
+        }
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il contesto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Onlysolutions è un e-commerce nato nel 2021 da Sandra e Fabrizio. All'inizio vendeva tecnologia in tutta Italia, poi il catalogo si è ampliato e le vendite si sono estese a Europa e Stati Uniti."
+    },
+    {
+      "tipo": "p",
+      "testo": "Studio Galilei è entrato nel progetto nel 2024, in un momento di fatturato in calo, spese pubblicitarie alte e alcuni problemi tecnici sul negozio. L'obiettivo era riportare Onlysolutions in crescita e prepararlo a novembre e dicembre, i mesi in cui la domanda dei suoi prodotti è più alta, per chiudere il periodo con il massimo profitto possibile."
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il lavoro svolto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Abbiamo ridisegnato la comunicazione visiva sui social. Poi abbiamo analizzato la strategia pubblicitaria in corso e i suoi risultati, e ne abbiamo costruita una nuova: stessa direzione, meno spesa, più ritorno."
+    },
+    {
+      "tipo": "p",
+      "testo": "Subito dopo siamo intervenuti sul sito e sui sistemi collegati: individuati e risolti diversi problemi tecnici, introdotte alcune migliorie."
+    },
+    {
+      "tipo": "p",
+      "testo": "Con ogni piattaforma sistemata, abbiamo testato campagne e impostazioni fino a trovare la combinazione che ha portato ai risultati di questo caso."
+    },
+    {
+      "tipo": "h2",
+      "testo": "I risultati"
+    },
+    {
+      "tipo": "p",
+      "testo": "Dal 1° novembre al 15 dicembre 2024 il negozio ha fatturato 687.545,50 euro, con una spesa pubblicitaria di 26.194,16 euro e 2.145 ordini. Il valore medio ordine è stato di 320,53 euro, il costo pubblicitario per ordine di 12,21 euro, il ROAS complessivo di 26,2 volte la spesa."
+    },
+    {
+      "tipo": "p",
+      "piccolo": true,
+      "testo": "Come si leggono i dati: il valore medio per ordine è il fatturato diviso gli ordini. Il costo pubblicitario per ordine è la spesa pubblicitaria divisa gli ordini. Il ROAS complessivo è il fatturato totale del negozio diviso la spesa pubblicitaria totale nel periodo. Tutti i numeri sono rilevati dalle dashboard Shopify e Google Ads del cliente."
+    },
+    {
+      "tipo": "p",
+      "testo": "Google Ads ha assorbito circa il 70% del budget pubblicitario ed è stato il canale che ha guidato il periodo: 18.300,59 euro di spesa, 66.453 clic, un CPC medio di 0,28 euro e un costo per conversione di 3,93 euro."
+    },
+    {
+      "tipo": "p",
+      "piccolo": true,
+      "testo": "I numeri di questa pagina vengono dalle schermate delle piattaforme del cliente nel periodo analizzato: dashboard Shopify sull'andamento delle vendite dal 1° novembre al 16 dicembre 2024, dashboard Google Ads sulla panoramica campagne dal 1° novembre al 15 dicembre 2024. Nessun dato è stato riscritto a mano."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 6
+    },
+    {
+      "tipo": "kicker",
+      "testo": "caso studio 03, sistemi per tour operator"
+    },
+    {
+      "tipo": "h1",
+      "testo": "La giornata in una app sola"
+    },
+    {
+      "tipo": "p",
+      "testo": "Un caso pratico per operatori che gestiscono prenotazioni, liste passeggeri, guide, messaggi ai clienti, report e stato quotidiano su troppi strumenti scollegati."
+    },
+    {
+      "tipo": "numeri",
+      "voci": [
+        {
+          "valore": "1",
+          "etichetta": "dashboard privata"
+        },
+        {
+          "valore": "5",
+          "etichetta": "aree collegate"
+        },
+        {
+          "valore": "2",
+          "etichetta": "canali di messaggi"
+        },
+        {
+          "valore": "24h",
+          "etichetta": "durata dei link"
+        }
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il contesto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il cliente è un tour operator: il progetto era un'app operativa su cinque aree del lavoro quotidiano. I processi c'erano, mancava vederli. L'operatore gestiva le operazioni con controlli manuali e file di lavoro sparsi: le prenotazioni stavano nella piattaforma di booking, le assegnazioni delle guide nei fogli di calcolo, le liste passeggeri venivano preparate e inviate a mano, gli aggiornamenti ai clienti scritti uno per uno. Il lavoro veniva fatto, ma dipendeva da troppi passaggi e da troppi controlli del team."
+    },
+    {
+      "tipo": "p",
+      "testo": "Gli attriti principali erano cinque."
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Dati di prenotazione, capienza e tour da controllare e riconciliare a mano.",
+        "Liste passeggeri da preparare, esportare, ordinare e mandare alle persone giuste.",
+        "Comunicazione WhatsApp e SMS dipendente da follow up manuali.",
+        "Aggiornamenti urgenti mandati caso per caso, senza un percorso controllato.",
+        "Assegnazioni di guide e autisti che vivevano nei fogli di calcolo e nelle note."
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Il lavoro svolto"
+    },
+    {
+      "tipo": "p",
+      "testo": "Il sistema è stato costruito sul lavoro quotidiano reale: prenotazioni in arrivo, preparazione delle liste, assegnazioni delle guide, comunicazione con i clienti, allerte urgenti, controllo degli accessi."
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Prenotazioni: visibilità mensile per prodotto, pressione sulla capienza, note per data e stati di allerta.",
+        "Liste passeggeri: finestre di report serale e mattutina, indicatori di stato, PDF generati, controlli di stop e ripresa, condivisione sicura.",
+        "Guide e autisti: anagrafica, idoneità dei veicoli, contatto di riserva predefinito, destinatari multipli delle liste, indicatori di assegnazione."
+      ]
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Comunicazione con i clienti: dal follow up manuale a flussi WhatsApp e SMS monitorati, con fallback e visibilità sui messaggi falliti.",
+        "Affidabilità operativa: protezione dai duplicati, regole di retry, gestione dello stato del provider, record clienti saltati, accesso più sicuro ai report.",
+        "Accesso del team: login per utenti approvati, ruoli admin e viewer, flusso di invito, log di controllo, archiviazione privata per i file sensibili."
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "I risultati"
+    },
+    {
+      "tipo": "p",
+      "testo": "I flussi di lavoro sono diventati più facili da monitorare e da controllare. Invece di dipendere da verifiche manuali in posti separati, il team rivede prenotazioni, report, messaggi e assegnazioni da un'unica app privata: controlli più rapidi su liste, messaggi e sincronizzazione, vista chiara su messaggi falliti, invii in fallback e clienti saltati, stato dei report e PDF condivisibili dalla dashboard, assegnazioni visibili nella stessa app dello stato quotidiano."
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Protezione dai duplicati su messaggi automatici e report.",
+        "Accesso ai PDF con percorsi autenticati e link a scadenza breve.",
+        "Accesso per ruoli agli utenti approvati.",
+        "Alert SMS manuali per la comunicazione urgente."
+      ]
+    },
+    {
+      "tipo": "p",
+      "testo": "Prima, prenotazioni, liste, assegnazioni e aggiornamenti dipendevano da controlli manuali in posti separati e da follow up caso per caso, con guide e autisti nei fogli di calcolo e nelle note. Dopo, i segnali operativi principali si controllano da un'unica app privata, gli indicatori di stato rendono i problemi visibili subito, gli utenti approvati mandano alert SMS controllati dalla dashboard e le assegnazioni stanno nello stesso sistema di report e messaggi."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 6
+    },
+    {
+      "tipo": "h2",
+      "testo": "Come lavoriamo"
+    },
+    {
+      "tipo": "p",
+      "testo": "Questi tre casi hanno in comune il metodo, non il settore. Partiamo dai dati che l'azienda ha già, capiamo dove si perde valore, costruiamo la cosa più piccola che risolve il problema e allarghiamo solo dove serve."
+    },
+    {
+      "tipo": "p",
+      "testo": "Se vuoi capire come si applica alla tua attività, ne parliamo in una chiamata conoscitiva, senza impegno e senza una presentazione da vendere."
+    },
+    {
+      "tipo": "spazio",
+      "mm": 3
+    },
+    {
+      "tipo": "anagrafica",
+      "colonne": [
+        {
+          "titolo": "EMAIL",
+          "righe": [
+            "dramane@studiogalilei.com",
+            "lorenzo@studiogalilei.com"
+          ]
+        },
+        {
+          "titolo": "TELEFONO",
+          "righe": [
+            "+39 371 11 69430"
+          ]
+        },
+        {
+          "titolo": "SITO",
+          "righe": [
+            "studiogalilei.com"
+          ]
+        }
+      ]
+    },
+    {
+      "tipo": "spazio",
+      "mm": 3
+    },
+    {
+      "tipo": "p",
+      "piccolo": true,
+      "testo": "Dramane Yigo e Lorenzo Fornasier, Studio Galilei."
+    }
   ],
   "piede": "settembre 2026"
 }

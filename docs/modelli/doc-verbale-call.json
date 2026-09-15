@@ -1,0 +1,65 @@
+{
+  "tipo": "Verbale di call",
+  "blocchi": [
+    { "tipo": "kicker", "testo": "modello da compilare" },
+    { "tipo": "h1", "testo": "Verbale di call" },
+    { "tipo": "p", "testo": "Si manda entro il giorno dopo la chiamata, a tutti quelli che c'erano. Serve a una cosa sola: mettere per iscritto cosa è stato deciso, chi fa cosa ed entro quando. Le parti fra parentesi quadre si sostituiscono." },
+    { "tipo": "p", "piccolo": true, "testo": "Non è il riassunto della chiamata. Quello che non produce una decisione o un compito non entra nel verbale: finisce nelle note del progetto." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "anagrafica", "colonne": [
+      { "titolo": "CLIENTE", "righe": ["[Nome azienda]"] },
+      { "titolo": "QUANDO", "righe": ["[gg/mm/aaaa], [durata]"] },
+      { "titolo": "CHI C'ERA", "righe": ["[Nomi lato cliente]", "[Nomi lato Studio]"] }
+    ]},
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "h2", "testo": "Di cosa si è parlato" },
+    { "tipo": "p", "testo": "[Tre righe al massimo: il punto di partenza della chiamata e il perimetro. Se la chiamata è servita a sbloccare qualcosa, si scrive cosa era bloccato.]" },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Le decisioni prese" },
+    { "tipo": "elenco", "voci": [
+      "[Decisione 1, scritta come si direbbe a voce.]",
+      "[Decisione 2.]",
+      "[Decisione 3.]"
+    ]},
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Chi fa cosa, entro quando" },
+    { "tipo": "tabella",
+      "colonne": [
+        { "testo": "Cosa", "larghezza": 48 },
+        { "testo": "Chi", "larghezza": 26 },
+        { "testo": "Entro", "larghezza": 18, "destra": true }
+      ],
+      "righe": [
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[nome]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[nome]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[nome]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[nome]" }, { "testo": "[gg/mm]" }]
+      ]
+    },
+    { "tipo": "p", "piccolo": true, "testo": "Una riga senza nome o senza data non è un compito. Se la data dipende da qualcun altro si scrive da cosa dipende." },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Quello che resta aperto" },
+    { "tipo": "due_colonne",
+      "sinistra": { "titolo": "IN ATTESA DI UNA RISPOSTA", "voci": [
+        "[Domanda aperta e chi deve rispondere.]",
+        "[Dato che manca e dove si va a prenderlo.]"
+      ]},
+      "destra": { "titolo": "RIMANDATO", "voci": [
+        "[Argomento rimandato e alla chiamata di quando.]",
+        "[Cosa deve succedere prima di riaprirlo.]"
+      ]}
+    },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Cosa succede se qui c'è un errore" },
+    { "tipo": "p", "testo": "Se qualcosa in questo verbale non corrisponde a come l'hai capita tu, scrivilo entro due giorni lavorativi. Passati quelli, il verbale vale come quello che ci siamo detti, e il lavoro parte da qui." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "anagrafica", "colonne": [
+      { "titolo": "SCRITTO DA", "righe": ["[Nome], Studio Galilei"] },
+      { "titolo": "TELEFONO", "righe": ["+39 371 11 69430"] },
+      { "titolo": "SITO", "righe": ["studiogalilei.com"] }
+    ]},
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "p", "piccolo": true, "testo": "Studio Galilei. Documento riservato ai partecipanti." }
+  ],
+  "piede": "[gg/mm/aaaa]"
+}
