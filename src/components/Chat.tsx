@@ -171,7 +171,7 @@ export default function Chat({ onOpen }: Props) {
   async function manda() {
     const t = testo.trim()
     if (!scelto && !t) return
-    if (scelto && !cliente) { setProblema('Di quale cliente è? Serve per ritrovarlo dopo.'); return }
+    if (scelto && !cliente) { setProblema('Di quale prospect o cliente è? Serve per ritrovarlo dopo.'); return }
     setMando(true)
     setProblema(null)
     let file_id: number | null = null
