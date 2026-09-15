@@ -55,6 +55,26 @@ const CHIP: Record<string, [string, string]> = {
   anomalia: ['Anomalia', 'bg-red-600 text-white'],
 }
 
+// le testate della Posta: un tipo, un gruppo
+const GRUPPO: Record<string, string> = {
+  risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste',
+  tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni',
+  data: 'Date', scarta: 'Da scartare',
+}
+
+// Rispondere a tutto il gruppo in un colpo, ma SOLO dove sbagliare non costa
+// niente: una classificazione si ricambia, uno scarto si riapre, una data si
+// rimette. Fuori da qui non c'e' il bottone, ed e' voluto: una bozza
+// (`risposta`) parte verso una persona vera e si legge prima; `umano` e
+// `accesso` sono decisioni su persone, una alla volta.
+// `fai` sta sul bottone, `chiedo` nella conferma, `fatto` nella riga in chat.
+const BLOCCO: Record<string, { fai: string; chiedo: string; fatto: string }> = {
+  classifica: { fai: 'Classifica tutte', chiedo: 'Classifico', fatto: 'classificate' },
+  scarta: { fai: 'Scarta tutte', chiedo: 'Scarto', fatto: 'scartate' },
+  data: { fai: 'Conferma tutte', chiedo: 'Confermo', fatto: 'confermate' },
+  tornato: { fai: 'Segna tutte', chiedo: 'Segno', fatto: 'segnate' },
+}
+
 type Comando = 'task' | 'conoscitiva' | 'tecnica' | 'avvio'
 
 const CALL: Record<Exclude<Comando, 'task'>, string> = {
@@ -292,6 +312,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   const [copiata, setCopiata] = useState<number | null>(null)
   // il gigante buono spegne i follow-up per sempre: si chiede due volte
   const [chiedoConferma, setChiedoConferma] = useState<number | null>(null)
+  // la risposta di gruppo: prima si chiede, poi si scrive. La domanda sta
+  // nella testata del gruppo, dentro la pagina, non in un popup del browser
+  const [blocco, setBlocco] = useState<{ tipo: string; si: boolean } | null>(null)
+  // mentre lavora si vede a che punto e', e i bottoni non si ripremono
+  const [lavoro, setLavoro] = useState<{ tipo: string; fatte: number; totali: number } | null>(null)
 
   // il corpo di una proposta: lo stesso in posta e in chat. In chat parla come
   // una persona (Dre, 9/9): breve, naturale, e i bottoni subito sotto.
@@ -377,12 +402,14 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                 Aprila già scritta
                               </a>
                             )}
+                            {/* mentre la risposta di gruppo gira, la singola si
+                                blocca: la stessa proposta poteva partire due volte */}
                             <button onClick={() => { if (pr.azione?.intento === 'INT-GB' && chiedoConferma !== pr.id) { setChiedoConferma(pr.id); return } rispondi(pr, true) }}
-                                    disabled={rispondo === pr.id}
+                                    disabled={rispondo === pr.id || lavoro !== null}
                                     className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
                               {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
                             </button>
-                            <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
+                            <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id || lavoro !== null} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
                             {chiedoConferma === pr.id && (
                               <span className="w-full text-[11px] font-semibold text-amber-800">
                                 Questa è l'ultima mail che gli mandiamo: dopo non lo risentiamo più. Ripremi «L'ho mandata» per confermare.
@@ -429,7 +456,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         // le bozze prima di tutto: sono lavoro che parte oggi. Poi le
         // domande, poi gli scarti
         const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
-        const l = ((data as Proposta[]) ?? []).sort((a, b) => (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9))
+        // a parita' di peso il tipo resta unito: il gruppo deve essere UN
+        // blocco solo, se no la testata (e con lei la risposta di gruppo)
+        // compariva due volte sullo stesso tipo
+        const l = ((data as Proposta[]) ?? []).sort((a, b) =>
+          (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9) || a.tipo.localeCompare(b.tipo))
         setProposte(l)
       })
     supabase
@@ -548,9 +579,13 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     if (data) setMessaggi((m) => [...(m ?? []), data as Messaggio])
   }
 
-  async function rispondi(p: Proposta, si: boolean) {
+  // `muto` serve alla risposta di gruppo: stessa identica logica, ma l'esito
+  // non finisce ne' in chat ne' nel riquadro rosso una riga per proposta.
+  // A raccontare com'e' andata ci pensa chi l'ha chiamata, alla fine, in una
+  // riga sola. Torna true se l'azione vera e' andata a buon fine.
+  async function rispondi(p: Proposta, si: boolean, muto = false): Promise<boolean> {
     setRispondo(p.id)
-    setGuaio(null)
+    if (!muto) setGuaio(null)
     let esito = si ? `Fatto: ${p.titolo}` : `Ok, lascio com'è: ${p.titolo}`
     // se l'azione vera non riesce, la proposta NON si chiude: prima spariva
     // dalla Posta lo stesso e il lavoro era perso senza saperlo (QA Dre, 15/9)
@@ -592,11 +627,49 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       await supabase.from('proposte')
         .update({ stato: si ? 'fatta' : 'no', risposta_il: new Date().toISOString() }).eq('id', p.id)
       setProposte((l) => l.filter((x) => x.id !== p.id))
-    } else {
+    } else if (!muto) {
       setGuaio(esito)
     }
-    await scriviMessaggio('controllo', esito, p.prospect_id)
+    if (!muto) await scriviMessaggio('controllo', esito, p.prospect_id)
     setRispondo(null)
+    return riuscito
+  }
+
+  // Tutto il gruppo in un colpo (Dre: «scarto questi nove?»). Le proposte si
+  // fanno UNA ALLA VOLTA, in fila, con la stessa rispondi() del singolo: la
+  // logica resta una sola, e se una fallisce le altre vanno avanti lo stesso.
+  async function rispondiGruppo(tipo: string, si: boolean) {
+    const gruppo = proposte.filter((x) => x.tipo === tipo)
+    const voce = BLOCCO[tipo]
+    if (gruppo.length === 0 || !voce || lavoro) return
+    setBlocco(null)
+    setGuaio(null)
+    setLavoro({ tipo, fatte: 0, totali: gruppo.length })
+    let bene = 0
+    const male: string[] = []
+    for (const p of gruppo) {
+      const ok = await rispondi(p, si, true)
+      if (ok) bene++
+      else male.push(p.titolo)
+      setLavoro((l) => (l ? { ...l, fatte: l.fatte + 1 } : l))
+    }
+    setLavoro(null)
+    const verbo = si ? voce.fatto : 'lasciate stare'
+    const testa = verbo.charAt(0).toUpperCase() + verbo.slice(1)
+    // sul sì il verbo dice già di che gruppo si parla («scartate», «classificate»);
+    // sul no invece serve, se no «lasciate stare tutte e 5» non dice quali
+    const dove = si ? '' : `, ${(GRUPPO[tipo] ?? tipo).toLowerCase()}`
+    const riga = bene === 0
+      ? `Nessuna delle ${gruppo.length}: non sono riuscita a scriverle`
+      : male.length === 0
+        ? `${testa} tutte e ${bene}${dove}`
+        : `${testa} ${bene} su ${gruppo.length}${dove}, ${male.length} non ${male.length === 1 ? 'è riuscita' : 'sono riuscite'}`
+    // quelle che non sono passate restano nella Posta: si dice quali sono,
+    // se no spariscono dal conto e nessuno le ripesca
+    if (male.length > 0) {
+      setGuaio(`${male.length === 1 ? 'Questa non è riuscita' : 'Queste non sono riuscite'}, ${male.slice(0, 3).join(', ')}${male.length > 3 ? `, e altre ${male.length - 3}` : ''}`)
+    }
+    await scriviMessaggio('controllo', riga)
   }
 
   async function manda(contenuto: string) {
@@ -820,15 +893,51 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
           <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
         ) : proposte.map((pr, i) => {
           const aperto = apertaId === pr.id
-          const GRUPPO: Record<string, string> = { risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste', tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni', data: 'Date', scarta: 'Da scartare' }
           const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo
+          const quanti = proposte.filter((x) => x.tipo === pr.tipo).length
+          const voce = BLOCCO[pr.tipo]
+          const staLavorando = lavoro?.tipo === pr.tipo
+          const chiesto = blocco?.tipo === pr.tipo ? blocco : null
           return (
             <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
               {nuovoGruppo && (
-                <p className="flex items-baseline gap-2 bg-fondo px-5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
-                  {GRUPPO[pr.tipo] ?? pr.tipo}
-                  <span className="tabular-nums text-tenue">{proposte.filter((x) => x.tipo === pr.tipo).length}</span>
-                </p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 bg-fondo px-5 pb-1.5 pt-3">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-spento">{GRUPPO[pr.tipo] ?? pr.tipo}</span>
+                  <span className="text-[10px] font-bold tabular-nums text-tenue">{quanti}</span>
+                  {staLavorando && lavoro ? (
+                    <span className="ml-auto text-[11px] font-semibold tabular-nums text-tenue">
+                      Ci sto lavorando, {lavoro.fatte} di {lavoro.totali}
+                    </span>
+                  ) : chiesto && voce ? (
+                    // la conferma sta qui dentro, sopra il gruppo che tocca:
+                    // si legge cosa sta per succedere e su quante, poi si scrive
+                    <span className="ml-auto flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-inchiostro">
+                        {chiesto.si ? `${voce.chiedo} tutte e ${quanti}?` : `Lascio stare tutte e ${quanti}?`}
+                      </span>
+                      <button onClick={() => rispondiGruppo(pr.tipo, chiesto.si)} disabled={lavoro !== null}
+                              className="rounded-full bg-blu px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-40">
+                        Conferma
+                      </button>
+                      <button onClick={() => setBlocco(null)}
+                              className="rounded-full border border-bordo px-3 py-1.5 text-[11px] font-semibold text-tenue hover:border-spento">
+                        Annulla
+                      </button>
+                    </span>
+                  ) : voce && quanti > 1 ? (
+                    // una sola non e' un gruppo: con quella ci sono gia' i suoi Sì e No
+                    <span className="ml-auto flex items-center gap-2">
+                      <button onClick={() => setBlocco({ tipo: pr.tipo, si: true })} disabled={lavoro !== null}
+                              className="rounded-full border border-navy px-3 py-1.5 text-[11px] font-bold text-navy hover:bg-velo disabled:opacity-40">
+                        {voce.fai} e {quanti}
+                      </button>
+                      <button onClick={() => setBlocco({ tipo: pr.tipo, si: false })} disabled={lavoro !== null}
+                              className="rounded-full border border-bordo px-3 py-1.5 text-[11px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
+                        Lascia stare tutte
+                      </button>
+                    </span>
+                  ) : null}
+                </div>
               )}
               {corpoProposta(pr, 'posta')}
             </div>

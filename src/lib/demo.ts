@@ -334,6 +334,20 @@ const proposte: Riga[] = [
     perche: 'Analisi mandata il 28 luglio, due follow-up, nessuna risposta.',
     azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
   },
+  // tre dello stesso tipo: così si vede la risposta di gruppo, che compare
+  // solo quando le domande uguali sono più di una (Dre, 15/9)
+  {
+    id: 4, at: oreFa(5), tipo: 'classifica', stato: 'aperta', prospect_id: 'p2', owner: null,
+    titolo: 'Primary Security Key tace da 63 giorni: lo lascio andare?',
+    perche: 'Analisi mandata a luglio, nessuna risposta da allora.',
+    azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
+  },
+  {
+    id: 5, at: oreFa(6), tipo: 'classifica', stato: 'aperta', prospect_id: 'p6', owner: null,
+    titolo: 'Zeni Sicurezza tace da 29 giorni: lo lascio andare?',
+    perche: 'Aveva detto «sentiamoci a settembre», la call è passata e non ha più scritto.',
+    azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
+  },
 ]
 
 const TABELLE: Record<string, Riga[]> = {
