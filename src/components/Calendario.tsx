@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Prospect, AgendaItem } from '../lib/types'
 import { Card, Micro, Empty, fmtDateShort, fmtOra } from './ui'
 import { giorno, creaTask } from '../lib/regole'
+import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 
 // Il calendario: griglia mensile con le chip dei prospect nelle celle
 // (desktop) e lista raggruppata sul telefono. Tre colori fissi:
@@ -65,7 +66,7 @@ function corto(titolo: string): string {
 }
 
 export default function Calendario({ onOpen, pod = [] }: Props) {
-  const [conPod, setConPod] = useState(true)
+  const [conPod, setConPod] = useState(() => leggiPref('calendario-pod', 'si') === 'si')
   const [io, setIo] = useState<string | null>(null)
   const oggi = new Date()
   const [voci, setVoci] = useState<Voce[] | null>(null)
@@ -330,7 +331,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
               </button>
             )}
             {pod.length > 0 && (
-              <button onClick={() => setConPod((v) => !v)}
+              <button onClick={() => setConPod((v) => { scriviPref('calendario-pod', v ? 'no' : 'si'); return !v })}
                       className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold ${conPod ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue'}`}>
                 Pod{conPod ? '' : ': nascosto'}
               </button>

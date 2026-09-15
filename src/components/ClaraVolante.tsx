@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import CercaAzienda from './CercaAzienda'
 import { decidi as decidiAccesso, sonoCeo } from '../lib/accessi'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
@@ -281,6 +282,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   const [rispondo, setRispondo] = useState<number | null>(null)
   // quello che non e' riuscito resta scritto, e la proposta resta nella Posta
   const [guaio, setGuaio] = useState<string | null>(null)
+  // dove atterri quando apri Clara: se ha bozze pronte e non ci sono
+  // messaggi nuovi, il lavoro e' nella Posta, non in chat (Dre, 15/9)
   const [vista, setVista] = useState<'chat' | 'posta'>('chat')
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
@@ -687,6 +690,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         if (dopo.length >= 3) p.titolo = dopo.charAt(0).toUpperCase() + dopo.slice(1)
       }
       p.giorno = p.giorno ?? trovaGiorno(t, Boolean(inCorso))
+      // «ricordami di richiamare Studio Rossi»: il cliente e' scritto nella
+      // frase, e il software lo sa gia' riconoscere (lo fa per le call).
+      // Senza, la task non compare sulla scheda di nessuno (regola: tutto
+      // appeso all'SG-ID)
+      p.prospectId = p.prospectId ?? trovaProspect(t, prospects)
       if (!p.titolo) {
         setPendente(p)
         await scriviMessaggio('domanda', 'Cosa scrivo nella task?')
@@ -697,6 +705,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       setComando('task')
       setPTitolo(p.titolo)
       setPData(p.giorno ?? '')
+      setPProspect(p.prospectId ?? '')
       return
     }
 
@@ -752,9 +761,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     setInvio(false)
   }
 
-  function scegliProspect(id: string) {
+  function scegliProspect(id: string, appena?: Prospect) {
     setPProspect(id)
-    const p = prospects.find((x) => x.id === id)
+    const p = appena ?? prospects.find((x) => x.id === id)
     if (p && comando && comando !== 'task') {
       setPTitolo(`${CALL[comando]}: ${p.company || p.name || ''}`.trim())
       setPInvitati(p.email)
@@ -874,7 +883,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             onPointerUp={() => {
               const p = presa.current
               presa.current = null
-              if (p && !p.mosso) setAperta(true)
+              if (p && !p.mosso) {
+        // dove c'e' il lavoro: se ha bozze o domande e nessun messaggio
+        // nuovo, si apre sulla Posta invece che sulla chat
+        if (proposte.length > 0 && nonLetti.length === 0) setVista('posta')
+        setAperta(true)
+      }
               else if (pallina) { try { localStorage.setItem('clara-pallina', JSON.stringify(pallina)) } catch { /* niente */ } }
             }}
             aria-label="Clara"
@@ -998,7 +1012,6 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                       </p>
                       {apertoMsg === m.id && (
                         <p className="salta-su mt-1.5 flex gap-3 text-[11px] font-semibold">
-                          {!m.letto && <button onClick={(e) => { e.stopPropagation(); void segnaLetto(m) }} className="text-blu hover:underline">Segna letto</button>}
                           {m.prospect_id && <button onClick={(e) => { e.stopPropagation(); if (!fissa) setAperta(false); onOpen(m.prospect_id!) }} className="text-navy hover:underline">Apri la scheda ›</button>}
                         </p>
                       )}
@@ -1007,7 +1020,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                   return (
                     <div key={m.id} className="flex justify-start">
                       <button
-                        onClick={() => setApertoMsg(apertoMsg === m.id ? null : m.id)}
+                        onClick={() => {
+                          // aprirlo e' gia' leggerlo: prima ci volevano due
+                          // clic, uno per aprire e uno per dire «letto»
+                          setApertoMsg(apertoMsg === m.id ? null : m.id)
+                          if (!m.letto) void segnaLetto(m)
+                        }}
                         className={`max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2 text-left ${m.letto ? 'bg-velo/60 hover:bg-velo' : 'bg-white ring-1 ring-blu/25 hover:ring-blu/50'}`}
                       >
                         {dentro}
@@ -1038,6 +1056,18 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                       className={campo}
                     />
                     <input type="date" value={pData} onChange={(e) => setPData(e.target.value)} className={campo} />
+                    {pProspect ? (
+                      <p className="flex items-center gap-2 text-[11px]">
+                        <span className="rounded-full bg-blu/10 px-2 py-0.5 font-bold text-navy">
+                          {prospects.find((x) => x.id === pProspect)?.company ?? 'cliente'}
+                        </span>
+                        <span className="text-spento">l'ho capito da quello che hai scritto</span>
+                        <button onClick={() => setPProspect('')} className="font-semibold text-blu hover:underline">Togli</button>
+                      </p>
+                    ) : (
+                      <CercaAzienda placeholder="Di quale azienda è? (se serve)"
+                                    onScegli={(a) => setPProspect(a.id)} />
+                    )}
                     <div className="flex justify-end gap-2">
                       <button onClick={() => setComando(null)} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue">
                         Annulla
@@ -1054,12 +1084,21 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                 ) : (
                   <>
                     <p className="text-xs font-bold uppercase tracking-wide text-spento">{CALL[comando]}</p>
-                    <select value={pProspect} onChange={(e) => scegliProspect(e.target.value)} className={campo}>
-                      <option value="">Con chi?</option>
-                      {prospects.map((p) => (
-                        <option key={p.id} value={p.id}>{p.company || p.name || p.email}</option>
-                      ))}
-                    </select>
+                    {pProspect ? (
+                      <p className="flex items-center gap-2 text-[11px]">
+                        <span className="rounded-full bg-blu/10 px-2 py-0.5 font-bold text-navy">
+                          {prospects.find((x) => x.id === pProspect)?.company ?? 'azienda'}
+                        </span>
+                        <button onClick={() => setPProspect('')} className="font-semibold text-blu hover:underline">Cambia</button>
+                      </p>
+                    ) : (
+                      <CercaAzienda placeholder="Con chi?" onScegli={(a) => {
+                        // la stessa ricerca di tutto il resto dell'app, non
+                        // una tendina con dentro 300 nomi in ordine sparso
+                        setProspects((v) => (v.some((x) => x.id === a.id) ? v : [...v, a as unknown as Prospect]))
+                        scegliProspect(a.id, a as unknown as Prospect)
+                      }} />
+                    )}
                     <input value={pTitolo} onChange={(e) => setPTitolo(e.target.value)} placeholder="Nome della call" className={campo} />
                     <input type="datetime-local" value={pQuando} onChange={(e) => setPQuando(e.target.value)} className={campo} />
                     <input value={pInvitati} onChange={(e) => setPInvitati(e.target.value)} placeholder="Invitati (mail, separate da virgola)" className={campo} />

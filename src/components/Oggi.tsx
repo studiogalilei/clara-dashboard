@@ -157,7 +157,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   // telefono sta sotto e si apre solo se serve. La scheda di una persona
   // mostra cosa ha in mano prima di caricarla.
   const [latoAperto, setLatoAperto] = useState(false)
-  const [claraAperta, setClaraAperta] = useState(false)   // la sezione «Da Clara», richiusa
+  const [latoToccato, setLatoToccato] = useState(false)   // se l'hai chiusa tu, resta chiusa
+  const [claraAperta, setClaraAperta] = useState(() => leggiPref('oggi-clara', 'si') === 'si')   // la sezione «Da Clara», richiusa
   const [persona, setPersona] = useState<Persona | null>(null)
   const [taskDiPersona, setTaskDiPersona] = useState<TaskDre[] | null>(null)
   const [possoVedere, setPossoVedere] = useState(true)
@@ -349,7 +350,6 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     if (task && altrui) setMandate((m) => [task as TaskDre, ...m])
     setNuovo('')
     setNuovaData('')
-    setPerChi('')
     nuovoRef.current?.focus()
   }
 
@@ -579,8 +579,10 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             <div className="mt-1.5 flex gap-1.5">
               <button onClick={() => rispondiAllaProposta(t, true)}
                 className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">Accetta</button>
-              <button onClick={() => { setRimando(t.id); setMotivo('') }}
+              <button onClick={() => rispondiAllaProposta(t, false, '')}
                 className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">Rimanda</button>
+              <button onClick={() => { setRimando(t.id); setMotivo('') }}
+                className="px-1 text-[11px] font-semibold text-spento hover:text-inchiostro">Aggiungi un perché</button>
             </div>
             {rimando === t.id && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -666,7 +668,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       {gruppiVivi.length > 0 && (
         <Card className="p-3">
           <button
-            onClick={() => setClaraAperta(!claraAperta)}
+            onClick={() => { setClaraAperta(!claraAperta); scriviPref('oggi-clara', claraAperta ? 'no' : 'si') }}
             className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-velo/50"
           >
             <svg viewBox="0 0 24 24" className={`h-4 w-4 text-tenue transition-transform ${claraAperta ? 'rotate-90' : ''}`}>
@@ -869,12 +871,12 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
 
       {/* la colonna di lato: sul telefono sta sotto e si apre solo se serve */}
       <aside className="mt-4 lg:mt-0">
-        <button onClick={() => setLatoAperto(!latoAperto)}
+        <button onClick={() => { setLatoAperto(!latoAperto); setLatoToccato(true) }}
           className="mb-2 flex w-full items-center justify-between rounded-xl border border-bordo bg-white px-3 py-2 text-sm font-semibold lg:hidden">
           <span>In arrivo e mandate</span>
           <span className={`text-xs ${inArrivo ? 'font-bold text-navy' : 'text-spento'}`}>{inArrivo ? `${inArrivo} da accettare` : (latoAperto ? 'chiudi' : 'apri')}</span>
         </button>
-        <div className={latoAperto ? '' : 'hidden lg:block'}>{lato}</div>
+        <div className={latoAperto || (!latoToccato && inArrivo > 0) ? '' : 'hidden lg:block'}>{lato}</div>
       </aside>
       </div>
       )}

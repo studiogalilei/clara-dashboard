@@ -28,6 +28,8 @@ export const CHIAVI = [
   'clara-aperta',
   'menu-larghezza',
   'obsidian-vault',
+  'oggi-clara',
+  'calendario-pod',
   'chat-con',
   'chat-visto',
 ] as const

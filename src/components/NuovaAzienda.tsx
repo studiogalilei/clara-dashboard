@@ -20,7 +20,7 @@ interface Props {
 }
 
 const CAMPI: Array<[string, string, string]> = [
-  ['company', 'Azienda', 'Come si chiama'],
+  ['company', 'Azienda', 'Il nome, o incolla il link di LinkedIn'],
   ['name', 'Persona', 'Con chi parli'],
   ['email', 'Email', 'nome@azienda.it'],
   ['linkedin', 'LinkedIn', 'Il link al profilo'],
@@ -30,8 +30,52 @@ const CAMPI: Array<[string, string, string]> = [
   ['campaign', 'Da dove arriva', 'LinkedIn profilo 2, referral, evento…'],
 ]
 
+// INCOLLA E BASTA (Dre, 15/9: «come fa Google, sa gia' cosa vuoi fare»).
+// Lorenzo lavora su LinkedIn: copia il link del profilo o dell'azienda e lo
+// incolla. Da li' si capisce quasi tutto: il campo giusto dove metterlo, il
+// nome dell'azienda, il sito. Vale anche per una mail o per un sito.
+const GENERICI = /(gmail|libero|hotmail|outlook|yahoo|icloud|tiscali|alice|virgilio|pec\.it)/i
+const aTitolo = (t: string) => t
+  .replace(/[-_]+/g, ' ')
+  .replace(/\b(srl|spa|sas|snc|srls)\b/gi, (x) => x.toUpperCase())
+  .replace(/\b[a-zà-ù]/g, (c) => c.toUpperCase())
+  .trim()
+const nomeDaDominio = (d: string) => aTitolo(d.replace(/^www\./i, '').split('.')[0])
+
 export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
   const [v, setV] = useState<Record<string, string>>({})
+  const [capito, setCapito] = useState<string | null>(null)
+
+  // quello che si capisce da un pezzo di testo incollato
+  function incolla(grezzo: string): boolean {
+    const t = grezzo.trim()
+    if (!t || /\s/.test(t)) return false
+    const mail = /^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t)
+    const link = /^(https?:\/\/|www\.)/i.test(t)
+    if (!mail && !link) return false
+    const n = { ...v }
+    if (mail) {
+      n.email = t
+      const dominio = t.split('@')[1] ?? ''
+      if (dominio && !GENERICI.test(dominio)) {
+        if (!n.website) n.website = dominio
+        if (!n.company) n.company = nomeDaDominio(dominio)
+      }
+      setCapito('dalla mail')
+    } else if (/linkedin\./i.test(t)) {
+      n.linkedin = t
+      const slug = /\/(company|in)\/([^/?#]+)/.exec(t)?.[2]
+      if (slug && !n.company) n.company = aTitolo(decodeURIComponent(slug).replace(/-[a-z0-9]{6,}$/i, ''))
+      setCapito('dal link di LinkedIn')
+    } else {
+      const pulito = t.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')
+      n.website = pulito
+      if (!n.company) n.company = nomeDaDominio(pulito)
+      setCapito('dal sito')
+    }
+    setV(n)
+    return true
+  }
   const [parlo, setParlo] = useState(true)   // ci sto già parlando, o l'ho solo trovata
   const [salvo, setSalvo] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
@@ -94,7 +138,12 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
             <input
               autoFocus={k === 'company'}
               value={v[k] ?? ''}
-              onChange={(e) => setV({ ...v, [k]: e.target.value })}
+              onPaste={(e) => {
+                // un link o una mail vanno nel campo giusto, non dove capita
+                const t = e.clipboardData.getData('text')
+                if (incolla(t)) e.preventDefault()
+              }}
+              onChange={(e) => { setV({ ...v, [k]: e.target.value }); setCapito(null) }}
               onKeyDown={(e) => { if (e.key === 'Enter') void salva() }}
               placeholder={esempio}
               className="mt-0.5 w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu"
@@ -102,6 +151,10 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
           </label>
         ))}
       </div>
+
+      {capito && (
+        <p className="-mt-1 text-[11px] text-spento">Ho riempito quello che ho capito {capito}, correggi pure</p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-full border border-bordo text-xs font-semibold">
