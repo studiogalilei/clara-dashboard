@@ -156,6 +156,21 @@ def main():
         if e:
             conta[e] = conta.get(e, 0) + 1
 
+    # 4. le scadenze degli account messe a mano dal Calendario (budget,
+    #    rinnovo): chi le mette le vede anche fuori dal Workspace
+    conti = sb("GET", "/rest/v1/agenda?select=id,at,titolo,tipo,prospect_id"
+                      f"&tipo=in.(budget,rinnovo)&at=gte.{oggi.isoformat()}&limit=300") or []
+    nomi2 = nomi_aziende([a["prospect_id"] for a in conti if a.get("prospect_id")])
+    for a in conti:
+        az = nomi2.get(a.get("prospect_id"), "")
+        giorno = (a["at"] or "")[:10]
+        if not giorno:
+            continue
+        e = scrivi(cid, f"agenda:{a['id']}", f"{a['titolo']}" + (f", {az}" if az and az not in a['titolo'] else ""),
+                   giorno, f"Scadenza {a['tipo']} dal Workspace.", prova)
+        if e:
+            conta[e] = conta.get(e, 0) + 1
+
     print(f"{'(prova) ' if prova else ''}calendario: {conta.get('nuovo', 0)} nuovi, "
           f"{conta.get('aggiornato', 0)} aggiornati, {conta.get('prova', 0)} da scrivere")
 
