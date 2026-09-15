@@ -193,6 +193,15 @@ export default function Preventivi({ onOpen }: Props) {
     }
   }
 
+  // un incasso che Clara non ha riconosciuto (nome diverso, gmail): lo colleghi tu
+  async function collega(incassoId: string, prospectId: string) {
+    if (!prospectId) return
+    const { error } = await supabase.from('incassi').update({ prospect_id: prospectId }).eq('id', incassoId)
+    if (error) { setProblema(error.message); return }
+    setIncassi((v) => (v ?? []).map((i) => (i.id === incassoId ? { ...i, prospect_id: prospectId } : i)))
+    setToast(`Incasso collegato a ${nomeDi(prospectId)}`)
+  }
+
   async function apri(q: Preventivo) {
     if (!q.pdf_path) return
     if (!(await apriFile(q.pdf_path))) setProblema('Il PDF non si apre: rigeneralo dal preventivo')
@@ -278,8 +287,10 @@ export default function Preventivi({ onOpen }: Props) {
   const daIncassare = righe.filter((q) => q.stato === 'accettato' && !q.pagato_il)
   const incassati = righe.filter((q) => q.pagato_il)
   const anno = new Date().getFullYear()
-  const incassatiStripe = (incassi ?? []).filter((i) => i.genere === 'addebito' && i.stato === 'succeeded' && (i.quando ?? '').startsWith(String(anno)))
-  const abbonamenti = (incassi ?? []).filter((i) => i.genere === 'abbonamento' && (i.stato === 'active' || i.stato === 'trialing'))
+  // sotto l'euro sono le prove fatte da noi: non sono incassi
+  const veri = (incassi ?? []).filter((i) => i.importo >= 1)
+  const incassatiStripe = veri.filter((i) => i.genere === 'addebito' && i.stato === 'succeeded' && (i.quando ?? '').startsWith(String(anno)))
+  const abbonamenti = veri.filter((i) => i.genere === 'abbonamento' && (i.stato === 'active' || i.stato === 'trialing'))
   const mensile = abbonamenti.reduce((s, i) => s + (i.ricorrenza === 'year' ? i.importo / 12 : i.importo), 0)
 
   const tessera = (n: string, v: number, quanti: number, tono = '', su?: Filtro) => (
@@ -548,7 +559,7 @@ export default function Preventivi({ onOpen }: Props) {
       )}
 
       {/* GLI INCASSI DA STRIPE: Clara li legge ogni ora (stripe_sync.py) */}
-      {incassi && filtro === 'tutti' && (
+      {incassi && (
         <>
           <div className="pt-2">
             <h2 className="text-base font-extrabold text-navy">Incassi su Stripe</h2>
@@ -568,7 +579,7 @@ export default function Preventivi({ onOpen }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {incassi.map((i) => (
+                  {veri.map((i) => (
                     <tr key={i.id} className="border-b border-velo last:border-0 hover:bg-velo/30">
                       <td className="px-2 py-2 text-sm tabular-nums">{fmtDateShort(i.quando ? i.quando.slice(0, 10) : null)}</td>
                       <td className="px-2 py-2 text-sm">{GENERE[i.genere]}{i.ricorrenza ? <span className="text-spento"> / {i.ricorrenza === 'year' ? 'anno' : 'mese'}</span> : null}</td>
@@ -582,7 +593,11 @@ export default function Preventivi({ onOpen }: Props) {
                       <td className="px-2 py-2 text-xs">
                         {i.prospect_id
                           ? <button onClick={() => onOpen(i.prospect_id!)} className="font-semibold hover:text-navy">{nomeDi(i.prospect_id)}{i.preventivo_id ? <span className="text-spento"> (preventivo pagato)</span> : null}</button>
-                          : <span className="text-spento">non collegato</span>}
+                          : <select value="" onChange={(e) => void collega(i.id, e.target.value)}
+                                    className="w-full rounded-lg border border-bordo bg-white px-2 py-1 text-[11px] text-tenue outline-none focus:border-blu">
+                              <option value="">collega a un'azienda…</option>
+                              {aziende.map((a) => <option key={a.id} value={a.id}>{a.company || a.name || a.email}</option>)}
+                            </select>}
                       </td>
                     </tr>
                   ))}
