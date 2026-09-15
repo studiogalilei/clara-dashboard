@@ -250,6 +250,32 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
 
       {/* telefono: la lista raggruppata */}
       <div className="space-y-5 lg:hidden">
+        <Card className="px-4 py-2.5">
+          {scrivoTask ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={titoloTask}
+                onChange={(e) => setTitoloTask(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') aggiungiTask()
+                  if (e.key === 'Escape') { setScrivoTask(false); setTitoloTask('') }
+                }}
+                placeholder="Cosa c'è da fare oggi?"
+                className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu"
+              />
+              <button onClick={aggiungiTask} disabled={!titoloTask.trim() || salvo}
+                      className="shrink-0 rounded-full bg-blu px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30">
+                {salvo ? 'Salvo…' : 'Metti in Task'}
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setScrivoTask(true)} className="text-sm font-semibold text-blu">
+              + Aggiungi una task per oggi
+            </button>
+          )}
+          {esito && <p className="mt-1.5 text-xs font-semibold text-green-700">{esito}</p>}
+        </Card>
         {futureVoci.length === 0 && <Card><Empty text="Niente in programma" /></Card>}
         {gruppi.map(([nome, lista]) =>
           lista.length === 0 ? null : (

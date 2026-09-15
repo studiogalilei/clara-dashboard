@@ -73,6 +73,7 @@ export default function Progetti({ onOpen }: Props) {
   const [menuRiga, setMenuRiga] = useState<number | null>(null)  // il menu ⋯ della riga
   const [chiusi, setChiusi] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
+  const [tolgo, setTolgo] = useState<Progetto | null>(null)   // la riga che sta per sparire
   const [vedoSoldi, setVedoSoldi] = useState(false)
 
   useEffect(() => {
@@ -141,14 +142,17 @@ export default function Progetti({ onOpen }: Props) {
     setScelgo(null)
   }
 
+  // la conferma sta dentro la pagina, come le altre: il popup del browser
+  // non segue il tema e sul telefono e' brutto (QA Dre, 15/9)
   async function togli(p: Progetto) {
-    if (!confirm(`Tolgo «${p.nome || p.cliente || 'questa riga'}» dal foglio?`)) return
     const { error } = await supabase.from('progetti').delete().eq('id', p.id)
     if (error) { setProblema('Non si è tolta: ' + error.message); return }
     setRighe((r) => r!.filter((x) => x.id !== p.id))
+    setTolgo(null)
   }
 
   if (righe === null) return <Spinner />
+
 
   const oggi = giorno()
   const nomeDi = (p: Progetto) => (p.prospect_id ? (nomi[p.prospect_id] ?? p.cliente ?? '') : (p.cliente ?? '')).toLowerCase()
@@ -216,7 +220,7 @@ export default function Progetti({ onOpen }: Props) {
               ) : (
                 <button onClick={() => { void scrivi(p, { stato: 'in_corso' }); setMenuRiga(null) }} className="block w-full px-3 py-2 text-sm hover:bg-velo">Riporta in corso</button>
               )}
-              <button onClick={() => { setMenuRiga(null); void togli(p) }} className="block w-full px-3 py-2 text-sm text-red-700 hover:bg-red-50">Togli la riga</button>
+              <button onClick={() => { setMenuRiga(null); setTolgo(p) }} className="block w-full px-3 py-2 text-sm text-red-700 hover:bg-red-50">Togli la riga</button>
             </div>
           )}
         </td>
@@ -246,7 +250,15 @@ export default function Progetti({ onOpen }: Props) {
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
-          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">chiudi</button>
+          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">Chiudi</button>
+        </div>
+      )}
+
+      {tolgo && (
+        <div className="salta-su flex flex-wrap items-center gap-3 rounded-xl border border-blu/40 bg-white px-4 py-3">
+          <span className="flex-1 text-sm font-semibold">Tolgo «{tolgo.nome || tolgo.cliente || 'questa riga'}» dal foglio?</span>
+          <button onClick={() => void togli(tolgo)} className="rounded-full bg-red-700 px-4 py-1.5 text-sm font-bold text-white hover:bg-red-800">Sì, togli</button>
+          <button onClick={() => setTolgo(null)} className="rounded-full border border-bordo px-4 py-1.5 text-sm font-semibold text-tenue hover:border-spento">No, lascia</button>
         </div>
       )}
 

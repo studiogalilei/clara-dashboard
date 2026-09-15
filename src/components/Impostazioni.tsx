@@ -115,6 +115,20 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
     onCambio()
   }
 
+  // col dito il trascinamento HTML non parte: le frecce fanno la stessa cosa
+  // e sono l'unico modo di riordinare da telefono (QA Dre, 15/9)
+  function sposta(chiave: Chiave, verso: -1 | 1) {
+    const n = [...lista]
+    const da = n.findIndex((w) => w.chiave === chiave)
+    const a = da + verso
+    if (da < 0 || a < 0 || a >= n.length) return
+    const [mosso] = n.splice(da, 1)
+    n.splice(a, 0, mosso)
+    setLista(n)
+    salvaOrdine(n.map((w) => w.chiave))
+    onCambio()
+  }
+
   function scriviNome() {
     salvaNome(bozzaNome)
     setSalvato(true)
@@ -184,7 +198,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
       <Card>
         <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
           <TitoloCard>Widget</TitoloCard>
-          <Micro>trascina per riordinare</Micro>
+          <Micro>l'ordine è quello del menu</Micro>
         </header>
         {accessoEsito && <p className="border-b border-velo bg-velo px-4 py-2 text-xs font-semibold">{accessoEsito}</p>}
 
@@ -209,10 +223,15 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
               } ${sopra === w.chiave && presa && presa !== w.chiave ? 'border-t-2 border-t-blu' : ''}`}
             >
               <div className="flex items-center gap-3">
-                <span className="cursor-grab text-spento active:cursor-grabbing" aria-hidden>
-                  <svg viewBox="0 0 24 24" className="h-4 w-4">
-                    <path fill="currentColor" d="M9 5h2v2H9zM13 5h2v2h-2zM9 11h2v2H9zM13 11h2v2h-2zM9 17h2v2H9zM13 17h2v2h-2z" />
-                  </svg>
+                <span className="flex shrink-0 flex-col">
+                  <button onClick={() => sposta(w.chiave, -1)} aria-label={`Sposta ${w.nome} in su`}
+                          className="text-spento hover:text-navy disabled:opacity-20" disabled={lista[0]?.chiave === w.chiave}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="h-3.5 w-3.5"><path d="M6 15l6-6 6 6" /></svg>
+                  </button>
+                  <button onClick={() => sposta(w.chiave, 1)} aria-label={`Sposta ${w.nome} in giù`}
+                          className="text-spento hover:text-navy disabled:opacity-20" disabled={lista[lista.length - 1]?.chiave === w.chiave}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="h-3.5 w-3.5"><path d="M6 9l6 6 6-6" /></svg>
+                  </button>
                 </span>
                 {/* la stessa icona del menu: i Documenti qui erano un lucchetto
                     e nel menu il marchio (QA browser, 15/9) */}

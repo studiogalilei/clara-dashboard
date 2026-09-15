@@ -141,6 +141,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [problema, setProblema] = useState('')
   // dieci nomi per gruppo, il resto a richiesta (Dre: poche cose alla volta)
   const [apertoGruppo, setApertoGruppo] = useState<Set<string>>(new Set())
+  // il motivo per cui rimandi indietro una task: si scrive qui, non nel popup
+  const [rimando, setRimando] = useState<number | null>(null)
+  const [motivo, setMotivo] = useState('')
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [settimana, setSettimana] = useState(0)          // 0 = questa
   const [aggiungoIn, setAggiungoIn] = useState<string | null>(null)
@@ -576,9 +579,20 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             <div className="mt-1.5 flex gap-1.5">
               <button onClick={() => rispondiAllaProposta(t, true)}
                 className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">Accetta</button>
-              <button onClick={() => { const m = window.prompt('Perché la rimandi indietro?'); if (m !== null) rispondiAllaProposta(t, false, m) }}
+              <button onClick={() => { setRimando(t.id); setMotivo('') }}
                 className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">Rimanda</button>
             </div>
+            {rimando === t.id && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input autoFocus value={motivo} onChange={(e) => setMotivo(e.target.value)}
+                       onKeyDown={(e) => { if (e.key === 'Enter') { rispondiAllaProposta(t, false, motivo); setRimando(null) } if (e.key === 'Escape') setRimando(null) }}
+                       placeholder="Perché la rimandi indietro?"
+                       className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
+                <button onClick={() => { rispondiAllaProposta(t, false, motivo); setRimando(null) }}
+                        className="rounded-full bg-blu px-3 py-1.5 text-[11px] font-bold text-white">Rimanda</button>
+                <button onClick={() => setRimando(null)} className="text-[11px] text-spento hover:text-inchiostro">Annulla</button>
+              </div>
+            )}
           </div>
         ))}
       </Card>
