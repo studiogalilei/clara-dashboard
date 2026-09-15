@@ -194,7 +194,12 @@ export const agenda: AgendaItem[] = [
   { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva, Venice Design Week', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal' },
   { id: 2, at: fra(4).slice(0, 11) + '09:00:00', titolo: 'Invio follow-up, 30 mail pronte', tipo: 'invio', prospect_id: null, fonte: 'gcal' },
   { id: 3, at: fra(8).slice(0, 11) + '09:00:00', titolo: 'Ripartono le campagne', tipo: 'altro', prospect_id: null, fonte: 'gcal' },
-]
+  // le scadenze degli account, quelle di Salvatore: si mettono dal Calendario
+  // e compaiono anche in Oggi, a chi le ha messe
+  { id: 6, at: fra(0).slice(0, 11) + '09:00:00', titolo: 'Rifare il budget di ottobre', tipo: 'budget', prospect_id: 'p7', owner: 'demo', fonte: 'workspace' },
+  { id: 7, at: fra(2).slice(0, 11) + '09:00:00', titolo: 'Rinnovo campagna brand', tipo: 'rinnovo', prospect_id: 'p3', owner: 'demo', fonte: 'workspace' },
+  { id: 8, at: fra(12).slice(0, 11) + '09:00:00', titolo: 'Budget del trimestre', tipo: 'budget', prospect_id: 'p5', owner: 'demo', fonte: 'workspace' },
+] as AgendaItem[]
 
 export const clara_messaggi = [
   {

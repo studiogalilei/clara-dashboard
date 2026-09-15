@@ -6,6 +6,7 @@ import Radar from './Radar'
 import { Card, Spinner, giorni, fmtDateShort, sgid } from './ui'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 import { chiSono } from '../lib/accessi'
+import { COLORE_STATO, type Tono } from '../lib/stato'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -79,6 +80,44 @@ interface RigaPod {
   aperte: number
   scadute: number
   ultima: { titolo: string; fatta_il: string } | null
+}
+
+// LE SCADENZE DEGLI ACCOUNT IN HOME (Salvatore, 15/9). Budget da rifare e
+// rinnovi di campagna si mettono dal Calendario e vivono in agenda con un
+// tipo loro, ma la mattina nessuno apre il calendario: apre Oggi. Una
+// scadenza che non si vede il giorno che scade e' una scadenza mancata.
+const ORIZZONTE = 30    // regola 10: niente oltre trenta giorni in vista
+type TipoScadenza = 'budget' | 'rinnovo'
+// la riga dice cosa c'e' da fare, non come si chiama il tipo nel database
+const DETTAGLIO: Record<TipoScadenza, string> = {
+  budget: 'Budget da rifare',
+  rinnovo: 'Rinnovo campagna',
+}
+
+interface ScadenzaAccount {
+  id: number
+  at: string
+  tipo: TipoScadenza
+  titolo: string
+  prospect_id: string | null
+  nome: string            // l'azienda, non il titolo: si apre la sua scheda
+  sg: string | null
+}
+
+// Il tono e' quello del resto dell'app (COLORE_STATO): rosso quello che
+// scade adesso, ambra la settimana, verde quello che ha tempo. Accanto c'e'
+// scritto quando, perche' il colore non e' mai l'unico segnale.
+const GG = 86400e3
+const mezzogiorno = (g: string) => new Date(`${g}T12:00:00`).getTime()
+const fraQuanti = (at: string) => Math.round((mezzogiorno(giorno(at)) - mezzogiorno(oggi())) / GG)
+function tonoScadenza(at: string): Tono {
+  const n = fraQuanti(at)
+  return n <= 0 ? 'azione' : n <= 3 ? 'attesa' : 'ok'
+}
+// «oggi» e «domani» si leggono senza fare il conto; piu' in la' la data basta
+function quandoScade(at: string): string {
+  const n = fraQuanti(at)
+  return n <= 0 ? 'oggi' : n === 1 ? 'domani' : fmtDateShort(at)
 }
 
 interface Sotto {
@@ -179,6 +218,11 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [tavolozza, setTavolozza] = useState<number | null>(null)
   // chi ha qualcuno nel pod vede la card; chi non ce l'ha non sa che esiste
   const [pod, setPod] = useState<RigaPod[]>([])
+  // l'utente effettivo, quello che guarda il database: se un ceo sta
+  // guardando come Salvatore deve vedere le scadenze di Salvatore, ed e' lo
+  // stesso nome con cui il Calendario le ha scritte
+  const [ioVero, setIoVero] = useState<string | null>(null)
+  const [scadenze, setScadenze] = useState<ScadenzaAccount[]>([])
 
   const [stretto, setStretto] = useState(false)
   useEffect(() => {
@@ -224,7 +268,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   // chiede alla stessa tabella che apre la persona di lato, con lo stesso
   // filtro, se no la riga dice tre e il pannello ne mostra due
   useEffect(() => {
-    void chiSono().then(async ({ pod: miei }) => {
+    void chiSono().then(async ({ uid, pod: miei }) => {
+      setIoVero(uid)
       if (!miei.length) { setPod([]); return }
       const ids = miei.map((p) => p.id)
       const [ap, fa] = await Promise.all([
@@ -249,6 +294,38 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       }))
     })
   }, [])
+
+  // le scadenze degli account: solo le proprie (owner), solo da oggi in
+  // avanti. Quelle passate non stanno qui: la home dice cosa aspetta te
+  // adesso, l'arretrato si guarda dal Calendario.
+  useEffect(() => {
+    if (!ioVero) { setScadenze([]); return }
+    const da = new Date(`${oggi()}T00:00:00`).toISOString()
+    const a = new Date(Date.now() + ORIZZONTE * 86400e3).toISOString()
+    void supabase.from('agenda').select('id,at,titolo,tipo,prospect_id')
+      .eq('owner', ioVero).in('tipo', ['budget', 'rinnovo'])
+      .gte('at', da).lte('at', a)
+      .order('at', { ascending: true }).limit(50)
+      .then(async ({ data }) => {
+        const righe = (data as Array<{ id: number; at: string; titolo: string; tipo: TipoScadenza; prospect_id: string | null }>) ?? []
+        // il nome dell'azienda in agenda non c'e': senza, la riga direbbe
+        // «Budget da rifare» e non si saprebbe di chi (regola 8)
+        const ids = [...new Set(righe.map((r) => r.prospect_id).filter((x): x is string => Boolean(x)))]
+        const { data: aziende } = ids.length
+          ? await supabase.from('prospects').select('id,company,name,email,sg_id').in('id', ids)
+          : { data: [] }
+        type Azienda = { id: string; company: string | null; name: string | null; email: string; sg_id: number | null }
+        const chi = new Map(((aziende as Azienda[]) ?? []).map((x) => [x.id, x]))
+        setScadenze(righe.map((r) => {
+          const az = r.prospect_id ? chi.get(r.prospect_id) : undefined
+          return {
+            id: r.id, at: r.at, tipo: r.tipo, titolo: r.titolo, prospect_id: r.prospect_id,
+            nome: az ? (az.company || az.name || az.email) : r.titolo,
+            sg: az ? sgid(az.sg_id, null) : null,
+          }
+        }))
+      })
+  }, [ioVero])
 
   const nomeDi = (id: string | null) =>
     persone.find((p) => p.id === id)?.nome ?? 'qualcuno'
@@ -899,6 +976,39 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
           <p className="px-2 py-6 text-center text-sm text-spento">Nessuna task.</p>
         )}
       </Card>
+
+      {/* le scadenze degli account stanno sotto le proprie task e sopra il
+          pod: sono roba tua e hanno una data, quindi si guardano subito dopo
+          quello che fai oggi. Chi non ne ha non vede la carta: uno che non
+          fa Google Ads non deve trovarsi una scatola vuota in home */}
+      {scadenze.length > 0 && (
+        <Card>
+          <header className="border-b border-velo px-3 py-2.5">
+            <p className="text-sm font-bold">Scadenze account</p>
+          </header>
+          {scadenze.map((s) => {
+            const tono = tonoScadenza(s.at)
+            return (
+              <button
+                key={s.id}
+                onClick={() => { if (s.prospect_id) onOpen(s.prospect_id) }}
+                title={s.titolo}
+                className="flex w-full items-center gap-3 border-b border-velo px-3 py-2.5 text-left last:border-0 hover:bg-velo/50"
+              >
+                <span className={`h-2 w-2 shrink-0 rounded-full ${COLORE_STATO[tono].pallino}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">
+                    {s.nome}
+                    {s.sg && <span className="ml-1.5 text-[10px] font-semibold text-blu/70">{s.sg}</span>}
+                  </p>
+                  <p className="truncate text-xs text-tenue">{DETTAGLIO[s.tipo]}</p>
+                </div>
+                <span className={`shrink-0 text-xs ${COLORE_STATO[tono].testo}`}>{quandoScade(s.at)}</span>
+              </button>
+            )
+          })}
+        </Card>
+      )}
 
       {/* il pod sta sotto le proprie task, non sopra: anche un manager la
           mattina deve guardare prima la sua roba (regola 9). La riga apre la
