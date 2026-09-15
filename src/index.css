@@ -55,8 +55,21 @@ body {
   to   { transform: translateX(0); opacity: 1; }
 }
 .scivola { animation: scivola 0.2s ease-out; }
+/* la pallina di Clara quando c'e' qualcosa da leggere (Dre, 15/9): rimbalza
+   come l'icona nel Dock del Mac, due salti e una pausa, finche' non la apri */
+@keyframes rimbalza {
+  0%, 62%, 100% { transform: translateY(0); }
+  70% { transform: translateY(-14px); }
+  76% { transform: translateY(0); }
+  82% { transform: translateY(-7px); }
+  88% { transform: translateY(0); }
+  92% { transform: translateY(-3px); }
+  96% { transform: translateY(0); }
+}
+.rimbalza { animation: rimbalza 2.6s cubic-bezier(0.28, 0.84, 0.42, 1) infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .scivola, .salta-su, .atterra { animation: none; }
+  .scivola, .salta-su, .atterra, .rimbalza { animation: none; }
 }
 
 /* dal video UI/UX (31/8): i titoli grandi si stringono (tracking -2%,

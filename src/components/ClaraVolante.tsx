@@ -240,7 +240,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // stretta (320), aperta di default sulla posta; la chiudi se vuoi e torna
   // il logo. Sul telefono resta il pannello che si apre sopra.
   const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
-  const [aperta, setApertaStato] = useState<boolean>(() => desktop && leggiPref('clara-aperta') === 'si')
+  // entrando la colonna di Clara e' chiusa (Dre, 15/9): la pagina e' tua,
+  // lei si fa notare rimbalzando se ha qualcosa. Prima si riapriva da sola
+  // perche' ricordava l'ultima volta.
+  const [aperta, setApertaStato] = useState<boolean>(false)
   const setAperta = useCallback((v: boolean) => {
     setApertaStato(v)
     if (desktop) scriviPref('clara-aperta', v ? 'si' : 'no')
@@ -513,6 +516,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   }, [larghezza, fissa, setAperta])
 
   const nonLetti = (messaggi ?? []).filter((m) => !m.letto && m.tipo !== 'dre')
+  // c'e' qualcosa che aspetta te: la pallina rimbalza finche' non la apri
+  const daNotare = !aperta && (nonLetti.length > 0 || proposte.length > 0)
   // la presenza (Dre, 9/9): cosa sta facendo Clara adesso, in una riga, come una collega
   const bozzeAperte = proposte.filter((p) => p.tipo === 'risposta' || p.tipo === 'umano').length
   const presenza = pensa ? 'Sto pensando…'
@@ -874,7 +879,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             }}
             aria-label="Clara"
             title="Trascinami dove vuoi"
-            className="relative flex w-[76px] cursor-grab touch-none flex-col items-center gap-0.5 rounded-[22px] border border-bordo bg-white px-2 pb-2 pt-2.5 text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-transform hover:-translate-y-0.5 active:cursor-grabbing"
+            className={`relative flex w-[76px] cursor-grab touch-none flex-col items-center gap-0.5 rounded-[22px] border bg-white px-2 pb-2 pt-2.5 text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-transform hover:-translate-y-0.5 active:cursor-grabbing ${
+              daNotare ? 'rimbalza border-red-300' : 'border-bordo'
+            }`}
           >
             <ClaraLogo size={44} lavora={pensa} />
             {/* il nome fa parte del logo: stesso blu, stessa forma bianca (Dre, 9/9) */}
