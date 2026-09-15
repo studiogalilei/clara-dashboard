@@ -77,6 +77,8 @@ export default function Preventivi({ onOpen }: Props) {
   const [incassiAperti, setIncassiAperti] = useState(false)
   // una domanda di conferma dentro la pagina, non il popup del browser
   const [conferma, setConferma] = useState<{ testo: string; fai: () => void } | null>(null)
+  // i dati fiscali presi dal registro europeo: si dichiara, non si nasconde
+  const [dallaPiva, setDallaPiva] = useState<string | null>(null)
   // il lucchetto: due clic ravvicinati su «Genera il PDF» facevano due
   // preventivi con due numeri per la stessa trattativa (QA Dre, 15/9)
   const sto = useRef(false)
@@ -158,6 +160,7 @@ export default function Preventivi({ onOpen }: Props) {
 
   // ── il pannello: nuovo o modifica ─────────────────────────────────────
   function apriNuovo(prospect_id = '') {
+    setDallaPiva(null)
     const n = nomi[prospect_id]
     setBozza({ ...vuota(), prospect_id, fatturazione: n?.fatturazione ?? (n ? { ragione: n.company ?? '' } : {}) })
   }
@@ -165,6 +168,30 @@ export default function Preventivi({ onOpen }: Props) {
     const n = nomi[q.prospect_id]
     setBozza({ id: q.id, prospect_id: q.prospect_id, voci: q.voci ?? [], valido_fino: q.valido_fino ?? fraGiorni(30), note: q.note ?? '', fatturazione: n?.fatturazione ?? { ragione: n?.company ?? '' } })
   }
+  // LA PARTITA IVA CHE SI COMPILA DA SOLA (15/9). Ragione sociale e sede
+  // sono dati pubblici: si chiedono al registro europeo invece di farli
+  // battere a mano. Si riempiono solo i campi vuoti, e si dice da dove
+  // arrivano, cosi' restano correggibili.
+  async function cercaPiva(grezzo: string) {
+    const t = grezzo.replace(/[^A-Za-z0-9]/g, '')
+    if (t.length < 8) return
+    try {
+      const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/piva?p=${encodeURIComponent(t)}`, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      })
+      const d = await r.json() as { trovata: boolean; ragione?: string; indirizzo?: string }
+      if (!d.trovata) return
+      setBozza((b) => {
+        if (!b) return b
+        const f = { ...b.fatturazione }
+        if (!f.ragione?.trim() && d.ragione) f.ragione = d.ragione
+        if (!f.indirizzo?.trim() && d.indirizzo) f.indirizzo = d.indirizzo
+        return { ...b, fatturazione: f }
+      })
+      setDallaPiva(d.ragione ?? null)
+    } catch { /* il registro non risponde: si scrive a mano, come prima */ }
+  }
+
   function scegliAzienda(a: Nome) {
     setNomi((m) => ({ ...m, [a.id]: a }))
     setBozza((b) => b && ({ ...b, prospect_id: a.id, fatturazione: a.fatturazione ?? { ragione: a.company ?? '' } }))
@@ -550,14 +577,19 @@ export default function Preventivi({ onOpen }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <p className="col-span-2 -mb-1 text-[11px] text-spento">
-                {buchiCliente.length > 0
+                {dallaPiva
+                  ? <span className="font-semibold text-navy">Presi dal registro europeo: {dallaPiva}</span>
+                  : buchiCliente.length > 0
                   ? <span className="font-semibold text-amber-800">Per il PDF manca {buchiCliente.join(', ')}</span>
                   : 'Valgono per tutti i preventivi e le fatture di questa azienda'}
               </p>
               {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Indirizzo'], ['pec', 'PEC'], ['sdi', 'Codice SDI']] as Array<[keyof Fatturazione, string]>).map(([k, n]) => (
                 <label key={k} className={k === 'indirizzo' ? 'col-span-2' : ''}>
                   <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
-                  <input value={bozza.fatturazione[k] ?? ''} onChange={(e) => setBozza({ ...bozza, fatturazione: { ...bozza.fatturazione, [k]: e.target.value } })}
+                  <input value={bozza.fatturazione[k] ?? ''}
+                         onChange={(e) => setBozza({ ...bozza, fatturazione: { ...bozza.fatturazione, [k]: e.target.value } })}
+                         onBlur={(e) => { if (k === 'piva') void cercaPiva(e.target.value) }}
+                         placeholder={k === 'piva' ? 'Scrivila e il resto arriva' : undefined}
                          className="mt-0.5 w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
                 </label>
               ))}
