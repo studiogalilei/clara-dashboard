@@ -76,7 +76,10 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
     setV(n)
     return true
   }
-  const [parlo, setParlo] = useState(true)   // ci sto già parlando, o l'ho solo trovata
+  // da dove entra: Dre (15/9) «se arriva qualcuno da fuori che vuole i
+  // nostri servizi lo aggiungono nella sezione prospect: ci conosce gia',
+  // c'e' solo da fare la call tecnica»
+  const [come, setCome] = useState<'parlo' | 'trovata' | 'conosce'>('parlo')
   const [salvo, setSalvo] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
 
@@ -86,6 +89,7 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
     if (!company && !email) { setProblema('Serve almeno il nome dell\'azienda.'); return }
     setSalvo(true)
     setProblema(null)
+    const dentro = come === 'conosce'
     const riga: Record<string, unknown> = {
       company: company || null,
       name: (v.name ?? '').trim() || null,
@@ -97,13 +101,17 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
       campaign: (v.campaign ?? '').trim() || null,
       chi_segue: nome,
       // «ci sto parlando» = ha risposto, il prossimo passo è l'analisi;
-      // «l'ho solo trovata» resta fuori dalla bacheca finché non risponde
-      stage: parlo ? 'risposto' : 'nuovo',
-      last_reply_at: parlo ? new Date().toISOString() : null,
-      first_reply_at: parlo ? new Date().toISOString() : null,
+      // «l'ho solo trovata» resta fuori dalla bacheca finché non risponde;
+      // «ci conosce già» entra dritto in Call Tecnica, cioè è un prospect
+      stage: dentro ? 'call_fissata' : come === 'parlo' ? 'risposto' : 'nuovo',
+      last_reply_at: come === 'trovata' ? null : new Date().toISOString(),
+      first_reply_at: come === 'trovata' ? null : new Date().toISOString(),
       awaiting_us: false,
-      analysis_sent: false,
-      fuori: false,
+      analysis_sent: dentro,
+      analysis_sent_at: dentro ? new Date().toISOString() : null,
+      fuori: dentro,
+      fuori_at: dentro ? new Date().toISOString() : null,
+      pipeline_stage: dentro ? 'tecnica' : null,
     }
     const { data, error } = await supabase.from('prospects').insert(riga).select('id').single()
     setSalvo(false)
@@ -115,7 +123,7 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
     }
     await supabase.from('interactions').insert({
       prospect_id: (data as { id: string }).id, at: new Date().toISOString(), kind: 'nota',
-      body: `Aggiunta a mano da ${nome}${riga.campaign ? `, da ${riga.campaign}` : ''}, il ${giorno()}.`,
+      body: `${dentro ? 'Arrivata da fuori, entra in Call Tecnica' : 'Aggiunta a mano'} da ${nome}${riga.campaign ? `, da ${riga.campaign}` : ''}, il ${giorno()}.`,
     })
     onFatto((data as { id: string }).id)
   }
@@ -158,13 +166,16 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-full border border-bordo text-xs font-semibold">
-          {[[true, 'Ci sto già parlando'], [false, 'L\'ho solo trovata']].map(([val, testo]) => (
-            <button key={String(val)} onClick={() => setParlo(Boolean(val))}
-                    className={`px-3.5 py-1.5 ${parlo === val ? 'bg-blu text-white' : 'bg-white text-tenue hover:bg-velo'}`}>
+          {([['parlo', 'Ci sto già parlando'], ['trovata', 'L\'ho solo trovata'], ['conosce', 'Ci conosce già']] as const).map(([val, testo]) => (
+            <button key={val} onClick={() => setCome(val)}
+                    className={`px-3.5 py-1.5 ${come === val ? 'bg-blu text-white' : 'bg-white text-tenue hover:bg-velo'}`}>
               {testo}
             </button>
           ))}
         </div>
+        {come === 'conosce' && (
+          <span className="text-xs text-spento">Entra in Call Tecnica, da lì è un prospect</span>
+        )}
         <span className="text-xs text-spento">La segui tu, {nome.split(' ')[0] || 'tu'}</span>
         <button onClick={() => void salva()} disabled={salvo}
                 className="ml-auto rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-40">

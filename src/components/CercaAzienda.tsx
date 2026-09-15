@@ -33,13 +33,16 @@ export function indizio(nome: string): string {
   return parole[0] ?? ''
 }
 
-export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder, piccolo, iniziale = '', sopra = false }: {
+export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder, piccolo, iniziale = '', sopra = false, dentro = false }: {
   onScegli: (a: T) => void
   placeholder: string
   piccolo?: boolean
   // in fondo alla pagina i suggerimenti si aprono in su, se no coprono
   // il campo dove stai per scrivere
   sopra?: boolean
+  // solo prospect e clienti, cioe' dalla call tecnica in poi (Dre, 15/9):
+  // quando passi un documento non lo passi a un lead freddo
+  dentro?: boolean
   // quello che l'app ha gia' capito da sola: il nome dentro il file, la
   // parola che hai appena scritto. Si parte da li' invece che dal vuoto.
   iniziale?: string
@@ -55,14 +58,15 @@ export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder,
     setCercando(true)
     const t = setTimeout(async () => {
       const term = `%${s}%`
-      const { data } = await supabase.from('prospects').select(CAMPI_AZIENDA)
+      let q = supabase.from('prospects').select(CAMPI_AZIENDA)
         .or(`company.ilike.${term},name.ilike.${term},email.ilike.${term}`)
-        .order('company').limit(8)
+      if (dentro) q = q.eq('fuori', true).in('pipeline_stage', ['tecnica', 'avvio', 'prova', 'cliente'])
+      const { data } = await q.order('company').limit(8)
       setLista((data as T[]) ?? [])
       setCercando(false)
     }, 220)
     return () => clearTimeout(t)
-  }, [testo])
+  }, [testo, dentro])
 
   return (
     <div className="relative">
@@ -80,7 +84,9 @@ export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder,
           sopra ? 'bottom-full mb-1' : 'mt-1'}`}>
           {lista.length === 0
             ? <p className="px-3 py-2 text-xs text-spento">
-                {cercando ? 'Cerco…' : 'Nessuna azienda con questo nome: prima entra in Pipeline, poi torna qui'}
+                {cercando ? 'Cerco…'
+                  : dentro ? 'Nessun prospect o cliente con questo nome'
+                  : 'Nessuna azienda con questo nome: prima entra in Pipeline, poi torna qui'}
               </p>
             : lista.map((a) => (
               <button key={a.id} onClick={() => { setScelto(true); onScegli(a); setTesto('') }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">

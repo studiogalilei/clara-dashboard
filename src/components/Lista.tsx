@@ -29,7 +29,11 @@ const LIMITE = 200
 const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   // ha risposto, l'analisi non e' ancora partita: Clara prepara, Dre manda (Dre, 9/9)
   ['In arrivo', 'arrivo', eInArrivo],
-  ['Prospect', 'prospect', eProspect],
+  // Dre (15/9): «uno diventa prospect dalla call tecnica in poi». Prima
+  // sono lead: hanno risposto, gli abbiamo mandato l'analisi, magari
+  // abbiamo fatto la conoscitiva, ma non sono ancora roba nostra. La
+  // chiave resta 'prospect': ci sono appese le preferenze e gli accessi.
+  ['Lead', 'prospect', eProspect],
   ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva' && vivo(p)],
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
   ['Call di Avvio', 'avvio', (p) => p.fuori && p.pipeline_stage === 'avvio'],
@@ -49,7 +53,7 @@ const VIVE = TAPPE.filter(([, c]) => c !== 'perso' && c !== 'scartato')
 const PERSI = TAPPE.find(([, c]) => c === 'perso')!
 const SCARTATI = TAPPE.find(([, c]) => c === 'scartato')!
 
-// dentro Prospect si vede chi e' chi senza aprire (Dre, 7/9): non un sacco
+// dentro i Lead si vede chi e' chi senza aprire (Dre, 7/9): non un sacco
 // di 343 carte uguali, ma cinque gruppi con un nome
 const GRUPPI_PROSPECT: Array<[string, (p: Prospect) => boolean]> = [
   ['Caldi', (p) => p.classificazione === 'positivo'],
@@ -358,12 +362,12 @@ export default function Lista({ onOpen, q }: Props) {
     }
     await supabase.from('interactions').insert({
       prospect_id: p.id, at: new Date().toISOString(), kind: 'nota',
-      body: 'Uscita dalla pipeline: torna fra i prospect.',
+      body: 'Uscita dalla pipeline: torna fra i lead.',
     }).select().single()
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
     setGiro((g) => g + 1)
     setMosso(p.id)
-    setToast({ testo: `${nome} torna fra i prospect`, tono: 'ok', id: p.id })
+    setToast({ testo: `${nome} torna fra i lead`, tono: 'ok', id: p.id })
   }
 
   // «Perso» da qualunque fase: il motivo resta scritto nella storia
@@ -656,6 +660,11 @@ export default function Lista({ onOpen, q }: Props) {
                     className="flex min-w-0 items-baseline gap-1.5 text-left"
                   >
                     <Micro className={fuoco === chiave ? 'text-blu' : 'text-inchiostro'}>{nome}</Micro>
+                    {chiave === 'tecnica' && (
+                      <span className="shrink-0 rounded-full bg-blu/10 px-1.5 text-[9px] font-bold uppercase tracking-wide text-navy">
+                        prospect
+                      </span>
+                    )}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
                       className={`h-3 w-3 shrink-0 self-center ${fuoco === chiave ? 'text-blu' : 'text-spento'}`}>
                       {fuoco === chiave
@@ -888,7 +897,7 @@ export default function Lista({ onOpen, q }: Props) {
               {conferma.tipo === 'perso'
                 ? ' esce dalla pipeline.'
                 : conferma.target === 'prospect'
-                ? ' esce dalla pipeline e torna fra i prospect.'
+                ? ' esce dalla pipeline e torna fra i lead.'
                 : conferma.tipo === 'riapri'
                 ? ` torna in ${PIPELINE_LABEL[conferma.target as PipelineStage]}.`
                 : ` torna da ${PIPELINE_LABEL[conferma.da as PipelineStage]} a ${PIPELINE_LABEL[conferma.target as PipelineStage]}.`}

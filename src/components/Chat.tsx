@@ -387,8 +387,9 @@ export default function Chat({ onOpen }: Props) {
                 ) : (
                   <CercaAzienda
                     sopra
+                    dentro
                     iniziale={indizio(scelto.name)}
-                    placeholder="Di quale cliente è?"
+                    placeholder="Di quale prospect o cliente è?"
                     onScegli={(a) => {
                       setCliente({ id: a.id, nome: nomeAzienda(a) })
                       setDaThread(false)
