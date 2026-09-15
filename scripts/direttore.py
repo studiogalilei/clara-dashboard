@@ -3,7 +3,7 @@
 """IL DIRETTORE — fa partire le operazioni alla cadenza che Dre sceglie (7/9/2026).
 
 DOVE GIRA
-In cloud, su GitHub, ogni 15 minuti (.github/workflows/direttore.yml). Non sul
+In cloud, su GitHub, ogni ora (piu' il campanello di Smartlead) (.github/workflows/direttore.yml). Non sul
 Mac di Dre: e' la condizione che ha messo lui, «neanche se bombardano il Mac».
 
 COSA FA
@@ -112,15 +112,28 @@ def main():
     forza = sys.argv[sys.argv.index("--forza") + 1] if "--forza" in sys.argv else None
     fatte = 0
     if forza:
+        # l'interruttore vale anche per il campanello: se Dre ha spento le bozze,
+        # non si accendono da sole a ogni risposta (--anche-spente per forzare)
+        anche_spente = "--anche-spente" in sys.argv
         per_chiave = {op["chiave"]: op for op in ops}
         for chiave in [c.strip() for c in forza.split(",") if c.strip()]:
-            if chiave in per_chiave:
-                corri(per_chiave[chiave]); fatte += 1
-            else:
+            op = per_chiave.get(chiave)
+            if not op:
                 print(f"operazione sconosciuta: {chiave}")
+            elif not op["attiva"] and not anche_spente:
+                print(f"{chiave}: spenta, non la faccio partire")
+            elif not op.get("comando"):
+                print(f"{chiave}: non ha un comando (parte da GitHub)")
+            else:
+                corri(op); fatte += 1
         print(f"{fatte} operazioni fatte (forzate)")
         return
     for op in ops:
+        if op.get("richiesta_ora") and not op.get("comando"):
+            # «Fai ora» su una che parte da GitHub: si spegne la richiesta e si dice perche'
+            sb("PATCH", f"/rest/v1/operazioni?chiave=eq.{op['chiave']}",
+               {"richiesta_ora": False, "ultimo_dettaglio": "Questa parte da GitHub (backup.yml), non dal direttore"})
+            continue
         if dovuta(op):
             corri(op); fatte += 1
     print(f"{fatte} operazioni fatte" if fatte else "niente di dovuto adesso")

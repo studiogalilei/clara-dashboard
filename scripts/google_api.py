@@ -33,17 +33,17 @@ def access_token(email=None):
         return c["token"]
     righe = sb("GET", f"/rest/v1/google_token?select=refresh_token&email=eq.{urllib.parse.quote(email)}&limit=1") or []
     if not righe:
-        sys.exit(f"ERRORE: {email} non e' mai entrato con Google (manca google_token)")
+        raise RuntimeError(f"{email} non e' mai entrato con Google (manca google_token)")
     cid, sec = env("GOOGLE_OAUTH_CLIENT_ID"), env("GOOGLE_OAUTH_CLIENT_SECRET")
     if not cid or not sec:
-        sys.exit("ERRORE: mancano GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET")
+        raise RuntimeError(f"mancano GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET")
     corpo = urllib.parse.urlencode({"client_id": cid, "client_secret": sec, "refresh_token": righe[0]["refresh_token"], "grant_type": "refresh_token"}).encode()
     req = urllib.request.Request("https://oauth2.googleapis.com/token", data=corpo, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             d = json.loads(r.read())
     except urllib.error.HTTPError as e:
-        sys.exit(f"ERRORE: Google non rinnova il token di {email}: {e.read().decode()[:200]}")
+        raise RuntimeError(f"Google non rinnova il token di {email}: {e.read().decode()[:200]}")
     _cache[email] = {"token": d["access_token"], "scade": time.time() + int(d.get("expires_in", 3600))}
     return d["access_token"]
 

@@ -1,8 +1,9 @@
 import { supabase } from './supabase'
+import { urlFile, dimenticaFile } from './file'
 
 // LA FIRMA DI OGNUNO (Dre, 11/9): «la possibilita' di avere la propria firma
 // li', comoda». Sta nel profilo come PNG (data URL), la disegni una volta.
-// Il timbro dell'azienda e' un file solo nel bucket vault: timbro/timbro.png.
+// Il timbro dell'azienda e' un file solo nel bucket vault: azienda/timbro.png.
 
 export async function leggiFirma(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,12 +19,13 @@ export async function scriviFirma(dataUrl: string | null): Promise<string | null
   return error ? error.message : null
 }
 
-export const TIMBRO_PATH = 'timbro/timbro.png'
+export const TIMBRO_PATH = 'azienda/timbro.png'
 
 export async function leggiTimbro(): Promise<string | null> {
-  const { data } = await supabase.storage.from('vault').list('timbro', { limit: 5 })
+  const { data } = await supabase.storage.from('vault').list('azienda', { limit: 20 })
   if (!data?.some((f) => f.name === 'timbro.png')) return null
-  return supabase.storage.from('vault').getPublicUrl(TIMBRO_PATH).data.publicUrl + '?v=' + Date.now()
+  dimenticaFile(TIMBRO_PATH)
+  return urlFile(TIMBRO_PATH)
 }
 
 export async function scriviTimbro(f: File): Promise<string | null> {

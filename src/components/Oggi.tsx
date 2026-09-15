@@ -315,7 +315,12 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       perChi,
       ordine: Math.min(0, ...attivita!.map((t) => t.ordine)) - 1,
     })
-    if (guaio) { setProblema('La task non è stata salvata: ' + guaio); return }
+    if (guaio) {
+      setProblema(guaio.includes('row-level security')
+        ? 'Non posso mandare una task a questa persona: chiedi a Dre.'
+        : 'La task non è stata salvata: ' + guaio)
+      return
+    }
     if (task && !altrui) setAttivita((a) => [task as TaskDre, ...(a ?? [])])
     if (task && altrui) setMandate((m) => [task as TaskDre, ...m])
     setNuovo('')
@@ -528,7 +533,6 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
           </p>
         </div>
       ))}
-      <p className="border-t border-velo px-3 py-2 text-[11px] text-spento">Solo lettura: le sue task le muove {persona.nome ?? 'lui'}.</p>
     </Card>
   ) : (
     <div className="space-y-3">

@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react'
 const CompilaPdf = lazy(() => import('./CompilaPdf'))
 import type { Prospect } from '../lib/types'
 import { Card, Spinner, Empty, ZonaFile, fmtNum, fmtDateShort, sgid } from './ui'
+import { urlFileTanti, apriFile, dimenticaFile } from '../lib/file'
 
 // I DOCUMENTI: la cassaforte dello Studio (Dre, 14/9). «Che ci deve fare
 // una persona qui?» Trovare subito un logo, una copertina, il contratto
@@ -100,6 +101,7 @@ export default function Vault({ onOpen }: Props) {
   const [toast, setToast] = useState<string | null>(null)
   const [problema, setProblema] = useState<string | null>(null)
   const [compila, setCompila] = useState<FileVault | null>(null)
+  const [url, setUrl] = useState<Record<string, string>>({})   // le URL firmate dei file che si vedono
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -111,6 +113,15 @@ export default function Vault({ onOpen }: Props) {
     supabase.from('prospects').select('id,company,name,email,sg_id,stage,pipeline_stage,fuori').order('company').limit(2000)
       .then(({ data }) => setProspects((data as Prospect[]) ?? []))
   }, [])
+
+  // le URL firmate dei file che stanno per comparire: una chiamata sola per schermata
+  useEffect(() => {
+    const paths = (file ?? []).map((f) => f.path)
+    if (paths.length === 0) return
+    let vivo = true
+    void urlFileTanti(paths).then((m) => { if (vivo) setUrl((v) => ({ ...v, ...m })) })
+    return () => { vivo = false }
+  }, [file])
 
   useEffect(() => {
     if (!toast) return
@@ -151,6 +162,7 @@ export default function Vault({ onOpen }: Props) {
       await supabase.storage.from('vault').remove([path])
       setProblema(`Il file e' salito ma non l'ho potuto registrare: ${e2?.message ?? 'errore'}`)
     } else {
+      dimenticaFile(path)
       setFile((v) => [data as FileVault, ...(v ?? [])])
       setToast(sezione === 'cliente' ? `«${riga.nome}» nella cartella di ${nomeProspect(resto!)} ✓` : `«${riga.nome}» in ${SEZIONI.find(([k]) => k === riga.sezione)?.[1]} ✓`)
       setScelta(riga.sezione as Sezione)
@@ -164,15 +176,13 @@ export default function Vault({ onOpen }: Props) {
     setFile((v) => v!.map((x) => (x.id === id ? (data as FileVault) : x)))
   }
 
-  function urlDi(f: FileVault): string | null {
-    const { data } = supabase.storage.from('vault').getPublicUrl(f.path)
-    return data?.publicUrl ?? null
-  }
+  const urlDi = (f: FileVault): string | null => url[f.path] ?? null
 
   async function copiaLink(f: FileVault) {
-    const url = urlDi(f)
-    if (!url) return
-    try { await navigator.clipboard.writeText(url); setToast('Link copiato ✓') } catch { setProblema('Non riesco a copiare il link') }
+    // il link firmato dura un'ora: chi lo riceve lo apre subito, non per sempre
+    const u = urlDi(f)
+    if (!u) { setProblema('Il link non è pronto: riprova fra un istante'); return }
+    try { await navigator.clipboard.writeText(u); setToast('Link copiato, vale un\'ora') } catch { setProblema('Non riesco a copiare il link') }
   }
 
   const t = cerca.trim().toLowerCase()
@@ -198,14 +208,15 @@ export default function Vault({ onOpen }: Props) {
   }
 
   const carta = ({ capo: f, formati }: { capo: FileVault; formati: FileVault[] }, piccola = false) => {
-    const url = urlDi(f)
+    const suo = urlDi(f)
     const p2 = prospects.find((x) => x.id === f.prospect_id)
     const codice = sgid(p2?.sg_id, p2)
     return (
       <div key={f.id} className="group flex flex-col overflow-hidden rounded-2xl border border-bordo bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_rgba(16,24,40,0.04)] transition-colors hover:border-blu">
-        <a href={url ?? '#'} target="_blank" rel="noreferrer" className={`block ${piccola ? 'h-28' : 'h-40'} w-full overflow-hidden border-b border-velo bg-velo`}>
-          <Anteprima f={f} url={url} />
-        </a>
+        <button onClick={() => void apriFile(f.path)} title="Apri"
+                className={`block ${piccola ? 'h-28' : 'h-40'} w-full overflow-hidden border-b border-velo bg-velo`}>
+          <Anteprima f={f} url={suo} />
+        </button>
         <div className="flex flex-1 flex-col gap-1 p-3">
           <input
             value={f.nome}
@@ -223,10 +234,10 @@ export default function Vault({ onOpen }: Props) {
           </p>
           <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1.5">
             {formati.map((x) => (
-              <a key={x.id} href={urlDi(x) ?? '#'} download target="_blank" rel="noreferrer"
-                 className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-navy hover:border-navy">
-                {formati.length > 1 ? estensione(x.path).toUpperCase() : 'scarica'}
-              </a>
+              <button key={x.id} onClick={() => void apriFile(x.path)}
+                      className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-bold text-navy hover:border-navy">
+                {formati.length > 1 ? estensione(x.path).toUpperCase() : 'apri'}
+              </button>
             ))}
             <button onClick={() => copiaLink(f)} className="rounded-full border border-bordo px-2.5 py-1 text-[11px] font-semibold text-tenue hover:border-spento">link</button>
             {ePdf(f) && (

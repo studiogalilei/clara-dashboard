@@ -222,6 +222,7 @@ export async function creaTask(t: NuovaTask): Promise<{ task: TaskRiga | null; p
   }).select().single()
 
   if (error || !data) {
+    if (error?.code === '42501') return { task: null, problema: 'Non hai il permesso di mandare una task a questa persona' }
     return { task: null, problema: error?.message ?? 'la task non è stata salvata' }
   }
   return { task: data as TaskRiga, problema: null }

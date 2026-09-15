@@ -144,37 +144,10 @@ def main():
         r["preventivo_id"] = (vecchio or {}).get("preventivo_id")
         if r["prospect_id"]:
             collegati += 1
-        # un incasso vero, di un'azienda nota, senza preventivo collegato: cerco il preventivo
-        incassato = (r["genere"] == "addebito" and r["stato"] == "succeeded") or (r["genere"] == "fattura" and r["stato"] == "paid")
-        if incassato and r["prospect_id"] and not r["preventivo_id"]:
-            # inviati o accettati, non ancora pagati: pagare vale come accettare
-            aperti = sb("GET", f"/rest/v1/preventivi?select=id,importo,titolo&prospect_id=eq.{r['prospect_id']}"
-                               "&stato=in.(inviato,accettato)&pagato_il=is.null") or []
-            con_importo = [q for q in aperti if q.get("importo") is not None]
-            giusti = [q for q in con_importo if abs(float(q["importo"]) - r["importo"]) <= 1]
-            # un pagamento solo per piu' preventivi (es. sito + prova in un link): la somma torna
-            if not giusti and len(con_importo) > 1 and abs(sum(float(q["importo"]) for q in con_importo) - r["importo"]) <= 1:
-                giusti = con_importo
-            if giusti and (len(giusti) == 1 or len(giusti) == len(con_importo)):
-                r["preventivo_id"] = giusti[0]["id"]
-                if not prova:
-                    for q in giusti:
-                        sb("PATCH", f"/rest/v1/preventivi?id=eq.{q['id']}",
-                           {"stato": "accettato", "pagato_il": (r["quando"] or "")[:10] or datetime.date.today().isoformat(),
-                            "note": f"pagato su Stripe ({r['id']})"})
-                pagati += len(giusti)
-            elif aperti and not prova:
-                if proponi("richiesta", f"Incasso di {r['importo']:.0f} {r['valuta'].upper()} su Stripe: quale preventivo segno pagato?",
-                           prospect_id=r["prospect_id"],
-                           perche=f"{r.get('cliente_nome') or r.get('cliente_email')}, {r['descrizione'] or r['genere']}. Preventivi aperti: "
-                                  + ", ".join(f"{q['titolo'] or 'senza titolo'} {q['importo']:.0f} €" for q in aperti),
-                           azione={"incasso_id": r["id"]}):
-                    chiesti += 1
         if not vecchio:
             nuovi += 1
-        if prova:
-            print(f"  {r['genere']:11} {r['stato']:12} {r['importo']:8.2f} {r['valuta']} {str(r.get('cliente_nome'))[:24]:24} "
-                  f"{'azienda ok' if r['prospect_id'] else '-':10} {'prev ' + str(r['preventivo_id']) if r['preventivo_id'] else ''}")
+    # prima si salvano gli incassi (la lettura vale da sola), poi si prova ad abbinarli:
+    # un errore di abbinamento non deve buttare via l'ora di sync (QA Giacomo, 14/9)
     if not prova and righe:
         r0 = datetime.datetime.now(datetime.timezone.utc).isoformat()
         chiavi = {k for r in righe for k in r}          # PostgREST vuole le stesse chiavi su ogni riga
@@ -183,6 +156,50 @@ def main():
             for k in chiavi:
                 r.setdefault(k, None)
         sb("POST", "/rest/v1/incassi", righe, {"Prefer": "resolution=merge-duplicates"})
+    for r in righe:
+        # un incasso vero, di un'azienda nota, senza preventivo collegato: cerco il preventivo
+        incassato = (r["genere"] == "addebito" and r["stato"] == "succeeded") or (r["genere"] == "fattura" and r["stato"] == "paid")
+        if not (incassato and r["prospect_id"] and not r["preventivo_id"]):
+            continue
+        try:
+            # inviati o accettati, non ancora pagati: pagare vale come accettare
+            aperti = sb("GET", f"/rest/v1/preventivi?select=id,importo,mensile,titolo&prospect_id=eq.{r['prospect_id']}"
+                               "&stato=in.(inviato,accettato)&pagato_il=is.null") or []
+            pagato = float(r["importo"] or 0)
+            def torna(q):
+                # una tantum, con o senza IVA al 22%; oppure il canone (fattura o abbonamento)
+                candidati = [float(q.get("importo") or 0), float(q.get("importo") or 0) * 1.22]
+                if r["genere"] in ("fattura", "abbonamento"):
+                    candidati += [float(q.get("mensile") or 0), float(q.get("mensile") or 0) * 1.22]
+                return any(c > 0 and abs(c - pagato) <= 2 for c in candidati)
+            con_importo = [q for q in aperti if float(q.get("importo") or 0) > 0]
+            giusti = [q for q in aperti if torna(q)]
+            # un pagamento solo per piu' preventivi (es. sito + prova in un link): la somma torna
+            if not giusti and len(con_importo) > 1:
+                somma = sum(float(q["importo"]) for q in con_importo)
+                if abs(somma - pagato) <= 2 or abs(somma * 1.22 - pagato) <= 2:
+                    giusti = con_importo
+            if giusti and (len(giusti) == 1 or len(giusti) == len(con_importo)):
+                r["preventivo_id"] = giusti[0]["id"]
+                if not prova:
+                    for q in giusti:
+                        sb("PATCH", f"/rest/v1/preventivi?id=eq.{q['id']}",
+                           {"stato": "accettato", "pagato_il": (r["quando"] or "")[:10] or datetime.date.today().isoformat(),
+                            "note": f"pagato su Stripe ({r['id']})"})
+                    sb("PATCH", f"/rest/v1/incassi?id=eq.{r['id']}", {"preventivo_id": r["preventivo_id"]})
+                pagati += len(giusti)
+            elif aperti and not prova:
+                if proponi("richiesta", f"Incasso di {pagato:.0f} {r['valuta'].upper()} su Stripe: quale preventivo segno pagato?",
+                           prospect_id=r["prospect_id"],
+                           perche=f"{r.get('cliente_nome') or r.get('cliente_email')}, {r['descrizione'] or r['genere']}. Preventivi aperti: "
+                                  + ", ".join(f"{q['titolo'] or 'senza titolo'} {float(q.get('importo') or 0):.0f} €" for q in aperti),
+                           azione={"incasso_id": r["id"]}):
+                    chiesti += 1
+        except Exception as e:   # noqa: BLE001
+            print(f"  abbinamento saltato per {r['id']}: {str(e)[:120]}")
+        if prova:
+            print(f"  {r['genere']:11} {r['stato']:12} {r['importo']:8.2f} {r['valuta']} {str(r.get('cliente_nome'))[:24]:24} "
+                  f"{'azienda ok' if r['prospect_id'] else '-':10} {'prev ' + str(r['preventivo_id']) if r['preventivo_id'] else ''}")
     print(f"stripe: {len(righe)} righe ({nuovi} nuove), {collegati} con azienda, {pagati} preventivi segnati pagati, {chiesti} domande")
 
 

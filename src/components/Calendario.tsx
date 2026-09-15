@@ -14,7 +14,7 @@ import { giorno, creaTask } from '../lib/regole'
 // non e' il posto delle task, ma se sei qui e ti viene in mente una cosa per
 // giovedi', doverla andare a scrivere altrove significa perderla.
 
-type Tipo = 'call' | 'followup' | 'altro'
+type Tipo = 'call' | 'followup' | 'task' | 'altro'
 
 interface Voce {
   at: string
@@ -38,10 +38,11 @@ const GIORNI_LUNGHI = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerd�
 const COLORE: Record<Tipo, string> = {
   call: 'bg-blu text-white',
   followup: 'bg-amber-100 text-amber-900',
+  task: 'bg-velo text-tenue',
   altro: 'bg-red-100 text-red-900',
 }
 const PALLINO: Record<Tipo, string> = {
-  call: 'bg-navy', followup: 'bg-amber-500', altro: 'bg-red-500',
+  call: 'bg-navy', followup: 'bg-amber-500', task: 'bg-spento', altro: 'bg-red-500',
 }
 
 const chiave = (d: Date) =>
@@ -61,6 +62,7 @@ function corto(titolo: string): string {
 
 export default function Calendario({ onOpen, pod = [] }: Props) {
   const [conPod, setConPod] = useState(true)
+  const [io, setIo] = useState<string | null>(null)
   const oggi = new Date()
   const [voci, setVoci] = useState<Voce[] | null>(null)
   const [anno, setAnno] = useState(oggi.getFullYear())
@@ -85,6 +87,10 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   }
 
   useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setIo(data.session?.user?.id ?? null))
+  }, [])
+
+  useEffect(() => {
     Promise.all([
       supabase
         .from('agenda')
@@ -107,8 +113,9 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
         .not('followup_due', 'is', null)
         .order('followup_due', { ascending: true })
         .limit(200),
-      pod.length ? supabase.from('agenda').select('*').in('owner', pod.map((p) => p.id))
-        .gte('at', new Date(Date.now() - 7 * 86400e3).toISOString()).order('at', { ascending: true }).limit(300) : Promise.resolve({ data: [] }),
+      // i miei (owner = io) e quelli del pod, se sono manager
+      supabase.from('agenda').select('*').not('owner', 'is', null)
+        .gte('at', new Date(Date.now() - 7 * 86400e3).toISOString()).order('at', { ascending: true }).limit(400),
       pod.length ? supabase.from('task').select('id,titolo,scadenza,owner,fatta').in('owner', pod.map((p) => p.id))
         .eq('fatta', false).not('scadenza', 'is', null).limit(300) : Promise.resolve({ data: [] }),
       pod.length ? supabase.from('progetti').select('id,nome,scadenza,chi_segue,stato,prospect_id').not('scadenza', 'is', null).neq('stato', 'consegnato').limit(300) : Promise.resolve({ data: [] }),
@@ -118,13 +125,17 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
         at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
       }))
       for (const a of (agPod.data as Array<AgendaItem & { owner: string }>) ?? []) {
-        out.push({ at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id, chi: nome(a.owner) })
+        // i miei senza etichetta, quelli del pod col nome davanti
+        out.push({ at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id, chi: a.owner === io ? undefined : nome(a.owner) })
       }
       for (const t of (taskPod.data as Array<{ titolo: string; scadenza: string; owner: string }>) ?? []) {
-        out.push({ at: t.scadenza + 'T09:00:00', titolo: t.titolo, tipo: 'altro', prospect_id: null, chi: nome(t.owner) })
+        out.push({ at: t.scadenza + 'T09:00:00', titolo: t.titolo, tipo: 'task', prospect_id: null, chi: t.owner === io ? undefined : nome(t.owner) })
       }
+      const miei = new Set(pod.map((p) => (p.nome ?? '').split(' ')[0].toLowerCase()).filter(Boolean))
       for (const g of (progPod.data as Array<{ nome: string; scadenza: string; chi_segue: string | null; prospect_id: string | null }>) ?? []) {
-        out.push({ at: g.scadenza + 'T09:00:00', titolo: `Scadenza: ${g.nome}`, tipo: 'altro', prospect_id: g.prospect_id, chi: g.chi_segue ?? 'progetto' })
+        const chi = (g.chi_segue ?? '').trim()
+        if (!chi || !miei.has(chi.split(' ')[0].toLowerCase())) continue
+        out.push({ at: g.scadenza + 'T09:00:00', titolo: `Scadenza: ${g.nome}`, tipo: 'altro', prospect_id: g.prospect_id, chi })
       }
       const conEvento = new Set(
         out.filter((v) => v.prospect_id).map((v) => `${v.prospect_id}|${giorno(v.at)}`)
@@ -149,7 +160,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
       setVoci(out)
     })
-  }, [pod])
+  }, [pod, io])
 
   const visibili = useMemo(() => (voci ?? []).filter((v) => conPod || !v.chi), [voci, conPod])
   const perGiorno = useMemo(() => {
@@ -210,7 +221,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
           <span className="block text-sm font-semibold">{v.chi ? <span className="mr-1.5 rounded-md bg-velo px-1.5 py-0.5 text-[11px] font-bold text-navy">{v.chi}</span> : null}{v.titolo}</span>
           <span className="block text-xs text-tenue">
             {fmtDateShort(v.at)}, {fmtOra(v.at)}
-            {v.tipo === 'followup' ? ', follow-up' : v.tipo === 'altro' ? ', scadenza' : ''}
+            {v.tipo === 'followup' ? ', follow-up' : v.tipo === 'task' ? ', task' : v.tipo === 'altro' ? ', scadenza' : ''}
           </span>
         </span>
       </>
@@ -279,19 +290,26 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
             </div>
           </div>
 
-          {(nCall > 0 || nFu > 0) && (
-            <button
-              onClick={() => { setAnno(oggi.getFullYear()); setMese(oggi.getMonth()); setScelto(oggiChiave) }}
-              className="mb-3 w-full rounded-xl bg-velo px-3 py-2 text-left text-xs font-semibold text-tenue hover:bg-velo/70"
-            >
-              Prossimi 7 giorni: {nCall} call, {nFu} follow-up
-              {pod.length > 0 && (
-                <button onClick={() => setConPod((v) => !v)}
-                        className={`ml-3 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${conPod ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue'}`}>
-                  Il mio pod{conPod ? '' : ': nascosto'}
-                </button>
-              )}
-            </button>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {(nCall > 0 || nFu > 0) && (
+              <button
+                onClick={() => { setAnno(oggi.getFullYear()); setMese(oggi.getMonth()); setScelto(oggiChiave) }}
+                className="flex-1 rounded-xl bg-velo px-3 py-2 text-left text-xs font-semibold text-tenue hover:bg-velo/70"
+              >
+                Prossimi 7 giorni: {nCall} call, {nFu} follow-up
+              </button>
+            )}
+            {pod.length > 0 && (
+              <button onClick={() => setConPod((v) => !v)}
+                      className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold ${conPod ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue'}`}>
+                Il mio pod{conPod ? '' : ': nascosto'}
+              </button>
+            )}
+          </div>
+          {pod.length > 0 && conPod && !(voci ?? []).some((v) => v.chi) && (
+            <p className="mb-3 rounded-xl bg-velo px-3 py-2 text-xs text-spento">
+              {pod.map((p) => p.nome?.split(' ')[0]).filter(Boolean).join(' e ')} non hanno ancora collegato Google: i loro impegni arrivano da lì.
+            </p>
           )}
 
           <div className="mb-1 grid grid-cols-7 border-b border-velo">

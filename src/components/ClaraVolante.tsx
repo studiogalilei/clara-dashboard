@@ -782,10 +782,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   if (pagina) {
     return (
       <div className="pb-24 sm:pb-8">
-        <div className="mb-3 flex items-baseline gap-3">
-          <p className="text-sm text-tenue">Bozze, richieste e domande. Decidi qui; per parlarle, la pallina.</p>
-          <span className="ml-auto text-sm font-bold tabular-nums text-navy">{proposte.length}</span>
-        </div>
+        {proposte.length > 0 && (
+          <div className="mb-3 flex items-baseline gap-3">
+            <span className="ml-auto text-sm font-bold tabular-nums text-navy">{proposte.length}</span>
+          </div>
+        )}
         <div className="overflow-hidden rounded-2xl border border-bordo bg-white">
           {listaPosta()}
         </div>

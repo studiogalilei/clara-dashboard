@@ -19,7 +19,33 @@ const dataLunga = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateStrin
 
 // IL DOCUMENTO: «Condizioni economiche», il testo ufficiale dello Studio
 // (sg-condizioni-modello): non si modifica il testo, si cambiano i dati.
-export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numero: string | null }, azienda: string, f: Fatturazione): Documento {
+// cosa manca per mandarlo al cliente: il documento e' intestato, non un listino
+export function cosaManca(f: Fatturazione): string[] {
+  const buchi: string[] = []
+  if (!f.ragione?.trim()) buchi.push('la ragione sociale')
+  if (!f.piva?.trim()) buchi.push('la partita IVA')
+  if (!f.indirizzo?.trim()) buchi.push('l\'indirizzo')
+  return buchi
+}
+
+// cosa e' incluso e cosa sta a parte, per linea: un preventivo per un sito non
+// puo' dire che il sito e' escluso (QA Giacomo, 14/9)
+const INCLUSO: Record<string, { incluso: string[]; parte: string[] }> = {
+  marketing: {
+    incluso: ['Analisi iniziale e impostazione del sistema', 'Gestione operativa e lavoro sui dati', 'Report periodici con metodo di calcolo dichiarato', 'Call di allineamento regolari', 'Un referente che risponde del progetto'],
+    parte: ['Budget pubblicitario, che resta sui vostri account', 'Licenze di strumenti terzi, se ne servono', 'Produzione video e fotografica sul posto', 'Sviluppo software su misura, che ha un suo preventivo'],
+  },
+  software: {
+    incluso: ['Analisi di quello che vi serve e progettazione', 'Sviluppo, prove e pubblicazione', 'Tracciamento impostato e verificato', 'Un referente che risponde del progetto', 'Il codice e i contenuti restano vostri'],
+    parte: ['Dominio e hosting, intestati a voi', 'Licenze di temi, moduli o strumenti terzi', 'Produzione di testi, foto e video', 'Gestione delle campagne, che ha un suo preventivo'],
+  },
+  ai: {
+    incluso: ['Mappatura del processo che si automatizza', 'Costruzione, prove e messa in funzione', 'Istruzioni scritte per chi lo usa ogni giorno', 'Un referente che risponde del progetto'],
+    parte: ['Licenze e consumi degli strumenti terzi, intestati a voi', 'I dati e gli accessi, che restano vostri', 'Sviluppo software su misura, che ha un suo preventivo'],
+  },
+}
+
+export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numero: string | null }, azienda: string, f: Fatturazione, linea: string = 'marketing'): Documento {
   const pilota = q.voci.find(ePilota)
   const mensili = q.voci.filter((v) => v.ricorrenza === 'mese')
   const unaTantumTot = unaTantum(q.voci)
@@ -80,9 +106,10 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
     b.push({ tipo: 'p', piccolo: true, testo: 'La garanzia esiste perché nessuno debba fidarsi sulla parola. Nella pratica chi si ferma lo fa quasi sempre per ragioni che con il lavoro svolto non c\'entrano, e in quel caso il rimborso non si pone.' })
   }
   b.push({ tipo: 'h2', testo: 'Cosa è incluso e cosa no' })
+  const liste = INCLUSO[linea] ?? INCLUSO.marketing
   b.push({ tipo: 'due_colonne',
-    sinistra: { titolo: 'Incluso', voci: ['Analisi iniziale e impostazione del sistema', 'Gestione operativa e lavoro sui dati', 'Report periodici con metodo di calcolo dichiarato', 'Call di allineamento regolari', 'Un referente che risponde del progetto'] },
-    destra: { titolo: 'A parte', voci: ['Budget pubblicitario, che resta sui vostri account', 'Licenze di strumenti terzi, se ne servono', 'Produzione video e fotografica sul posto', 'Sviluppo software su misura, che ha un suo preventivo'] } })
+    sinistra: { titolo: 'Incluso', voci: liste.incluso },
+    destra: { titolo: 'A parte', voci: liste.parte } })
   b.push({ tipo: 'h2', testo: 'Come si parte' })
   b.push({ tipo: 'p', testo: pilota
     ? 'Alla firma si salda la quota del pilota e si fissa la call di avviamento: quindici minuti in cui ci raccontate come lavorate oggi e si imposta tutto quello che serve per partire.'

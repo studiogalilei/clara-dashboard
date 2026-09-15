@@ -26,14 +26,19 @@ import os
 import re
 import sys
 import urllib.parse
+import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, proponi                             # noqa: E402
 from google_api import drive_cerca, drive_testo, drive_copia, cartella   # noqa: E402
 
+ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 CLIENTI = "1r1jtdy1ulJHrSARauKHH20HvgP5yNMqT"    # «1 Clienti» nel Drive condiviso (riordinato l'11/9)
 GENERICHE = {"studio", "galilei", "studiogalilei", "call", "meet", "riunione", "meeting", "conoscitiva", "tecnica",
-             "chiamata", "senza", "titolo", "appunti", "gemini", "sito", "marketing", "b2b", "google", "ads", "x"}
+             "chiamata", "senza", "titolo", "appunti", "gemini", "sito", "marketing", "b2b", "google", "ads", "srl", "spa",
+             "snc", "sas", "srls", "group", "italia", "italy", "servizi", "service", "services", "del", "della", "con",
+             "per", "the", "and", "web", "digital", "agency", "consulting", "società", "societa", "impresa", "azienda",
+             "ditta", "office", "team", "project", "progetto", "manufacturing", "solutions", "company", "international"}
 
 
 def quando_dal_titolo(nome):
@@ -41,15 +46,31 @@ def quando_dal_titolo(nome):
     if not m:
         return None
     y, mo, d, h, mi = map(int, m.groups())
-    return datetime.datetime(y, mo, d, h, mi)          # ora locale di Dre (il titolo la porta cosi')
+    return datetime.datetime(y, mo, d, h, mi, tzinfo=ROMA)   # ora di Roma (il titolo la porta cosi')
 
 
 def parole(s):
-    return {w for w in re.findall(r"[a-zà-ú0-9]{3,}", (s or "").lower()) if w not in GENERICHE}
+    return {w for w in re.findall(r"[a-zà-ú0-9&.']{3,}", (s or "").lower()) if w.strip(".&'") not in GENERICHE and len(w.strip(".&'")) >= 3}
+
+
+def forti(p):
+    """Le parole che identificano un'azienda: nome della societa' e cognome della persona, senza le generiche."""
+    return {w for w in parole(p.get("company")) | parole(p.get("name")) if len(w) >= 4}
+
+
+def punteggio(p, testo_parole):
+    f = forti(p)
+    if not f:
+        return 0
+    comuni = f & testo_parole
+    if not comuni:
+        return 0
+    # basta: tutte le parole forti dell'azienda (es. «sarci»), o due parole, o una parola lunga (un cognome vero)
+    return 2 if comuni == f or len(comuni) >= 2 or any(len(w) >= 6 for w in comuni) else 0
 
 
 def di_chi(doc, testo, aziende):
-    """Prima l'agenda (stessa ora, ±40 minuti), poi i nomi nel titolo, poi nel testo."""
+    """Prima l'agenda (stessa ora, ±40 minuti), poi il titolo, poi le prime righe del testo. Solo se e' uno solo."""
     q = quando_dal_titolo(doc["name"])
     if q:
         da = (q - datetime.timedelta(minutes=40)).isoformat()
@@ -58,15 +79,25 @@ def di_chi(doc, testo, aziende):
         if len(ev) == 1:
             return ev[0]["prospect_id"], "agenda"
     titolo = parole(doc["name"].split(" - ")[0])
-    for p in aziende:
-        nome = parole(p.get("company")) | parole(p.get("name"))
-        if nome and nome <= titolo:
-            return p["id"], "titolo"
-    testa = parole(testo[:1500])
-    trovati = [p for p in aziende if parole(p.get("company")) and parole(p.get("company")) <= testa]
-    if len(trovati) == 1:
-        return trovati[0]["id"], "testo"
+    uno = unico([p for p in aziende if punteggio(p, titolo)])
+    if uno:
+        return uno["id"], "titolo"
+    testa = parole(testo[:2000])
+    uno = unico([p for p in aziende if punteggio(p, testa)])
+    if uno:
+        return uno["id"], "testo"
     return None, None
+
+
+def unico(cand):
+    """Uno solo; o piu' contatti della stessa azienda: quello con l'SG-ID (il capofila), se no il primo."""
+    if not cand:
+        return None
+    if len(cand) == 1:
+        return cand[0]
+    if len({(c.get("company") or "").strip().lower() for c in cand}) == 1:
+        return next((c for c in cand if c.get("sg_id")), cand[0])
+    return None
 
 
 def main():
@@ -81,10 +112,15 @@ def main():
     gia = {r["ref"] for r in (sb("GET", "/rest/v1/interactions?select=ref&ref=like.gemini:*&limit=5000") or [])}
     chiesti = {(pr.get("azione") or {}).get("appunti_id") for pr in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.richiesta&limit=5000") or [])}
     aziende = sb("GET", "/rest/v1/prospects?select=id,company,name,sg_id&stage=neq.nuovo&limit=2000") or []
-    messi, domande = 0, 0
+    messi, domande, saltati = 0, 0, 0
     for doc in docs:
         ref = "gemini:" + doc["id"]
         if ref in gia or doc["id"] in chiesti:
+            continue
+        # la copia che mettiamo noi nella cartella del cliente ha «(SG)» nel nome:
+        # se no al giro dopo la rileggiamo, stessa ora e stessa azienda, e l'indice
+        # unico di interactions fa 409 (28 corse in errore, QA del 14/9)
+        if "(SG)" in doc["name"]:
             continue
         testo = drive_testo(doc["id"])
         if len(testo.strip()) < 200:
@@ -103,18 +139,23 @@ def main():
         print(f"  ok {titolo[:60]:60} → {nome} ({come})")
         if prova:
             continue
-        q = quando_dal_titolo(doc["name"])
-        at = (q.isoformat() + "+02:00") if q else doc["createdTime"]
-        corpo = f"Appunti di Gemini: {doc.get('webViewLink', '')}\n\n" + " ".join(testo.split())[:12000]
-        sb("POST", "/rest/v1/interactions", {"prospect_id": p["id"], "at": at, "kind": "transcript", "body": corpo, "ref": ref})
+        try:
+            q = quando_dal_titolo(doc["name"])
+            at = q.astimezone(datetime.timezone.utc).isoformat() if q else doc["createdTime"]
+            corpo = f"Appunti di Gemini: {doc.get('webViewLink', '')}\n\n" + " ".join(testo.split())[:12000]
+            sb("POST", "/rest/v1/interactions", {"prospect_id": p["id"], "at": at, "kind": "transcript", "body": corpo, "ref": ref})
+            messi += 1
+        except Exception as e:                                       # una riga rotta non ferma le altre
+            print(f"     (non messo: {str(e)[:140]})")
+            saltati += 1
+            continue
         try:
             etichetta = f"SG-{p['sg_id']} {nome}" if p.get("sg_id") else nome
             cart = cartella(etichetta if p.get("sg_id") else nome, CLIENTI)
-            drive_copia(doc["id"], doc["name"], cart)
+            drive_copia(doc["id"], f"{doc['name']} (SG)", cart)
         except Exception as e:                                       # la copia e' un di piu': la Scheda e' gia' a posto
             print(f"     (copia nel Drive non riuscita: {str(e)[:120]})")
-        messi += 1
-    print(f"appunti: {messi} messi nelle Schede, {domande} domande, {len(docs)} documenti visti")
+    print(f"appunti: {messi} messi nelle Schede, {domande} domande, {saltati} saltati, {len(docs)} documenti visti")
 
 
 if __name__ == "__main__":

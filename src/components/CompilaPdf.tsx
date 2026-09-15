@@ -3,6 +3,7 @@ import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { supabase } from '../lib/supabase'
+import { urlFile } from '../lib/file'
 import { leggiFirma, leggiTimbro, bytePng } from '../lib/firma'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
@@ -39,10 +40,12 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
   const trascino = useRef<{ id: number; dx: number; dy: number } | null>(null)
   const prossimoId = useRef(1)
 
-  const url = supabase.storage.from('vault').getPublicUrl(file.path).data.publicUrl
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => { void urlFile(file.path).then(setUrl) }, [file.path])
 
   // il PDF e le pagine
   useEffect(() => {
+    if (!url) return
     let vivo = true
     ;(async () => {
       try {

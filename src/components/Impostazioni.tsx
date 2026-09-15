@@ -15,11 +15,18 @@ import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNot
 // proprio nome, in basso a sinistra. Dentro solo cose vere, niente
 // interruttori che non cambiano niente (Dre, 3/9).
 
+// i ruoli veri dello Studio (documento «Divisioni e responsabilita'» di Giacomo)
+const NOME_RUOLO: Record<string, string> = {
+  ceo: 'CEO', coordinamento: 'Coordinamento', manager: 'Marketing manager',
+  specialist: 'Ad specialist', frontend: 'Frontend',
+}
+
 interface Props {
   nome: string
   email: string
   demo: boolean
   ruolo: Ruolo                 // quello vero, dal database (App lo legge da profili)
+  ruoloVero?: string           // manager, specialist, frontend: il nome vero del ruolo
   onCambio: () => void
   onNumeri?: () => void
   onWidget?: () => void
@@ -39,7 +46,7 @@ function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick
 
 
 
-export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNumeri, onWidget }: Props) {
+export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruolo, onCambio, onNumeri, onWidget }: Props) {
   const [spenti] = useState<Chiave[]>(nascosti)
   // i widget a richiesta (Dre, 11/9): i miei, e per i ceo la mappa di tutti
   const [miei, setMiei] = useState<Partial<Record<Chiave, StatoAccesso>>>({})
@@ -142,8 +149,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
 
         <div className="mt-4 border-t border-velo pt-3">
           <Micro>Il tuo ruolo</Micro>
-          <p className="mt-1 text-sm font-semibold">{RUOLI.find(([r]) => r === ruolo)?.[1] ?? ruolo}</p>
-          <p className="mt-0.5 text-xs text-spento">{ruolo === 'ceo' ? 'Vedi tutto e decidi chi ha cosa.' : 'Le voci di base le hai; il resto lo chiedi qui sotto.'}</p>
+          <p className="mt-1 text-sm font-semibold">{NOME_RUOLO[ruoloVero] ?? RUOLI.find(([r]) => r === ruolo)?.[1] ?? ruolo}</p>
         </div>
       </Card>
 
@@ -151,7 +157,6 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
       {!demo && (
         <Card className="p-5">
           <TitoloCard>Google</TitoloCard>
-          <p className="mt-1 text-xs text-tenue">Con il collegamento Clara legge il tuo Drive (gli appunti delle call) e scrive in SG Chat a nome tuo.</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {google === null ? <span className="text-sm text-spento">controllo…</span>
               : google ? <span className="text-sm font-semibold text-green-800">Collegato ✓</span>
@@ -208,7 +213,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
                   <p className="text-sm font-semibold">{w.nome}</p>
                   <p className="truncate text-xs text-tenue">{w.cosa}</p>
                 </div>
-                {w.base ? (
+                {w.base && (w.ruoli.length > 1 || ruolo === 'ceo') ? (
                   <Micro>per tutti</Micro>
                 ) : ruolo === 'ceo' ? (
                   <Micro>tuo</Micro>
@@ -304,7 +309,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
         </div>
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Tutti</p>
+            <p className="text-sm font-semibold">Pipeline</p>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['board', 'Bacheca'], ['elenco', 'Elenco']].map(([v, etichetta]) => (
@@ -383,6 +388,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
       )}
 
       {/* Numeri e Widget stanno qui dentro (intervista 9/9): non sono lavoro di tutti i giorni */}
+      {ruolo === 'ceo' && (
       <Card>
         <header className="border-b border-velo px-4 py-3">
           <TitoloCard>Strumenti</TitoloCard>
@@ -396,6 +402,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, onCambio, onNum
           </button>
         </div>
       </Card>
+      )}
 
       <Card>
         <header className="border-b border-velo px-4 py-3">

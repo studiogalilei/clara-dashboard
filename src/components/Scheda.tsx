@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
+import { apriFile } from '../lib/file'
 import { lazy, Suspense } from 'react'
 const CompilaPdf = lazy(() => import('./CompilaPdf'))
 import { leggi as leggiPref } from '../lib/preferenze'
@@ -84,6 +85,7 @@ function tappaCorrente(p: Prospect): number {
 export default function Scheda({ id, onClose }: Props) {
   // chi sta guardando: serve per i post-it, che sono suoi
   const [utenteId, setUtenteId] = useState<string | null>(null)
+  const [nonCe, setNonCe] = useState(false)        // l'azienda non c'e', o e' fuori dal tuo perimetro
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUtenteId(data.session?.user?.id ?? null))
   }, [])
@@ -153,8 +155,9 @@ export default function Scheda({ id, onClose }: Props) {
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .order('at', { ascending: true }).limit(100)
       .then(({ data }) => { if (vivo) setAgendaSua((data as AgendaItem[]) ?? []) })
-    supabase.from('prospects').select('*').eq('id', id).single()
-      .then(({ data }) => { if (vivo) setP(data as Prospect) })
+    setNonCe(false)
+    supabase.from('prospects').select('*').eq('id', id).maybeSingle()
+      .then(({ data }) => { if (vivo) { setP(data as Prospect); if (!data) setNonCe(true) } })
     supabase.from('interactions').select('*').eq('prospect_id', id)
       .order('at', { ascending: false }).limit(200)
       .then(({ data }) => { if (vivo) setTimeline([...((data as Interaction[]) ?? [])].reverse()) })
@@ -361,10 +364,11 @@ export default function Scheda({ id, onClose }: Props) {
   }
 
   async function chiediPrep() {
-    await supabase.from('clara_messaggi').insert({
-      tipo: 'dre', letto: true, prospect_id: p!.id,
+    const { error } = await supabase.from('clara_messaggi').insert({
+      tipo: 'dre', letto: true, prospect_id: p!.id, owner: utenteId,
       testo: `Prepara la pre-call di ${p!.company || p!.name}${prossimaCall ? ` (call del ${fmtDateShort(prossimaCall.at)} alle ${fmtOra(prossimaCall.at)})` : ''}`,
-    }).select().single()
+    })
+    if (error) { setErrore(spiegaErrore(error)); return }
     setPrepChiesta(true)
   }
 
@@ -391,7 +395,9 @@ export default function Scheda({ id, onClose }: Props) {
         <div className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5">
           <button onClick={onClose} className="text-sm font-semibold text-blu hover:underline">‹ Torna</button>
         </div>
-        <Spinner />
+        {nonCe
+          ? <p className="px-5 py-8 text-sm text-spento">Questa azienda non è nel tuo perimetro: chiedi a Dre o a Giacomo.</p>
+          : <Spinner />}
       </aside>
     </div>
   )
@@ -459,13 +465,15 @@ export default function Scheda({ id, onClose }: Props) {
       })
       if (problema) setErrore('Il promemoria non è finito in Task: ' + problema)
     }
+    let claraOk = notaClara
     if (notaClara) {
-      await supabase.from('clara_messaggi').insert({
-        tipo: 'dre', letto: true, prospect_id: p!.id,
+      const { error } = await supabase.from('clara_messaggi').insert({
+        tipo: 'dre', letto: true, prospect_id: p!.id, owner: utenteId,
         testo: `[Nota su ${p!.company || p!.name}] ${t}${notaData ? `; ricordamelo il ${fmtDateShort(notaData)}` : ''}`,
-      }).select().single()
+      })
+      if (error) { claraOk = false; setErrore(spiegaErrore(error)) }
     }
-    setNotaEsito(`Post-it attaccato ✓${notaData ? ', promemoria in Task' : ''}${notaClara ? ', girata a Clara' : ''}`)
+    setNotaEsito(`Post-it attaccato${notaData ? ', promemoria in Task' : ''}${claraOk ? ', girata a Clara' : ''}`)
     setNotaTesto('')
     setNotaData('')
     setNotaClara(false)
@@ -1253,7 +1261,7 @@ export default function Scheda({ id, onClose }: Props) {
                         <span className={`text-[11px] font-semibold ${q.pagato_il ? 'text-green-800' : q.stato === 'accettato' ? 'text-amber-800' : q.stato === 'rifiutato' ? 'text-red-700' : 'text-tenue'}`}>
                           {q.pagato_il ? `pagato il ${fmtDateShort(q.pagato_il)}` : q.stato === 'inviato' && q.inviato_il ? `inviato il ${fmtDateShort(q.inviato_il)}` : q.stato}
                         </span>
-                        {q.pdf_path && <a href={supabase.storage.from('vault').getPublicUrl(q.pdf_path).data.publicUrl} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-blu hover:underline">PDF</a>}
+                        {q.pdf_path && <button onClick={() => void apriFile(q.pdf_path!)} className="text-[11px] font-bold text-blu hover:underline">PDF</button>}
                       </li>
                     ))}
                   </ul>
@@ -1321,14 +1329,10 @@ export default function Scheda({ id, onClose }: Props) {
                 <ul className="divide-y divide-velo">
                   {documenti.map((d) => (
                     <li key={d.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <span className="shrink-0" aria-hidden>📄</span>
-                      <a
-                        href={supabase.storage.from('vault').getPublicUrl(d.path).data.publicUrl}
-                        target="_blank" rel="noreferrer"
-                        className="min-w-0 flex-1 truncate text-blu hover:underline"
-                      >
+                      <button onClick={() => void apriFile(d.path)}
+                              className="min-w-0 flex-1 truncate text-left text-blu hover:underline">
                         {d.nome}
-                      </a>
+                      </button>
                       {/\.pdf$/i.test(d.path) && (
                         <button onClick={() => setCompila(d)} className="shrink-0 rounded-full border border-bordo px-2 py-0.5 text-[11px] font-bold text-navy hover:border-navy">compila</button>
                       )}

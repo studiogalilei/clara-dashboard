@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { urlFile, dimenticaFile } from './file'
 import { nomeFile, LINEA_SIGLA, type Linea, type Risorse } from './tono'
 import { documentoDi, type Voce, type Fatturazione, type Ricorrenza } from './condizioni'
 export { unaTantum, alMese, ePilota, documentoDi } from './condizioni'
@@ -90,11 +91,11 @@ export function caricaRisorse(): Promise<Risorse> {
 
 // genera il PDF e lo mette nella cartella dell'azienda nei Documenti
 export async function generaEArchivia(q: Preventivo, azienda: string, f: Fatturazione): Promise<{ path: string; url: string }> {
-  const doc = documentoDi(q, azienda, f)
+  const doc = documentoDi(q, azienda, f, q.linea ?? 'marketing')
   const { generaPdf } = await import('./documento')   // pdf-lib solo quando serve
   const bytes = await generaPdf(doc, await caricaRisorse())
   const nome = nomeFile('condizioni', azienda)
-  const path = `clienti/${q.prospect_id}/${q.numero ?? q.id}-${nome}`
+  const path = `clienti/${q.prospect_id}/${(q.numero ?? String(q.id)).toLowerCase()}-${nome}`
   const { error } = await supabase.storage.from('vault').upload(path, new Blob([bytes as BlobPart], { type: 'application/pdf' }), { upsert: true, contentType: 'application/pdf' })
   if (error) throw new Error(error.message)
   // la riga nei Documenti: una per preventivo, aggiornata se si rigenera
@@ -104,6 +105,6 @@ export async function generaEArchivia(q: Preventivo, azienda: string, f: Fattura
   } else {
     await supabase.from('vault_file').update({ dimensione: bytes.byteLength, at: new Date().toISOString() }).eq('id', gia.id)
   }
-  const { data } = supabase.storage.from('vault').getPublicUrl(path)
-  return { path, url: data.publicUrl }
+  dimenticaFile(path)
+  return { path, url: (await urlFile(path)) ?? '' }
 }

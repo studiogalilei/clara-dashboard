@@ -36,8 +36,8 @@ DASHBOARD = env("DASHBOARD_URL") or "./"
 MITTENTE = "mailto:dramane@studiogalilei.com"
 
 
-def avvisa(testo, titolo="Clara", url=None):
-    """Manda a tutti i dispositivi iscritti. Torna quanti hanno ricevuto."""
+def avvisa(testo, titolo="Clara", url=None, a=None):
+    """Manda ai dispositivi iscritti di `a` (lista di user id; None = ai ceo). Torna quanti hanno ricevuto."""
     privata = env("VAPID_PRIVATE")
     if not privata:
         return 0
@@ -46,7 +46,10 @@ def avvisa(testo, titolo="Clara", url=None):
     except ImportError:
         print("  (pywebpush non installato: niente notifica)")
         return 0
-    righe = sb("GET", "/rest/v1/preferenze?select=owner,valore&chiave=eq.push-iscrizioni") or []
+    if a is None:
+        # senza destinatari espliciti si avvisa la direzione: le bozze e le domande sono loro
+        a = [r["id"] for r in (sb("GET", "/rest/v1/profili?select=id&ruolo=eq.ceo") or [])]
+    righe = [r for r in (sb("GET", "/rest/v1/preferenze?select=owner,valore&chiave=eq.push-iscrizioni") or []) if r.get("owner") in a]
     mandate = 0
     for r in righe:
         iscrizioni = r.get("valore") if isinstance(r.get("valore"), list) else []

@@ -66,7 +66,7 @@ export default function Plugin() {
   function carica() {
     supabase.from('operazioni').select('*').order('ordine', { ascending: true })
       .then(({ data, error }) => {
-        if (error) setProblema('La sala di controllo non c\'è ancora sul database: manca schema_v9.')
+        if (error) setProblema('La sala di controllo la vedono Dre e Giacomo.')
         setOps((data as Operazione[]) ?? [])
       })
     supabase.from('istruzioni').select('*').order('chiave', { ascending: true })
@@ -139,7 +139,7 @@ export default function Plugin() {
           <span className="text-[13px] font-bold">Operazioni</span>
           <Micro>in cloud, ogni 15 minuti il direttore fa partire quelle dovute</Micro>
         </header>
-        {ops.length === 0 && <p className="px-4 py-4 text-sm text-spento">Nessuna operazione: manca schema_v9.</p>}
+        {ops.length === 0 && <p className="px-4 py-4 text-sm text-spento">Nessuna operazione.</p>}
         {ops.map((op) => {
           const tono = !op.attiva ? 'spento' : op.ultimo_esito === 'errore' ? 'fermo' : op.ultima_corsa ? 'ok' : 'attesa'
           return (
@@ -175,8 +175,8 @@ export default function Plugin() {
                     </button>
                     <button
                       onClick={() => cambia(op, { richiesta_ora: true })}
-                      disabled={op.richiesta_ora || !op.attiva}
-                      title="Parte entro 15 minuti"
+                      disabled={op.richiesta_ora || !op.attiva || !op.comando}
+                      title={op.comando ? 'Parte al prossimo giro del direttore' : 'Questa parte da GitHub, non dal direttore'}
                       className="rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-tenue hover:border-navy hover:text-navy disabled:opacity-40"
                     >
                       {op.richiesta_ora ? 'in partenza…' : 'Fai ora'}

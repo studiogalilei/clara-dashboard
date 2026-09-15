@@ -283,18 +283,25 @@ def calendari_persone(prova, prospects):
             continue                                   # il suo e' l'ICS dello Studio
         try:
             eventi = eventi_google(u["email"])
-        except Exception as e:
-            print(f"  calendario di {u['email']}: {str(e)[:120]}")
+        except (Exception, SystemExit) as e:      # un token revocato di uno non ferma gli altri
+            print(f"  calendario di {u['email']}: {str(e)[:160]}")
             continue
-        esistenti = {r["link"]: r for r in (sb("GET", f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
-        nuovi = agg = 0
+        # la chiave e' link+ora: una riunione che si ripete ha lo stesso Meet
+        # su tutte le istanze, e prima si pestavano i piedi (QA 14/9)
+        esistenti = {(r["link"], r["at"]): r for r in (sb("GET", f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
+        nuovi = agg = saltati = 0
         for e in eventi:
-            if not e["titolo"] or e["stato"] == "CANCELLED":
+            if not e["titolo"] or e["stato"] == "CANCELLED" or e.get("giornata"):
                 continue
             pid, _ = riconosci(e, prospects)
+            # il calendario di lavoro, non la vita privata: o e' di un'azienda che
+            # conosciamo, o c'e' qualcuno di fuori, o c'e' un Meet
+            if not pid and not esterni(e["invitati"]) and not e.get("meet"):
+                saltati += 1
+                continue
             riga = {"at": e["at"].astimezone(datetime.timezone.utc).isoformat(), "titolo": e["titolo"][:200], "tipo": tipo_di(e["titolo"]),
                     "prospect_id": pid, "link": e.get("meet") or e["link"], "fonte": f"gcal:{u['email']}", "owner": u["user_id"]}
-            vecchia = esistenti.get(riga["link"])
+            vecchia = esistenti.get((riga["link"], riga["at"]))
             if prova:
                 print(f"  {u['email'][:12]:12} {e['at'].astimezone(ROMA):%d/%m %H:%M} {e['titolo'][:50]}")
                 continue
@@ -303,7 +310,7 @@ def calendari_persone(prova, prospects):
                     sb("PATCH", f"/rest/v1/agenda?id=eq.{vecchia['id']}", riga); agg += 1
             else:
                 sb("POST", "/rest/v1/agenda", riga); nuovi += 1
-        print(f"  calendario di {u['email']}: {nuovi} nuovi, {agg} aggiornati, {len(eventi)} letti")
+        print(f"  calendario di {u['email']}: {nuovi} nuovi, {agg} aggiornati, {saltati} personali saltati, {len(eventi)} letti")
 
 
 def main():

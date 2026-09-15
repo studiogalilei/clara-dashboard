@@ -32,36 +32,38 @@ type Tab = Chiave
 // il saluto grande: cambia ogni giorno, a volte fa anche ridere.
 // Deterministico sul giorno dell'anno: tutta la giornata la stessa frase.
 // Frasi BREVI (regola di Dre): il saluto sta su una riga, la coda va a capo.
+// la coda la legge solo chi vende (Dre): agli altri il saluto e basta
 const SALUTI_MATTINA: Array<[string, string]> = [
-  ['Buongiorno, Dre.', ''],
-  ['Buongiorno, Dre.', 'Si apre il sipario.'],
-  ['Buongiorno, Dre.', 'I lead non si chiudono da soli.'],
-  ['Buongiorno, Dre.', 'Oggi si spedisce.'],
-  ['Buongiorno, Dre.', 'Prima il caffè, poi la coda.'],
-  ['Buongiorno, Dre.', 'Telescopio sui lead.'],
+  ['Buongiorno, {nome}.', ''],
+  ['Buongiorno, {nome}.', 'Si apre il sipario.'],
+  ['Buongiorno, {nome}.', 'I lead non si chiudono da soli.'],
+  ['Buongiorno, {nome}.', 'Oggi si spedisce.'],
+  ['Buongiorno, {nome}.', 'Prima il caffè, poi la coda.'],
+  ['Buongiorno, {nome}.', 'Telescopio sui lead.'],
   ['Buongiorno, capitano.', ''],
-  ['Buongiorno, Dre.', 'Un lead alla volta.'],
+  ['Buongiorno, {nome}.', 'Un lead alla volta.'],
 ]
 const SALUTI_POMERIGGIO: Array<[string, string]> = [
-  ['Buon pomeriggio, Dre.', ''],
-  ['Buon pomeriggio, Dre.', 'Orario buono per le call.'],
-  ['Pomeriggio, Dre.', 'Ancora un paio di carte da muovere.'],
-  ['Buon pomeriggio, Dre.', 'Secondo tempo.'],
-  ['Buon pomeriggio, Dre.', 'La pipeline non guarda l\'orologio.'],
+  ['Buon pomeriggio, {nome}.', ''],
+  ['Buon pomeriggio, {nome}.', 'Orario buono per le call.'],
+  ['Pomeriggio, {nome}.', 'Ancora un paio di carte da muovere.'],
+  ['Buon pomeriggio, {nome}.', 'Secondo tempo.'],
+  ['Buon pomeriggio, {nome}.', 'La pipeline non guarda l\'orologio.'],
 ]
 const SALUTI_SERA: Array<[string, string]> = [
-  ['Buonasera, Dre.', ''],
-  ['Buonasera, Dre.', 'Ultima occhiata e si chiude.'],
-  ['Buonasera, Dre.', 'I lead dormono. Tu quasi.'],
-  ['Sera, Dre.', 'Domani si rilancia.'],
+  ['Buonasera, {nome}.', ''],
+  ['Buonasera, {nome}.', 'Ultima occhiata e si chiude.'],
+  ['Buonasera, {nome}.', 'I lead dormono. Tu quasi.'],
+  ['Sera, {nome}.', 'Domani si rilancia.'],
 ]
 
-function saluto(): [string, string] {
+function saluto(nome: string): [string, string] {
   const ora = new Date()
   const giorno = Math.floor((ora.getTime() - new Date(ora.getFullYear(), 0, 0).getTime()) / 86400e3)
   const h = ora.getHours()
   const pool = h < 13 ? SALUTI_MATTINA : h < 18 ? SALUTI_POMERIGGIO : SALUTI_SERA
-  return pool[giorno % pool.length]
+  const [apertura, coda] = pool[giorno % pool.length]
+  return [apertura.replace('{nome}', nome.split(' ')[0] || 'ciao'), coda]
 }
 
 // l'icona di una voce: il tratto SVG, oppure un'immagine di public/ usata come
@@ -81,8 +83,7 @@ function Icona({ icona, immagine, className }: { icona: string; immagine?: strin
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
-  const [tab, setTab] = useState<Tab>(() =>
-    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'oggi' : 'pipeline')
+  const [tab, setTab] = useState<Tab>('pipeline')
   const [openId, setOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [cercaAperta, setCercaAperta] = useState(false)
@@ -131,7 +132,8 @@ export default function App() {
   const [ruoloDb, setRuoloDb] = useState<Ruolo>('coordinamento')     // il ruolo vero, dal database (profili)
   const [concessi, setConcessi] = useState<Set<Chiave>>(new Set())      // i widget a richiesta che ho
   const [vista, setVista] = useState<ChiSono['vista']>(null)           // un ceo nei panni di qualcun altro
-  const [pod, setPod] = useState<Persona[]>([])                           // le persone del mio pod, se sono manager
+  const [pod, setPod] = useState<Persona[]>([])
+  const [ruoloVero, setRuoloVero] = useState('coordinamento')                           // le persone del mio pod, se sono manager
   // il menu si allarga e si stringe trascinando il filo, come su Claude
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
@@ -214,7 +216,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session || demo) return
-    void chiSono().then((c) => { setRuoloDb(c.ruolo); setConcessi(new Set(c.concessi)); setVista(c.vista); setPod(c.pod) })
+    void chiSono().then((c) => { setRuoloDb(c.ruolo); setRuoloVero(c.ruoloVero); setConcessi(new Set(c.concessi)); setVista(c.vista); setPod(c.pod) })
   }, [session, versione])
 
   if (!configured) {
@@ -393,14 +395,14 @@ export default function App() {
               <h1 className="flex items-center gap-2 text-[24px] font-extrabold tracking-tight lg:text-[28px]">
                 {tab === 'pipeline' && <span className="text-navy"><ClaraLogo size={26} /></span>}
                 {tab === 'vault' && <Icona icona="" immagine="sg-intreccio.svg" className="h-8 w-8 shrink-0 text-navy" />}
-                {tab === 'pipeline' ? saluto()[0] : titolo}
+                {tab === 'pipeline' ? saluto(utente)[0] : titolo}
               </h1>
               {tab === 'pipeline' && (salutoClara ? (
                 <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">
                   {salutoClara.replace(/^buon\w*[,.]?\s+dre[.,]?\s*/i, '')}
                 </p>
-              ) : saluto()[1] ? (
-                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto()[1]}</p>
+              ) : ruolo === 'ceo' && saluto(utente)[1] ? (
+                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto(utente)[1]}</p>
               ) : null)}
             </div>
             {tab === 'pipeline' && (
@@ -465,7 +467,7 @@ export default function App() {
             ) : tab === 'clara' ? (
               <ClaraVolante modo="posta" onOpen={setOpenId} />
             ) : tab === 'impostazioni' ? (
-              <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} onCambio={() => setVersione((v) => v + 1)}
+              <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} ruoloVero={ruoloVero} onCambio={() => setVersione((v) => v + 1)}
                             onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />
             ) : (
               <Aziende onOpen={setOpenId} q={q} />

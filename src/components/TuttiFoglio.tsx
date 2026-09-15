@@ -95,27 +95,11 @@ export default function TuttiFoglio({ onOpen }: Props) {
     setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Riga) : x)))
   }
 
-  async function nuovoPreventivo(p: Riga) {
-    const { data, error } = await supabase.from('preventivi')
-      .insert({ prospect_id: p.id, inviato_il: oggi, stato: 'inviato' }).select().single()
-    if (error || !data) { setProblema('Il preventivo non si è creato: ' + (error?.message ?? '')); return null }
-    setPreventivi((q) => [...q, data as Preventivo])
-    setAperta(p.id)
-    return data as Preventivo
-  }
-
-  async function scriviPreventivo(q: Preventivo, patch: Partial<Preventivo>) {
-    const { data, error } = await supabase.from('preventivi').update(patch).eq('id', q.id).select().single()
-    if (error || !data) { setProblema('Il preventivo non si è salvato: ' + (error?.message ?? '')); return }
-    setProblema(null)
-    setPreventivi((l) => l.map((x) => (x.id === q.id ? (data as Preventivo) : x)))
-  }
-
-  async function togliPreventivo(q: Preventivo) {
-    if (!confirm('Tolgo questo preventivo?')) return
-    const { error } = await supabase.from('preventivi').delete().eq('id', q.id)
-    if (error) { setProblema('Non si è tolto: ' + error.message); return }
-    setPreventivi((l) => l.filter((x) => x.id !== q.id))
+  // il preventivo si fa nel suo widget (numero, voci, PDF secondo il brand):
+  // da qui si apre gia' sull'azienda, non nasce una riga mezza vuota (QA 14/9)
+  function nuovoPreventivo(p: Riga) {
+    try { sessionStorage.setItem('preventivo:nuovo', p.id) } catch { /* niente */ }
+    window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: p.id }))
   }
 
   // il selettore di stato: cambia la fase vera, non un'etichetta a parte
@@ -132,7 +116,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
       if (!p.fuori || p.pipeline_stage === 'cliente' || p.pipeline_stage === 'perso') {
         await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'tecnica' })
       }
-      if (!preventivi.some((q) => q.prospect_id === p.id && q.stato === 'inviato')) await nuovoPreventivo(p)
+      if (!preventivi.some((q) => q.prospect_id === p.id && q.stato === 'inviato')) nuovoPreventivo(p)
       else setAperta(p.id)
     } else {
       // torna prospect: in pipeline, in Conoscitiva
@@ -166,27 +150,30 @@ export default function TuttiFoglio({ onOpen }: Props) {
     return { abb, ultimo }
   }
 
+  // qui si guarda: numero, cosa, quanto, a che punto. Si cambia nel widget
+  // Preventivi, dove il PDF e gli esiti stanno insieme (una sola mano scrive)
   const rigaPreventivo = (q: Preventivo) => (
     <tr key={q.id} className="border-b border-velo last:border-0">
-      <td className=""><Cella valore={q.titolo ?? ''} su={(v) => scriviPreventivo(q, { titolo: v.trim() || null })} placeholder="cosa gli abbiamo proposto" /></td>
-      <td className="w-28"><Cella tipo="number" valore={q.importo == null ? '' : String(q.importo)} su={(v) => scriviPreventivo(q, { importo: v.trim() ? Number(v.replace(',', '.')) : null })} className="text-right tabular-nums" placeholder="€" /></td>
-      <td className="w-36"><Cella tipo="date" valore={q.inviato_il ?? ''} su={(v) => v && scriviPreventivo(q, { inviato_il: v })} className="tabular-nums" /></td>
+      <td className="px-3 py-1.5 text-sm">
+        <span className="font-semibold">{q.titolo || 'Preventivo'}</span>
+        {q.numero && <span className="ml-2 text-[11px] text-spento">{q.numero}</span>}
+      </td>
+      <td className="w-28 px-3 text-right text-sm font-semibold tabular-nums">
+        {q.importo ? `${Number(q.importo).toLocaleString('it-IT')} €` : ''}
+        {q.mensile ? <span className="block text-[11px] font-normal text-tenue">{Number(q.mensile).toLocaleString('it-IT')} €/mese</span> : null}
+      </td>
+      <td className="w-36 px-3 text-sm tabular-nums">{q.inviato_il ? fmtDateShort(q.inviato_il) : ''}</td>
       <td className="w-32 px-1">
-        <select value={q.stato} onChange={(e) => scriviPreventivo(q, { stato: e.target.value as Preventivo['stato'] })}
-          className={`w-full rounded-md border-0 px-2 py-1 text-xs font-semibold outline-none ${STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[2] ?? ''}`}>
-          {STATI_PREVENTIVO.map(([s, e]) => <option key={s} value={s}>{e}</option>)}
-        </select>
+        <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[2] ?? ''}`}>{q.stato}</span>
       </td>
-      <td className="w-44 px-3">
-        <label className="flex items-center gap-2 text-xs">
-          <input type="checkbox" checked={Boolean(q.pagato_il)}
-            onChange={(e) => scriviPreventivo(q, { pagato_il: e.target.checked ? oggi : null, ...(e.target.checked && q.stato === 'inviato' ? { stato: 'accettato' } : {}) })}
-            className="h-4 w-4 accent-green-700" />
-          {q.pagato_il ? <span className="font-semibold text-green-800">pagato il {fmtDateShort(q.pagato_il)}</span> : <span className="text-spento">pagamento arrivato</span>}
-        </label>
+      <td className="w-44 px-3 text-xs">
+        {q.pagato_il ? <span className="font-semibold text-green-800">pagato il {fmtDateShort(q.pagato_il)}</span> : <span className="text-spento">non ancora pagato</span>}
       </td>
-      <td className=""><Cella valore={q.note ?? ''} su={(v) => scriviPreventivo(q, { note: v.trim() || null })} placeholder="note" /></td>
-      <td className="w-8 text-center"><button onClick={() => togliPreventivo(q)} aria-label="Togli" className="rounded px-1.5 text-spento hover:bg-red-50 hover:text-red-700">×</button></td>
+      <td className="px-3 text-xs text-tenue">{q.note}</td>
+      <td className="w-8 text-center">
+        <button onClick={() => { try { sessionStorage.setItem('preventivo:apri', String(q.id)) } catch { /* niente */ } window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: q.prospect_id })) }}
+                title="Apri nel widget Preventivi" className="rounded px-1.5 text-spento hover:text-blu">›</button>
+      </td>
     </tr>
   )
 

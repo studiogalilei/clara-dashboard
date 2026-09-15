@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
 import { creaTask } from '../lib/regole'
+import { apriFile } from '../lib/file'
 import { LINEA_NOME, controllaTono, testoDi } from '../lib/tono'
+import { cosaManca } from '../lib/condizioni'
 import {
   STATI, alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
   type Preventivo, type Voce, type VoceListino, type Fatturazione,
@@ -133,6 +135,9 @@ export default function Preventivi({ onOpen }: Props) {
     if (!bozza.prospect_id) { setProblema('Scegli l\'azienda prima.'); return }
     if (bozza.voci.length === 0) { setProblema('Un preventivo senza voci non è un preventivo.'); return }
     if (bozza.voci.some((v) => !v.nome.trim())) { setProblema('Ogni voce ha un nome.'); return }
+    // il PDF e' un documento intestato: senza i dati veri non esce (mai «[da verificare]» a un cliente)
+    const buchi = conPdf ? cosaManca(bozza.fatturazione) : []
+    if (buchi.length) { setProblema(`Per il PDF serve ${buchi.join(', ')} dell'azienda. Scrivila qui sopra, poi rigenera.`); return }
     setLavoro(conPdf ? 'Salvo e genero il PDF…' : 'Salvo…')
     try {
       const linea = lineaDi(bozza.voci, listino)
@@ -143,7 +148,10 @@ export default function Preventivi({ onOpen }: Props) {
       }
       let riga: Preventivo
       if (bozza.id) {
-        const { data, error } = await supabase.from('preventivi').update(base).eq('id', bozza.id).select().single()
+        // se cambiando le voci cambia la linea, il numero la segue (SG-SW-… non resta SG-MK-…)
+        const vecchio = righe?.find((x) => x.id === bozza.id)
+        const numero = vecchio && vecchio.stato === 'bozza' && vecchio.linea !== linea ? await prossimoNumero(linea) : undefined
+        const { data, error } = await supabase.from('preventivi').update(numero ? { ...base, numero } : base).eq('id', bozza.id).select().single()
         if (error) throw new Error(error.message)
         riga = data as Preventivo
       } else {
@@ -160,7 +168,7 @@ export default function Preventivi({ onOpen }: Props) {
         setNomi((m) => ({ ...m, [bozza.prospect_id]: { ...m[bozza.prospect_id], fatturazione: f } }))
       }
       if (conPdf) {
-        const doc = documentoDi(riga, nomeDi(riga.prospect_id), f)
+        const doc = documentoDi(riga, nomeDi(riga.prospect_id), f, riga.linea ?? 'marketing')
         const tono = controllaTono(testoDi(doc))
         if (tono.length) throw new Error(`Il testo non passa il controllo del tono: ${tono.join(', ')}`)
         const { path } = await generaEArchivia(riga, nomeDi(riga.prospect_id), f)
@@ -169,39 +177,51 @@ export default function Preventivi({ onOpen }: Props) {
       }
       setRighe((v) => { const l = (v ?? []).filter((q) => q.id !== riga.id); return [riga, ...l] })
       setBozza(null)
-      setToast(conPdf ? `${riga.numero}: PDF pronto, nella cartella di ${nomeDi(riga.prospect_id)} ✓` : `${riga.numero} salvato come bozza ✓`)
-      if (conPdf) apri(riga)
+      setToast(conPdf ? `${riga.numero}: PDF pronto, nella cartella di ${nomeDi(riga.prospect_id)}` : `${riga.numero} salvato come bozza`)
+      if (conPdf) void apri(riga)
     } catch (e) {
-      setProblema((e as Error).message)
+      const m = (e as Error).message
+      setProblema(m.includes('idx_preventivi_numero')
+        ? 'Quel numero l\'ha appena preso un altro preventivo: ripremi Salva e ne prende uno nuovo.'
+        : m)
     } finally {
       setLavoro(null)
     }
   }
 
-  function apri(q: Preventivo) {
+  async function apri(q: Preventivo) {
     if (!q.pdf_path) return
-    const { data } = supabase.storage.from('vault').getPublicUrl(q.pdf_path)
-    window.open(data.publicUrl, '_blank', 'noopener')
+    if (!(await apriFile(q.pdf_path))) setProblema('Il PDF non si apre: rigeneralo dal preventivo')
   }
 
   // ── gli esiti: inviato, accettato (nasce il progetto), rifiutato, pagato ──
   async function segnaInviato(q: Preventivo) {
     if (!q.pdf_path && !confirm('Non c\'è ancora il PDF. Lo segno inviato lo stesso?')) return
     const r = await scrivi(q.id, { stato: 'inviato', inviato_il: q.inviato_il ?? oggi() })
-    if (r) setToast(`${q.numero} segnato inviato. Quando risponde, segna l'esito qui.`)
+    if (r) setToast(`${q.numero} segnato inviato`)
   }
   async function segnaAccettato(q: Preventivo) {
     const r = await scrivi(q.id, { stato: 'accettato', accettato_il: oggi() })
     if (!r) return
-    let messaggio = `${q.numero} accettato ✓`
-    // nasce il progetto, cosi' in Clienti si vede subito cosa gli abbiamo venduto
+    let messaggio = `${q.numero} accettato`
+    // il progetto: se ce n'e' gia' uno con lo stesso nome ci si aggancia, non se ne fa un altro
     if (!q.progetto_id) {
       const tipo = q.voci?.some((v) => /pilota|prova/i.test(v.nome)) ? 'trial' : q.mensile ? 'retainer' : null
-      const { data: g } = await supabase.from('progetti').insert({
-        prospect_id: q.prospect_id, nome: q.titolo ?? 'Progetto', valore: (q.importo ?? 0) + (q.mensile ?? 0) * 2, stato: 'da_iniziare', tipo,
-        note: `Dal preventivo ${q.numero}`,
-      }).select('id').single()
-      if (g) { await scrivi(q.id, { progetto_id: g.id }); messaggio += ', progetto creato' }
+      const { data: suoi } = await supabase.from('progetti').select('id,nome').eq('prospect_id', q.prospect_id).neq('stato', 'consegnato')
+      const gia = (suoi as Array<{ id: number; nome: string }> | null)?.find((g) => g.nome.trim().toLowerCase() === (q.titolo ?? '').trim().toLowerCase())
+      if (gia) { await scrivi(q.id, { progetto_id: gia.id }); messaggio += ', agganciato al progetto che c\'era' }
+      else {
+        const { data: g } = await supabase.from('progetti').insert({
+          prospect_id: q.prospect_id, nome: q.titolo ?? 'Progetto', valore: q.importo ?? 0, stato: 'da_iniziare', tipo,
+          data_inizio: oggi(), note: `Dal preventivo ${q.numero}`,
+        }).select('id').single()
+        if (g) { await scrivi(q.id, { progetto_id: g.id }); messaggio += ', progetto creato' }
+      }
+    }
+    // il canone del cliente e' quello che ha appena accettato: una verita' sola
+    if (q.mensile) {
+      await supabase.from('prospects').update({ canone: q.mensile }).eq('id', q.prospect_id)
+      messaggio += `, canone ${euro(q.mensile)} al mese`
     }
     // e la call di avvio va fissata: una task in cima alla lista
     const { task } = await creaTask({ titolo: `Fissare la call di avvio con ${nomeDi(q.prospect_id)}`, prospect_id: q.prospect_id, scadenza: fraGiorni(3) })
@@ -214,7 +234,7 @@ export default function Preventivi({ onOpen }: Props) {
   }
   async function segnaPagato(q: Preventivo) {
     const r = await scrivi(q.id, { pagato_il: oggi(), note: [q.note, 'segnato a mano'].filter(Boolean).join(', ') })
-    if (r) setToast(`${q.numero} pagato ✓`)
+    if (r) setToast(`${q.numero} pagato`)
   }
   async function riapri(q: Preventivo) {
     const r = await scrivi(q.id, { stato: 'inviato', accettato_il: null, rifiutato_il: null, motivo: null })
@@ -222,9 +242,10 @@ export default function Preventivi({ onOpen }: Props) {
   }
   async function copiaLink(q: Preventivo) {
     if (!q.link_pagamento) { setChiedo({ id: q.id, cosa: 'link' }); setTestoChiesto(''); return }
-    try { await navigator.clipboard.writeText(q.link_pagamento); setToast('Link di pagamento copiato ✓') } catch { setProblema('Non riesco a copiare') }
+    try { await navigator.clipboard.writeText(q.link_pagamento); setToast('Link di pagamento copiato') } catch { setProblema('Non riesco a copiare') }
   }
   async function elimina(q: Preventivo) {
+    if (q.stato !== 'bozza') { setProblema('Si elimina solo una bozza: un preventivo mandato resta, semmai si segna rifiutato.'); return }
     if (!confirm(`Elimino la bozza ${q.numero}?`)) return
     const { error } = await supabase.from('preventivi').delete().eq('id', q.id)
     if (error) { setProblema(error.message); return }
@@ -432,7 +453,7 @@ export default function Preventivi({ onOpen }: Props) {
           <button onClick={async () => {
             const q = righe.find((x) => x.id === chiedo.id)!
             if (chiedo.cosa === 'rifiuto') await segnaRifiutato(q, testoChiesto.trim())
-            else { const r = await scrivi(q.id, { link_pagamento: testoChiesto.trim() || null }); if (r) setToast('Link salvato ✓') }
+            else { const r = await scrivi(q.id, { link_pagamento: testoChiesto.trim() || null }); if (r) setToast('Link salvato') }
             setChiedo(null)
           }} className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white">Ok</button>
           <button onClick={() => setChiedo(null)} className="text-xs text-spento hover:text-inchiostro">annulla</button>
@@ -471,7 +492,7 @@ export default function Preventivi({ onOpen }: Props) {
                 </div>
                 <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                   {q.pdf_path
-                    ? <button onClick={() => apri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Apri il PDF</button>
+                    ? <button onClick={() => void apri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Apri il PDF</button>
                     : <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Genera il PDF</button>}
                   {(q.stato === 'bozza' || q.stato === 'inviato') && <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">modifica</button>}
                   {q.stato === 'bozza' && <button onClick={() => segnaInviato(q)} className="rounded-full bg-navy px-3 py-1 text-xs font-bold text-white hover:bg-blu">L'ho mandato</button>}

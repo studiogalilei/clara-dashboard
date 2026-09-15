@@ -376,6 +376,14 @@ export const demoClient = {
         getPublicUrl(path: string) {
           return { data: { publicUrl: urlFinti.get(path) ?? '#' } }
         },
+        async createSignedUrl(path: string) {
+          return { data: { signedUrl: urlFinti.get(path) ?? '#' }, error: null }
+        },
+        async createSignedUrls(paths: string[]) {
+          return { data: paths.map((path) => ({ path, signedUrl: urlFinti.get(path) ?? '#', error: null })), error: null }
+        },
+        async list() { return { data: [], error: null } },
+        async remove() { return { data: [], error: null } },
       }
     },
   },

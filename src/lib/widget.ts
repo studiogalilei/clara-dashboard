@@ -69,7 +69,7 @@ export const WIDGET: Widget[] = [
   { chiave: 'clara', nome: 'Posta di Clara', cosa: 'Bozze, richieste e domande da decidere', zona: 'sistema', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5v-9zM3.5 8l8.5 6 8.5-6' },
-  { chiave: 'preventivi', nome: 'Preventivi', cosa: 'Crea, manda, segna accettato: e vedi cosa gira', zona: 'menu', ruoli: ['ceo'], base: true,
+  { chiave: 'preventivi', nome: 'Preventivi', cosa: 'Crea, manda, segna accettato: e vedi cosa gira', zona: 'menu', ruoli: ['ceo'], fisso: true,
     icona: 'M7 3h7l5 5v13H7zM14 3v5h5M10 12h6M10 16h6' },
   { chiave: 'analytics', nome: 'Numeri', cosa: 'Risposte, conversioni e andamento dell\'outbound', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
