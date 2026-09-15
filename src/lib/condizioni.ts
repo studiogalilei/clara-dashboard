@@ -67,6 +67,13 @@ const INCLUSO: Record<string, { incluso: string[]; parte: string[] }> = {
     incluso: ['Mappatura del processo che si automatizza', 'Costruzione, prove e messa in funzione', 'Istruzioni scritte per chi lo usa ogni giorno', 'Un referente che risponde del progetto'],
     parte: ['Licenze e consumi degli strumenti terzi, intestati a voi', 'I dati e gli accessi, che restano vostri', 'Sviluppo software su misura, che ha un suo preventivo'],
   },
+  // piu' linee insieme (sito + campagne): non si puo' ripescare la lista del
+  // marketing, che mette a parte proprio il sito che stiamo vendendo nello
+  // stesso documento (QA Dre, 15/9)
+  istituzionale: {
+    incluso: ['Analisi iniziale e impostazione del lavoro', 'Tutto quello che e\' elencato qui sopra, nelle voci', 'Report periodici con metodo di calcolo dichiarato', 'Call di allineamento regolari', 'Un referente che risponde del progetto'],
+    parte: ['Budget pubblicitario, che resta sui vostri account', 'Licenze di strumenti terzi, se ne servono', 'Dominio e hosting, intestati a voi', 'Produzione di testi, foto e video', 'Quello che non e\' scritto nelle voci qui sopra'],
+  },
 }
 
 export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numero: string | null }, azienda: string, f: Fatturazione, linea: string = 'marketing', studio: DatiStudio = STUDIO_VUOTO): Documento {

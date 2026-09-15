@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
-import { creaTask } from '../lib/regole'
+import { creaTask, giorno } from '../lib/regole'
 import { apriFile } from '../lib/file'
-import { LINEA_NOME, controllaTono, testoDi } from '../lib/tono'
+import { LINEA_NOME, controllaTono, ripulisciTono, testoDi } from '../lib/tono'
 import { cosaManca } from '../lib/condizioni'
 import { datiStudio, mancaStudio, scriviStudio, STUDIO_VUOTO, type DatiStudio } from '../lib/studio'
 import {
@@ -19,6 +19,8 @@ import {
 
 interface Props { onOpen: (id: string) => void }
 type Nome = FacciaP & { id: string; email: string; fatturazione: Fatturazione | null }
+const CAMPI = 'id,company,name,email,sg_id,fuori,stage,pipeline_stage,fatturazione'
+const nomeAzienda = (a: Nome) => a.company || a.name || a.email
 type Filtro = 'giro' | 'tutti' | 'accettati' | 'pagati' | 'rifiutati' | 'bozze'
 
 interface Incasso {
@@ -37,8 +39,8 @@ function statoIt(s: string | null) {
     failed: 'fallito', incomplete: 'incompleto', incomplete_expired: 'scaduto', past_due: 'in ritardo', unpaid: 'non pagato' } as Record<string, string>)[s ?? ''] ?? (s ?? '')
 }
 
-const oggi = () => new Date().toISOString().slice(0, 10)
-const fraGiorni = (n: number) => new Date(Date.now() + n * 86400e3).toISOString().slice(0, 10)
+const oggi = () => giorno()
+const fraGiorni = (n: number) => giorno(new Date(Date.now() + n * 86400e3))
 const euro = (n: number | null | undefined) => n == null ? '' : `${Number(n).toLocaleString('it-IT')} €`
 
 // quello che si scrive nel pannello, prima di diventare una riga
@@ -52,10 +54,58 @@ interface Bozza {
 }
 const vuota = (): Bozza => ({ id: null, prospect_id: '', voci: [], valido_fino: fraGiorni(30), note: '', fatturazione: {} })
 
+// LA RICERCA DELL'AZIENDA (QA Dre, 14/9). Prima il pannello si scaricava
+// le prime 3000 aziende in ordine alfabetico e cercava li' dentro: dei 4
+// clienti veri non ne trovava tre, perche' stavano oltre la 3000esima.
+// Adesso la domanda va al database mentre scrivi, su tutte le 13.193.
+function ScegliAzienda({ onScegli, placeholder, piccolo }: {
+  onScegli: (a: Nome) => void
+  placeholder: string
+  piccolo?: boolean
+}) {
+  const [testo, setTesto] = useState('')
+  const [lista, setLista] = useState<Nome[]>([])
+  const [cercando, setCercando] = useState(false)
+
+  useEffect(() => {
+    const s = testo.trim().replace(/[,()"%]/g, ' ').trim()
+    if (s.length < 2) { setLista([]); setCercando(false); return }
+    setCercando(true)
+    const t = setTimeout(async () => {
+      const term = `%${s}%`
+      const { data } = await supabase.from('prospects').select(CAMPI)
+        .or(`company.ilike.${term},name.ilike.${term},email.ilike.${term}`)
+        .order('company').limit(8)
+      setLista((data as Nome[]) ?? [])
+      setCercando(false)
+    }, 220)
+    return () => clearTimeout(t)
+  }, [testo])
+
+  return (
+    <div className="relative">
+      <input autoFocus={!piccolo} value={testo} onChange={(e) => setTesto(e.target.value)} placeholder={placeholder}
+             className={`w-full rounded-xl border border-bordo bg-white outline-none focus:border-blu ${piccolo ? 'px-2 py-1 text-[11px]' : 'px-3 py-2 text-sm'}`} />
+      {testo.trim().length >= 2 && (
+        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-bordo bg-white shadow-[0_8px_24px_rgba(16,24,40,0.12)]">
+          {lista.length === 0
+            ? <p className="px-3 py-2 text-xs text-spento">{cercando ? 'Cerco…' : 'Nessuna azienda con questo nome'}</p>
+            : lista.map((a) => (
+              <button key={a.id} onClick={() => { onScegli(a); setTesto('') }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">
+                <Faccia p={a} size={24} />
+                <span className="min-w-0 flex-1 truncate">{nomeAzienda(a)}</span>
+                {sgid(a.sg_id, a) && <span className="text-[11px] font-semibold text-spento">{sgid(a.sg_id, a)}</span>}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Preventivi({ onOpen }: Props) {
   const [righe, setRighe] = useState<Preventivo[] | null>(null)
   const [nomi, setNomi] = useState<Record<string, Nome>>({})
-  const [aziende, setAziende] = useState<Nome[]>([])
   const [listino, setListino] = useState<VoceListino[]>([])
   const [incassi, setIncassi] = useState<Incasso[] | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('giro')
@@ -63,46 +113,79 @@ export default function Preventivi({ onOpen }: Props) {
   const [bozza, setBozza] = useState<Bozza | null>(null)
   const [lavoro, setLavoro] = useState<string | null>(null)       // «Genero il PDF…»
   const [problema, setProblema] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-  const [cercaAzienda, setCercaAzienda] = useState('')
+  // il toast puo' portarsi dietro il PDF appena fatto: si apre da li'
+  const [toast, setToast] = useState<{ testo: string; apri?: Preventivo } | null>(null)
   const [chiedo, setChiedo] = useState<{ id: number; cosa: 'rifiuto' | 'link' } | null>(null)
   const [testoChiesto, setTestoChiesto] = useState('')
   const [studio, setStudio] = useState<DatiStudio>(STUDIO_VUOTO)
   const [studioAperto, setStudioAperto] = useState(false)
+  // una domanda di conferma dentro la pagina, non il popup del browser
+  const [conferma, setConferma] = useState<{ testo: string; fai: () => void } | null>(null)
+  // il lucchetto: due clic ravvicinati su «Genera il PDF» facevano due
+  // preventivi con due numeri per la stessa trattativa (QA Dre, 15/9)
+  const sto = useRef(false)
 
   useEffect(() => {
     void supabase.from('preventivi').select('*').order('creato_il', { ascending: false }).limit(2000)
       .then(({ data, error }) => { if (error) setProblema(error.message); setRighe((data as Preventivo[]) ?? []) })
-    void supabase.from('prospects').select('id,company,name,email,sg_id,fuori,stage,pipeline_stage,fatturazione').order('company').limit(3000)
-      .then(({ data }) => {
-        const l = (data as Nome[]) ?? []
-        setAziende(l)
-        const m: Record<string, Nome> = {}
-        for (const x of l) m[x.id] = x
-        setNomi(m)
-      })
-    void supabase.from('listino').select('*').eq('attivo', true).order('ordine').then(({ data }) => setListino((data as VoceListino[]) ?? []))
+    void supabase.from('listino').select('*').eq('attivo', true).order('ordine')
+      .then(({ data, error }) => { if (error) setProblema(`Il listino non si carica: ${error.message}`); setListino((data as VoceListino[]) ?? []) })
     void datiStudio().then(setStudio)
     void supabase.from('incassi').select('*').order('quando', { ascending: false }).limit(500)
       .then(({ data, error }) => { if (!error && data && data.length) setIncassi(data as Incasso[]) })
   }, [])
 
-  // arrivo dalla scheda di un'azienda: il pannello si apre gia' su di lei.
-  // Il widget non era montato quando la scheda ha chiesto: l'azienda aspetta in sessionStorage
+  // i nomi: solo le aziende che compaiono davvero in questa pagina
   useEffect(() => {
-    if (Object.keys(nomi).length === 0) return
-    let id: string | null = null
-    try { id = sessionStorage.getItem('preventivo:nuovo'); sessionStorage.removeItem('preventivo:nuovo') } catch { /* niente */ }
-    if (id) apriNuovo(id)
-  }, [nomi])   // eslint-disable-line react-hooks/exhaustive-deps
+    const ids = [...new Set([
+      ...(righe ?? []).map((q) => q.prospect_id),
+      ...(incassi ?? []).map((i) => i.prospect_id).filter(Boolean) as string[],
+    ])]
+    setNomi((m) => {
+      const mancanti = ids.filter((id) => id && !m[id])
+      if (mancanti.length) {
+        void supabase.from('prospects').select(CAMPI).in('id', mancanti).limit(1000)
+          .then(({ data }) => setNomi((x) => {
+            const out = { ...x }
+            for (const a of ((data as Nome[]) ?? [])) out[a.id] = a
+            return out
+          }))
+      }
+      return m
+    })
+  }, [righe, incassi])
+
+  // arrivo dalla scheda di un'azienda: il pannello si apre gia' su di lei.
+  // Vale sia quando il widget non era montato (l'azienda aspetta in
+  // sessionStorage) sia quando lo era gia' (l'evento), se no il secondo
+  // «+ Nuovo preventivo» non apriva niente (QA Dre, 14/9).
+  useEffect(() => {
+    const apri = (id: string | null) => {
+      try { sessionStorage.removeItem('preventivo:nuovo') } catch { /* niente */ }
+      if (!id) return
+      void supabase.from('prospects').select(CAMPI).eq('id', id).single().then(({ data }) => {
+        const a = data as Nome | null
+        if (!a) return
+        setNomi((m) => ({ ...m, [a.id]: a }))
+        setBozza({ ...vuota(), prospect_id: a.id, fatturazione: a.fatturazione ?? { ragione: a.company ?? '' } })
+      })
+    }
+    let iniziale: string | null = null
+    try { iniziale = sessionStorage.getItem('preventivo:nuovo') } catch { /* niente */ }
+    if (iniziale) apri(iniziale)
+    const ascolta = (e: Event) => apri((e as CustomEvent<string>).detail ?? null)
+    window.addEventListener('preventivo:nuovo', ascolta)
+    return () => window.removeEventListener('preventivo:nuovo', ascolta)
+  }, [])
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 2800)
+    const t = setTimeout(() => setToast(null), toast.apri ? 9000 : 2800)
     return () => clearTimeout(t)
   }, [toast])
 
-  const nomeDi = (id: string) => { const n = nomi[id]; return n ? (n.company || n.name || n.email) : '…' }
+  const nomeDi = (id: string) => { const n = nomi[id]; return n ? nomeAzienda(n) : '…' }
+  const avvisa = (testo: string) => setToast({ testo })
 
   async function scrivi(id: number, patch: Partial<Preventivo>): Promise<Preventivo | null> {
     const { data, error } = await supabase.from('preventivi').update({ ...patch, aggiornato_il: new Date().toISOString() }).eq('id', id).select().single()
@@ -115,16 +198,22 @@ export default function Preventivi({ onOpen }: Props) {
   function apriNuovo(prospect_id = '') {
     const n = nomi[prospect_id]
     setBozza({ ...vuota(), prospect_id, fatturazione: n?.fatturazione ?? (n ? { ragione: n.company ?? '' } : {}) })
-    setCercaAzienda('')
   }
   function apriModifica(q: Preventivo) {
     const n = nomi[q.prospect_id]
     setBozza({ id: q.id, prospect_id: q.prospect_id, voci: q.voci ?? [], valido_fino: q.valido_fino ?? fraGiorni(30), note: q.note ?? '', fatturazione: n?.fatturazione ?? { ragione: n?.company ?? '' } })
   }
-  function scegliAzienda(id: string) {
-    const n = nomi[id]
-    setBozza((b) => b && ({ ...b, prospect_id: id, fatturazione: n?.fatturazione ?? { ragione: n?.company ?? '' } }))
-    setCercaAzienda('')
+  function scegliAzienda(a: Nome) {
+    setNomi((m) => ({ ...m, [a.id]: a }))
+    setBozza((b) => b && ({ ...b, prospect_id: a.id, fatturazione: a.fatturazione ?? { ragione: a.company ?? '' } }))
+  }
+  // il pannello a meta' non si butta: se ci sono voci, si chiede
+  function chiudiBozza() {
+    if (bozza && bozza.voci.length > 0) {
+      setConferma({ testo: 'Butto via questo preventivo a metà?', fai: () => setBozza(null) })
+      return
+    }
+    setBozza(null)
   }
   function aggiungiVoce(v: VoceListino) {
     setBozza((b) => b && ({ ...b, voci: [...b.voci, { nome: v.nome, descrizione: v.descrizione ?? undefined, quantita: 1, prezzo: Number(v.prezzo), ricorrenza: v.ricorrenza }] }))
@@ -135,19 +224,37 @@ export default function Preventivi({ onOpen }: Props) {
 
   // salva la bozza (riga + dati di fatturazione sull'azienda) e, se chiesto, genera il PDF
   async function salva(conPdf: boolean) {
-    if (!bozza) return
+    if (!bozza || sto.current) return
     if (!bozza.prospect_id) { setProblema('Scegli l\'azienda prima.'); return }
     if (bozza.voci.length === 0) { setProblema('Un preventivo senza voci non è un preventivo.'); return }
     if (bozza.voci.some((v) => !v.nome.trim())) { setProblema('Ogni voce ha un nome.'); return }
+    // un preventivo a zero euro non e' un preventivo: in listino c'e' una
+    // voce senza prezzo e finiva in un contratto cosi' com'era (QA Dre, 15/9)
+    if (unaTantum(bozza.voci) + alMese(bozza.voci) <= 0) { setProblema('Metti un prezzo: questo preventivo vale zero euro.'); return }
     // il PDF e' un documento intestato: senza i dati veri non esce (mai «[da verificare]» a un cliente)
     const buchi = conPdf ? [...cosaManca(bozza.fatturazione), ...mancaStudio(studio)] : []
     if (buchi.length) { setProblema(`Per il PDF serve ${buchi.join(', ')}.`); setStudioAperto(buchi.some((b) => b.includes('Studio'))); return }
+    // i segni vietati si correggono da soli; se resta una parola vietata si
+    // dice in quale voce sta, non «il testo non passa il controllo»
+    const voci = bozza.voci.map((v) => ({
+      ...v,
+      nome: ripulisciTono(v.nome),
+      descrizione: v.descrizione ? ripulisciTono(v.descrizione) : v.descrizione,
+      prezzo: Math.max(0, Number(v.prezzo) || 0),
+    }))
+    if (conPdf) {
+      for (const v of voci) {
+        const suoi = [...controllaTono(v.nome), ...controllaTono(v.descrizione ?? '')]
+        if (suoi.length) { setProblema(`Nella voce «${v.nome}»: ${suoi.join(', ')}. Riscrivila e riprova.`); return }
+      }
+    }
+    sto.current = true
     setLavoro(conPdf ? 'Salvo e genero il PDF…' : 'Salvo…')
     try {
-      const linea = lineaDi(bozza.voci, listino)
+      const linea = lineaDi(voci, listino)
       const base = {
-        prospect_id: bozza.prospect_id, linea, voci: bozza.voci, titolo: titoloDi(bozza.voci),
-        importo: unaTantum(bozza.voci), mensile: alMese(bozza.voci) || null, valido_fino: bozza.valido_fino || null,
+        prospect_id: bozza.prospect_id, linea, voci, titolo: titoloDi(voci),
+        importo: unaTantum(voci), mensile: alMese(voci) || null, valido_fino: bozza.valido_fino || null,
         note: bozza.note || null, aggiornato_il: new Date().toISOString(),
       }
       let riga: Preventivo
@@ -164,6 +271,10 @@ export default function Preventivi({ onOpen }: Props) {
         const { data, error } = await supabase.from('preventivi').insert({ ...base, numero, stato: 'bozza', owner: sess.session?.user?.id ?? null }).select().single()
         if (error) throw new Error(error.message)
         riga = data as Preventivo
+        // la riga nel database ora esiste: il pannello se ne ricorda subito,
+        // se no un PDF fallito e un secondo tentativo facevano un doppione
+        setBozza((b) => b && ({ ...b, id: riga.id, voci }))
+        setRighe((v) => [riga, ...(v ?? [])])
       }
       // i dati di fatturazione restano sull'azienda: servono anche a Giacomo
       const f = bozza.fatturazione
@@ -181,14 +292,18 @@ export default function Preventivi({ onOpen }: Props) {
       }
       setRighe((v) => { const l = (v ?? []).filter((q) => q.id !== riga.id); return [riga, ...l] })
       setBozza(null)
-      setToast(conPdf ? `${riga.numero}: PDF pronto, nella cartella di ${nomeDi(riga.prospect_id)}` : `${riga.numero} salvato come bozza`)
-      if (conPdf) void apri(riga)
+      // niente apertura automatica: dopo tre await Safari la blocca come
+      // popup e il PDF non si vedeva (QA Dre, 14/9). Il bottone sta nel toast.
+      setToast(conPdf
+        ? { testo: `${riga.numero}: PDF pronto, nella cartella di ${nomeDi(riga.prospect_id)}`, apri: riga }
+        : { testo: `${riga.numero} salvato come bozza` })
     } catch (e) {
       const m = (e as Error).message
       setProblema(m.includes('idx_preventivi_numero')
         ? 'Quel numero l\'ha appena preso un altro preventivo: ripremi Salva e ne prende uno nuovo.'
         : m)
     } finally {
+      sto.current = false
       setLavoro(null)
     }
   }
@@ -199,7 +314,7 @@ export default function Preventivi({ onOpen }: Props) {
     const { error } = await supabase.from('incassi').update({ prospect_id: prospectId }).eq('id', incassoId)
     if (error) { setProblema(error.message); return }
     setIncassi((v) => (v ?? []).map((i) => (i.id === incassoId ? { ...i, prospect_id: prospectId } : i)))
-    setToast(`Incasso collegato a ${nomeDi(prospectId)}`)
+    avvisa(`Incasso collegato a ${nomeDi(prospectId)}`)
   }
 
   async function apri(q: Preventivo) {
@@ -209,9 +324,15 @@ export default function Preventivi({ onOpen }: Props) {
 
   // ── gli esiti: inviato, accettato (nasce il progetto), rifiutato, pagato ──
   async function segnaInviato(q: Preventivo) {
-    if (!q.pdf_path && !confirm('Non c\'è ancora il PDF. Lo segno inviato lo stesso?')) return
+    if (!q.pdf_path) {
+      setConferma({ testo: `${q.numero} non ha ancora il PDF. Lo segno mandato lo stesso?`, fai: () => void inviato(q) })
+      return
+    }
+    await inviato(q)
+  }
+  async function inviato(q: Preventivo) {
     const r = await scrivi(q.id, { stato: 'inviato', inviato_il: q.inviato_il ?? oggi() })
-    if (r) setToast(`${q.numero} segnato inviato`)
+    if (r) avvisa(`${q.numero} segnato mandato`)
   }
   async function segnaAccettato(q: Preventivo) {
     const r = await scrivi(q.id, { stato: 'accettato', accettato_il: oggi() })
@@ -239,30 +360,34 @@ export default function Preventivi({ onOpen }: Props) {
     // e la call di avvio va fissata: una task in cima alla lista
     const { task } = await creaTask({ titolo: `Fissare la call di avvio con ${nomeDi(q.prospect_id)}`, prospect_id: q.prospect_id, scadenza: fraGiorni(3) })
     if (task) messaggio += ', task per la call di avvio'
-    setToast(messaggio)
+    avvisa(messaggio)
   }
   async function segnaRifiutato(q: Preventivo, motivo: string) {
     const r = await scrivi(q.id, { stato: 'rifiutato', rifiutato_il: oggi(), motivo: motivo || null })
-    if (r) setToast(`${q.numero} segnato rifiutato`)
+    if (r) avvisa(`${q.numero} segnato rifiutato`)
   }
   async function segnaPagato(q: Preventivo) {
     const r = await scrivi(q.id, { pagato_il: oggi(), note: [q.note, 'segnato a mano'].filter(Boolean).join(', ') })
-    if (r) setToast(`${q.numero} pagato`)
+    if (r) avvisa(`${q.numero} pagato`)
   }
   async function riapri(q: Preventivo) {
     const r = await scrivi(q.id, { stato: 'inviato', accettato_il: null, rifiutato_il: null, motivo: null })
-    if (r) setToast(`${q.numero} di nuovo in attesa`)
+    if (r) avvisa(`${q.numero} di nuovo in attesa`)
   }
   async function copiaLink(q: Preventivo) {
     if (!q.link_pagamento) { setChiedo({ id: q.id, cosa: 'link' }); setTestoChiesto(''); return }
-    try { await navigator.clipboard.writeText(q.link_pagamento); setToast('Link di pagamento copiato') } catch { setProblema('Non riesco a copiare') }
+    try { await navigator.clipboard.writeText(q.link_pagamento); avvisa('Link di pagamento copiato') } catch { setProblema('Non riesco a copiare') }
   }
-  async function elimina(q: Preventivo) {
+  function elimina(q: Preventivo) {
     if (q.stato !== 'bozza') { setProblema('Si elimina solo una bozza: un preventivo mandato resta, semmai si segna rifiutato.'); return }
-    if (!confirm(`Elimino la bozza ${q.numero}?`)) return
-    const { error } = await supabase.from('preventivi').delete().eq('id', q.id)
-    if (error) { setProblema(error.message); return }
-    setRighe((v) => v!.filter((x) => x.id !== q.id))
+    setConferma({
+      testo: `Elimino la bozza ${q.numero}?`,
+      fai: async () => {
+        const { error } = await supabase.from('preventivi').delete().eq('id', q.id)
+        if (error) { setProblema(error.message); return }
+        setRighe((v) => v!.filter((x) => x.id !== q.id))
+      },
+    })
   }
 
   // ── la lista ───────────────────────────────────────────────────────────
@@ -280,6 +405,9 @@ export default function Preventivi({ onOpen }: Props) {
   }), [righe, filtro, t, nomi])   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (righe === null) return <Spinner />
+
+  // i buchi che fermano il PDF: si vedono prima di premere, non dopo
+  const manca = bozza ? [...cosaManca(bozza.fatturazione), ...mancaStudio(studio)] : []
 
   const somma = (l: Preventivo[]) => l.reduce((s, q) => s + (Number(q.importo) || 0), 0)
   const inGiro = righe.filter((q) => q.stato === 'inviato')
@@ -302,16 +430,12 @@ export default function Preventivi({ onOpen }: Props) {
     </button>
   )
 
-  const candidate = cercaAzienda.trim()
-    ? aziende.filter((a) => (a.company || a.name || a.email || '').toLowerCase().includes(cercaAzienda.trim().toLowerCase())).slice(0, 8)
-    : []
-
   return (
     <div className="space-y-4 pb-24 sm:pb-8">
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
-          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">chiudi</button>
+          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">Chiudi</button>
         </div>
       )}
 
@@ -320,7 +444,7 @@ export default function Preventivi({ onOpen }: Props) {
         <Card className="salta-su space-y-3 border-blu/40 p-5">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-extrabold">Dati dello Studio</h2>
-            <button onClick={() => setStudioAperto(false)} className="text-xs font-semibold text-spento hover:text-inchiostro">chiudi</button>
+            <button onClick={() => setStudioAperto(false)} className="text-xs font-semibold text-spento hover:text-inchiostro">Chiudi</button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Sede'], ['pec', 'PEC'], ['iban', 'IBAN'], ['firmatario', 'Chi firma'], ['foro', 'Foro competente']] as Array<[keyof DatiStudio, string]>).map(([k, n]) => (
@@ -338,7 +462,7 @@ export default function Preventivi({ onOpen }: Props) {
               </label>
             ))}
           </div>
-          <button onClick={async () => { const e = await scriviStudio(studio); if (e) setProblema(e); else { setStudioAperto(false); setToast('Dati dello Studio salvati') } }}
+          <button onClick={async () => { const e = await scriviStudio(studio); if (e) setProblema(e); else { setStudioAperto(false); avvisa('Dati dello Studio salvati') } }}
                   className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro">Salva</button>
         </Card>
       )}
@@ -370,7 +494,7 @@ export default function Preventivi({ onOpen }: Props) {
                  className="w-56 rounded-full border border-bordo bg-white px-4 py-2 text-sm outline-none focus:border-blu" />
           <button onClick={() => setStudioAperto((v) => !v)} title="Ragione sociale, P.IVA, IVA, termini: vanno nei PDF"
                   className="rounded-full border border-bordo bg-white px-3.5 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy">Dati Studio</button>
-          <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Nuovo preventivo</button>
+          <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Crea preventivo</button>
         </div>
       </div>
 
@@ -379,7 +503,7 @@ export default function Preventivi({ onOpen }: Props) {
         <Card className="salta-su space-y-5 border-blu/40 p-5">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-extrabold">{bozza.id ? 'Modifica il preventivo' : 'Nuovo preventivo'}</h2>
-            <button onClick={() => setBozza(null)} className="text-xs font-semibold text-spento hover:text-inchiostro">annulla</button>
+            <button onClick={chiudiBozza} className="text-xs font-semibold text-spento hover:text-inchiostro">Annulla</button>
           </div>
 
           {/* 1. l'azienda */}
@@ -390,27 +514,16 @@ export default function Preventivi({ onOpen }: Props) {
                 <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-bordo bg-white px-3 py-2">
                   {nomi[bozza.prospect_id] && <Faccia p={nomi[bozza.prospect_id]} size={28} />}
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{nomeDi(bozza.prospect_id)}</span>
-                  {!bozza.id && <button onClick={() => setBozza({ ...bozza, prospect_id: '' })} className="text-xs font-semibold text-blu hover:underline">cambia</button>}
+                  {!bozza.id && <button onClick={() => setBozza({ ...bozza, prospect_id: '' })} className="text-xs font-semibold text-blu hover:underline">Cambia</button>}
                 </div>
               ) : (
-                <div className="relative mt-1">
-                  <input autoFocus value={cercaAzienda} onChange={(e) => setCercaAzienda(e.target.value)} placeholder="Scrivi il nome dell'azienda…"
-                         className="w-full rounded-xl border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-blu" />
-                  {candidate.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-bordo bg-white shadow-[0_8px_24px_rgba(16,24,40,0.12)]">
-                      {candidate.map((a) => (
-                        <button key={a.id} onClick={() => scegliAzienda(a.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-velo">
-                          <Faccia p={a} size={24} />
-                          <span className="min-w-0 flex-1 truncate">{a.company || a.name || a.email}</span>
-                          {sgid(a.sg_id, a) && <span className="text-[11px] font-semibold text-spento">{sgid(a.sg_id, a)}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="mt-1">
+                  <ScegliAzienda onScegli={scegliAzienda} placeholder="Scrivi il nome dell'azienda…" />
                 </div>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
+              <p className="col-span-2 -mb-1 text-[11px] text-spento">Valgono per tutti i preventivi e le fatture di questa azienda</p>
               {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Indirizzo'], ['pec', 'PEC'], ['sdi', 'Codice SDI']] as Array<[keyof Fatturazione, string]>).map(([k, n]) => (
                 <label key={k} className={k === 'indirizzo' ? 'col-span-2' : ''}>
                   <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
@@ -425,10 +538,11 @@ export default function Preventivi({ onOpen }: Props) {
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
               <Micro>Voci</Micro>
+              {listino.length === 0 && <span className="text-xs text-amber-800">Il catalogo è vuoto: le voci si aggiungono dal listino</span>}
               {listino.map((v) => (
                 <button key={v.id} onClick={() => aggiungiVoce(v)} title={v.descrizione ?? undefined}
                         className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-navy hover:text-navy">
-                  + {v.nome}{v.prezzo ? <span className="text-spento"> {euro(v.prezzo)}{v.ricorrenza === 'mese' ? '/mese' : ''}</span> : null}
+                  + {v.nome}<span className={v.prezzo ? 'text-spento' : 'font-bold text-amber-700'}> {euro(Number(v.prezzo) || 0)}{v.ricorrenza === 'mese' ? '/mese' : ''}</span>
                 </button>
               ))}
               <button onClick={() => setBozza({ ...bozza, voci: [...bozza.voci, { nome: '', quantita: 1, prezzo: 0, ricorrenza: 'una_tantum' }] })}
@@ -447,15 +561,18 @@ export default function Preventivi({ onOpen }: Props) {
                     <input type="number" min={1} value={v.quantita} onChange={(e) => cambiaVoce(i, { quantita: Math.max(1, Number(e.target.value) || 1) })}
                            className="w-full rounded-lg border border-bordo px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-blu" />
                     <div className="flex items-center gap-1">
-                      <input type="number" min={0} step={1} value={v.prezzo} onChange={(e) => cambiaVoce(i, { prezzo: Number(e.target.value) || 0 })}
+                      <input type="number" min={0} step={1} value={v.prezzo} onChange={(e) => cambiaVoce(i, { prezzo: Math.max(0, Number(e.target.value) || 0) })}
                              className="w-full rounded-lg border border-bordo px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-blu" />
                       <span className="text-xs text-spento">€</span>
                     </div>
-                    <select value={v.ricorrenza} onChange={(e) => cambiaVoce(i, { ricorrenza: e.target.value as Voce['ricorrenza'] })}
-                            className="rounded-lg border border-bordo bg-white px-2 py-1 text-xs outline-none focus:border-blu">
-                      <option value="una_tantum">una tantum</option>
-                      <option value="mese">al mese</option>
-                    </select>
+                    <div className="flex overflow-hidden rounded-lg border border-bordo text-[11px] font-semibold">
+                      {(['una_tantum', 'mese'] as const).map((r) => (
+                        <button key={r} onClick={() => cambiaVoce(i, { ricorrenza: r })}
+                                className={`flex-1 px-1.5 py-1 ${v.ricorrenza === r ? 'bg-blu text-white' : 'bg-white text-tenue hover:bg-velo'}`}>
+                          {r === 'mese' ? 'al mese' : 'una tantum'}
+                        </button>
+                      ))}
+                    </div>
                     <button onClick={() => setBozza({ ...bozza, voci: bozza.voci.filter((_, k) => k !== i) })} aria-label="Togli" className="text-spento hover:text-red-700">×</button>
                   </div>
                 ))}
@@ -481,10 +598,23 @@ export default function Preventivi({ onOpen }: Props) {
                      className="mt-0.5 block w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
             </label>
             <div className="ml-auto flex items-center gap-2">
+              {manca.length > 0 && (
+                <span className="text-xs font-semibold text-amber-800">Per il PDF manca {manca.join(', ')}</span>
+              )}
               <button onClick={() => salva(false)} disabled={!!lavoro} className="rounded-full border border-bordo bg-white px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy disabled:opacity-40">Salva bozza</button>
-              <button onClick={() => salva(true)} disabled={!!lavoro} className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-40">{lavoro ?? 'Genera il PDF'}</button>
+              <button onClick={() => salva(true)} disabled={!!lavoro || manca.length > 0 || bozza.voci.length === 0}
+                      title={manca.length ? `Manca ${manca.join(', ')}` : undefined}
+                      className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-40">{lavoro ?? 'Genera il PDF'}</button>
             </div>
           </div>
+        </Card>
+      )}
+
+      {conferma && (
+        <Card className="salta-su flex flex-wrap items-center gap-3 border-blu/40 p-4">
+          <span className="flex-1 text-sm font-semibold">{conferma.testo}</span>
+          <button onClick={() => { conferma.fai(); setConferma(null) }} className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white hover:bg-blu-scuro">Sì, vai</button>
+          <button onClick={() => setConferma(null)} className="rounded-full border border-bordo bg-white px-4 py-1.5 text-sm font-semibold text-tenue hover:border-spento">No, lascia stare</button>
         </Card>
       )}
 
@@ -498,7 +628,7 @@ export default function Preventivi({ onOpen }: Props) {
           <button onClick={async () => {
             const q = righe.find((x) => x.id === chiedo.id)!
             if (chiedo.cosa === 'rifiuto') await segnaRifiutato(q, testoChiesto.trim())
-            else { const r = await scrivi(q.id, { link_pagamento: testoChiesto.trim() || null }); if (r) setToast('Link salvato') }
+            else { const r = await scrivi(q.id, { link_pagamento: testoChiesto.trim() || null }); if (r) avvisa('Link salvato') }
             setChiedo(null)
           }} className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white">Ok</button>
           <button onClick={() => setChiedo(null)} className="text-xs text-spento hover:text-inchiostro">annulla</button>
@@ -508,7 +638,7 @@ export default function Preventivi({ onOpen }: Props) {
       {/* LA LISTA: una riga per preventivo, con l'esito a portata di mano */}
       {visibili.length === 0 ? (
         <Card><p className="px-4 py-8 text-center text-sm text-spento">
-          {righe.length === 0 ? 'Nessun preventivo ancora. Il primo si fa con «Nuovo preventivo».' : t ? `Niente per «${cerca.trim()}»` : filtro === 'giro' ? 'Niente in giro: nessuno sta aspettando una risposta.' : 'Niente qui.'}
+          {righe.length === 0 ? 'Nessun preventivo ancora.' : t ? `Niente per «${cerca.trim()}»` : filtro === 'giro' ? 'Nessuno sta aspettando una risposta.' : 'Nessuno qui dentro.'}
         </p></Card>
       ) : (
         <div className="space-y-2">
@@ -539,17 +669,17 @@ export default function Preventivi({ onOpen }: Props) {
                   {q.pdf_path
                     ? <button onClick={() => void apri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Apri il PDF</button>
                     : <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-bold text-navy hover:border-navy">Genera il PDF</button>}
-                  {(q.stato === 'bozza' || q.stato === 'inviato') && <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">modifica</button>}
-                  {q.stato === 'bozza' && <button onClick={() => segnaInviato(q)} className="rounded-full bg-navy px-3 py-1 text-xs font-bold text-white hover:bg-blu">L'ho mandato</button>}
+                  {(q.stato === 'bozza' || q.stato === 'inviato') && <button onClick={() => apriModifica(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">Modifica</button>}
+                  {q.stato === 'bozza' && <button onClick={() => segnaInviato(q)} className="rounded-full bg-navy px-3 py-1 text-xs font-bold text-white hover:bg-blu">Segna mandato</button>}
                   {q.stato === 'inviato' && <>
-                    <button onClick={() => segnaAccettato(q)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">Ha accettato</button>
-                    <button onClick={() => { setChiedo({ id: q.id, cosa: 'rifiuto' }); setTestoChiesto('') }} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:border-red-300">Ha detto no</button>
+                    <button onClick={() => segnaAccettato(q)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">Segna accettato</button>
+                    <button onClick={() => { setChiedo({ id: q.id, cosa: 'rifiuto' }); setTestoChiesto('') }} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:border-red-300">Segna rifiutato</button>
                   </>}
-                  {q.stato === 'accettato' && !q.pagato_il && <button onClick={() => segnaPagato(q)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">È stato pagato</button>}
-                  {(q.stato === 'accettato' || q.stato === 'rifiutato') && !q.pagato_il && <button onClick={() => riapri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">rimetti in attesa</button>}
-                  <button onClick={() => copiaLink(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">{q.link_pagamento ? 'copia il link di pagamento' : 'metti il link di pagamento'}</button>
-                  <button onClick={() => onOpen(q.prospect_id)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-blu hover:border-blu">scheda</button>
-                  {q.stato === 'bozza' && <button onClick={() => elimina(q)} className="ml-auto text-xs text-spento hover:text-red-700">elimina</button>}
+                  {q.stato === 'accettato' && !q.pagato_il && <button onClick={() => segnaPagato(q)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">Segna pagato</button>}
+                  {(q.stato === 'accettato' || q.stato === 'rifiutato') && !q.pagato_il && <button onClick={() => riapri(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">Rimetti in attesa</button>}
+                  <button onClick={() => copiaLink(q)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-tenue hover:border-spento">{q.link_pagamento ? 'Copia il link di pagamento' : 'Metti il link di pagamento'}</button>
+                  <button onClick={() => onOpen(q.prospect_id)} className="rounded-full border border-bordo bg-white px-3 py-1 text-xs font-semibold text-blu hover:border-blu">Apri la scheda</button>
+                  {q.stato === 'bozza' && <button onClick={() => elimina(q)} className="ml-auto text-xs text-spento hover:text-red-700">Elimina</button>}
                   {q.note && <span className="ml-auto text-xs text-spento">{q.note}</span>}
                 </div>
               </Card>
@@ -593,11 +723,7 @@ export default function Preventivi({ onOpen }: Props) {
                       <td className="px-2 py-2 text-xs">
                         {i.prospect_id
                           ? <button onClick={() => onOpen(i.prospect_id!)} className="font-semibold hover:text-navy">{nomeDi(i.prospect_id)}{i.preventivo_id ? <span className="text-spento"> (preventivo pagato)</span> : null}</button>
-                          : <select value="" onChange={(e) => void collega(i.id, e.target.value)}
-                                    className="w-full rounded-lg border border-bordo bg-white px-2 py-1 text-[11px] text-tenue outline-none focus:border-blu">
-                              <option value="">collega a un'azienda…</option>
-                              {aziende.map((a) => <option key={a.id} value={a.id}>{a.company || a.name || a.email}</option>)}
-                            </select>}
+                          : <ScegliAzienda piccolo placeholder="collega a un'azienda…" onScegli={(a) => { setNomi((m) => ({ ...m, [a.id]: a })); void collega(i.id, a.id) }} />}
                       </td>
                     </tr>
                   ))}
@@ -609,8 +735,13 @@ export default function Preventivi({ onOpen }: Props) {
       )}
 
       {toast && (
-        <div className="salta-su fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full border border-green-200 bg-green-50 px-5 py-2.5 text-sm font-bold text-green-800 shadow-[0_8px_24px_rgba(16,24,40,0.2)] sm:bottom-6">
-          {toast}
+        <div className="salta-su fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-green-200 bg-green-50 px-5 py-2.5 text-sm font-bold text-green-800 shadow-[0_8px_24px_rgba(16,24,40,0.2)] sm:bottom-6">
+          <span>{toast.testo}</span>
+          {toast.apri && (
+            <button onClick={() => void apri(toast.apri!)} className="rounded-full bg-green-700 px-3 py-1 text-xs font-bold text-white hover:bg-green-800">
+              Apri il PDF
+            </button>
+          )}
         </div>
       )}
     </div>

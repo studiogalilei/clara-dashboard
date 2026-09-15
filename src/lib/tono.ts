@@ -53,6 +53,23 @@ const PAROLE = ['innovativ', "all'avanguardia", 'soluzioni concrete', 'elevare',
   'straordinari', 'incredibil', 'unico nel suo genere', 'nel panorama', 'a 360', 'chiavi in mano', 'sinergi', 'valore aggiunto',
   'eccellenza', 'leader di settore', 'performante', 'implementare', 'ottimizzare']
 
+// ── la ripulitura automatica ────────────────────────────────────────────
+// I segni vietati non sono un errore di chi scrive: sono un errore di
+// battitura o un incolla da Google Maps. Si correggono da soli, invece di
+// bloccare il PDF con un messaggio da programmatore (QA Dre, 14/9).
+export function ripulisciTono(t: string): string {
+  return t
+    .replace(/\s*·\s*/g, ', ')
+    .replace(/\s*—\s*/g, ': ')
+    .replace(/–/g, '-')
+    .replace(/^\s*•\s*/gm, '')
+    .replace(/\s*•\s*/g, ', ')
+    .replace(/\s*!+/g, '.')
+    .replace(/\.\.+/g, '.')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 export function controllaTono(testo: string): string[] {
   const problemi: string[] = []
   for (const [re, nome] of SEGNI) {
