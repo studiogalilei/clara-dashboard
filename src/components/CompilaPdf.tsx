@@ -187,7 +187,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
           {attrezzo('timbro', 'Timbro', !timbro)}
           <span className="text-[11px] text-spento">{strumento ? 'tocca la pagina dove va' : 'scegli cosa mettere, poi tocca dove va'}</span>
           <div className="ml-auto flex items-center gap-2">
-            <button onClick={onClose} className="text-xs font-semibold text-tenue hover:text-inchiostro">annulla</button>
+            <button onClick={onClose} className="text-xs font-semibold text-tenue hover:text-inchiostro">Annulla</button>
             <button onClick={() => void salva()} disabled={salvo || pezzi.length === 0}
                     className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-30">
               {salvo ? 'Salvo…' : 'Salva come nuovo PDF'}

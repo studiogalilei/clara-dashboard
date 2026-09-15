@@ -446,9 +446,9 @@ export default function Preventivi({ onOpen }: Props) {
                     className={`rounded-full px-3 py-1.5 text-sm font-semibold ${filtro === k ? 'bg-navy text-white' : 'bg-white text-tenue ring-1 ring-bordo hover:text-inchiostro'}`}>{n}</button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <input type="search" value={cerca} onChange={(e) => setCerca(e.target.value)} placeholder="Cerca azienda o numero…"
-                 className="w-56 rounded-full border border-bordo bg-white px-4 py-2 text-sm outline-none focus:border-blu" />
+                 className="min-w-0 flex-1 rounded-full border border-bordo bg-white px-4 py-2 text-sm outline-none focus:border-blu sm:w-56 sm:flex-none" />
           <button onClick={() => setStudioAperto((v) => !v)} title="Ragione sociale, P.IVA, IVA, termini: vanno nei PDF"
                   className="rounded-full border border-bordo bg-white px-3.5 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy">Dati Studio</button>
           <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Crea preventivo</button>
@@ -508,14 +508,15 @@ export default function Preventivi({ onOpen }: Props) {
             {bozza.voci.length > 0 && (
               <div className="mt-2 overflow-hidden rounded-xl border border-bordo bg-white">
                 {bozza.voci.map((v, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_64px_110px_120px_28px] items-center gap-2 border-b border-velo px-3 py-2 last:border-0">
-                    <div className="min-w-0">
+                  <div key={i} className="grid grid-cols-[1fr_28px] items-center gap-2 border-b border-velo px-3 py-2 last:border-0 sm:grid-cols-[1fr_64px_110px_120px_28px]">
+                    <div className="col-span-2 min-w-0 sm:col-span-1">
                       <input value={v.nome} onChange={(e) => cambiaVoce(i, { nome: e.target.value })} placeholder="Cosa"
                              className="w-full rounded bg-transparent text-sm font-semibold outline-none focus:bg-velo" />
                       <input value={v.descrizione ?? ''} onChange={(e) => cambiaVoce(i, { descrizione: e.target.value })} placeholder="Una riga che spiega (va nel PDF)"
                              className="w-full rounded bg-transparent text-xs text-tenue outline-none focus:bg-velo" />
                     </div>
                     <input type="number" min={1} value={v.quantita} onChange={(e) => cambiaVoce(i, { quantita: Math.max(1, Number(e.target.value) || 1) })}
+                           aria-label="Quantità"
                            className="w-full rounded-lg border border-bordo px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-blu" />
                     <div className="flex items-center gap-1">
                       <input type="number" min={0} step={1} value={v.prezzo} onChange={(e) => cambiaVoce(i, { prezzo: Math.max(0, Number(e.target.value) || 0) })}

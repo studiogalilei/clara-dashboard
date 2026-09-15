@@ -105,7 +105,7 @@ export default function Firma({ ceo }: { ceo: boolean }) {
           <div className="mt-1"><FoglioFirma onPronta={(d) => void salva(d)} /></div>
           <p className="mt-2 text-xs text-spento">
             Oppure <button onClick={() => fileRef.current?.click()} className="font-semibold text-blu hover:underline">carica un PNG</button> con lo sfondo trasparente.
-            {firma && <> <button onClick={() => setDisegno(false)} className="ml-2 text-spento hover:text-inchiostro">annulla</button></>}
+            {firma && <> <button onClick={() => setDisegno(false)} className="ml-2 text-spento hover:text-inchiostro">Annulla</button></>}
           </p>
           <input ref={fileRef} type="file" accept="image/png" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) daFile(f); e.target.value = '' }} />
         </div>

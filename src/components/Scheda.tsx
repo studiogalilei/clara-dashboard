@@ -916,7 +916,7 @@ export default function Scheda({ id, onClose }: Props) {
               <div className="flex items-baseline justify-between">
                 <TitoloCard>Contatti</TitoloCard>
                 <button onClick={() => setModifica(!modifica)} className="text-[11px] font-semibold text-blu hover:underline">
-                  {modifica ? 'chiudi' : 'modifica'}
+                  {modifica ? 'Chiudi' : 'Modifica'}
                 </button>
               </div>
               {modifica ? (
@@ -1060,7 +1060,7 @@ export default function Scheda({ id, onClose }: Props) {
               <Card className="salta-su border-blu/30">
                 <header className="flex items-baseline gap-2 border-b border-velo px-4 py-2.5">
                   <h3 className="text-sm font-bold">Avanza a {PIPELINE_LABEL[next]}</h3>
-                  <button onClick={() => setAvanzaAperto(false)} className="ml-auto text-xs font-semibold text-tenue hover:text-inchiostro">chiudi</button>
+                  <button onClick={() => setAvanzaAperto(false)} className="ml-auto text-xs font-semibold text-tenue hover:text-inchiostro">Chiudi</button>
                 </header>
                 <div className="p-4">
                   {p.pipeline_stage === 'prova' && (
@@ -1310,7 +1310,7 @@ export default function Scheda({ id, onClose }: Props) {
                         {d.nome}
                       </button>
                       {/\.pdf$/i.test(d.path) && (
-                        <button onClick={() => setCompila(d)} className="shrink-0 rounded-full border border-bordo px-2 py-0.5 text-[11px] font-bold text-navy hover:border-navy">compila</button>
+                        <button onClick={() => setCompila(d)} className="shrink-0 rounded-full border border-bordo px-2 py-0.5 text-[11px] font-bold text-navy hover:border-navy">Compila</button>
                       )}
                       <span className="shrink-0 text-xs text-spento">{fmtDateShort(d.at)}</span>
                     </li>
@@ -1337,7 +1337,7 @@ export default function Scheda({ id, onClose }: Props) {
                   placeholder="Aggiungi una nota…"
                   className="flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu"
                 />
-                <button onClick={addNota} className="rounded-full bg-blu px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">+</button>
+                <button onClick={addNota} className="rounded-full bg-blu px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">Aggiungi</button>
               </div>
             </Card>
 
