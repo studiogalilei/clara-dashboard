@@ -5,6 +5,7 @@ import { Card, Micro, Empty, fmtDateShort, fmtOra } from './ui'
 import { giorno, creaTask } from '../lib/regole'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import CercaAzienda, { nomeAzienda, type Azienda } from './CercaAzienda'
+import { chiSono } from '../lib/accessi'
 
 // Il calendario: griglia mensile con le chip dei prospect nelle celle
 // (desktop) e lista raggruppata sul telefono. Quattro colori fissi:
@@ -12,10 +13,11 @@ import CercaAzienda, { nomeAzienda, type Azienda } from './CercaAzienda'
 // scadenza di un account = verde.
 // I meeting restano in sola lettura: li mette Dre su Google Calendar.
 //
-// L'unica cosa che si scrive da qui e' una task, e sta apposta in fondo al
-// pannello del giorno e non nella barra in alto (Dre, 4/9): il calendario
-// non e' il posto delle task, ma se sei qui e ti viene in mente una cosa per
-// giovedi', doverla andare a scrivere altrove significa perderla.
+// Da qui si scrivono due cose sole, una task e una scadenza di un account, e
+// stanno apposta in fondo al pannello del giorno e non nella barra in alto
+// (Dre, 4/9): il calendario non e' il posto delle task, ma se sei qui e ti
+// viene in mente una cosa per giovedi', doverla andare a scrivere altrove
+// significa perderla.
 
 type Tipo = 'call' | 'followup' | 'task' | 'altro' | 'account'
 
@@ -532,6 +534,11 @@ function NuovaScadenza({ data, conGiorno, io, onSalvata }: {
     const t = titolo.trim()
     if (!t || !cliente || salvo) return
     setSalvo(true)
+    // il proprietario e' l'utente effettivo, non quello con cui hai fatto il
+    // login: se un ceo sta guardando come Salvatore, la scadenza deve finire
+    // nel calendario di Salvatore. E' lo stesso nome che guarda il database
+    // per decidere chi puo' scrivere
+    const { uid } = await chiSono()
     const { error } = await supabase.from('agenda').insert({
       at: new Date(quando + 'T09:00:00').toISOString(),
       titolo: t,
@@ -539,7 +546,7 @@ function NuovaScadenza({ data, conGiorno, io, onSalvata }: {
       prospect_id: cliente.id,
       // con il proprietario la scadenza e' tua: entra nel tuo calendario e
       // nella vista del pod del tuo manager
-      owner: io,
+      owner: uid ?? io,
       fonte: 'workspace',
     })
     setSalvo(false)

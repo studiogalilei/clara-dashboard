@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
-import { Card, Spinner, Micro, Cella, Faccia, sgid, type FacciaP } from './ui'
+import { Card, Spinner, Micro, Cella, Faccia, sgid, fmtDateShort, type FacciaP } from './ui'
 import { giorno } from '../lib/regole'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 
@@ -145,6 +145,14 @@ export default function Progetti({ onOpen }: Props) {
     void scrivi(p, patch)
   }
 
+  // «chiesti» senza il giorno non dice niente: se manca si mette oggi, cosi'
+  // si vede da quanto stiamo aspettando senza aprire niente
+  function segnaAccessi(p: Progetto, v: Accessi) {
+    const patch: Partial<Progetto> = { accessi_stato: v }
+    if (v === 'chiesti' && !p.accessi_chiesti_il) patch.accessi_chiesti_il = giorno()
+    void scrivi(p, patch)
+  }
+
   async function aggiungi() {
     const { data, error } = await supabase.from('progetti')
       .insert({ nome: '', stato: 'in_corso' }).select().single()
@@ -183,6 +191,7 @@ export default function Progetti({ onOpen }: Props) {
 
 
   const oggi = giorno()
+  const colonne = 9 + (vedoSoldi ? 1 : 0) + (accessiPronti ? 1 : 0)
   const nomeDi = (p: Progetto) => (p.prospect_id ? (nomi[p.prospect_id] ?? p.cliente ?? '') : (p.cliente ?? '')).toLowerCase()
   const confronta = (a: Progetto, b: Progetto): number => {
     const perCliente = nomeDi(a).localeCompare(nomeDi(b)) || (a.nome ?? '').localeCompare(b.nome ?? '')
@@ -194,6 +203,7 @@ export default function Progetti({ onOpen }: Props) {
   }
   const vivi = righe.filter((p) => p.stato !== 'consegnato').sort(confronta)
   const fatti = righe.filter((p) => p.stato === 'consegnato').sort(confronta)
+  const fermi = vivi.filter((p) => vuoleAccessi(p) && p.accessi_stato !== 'arrivati').length
   const retainer = vivi.filter((p) => p.tipo === 'retainer').reduce((t, p) => t + (Number(p.valore) || 0), 0)
   const totale = vivi.reduce((t, p) => t + (Number(p.valore) || 0), 0)
 
@@ -201,7 +211,8 @@ export default function Progetti({ onOpen }: Props) {
     const tardi = p.scadenza && p.scadenza < oggi && p.stato !== 'consegnato'
     const nomeCliente = p.prospect_id ? (nomi[p.prospect_id] ?? p.cliente ?? '') : (p.cliente ?? '')
     return (
-      <tr key={p.id} className="h-12 border-b border-velo last:border-0 hover:bg-velo/30">
+      <Fragment key={p.id}>
+      <tr className="h-12 border-b border-velo last:border-0 hover:bg-velo/30">
         <td className="sticky left-0 z-10 bg-white">
           {p.prospect_id && scelgo !== p.id ? (
             <div className="group flex items-center">
@@ -236,6 +247,27 @@ export default function Progetti({ onOpen }: Props) {
           </select>
         </td>
         <td className=""><Cella valore={p.chi_segue ?? ''} su={(v) => campo(p, 'chi_segue', v)} placeholder="chi" /></td>
+        {accessiPronti && (
+          <td className="px-2">
+            {vuoleAccessi(p) && (
+              <button
+                onClick={() => setApriAccessi(apriAccessi === p.id ? null : p.id)}
+                className="flex w-full flex-col items-start gap-0.5 py-1 text-left"
+              >
+                {p.accessi_stato ? (
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ACCESSI.find(([v]) => v === p.accessi_stato)?.[2] ?? ''}`}>
+                    {p.accessi_stato === 'chiesti' && p.accessi_chiesti_il
+                      ? `Chiesti il ${fmtDateShort(p.accessi_chiesti_il)}`
+                      : ACCESSI.find(([v]) => v === p.accessi_stato)?.[1]}
+                  </span>
+                ) : (
+                  <span className="text-sm text-spento">—</span>
+                )}
+                {p.accessi_dove && <span className="w-full truncate text-[11px] text-spento">{p.accessi_dove}</span>}
+              </button>
+            )}
+          </td>
+        )}
         <td className=""><Cella tipo="date" valore={p.scadenza ?? ''} su={(v) => campo(p, 'scadenza', v)} className={`tabular-nums ${tardi ? 'text-red-700 font-semibold' : ''}`} /></td>
         <td className=""><Cella valore={p.natura ?? ''} su={(v) => campo(p, 'natura', v)} placeholder="sito vetrina, ads…" /></td>
         <td className=""><Cella valore={p.note ?? ''} su={(v) => campo(p, 'note', v)} placeholder="note" /></td>
@@ -253,6 +285,50 @@ export default function Progetti({ onOpen }: Props) {
           )}
         </td>
       </tr>
+      {accessiPronti && apriAccessi === p.id && (
+        <tr className="border-b border-velo bg-velo/40">
+          <td colSpan={colonne} className="px-3 py-3">
+            {/* resta incollata a sinistra: il foglio scorre di lato e i
+                controlli non devono finire fuori dallo schermo */}
+            <div className="sticky left-3 flex max-w-3xl flex-wrap items-center gap-2">
+              {ACCESSI.map(([v, etichetta, colore]) => (
+                <button
+                  key={v}
+                  onClick={() => segnaAccessi(p, v)}
+                  className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+                    p.accessi_stato === v ? colore : 'bg-white text-tenue hover:bg-white/60'
+                  }`}
+                >
+                  {etichetta}
+                </button>
+              ))}
+              {/* qui ci va il posto, non la password: la cartella del cliente
+                  nei Documenti, «dal cliente», chi le ha in mano. Le
+                  credenziali in chiaro nel foglio le leggerebbe tutta l'agenzia */}
+              <input
+                key={p.accessi_dove ?? ''}
+                defaultValue={p.accessi_dove ?? ''}
+                onBlur={(e) => { if (e.target.value !== (p.accessi_dove ?? '')) campo(p, 'accessi_dove', e.target.value) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                placeholder="Dove stanno"
+                className="w-56 min-w-0 flex-1 rounded-lg border border-bordo bg-white px-3 py-1.5 text-sm outline-none focus:border-blu"
+              />
+              {p.accessi_stato === 'chiesti' && (
+                <input
+                  type="date"
+                  value={p.accessi_chiesti_il ?? ''}
+                  onChange={(e) => void scrivi(p, { accessi_chiesti_il: e.target.value || null })}
+                  className="rounded-lg border border-bordo bg-white px-3 py-1.5 text-sm tabular-nums outline-none focus:border-blu"
+                />
+              )}
+              <button onClick={() => setApriAccessi(null)} className="text-[11px] font-semibold text-spento hover:text-navy">
+                Chiudi
+              </button>
+            </div>
+          </td>
+        </tr>
+      )}
+      </Fragment>
     )
   }
 
@@ -265,6 +341,7 @@ export default function Progetti({ onOpen }: Props) {
         {vedoSoldi && <th className="min-w-[90px] px-3 py-2.5 text-right">Prezzo</th>}
         <th className="min-w-[130px] px-3 py-2.5">Stato</th>
         <th className="min-w-[100px] px-3 py-2.5">Chi segue</th>
+        {accessiPronti && <th className="min-w-[150px] px-3 py-2.5">Accessi</th>}
         <th className="min-w-[130px] px-3 py-2.5">Scadenza</th>
         <th className="min-w-[120px] px-3 py-2.5">Natura</th>
         <th className="min-w-[180px] px-3 py-2.5">Note</th>
@@ -298,6 +375,11 @@ export default function Progetti({ onOpen }: Props) {
           <Micro>di retainer al mese</Micro>
         </>}
         <span className="text-sm font-semibold text-tenue">{vedoSoldi ? `${totale.toLocaleString('it-IT')} € in tutto, ` : ''}{vivi.length} progett{vivi.length === 1 ? 'o' : 'i'} in corso</span>
+        {accessiPronti && fermi > 0 && (
+          <span className="text-xs font-bold text-amber-800">
+            {fermi} aspett{fermi === 1 ? 'a' : 'ano'} gli accessi
+          </span>
+        )}
         {vivi.some((p) => p.scadenza && p.scadenza < oggi) && (
           <span className="text-xs font-bold text-red-700">
             {vivi.filter((p) => p.scadenza && p.scadenza < oggi).length} oltre la scadenza
@@ -321,7 +403,7 @@ export default function Progetti({ onOpen }: Props) {
             {testata}
             <tbody>
               {vivi.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-6 text-center text-sm text-spento">Foglio vuoto.</td></tr>
+                <tr><td colSpan={colonne} className="px-4 py-6 text-center text-sm text-spento">Foglio vuoto.</td></tr>
               ) : vivi.map(riga)}
             </tbody>
           </table>
