@@ -27,7 +27,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, di_clara                            # noqa: E402
 import cervello                                            # noqa: E402
 
-MARCA = "📔"     # la domanda del diario si riconosce da qui (la legge clara-risponde)
+# la domanda del diario si riconosce dalla colonna «diario», non da un'emoji
+# (regola 13 di Dre: niente emoji decorative). La legge clara-risponde.
 GIORNI = {1, 3}  # martedi' e giovedi'
 DOMANDE = [
     "Com'è andata questa settimana finora? Una cosa che ha funzionato e una che ti ha fatto perdere tempo.",
@@ -45,7 +46,7 @@ def persone():
 
 
 def ultima_domanda(uid):
-    r = sb("GET", f"/rest/v1/clara_messaggi?select=at&owner=eq.{uid}&tipo=eq.domanda&testo=like.{urllib.parse.quote(MARCA)}*&order=at.desc&limit=1") or []
+    r = sb("GET", f"/rest/v1/clara_messaggi?select=at&owner=eq.{uid}&tipo=eq.domanda&diario=is.true&order=at.desc&limit=1") or []
     return r[0]["at"] if r else None
 
 
@@ -61,10 +62,10 @@ def chiedi_oggi(prova):
             continue
         nome = (p.get("nome") or "").split(" ")[0] or "ciao"
         d = random.choice(DOMANDE)
-        domanda = f"{MARCA} {nome}, {d[0].lower()}{d[1:]}"
+        domanda = f"{nome}, {d[0].lower()}{d[1:]}"
         print(f"  → {p.get('nome')}: {domanda[:80]}")
         if not prova:
-            di_clara("domanda", domanda, owner=p["id"])
+            di_clara("domanda", domanda, owner=p["id"], diario=True)
             fatte += 1
     print(f"diario: {fatte} domande mandate")
 

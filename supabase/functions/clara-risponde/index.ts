@@ -77,15 +77,15 @@ async function chiParla(owner: string | null): Promise<{ nome: string; ceo: bool
 }
 
 // IL DIARIO (12/9): se l'ultima cosa che Clara ha detto a questa persona era
-// una domanda del diario (comincia con 📔), la risposta va nel diario, non a
+// una domanda del diario (colonna «diario»), la risposta va nel diario, non a
 // GPT. Un grazie breve, e basta.
 async function eRispostaAlDiario(msg: { testo: string; owner: string | null }): Promise<boolean> {
   if (!msg.owner) return false;
-  const { data } = await sb.from("clara_messaggi").select("tipo,testo").eq("owner", msg.owner)
+  const { data } = await sb.from("clara_messaggi").select("tipo,testo,diario").eq("owner", msg.owner)
     .neq("tipo", "dre").order("at", { ascending: false }).limit(1);
   const ultima = data?.[0];
-  if (!ultima || ultima.tipo !== "domanda" || !String(ultima.testo).startsWith("📔")) return false;
-  await sb.from("diario").insert({ user_id: msg.owner, domanda: String(ultima.testo).replace(/^📔\s*/, ""), testo: msg.testo });
+  if (!ultima || ultima.tipo !== "domanda" || !ultima.diario) return false;
+  await sb.from("diario").insert({ user_id: msg.owner, domanda: String(ultima.testo), testo: msg.testo });
   const grazie = ["Grazie, me lo segno. Lo leggono solo Dre e Giacomo.", "Preso, grazie. Resta tra noi e la direzione.", "Grazie, lo tengo. Se vuoi aggiungere altro, scrivi pure."];
   await sb.from("clara_messaggi").insert({ tipo: "clara", testo: grazie[Math.floor(Math.random() * grazie.length)], owner: msg.owner, letto: false });
   return true;

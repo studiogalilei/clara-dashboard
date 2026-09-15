@@ -389,7 +389,7 @@ export default function Scheda({ id, onClose }: Props) {
       .insert({ nome, path, mime: f.type || null, dimensione: f.size, prospect_id: p!.id })
       .select().single()
     await segna('nota', `📎 ${f.name}, nei Documenti`)
-    setNotaEsito(`«${nome}» nei Documenti, agganciato a ${p!.company || p!.name} ✓`)
+    setNotaEsito(`«${nome}» nei Documenti, agganciato a ${p!.company || p!.name}`)
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)
   }
 
@@ -626,6 +626,8 @@ export default function Scheda({ id, onClose }: Props) {
                   ? <span className="rounded-full bg-green-50 px-2.5 py-0.5 font-semibold text-green-800">CLIENTE</span>
                   : ePerso(p)
                   ? <span className="rounded-full bg-gray-100 px-2.5 py-0.5 font-semibold text-gray-500">PERSO</span>
+                  : p.fuori && p.pipeline_stage
+                  ? <span className="rounded-full bg-blu/10 px-2.5 py-0.5 font-semibold text-navy">{PIPELINE_LABEL[p.pipeline_stage].toUpperCase()}</span>
                   : <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-700">PROSPECT</span>}
                 {p.fuori_binario === 'si' && (
                   <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-800" title="già sentito fuori dai sistemi">
@@ -1001,8 +1003,8 @@ export default function Scheda({ id, onClose }: Props) {
             </Card>
 
 
-            {/* il mercato, compresso nel verdetto */}
-            {mercato && (
+            {/* il mercato, compresso nel verdetto: serve a decidere se scrivergli */}
+            {mercato && !p.fuori && (
               <Card>
                 <details>
                   <summary className="cursor-pointer list-none p-4 hover:bg-velo/40">
@@ -1210,8 +1212,9 @@ export default function Scheda({ id, onClose }: Props) {
               </Card>
             )}
 
-            {/* I SUOI PROGETTI: il lavoro a scadenza, quello che non e' canone */}
-            {eCliente(p) && !modifica && (
+            {/* PROGETTI: il lavoro a scadenza, quello che non e' canone. Si vedono
+                da quando il cliente e' in avvio: e' li' che il pod comincia */}
+            {(eCliente(p) || progetti.length > 0 || ['avvio', 'prova'].includes(p.pipeline_stage ?? '')) && !modifica && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Progetti</TitoloCard>
@@ -1372,6 +1375,7 @@ export default function Scheda({ id, onClose }: Props) {
 
 
 
+            {!p.fuori && (
             <Card className="bg-velo/40 p-4">
               <TitoloCard>Fuori binario</TitoloCard>
               <textarea
@@ -1383,10 +1387,11 @@ export default function Scheda({ id, onClose }: Props) {
                 placeholder="Telefonate, incontri, cose dette a voce, motivi per cui NON scrivergli…"
                 className="w-full rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-blu"
               />
-              {saved && <p className="mt-1 text-[11px] font-semibold text-green-700">Salvato ✓</p>}
+              {saved && <p className="mt-1 text-[11px] font-semibold text-green-700">Salvato</p>}
             </Card>
+            )}
 
-            {(p.followup_due || p.ooo_until || p.no_followup) && (
+            {!p.fuori && (p.followup_due || p.ooo_until || p.no_followup) && (
               <Card className="space-y-1 p-4 text-xs text-tenue">
                 {p.followup_due && <p>Follow-up dovuto il {fmtDate(p.followup_due)}</p>}
                 {p.ooo_until && <p>Fuori ufficio fino al {fmtDate(p.ooo_until)}</p>}

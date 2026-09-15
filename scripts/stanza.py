@@ -67,11 +67,11 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
     }, {"Prefer": "return=representation"})
 
 
-def di_clara(tipo, testo, prospect_id=None, owner=None, letto=False):
-    """Una riga nella chat, a nome di Clara."""
+def di_clara(tipo, testo, prospect_id=None, owner=None, letto=False, diario=False):
+    """Una riga nella chat, a nome di Clara. `diario` marca la domanda del diario."""
     import re
-    testo = re.sub(r"\s*—\s*", ": ", testo).replace("–", "-")   # la stessa di regole.ts
+    testo = re.sub(r"\s*—\s*", ": ", testo).replace("–", "-").replace("·", ",")   # la stessa di regole.ts
     return sb("POST", "/rest/v1/clara_messaggi", {
         "tipo": tipo, "testo": testo, "prospect_id": prospect_id,
-        "owner": owner, "letto": letto,
+        "owner": owner, "letto": letto, "diario": diario,
     }, {"Prefer": "return=representation"})

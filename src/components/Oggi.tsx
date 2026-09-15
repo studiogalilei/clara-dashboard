@@ -149,6 +149,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [claraAperta, setClaraAperta] = useState(false)   // la sezione «Da Clara», richiusa
   const [persona, setPersona] = useState<Persona | null>(null)
   const [taskDiPersona, setTaskDiPersona] = useState<TaskDre[] | null>(null)
+  const [possoVedere, setPossoVedere] = useState(true)
   const [mandate, setMandate] = useState<TaskDre[]>([])
   const [tavolozza, setTavolozza] = useState<number | null>(null)
 
@@ -196,6 +197,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     persone.find((p) => p.id === id)?.nome ?? 'qualcuno'
 
   async function apriPersona(id: string | null) {
+    setPossoVedere(true)
     const p = persone.find((x) => x.id === id)
     if (!p) return
     setPersona(p); setTaskDiPersona(null)
@@ -203,6 +205,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       .eq('owner', p.id).eq('fatta', false).neq('stato', 'rimandata')
       .order('scadenza', { ascending: true, nullsFirst: false }).limit(30)
     setTaskDiPersona((data as TaskDre[]) ?? [])
+    // le task degli altri le vedono i ceo e il manager del pod: se non torna
+    // niente puo' voler dire «non le vedo», non «non ne ha» (QA Carlo, 14/9)
+    setPossoVedere((data ?? []).length > 0)
   }
 
   // una task che arriva non entra nella lista finche' non la accetti
@@ -524,7 +529,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         <span className="ml-auto text-[11px] text-spento">{taskDiPersona ? `${taskDiPersona.length} in mano` : '…'}</span>
       </header>
       {taskDiPersona === null ? <Spinner /> : taskDiPersona.length === 0 ? (
-        <p className="px-3 py-4 text-center text-xs text-spento">Niente in mano adesso</p>
+        <p className="px-3 py-4 text-center text-xs text-spento">{possoVedere ? 'Niente in mano adesso' : 'Le sue task non le vedi'}</p>
       ) : taskDiPersona.map((t) => (
         <div key={t.id} className="border-b border-velo px-3 py-2 last:border-0">
           <p className="text-sm">{t.titolo}</p>

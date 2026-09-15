@@ -199,6 +199,10 @@ export default function Lista({ onOpen, q }: Props) {
 
   if (rows === null) return <Spinner />
 
+  // le colonne prima del proprio perimetro non si mostrano vuote: chi entra
+  // dalla call tecnica non ha «In arrivo» e «Prospect» (QA Carlo, 14/9)
+  const colonne = VIVE.filter(([, c]) => !['arrivo', 'prospect'].includes(c) || rows.some(TAPPE.find(([, k]) => k === c)![2]))
+
   // ── il drop: le stesse regole del gioco di sempre ───────────────
   async function gestisciDrop(target: Chiave) {
     setSopra(null)
@@ -547,13 +551,13 @@ export default function Lista({ onOpen, q }: Props) {
             // carte strette «danno l'impressione di cose chiuse»): se non ci
             // stanno tutte, si scorre di lato come su Trello. La colonna a fuoco
             // si prende piu' spazio, le altre si stringono ma restano (Dre, 7/9)
-            gridTemplateColumns: VIVE.map(([, c]) =>
+            gridTemplateColumns: colonne.map(([, c]) =>
               fuoco === null ? 'minmax(236px, 1fr)'
               : fuoco === c ? 'minmax(380px, 3fr)'
               : 'minmax(170px, 0.7fr)').join(' '),
           }}
         >
-          {VIVE.map(([nome, chiave, filtro]) => {
+          {colonne.map(([nome, chiave, filtro]) => {
             const dentro = rows.filter(filtro)
             // la corsia Persi c'e' sempre: prima compariva quando alzavi una
             // carta e spostava tutte le altre sotto il dito (revisione 4/9)
