@@ -915,20 +915,23 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{m.nome ?? 'Senza nome'}</p>
-                <p className="truncate text-xs text-tenue">
-                  {m.ultima
-                    ? `${m.ultima.titolo}, fatta il ${fmtDateShort(m.ultima.fatta_il)}`
-                    : 'niente di fatto di recente'}
-                </p>
+                {/* chi non ha chiuso niente non ha una riga che lo dice: il
+                    vuoto e' gia' la risposta, e due «niente» sulla stessa
+                    riga sono rumore */}
+                {m.ultima && (
+                  <p className="truncate text-xs text-tenue">
+                    {m.ultima.titolo}, fatta il {fmtDateShort(m.ultima.fatta_il)}
+                  </p>
+                )}
               </div>
+              <span className="shrink-0 text-xs text-tenue">
+                {m.aperte === 0 ? 'niente in mano' : m.aperte === 1 ? '1 aperta' : `${m.aperte} aperte`}
+              </span>
               {m.scadute > 0 && (
                 <span className="shrink-0 rounded-full bg-red-50 px-2 py-px text-[11px] font-semibold text-red-700">
                   {m.scadute === 1 ? '1 scaduta' : `${m.scadute} scadute`}
                 </span>
               )}
-              <span className="shrink-0 text-xs text-tenue">
-                {m.aperte === 0 ? 'niente in mano' : m.aperte === 1 ? '1 aperta' : `${m.aperte} aperte`}
-              </span>
             </button>
           ))}
         </Card>

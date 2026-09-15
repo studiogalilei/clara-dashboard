@@ -259,29 +259,43 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   ]
 
   const rigaVoce = (v: Voce, i: number) => {
+    const mia = v.tipo === 'account' && !v.chi && v.id != null
+    const coda = v.tipo === 'followup' ? ', follow-up'
+      : v.tipo === 'task' ? ', task'
+      : v.tipo === 'altro' ? ', scadenza'
+      : v.tipo === 'account' ? `, ${DETTAGLIO[v.sotto ?? 'budget']}`
+      : ''
     const dentro = (
       <>
         <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${PALLINO[v.tipo]}`} />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{v.chi ? <span className="mr-1.5 rounded-md bg-velo px-1.5 py-0.5 text-[11px] font-bold text-navy">{v.chi}</span> : null}{v.titolo}</span>
           <span className="block text-xs text-tenue">
-            {fmtDateShort(v.at)}, {fmtOra(v.at)}
-            {v.tipo === 'followup' ? ', follow-up' : v.tipo === 'task' ? ', task' : v.tipo === 'altro' ? ', scadenza' : ''}
+            {fmtDateShort(v.at)}, {fmtOra(v.at)}{coda}
           </span>
         </span>
       </>
     )
-    return v.prospect_id ? (
-      <button
-        key={i}
-        onClick={() => onOpen(v.prospect_id!)}
-        className="flex w-full items-start gap-3 border-b border-velo px-4 py-3 text-left last:border-0 hover:bg-velo/60"
-      >
-        {dentro}
-      </button>
-    ) : (
-      <div key={i} className="flex items-start gap-3 border-b border-velo px-4 py-3 last:border-0">
-        {dentro}
+    return (
+      <div key={i} className="flex items-start border-b border-velo last:border-0">
+        {v.prospect_id ? (
+          <button
+            onClick={() => onOpen(v.prospect_id!)}
+            className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left hover:bg-velo/60"
+          >
+            {dentro}
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3">{dentro}</div>
+        )}
+        {mia && (
+          <button
+            onClick={() => void togliScadenza(v)}
+            className="shrink-0 px-3 py-3 text-[11px] font-semibold text-spento hover:text-red-700"
+          >
+            Togli
+          </button>
+        )}
       </div>
     )
   }
@@ -317,6 +331,9 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
           )}
           {esito && <p className="mt-1.5 text-xs font-semibold text-green-700">{esito}</p>}
         </Card>
+        <div className="px-1">
+          <NuovaScadenza data={scelto} conGiorno io={io} onSalvata={salvata} />
+        </div>
         {futureVoci.length === 0 && <Card><Empty text="Niente in programma" /></Card>}
         {gruppi.map(([nome, lista]) =>
           lista.length === 0 ? null : (
@@ -476,8 +493,135 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
               {esito && <p className="mt-1.5 text-xs font-semibold text-green-700">{esito}</p>}
             </div>
           </Card>
+          <div className="mt-2 px-1">
+            <NuovaScadenza data={scelto} io={io} onSalvata={salvata} />
+          </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// LA SCADENZA CHE SI METTE DA QUI. Il giorno e' gia' quello scelto nella
+// griglia, quindi restano tre cose: che scadenza e', di quale cliente, e
+// cosa c'e' da fare. Il cliente e' obbligatorio perche' una scadenza senza
+// account non dice a nessuno cosa aprire il giorno che arriva, e si cerca
+// solo fra prospect e clienti: a un lead freddo il budget non si rifa'.
+function NuovaScadenza({ data, conGiorno, io, onSalvata }: {
+  data: string
+  // sul telefono non c'e' la griglia da cui scegliere il giorno: si sceglie qui
+  conGiorno?: boolean
+  io: string | null
+  onSalvata: (messaggio: string) => void
+}) {
+  const [aperto, setAperto] = useState(false)
+  const [tipo, setTipo] = useState<Scadenza>('budget')
+  const [titolo, setTitolo] = useState('')
+  const [cliente, setCliente] = useState<{ id: string; nome: string } | null>(null)
+  const [quando, setQuando] = useState(data)
+  const [salvo, setSalvo] = useState(false)
+  const [problema, setProblema] = useState<string | null>(null)
+
+  useEffect(() => { setQuando(data) }, [data])
+
+  function chiudi() {
+    setAperto(false); setTitolo(''); setCliente(null); setProblema(null); setTipo('budget')
+  }
+
+  async function salva() {
+    const t = titolo.trim()
+    if (!t || !cliente || salvo) return
+    setSalvo(true)
+    const { error } = await supabase.from('agenda').insert({
+      at: new Date(quando + 'T09:00:00').toISOString(),
+      titolo: t,
+      tipo,
+      prospect_id: cliente.id,
+      // con il proprietario la scadenza e' tua: entra nel tuo calendario e
+      // nella vista del pod del tuo manager
+      owner: io,
+      fonte: 'workspace',
+    })
+    setSalvo(false)
+    if (error) { setProblema('Non si è salvata: ' + error.message); return }
+    const nome = cliente.nome
+    chiudi()
+    onSalvata(`«${t}» è sul calendario del ${fmtDateShort(quando)}, ${nome}`)
+  }
+
+  if (!aperto) {
+    return (
+      <button onClick={() => setAperto(true)} className="text-xs font-semibold text-spento hover:text-navy">
+        + Aggiungi una scadenza
+      </button>
+    )
+  }
+
+  return (
+    <div className="salta-su space-y-2 rounded-xl border border-blu/40 bg-white p-3">
+      <div className="flex items-center gap-1.5">
+        {SCADENZE.map(([v, etichetta]) => (
+          <button
+            key={v}
+            onClick={() => setTipo(v)}
+            className={`rounded-full border px-3 py-1 text-[11px] font-bold ${
+              tipo === v ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue hover:border-spento'
+            }`}
+          >
+            {etichetta}
+          </button>
+        ))}
+        <button onClick={chiudi} className="ml-auto text-[11px] font-semibold text-spento hover:text-navy">
+          Chiudi
+        </button>
+      </div>
+
+      {cliente ? (
+        <div className="flex items-center gap-2 rounded-xl bg-velo px-3 py-2 text-sm font-semibold">
+          <span className="min-w-0 flex-1 truncate">{cliente.nome}</span>
+          <button onClick={() => setCliente(null)} className="shrink-0 text-[11px] font-semibold text-spento hover:text-navy">
+            Cambia
+          </button>
+        </div>
+      ) : (
+        <CercaAzienda<Azienda>
+          dentro
+          placeholder="Cerca il cliente"
+          onScegli={(a) => setCliente({ id: a.id, nome: nomeAzienda(a) })}
+        />
+      )}
+
+      <input
+        key={cliente ? 'con-cliente' : 'senza-cliente'}
+        autoFocus={Boolean(cliente)}
+        value={titolo}
+        onChange={(e) => setTitolo(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') void salva(); if (e.key === 'Escape') chiudi() }}
+        placeholder="Cosa scade"
+        className="w-full rounded-xl border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+      />
+
+      {conGiorno && (
+        <input
+          type="date"
+          value={quando}
+          onChange={(e) => setQuando(e.target.value)}
+          className="w-full rounded-xl border border-bordo px-3 py-2 text-sm tabular-nums outline-none focus:border-blu"
+        />
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => void salva()}
+          disabled={!titolo.trim() || !cliente || salvo}
+          className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro disabled:opacity-30"
+        >
+          {salvo ? 'Salvo…' : 'Metti in Calendario'}
+        </button>
+        {!conGiorno && <span className="text-xs text-spento">{fmtDateShort(quando)}</span>}
+      </div>
+
+      {problema && <p className="text-xs font-semibold text-red-700">{problema}</p>}
     </div>
   )
 }

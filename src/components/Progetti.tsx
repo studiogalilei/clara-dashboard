@@ -28,7 +28,29 @@ export interface Progetto {
   tipo: 'trial' | 'retainer' | 'onboarding' | null
   stato: 'da_iniziare' | 'in_corso' | 'consegnato'
   note: string | null
+  // GLI ACCESSI (Alex, 15/9): stavano dentro le note, quindi si scoprivano
+  // solo aprendo la riga. Le credenziali non stanno qui e non ci staranno
+  // mai: qui c'e' solo dove sono e a che punto siamo.
+  accessi_stato?: Accessi | null
+  accessi_dove?: string | null
+  accessi_chiesti_il?: string | null
 }
+
+export type Accessi = 'mancano' | 'chiesti' | 'arrivati'
+
+// ambra quando li abbiamo chiesti e aspettiamo, rosso quando non li ha
+// chiesti nessuno: il rosso e' la riga su cui Alex e' fermo
+export const ACCESSI: Array<[Accessi, string, string]> = [
+  ['mancano', 'Mancano', 'bg-red-50 text-red-800'],
+  ['chiesti', 'Chiesti', 'bg-amber-100 text-amber-900'],
+  ['arrivati', 'Arrivati', 'bg-green-100 text-green-900'],
+]
+
+// I progetti che vivono di accessi sono quelli di Alex: sito, landing,
+// modifiche a un sito. Sulle campagne la colonna resta vuota invece di
+// chiedere una cosa che li' non esiste.
+const PAROLE_SITO = /(sito|landing|web|vetrina|shop|e-?commerce|dominio|hosting)/i
+export const vuoleAccessi = (p: Progetto) => PAROLE_SITO.test(`${p.natura ?? ''} ${p.nome ?? ''}`)
 
 // il lavoro vivo sta sopra, il consegnato scende; a parita' comanda la
 // scadenza, e chi non ce l'ha va in coda (revisione 4/9)
@@ -61,7 +83,7 @@ const PESO_TIPO: Record<string, number> = { retainer: 0, trial: 1, onboarding: 2
 
 interface Props { onOpen: (id: string) => void }
 
-type Campo = 'cliente' | 'nome' | 'natura' | 'chi_segue' | 'data_inizio' | 'scadenza' | 'valore' | 'note'
+type Campo = 'cliente' | 'nome' | 'natura' | 'chi_segue' | 'data_inizio' | 'scadenza' | 'valore' | 'note' | 'accessi_dove'
 
 export default function Progetti({ onOpen }: Props) {
   const [righe, setRighe] = useState<Progetto[] | null>(null)
@@ -75,9 +97,15 @@ export default function Progetti({ onOpen }: Props) {
   const [problema, setProblema] = useState<string | null>(null)
   const [tolgo, setTolgo] = useState<Progetto | null>(null)   // la riga che sta per sparire
   const [vedoSoldi, setVedoSoldi] = useState(false)
+  const [apriAccessi, setApriAccessi] = useState<number | null>(null)   // la riga con il riquadro accessi aperto
+  // finche' le colonne non sono sul database la colonna non si mostra:
+  // meglio niente che una colonna che da' errore a ogni clic
+  const [accessiPronti, setAccessiPronti] = useState(false)
 
   useEffect(() => {
     void sonoCeo().then(setVedoSoldi)
+    void supabase.from('progetti').select('accessi_stato').limit(1)
+      .then(({ error }) => setAccessiPronti(!error))
     supabase.from('progetti').select('*')
       .order('data_inizio', { ascending: true, nullsFirst: false }).order('id', { ascending: true }).limit(300)
       .then(({ data, error }) => {

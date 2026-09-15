@@ -11,11 +11,14 @@ import { supabase } from './supabase'
 // chiediamo oggi vuol dire far ricollegare tutti domani. Gmail serve al
 // «sistema vivo» (Dre, 15/9): Clara legge la casella, capisce cosa e'
 // successo e aggiorna gli stati da sola, e una bozza approvata parte
-// davvero invece di passare per copia e incolla.
+// davvero invece di passare per copia e incolla. Calendar per intero (non
+// solo gli eventi) perche' le nostre scadenze vanno in un calendario a
+// parte, «SG Scadenze», che si accende e si spegne con un clic: crearlo
+// vuole il permesso pieno.
 export const SCOPI = [
   'openid', 'email', 'profile',
   'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/chat.spaces',

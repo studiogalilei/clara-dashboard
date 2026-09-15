@@ -10,6 +10,11 @@ import { VIVI, oggi, giorno, GIORNI_FOLLOWUP } from '../lib/regole'
 // evento in due punti; zero eventi in settimana = zero interfaccia.
 
 const FERMO_DAYS = 30
+// Clara gira ogni ora: saltati tre giri, quello che si legge in questa pagina
+// e' vecchio e nessuno se ne accorgerebbe (Dre, 15/9)
+const ORE_VECCHIO = 3
+
+interface Corsa { finished_at: string | null; ok: boolean | null }
 
 
 interface Avviso {
@@ -51,7 +56,9 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
   const [avvisi, setAvvisi] = useState<Avviso[]>([])
   const [prossimo, setProssimo] = useState<AgendaItem | null>(null)
   const [settimana, setSettimana] = useState(0)
-  const [aggiornato, setAggiornato] = useState<string | null>(null)
+  // le ultime corse di Clara, non solo l'ora dell'ultima: senza il loro esito
+  // qui si leggeva «controllato tutto» anche quando il controllo era morto
+  const [corse, setCorse] = useState<Corsa[]>([])
   const [pronto, setPronto] = useState(false)
   const [callDiOggi, setCallDiOggi] = useState<Voce[]>([])
   const [bozze, setBozze] = useState(0)
@@ -70,10 +77,12 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
       .from('sync_runs')
       .select('*')
       .order('finished_at', { ascending: false })
-      .limit(1)
+      .limit(20)
       .then(({ data }) => {
-        const run = (data as Array<{ finished_at: string | null }> | null)?.[0]
-        if (run?.finished_at) setAggiornato(run.finished_at)
+        // le corse ancora in volo hanno finished_at nullo e in ordine
+        // decrescente vengono per prime: non sono ne' l'ultima ne' l'ultima
+        // riuscita, sono solo rumore
+        setCorse(((data as Corsa[] | null) ?? []).filter((r) => r.finished_at))
       })
 
     // «cosa devo fare oggi» la decide regole.ts, per tutti. Prima ogni
@@ -213,7 +222,19 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
   const daFare = bozze + domande + callDiOggi.length + taskOggi.length + proveInScadenza.length
   const apriPosta = () => window.dispatchEvent(new CustomEvent('clara:apri-posta'))
 
-  const oraControllo = aggiornato ? fmtOra(aggiornato) : fmtOra(new Date().toISOString())
+  // COM'E' ANDATO L'ULTIMO CONTROLLO. Questa riga e' l'unica che qualcuno
+  // guarda ogni mattina: se Clara e' ferma va detto qui, se no la pagina
+  // continua a rassicurare con dati di ieri.
+  const ultima = corse[0] ?? null
+  const ultimaOk = corse.find((r) => r.ok !== false) ?? null
+  const oreFerma = ultima ? Math.floor((Date.now() - new Date(ultima.finished_at!).getTime()) / 3600e3) : 0
+  const controllo: { rotto: boolean; testo: string } = !ultima
+    ? { rotto: false, testo: `controllato tutto alle ${fmtOra(new Date().toISOString())}` }
+    : ultima.ok === false
+      ? { rotto: true, testo: `Clara ha provato alle ${fmtOra(ultima.finished_at)} e non ci è riuscita, ${ultimaOk ? `l'ultimo controllo riuscito è delle ${fmtOra(ultimaOk.finished_at)} del ${fmtDateShort(ultimaOk.finished_at)}` : 'nessun controllo riuscito'}` }
+      : oreFerma >= ORE_VECCHIO
+        ? { rotto: true, testo: `Clara non controlla da ${oreFerma} ore, l'ultima volta alle ${fmtOra(ultima.finished_at)} del ${fmtDateShort(ultima.finished_at)}` }
+        : { rotto: false, testo: `controllato tutto alle ${fmtOra(ultima.finished_at)}` }
   const visibili = tuttiAvvisi ? avvisi : avvisi.slice(0, 3)
   const urgente = prossimo && new Date(prossimo.at).getTime() - Date.now() < 26 * 3600e3
 
@@ -265,10 +286,19 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
       {parte !== 'call' && (
       <div id="avvisi" className="scroll-mt-4">
         {avvisi.length === 0 ? (
-          <p className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800">
-            <span className="font-bold">fatto</span>
-            Clara ha controllato tutto alle {oraControllo}: zero problemi.
-          </p>
+          controllo.rotto ? (
+            // zero avvisi con il controllo fermo non vuol dire zero problemi:
+            // vuol dire che non lo sappiamo, e va scritto al posto del verde
+            <p className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800">
+              <span className="font-bold">fermo</span>
+              {controllo.testo}
+            </p>
+          ) : (
+            <p className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800">
+              <span className="font-bold">fatto</span>
+              Clara ha {controllo.testo}: zero problemi.
+            </p>
+          )
         ) : (
           <Card>
             <header className="flex flex-wrap items-center gap-2.5 border-b border-velo px-4 py-2.5">
@@ -276,7 +306,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
               <span className="rounded-full bg-red-600 px-2 py-px text-[11px] font-bold text-white">
                 {avvisi.length}
               </span>
-              <span className="ml-auto text-[11px] text-spento">controllato tutto alle {oraControllo}</span>
+              <span className={`ml-auto text-[11px] ${controllo.rotto ? 'font-bold text-red-700' : 'text-spento'}`}>{controllo.testo}</span>
             </header>
             {visibili.map((a, i) => {
               const vai = a.id ? () => onOpen(a.id!) : onOggi

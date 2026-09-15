@@ -66,11 +66,28 @@ const METODO: Record<string, string> = { sepa: 'SEPA', carta: 'carta', bonifico:
 const ATTIVO = new Set(['active', 'trialing', 'past_due', 'unpaid'])
 export function mensile(i: Incasso) { return i.ricorrenza === 'year' ? i.importo / 12 : i.importo }
 
+// GLI INCASSI CHE CLARA NON HA SAPUTO AGGANCIARE. Tengo fuori le prove sotto
+// l'euro, gli abbonamenti morti e i pagamenti falliti: non sono soldi, e una
+// cifra gonfiata farebbe partire Giacomo a caccia di niente. Restano gli
+// addebiti riusciti e gli abbonamenti vivi, cioe' le due cose che i numeri in
+// cima al Foglio contano gia' come «entrato» e «atteso».
+export function incassiSenzaAzienda(incassi: Incasso[]): Incasso[] {
+  return incassi.filter((i) => !i.prospect_id && i.importo >= 1
+    && ((i.genere === 'addebito' && i.stato === 'succeeded') || (i.genere === 'abbonamento' && ATTIVO.has(i.stato ?? ''))))
+}
+export function valoreIncassi(l: Incasso[]): number {
+  return l.reduce((t, i) => t + (i.genere === 'abbonamento' ? mensile(i) : i.importo), 0)
+}
+
 export default function TuttiFoglio({ onOpen }: Props) {
   const [righe, setRighe] = useState<Riga[] | null>(null)
   const [preventivi, setPreventivi] = useState<Preventivo[]>([])
   const [incassi, setIncassi] = useState<Incasso[] | null>(null)
   const [filtro, setFiltro] = useState<Filtro>(() => (leggiPref('tutti-filtro') as Filtro) || 'tutti')
+  const [vedoSoldi, setVedoSoldi] = useState(false)
+  // il canone si riempie nella cella qui sotto: il filtro serve solo a
+  // portare in cima le righe da riempire, non a mandare Giacomo altrove
+  const [soloSenzaCanone, setSoloSenzaCanone] = useState(false)
   const [aperta, setAperta] = useState<string | null>(null)     // la riga con i preventivi aperti
   const [problema, setProblema] = useState<string | null>(null)
   const [quante, setQuante] = useState<number | null>(null)
@@ -80,6 +97,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
   const oggi = giorno()
 
   useEffect(() => {
+    void sonoCeo().then(setVedoSoldi)
     // 500 righe erano meno delle aziende attive (625) e i totali in cima
     // contavano l'array gia' tagliato: il Foglio diceva un numero piu'
     // basso del vero senza dirlo (QA Dre, 15/9)
@@ -141,7 +159,12 @@ export default function TuttiFoglio({ onOpen }: Props) {
   const perProspect = new Map<string, Preventivo[]>()
   for (const q of preventivi) perProspect.set(q.prospect_id, [...(perProspect.get(q.prospect_id) ?? []), q])
   const conStato = righe.map((p) => ({ p, s: statoFoglio(p, perProspect.get(p.id) ?? []) }))
-  const mostrate = conStato.filter(({ s }) =>
+  // IL CANONE VUOTO (Giacomo, 15/9): sui dati veri nessun cliente ha il
+  // canone, e il numero che regge la cassa si scopriva solo scorrendo la
+  // tabella fino in fondo. Contarlo in cima lo rende un lavoro che finisce.
+  const senzaCanone = conStato.filter(({ p, s }) => (s === 'cliente' || s === 'prova') && p.canone == null)
+  const soloVuoti = soloSenzaCanone && vedoSoldi && senzaCanone.length > 0
+  const mostrate = soloVuoti ? [...senzaCanone] : conStato.filter(({ s }) =>
     filtro === 'clienti' ? s === 'cliente' || s === 'prova' : filtro === 'prospect' ? s === 'prospect' || s === 'preventivo' : true)
   const ordine: Record<StatoFoglio, number> = { cliente: 0, prova: 1, preventivo: 2, prospect: 3, perso: 4 }
   mostrate.sort((a, b) => ordine[a.s] - ordine[b.s] || (a.p.company || a.p.name || '').localeCompare(b.p.company || b.p.name || ''))
@@ -155,6 +178,10 @@ export default function TuttiFoglio({ onOpen }: Props) {
   const attesoMese = abbonamentiAttivi.reduce((t, i) => t + mensile(i), 0)
   const entratoMese = (incassi ?? []).filter((i) => i.genere === 'addebito' && i.stato === 'succeeded' && (i.quando ?? '').startsWith(mese)).reduce((t, i) => t + i.importo, 0)
   const inRitardo = abbonamentiAttivi.filter((i) => i.stato === 'past_due' || i.stato === 'unpaid')
+  // soldi arrivati che non sappiamo di chi sono: finivano in una sezione
+  // dentro Preventivi che nessuno apre. Qui e' un avviso, la tabella resta una
+  // (si collegano di la', dove c'e' il selettore dell'azienda)
+  const scollegati = incassiSenzaAzienda(incassi ?? [])
   const pagamentoDi = (id: string) => {
     const suoi = perIncasso.get(id) ?? []
     const abb = suoi.find((i) => i.genere === 'abbonamento' && ATTIVO.has(i.stato ?? '')) ?? suoi.find((i) => i.genere === 'abbonamento')
@@ -230,8 +257,8 @@ export default function TuttiFoglio({ onOpen }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-full border border-bordo bg-white">
           {(['tutti', 'clienti', 'prospect'] as Filtro[]).map((f) => (
-            <button key={f} onClick={() => { setFiltro(f); scriviPref('tutti-filtro', f) }}
-              className={`px-4 py-1.5 text-xs font-bold transition-colors ${filtro === f ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'}`}>
+            <button key={f} onClick={() => { setFiltro(f); scriviPref('tutti-filtro', f); setSoloSenzaCanone(false) }}
+              className={`px-4 py-1.5 text-xs font-bold transition-colors ${filtro === f && !soloVuoti ? 'bg-blu text-white' : 'text-tenue hover:bg-velo'}`}>
               {f === 'tutti' ? 'Tutti' : f === 'clienti' ? 'Clienti' : 'Prospect'}
             </button>
           ))}
@@ -255,6 +282,28 @@ export default function TuttiFoglio({ onOpen }: Props) {
               <p className="truncate text-[11px] text-spento">{sotto as string}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* i due buchi che costano soldi, accanto ai numeri del mese e non
+          dentro una pagina che si apre apposta (Giacomo, 15/9) */}
+      {vedoSoldi && (senzaCanone.length > 0 || scollegati.length > 0) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-xs text-tenue">
+          {senzaCanone.length > 0 && (
+            <button onClick={() => setSoloSenzaCanone(!soloVuoti)} aria-pressed={soloVuoti}
+                    className={`rounded-full px-2.5 py-1 transition-colors ${soloVuoti ? 'bg-navy text-white' : 'hover:bg-velo hover:text-navy'}`}>
+              <b className={soloVuoti ? '' : 'text-inchiostro'}>{senzaCanone.length}</b>{' '}
+              {senzaCanone.length === 1 ? 'cliente senza canone' : 'clienti senza canone'}
+            </button>
+          )}
+          {scollegati.length > 0 && (
+            <button onClick={() => window.dispatchEvent(new CustomEvent('preventivo:nuovo'))}
+                    className="rounded-full px-2.5 py-1 transition-colors hover:bg-velo hover:text-navy">
+              <b className="text-inchiostro">{scollegati.length}</b>{' '}
+              {scollegati.length === 1 ? 'incasso senza azienda' : 'incassi senza azienda'},{' '}
+              <span className="tabular-nums">{Math.round(valoreIncassi(scollegati)).toLocaleString('it-IT')} €</span>, si collegano dai Preventivi
+            </button>
+          )}
         </div>
       )}
 
