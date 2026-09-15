@@ -13,12 +13,14 @@ let letti: DatiStudio | null = null
 export async function datiStudio(): Promise<DatiStudio> {
   if (letti) return letti
   const { data } = await supabase.from('istruzioni').select('testo').eq('chiave', 'studio').maybeSingle()
+  let d: DatiStudio
   try {
-    letti = { ...STUDIO_VUOTO, ...JSON.parse((data as { testo: string } | null)?.testo || '{}') }
+    d = { ...STUDIO_VUOTO, ...JSON.parse((data as { testo: string } | null)?.testo || '{}') }
   } catch {
-    letti = { ...STUDIO_VUOTO }
+    d = { ...STUDIO_VUOTO }
   }
-  return letti
+  letti = d
+  return d
 }
 
 export async function scriviStudio(d: DatiStudio): Promise<string | null> {
