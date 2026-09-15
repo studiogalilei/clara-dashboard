@@ -144,7 +144,7 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
       'Proseguire o no è una vostra scelta, e non richiede motivazioni',
       'Il rimborso è un\'altra cosa: se il lavoro non vi ha convinto, lo chiedete per iscritto entro 15 giorni dalla fine del secondo mese e ve lo restituiamo per intero entro 15 giorni dalla richiesta',
       'Il budget pubblicitario speso sulle piattaforme non rientra nel rimborso: è denaro andato a Google o a Meta, non a noi',
-      'Quello che abbiamo costruito resta vostro in ogni caso',
+      'Quello che abbiamo costruito per voi resta vostro in ogni caso',
     ] })
     b.push({ tipo: 'p', piccolo: true, testo: 'La garanzia esiste perché nessuno debba fidarsi sulla parola. Nella pratica chi si ferma lo fa quasi sempre per ragioni che con il lavoro svolto non c\'entrano, e in quel caso il rimborso non si pone.' })
   }
@@ -163,7 +163,11 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
   if (meseTot) regole.push(`Il lavoro continuativo non ha una durata minima: si ferma quando volete, con ${studio.preavviso ?? 30} giorni di preavviso scritto, e l'addebito successivo non parte`)
   regole.push(linea === 'software'
     ? 'Il codice, i contenuti e il dominio sono vostri dalla consegna. Le licenze di strumenti terzi restano intestate a voi'
-    : 'Gli account pubblicitari, i dati e quello che costruiamo restano vostri, anche se il rapporto finisce')
+    : 'Gli account pubblicitari, i dati e quello che costruiamo per voi restano vostri, anche se il rapporto finisce')
+  // CHI POSSIEDE COSA (Dre, 15/9): quello che e' del cliente e' del cliente,
+  // e quello che portiamo o impariamo resta nostro e puo' diventare un
+  // prodotto. Detto prima e per iscritto, perche' dopo non si puo' piu' dire.
+  regole.push('Restano nostri il metodo, gli strumenti e i componenti che portiamo o sviluppiamo in forma generale, anche quando li usiamo qui: possiamo riutilizzarli con altri e farne un prodotto, senza mai portarci dietro i vostri dati, i vostri contenuti o quello che vi rende riconoscibili')
   regole.push('Per lavorare entriamo negli strumenti che ci indicate: trattiamo i dati solo per il progetto, come responsabili del trattamento, e li restituiamo o cancelliamo quando finisce')
   regole.push(`Quello che non è scritto qui si concorda per iscritto${studio.foro ? `. Per ogni controversia è competente il foro di ${studio.foro}` : ''}`)
   b.push({ tipo: 'elenco', voci: regole })
