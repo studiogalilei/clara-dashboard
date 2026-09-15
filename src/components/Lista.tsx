@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
@@ -119,6 +119,12 @@ export default function Lista({ onOpen, q }: Props) {
   const [riassunto, setRiassunto] = useState('')
   // quello che il software ha gia' in casa su questa azienda
   const [pronti, setPronti] = useState<Appunto[]>([])
+  // IL SETTORE (Dre, 15/9): la conoscenza dello Studio si accumula per
+  // settore, ma sui dati veri solo 83 aziende su 13.193 ce l'hanno scritto.
+  // Non e' pigrizia: non c'e' mai stato un momento in cui chiederlo. Il
+  // momento e' questo, quando diventa prospect, e si risponde con un clic.
+  const [settore, setSettore] = useState('')
+  const [settoriUsati, setSettoriUsati] = useState<string[]>([])
   // indietro e «Perso»: si possono fare da ogni fase, ma li confermi tu (Dre, 2/9)
   const [conferma, setConferma] = useState<
     { p: Prospect; da: Chiave; target: Chiave; tipo: 'indietro' | 'riapri' | 'perso' } | null
@@ -313,6 +319,8 @@ export default function Lista({ onOpen, q }: Props) {
         setPedaggio({ p, da: da as PipelineStage, target: target as PipelineStage })
         // gli appunti di quella call spesso ci sono gia': si propongono
         void appuntiRecenti(id).then(setPronti)
+        setSettore('')
+        if (!p.sector) void settoriPiuUsati().then(setSettoriUsati)
         return
       }
     }
@@ -826,6 +834,27 @@ export default function Lista({ onOpen, q }: Props) {
               placeholder="Il riassunto della call e i prossimi passi…"
               className="mt-3 min-h-32 w-full rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
             />
+            {/* il settore si chiede una volta sola, quando diventa prospect:
+                e' la sola cosa che permette di contare per settore dopo */}
+            {!pedaggio.p.sector && pedaggio.target === 'tecnica' && (
+              <div className="mt-3 rounded-xl border border-bordo bg-velo/50 px-3 py-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Micro>Che settore</Micro>
+                  {settoriUsati.map((x) => (
+                    <button key={x} onClick={() => setSettore(settore === x ? '' : x)}
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${settore === x ? 'border-blu bg-blu text-white' : 'border-bordo bg-white text-navy hover:border-blu'}`}>
+                      {nomeSettore(x)}
+                    </button>
+                  ))}
+                  <input
+                    value={settoriUsati.includes(settore) ? '' : nomeSettore(settore)}
+                    onChange={(e) => setSettore(chiaveSettore(e.target.value))}
+                    placeholder="oppure scrivilo"
+                    className="w-36 rounded-full border border-bordo bg-white px-3 py-1 text-xs outline-none focus:border-blu"
+                  />
+                </div>
+              </div>
+            )}
             {erroreP && (
               <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
                 {erroreP}
@@ -863,13 +892,18 @@ export default function Lista({ onOpen, q }: Props) {
                     setErroreP('Non è stato salvato. Il testo è ancora qui: riprova.')
                     return
                   }
+                  // il settore, se l'ha scelto: non blocca niente, e se la
+                  // scrittura non riesce la carta si muove lo stesso
+                  if (!p.sector && settore.trim()) {
+                    await supabase.from('prospects').update({ sector: chiaveSettore(settore) }).eq('id', p.id)
+                  }
                   const mossa = await muovi(p.id, p.company || p.name || p.email, target, 1)
                   setSalvando(false)
                   if (!mossa) {
                     setErroreP('Il riassunto è al sicuro, ma la carta non si è mossa: riprova a trascinarla.')
                     return
                   }
-                  setPedaggio(null); setRiassunto('')
+                  setPedaggio(null); setRiassunto(''); setSettore('')
                 }}
                 disabled={!riassunto.trim() || salvando}
                 className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"

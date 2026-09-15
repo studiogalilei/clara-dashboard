@@ -34,6 +34,10 @@ export interface Progetto {
   accessi_stato?: Accessi | null
   accessi_dove?: string | null
   accessi_chiesti_il?: string | null
+  // COSA ABBIAMO IMPARATO (Dre, 15/9, schema_v39): una riga alla consegna.
+  // E' l'unico momento in cui uno ce l'ha ancora in testa, ed e' la materia
+  // prima per contare i problemi che tornano, settore per settore.
+  imparato?: string | null
 }
 
 export type Accessi = 'mancano' | 'chiesti' | 'arrivati'
@@ -98,6 +102,7 @@ export default function Progetti({ onOpen }: Props) {
   const [tolgo, setTolgo] = useState<Progetto | null>(null)   // la riga che sta per sparire
   const [vedoSoldi, setVedoSoldi] = useState(false)
   const [apriAccessi, setApriAccessi] = useState<number | null>(null)   // la riga con il riquadro accessi aperto
+  const [imparo, setImparo] = useState<{ id: number; testo: string } | null>(null)  // la riga appena consegnata
   // finche' le colonne non sono sul database la colonna non si mostra:
   // meglio niente che una colonna che da' errore a ogni clic
   const [accessiPronti, setAccessiPronti] = useState(false)
@@ -270,13 +275,22 @@ export default function Progetti({ onOpen }: Props) {
         )}
         <td className=""><Cella tipo="date" valore={p.scadenza ?? ''} su={(v) => campo(p, 'scadenza', v)} className={`tabular-nums ${tardi ? 'text-red-700 font-semibold' : ''}`} /></td>
         <td className=""><Cella valore={p.natura ?? ''} su={(v) => campo(p, 'natura', v)} placeholder="sito vetrina, ads…" /></td>
-        <td className=""><Cella valore={p.note ?? ''} su={(v) => campo(p, 'note', v)} placeholder="note" /></td>
+        <td className="">
+          <Cella valore={p.note ?? ''} su={(v) => campo(p, 'note', v)} placeholder="note" />
+          {p.stato === 'consegnato' && (
+            <button onClick={() => setImparo({ id: p.id, testo: p.imparato ?? '' })}
+                    title={p.imparato ?? 'Cosa abbiamo imparato?'}
+                    className={`mt-0.5 block max-w-[260px] truncate px-2 text-left text-[11px] font-semibold ${p.imparato ? 'text-green-800' : 'text-spento hover:text-navy'}`}>
+              {p.imparato ? `Imparato: ${p.imparato}` : 'Cosa abbiamo imparato?'}
+            </button>
+          )}
+        </td>
         <td className="relative px-1 text-center">
           <button onClick={() => setMenuRiga(menuRiga === p.id ? null : p.id)} aria-label="Altro" className="rounded px-1.5 text-spento hover:bg-velo hover:text-navy">⋯</button>
           {menuRiga === p.id && (
             <div className="absolute right-1 top-9 z-20 w-44 overflow-hidden rounded-lg border border-bordo bg-white text-left shadow-lg" onMouseLeave={() => setMenuRiga(null)}>
               {p.stato !== 'consegnato' ? (
-                <button onClick={() => { void scrivi(p, { stato: 'consegnato' }); setMenuRiga(null) }} className="block w-full px-3 py-2 text-sm hover:bg-velo">Segna consegnato</button>
+                <button onClick={() => { void scrivi(p, { stato: 'consegnato' }); setMenuRiga(null); setImparo({ id: p.id, testo: p.imparato ?? '' }); setChiusi(true) }} className="block w-full px-3 py-2 text-sm hover:bg-velo">Segna consegnato</button>
               ) : (
                 <button onClick={() => { void scrivi(p, { stato: 'in_corso' }); setMenuRiga(null) }} className="block w-full px-3 py-2 text-sm hover:bg-velo">Riporta in corso</button>
               )}
@@ -285,6 +299,29 @@ export default function Progetti({ onOpen }: Props) {
           )}
         </td>
       </tr>
+      {imparo?.id === p.id && (
+        <tr className="border-b border-velo bg-velo/40">
+          <td colSpan={colonne} className="px-3 py-3">
+            <div className="sticky left-3 flex max-w-3xl flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-navy">Cosa abbiamo imparato?</span>
+              <input
+                autoFocus
+                value={imparo.testo}
+                onChange={(e) => setImparo({ id: p.id, testo: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter') { void scrivi(p, { imparato: imparo.testo.trim() || null }); setImparo(null) } }}
+                placeholder="il problema vero era…, la prossima volta…"
+                className="min-w-[280px] flex-1 rounded-lg border border-bordo bg-white px-3 py-1.5 text-sm outline-none focus:border-blu"
+              />
+              <button onClick={() => { void scrivi(p, { imparato: imparo.testo.trim() || null }); setImparo(null) }}
+                      disabled={!imparo.testo.trim()}
+                      className="rounded-full bg-blu px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro disabled:opacity-30">
+                Salva
+              </button>
+              <button onClick={() => setImparo(null)} className="text-xs font-semibold text-tenue hover:text-navy">Salto</button>
+            </div>
+          </td>
+        </tr>
+      )}
       {accessiPronti && apriAccessi === p.id && (
         <tr className="border-b border-velo bg-velo/40">
           <td colSpan={colonne} className="px-3 py-3">

@@ -407,6 +407,28 @@ export async function appuntiRecenti(prospectId: string, giorni = 21): Promise<A
   return ((data as Appunto[] | null) ?? []).filter((a) => (a.body ?? '').trim().length > 30)
 }
 
+// I SETTORI GIA' USATI (15/9): si propongono quelli veri, in ordine di
+// quanti ne abbiamo, e si puo' sempre scriverne uno nuovo. Cosi' «dentisti»
+// resta «dentisti» e non diventa anche «dentista», «studi dentistici»,
+// «odontoiatria»: senza nomi uguali non si conta niente per settore.
+export async function settoriPiuUsati(quanti = 8): Promise<string[]> {
+  const { data } = await supabase.from('prospects').select('sector').not('sector', 'is', null).limit(1000)
+  const conta = new Map<string, number>()
+  for (const r of ((data as Array<{ sector: string }> | null) ?? [])) {
+    const s = (r.sector ?? '').trim().toLowerCase()
+    if (s) conta.set(s, (conta.get(s) ?? 0) + 1)
+  }
+  return [...conta.entries()].sort((a, b) => b[1] - a[1]).slice(0, quanti).map(([s]) => s)
+}
+
+// «consulenza_aziendale» si legge «Consulenza aziendale»; quello che si
+// scrive a mano torna nella stessa forma, se no i settori non si contano
+export const nomeSettore = (s: string) => {
+  const t = s.replace(/_/g, ' ').trim()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+export const chiaveSettore = (s: string) => s.trim().toLowerCase().replace(/\s+/g, '_')
+
 export async function pedaggioPagato(prospectId: string, fase: PipelineStage): Promise<boolean> {
   const { data } = await supabase.from('interactions').select('*')
     .eq('prospect_id', prospectId).eq('kind', 'transcript')
