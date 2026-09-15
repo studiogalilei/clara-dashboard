@@ -404,6 +404,22 @@ const urlFinti = new Map<string, string>()
 
 export const demoClient = {
   from(tabella: string) { return new Query(tabella) },
+  // in demo si e' Dre: senza questa, `sono_ceo` andava in errore cinque
+  // volte per pagina e i soldi restavano nascosti proprio nella modalita'
+  // fatta per far vedere com'e' (QA Dre, 15/9)
+  async rpc(nome: string) {
+    if (nome === 'sono_ceo') return { data: true, error: null }
+    if (nome === 'chi_sono') {
+      return {
+        data: {
+          uid: 'demo', nome: 'Dre', ruolo: 'ceo',
+          pod: [], concessi: [], vista: null,
+        },
+        error: null,
+      }
+    }
+    return { data: null, error: null }
+  },
   storage: {
     from(_bucket: string) {
       return {

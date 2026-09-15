@@ -156,7 +156,6 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
         <button onClick={onChiudi} className="rounded-full px-3 py-1.5 text-sm font-semibold text-tenue hover:bg-velo">‹ Torna</button>
         <h1 className="text-[17px] font-extrabold">{nome}</h1>
         <Micro className="ml-1">tutta la storia, {eventi.length} eventi</Micro>
-        <span className="ml-auto text-xs text-spento">Esc per chiudere</span>
       </header>
       <div className="mx-auto w-full max-w-3xl flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-8">
         {(prossimoPasso.cosa || prossimoPasso.quando) && (

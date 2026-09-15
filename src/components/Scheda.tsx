@@ -1105,7 +1105,6 @@ export default function Scheda({ id, onClose }: Props) {
               <Card className="salta-su border-blu/30">
                 <header className="flex items-baseline gap-2 border-b border-velo px-4 py-2.5">
                   <h3 className="text-sm font-bold">Avanza a {PIPELINE_LABEL[next]}</h3>
-                  <span className="text-xs text-tenue">prima il riassunto della call, poi si avanza</span>
                   <button onClick={() => setAvanzaAperto(false)} className="ml-auto text-xs font-semibold text-tenue hover:text-inchiostro">chiudi</button>
                 </header>
                 <div className="p-4">
@@ -1331,7 +1330,7 @@ export default function Scheda({ id, onClose }: Props) {
                 </div>
                 {documenti.length === 0 && (
                   <p className="py-2 text-sm text-spento">
-                    Ancora niente. Quello che aggiungi qui resta agganciato a lui.
+                    Ancora niente.
                   </p>
                 )}
                 <ul className="divide-y divide-velo">

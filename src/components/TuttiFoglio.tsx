@@ -72,12 +72,23 @@ export default function TuttiFoglio({ onOpen }: Props) {
   const [filtro, setFiltro] = useState<Filtro>(() => (leggiPref('tutti-filtro') as Filtro) || 'tutti')
   const [aperta, setAperta] = useState<string | null>(null)     // la riga con i preventivi aperti
   const [problema, setProblema] = useState<string | null>(null)
+  const [quante, setQuante] = useState<number | null>(null)
+  // segnare perso vuole un motivo, come nella scheda: stesso fatto, stessa
+  // domanda (QA Dre, 15/9)
+  const [perdo, setPerdo] = useState<{ p: Riga; motivo: string } | null>(null)
   const oggi = giorno()
 
   useEffect(() => {
-    supabase.from('prospects').select('*').neq('stage', 'nuovo')
-      .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(500)
-      .then(({ data }) => setRighe((data as Riga[]) ?? []))
+    // 500 righe erano meno delle aziende attive (625) e i totali in cima
+    // contavano l'array gia' tagliato: il Foglio diceva un numero piu'
+    // basso del vero senza dirlo (QA Dre, 15/9)
+    supabase.from('prospects').select('*', { count: 'exact' }).neq('stage', 'nuovo')
+      .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(3000)
+      .then(({ data, error, count }) => {
+        if (error) setProblema('Le aziende non si leggono: ' + error.message)
+        setRighe((data as Riga[]) ?? [])
+        setQuante(count ?? null)
+      })
     supabase.from('preventivi').select('*').order('inviato_il', { ascending: true }).limit(2000)
       .then(({ data, error }) => {
         if (error) setProblema('I preventivi non si leggono: ' + error.message)
@@ -110,7 +121,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
       await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'prova', contratto: 'prova',
         prova_inizio: p.prova_inizio ?? inizio, prova_fine: p.prova_fine ?? d.toISOString().slice(0, 10), awaiting_us: false, no_followup: true })
     }
-    else if (s === 'perso') await scriviRiga(p, p.fuori ? { pipeline_stage: 'perso', awaiting_us: false, no_followup: true } : { stage: 'perso', awaiting_us: false, no_followup: true })
+    else if (s === 'perso') setPerdo({ p, motivo: '' })
     else if (s === 'preventivo') {
       // preventivo inviato = call tecnica fatta: entra in pipeline in Tecnica e nasce il preventivo
       if (!p.fuori || p.pipeline_stage === 'cliente' || p.pipeline_stage === 'perso') {
@@ -164,7 +175,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
       </td>
       <td className="w-36 px-3 text-sm tabular-nums">{q.inviato_il ? fmtDateShort(q.inviato_il) : ''}</td>
       <td className="w-32 px-1">
-        <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[2] ?? ''}`}>{q.stato}</span>
+        <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[2] ?? ''}`}>{STATI_PREVENTIVO.find(([s]) => s === q.stato)?.[1] ?? q.stato}</span>
       </td>
       <td className="w-44 px-3 text-xs">
         {q.pagato_il ? <span className="font-semibold text-green-800">pagato il {fmtDateShort(q.pagato_il)}</span> : <span className="text-spento">non ancora pagato</span>}
@@ -172,7 +183,9 @@ export default function TuttiFoglio({ onOpen }: Props) {
       <td className="px-3 text-xs text-tenue">{q.note}</td>
       <td className="w-8 text-center">
         <button onClick={() => { try { sessionStorage.setItem('preventivo:apri', String(q.id)) } catch { /* niente */ } window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: q.prospect_id })) }}
-                title="Apri nel widget Preventivi" className="rounded px-1.5 text-spento hover:text-blu">›</button>
+                title="Apri nel widget Preventivi" className="rounded px-1.5 text-spento hover:text-blu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-3.5 w-3.5"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
       </td>
     </tr>
   )
@@ -182,7 +195,27 @@ export default function TuttiFoglio({ onOpen }: Props) {
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
-          <button onClick={() => setProblema(null)} className="text-xs font-bold text-red-600">chiudi</button>
+          <button onClick={() => setProblema(null)} className="text-xs font-bold text-red-600">Chiudi</button>
+        </div>
+      )}
+
+      {perdo && (
+        <div className="salta-su flex flex-wrap items-center gap-2 rounded-xl border border-blu/40 bg-white px-4 py-3">
+          <span className="text-sm font-semibold">Perché abbiamo perso {perdo.p.company || perdo.p.name}?</span>
+          <input autoFocus value={perdo.motivo} onChange={(e) => setPerdo({ ...perdo, motivo: e.target.value })}
+                 onKeyDown={(e) => { if (e.key === 'Escape') setPerdo(null) }}
+                 placeholder="In due parole: prezzo, tempi, ha scelto un altro…"
+                 className="min-w-[260px] flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu" />
+          <button disabled={!perdo.motivo.trim()}
+                  onClick={async () => {
+                    const { p, motivo } = perdo
+                    setPerdo(null)
+                    await scriviRiga(p, (p.fuori
+                      ? { pipeline_stage: 'perso', lost_reason: motivo.trim(), awaiting_us: false, no_followup: true }
+                      : { stage: 'perso', lost_reason: motivo.trim(), awaiting_us: false, no_followup: true }) as Partial<Riga>)
+                  }}
+                  className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white disabled:opacity-40">Segna perso</button>
+          <button onClick={() => setPerdo(null)} className="text-xs font-semibold text-spento hover:text-inchiostro">Annulla</button>
         </div>
       )}
 
@@ -197,6 +230,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
         </div>
         <span className="text-xs text-tenue">
           {conta('cliente')} clienti, {conta('prova')} in prova, {conta('preventivo')} con preventivo, {conta('prospect')} prospect, {conta('perso')} persi
+          {quante !== null && quante > righe.length ? `, di ${quante} in tutto` : ''}
         </span>
       </div>
 
@@ -249,7 +283,9 @@ export default function TuttiFoglio({ onOpen }: Props) {
                     </td>
                     <td className="px-1">
                       <select value={s} onChange={(e) => cambiaStato(p, e.target.value as StatoFoglio)}
-                        className={`w-full rounded-md border-0 px-2 py-1 text-xs font-semibold outline-none ${STATI_FOGLIO.find(([x]) => x === s)?.[2] ?? ''}`}>
+                        title="Cambia la fase"
+                        className={`w-full cursor-pointer appearance-none rounded-md border-0 bg-[length:10px] bg-[right_6px_center] bg-no-repeat px-2 py-1 pr-5 text-xs font-semibold outline-none ${STATI_FOGLIO.find(([x]) => x === s)?.[2] ?? ''}`}
+                        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 10 6\'%3E%3Cpath d=\'M1 1l4 4 4-4\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'1.5\'/%3E%3C/svg%3E")' }}>
                         {STATI_FOGLIO.map(([x, e]) => <option key={x} value={x}>{e}</option>)}
                       </select>
                     </td>
@@ -282,7 +318,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
                         {ultimo ? (
                           <span className="truncate text-xs">
                             <span className="font-semibold tabular-nums">{euro(ultimo.importo)}</span>
-                            {`, ${fmtDateShort(ultimo.inviato_il)}, ${ultimo.stato}`}
+                            {`, ${fmtDateShort(ultimo.inviato_il)}, ${STATI_PREVENTIVO.find(([s]) => s === ultimo.stato)?.[1] ?? ultimo.stato}`}
                             {ultimo.pagato_il ? <span className="text-green-800">, pagato</span> : ''}
                             {suoi.length > 1 ? <span className="text-spento">, {suoi.length} in tutto</span> : ''}
                           </span>
@@ -296,7 +332,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
                       <td colSpan={incassi ? 7 : 6} className="px-3 py-2">
                         <div className="flex items-center justify-between gap-2 pb-1.5">
                           <p className="text-[11px] font-bold uppercase tracking-wide text-tenue">Preventivi di {p.company || p.name}</p>
-                          <button onClick={() => nuovoPreventivo(p)} className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">+ Preventivo</button>
+                          <button onClick={() => nuovoPreventivo(p)} className="rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-blu-scuro">+ Crea preventivo</button>
                         </div>
                         {suoi.length === 0 ? (
                           <p className="py-2 text-xs text-spento">Nessun preventivo ancora.</p>

@@ -828,7 +828,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         ))}
 
         {mieDaFare.length === 0 && !aggiungo && (
-          <p className="px-2 py-6 text-center text-sm text-spento">Nessuna task. «Aggiungi un'attività» e scrivi.</p>
+          <p className="px-2 py-6 text-center text-sm text-spento">Nessuna task.</p>
         )}
       </Card>
 

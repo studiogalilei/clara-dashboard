@@ -279,7 +279,7 @@ export default function Progetti({ onOpen }: Props) {
             {testata}
             <tbody>
               {vivi.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-6 text-center text-sm text-spento">Foglio vuoto. «+ Riga» e scrivi dentro le celle, come in un foglio.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-6 text-center text-sm text-spento">Foglio vuoto.</td></tr>
               ) : vivi.map(riga)}
             </tbody>
           </table>

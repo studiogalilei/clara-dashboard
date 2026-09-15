@@ -14,7 +14,8 @@ import { euro, mensile, type Preventivo, type Incasso } from './TuttiFoglio'
 // altre due forme della stessa pagina, non altre pagine.
 
 type Modo = 'elenco' | 'foglio'
-const MODI: Array<[Modo, string]> = [['elenco', 'Clienti'], ['foglio', 'Foglio progetti']]
+// il primo tab non ripete il nome della pagina (come in Pipeline: Bacheca, Foglio)
+const MODI: Array<[Modo, string]> = [['elenco', 'Elenco'], ['foglio', 'Foglio progetti']]
 const DENTRO: PipelineStage[] = ['avvio', 'prova', 'cliente']
 const TONO: Record<string, string> = { avvio: 'bg-sky-100 text-sky-900', prova: 'bg-amber-100 text-amber-900', cliente: 'bg-green-100 text-green-900' }
 const ATTIVI = new Set(['active', 'trialing', 'past_due', 'unpaid'])
@@ -78,7 +79,7 @@ function Elenco({ onOpen }: Props) {
         {vedoSoldi && retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese di retainer</span>}
       </div>
 
-      {lista.length === 0 && <Card><p className="px-4 py-6 text-center text-sm text-spento">Nessun cliente ancora. Arrivano da Pipeline, con «Avanza» sulla scheda.</p></Card>}
+      {lista.length === 0 && <Card><p className="px-4 py-6 text-center text-sm text-spento">Nessun cliente ancora.</p></Card>}
 
       {lista.map((c) => {
         const suoi = progetti.filter((g) => g.prospect_id === c.id)
@@ -107,9 +108,10 @@ function Elenco({ onOpen }: Props) {
               </div>
               <div className="hidden shrink-0 text-right sm:block">
                 {vedoSoldi && c.canone != null && <p className="text-sm font-bold tabular-nums">{Number(c.canone).toLocaleString('it-IT')} € <span className="text-xs font-semibold text-tenue">al mese</span></p>}
-                {abb && <p className="text-[11px] text-green-800">{Math.round(mensile(abb)).toLocaleString('it-IT')} € su Stripe{abb.prossimo_il ? `, prossimo ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}</p>}
+                {vedoSoldi && abb && <p className="text-[11px] text-green-800">{Math.round(mensile(abb)).toLocaleString('it-IT')} € su Stripe{abb.prossimo_il ? `, prossimo ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}</p>}
               </div>
-              <span className={`shrink-0 text-spento transition-transform ${apertoQui ? 'rotate-90' : ''}`} aria-hidden>›</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden
+                   className={`h-4 w-4 shrink-0 text-spento transition-transform ${apertoQui ? 'rotate-90' : ''}`}><path d="M9 6l6 6-6 6" /></svg>
             </button>
 
             {apertoQui && (

@@ -246,7 +246,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
       {ruolo === 'ceo' && !demo && persone.length > 0 && (
         <Card className="p-5">
           <TitoloCard>Vedi come</TitoloCard>
-          <p className="mt-1 text-xs text-tenue">Ti metti nei panni di una persona: menu, aziende, chat e task diventano i suoi, davvero (lo decide il database). In alto compare la striscia per tornare a te.</p>
+          <p className="mt-1 text-xs text-tenue">Menu, aziende, chat e task diventano i suoi. In alto compare la striscia per tornare a te.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {persone.filter((p) => p.ruolo !== 'ceo').map((p) => (
               <button key={p.id} onClick={() => { void vediCome(p.id).then(() => window.location.reload()) }}
@@ -263,7 +263,6 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         <Card>
           <header className="border-b border-velo px-4 py-3">
             <TitoloCard>Chi ha cosa</TitoloCard>
-            <p className="mt-0.5 text-xs text-tenue">Le voci di base le hanno tutti. Queste si danno una a una.</p>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">

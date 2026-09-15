@@ -64,12 +64,16 @@ export async function chiedi(widget: Chiave, nomeUtente: string): Promise<string
   const { error } = await supabase.from('widget_accessi')
     .upsert({ user_id: user.id, widget, stato: 'richiesto', chiesto_il: new Date().toISOString(), deciso_il: null, deciso_da: null }, { onConflict: 'user_id,widget' })
   if (error) return error.message
-  await supabase.from('proposte').insert({
+  // la richiesta e' arrivata solo se e' arrivata anche nella Posta: prima
+  // l'errore qui non si guardava e la persona leggeva «mandata a Dre e
+  // Giacomo» mentre nessuno vedeva niente (QA Dre, 15/9)
+  const { error: avviso } = await supabase.from('proposte').insert({
     tipo: 'accesso',
     titolo: `${nomeUtente} chiede il widget ${w?.nome ?? widget}`,
     perche: w ? `${w.nome}: ${w.cosa}. Con un si' gli compare nel menu.` : null,
     azione: { accesso: { user_id: user.id, widget, nome: nomeUtente } },
   })
+  if (avviso) return `La richiesta è salvata ma l'avviso a Dre non è partito: ${avviso.message}`
   return null
 }
 
