@@ -10,6 +10,7 @@ import { Card, TitoloCard, Micro } from './ui'
 import { incassiSenzaAzienda, mensile, type Incasso } from './TuttiFoglio'
 import type { VoceListino } from '../lib/preventivo'
 import Firma from './Firma'
+import Squadra from './Squadra'
 import { collegato as googleCollegato, entraConGoogle } from '../lib/google'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
 
@@ -347,6 +348,9 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           )
         })}
       </Card>
+
+      {/* ── LE PERSONE (solo ceo, 15/9): ruoli e accessi, da qui ── */}
+      {ruolo === 'ceo' && !demo && <Squadra />}
 
       {/* ── VEDI COME (solo ceo, 12/9): il Workspace nei panni di una persona ── */}
       {ruolo === 'ceo' && !demo && persone.length > 0 && (
