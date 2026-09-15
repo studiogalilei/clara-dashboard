@@ -34,6 +34,9 @@ interface Proposta {
     nuovo?: Record<string, unknown>; agenda_ids?: number[]
     // «X chiede il widget Y»: la decide un ceo (lib/accessi.ts)
     accesso?: { user_id: string; widget: string; nome?: string }
+    // «questa mail e' di X?»: riconosciuta solo dal nome nell'oggetto, quindi
+    // la scheda la tocca una persona (scripts/posta.py)
+    interazione?: Record<string, unknown>
   }
   stato: 'aperta' | 'si' | 'no' | 'fatta'
 }
@@ -59,7 +62,7 @@ const CHIP: Record<string, [string, string]> = {
 const GRUPPO: Record<string, string> = {
   risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste',
   tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni',
-  data: 'Date', scarta: 'Da scartare',
+  data: 'Date', scarta: 'Da scartare', collega: 'Mail da attaccare',
 }
 
 // Rispondere a tutto il gruppo in un colpo, ma SOLO dove sbagliare non costa
@@ -455,7 +458,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         const data = (grezzi as Proposta[] | null)?.filter((p) => p.tipo !== 'accesso' || ceo) ?? null
         // le bozze prima di tutto: sono lavoro che parte oggi. Poi le
         // domande, poi gli scarti
-        const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, classifica: 2, data: 2, scarta: 3 }
+        const peso: Record<string, number> = { risposta: 0, umano: 0, avanza: 1, richiesta: 1, tornato: 1, collega: 2, classifica: 2, data: 2, scarta: 3 }
         // a parita' di peso il tipo resta unito: il gruppo deve essere UN
         // blocco solo, se no la testata (e con lei la risposta di gruppo)
         // compariva due volte sullo stesso tipo
@@ -613,6 +616,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         else if (p.azione.agenda_ids?.length) {
           await supabase.from('agenda').update({ prospect_id: (creato as { id: string }).id }).in('id', p.azione.agenda_ids)
         }
+      }
+      if (p.azione?.interazione) {
+        const { error } = await supabase.from('interactions').insert(p.azione.interazione)
+        if (error) { esito = `Non sono riuscita a scriverla: ${error.message}`; riuscito = false }
+        else esito = `Attaccata: ${p.titolo}`
       }
       if (p.azione?.prospects && p.prospect_id) {
         const { error } = await supabase.from('prospects').update(p.azione.prospects).eq('id', p.prospect_id)

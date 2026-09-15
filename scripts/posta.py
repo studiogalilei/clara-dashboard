@@ -15,16 +15,17 @@ COSA FA, per ogni persona che e' entrata con Google
    al primo accesso);
 2. scarta il traffico che non e' una conversazione con un'azienda: newsletter,
    notifiche, mail interne fra noi;
-3. capisce di che azienda e': prima l'indirizzo esatto, poi il dominio, poi
-   il nome dell'azienda dentro l'oggetto (senza indovinare sui domini
-   generici tipo gmail.com);
+3. capisce di che azienda e': l'indirizzo esatto, oppure il dominio (senza
+   indovinare sui domini generici tipo gmail.com). Il nome dell'azienda
+   dentro l'oggetto non e' una prova: su tredicimila aziende ogni parola e'
+   il nome di qualcuno, quindi quella strada finisce in una domanda;
 4. scrive l'interazione nella scheda (`email_in` o `email_out`), una volta
    sola: il riferimento al messaggio Gmail resta in `ref`;
 5. aggiorna quel poco che e' sicuro: chi ci ha scritto aspetta una risposta,
    chi ha ricevuto la nostra non la aspetta piu', chi era «nuovo» e risponde
    diventa «risposto»;
 6. quando NON e' sicura non scrive: mette una domanda nella Posta di Clara
-   (l'azienda non e' nel CRM, oppure la mail cambierebbe uno stato delicato).
+   (l'azienda non e' nel CRM, oppure l'ha riconosciuta solo dall'oggetto).
 
 Non tocca mai clienti e persi: quelli li muove una persona.
 
@@ -125,9 +126,12 @@ def trova(rubrica, mail_controparte, oggetto):
     ogg = parole(oggetto)
     if ogg:
         for pid, ps in rubrica["aziende"]:
-            comuni = ps & ogg
-            # una parola sola basta se e' lunga e di UNA azienda soltanto
-            if any(len(w) >= 6 and rubrica["conta"][w] == 1 for w in comuni):
+            comuni = {w for w in ps & ogg if len(w) >= 5}
+            # DUE parole, non una (prova sulla casella di Dre, 15/9): con una
+            # sola, «prenotazione incontro» diventava «Obiettivo Incontro dal
+            # 1991» e «Partner Program» diventava «Eco Program». Su
+            # tredicimila aziende una parola qualsiasi e' il nome di qualcuno.
+            if len(comuni) >= 2 and any(rubrica["conta"][w] == 1 for w in comuni):
                 return pid, "oggetto"
     return None, None
 
@@ -256,6 +260,26 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
                 "body": f"{oggetto}\n\n{corpo}".strip()[:1500], "ref": f"gmail:{m['id']}"}
         nome = p.get("company") or p.get("name") or p.get("email")
         print(f"    {'->' if nostra else '<-'} {nome} ({come}): {oggetto[:50]}")
+
+        # L'OGGETTO NON BASTA (prova sulla casella di Dre, 15/9): su
+        # tredicimila aziende una parola qualsiasi finisce per essere il nome
+        # di qualcuno. «prenotazione incontro» diventava «Obiettivo Incontro
+        # dal 1991», «Partner Program» diventava «Eco Program». Due su due
+        # sbagliate. L'indirizzo e il dominio sono prove, l'oggetto e' un
+        # sospetto: quindi non si scrive, si chiede.
+        if come == "oggetto":
+            if fatte["domande"] >= limite_domande:
+                fatte["saltate"] += 1
+                continue
+            fatte["domande"] += 1
+            if not prova:
+                proponi("collega", f"Questa mail è di {nome}?",
+                        perche=f"Da {controparte[0]}, oggetto «{oggetto[:120]}». "
+                               f"L'ho riconosciuta solo dal nome nell'oggetto, non dall'indirizzo.",
+                        azione={"interazione": dict(riga)},
+                        owner=persona.get("user_id"))
+            continue
+
         if prova:
             fatte["scritte"] += 1
             continue
