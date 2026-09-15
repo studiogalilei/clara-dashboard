@@ -479,7 +479,7 @@ export default function Preventivi({ onOpen }: Props) {
         </div>
         <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <input type="search" value={cerca} onChange={(e) => setCerca(e.target.value)} placeholder="Cerca azienda o numero…"
-                 className="min-w-0 flex-1 rounded-full border border-bordo bg-white px-4 py-1.5 text-sm outline-none focus:border-blu sm:w-48 sm:flex-none" />
+                 className="w-full min-w-0 rounded-full border border-bordo bg-white px-4 py-1.5 text-sm outline-none focus:border-blu sm:w-48" />
           <button onClick={() => setStudioAperto((v) => !v)} title="Ragione sociale, P.IVA, IVA, termini: vanno nei PDF"
                   className="rounded-full px-2 py-1.5 text-sm font-semibold text-tenue hover:text-navy">Dati Studio</button>
           <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Crea preventivo</button>
@@ -645,7 +645,7 @@ export default function Preventivi({ onOpen }: Props) {
             const apertoQui = menu === q.id
             return (
               <Card key={q.id} className="px-4 py-3">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
                   <button onClick={() => onOpen(q.prospect_id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                     {n && <Faccia p={n} size={36} />}
                     <span className="min-w-0">
@@ -660,6 +660,7 @@ export default function Preventivi({ onOpen }: Props) {
                     </span>
                   </button>
 
+                  <div className="flex items-center justify-between gap-3 pl-[48px] sm:contents">
                   <span className="shrink-0 text-right sm:w-32">
                     <span className="block text-[17px] font-extrabold leading-tight tabular-nums">
                       {q.importo ? euro(q.importo) : q.mensile ? euro(q.mensile) : '0 €'}
@@ -712,6 +713,7 @@ export default function Preventivi({ onOpen }: Props) {
                       )}
                     </div>
                   </span>
+                  </div>
                 </div>
                 {q.note && <p className="mt-1.5 pl-[48px] text-[11px] text-spento">{q.note}</p>}
               </Card>
