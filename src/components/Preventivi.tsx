@@ -359,8 +359,12 @@ export default function Preventivi({ onOpen }: Props) {
 
   if (righe === null) return <Spinner />
 
-  // i buchi che fermano il PDF: si vedono prima di premere, non dopo
-  const manca = bozza ? [...cosaManca(bozza.fatturazione), ...mancaStudio(studio)] : []
+  // i buchi che fermano il PDF: si vedono prima di premere, non dopo, e
+  // divisi per chi sono (prima «la partita IVA» compariva due volte nella
+  // stessa frase, una per il cliente e una per lo Studio)
+  const buchiCliente = bozza ? cosaManca(bozza.fatturazione) : []
+  const buchiStudio = bozza ? mancaStudio(studio) : []
+  const manca = [...buchiCliente, ...buchiStudio]
 
   const somma = (l: Preventivo[]) => l.reduce((s, q) => s + (Number(q.importo) || 0), 0)
   const inGiro = righe.filter((q) => q.stato === 'inviato')
@@ -453,7 +457,7 @@ export default function Preventivi({ onOpen }: Props) {
 
       {/* IL PANNELLO: azienda, voci, validita', PDF. Tutto in una schermata */}
       {bozza && (
-        <Card className="salta-su space-y-5 border-blu/40 p-5">
+        <Card className="salta-su space-y-5 border-blu/40 p-5 lg:pb-16">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-extrabold">{bozza.id ? 'Modifica il preventivo' : 'Nuovo preventivo'}</h2>
             <button onClick={chiudiBozza} className="text-xs font-semibold text-spento hover:text-inchiostro">Annulla</button>
@@ -550,9 +554,16 @@ export default function Preventivi({ onOpen }: Props) {
               <input value={bozza.note} onChange={(e) => setBozza({ ...bozza, note: e.target.value })}
                      className="mt-0.5 block w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
             </label>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-2 lg:mr-24">
               {manca.length > 0 && (
-                <span className="text-xs font-semibold text-amber-800">Per il PDF manca {manca.join(', ')}</span>
+                <span className="max-w-[340px] text-xs font-semibold text-amber-800">
+                  {buchiCliente.length > 0 && <>Del cliente manca {buchiCliente.join(', ')}. </>}
+                  {buchiStudio.length > 0 && (
+                    <>Dello Studio manca {buchiStudio.join(', ')}:{' '}
+                      <button onClick={() => setStudioAperto(true)} className="underline">scrivili una volta sola</button>.
+                    </>
+                  )}
+                </span>
               )}
               <button onClick={() => salva(false)} disabled={!!lavoro} className="rounded-full border border-bordo bg-white px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy disabled:opacity-40">Salva bozza</button>
               <button onClick={() => salva(true)} disabled={!!lavoro || manca.length > 0 || bozza.voci.length === 0}

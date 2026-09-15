@@ -307,7 +307,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                           <span className={`block leading-snug ${stile === 'chat' ? 'text-sm' : 'text-[14px] font-bold'}`}>{stile === 'chat' ? aParole(pr) : pr.titolo}</span>
                           {stile === 'posta' && <span className="block truncate text-xs text-tenue">{pr.perche}</span>}
                         </span>
-                        <span className={`mt-1 shrink-0 text-[11px] text-spento transition-transform ${aperto ? 'rotate-90' : ''}`}>▸</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                             className={`mt-1 h-3 w-3 shrink-0 text-spento transition-transform ${aperto ? 'rotate-90' : ''}`}>
+                          <path d="M9 6l6 6-6 6" />
+                        </svg>
                       </button>
                       {aperto && (
                         <div className={stile === 'chat' ? 'salta-su pt-2' : 'salta-su px-5 pb-4 pl-10'}>
@@ -513,7 +516,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // la presenza (Dre, 9/9): cosa sta facendo Clara adesso, in una riga, come una collega
   const bozzeAperte = proposte.filter((p) => p.tipo === 'risposta' || p.tipo === 'umano').length
   const presenza = pensa ? 'Sto pensando…'
-    : bozzeAperte > 0 ? `Ho ${bozzeAperte} bozz${bozzeAperte === 1 ? 'a' : 'e'} pronte per te`
+    : bozzeAperte > 0 ? `Ho ${bozzeAperte} bozz${bozzeAperte === 1 ? 'a pronta' : 'e pronte'} per te`
     : proposte.length > 0 ? `Ho ${proposte.length} cos${proposte.length === 1 ? 'a' : 'e'} da chiederti`
     : nonLetti.length > 0 ? `${nonLetti.length} messagg${nonLetti.length === 1 ? 'io' : 'i'} da leggere`
     : 'Tutto letto, ti aspetto'

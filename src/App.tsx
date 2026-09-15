@@ -17,9 +17,17 @@ import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
 // dopo un aggiornamento il pezzo vecchio non esiste piu': si ricarica una volta
 // sola invece di lasciare lo schermo bianco (QA backend, 14/9)
+// Il segno restava scritto per sempre: dopo il primo aggiornamento della
+// giornata, il secondo lasciava la pagina inceppata (QA browser, 15/9).
+// Adesso vale un minuto: una ricarica sola per volta, e se il pezzo manca
+// davvero se ne accorge la rete e lo dice.
 function pezzo<T>(carica: () => Promise<T>) {
   return () => carica().catch((e) => {
-    if (!sessionStorage.getItem('ricaricato')) { sessionStorage.setItem('ricaricato', '1'); location.reload() }
+    const ultima = Number(sessionStorage.getItem('ricaricato') ?? 0)
+    if (Date.now() - ultima > 60_000) {
+      sessionStorage.setItem('ricaricato', String(Date.now()))
+      location.reload()
+    }
     throw e
   }) as Promise<T>
 }

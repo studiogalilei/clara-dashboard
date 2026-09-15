@@ -8,6 +8,9 @@ const oggi = new Date()
 const gg = (n: number) => new Date(oggi.getTime() - n * 86400000).toISOString()
 const fra = (n: number) => new Date(oggi.getTime() + n * 86400000).toISOString()
 const data = (n: number) => gg(n).slice(0, 10)
+// n ore fa: i messaggi della demo devono restare sempre prima di quelli
+// che scrivi tu adesso (QA browser, 15/9)
+const oreFa = (n: number) => new Date(Date.now() - n * 3600000).toISOString()
 
 const vuoto = {
   role: null, phone: null, linkedin: null, website: null, owner_name: null,
@@ -23,7 +26,7 @@ export const prospects: Prospect[] = [
   {
     ...vuoto, id: 'p1', sg_id: 127, email: 'ufficio@x-holding.it', name: null,
     company: 'Serenergy', website: 'serenergy.it', sector: 'fotovoltaico_casa',
-    city: 'Padova', campaign: 'Casa 2 — fotovoltaico',
+    city: 'Padova', campaign: 'Casa 2, fotovoltaico',
     descrizione: 'Installano fotovoltaico sulle case private in provincia di Padova. Scrive dalla casella dell’ufficio, il nome del titolare non compare.',
     stage: 'analisi_inviata', classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(49), last_reply_at: gg(53),
@@ -32,7 +35,7 @@ export const prospects: Prospect[] = [
   {
     ...vuoto, id: 'p2', sg_id: 84, email: 'info@primarysecuritykey.it', name: 'Marco R.',
     company: 'Primary Security Key', sector: 'serramenti', city: 'Vicenza',
-    campaign: 'Casa 1 — serramenti', stage: 'analisi_inviata',
+    campaign: 'Casa 1, serramenti', stage: 'analisi_inviata',
     classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(63), last_reply_at: gg(67),
     updated_at: gg(2),
@@ -40,7 +43,7 @@ export const prospects: Prospect[] = [
   {
     ...vuoto, id: 'p3', sg_id: 133, email: 'amministrazione@apiemme.it', name: 'Paolo A.',
     company: 'Apiemme Engineering', sector: 'fotovoltaico_casa', city: 'Treviso',
-    campaign: 'Casa 2 — fotovoltaico', stage: 'in_follow_up',
+    campaign: 'Casa 2, fotovoltaico', stage: 'in_follow_up',
     classificazione: 'rinvio', awaiting_us: false, ooo_until: data(3),
     analysis_sent: true, analysis_sent_at: gg(40), last_reply_at: gg(12),
     notes: 'Era in ospedale: delicato, niente pressione.', updated_at: gg(3),
@@ -48,7 +51,7 @@ export const prospects: Prospect[] = [
   {
     ...vuoto, id: 'p4', sg_id: 156, email: 'segreteria@ceritalia.it', name: 'Lucia B.',
     company: 'CER Italia', sector: 'fotovoltaico_casa', city: 'Verona',
-    campaign: 'Casa 2 — fotovoltaico', stage: 'risposto',
+    campaign: 'Casa 2, fotovoltaico', stage: 'risposto',
     classificazione: 'tiepido', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(1),
     updated_at: gg(0),
@@ -67,7 +70,7 @@ export const prospects: Prospect[] = [
   {
     ...vuoto, id: 'p6', sg_id: 98, email: 'info@zenisicurezza.it', name: 'Alberto Zeni',
     company: 'Zeni Sicurezza', website: 'zenisicurezza.it',
-    sector: 'serramenti', city: 'Belluno', campaign: 'Casa 1 — serramenti',
+    sector: 'serramenti', city: 'Belluno', campaign: 'Casa 1, serramenti',
     stage: 'call_fissata', classificazione: 'rinvio', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(45), last_reply_at: gg(29),
     fuori: true, fuori_at: gg(28), pipeline_stage: 'conoscitiva',
@@ -75,7 +78,7 @@ export const prospects: Prospect[] = [
   },
   {
     ...vuoto, id: 'p7', sg_id: 12, email: 'amministrazione@klavzar.it', name: 'Klavzar',
-    company: 'Klavzar', sector: null, city: 'Gorizia', campaign: '—',
+    company: 'Klavzar', sector: null, city: 'Gorizia', campaign: null,
     stage: 'cliente', classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(120), last_reply_at: gg(20),
     fuori: true, fuori_at: gg(90), pipeline_stage: 'cliente',
@@ -84,7 +87,7 @@ export const prospects: Prospect[] = [
   {
     ...vuoto, id: 'p8', sg_id: 158, email: 'info@bimoutgroup.com', name: null,
     company: 'Bimout Group', sector: 'carpenteria_metallica', city: 'Pordenone',
-    campaign: 'Casa 1 — serramenti', stage: 'risposto',
+    campaign: 'Casa 1, serramenti', stage: 'risposto',
     classificazione: 'positivo', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(2),
     updated_at: gg(0),
@@ -95,7 +98,7 @@ export const interactions: Interaction[] = [
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },
   { id: 'i2', prospect_id: 'p1', at: gg(64), kind: 'email_out', body: 'Secondo tentativo' },
   { id: 'i3', prospect_id: 'p1', at: gg(53), kind: 'email_out', body: '«Chiudo qui se non è il momento»' },
-  { id: 'i4', prospect_id: 'p1', at: gg(53), kind: 'email_in', body: '«Sentiamo» — da qui diventa prospect' },
+  { id: 'i4', prospect_id: 'p1', at: gg(53), kind: 'email_in', body: '«Sentiamo»: da qui diventa prospect' },
   { id: 'i5', prospect_id: 'p1', at: gg(49), kind: 'analisi', body: 'Analisi inviata, con la presentazione dello studio' },
   { id: 'i6', prospect_id: 'p5', at: gg(37), kind: 'email_out', body: 'Prima mail' },
   { id: 'i7', prospect_id: 'p5', at: gg(37), kind: 'email_in', body: 'Anna: «Sì, volentieri»' },
@@ -178,33 +181,33 @@ export const agenda: AgendaItem[] = [
 
 export const clara_messaggi = [
   {
-    id: 0, at: gg(0).slice(0, 11) + '08:00:05', tipo: 'saluto', letto: true, prospect_id: null,
+    id: 0, at: oreFa(6), tipo: 'saluto', letto: true, prospect_id: null,
     testo: 'Buongiorno Dre. Giornata leggera: una call domani, oggi si chiude la coda.',
   },
   {
-    id: 1, at: gg(0).slice(0, 11) + '08:00:00', tipo: 'brief', letto: true, prospect_id: null,
-    testo: 'Buongiorno Dre. Il punto di oggi:\n• 15:00: Conoscitiva, Venice Design Week (domani, ti preparo il foglio)\n• In coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io. Il resto è nella sezione Task.',
+    id: 1, at: oreFa(6.1), tipo: 'brief', letto: true, prospect_id: null,
+    testo: 'Buongiorno Dre. Il punto di oggi:\n15:00: Conoscitiva, Venice Design Week (domani, ti preparo il foglio)\nIn coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io, il resto sta in Oggi.',
   },
   {
-    id: 2, at: gg(0).slice(0, 11) + '08:00:10', tipo: 'promemoria', letto: false, prospect_id: 'p7',
+    id: 2, at: oreFa(5.9), tipo: 'promemoria', letto: false, prospect_id: 'p7',
     testo: 'Klavzar: giorno 52 di 60 del periodo di prova. Prepariamo il rinnovo?',
   },
   {
-    id: 3, at: gg(0).slice(0, 11) + '08:00:20', tipo: 'domanda', letto: false, prospect_id: 'p1',
+    id: 3, at: oreFa(5.8), tipo: 'domanda', letto: false, prospect_id: 'p1',
     testo: 'Serenergy tace da 49 giorni dopo l\'analisi. Lo tengo nel follow-up del 1° settembre o lo lasciamo andare?',
   },
   {
-    id: 5, at: gg(0).slice(0, 11) + '10:15:00', tipo: 'domanda', letto: false, prospect_id: 'p4',
+    id: 5, at: oreFa(3), tipo: 'domanda', letto: false, prospect_id: 'p4',
     testo: 'Ciao Dre, ho visto che su Smartlead hai fissato una call con CER Italia, però in Calendar non vedo nulla. Vuoi che la preparo io?',
   },
   {
-    id: 4, at: gg(1).slice(0, 11) + '18:30:00', tipo: 'controllo', letto: true, prospect_id: null,
+    id: 4, at: oreFa(14), tipo: 'controllo', letto: true, prospect_id: null,
     testo: 'Controllati gli invii di ieri: tutti consegnati, nessun bounce. Le caselle sono in salute.',
   },
 ]
 
 export const vault_file = [
-  { id: 1, at: gg(4), nome: 'Analisi Google Ads — Serenergy', path: 'demo/analisi-serenergy.pdf', mime: 'application/pdf', dimensione: 482000, prospect_id: 'p1' },
+  { id: 1, at: gg(4), nome: 'Analisi Google Ads, Serenergy', path: 'demo/analisi-serenergy.pdf', mime: 'application/pdf', dimensione: 482000, prospect_id: 'p1' },
   { id: 2, at: gg(1), nome: 'Contratto Klavzar firmato', path: 'demo/contratto-klavzar.pdf', mime: 'application/pdf', dimensione: 130000, prospect_id: 'p7' },
 ]
 
@@ -269,7 +272,32 @@ const incassi: Riga[] = [
     descrizione: 'Modifiche sito', prospect_id: 'p3', preventivo_id: null, letto_il: gg(0) },
 ]
 
+// le cose da decidere: la Posta di Clara della demo. Senza, la pagina
+// diceva «niente da chiedere» mentre la pallina aveva tre messaggi, e
+// sembrava un errore (QA browser, 15/9)
+const proposte: Riga[] = [
+  {
+    id: 1, at: oreFa(2), tipo: 'risposta', stato: 'aperta', prospect_id: 'p4', owner: null,
+    titolo: 'CER Italia: risposta pronta',
+    perche: 'Ha chiesto quanto costa. Gli propongo la call conoscitiva di giovedì.',
+    azione: { bozza: 'Buongiorno,\n\ngrazie del riscontro. Le propongo una call giovedì alle 15, mezz\'ora: le mostro i numeri della sua zona e le dico cosa faremmo, senza impegno.\n\nSe le va bene, le mando l\'invito.\n\nUn saluto', template: 'INT-CALL' },
+  },
+  {
+    id: 2, at: oreFa(4), tipo: 'avanza', stato: 'aperta', prospect_id: 'p7', owner: null,
+    titolo: 'Klavzar: giorno 52 dei 60 di prova, preparo il rinnovo?',
+    perche: 'La prova finisce fra otto giorni e il canone stabile è già nel preventivo accettato.',
+    azione: { task: { titolo: 'Chiamare Klavzar per il rinnovo' } },
+  },
+  {
+    id: 3, at: oreFa(5), tipo: 'classifica', stato: 'aperta', prospect_id: 'p1', owner: null,
+    titolo: 'Serenergy tace da 49 giorni: lo lascio andare?',
+    perche: 'Analisi mandata il 28 luglio, due follow-up, nessuna risposta.',
+    azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
+  },
+]
+
 const TABELLE: Record<string, Riga[]> = {
+  proposte,
   sync_runs,
   listino,
   preventivi,

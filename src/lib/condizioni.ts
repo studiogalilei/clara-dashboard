@@ -31,9 +31,9 @@ export const STUDIO_VUOTO: DatiStudio = { iva: 22, giorni: 15, preavviso: 30 }
 
 export function mancaStudio(d: DatiStudio): string[] {
   const buchi: string[] = []
-  if (!d.ragione?.trim()) buchi.push('la ragione sociale dello Studio')
-  if (!d.piva?.trim()) buchi.push('la partita IVA dello Studio')
-  if (!d.indirizzo?.trim()) buchi.push('la sede dello Studio')
+  if (!d.ragione?.trim()) buchi.push('la ragione sociale')
+  if (!d.piva?.trim()) buchi.push('la partita IVA')
+  if (!d.indirizzo?.trim()) buchi.push('la sede')
   return buchi
 }
 export const unaTantum = (voci: Voce[]) => voci.filter((v) => v.ricorrenza === 'una_tantum').reduce((t, v) => t + v.quantita * v.prezzo, 0)
