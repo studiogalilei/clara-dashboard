@@ -60,11 +60,18 @@ class Impaginatore {
   y = 0
   n = 0                 // numero di pagina di contenuto
   usata = false         // c'e' gia' qualcosa su questa pagina?
+  // IL SEGNO A PENNARELLO (regole dei documenti): la sottolineatura sotto il
+  // titolo di pagina, il tratto corto in chiusura. Uno per pagina: si nota
+  // perche' e' raro, e sui documenti formali non c'e' proprio.
+  segnoSotto?: PDFImage
+  segnoTratto?: PDFImage
+  segnato = false       // gia' segnata questa pagina?
   readonly doc: Documento
   constructor(doc: Documento) { this.doc = doc }
 
   nuovaPagina(prima = false) {
     this.page = this.pdf.addPage([A4.w, A4.h])
+    this.segnato = false
     this.n += 1
     this.y = A4.h - MARG.alto
     this.usata = false
@@ -128,7 +135,18 @@ class Impaginatore {
         this.y -= 7.4 + 3 * MM
         break
       }
-      case 'h1': this.paragrafo(b.testo, 22, this.sb, NERO, 145 * MM, MARG.sinistra, 4 * MM); break
+      case 'h1': {
+        this.paragrafo(b.testo, 22, this.sb, NERO, 145 * MM, MARG.sinistra, 4 * MM)
+        // la mano che passa sotto il titolo: larga circa meta' del titolo
+        if (this.segnoSotto && !this.segnato) {
+          const largo = Math.min(145 * MM, this.sb.widthOfTextAtSize(b.testo, 22)) * 0.5
+          const alto = largo * (this.segnoSotto.height / this.segnoSotto.width)
+          pg().drawImage(this.segnoSotto, { x: MARG.sinistra, y: this.y + 2.5 * MM, width: largo, height: alto })
+          this.segnato = true
+          this.y -= alto * 0.6
+        }
+        break
+      }
       case 'h2': {
         this.serve(12 * INTERLINEA + 4 * MM + 3 * CORPO * INTERLINEA)
         this.y -= 4 * MM
@@ -334,6 +352,11 @@ export async function generaPdf(doc: Documento, r: Risorse): Promise<Uint8Array>
   imp.reg = await imp.pdf.embedFont(r.regular, { subset: true })
   imp.sb = await imp.pdf.embedFont(r.semibold, { subset: true })
   imp.logo = await imp.pdf.embedPng(r.logo)
+  // i documenti formali (condizioni economiche, contratti) restano sobri
+  if (!doc.formale && r.segni) {
+    if (r.segni.sottolineatura) imp.segnoSotto = await imp.pdf.embedPng(r.segni.sottolineatura)
+    if (r.segni.tratto) imp.segnoTratto = await imp.pdf.embedPng(r.segni.tratto)
+  }
   imp.pdf.setTitle(doc.copertina?.titolo ?? doc.tipo)
   imp.pdf.setAuthor('Studio Galilei')
   imp.pdf.setProducer('SG Workspace')
@@ -343,6 +366,13 @@ export async function generaPdf(doc: Documento, r: Risorse): Promise<Uint8Array>
   }
   imp.nuovaPagina(true)
   for (const b of doc.blocchi) imp.blocco(b)
+  if (imp.segnoTratto) {
+    // il tratto che chiude: in fondo all'ultima pagina, sopra la firma
+    const largo = 26 * MM
+    const alto = largo * (imp.segnoTratto.height / imp.segnoTratto.width)
+    const y = Math.max(MARG.basso + 4 * MM, imp.y - 6 * MM)
+    imp.page.drawImage(imp.segnoTratto, { x: MARG.sinistra, y, width: largo, height: alto })
+  }
   if (doc.piede) {
     const t = doc.piede
     const y = MARG.basso - 6 * MM

@@ -174,6 +174,7 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
     { titolo: 'Per il cliente', righe: [f.ragione || azienda, '', 'Luogo e data', '', 'Nome, ruolo e firma'] },
     { titolo: 'Per lo Studio', righe: [studio.ragione || 'Studio Galilei', '', 'Luogo e data', '', studio.firmatario || 'Nome, ruolo e firma'] },
   ] })
-  return { tipo: 'Condizioni economiche', blocchi: b, piede: oggi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) }
+  // formale: e' il documento che si firma, niente segni a pennarello sopra
+  return { tipo: 'Condizioni economiche', formale: true, blocchi: b, piede: oggi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) }
 }
 

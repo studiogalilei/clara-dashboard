@@ -83,8 +83,14 @@ export function caricaRisorse(): Promise<Risorse> {
   if (!risorse) {
     const base = import.meta.env.BASE_URL
     const prendi = (u: string) => fetch(base + u).then((r) => { if (!r.ok) throw new Error(`manca ${u}`); return r.arrayBuffer() })
-    risorse = Promise.all([prendi('fonts/Poppins-Regular.ttf'), prendi('fonts/Poppins-SemiBold.ttf'), prendi('brand/SG_logo_blu.png')])
-      .then(([regular, semibold, logo]) => ({ regular, semibold, logo }))
+    // i segni a pennarello sono un di piu': se mancano il PDF esce lo stesso
+    const forse = (u: string) => prendi(u).catch(() => undefined)
+    risorse = Promise.all([
+      prendi('fonts/Poppins-Regular.ttf'), prendi('fonts/Poppins-SemiBold.ttf'), prendi('brand/SG_logo_blu.png'),
+      forse('brand/sg-segno-sottolineatura.png'), forse('brand/sg-segno-tratto.png'), forse('brand/sg-segno-spunta.png'),
+    ]).then(([regular, semibold, logo, sottolineatura, tratto, spunta]) => ({
+      regular, semibold, logo, segni: { sottolineatura, tratto, spunta },
+    }))
     risorse.catch(() => { risorse = null })
   }
   return risorse

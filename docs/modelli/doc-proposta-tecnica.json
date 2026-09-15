@@ -1,0 +1,93 @@
+{
+  "tipo": "Proposta tecnica",
+  "copertina": {
+    "linea": "software",
+    "occhiello": "proposta tecnica",
+    "titolo": "[Nome del sistema]",
+    "sottotitolo": "Cosa costruiamo, in che ordine, e cosa serve da voi.",
+    "cliente": "[Nome azienda]",
+    "riferimento": "SG-SW-2026-000",
+    "data": "[mese anno]"
+  },
+  "blocchi": [
+    { "tipo": "kicker", "testo": "il punto di partenza" },
+    { "tipo": "h1", "testo": "Da dove nasce" },
+    { "tipo": "p", "testo": "[Due o tre righe con il problema scritto come lo direbbero loro, non come lo diremmo noi. Se una frase l'hanno detta in call, si usa quella.]" },
+    { "tipo": "p", "testo": "[Cosa succede oggi senza il sistema: il giro a mano, il tempo che ci vuole, dove si perdono le cose. È il metro con cui si misurerà se ha funzionato.]" },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "riquadro", "titolo": "COSA MISURIAMO", "voci": [
+      "[Il numero di partenza, con la data in cui è stato preso]",
+      "[Dove vogliamo arrivare, e in quanto tempo]",
+      "[Chi guarda quel numero, e ogni quanto]"
+    ]},
+    { "tipo": "pagina" },
+
+    { "tipo": "kicker", "testo": "come funziona" },
+    { "tipo": "h1", "testo": "L'impianto" },
+    { "tipo": "p", "testo": "[Come è fatto il sistema, in parole che capisce chi non scrive codice. Tre o quattro frasi: cosa entra, cosa succede, cosa esce, dove restano i dati.]" },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "I pezzi" },
+    { "tipo": "tabella",
+      "colonne": [
+        { "testo": "Pezzo", "larghezza": 30 },
+        { "testo": "Cosa fa", "larghezza": 46 },
+        { "testo": "Dove vive", "larghezza": 24 }
+      ],
+      "righe": [
+        [{ "testo": "[Nome]", "forte": true }, { "testo": "[Una riga]" }, { "testo": "[Servizio]" }],
+        [{ "testo": "[Nome]", "forte": true }, { "testo": "[Una riga]" }, { "testo": "[Servizio]" }],
+        [{ "testo": "[Nome]", "forte": true }, { "testo": "[Una riga]" }, { "testo": "[Servizio]" }]
+      ]
+    },
+    { "tipo": "p", "piccolo": true, "testo": "Il codice e i dati restano vostri. Gli account dei servizi sono intestati a voi: noi ci lavoriamo dentro, non li teniamo in ostaggio." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "h2", "testo": "Cosa non fa" },
+    { "tipo": "elenco", "voci": [
+      "[Il confine chiaro: cosa questo sistema non risolve, e cosa resta a mano.]",
+      "[Le integrazioni fuori dal perimetro, con il perché.]"
+    ]},
+    { "tipo": "pagina" },
+
+    { "tipo": "kicker", "testo": "in che ordine" },
+    { "tipo": "h1", "testo": "Le tappe" },
+    { "tipo": "p", "testo": "Si consegna a pezzi che funzionano, non tutto alla fine. Ogni tappa è una cosa che potete usare, e dopo ognuna si decide se il pezzo dopo ha ancora senso così com'era scritto." },
+    { "tipo": "tappe", "tappe": [
+      { "quando": "Settimana 1", "titolo": "[Nome della tappa]", "testo": "[Cosa vedete alla fine di questa tappa, in una frase. Non «analisi»: qualcosa che si apre e si guarda.]" },
+      { "quando": "Settimane 2 e 3", "titolo": "[Nome della tappa]", "testo": "[Cosa vedete alla fine.]" },
+      { "quando": "Settimana 4", "titolo": "[Nome della tappa]", "testo": "[Cosa vedete alla fine.]" }
+    ]},
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "h2", "testo": "Cosa serve da voi" },
+    { "tipo": "tabella",
+      "colonne": [
+        { "testo": "Cosa", "larghezza": 46 },
+        { "testo": "Chi lo dà", "larghezza": 30 },
+        { "testo": "Entro", "larghezza": 24, "destra": true }
+      ],
+      "righe": [
+        [{ "testo": "[Accessi: hosting, dominio, account]", "forte": true }, { "testo": "[Nome]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[Le decisioni che spettano a voi]", "forte": true }, { "testo": "[Nome]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[Contenuti, testi, immagini]", "forte": true }, { "testo": "[Nome]" }, { "testo": "[gg/mm]" }]
+      ]
+    },
+    { "tipo": "p", "piccolo": true, "testo": "Ogni giorno di ritardo su queste tre righe è un giorno di ritardo sulla consegna: non è una clausola, è come stanno le cose." },
+    { "tipo": "spazio", "mm": 4 },
+
+    { "tipo": "h2", "testo": "Dopo la consegna" },
+    { "tipo": "due_colonne",
+      "sinistra": { "titolo": "INCLUSO PER 30 GIORNI", "voci": [
+        "Le correzioni di quello che non funziona come scritto qui",
+        "Una call per spiegare il sistema a chi lo userà",
+        "Le istruzioni scritte, dentro il sistema"
+      ]},
+      "destra": { "titolo": "A PARTE", "voci": [
+        "Le cose nuove che non sono in queste pagine",
+        "I canoni dei servizi, intestati a voi",
+        "La manutenzione continua, che ha un suo accordo"
+      ]}
+    },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "p", "testo": "I prezzi e i tempi di pagamento stanno nelle Condizioni economiche, il documento che si firma. Questo racconta cosa costruiamo, quello dice quanto costa." }
+  ],
+  "piede": "[mese anno]"
+}

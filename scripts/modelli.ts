@@ -26,6 +26,11 @@ const risorse: Risorse = {
   semibold: readFileSync(join(pub, 'fonts', 'Poppins-SemiBold.ttf')),
   logo: readFileSync(join(pub, 'brand', 'SG_logo_blu.png')),
   logoBianco: readFileSync(join(pub, 'brand', 'SG_logo_bianco.png')),
+  segni: {
+    sottolineatura: readFileSync(join(pub, 'brand', 'sg-segno-sottolineatura.png')),
+    spunta: readFileSync(join(pub, 'brand', 'sg-segno-spunta.png')),
+    tratto: readFileSync(join(pub, 'brand', 'sg-segno-tratto.png')),
+  },
   sfondi: {
     marketing: readFileSync(join(pub, 'brand', 'sg-sfondo-marketing.png')),
     ai: readFileSync(join(pub, 'brand', 'sg-sfondo-ai.png')),

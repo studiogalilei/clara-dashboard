@@ -35,6 +35,9 @@ export interface Documento {
   copertina?: Copertina    // solo se il documento VENDE; se consegna, carta bianca
   blocchi: Blocco[]
   piede?: string           // in fondo all'ultima pagina, a destra: «settembre 2026»
+  // i contratti e le condizioni economiche non portano il segno a pennarello:
+  // li' serve sobrieta' assoluta (regole dei documenti, «Il segno a pennarello»)
+  formale?: boolean
 }
 
 export interface Risorse {
@@ -43,6 +46,10 @@ export interface Risorse {
   logo: ArrayBuffer | Uint8Array               // PNG, il logo blu
   logoBianco?: ArrayBuffer | Uint8Array        // PNG, il logo bianco per le copertine
   sfondi?: Partial<Record<Linea, ArrayBuffer | Uint8Array>>   // PNG delle copertine senza testo
+  // IL SEGNO A PENNARELLO: «il segno distintivo dei documenti SG verso i
+  // clienti, come se una persona fosse passata sul documento a mano». Si nota
+  // perche' e' raro: al massimo due per pagina, mai sui documenti formali.
+  segni?: { sottolineatura?: ArrayBuffer | Uint8Array; spunta?: ArrayBuffer | Uint8Array; tratto?: ArrayBuffer | Uint8Array }
 }
 
 // ── il controllo del tono (tono/check_tono.py, in TypeScript) ──────────

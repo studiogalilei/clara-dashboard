@@ -14,6 +14,7 @@ NOMI = {
     "sg-studio-di-mercato-agriverse.pdf": ("Studio di mercato (esempio Agriverse)", "un esempio vero di studio di mercato, a sette mosse"),
     "sg-report-mensile.pdf": ("Report mensile (modello)", "quello che ogni specialist manda al cliente entro il 5 del mese"),
     "sg-verbale-call.pdf": ("Verbale di call (modello)", "cosa si e' deciso, chi fa cosa entro quando"),
+    "sg-proposta-tecnica.pdf": ("Proposta tecnica (modello)", "per i lavori software: cosa costruiamo, in che ordine, cosa serve da voi"),
 }
 
 def metti(locale, remoto):
