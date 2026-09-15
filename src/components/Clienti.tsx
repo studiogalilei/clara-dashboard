@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { sonoCeo } from '../lib/accessi'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { Card, Spinner, Faccia, sgid, fmtDateShort } from './ui'
@@ -45,6 +46,7 @@ function Elenco({ onOpen }: Props) {
   const [clienti, setClienti] = useState<Riga[] | null>(null)
   const [progetti, setProgetti] = useState<Progetto[]>([])
   const [preventivi, setPreventivi] = useState<Preventivo[]>([])
+  const [vedoSoldi, setVedoSoldi] = useState(false)
   const [incassi, setIncassi] = useState<Incasso[]>([])
   const [aperto, setAperto] = useState<string | null>(null)
 
@@ -53,6 +55,7 @@ function Elenco({ onOpen }: Props) {
       .then(({ data }) => setClienti((data as Riga[]) ?? []))
     supabase.from('progetti').select('*').limit(1000).then(({ data }) => setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)))
     supabase.from('preventivi').select('*').limit(2000).then(({ data }) => setPreventivi((data as Preventivo[]) ?? []))
+    void sonoCeo().then(setVedoSoldi)
     supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')
       .order('quando', { ascending: false }).limit(1000).then(({ data }) => setIncassi((data as Incasso[]) ?? []))
   }, [])
@@ -62,7 +65,6 @@ function Elenco({ onOpen }: Props) {
   const ordine: Record<string, number> = { cliente: 0, prova: 1, avvio: 2 }
   const lista = [...clienti].sort((a, b) => (ordine[a.pipeline_stage ?? ''] ?? 9) - (ordine[b.pipeline_stage ?? ''] ?? 9)
     || (a.company || a.name || '').localeCompare(b.company || b.name || ''))
-  const vedoSoldi = preventivi.length > 0 || incassi.length > 0
   const retainer = lista.filter((c) => c.pipeline_stage === 'cliente').reduce((t, c) => t + (Number(c.canone) || 0), 0)
 
   return (
@@ -73,7 +75,7 @@ function Elenco({ onOpen }: Props) {
         <span className="text-sm font-semibold text-tenue">
           {lista.filter((c) => c.pipeline_stage === 'cliente').length} a retainer, {lista.filter((c) => c.pipeline_stage === 'prova').length} in prova, {lista.filter((c) => c.pipeline_stage === 'avvio').length} in avvio
         </span>
-        {retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese di retainer</span>}
+        {vedoSoldi && retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese di retainer</span>}
       </div>
 
       {lista.length === 0 && <Card><p className="px-4 py-6 text-center text-sm text-spento">Nessun cliente ancora. Arrivano da Pipeline, con «Avanza» sulla scheda.</p></Card>}
@@ -104,7 +106,7 @@ function Elenco({ onOpen }: Props) {
                 </p>
               </div>
               <div className="hidden shrink-0 text-right sm:block">
-                {c.canone != null && <p className="text-sm font-bold tabular-nums">{Number(c.canone).toLocaleString('it-IT')} € <span className="text-xs font-semibold text-tenue">al mese</span></p>}
+                {vedoSoldi && c.canone != null && <p className="text-sm font-bold tabular-nums">{Number(c.canone).toLocaleString('it-IT')} € <span className="text-xs font-semibold text-tenue">al mese</span></p>}
                 {abb && <p className="text-[11px] text-green-800">{Math.round(mensile(abb)).toLocaleString('it-IT')} € su Stripe{abb.prossimo_il ? `, prossimo ${fmtDateShort(abb.prossimo_il.slice(0, 10))}` : ''}</p>}
               </div>
               <span className={`shrink-0 text-spento transition-transform ${apertoQui ? 'rotate-90' : ''}`} aria-hidden>›</span>
@@ -159,7 +161,7 @@ function Elenco({ onOpen }: Props) {
                       </ul>
                     </>
                   ) : (
-                    <p className="text-sm text-spento">Preventivi e pagamenti li vedono Dre e Giacomo.</p>
+                    <p className="text-sm text-spento">I soldi li vedono Dre e Giacomo.</p>
                   )}
                 </div>
                 <div className="md:col-span-2">

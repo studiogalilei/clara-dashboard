@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { sonoCeo } from '../lib/accessi'
 import { Card, Spinner, Micro, Cella, Faccia, sgid, type FacciaP } from './ui'
 import { giorno } from '../lib/regole'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
@@ -72,8 +73,10 @@ export default function Progetti({ onOpen }: Props) {
   const [menuRiga, setMenuRiga] = useState<number | null>(null)  // il menu ⋯ della riga
   const [chiusi, setChiusi] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
+  const [vedoSoldi, setVedoSoldi] = useState(false)
 
   useEffect(() => {
+    void sonoCeo().then(setVedoSoldi)
     supabase.from('progetti').select('*')
       .order('data_inizio', { ascending: true, nullsFirst: false }).order('id', { ascending: true }).limit(300)
       .then(({ data, error }) => {
@@ -189,7 +192,7 @@ export default function Progetti({ onOpen }: Props) {
         </td>
         <td className=""><Cella valore={p.nome} su={(v) => campo(p, 'nome', v)} placeholder="cosa gli facciamo" /></td>
         <td className=""><Cella tipo="date" valore={p.data_inizio ?? ''} su={(v) => campo(p, 'data_inizio', v)} className="tabular-nums" /></td>
-        <td className=""><Cella tipo="number" valore={p.valore == null ? '' : String(p.valore)} su={(v) => campo(p, 'valore', v)} className="text-right tabular-nums" placeholder="€" /></td>
+        {vedoSoldi && <td className=""><Cella tipo="number" valore={p.valore == null ? '' : String(p.valore)} su={(v) => campo(p, 'valore', v)} className="text-right tabular-nums" placeholder="€" /></td>}
         <td className="px-1">
           <select
             value={p.tipo ?? ''}
@@ -227,7 +230,7 @@ export default function Progetti({ onOpen }: Props) {
         <th className="sticky left-0 z-10 min-w-[220px] bg-velo/60 px-3 py-2.5 backdrop-blur">Cliente</th>
         <th className="min-w-[150px] px-3 py-2.5">Progetto</th>
         <th className="min-w-[130px] px-3 py-2.5">Inizio</th>
-        <th className="min-w-[90px] px-3 py-2.5 text-right">Prezzo</th>
+        {vedoSoldi && <th className="min-w-[90px] px-3 py-2.5 text-right">Prezzo</th>}
         <th className="min-w-[130px] px-3 py-2.5">Stato</th>
         <th className="min-w-[100px] px-3 py-2.5">Chi segue</th>
         <th className="min-w-[130px] px-3 py-2.5">Scadenza</th>
@@ -248,9 +251,11 @@ export default function Progetti({ onOpen }: Props) {
       )}
 
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-3">
-        <span className="text-xl font-extrabold tabular-nums">{retainer.toLocaleString('it-IT')} €</span>
-        <Micro>di retainer al mese</Micro>
-        <span className="text-sm font-semibold text-tenue">{totale.toLocaleString('it-IT')} € in tutto, {vivi.length} progett{vivi.length === 1 ? 'o' : 'i'} in corso</span>
+        {vedoSoldi && <>
+          <span className="text-xl font-extrabold tabular-nums">{retainer.toLocaleString('it-IT')} €</span>
+          <Micro>di retainer al mese</Micro>
+        </>}
+        <span className="text-sm font-semibold text-tenue">{vedoSoldi ? `${totale.toLocaleString('it-IT')} € in tutto, ` : ''}{vivi.length} progett{vivi.length === 1 ? 'o' : 'i'} in corso</span>
         {vivi.some((p) => p.scadenza && p.scadenza < oggi) && (
           <span className="text-xs font-bold text-red-700">
             {vivi.filter((p) => p.scadenza && p.scadenza < oggi).length} oltre la scadenza

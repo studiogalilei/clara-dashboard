@@ -166,7 +166,8 @@ def valuta(p, zone, settori):
     testo = leggi_sito(sito)
     c = capisci(azienda, testo, settori)
     zona = zone.get((c.get("settore"), _norm(c.get("provincia")))) if c.get("settore") and c.get("provincia") else None
-    rec = recensioni(azienda, c.get("provincia", ""))
+    # le recensioni costano (SearchAPI): non si chiedono per chi e' gia' fuori
+    rec = None if c.get("esclusione") else recensioni(azienda, c.get("provincia", ""))
     v, motivo = verdetto(c, zona, rec)
     fit = {
         "verdetto": v, "motivo": motivo, "settore": c.get("settore"), "provincia": c.get("provincia"),
@@ -200,16 +201,20 @@ def main():
         righe = righe[:QUANTI]
     fatti = 0
     for p in righe:
-        fit = valuta(p, zone, settori)
         nome = p.get("company") or p.get("name") or p.get("email")
+        try:
+            fit = valuta(p, zone, settori)
+        except Exception as e:                      # noqa: BLE001
+            print(f"  {'?':8} {str(nome)[:34]:34} non valutata: {str(e)[:70]}")
+            continue
         print(f"  {fit['verdetto']:8} {nome[:34]:34} {fit.get('settore') or '?':24} {fit.get('provincia') or '?':14} {fit['motivo'][:70]}")
         if prova:
             continue
         patch = {"enriched": {**(p.get("enriched") or {}), "google_fit": fit}}
         if not p.get("sector") and fit.get("settore") and fit["settore"] != "altro":
             patch["sector"] = fit["settore"]
-        if not p.get("city") and fit.get("provincia"):
-            patch["city"] = fit["provincia"]
+        if not p.get("provincia_fit") and fit.get("provincia"):
+            pass    # la provincia sta dentro enriched.google_fit: «city» e' la citta', non la provincia
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
         fatti += 1
     print(f"google fit: {fatti} valutati, {len(righe)} nel giro")

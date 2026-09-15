@@ -52,6 +52,7 @@ INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 # scortese: quelli restano fuori, e' la regola sacra. Passa dalla Posta.
 QUANTI_GB = 5        # per giro, cosi' la Posta non si riempie
 GIORNI_GB = 45       # oltre, «l'avevamo gia' preparata» suona strano
+# «privacy» c'e' apposta: chi la nomina (anche solo in firma) non riceve niente
 NON_TOCCARE = re.compile(r"rimuov|cancell|non (vogliamo|voglio|desider)|non (ci|mi) contatt|non (ci|mi) scriv|privacy|gdpr|"
                          r"diffid|denunc|garante|spam|molest|smett|basta\b|lasciateci|lasciatemi|opt.?out|unsubscribe|disiscri", re.I)
 ISTRUZIONE_GB = """Scrivi la risposta a un'azienda che ci ha detto di NO in modo cortese (non
@@ -242,8 +243,12 @@ def main():
     mail_no = {(x.get("email") or "").lower() for x in soppresse}
     dom_no = {(x.get("domain") or "").lower() for x in soppresse if x.get("domain")}
     gb = 0
+    # a chi Dre ha gia' detto no, non si riscrive: la proposta rifiutata vale
+    # come risposta (prima tornava ogni giro, QA del 14/9)
+    rifiutate = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.chiusa&tipo=eq.risposta&limit=5000") or [])
+                 if x.get("prospect_id")}
     for p in negativi:
-        if gb >= QUANTI_GB or p["id"] in aperte or p.get("stage") in INTOCCABILI:
+        if gb >= QUANTI_GB or p["id"] in aperte or p["id"] in rifiutate or p.get("stage") in INTOCCABILI:
             continue
         testo = ultima.get(p["id"], "")
         mail = (p.get("email") or "").lower()
@@ -260,7 +265,11 @@ def main():
                  "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
         prompt = (ISTRUZIONE_GB + cervello.istruzione("chat") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
                   f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
-        grezzo = cervello._chiedi(prompt) or ""
+        try:
+            grezzo = cervello._chiedi(prompt) or ""
+        except Exception as e:                      # noqa: BLE001
+            print(f"  [GB] salto {nome}: il cervello non risponde ({str(e)[:80]})")
+            continue
         m = re.search(r"\n\s*-{3,}\s*\n", grezzo)
         if not m:
             continue

@@ -135,6 +135,8 @@ export default function Scheda({ id, onClose }: Props) {
   const [incassi, setIncassi] = useState<Incasso[]>([])          // da Stripe; vuoto per chi non vede i soldi
   const [preventivi, setPreventivi] = useState<Array<{ id: number; numero: string | null; titolo: string | null; importo: number | null; mensile: number | null; stato: string; pagato_il: string | null; inviato_il: string | null; pdf_path: string | null }>>([])
   const [ceo, setCeo] = useState(false)
+  // il canone non si inventa: e' quello del preventivo che ha accettato
+  const mensileDaPreventivo = preventivi.find((q) => q.stato === 'accettato' && q.mensile)?.mensile ?? null
   const [compila, setCompila] = useState<{ id: number; nome: string; path: string } | null>(null)
   const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
@@ -437,7 +439,7 @@ export default function Scheda({ id, onClose }: Props) {
     if (eCliente(p!)) {
       return p!.contratto === 'stable'
         ? `Cliente stabile${p!.canone ? `, ${fmtNum(Number(p!.canone))} € al mese` : ''}.`
-        : p!.contratto === 'prova' ? 'Cliente in periodo di prova (1.500 € × 2 mesi).' : 'Cliente: contratto da definire qui sotto.'
+        : p!.contratto === 'prova' ? `In periodo di prova${p!.prova_fine ? `, fino al ${fmtDateShort(p!.prova_fine)}` : ''}.` : 'Cliente: contratto da definire qui sotto.'
     }
     if (p!.awaiting_us) return `Ha scritto lui per ultimo (${fmtDateShort(p!.last_reply_at)}): aspetta la tua risposta.`
     if (p!.fuori && next) {
@@ -552,12 +554,12 @@ export default function Scheda({ id, onClose }: Props) {
                 <button
                   key={c}
                   onClick={async () => {
-                    await aggiorna({ contratto: c, canone: c === 'prova' ? 1500 : 1400 })
+                    await aggiorna(c === 'prova' ? { contratto: c } : { contratto: c, canone: p.canone ?? mensileDaPreventivo })
                     setAvanzataA(null)
                   }}
                   className="rounded-full border border-white/40 px-4 py-1.5 text-sm font-bold hover:bg-white/10"
                 >
-                  {c === 'prova' ? 'Prova, 1.500 € × 2' : 'Stable, 1.400 €/mese'}
+                  {c === 'prova' ? 'In prova' : `Stabile${mensileDaPreventivo ? `, ${fmtNum(mensileDaPreventivo)} €/mese` : ''}`}
                 </button>
               ))}
               </div>
@@ -1078,12 +1080,12 @@ export default function Scheda({ id, onClose }: Props) {
                   {(['prova', 'stable'] as const).map((c) => (
                     <button
                       key={c}
-                      onClick={() => aggiorna({ contratto: c, canone: c === 'prova' ? 1500 : 1400 })}
+                      onClick={() => aggiorna(c === 'prova' ? { contratto: c } : { contratto: c, canone: p.canone ?? mensileDaPreventivo })}
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
                         p.contratto === c ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-spento'
                       }`}
                     >
-                      {c === 'prova' ? 'Prova, 1.500 € × 2' : 'Stable, 1.400 €/mese'}
+                      {c === 'prova' ? 'In prova' : `Stabile${mensileDaPreventivo ? `, ${fmtNum(mensileDaPreventivo)} €/mese` : ''}`}
                     </button>
                   ))}
                 </div>

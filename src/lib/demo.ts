@@ -234,8 +234,46 @@ const progetti: Riga[] = [
     scadenza: data(60), valore: 350, stato: 'consegnato', note: null, owner: null },
 ]
 
+
+// I PREVENTIVI, IL LISTINO E GLI INCASSI (15/9): la squadra impara qui dentro,
+// quindi anche la pagina dei soldi deve avere qualcosa da mostrare
+const listino: Riga[] = [
+  { id: 1, nome: 'Fase pilota Google Ads, 2 mesi', descrizione: 'Due mesi di lavoro reale: analisi, impostazione, gestione e ottimizzazione sui dati.', prezzo: 1500, ricorrenza: 'una_tantum', linea: 'marketing', ordine: 1, attivo: true },
+  { id: 2, nome: 'Lavoro continuativo Google Ads', descrizione: 'Dal terzo mese: gestione, report periodici e call di allineamento.', prezzo: 1400, ricorrenza: 'mese', linea: 'marketing', ordine: 2, attivo: true },
+  { id: 3, nome: 'Sito web', descrizione: 'Progettazione, sviluppo e pubblicazione, con il tracciamento impostato.', prezzo: 800, ricorrenza: 'una_tantum', linea: 'software', ordine: 3, attivo: true },
+  { id: 4, nome: 'Landing page', descrizione: 'Una pagina di atterraggio per le campagne.', prezzo: 400, ricorrenza: 'una_tantum', linea: 'software', ordine: 4, attivo: true },
+]
+const preventivi: Riga[] = [
+  { id: 1, prospect_id: 'p7', progetto_id: null, numero: 'SG-MK-2026-001', linea: 'marketing', titolo: 'Fase pilota Google Ads, 2 mesi e Lavoro continuativo', importo: 1500, mensile: 1400,
+    voci: [{ nome: 'Fase pilota Google Ads, 2 mesi', quantita: 1, prezzo: 1500, ricorrenza: 'una_tantum' }, { nome: 'Lavoro continuativo Google Ads', quantita: 1, prezzo: 1400, ricorrenza: 'mese' }],
+    inviato_il: data(12), stato: 'accettato', accettato_il: data(5), rifiutato_il: null, motivo: null, pagato_il: data(4), pagamento_atteso_il: null,
+    valido_fino: data(-18), pdf_path: null, link_pagamento: null, note: null, owner: 'demo', creato_il: gg(12), aggiornato_il: gg(4) },
+  { id: 2, prospect_id: 'p3', progetto_id: null, numero: 'SG-SW-2026-001', linea: 'software', titolo: 'Sito web', importo: 800, mensile: null,
+    voci: [{ nome: 'Sito web', quantita: 1, prezzo: 800, ricorrenza: 'una_tantum' }],
+    inviato_il: data(6), stato: 'inviato', accettato_il: null, rifiutato_il: null, motivo: null, pagato_il: null, pagamento_atteso_il: null,
+    valido_fino: data(-24), pdf_path: null, link_pagamento: null, note: 'mandato via mail il giorno della call', owner: 'demo', creato_il: gg(6), aggiornato_il: gg(6) },
+  { id: 3, prospect_id: 'p5', progetto_id: null, numero: 'SG-MK-2026-002', linea: 'marketing', titolo: 'Fase pilota Google Ads, 2 mesi', importo: 1500, mensile: null,
+    voci: [{ nome: 'Fase pilota Google Ads, 2 mesi', quantita: 1, prezzo: 1500, ricorrenza: 'una_tantum' }],
+    inviato_il: null, stato: 'bozza', accettato_il: null, rifiutato_il: null, motivo: null, pagato_il: null, pagamento_atteso_il: null,
+    valido_fino: data(-30), pdf_path: null, link_pagamento: null, note: null, owner: 'demo', creato_il: gg(1), aggiornato_il: gg(1) },
+]
+const incassi: Riga[] = [
+  { id: 'ch_demo1', genere: 'addebito', importo: 1500, valuta: 'eur', stato: 'succeeded', quando: gg(4), ricorrenza: null, metodo: 'carta',
+    prossimo_il: null, fine_il: null, cliente_nome: 'Dän Ink', cliente_email: 'steven@danink.it', stripe_cliente: 'cus_demo1',
+    descrizione: 'Fase pilota Google Ads', prospect_id: 'p7', preventivo_id: 1, letto_il: gg(0) },
+  { id: 'sub_demo1', genere: 'abbonamento', importo: 1400, valuta: 'eur', stato: 'active', quando: gg(4), ricorrenza: 'month', metodo: 'sepa',
+    prossimo_il: data(-12), fine_il: null, cliente_nome: 'Dän Ink', cliente_email: 'steven@danink.it', stripe_cliente: 'cus_demo1',
+    descrizione: 'Lavoro continuativo', prospect_id: 'p7', preventivo_id: null, letto_il: gg(0) },
+  { id: 'ch_demo2', genere: 'addebito', importo: 350, valuta: 'eur', stato: 'succeeded', quando: gg(20), ricorrenza: null, metodo: 'carta',
+    prossimo_il: null, fine_il: null, cliente_nome: 'GR Box', cliente_email: 'info@grbox.it', stripe_cliente: 'cus_demo2',
+    descrizione: 'Modifiche sito', prospect_id: 'p3', preventivo_id: null, letto_il: gg(0) },
+]
+
 const TABELLE: Record<string, Riga[]> = {
   sync_runs,
+  listino,
+  preventivi,
+  incassi,
   profili,
   progetti,
   task,

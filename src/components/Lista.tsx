@@ -6,6 +6,7 @@ import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, d
 import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, pedaggioPagato, ricorrenteMensile, contaFasi, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
+import { sonoCeo } from '../lib/accessi'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
 // (le fasi a colonne, statica: tutto nella larghezza, niente scroll);
@@ -89,6 +90,7 @@ export default function Lista({ onOpen, q }: Props) {
   const [calls, setCalls] = useState<Record<string, Record<string, string>>>({})
   // cosa Clara ha di aperto su ognuno (bozza da approvare, domanda): va sulla carta
   const [aperte, setAperte] = useState<Record<string, { bozza: boolean; domanda: boolean }>>({})
+  const [vedoSoldi, setVedoSoldi] = useState(false)
   // una colonna alla volta si puo' allargare per starci dentro
   const [fuoco, setFuoco] = useState<Chiave | null>(null)
   const [persiAperti, setPersiAperti] = useState(false)
@@ -136,6 +138,7 @@ export default function Lista({ onOpen, q }: Props) {
         }
         setCalls(m)
       })
+    void sonoCeo().then(setVedoSoldi)
     supabase.from('proposte').select('prospect_id,tipo').eq('stato', 'aperta').limit(1000)
       .then(({ data }) => {
         const m: Record<string, { bozza: boolean; domanda: boolean }> = {}
@@ -388,7 +391,7 @@ export default function Lista({ onOpen, q }: Props) {
             {p.last_reply_at && <>, ultima risposta {fmtDateShort(p.last_reply_at)}</>}
           </p>
         </div>
-        {eCliente(p) ? (
+        {eCliente(p) && vedoSoldi ? (
           <span className="hidden shrink-0 text-right text-xs sm:block">
             <span className="block font-bold text-green-800">
               {p.canone ? `${Number(p.canone).toLocaleString('it-IT')} €/mese` : 'canone da mettere'}
@@ -497,7 +500,7 @@ export default function Lista({ onOpen, q }: Props) {
       {/* quando guardi i clienti, il numero che conta e' uno solo: e' lo
           stesso che vedi in Tutti, perche' e' la stessa domanda al database
           e non la somma delle righe di questa pagina (revisione 4/9) */}
-      {stage === 'cliente' && ricorrente && ricorrente.quanti > 0 && (
+      {stage === 'cliente' && vedoSoldi && ricorrente && ricorrente.quanti > 0 && (
         <div className="mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-2.5">
           <span className="text-lg font-extrabold tabular-nums">{ricorrente.mese.toLocaleString('it-IT')} €</span>
           <Micro>al mese</Micro>
