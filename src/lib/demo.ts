@@ -350,7 +350,12 @@ const proposte: Riga[] = [
   },
 ]
 
+// in demo la sezione «Cosa cambieresti» parte vuota: si scrive e si vede
+// comparire, come nel vero
+const feedback: Riga[] = []
+
 const TABELLE: Record<string, Riga[]> = {
+  feedback,
   proposte,
   chat,
   sync_runs,

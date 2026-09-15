@@ -15,7 +15,7 @@ export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
   | 'tutti' | 'clara'
-  | 'progetti' | 'preventivi' | 'chat'
+  | 'progetti' | 'preventivi' | 'chat' | 'feedback'
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
@@ -77,6 +77,12 @@ export const WIDGET: Widget[] = [
   { chiave: 'chat', nome: 'Condividi', cosa: 'Passarsi documenti, legati al cliente', zona: 'sistema', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.5a8.4 8.4 0 0 1-.9-3.8 8.4 8.4 0 0 1 8.4-8.4h.5a8.4 8.4 0 0 1 8 8z' },
+  // LA BETA (Dre, 15/9): gli accessi vanno alla squadra, e quello che non
+  // va lo sanno solo loro. Ce l'hanno tutti, ed e' l'ultima voce apposta:
+  // si usa dopo, quando una cosa ha dato fastidio.
+  { chiave: 'feedback', nome: 'Cosa cambieresti', cosa: 'Quello che non va o che vorresti: lo leggo io', zona: 'sistema', fisso: true, base: true,
+    ruoli: ['ceo', 'coordinamento'],
+    icona: 'M12 3a9 9 0 0 1 9 9c0 4.5-4 8.2-9 8.2a10 10 0 0 1-2.6-.3L4 21.5l1.2-3.4A8.6 8.6 0 0 1 3 12a9 9 0 0 1 9-9zM12 8v5M12 16h.01' },
   { chiave: 'analytics', nome: 'Numeri', cosa: 'Risposte, conversioni e andamento dell\'outbound', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 19h16M6 16V9M10 16V5M14 16v-6M18 16v-9' },

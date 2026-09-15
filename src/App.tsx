@@ -11,6 +11,7 @@ import ClaraVolante from './components/ClaraVolante'
 import ClaraLogo from './components/ClaraLogo'
 import Vault from './components/Vault'
 import Plugin from './components/Plugin'
+import Feedback from './components/Feedback'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
@@ -519,6 +520,8 @@ export default function App() {
               <Vault onOpen={setOpenId} />
             ) : tab === 'plugin' ? (
               <Plugin />
+            ) : tab === 'feedback' ? (
+              <Feedback />
             ) : tab === 'progetti' ? (
               <Clienti onOpen={setOpenId} />
             ) : tab === 'preventivi' ? (
