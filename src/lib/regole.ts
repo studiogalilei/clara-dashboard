@@ -358,6 +358,24 @@ export function marcaFase(fase: PipelineStage): string {
   return `[${PIPELINE_LABEL[fase]}]`
 }
 
+// GLI APPUNTI CHE CI SONO GIA' (Dre, 15/9).
+// Quando trascini una carta avanti il software chiede il riassunto della
+// call. Ma spesso ce l'ha gia': gli appunti di Gemini arrivano dal Drive da
+// soli, e il transcript di Granola lo si incolla nella scheda. Chiedere una
+// cosa che hai gia' in casa e' l'attrito peggiore: si propone, e chi scrive
+// decide se tenerlo.
+export interface Appunto { at: string; body: string; kind: string }
+export async function appuntiRecenti(prospectId: string, giorni = 21): Promise<Appunto[]> {
+  const da = new Date(Date.now() - giorni * 86400e3).toISOString()
+  const { data } = await supabase.from('interactions')
+    .select('at,body,kind')
+    .eq('prospect_id', prospectId)
+    .in('kind', ['transcript', 'postit'])
+    .gte('at', da)
+    .order('at', { ascending: false }).limit(3)
+  return ((data as Appunto[] | null) ?? []).filter((a) => (a.body ?? '').trim().length > 30)
+}
+
 export async function pedaggioPagato(prospectId: string, fase: PipelineStage): Promise<boolean> {
   const { data } = await supabase.from('interactions').select('*')
     .eq('prospect_id', prospectId).eq('kind', 'transcript')

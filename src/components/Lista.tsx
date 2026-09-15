@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, ricorrenteMensile, contaFasi, perFascia, type Fascia } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, type Fascia, type Appunto } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
@@ -113,6 +113,8 @@ export default function Lista({ onOpen, q }: Props) {
   // la carta torna dov'era
   const [pedaggio, setPedaggio] = useState<{ p: Prospect; da: Chiave; target: PipelineStage } | null>(null)
   const [riassunto, setRiassunto] = useState('')
+  // quello che il software ha gia' in casa su questa azienda
+  const [pronti, setPronti] = useState<Appunto[]>([])
   // indietro e «Perso»: si possono fare da ogni fase, ma li confermi tu (Dre, 2/9)
   const [conferma, setConferma] = useState<
     { p: Prospect; da: Chiave; target: Chiave; tipo: 'indietro' | 'riapri' | 'perso' } | null
@@ -305,6 +307,8 @@ export default function Lista({ onOpen, q }: Props) {
       if (!pagato) {
         setRiassunto('')
         setPedaggio({ p, da: da as PipelineStage, target: target as PipelineStage })
+        // gli appunti di quella call spesso ci sono gia': si propongono
+        void appuntiRecenti(id).then(setPronti)
         return
       }
     }
@@ -793,6 +797,19 @@ export default function Lista({ onOpen, q }: Props) {
               {pedaggio.p.company || pedaggio.p.name}
               {`, da ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} a ${PIPELINE_LABEL[pedaggio.target]}`}
             </p>
+            {/* quello che c'e' gia': gli appunti di Gemini o il transcript
+                incollato. Un clic e sono dentro, poi si corregge (Dre, 15/9) */}
+            {pronti.length > 0 && riassunto.trim() === '' && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Micro>Ce l'ho già</Micro>
+                {pronti.map((a) => (
+                  <button key={a.at} onClick={() => setRiassunto(a.body)}
+                          className="rounded-full border border-blu/40 bg-blu/5 px-3 py-1 text-xs font-semibold text-navy hover:border-blu">
+                    {a.body.startsWith('Appunti di Gemini') ? 'Appunti di Gemini' : 'Riassunto della call'}, {fmtDateShort(a.at.slice(0, 10))}
+                  </button>
+                ))}
+              </div>
+            )}
             <textarea
               autoFocus
               value={riassunto}

@@ -4,7 +4,7 @@ import { Card, Micro, Spinner, ZonaFile, fmtNum } from './ui'
 import { iniziali } from '../lib/profilo'
 import { apriFile } from '../lib/file'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
-import CercaAzienda, { CAMPI_AZIENDA, nomeAzienda } from './CercaAzienda'
+import CercaAzienda, { CAMPI_AZIENDA, nomeAzienda, indizio } from './CercaAzienda'
 
 // CONDIVIDI (Dre, 15/9).
 //
@@ -49,18 +49,6 @@ const giornoDi = (iso: string) => {
   return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 const estensione = (path: string) => (path.split('.').pop() ?? '').toUpperCase().slice(0, 4)
-
-// quello che si legge dentro il nome di un file: «contratto-klavzar-2026.pdf»
-// vuol dire Klavzar. Si passa alla ricerca come punto di partenza, non come
-// decisione: la scelta resta di chi manda.
-function indizio(nome: string): string {
-  const parole = nome
-    .replace(/\.[^.]+$/, '')
-    .split(/[^a-zA-ZÀ-ÿ0-9]+/)
-    .filter((p) => p.length >= 4 && !/^\d+$/.test(p))
-    .filter((p) => !/^(bozza|copia|final|finale|nuovo|nuova|firmato|firmata|contratto|preventivo|analisi|report|documento|fattura|proposta)$/i.test(p))
-  return parole[0] ?? ''
-}
 
 export default function Chat({ onOpen }: Props) {
   const [io, setIo] = useState<string | null>(null)

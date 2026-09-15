@@ -72,6 +72,7 @@ export default function Preventivi({ onOpen }: Props) {
   const [testoChiesto, setTestoChiesto] = useState('')
   const [studio, setStudio] = useState<DatiStudio>(STUDIO_VUOTO)
   const [studioAperto, setStudioAperto] = useState(false)
+  const [studioChiesto, setStudioChiesto] = useState(false)
   const [menu, setMenu] = useState<number | null>(null)   // i tre puntini di una riga
   const [incassiAperti, setIncassiAperti] = useState(false)
   // una domanda di conferma dentro la pagina, non il popup del browser
@@ -85,7 +86,13 @@ export default function Preventivi({ onOpen }: Props) {
       .then(({ data, error }) => { if (error) setProblema(error.message); setRighe((data as Preventivo[]) ?? []) })
     void supabase.from('listino').select('*').eq('attivo', true).order('ordine')
       .then(({ data, error }) => { if (error) setProblema(`Il listino non si carica: ${error.message}`); setListino((data as VoceListino[]) ?? []) })
-    void datiStudio().then(setStudio)
+    void datiStudio().then((d) => {
+      setStudio(d)
+      // la prima volta in assoluto i dati dello Studio non ci sono: si
+      // chiedono subito e una volta sola, invece di bloccare il primo
+      // preventivo di un cliente con un messaggio in fondo al pannello
+      if (mancaStudio(d).length) { setStudioAperto(true); setStudioChiesto(true) }
+    })
     void supabase.from('incassi').select('*').order('quando', { ascending: false }).limit(500)
       .then(({ data, error }) => { if (!error && data && data.length) setIncassi(data as Incasso[]) })
   }, [])
@@ -289,6 +296,23 @@ export default function Preventivi({ onOpen }: Props) {
     const r = await scrivi(q.id, { stato: 'inviato', inviato_il: q.inviato_il ?? oggi() })
     if (r) avvisa(`${q.numero} segnato mandato`)
   }
+  // prima di scrivere quattro cose nel database si dice quali sono: e' la
+  // stessa regola di Clara («propone, non scrive di nascosto»), applicata a
+  // un bottone umano (rapporto attriti, 15/9)
+  function chiediAccettato(q: Preventivo) {
+    const pilota = q.voci?.some((v) => /pilota|prova/i.test(v.nome))
+    const cose = [
+      q.progetto_id ? null : `nasce il progetto «${q.titolo ?? 'senza nome'}»`,
+      q.mensile ? `il canone diventa ${euro(q.mensile)} al mese` : null,
+      pilota ? 'parte come prova' : null,
+      'una task per fissare la call di avvio',
+    ].filter(Boolean)
+    setConferma({
+      testo: `${nomeDi(q.prospect_id)} ha accettato ${q.numero}: ${cose.join(', ')}.`,
+      fai: () => void segnaAccettato(q),
+    })
+  }
+
   async function segnaAccettato(q: Preventivo) {
     const r = await scrivi(q.id, { stato: 'accettato', accettato_il: oggi() })
     if (!r) return
@@ -330,7 +354,18 @@ export default function Preventivi({ onOpen }: Props) {
     if (r) avvisa(`${q.numero} di nuovo in attesa`)
   }
   async function copiaLink(q: Preventivo) {
-    if (!q.link_pagamento) { setChiedo({ id: q.id, cosa: 'link' }); setTestoChiesto(''); return }
+    if (!q.link_pagamento) {
+      setChiedo({ id: q.id, cosa: 'link' })
+      // il link l'hai appena copiato da Stripe: se e' negli appunti, e' gia'
+      // nel campo e ti resta solo Invio
+      let dagliAppunti = ''
+      try {
+        const t = (await navigator.clipboard.readText()).trim()
+        if (/^https:\/\/(buy\.)?stripe\.com\/|^https:\/\/buy\.stripe\.com\//.test(t)) dagliAppunti = t
+      } catch { /* niente permesso, pazienza */ }
+      setTestoChiesto(dagliAppunti)
+      return
+    }
     try { await navigator.clipboard.writeText(q.link_pagamento); avvisa('Link di pagamento copiato') } catch { setProblema('Non riesco a copiare') }
   }
   function elimina(q: Preventivo) {
@@ -385,7 +420,7 @@ export default function Preventivi({ onOpen }: Props) {
   function prossimoPasso(q: Preventivo): { testo: string; fai: () => void; tono: string } | null {
     if (q.stato === 'bozza' && !q.pdf_path) return { testo: 'Genera il PDF', fai: () => apriModifica(q), tono: 'bg-blu hover:bg-blu-scuro' }
     if (q.stato === 'bozza') return { testo: 'Segna mandato', fai: () => void segnaInviato(q), tono: 'bg-navy hover:bg-blu' }
-    if (q.stato === 'inviato') return { testo: 'Ha accettato', fai: () => void segnaAccettato(q), tono: 'bg-green-700 hover:bg-green-800' }
+    if (q.stato === 'inviato') return { testo: 'Ha accettato', fai: () => chiediAccettato(q), tono: 'bg-green-700 hover:bg-green-800' }
     if (q.stato === 'accettato' && !q.pagato_il) return { testo: 'Segna pagato', fai: () => void segnaPagato(q), tono: 'bg-green-700 hover:bg-green-800' }
     return null
   }
@@ -419,8 +454,11 @@ export default function Preventivi({ onOpen }: Props) {
       {/* I DATI DELLO STUDIO: la controparte del documento. Si scrivono una volta */}
       {studioAperto && (
         <Card className="salta-su space-y-3 border-blu/40 p-5">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-base font-extrabold">Dati dello Studio</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="text-base font-extrabold">
+              Dati dello Studio
+              {studioChiesto && <span className="ml-2 text-sm font-semibold text-tenue">vanno in ogni PDF, si scrivono una volta</span>}
+            </h2>
             <button onClick={() => setStudioAperto(false)} className="text-xs font-semibold text-spento hover:text-inchiostro">Chiudi</button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -439,7 +477,7 @@ export default function Preventivi({ onOpen }: Props) {
               </label>
             ))}
           </div>
-          <button onClick={async () => { const e = await scriviStudio(studio); if (e) setProblema(e); else { setStudioAperto(false); avvisa('Dati dello Studio salvati') } }}
+          <button onClick={async () => { const e = await scriviStudio(studio); if (e) setProblema(e); else { setStudioAperto(false); setStudioChiesto(false); avvisa('Dati dello Studio salvati') } }}
                   className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro">Salva</button>
         </Card>
       )}
@@ -511,7 +549,11 @@ export default function Preventivi({ onOpen }: Props) {
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <p className="col-span-2 -mb-1 text-[11px] text-spento">Valgono per tutti i preventivi e le fatture di questa azienda</p>
+              <p className="col-span-2 -mb-1 text-[11px] text-spento">
+                {buchiCliente.length > 0
+                  ? <span className="font-semibold text-amber-800">Per il PDF manca {buchiCliente.join(', ')}</span>
+                  : 'Valgono per tutti i preventivi e le fatture di questa azienda'}
+              </p>
               {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Indirizzo'], ['pec', 'PEC'], ['sdi', 'Codice SDI']] as Array<[keyof Fatturazione, string]>).map(([k, n]) => (
                 <label key={k} className={k === 'indirizzo' ? 'col-span-2' : ''}>
                   <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
@@ -587,16 +629,6 @@ export default function Preventivi({ onOpen }: Props) {
                      className="mt-0.5 block w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
             </label>
             <div className="ml-auto flex items-center gap-2 lg:mr-24">
-              {manca.length > 0 && (
-                <span className="max-w-[340px] text-xs font-semibold text-amber-800">
-                  {buchiCliente.length > 0 && <>Del cliente manca {buchiCliente.join(', ')}. </>}
-                  {buchiStudio.length > 0 && (
-                    <>Dello Studio manca {buchiStudio.join(', ')}:{' '}
-                      <button onClick={() => setStudioAperto(true)} className="underline">scrivili una volta sola</button>.
-                    </>
-                  )}
-                </span>
-              )}
               <button onClick={() => salva(false)} disabled={!!lavoro} className="rounded-full border border-bordo bg-white px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy disabled:opacity-40">Salva bozza</button>
               <button onClick={() => salva(true)} disabled={!!lavoro || manca.length > 0 || bozza.voci.length === 0}
                       title={manca.length ? `Manca ${manca.join(', ')}` : undefined}

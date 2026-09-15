@@ -19,6 +19,20 @@ export type Azienda = FacciaP & {
 export const nomeAzienda = (a: { company?: string | null; name?: string | null; email?: string }) =>
   a.company || a.name || a.email || 'senza nome'
 
+// QUELLO CHE SI LEGGE DENTRO IL NOME DI UN FILE (Dre, 15/9: «come fa
+// Google, il software sa gia' quello che vuoi»). «contratto-klavzar-2026.pdf»
+// vuol dire Klavzar: si passa alla ricerca come punto di partenza, non come
+// decisione presa. Le parole di mestiere si scartano, se no cercherebbe
+// «contratto» in tutta la rubrica.
+const PAROLE_NOSTRE = /^(bozza|copia|final|finale|nuovo|nuova|firmato|firmata|contratto|preventivo|analisi|report|documento|fattura|proposta|condizioni|economiche|studio|galilei|sg|def|rev|ver|versione|scan|scansione|img|foto|screenshot)$/i
+export function indizio(nome: string): string {
+  const parole = nome
+    .replace(/\.[^.]+$/, '')
+    .split(/[^a-zA-ZÀ-ÿ0-9]+/)
+    .filter((p) => p.length >= 4 && !/^\d+$/.test(p) && !PAROLE_NOSTRE.test(p))
+  return parole[0] ?? ''
+}
+
 export default function CercaAzienda<T extends Azienda>({ onScegli, placeholder, piccolo, iniziale = '', sopra = false }: {
   onScegli: (a: T) => void
   placeholder: string

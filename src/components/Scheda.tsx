@@ -16,7 +16,7 @@ import {
   type AgendaItem,
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
-import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask } from '../lib/regole'
+import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, type Appunto } from '../lib/regole'
 const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
@@ -97,6 +97,7 @@ export default function Scheda({ id, onClose }: Props) {
   const [draft, setDraft] = useState<Partial<Prospect>>({})
   const [nota, setNota] = useState('')
   const [transcript, setTranscript] = useState('')
+  const [pronti, setPronti] = useState<Appunto[]>([])   // gli appunti che ci sono gia'
   const [avanzaAperto, setAvanzaAperto] = useState(false)   // il riassunto si chiede solo quando premi Avanza
   const [modifica, setModifica] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -288,6 +289,11 @@ export default function Scheda({ id, onClose }: Props) {
   }
 
   // AVANZARE e' l'altro gesto: possibile solo se il transcript della fase c'e'
+  useEffect(() => {
+    if (!avanzaAperto || !p) return
+    void appuntiRecenti(p.id).then(setPronti)
+  }, [avanzaAperto, p])
+
   async function portaAvanti() {
     if (!p || !p.pipeline_stage) return
     const next = PIPELINE_NEXT[p.pipeline_stage]
@@ -1067,6 +1073,19 @@ export default function Scheda({ id, onClose }: Props) {
                     <p className="mb-2 text-sm text-tenue">
                       In prova non c'è una call da riassumere: scrivi com'è andata se vuoi, poi scegli il contratto.
                     </p>
+                  )}
+                  {/* gli appunti che ci sono gia' (Gemini dal Drive, o il
+                      transcript incollato): un clic e sono dentro */}
+                  {pronti.length > 0 && transcript.trim() === '' && (
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-spento">Ce l'ho già</span>
+                      {pronti.map((a) => (
+                        <button key={a.at} onClick={() => setTranscript(a.body)}
+                                className="rounded-full border border-blu/40 bg-blu/5 px-3 py-1 text-xs font-semibold text-navy hover:border-blu">
+                          {a.body.startsWith('Appunti di Gemini') ? 'Appunti di Gemini' : 'Riassunto della call'}, {fmtDateShort(a.at.slice(0, 10))}
+                        </button>
+                      ))}
+                    </div>
                   )}
                   <textarea
                     ref={transcriptRef}

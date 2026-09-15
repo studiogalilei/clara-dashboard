@@ -8,7 +8,7 @@ const CompilaPdf = lazy(() => import('./CompilaPdf').catch((e) => {
 import type { Prospect } from '../lib/types'
 import { Card, Spinner, Empty, ZonaFile, fmtNum, fmtDateShort, sgid } from './ui'
 import { urlFileTanti, apriFile, dimenticaFile } from '../lib/file'
-import CercaAzienda, { CAMPI_AZIENDA } from './CercaAzienda'
+import CercaAzienda, { CAMPI_AZIENDA, indizio } from './CercaAzienda'
 
 // I DOCUMENTI: la cassaforte dello Studio (Dre, 14/9). «Che ci deve fare
 // una persona qui?» Trovare subito un logo, una copertina, il contratto
@@ -160,6 +160,26 @@ export default function Vault({ onOpen }: Props) {
   // va. Se no la cartella di un cliente e' incompleta e non lo sa nessuno
   const [inAttesa, setInAttesa] = useState<File | null>(null)
   const [dove, setDove] = useState('')     // «cliente:<id>» | «brand:<gruppo>» | «modelli» | «azienda»
+  const [indovinato, setIndovinato] = useState(false)   // l'ha capito lui, non l'hai detto tu
+
+  // DOVE VA, LETTO NEL NOME DEL FILE (Dre, 15/9). «sg-logo-blu.svg» va nei
+  // loghi, «sg-condizioni-modello.pdf» nei modelli, «visura-camerale.pdf»
+  // fra i documenti interni. Si propone e si puo' cambiare: non decide lui.
+  function accogli(f: File) {
+    setInAttesa(f)
+    const n = f.name.toLowerCase()
+    // se stai guardando una sezione, e' quasi sempre quella: si propone
+    const dallaVista = scelta === 'modelli' ? 'modelli' : scelta === 'azienda' ? 'azienda' : ''
+    const posto = dallaVista ||
+      /logo|marchio|simbolo|intreccio/.test(n) ? 'brand:loghi'
+      : /copertina|cover/.test(n) ? 'brand:copertine'
+      : /font|carattere/.test(n) ? 'brand:font'
+      : /modello|template|esempio/.test(n) ? 'modelli'
+      : /visura|camerale|statuto|verbale|bilancio|libro|interno/.test(n) ? 'azienda'
+      : ''
+    setDove(posto)
+    setIndovinato(Boolean(posto))
+  }
 
   async function carica(f: File) {
     if (!dove) return
@@ -344,7 +364,7 @@ export default function Vault({ onOpen }: Props) {
   const recenti = (file ?? []).filter((f) => f.sezione === 'clienti' || f.sezione === 'azienda').slice(0, 5)
 
   return (
-    <ZonaFile onFile={(f) => setInAttesa(f)} messaggio="Lascia qui: va nei Documenti" className="space-y-5 pb-24 sm:pb-8">
+    <ZonaFile onFile={accogli} messaggio="Lascia qui: va nei Documenti" className="space-y-5 pb-24 sm:pb-8">
 
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -365,10 +385,12 @@ export default function Vault({ onOpen }: Props) {
                 </div>
               ) : (
                 <CercaAzienda
+                  iniziale={indizio(inAttesa.name)}
                   placeholder="Nella cartella di… scrivi il nome dell'azienda"
                   onScegli={(a) => {
                     setProspects((v) => (v.some((x) => x.id === a.id) ? v : [...v, a as unknown as Prospect]))
                     setDove(`cliente:${a.id}`)
+                    setIndovinato(false)
                   }}
                 />
               )}
@@ -377,13 +399,13 @@ export default function Vault({ onOpen }: Props) {
                     className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30">
               {caricando ? 'Carico…' : 'Metti qui'}
             </button>
-            <button onClick={() => { setInAttesa(null); setDove('') }} className="text-xs text-spento hover:text-inchiostro">Annulla</button>
+            <button onClick={() => { setInAttesa(null); setDove(''); setIndovinato(false) }} className="text-xs text-spento hover:text-inchiostro">Annulla</button>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-spento">oppure</span>
+            <span className="text-[11px] font-semibold text-spento">{indovinato ? 'l\'ho capito dal nome, oppure' : 'oppure'}</span>
             {[...ORDINE_GRUPPI.filter((g) => g !== 'esempi' && g !== 'modelli').map((g) => [`brand:${g}`, GRUPPO_NOME[g]] as [string, string]),
               ['modelli', 'Modelli'], ['azienda', 'Azienda']].map(([v, n]) => (
-              <button key={v} onClick={() => setDove(v)}
+              <button key={v} onClick={() => { setDove(v); setIndovinato(false) }}
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${dove === v ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-navy hover:text-navy'}`}>
                 {n}
               </button>
@@ -412,7 +434,7 @@ export default function Vault({ onOpen }: Props) {
             {caricando ? 'Carico…' : '+ Aggiungi'}
           </button>
           <input ref={inputRef} type="file" className="hidden"
-                 onChange={(e) => { const f = e.target.files?.[0]; if (f) setInAttesa(f); e.target.value = '' }} />
+                 onChange={(e) => { const f = e.target.files?.[0]; if (f) accogli(f); e.target.value = '' }} />
         </div>
       </div>
 
