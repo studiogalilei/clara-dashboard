@@ -8,6 +8,7 @@ import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
 import { incassiSenzaAzienda, mensile, type Incasso } from './TuttiFoglio'
+import type { VoceListino } from '../lib/preventivo'
 import Firma from './Firma'
 import { collegato as googleCollegato, entraConGoogle } from '../lib/google'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
@@ -87,6 +88,33 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   // la card la vedono i ceo e chi ha i Numeri: e' lo stesso mestiere, guardare
   // se i dati tornano prima di fidarsi dei totali
   const vedeSalute = ruolo === 'ceo' || miei['analytics'] === 'approvato'
+
+  // IL LISTINO (15/9): i prezzi cambiano, e finche' si cambiavano solo nel
+  // database restavano sbagliati. Una voce a zero euro e' finita in un
+  // preventivo vero (QA del 14/9): adesso si sistema da qui, in cinque
+  // secondi, da chi decide i prezzi.
+  const [listino, setListino] = useState<VoceListino[] | null>(null)
+  const [salvata, setSalvata] = useState<number | null>(null)
+  useEffect(() => {
+    if (ruolo !== 'ceo') return
+    void supabase.from('listino').select('*').order('ordine').then(({ data }) => setListino((data as VoceListino[]) ?? []))
+  }, [ruolo])
+
+  async function scriviVoce(v: VoceListino, patch: Partial<VoceListino>) {
+    const { data } = await supabase.from('listino').update(patch).eq('id', v.id).select().single()
+    if (!data) return
+    setListino((l) => (l ?? []).map((x) => (x.id === v.id ? (data as VoceListino) : x)))
+    setSalvata(v.id)
+    setTimeout(() => setSalvata((k) => (k === v.id ? null : k)), 1600)
+  }
+
+  async function nuovaVoce() {
+    const { data } = await supabase.from('listino').insert({
+      nome: 'Voce nuova', prezzo: 0, ricorrenza: 'una_tantum', linea: 'marketing',
+      ordine: ((listino ?? []).at(-1)?.ordine ?? 0) + 1, attivo: false,
+    }).select().single()
+    if (data) setListino((l) => [...(l ?? []), data as VoceListino])
+  }
   const [salute, setSalute] = useState<Incoerenza[] | null>(null)
   useEffect(() => {
     if (!vedeSalute) return
@@ -488,6 +516,49 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           </button>
         </div>
       </Card>
+      )}
+
+      {/* IL LISTINO: i prezzi che finiscono nei preventivi */}
+      {ruolo === 'ceo' && listino && (
+        <Card>
+          <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
+            <TitoloCard>Listino</TitoloCard>
+            <button onClick={() => void nuovaVoce()} className="text-xs font-bold text-blu hover:underline">+ Aggiungi una voce</button>
+          </header>
+          {listino.length === 0 && <p className="px-4 py-4 text-sm text-spento">Nessuna voce.</p>}
+          {listino.map((v) => (
+            <div key={v.id} className="flex flex-wrap items-center gap-2 border-b border-velo px-4 py-2.5 last:border-0">
+              <input
+                value={v.nome}
+                onChange={(e) => setListino((l) => (l ?? []).map((x) => (x.id === v.id ? { ...x, nome: e.target.value } : x)))}
+                onBlur={(e) => { if (e.target.value !== v.nome) void scriviVoce(v, { nome: e.target.value }) }}
+                className="min-w-[180px] flex-1 rounded-lg bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-velo focus:bg-velo"
+              />
+              <label className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-sm ${v.prezzo > 0 ? 'border-bordo' : 'border-amber-300 bg-amber-50'}`}>
+                <input
+                  type="number" min={0} value={v.prezzo}
+                  onChange={(e) => setListino((l) => (l ?? []).map((x) => (x.id === v.id ? { ...x, prezzo: Math.max(0, Number(e.target.value) || 0) } : x)))}
+                  onBlur={(e) => { const n = Math.max(0, Number(e.target.value) || 0); if (n !== v.prezzo) void scriviVoce(v, { prezzo: n }) }}
+                  className="w-20 bg-transparent text-right font-bold tabular-nums outline-none"
+                />
+                <span className="text-tenue">€</span>
+              </label>
+              <div className="flex overflow-hidden rounded-full border border-bordo text-[11px] font-semibold">
+                {(['una_tantum', 'mese'] as const).map((r) => (
+                  <button key={r} onClick={() => void scriviVoce(v, { ricorrenza: r })}
+                          className={`px-2.5 py-1 ${v.ricorrenza === r ? 'bg-blu text-white' : 'bg-white text-tenue hover:bg-velo'}`}>
+                    {r === 'mese' ? 'al mese' : 'una tantum'}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => void scriviVoce(v, { attivo: !v.attivo })}
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold ${v.attivo ? 'bg-green-100 text-green-900' : 'bg-velo text-spento'}`}>
+                {v.attivo ? 'Nel listino' : 'Spenta'}
+              </button>
+              {salvata === v.id && <span className="text-[11px] font-semibold text-green-700">salvato</span>}
+            </div>
+          ))}
+        </Card>
       )}
 
       {vedeSalute && salute && (
