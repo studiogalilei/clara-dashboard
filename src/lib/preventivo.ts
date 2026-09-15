@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { urlFile, dimenticaFile } from './file'
 import { nomeFile, LINEA_SIGLA, type Linea, type Risorse } from './tono'
 import { documentoDi, type Voce, type Fatturazione, type Ricorrenza } from './condizioni'
+import { datiStudio } from './studio'
 export { unaTantum, alMese, ePilota, documentoDi } from './condizioni'
 export type { Voce, Ricorrenza, Fatturazione } from './condizioni'
 
@@ -91,7 +92,7 @@ export function caricaRisorse(): Promise<Risorse> {
 
 // genera il PDF e lo mette nella cartella dell'azienda nei Documenti
 export async function generaEArchivia(q: Preventivo, azienda: string, f: Fatturazione): Promise<{ path: string; url: string }> {
-  const doc = documentoDi(q, azienda, f, q.linea ?? 'marketing')
+  const doc = documentoDi(q, azienda, f, q.linea ?? 'marketing', await datiStudio())
   const { generaPdf } = await import('./documento')   // pdf-lib solo quando serve
   const bytes = await generaPdf(doc, await caricaRisorse())
   const nome = nomeFile('condizioni', azienda)

@@ -12,6 +12,30 @@ export interface Voce {
   ricorrenza: Ricorrenza
 }
 export interface Fatturazione { ragione?: string; indirizzo?: string; piva?: string; pec?: string; sdi?: string }
+
+// I DATI DELLO STUDIO (15/9): un documento da firmare ha due parti, non una.
+// Si scrivono una volta in Impostazioni e stanno in istruzioni, chiave «studio».
+export interface DatiStudio {
+  ragione?: string
+  indirizzo?: string
+  piva?: string
+  pec?: string
+  iban?: string
+  iva?: number          // aliquota, in percentuale
+  giorni?: number       // termini di pagamento
+  preavviso?: number    // giorni di preavviso per fermare il ricorrente
+  foro?: string
+  firmatario?: string   // chi firma per lo Studio
+}
+export const STUDIO_VUOTO: DatiStudio = { iva: 22, giorni: 15, preavviso: 30 }
+
+export function mancaStudio(d: DatiStudio): string[] {
+  const buchi: string[] = []
+  if (!d.ragione?.trim()) buchi.push('la ragione sociale dello Studio')
+  if (!d.piva?.trim()) buchi.push('la partita IVA dello Studio')
+  if (!d.indirizzo?.trim()) buchi.push('la sede dello Studio')
+  return buchi
+}
 export const unaTantum = (voci: Voce[]) => voci.filter((v) => v.ricorrenza === 'una_tantum').reduce((t, v) => t + v.quantita * v.prezzo, 0)
 export const alMese = (voci: Voce[]) => voci.filter((v) => v.ricorrenza === 'mese').reduce((t, v) => t + v.quantita * v.prezzo, 0)
 export const ePilota = (v: Voce) => /pilota|prova/i.test(v.nome)
@@ -45,7 +69,7 @@ const INCLUSO: Record<string, { incluso: string[]; parte: string[] }> = {
   },
 }
 
-export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numero: string | null }, azienda: string, f: Fatturazione, linea: string = 'marketing'): Documento {
+export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numero: string | null }, azienda: string, f: Fatturazione, linea: string = 'marketing', studio: DatiStudio = STUDIO_VUOTO): Documento {
   const pilota = q.voci.find(ePilota)
   const mensili = q.voci.filter((v) => v.ricorrenza === 'mese')
   const unaTantumTot = unaTantum(q.voci)
@@ -55,9 +79,9 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
   b.push({ tipo: 'kicker', testo: 'Condizioni economiche' })
   b.push({ tipo: 'h1', testo: azienda })
   b.push({ tipo: 'anagrafica', colonne: [
-    { titolo: 'Intestatario', righe: [f.ragione || azienda, ...(f.indirizzo ? [f.indirizzo] : [])] },
-    { titolo: 'Partita IVA', righe: [f.piva || '[da verificare]', ...(f.pec ? [`PEC ${f.pec}`] : []), ...(f.sdi ? [`SDI ${f.sdi}`] : [])] },
-    { titolo: 'Riferimento', righe: [q.numero ?? '', oggi.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })] },
+    { titolo: 'Intestatario', righe: [f.ragione || azienda, ...(f.indirizzo ? [f.indirizzo] : []), ...(f.piva ? [`Partita IVA ${f.piva}`] : []), ...(f.pec ? [`PEC ${f.pec}`] : []), ...(f.sdi ? [`Codice SDI ${f.sdi}`] : [])] },
+    { titolo: 'Fornitore', righe: [studio.ragione || 'Studio Galilei', ...(studio.indirizzo ? [studio.indirizzo] : []), ...(studio.piva ? [`Partita IVA ${studio.piva}`] : []), ...(studio.pec ? [`PEC ${studio.pec}`] : [])] },
+    { titolo: 'Riferimento', righe: [q.numero ?? '', oggi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })] },
   ] })
 
   if (pilota && mensili.length) {
@@ -88,9 +112,20 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
   const totali: string[] = []
   if (unaTantumTot) totali.push(`${euroTesto(unaTantumTot)} alla firma`)
   if (meseTot) totali.push(`${euroTesto(meseTot)} al mese dal ${pilota ? 'terzo mese' : 'primo mese'}`)
-  const validita = q.valido_fino ? ` Queste condizioni valgono fino al ${dataLunga(q.valido_fino)}.` : ''
-  if (totali.length) b.push({ tipo: 'p', testo: `In tutto: ${totali.join(', ')}. Importi IVA esclusa.${validita}` })
-  b.push({ tipo: 'p', piccolo: true, testo: 'Gli importi indicati sono quelli che troverete in fattura, senza aggiunte. Il budget pubblicitario, quando previsto, è a parte: si definisce insieme e si tara sulla strategia scelta, restando sui vostri account.' })
+  const iva = studio.iva ?? 22
+  const conIva = (n: number) => euroTesto(n * (1 + iva / 100))
+  if (totali.length) b.push({ tipo: 'p', testo: `In tutto: ${totali.join(', ')}, IVA esclusa.` })
+  if (unaTantumTot || meseTot) {
+    const righeIva: Array<Array<{ testo: string; sotto?: string; forte?: boolean }>> = []
+    if (unaTantumTot) righeIva.push([{ testo: 'Alla firma', forte: true }, { testo: euroTesto(unaTantumTot) }, { testo: euroTesto(unaTantumTot * iva / 100) }, { testo: conIva(unaTantumTot), forte: true }])
+    if (meseTot) righeIva.push([{ testo: 'Ogni mese', forte: true }, { testo: euroTesto(meseTot) }, { testo: euroTesto(meseTot * iva / 100) }, { testo: conIva(meseTot), forte: true }])
+    b.push({ tipo: 'tabella', colonne: [
+      { testo: 'Quando', larghezza: 28 }, { testo: 'Imponibile', larghezza: 24, destra: true },
+      { testo: `IVA ${iva}%`, larghezza: 24, destra: true }, { testo: 'Totale', larghezza: 24, destra: true },
+    ], righe: righeIva })
+  }
+  b.push({ tipo: 'p', piccolo: true, testo: `Il pagamento avviene entro ${studio.giorni ?? 15} giorni dalla fattura${studio.iban ? `, con bonifico su ${studio.iban}` : ''}, oppure con il link di pagamento che vi mandiamo. Il budget pubblicitario, quando previsto, è a parte: si definisce insieme e resta sui vostri account.` })
+  if (q.valido_fino) b.push({ tipo: 'p', piccolo: true, testo: `Queste condizioni valgono fino al ${dataLunga(q.valido_fino)}.` })
 
   b.push({ tipo: 'pagina' })
   if (pilota) {
@@ -100,7 +135,8 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
     b.push({ tipo: 'riquadro', titolo: 'Due cose distinte', voci: [
       'Alla fine dei due mesi guardiamo insieme com\'è andata',
       'Proseguire o no è una vostra scelta, e non richiede motivazioni',
-      'Il rimborso è un\'altra cosa: se il lavoro non vi ha convinto o vi sentite fortemente insoddisfatti, lo chiedete e ve lo restituiamo per intero',
+      'Il rimborso è un\'altra cosa: se il lavoro non vi ha convinto, lo chiedete per iscritto entro 15 giorni dalla fine del secondo mese e ve lo restituiamo per intero entro 15 giorni dalla richiesta',
+      'Il budget pubblicitario speso sulle piattaforme non rientra nel rimborso: è denaro andato a Google o a Meta, non a noi',
       'Quello che abbiamo costruito resta vostro in ogni caso',
     ] })
     b.push({ tipo: 'p', piccolo: true, testo: 'La garanzia esiste perché nessuno debba fidarsi sulla parola. Nella pratica chi si ferma lo fa quasi sempre per ragioni che con il lavoro svolto non c\'entrano, e in quel caso il rimborso non si pone.' })
@@ -114,6 +150,23 @@ export function documentoDi(q: { voci: Voce[]; valido_fino: string | null; numer
   b.push({ tipo: 'p', testo: pilota
     ? 'Alla firma si salda la quota del pilota e si fissa la call di avviamento: quindici minuti in cui ci raccontate come lavorate oggi e si imposta tutto quello che serve per partire.'
     : 'Alla firma si salda la quota indicata e si fissa la call di avviamento: quindici minuti in cui ci raccontate come lavorate oggi e si imposta tutto quello che serve per partire.' })
-  return { tipo: 'Condizioni economiche', blocchi: b, piede: oggi.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }) }
+
+  b.push({ tipo: 'h2', testo: 'Le regole del rapporto' })
+  const regole: string[] = []
+  if (meseTot) regole.push(`Il lavoro continuativo non ha una durata minima: si ferma quando volete, con ${studio.preavviso ?? 30} giorni di preavviso scritto, e l'addebito successivo non parte`)
+  regole.push(linea === 'software'
+    ? 'Il codice, i contenuti e il dominio sono vostri dalla consegna. Le licenze di strumenti terzi restano intestate a voi'
+    : 'Gli account pubblicitari, i dati e quello che costruiamo restano vostri, anche se il rapporto finisce')
+  regole.push('Per lavorare entriamo negli strumenti che ci indicate: trattiamo i dati solo per il progetto, come responsabili del trattamento, e li restituiamo o cancelliamo quando finisce')
+  regole.push(`Quello che non è scritto qui si concorda per iscritto${studio.foro ? `. Per ogni controversia è competente il foro di ${studio.foro}` : ''}`)
+  b.push({ tipo: 'elenco', voci: regole })
+
+  b.push({ tipo: 'h2', testo: 'Firma per accettazione' })
+  b.push({ tipo: 'p', testo: 'Si accetta firmando qui sotto e rimandando il documento, oppure rispondendo per iscritto «accetto» alla mail con cui lo avete ricevuto. Il pagamento della prima quota vale come accettazione.' })
+  b.push({ tipo: 'anagrafica', colonne: [
+    { titolo: 'Per il cliente', righe: [f.ragione || azienda, '', 'Luogo e data', '', 'Nome, ruolo e firma'] },
+    { titolo: 'Per lo Studio', righe: [studio.ragione || 'Studio Galilei', '', 'Luogo e data', '', studio.firmatario || 'Nome, ruolo e firma'] },
+  ] })
+  return { tipo: 'Condizioni economiche', blocchi: b, piede: oggi.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) }
 }
 

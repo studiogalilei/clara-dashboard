@@ -3,7 +3,10 @@ import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
 import { apriFile } from '../lib/file'
 import { lazy, Suspense } from 'react'
-const CompilaPdf = lazy(() => import('./CompilaPdf'))
+const CompilaPdf = lazy(() => import('./CompilaPdf').catch((e) => {
+  if (!sessionStorage.getItem('ricaricato')) { sessionStorage.setItem('ricaricato', '1'); location.reload() }
+  throw e
+}))
 import { leggi as leggiPref } from '../lib/preferenze'
 import {
   STAGES, STAGE_LABEL,

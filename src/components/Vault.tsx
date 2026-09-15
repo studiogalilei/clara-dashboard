@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { lazy, Suspense } from 'react'
-const CompilaPdf = lazy(() => import('./CompilaPdf'))
+const CompilaPdf = lazy(() => import('./CompilaPdf').catch((e) => {
+  if (!sessionStorage.getItem('ricaricato')) { sessionStorage.setItem('ricaricato', '1'); location.reload() }
+  throw e
+}))
 import type { Prospect } from '../lib/types'
 import { Card, Spinner, Empty, ZonaFile, fmtNum, fmtDateShort, sgid } from './ui'
 import { urlFileTanti, apriFile, dimenticaFile } from '../lib/file'

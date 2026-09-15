@@ -40,7 +40,8 @@ async function main() {
         { nome: 'Fase pilota Google Ads, 2 mesi', descrizione: 'Analisi iniziale, impostazione, gestione e ottimizzazione sui dati', quantita: 1, prezzo: 1500, ricorrenza: 'una_tantum' },
         { nome: 'Lavoro continuativo Google Ads', descrizione: 'Dal terzo mese: gestione operativa, report periodici, call di allineamento', quantita: 1, prezzo: 1400, ricorrenza: 'mese' },
       ] },
-    'Nome Azienda', { ragione: 'Ragione sociale completa', indirizzo: 'Via e numero, CAP Città (PR)', piva: '00000000000' }, 'marketing')])
+    'Nome Azienda', { ragione: 'Ragione sociale completa', indirizzo: 'Via e numero, CAP Città (PR)', piva: '00000000000' }, 'marketing',
+    { ragione: 'Studio Galilei', indirizzo: 'Sede dello Studio', piva: '00000000000', iva: 22, giorni: 15, preavviso: 30, firmatario: 'Nome, ruolo e firma' })])
 
   for (const [nome, doc] of docs) {
     const problemi = controllaTono(testoDi(doc))

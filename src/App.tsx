@@ -14,7 +14,15 @@ import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
-const Preventivi = lazy(() => import('./components/Preventivi'))
+// dopo un aggiornamento il pezzo vecchio non esiste piu': si ricarica una volta
+// sola invece di lasciare lo schermo bianco (QA backend, 14/9)
+function pezzo<T>(carica: () => Promise<T>) {
+  return () => carica().catch((e) => {
+    if (!sessionStorage.getItem('ricaricato')) { sessionStorage.setItem('ricaricato', '1'); location.reload() }
+    throw e
+  }) as Promise<T>
+}
+const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa } from './lib/profilo'

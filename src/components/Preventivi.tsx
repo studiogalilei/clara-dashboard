@@ -5,6 +5,7 @@ import { creaTask } from '../lib/regole'
 import { apriFile } from '../lib/file'
 import { LINEA_NOME, controllaTono, testoDi } from '../lib/tono'
 import { cosaManca } from '../lib/condizioni'
+import { datiStudio, mancaStudio, scriviStudio, STUDIO_VUOTO, type DatiStudio } from '../lib/studio'
 import {
   STATI, alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
   type Preventivo, type Voce, type VoceListino, type Fatturazione,
@@ -66,6 +67,8 @@ export default function Preventivi({ onOpen }: Props) {
   const [cercaAzienda, setCercaAzienda] = useState('')
   const [chiedo, setChiedo] = useState<{ id: number; cosa: 'rifiuto' | 'link' } | null>(null)
   const [testoChiesto, setTestoChiesto] = useState('')
+  const [studio, setStudio] = useState<DatiStudio>(STUDIO_VUOTO)
+  const [studioAperto, setStudioAperto] = useState(false)
 
   useEffect(() => {
     void supabase.from('preventivi').select('*').order('creato_il', { ascending: false }).limit(2000)
@@ -79,6 +82,7 @@ export default function Preventivi({ onOpen }: Props) {
         setNomi(m)
       })
     void supabase.from('listino').select('*').eq('attivo', true).order('ordine').then(({ data }) => setListino((data as VoceListino[]) ?? []))
+    void datiStudio().then(setStudio)
     void supabase.from('incassi').select('*').order('quando', { ascending: false }).limit(500)
       .then(({ data, error }) => { if (!error && data && data.length) setIncassi(data as Incasso[]) })
   }, [])
@@ -136,8 +140,8 @@ export default function Preventivi({ onOpen }: Props) {
     if (bozza.voci.length === 0) { setProblema('Un preventivo senza voci non è un preventivo.'); return }
     if (bozza.voci.some((v) => !v.nome.trim())) { setProblema('Ogni voce ha un nome.'); return }
     // il PDF e' un documento intestato: senza i dati veri non esce (mai «[da verificare]» a un cliente)
-    const buchi = conPdf ? cosaManca(bozza.fatturazione) : []
-    if (buchi.length) { setProblema(`Per il PDF serve ${buchi.join(', ')} dell'azienda. Scrivila qui sopra, poi rigenera.`); return }
+    const buchi = conPdf ? [...cosaManca(bozza.fatturazione), ...mancaStudio(studio)] : []
+    if (buchi.length) { setProblema(`Per il PDF serve ${buchi.join(', ')}.`); setStudioAperto(buchi.some((b) => b.includes('Studio'))); return }
     setLavoro(conPdf ? 'Salvo e genero il PDF…' : 'Salvo…')
     try {
       const linea = lineaDi(bozza.voci, listino)
@@ -168,7 +172,7 @@ export default function Preventivi({ onOpen }: Props) {
         setNomi((m) => ({ ...m, [bozza.prospect_id]: { ...m[bozza.prospect_id], fatturazione: f } }))
       }
       if (conPdf) {
-        const doc = documentoDi(riga, nomeDi(riga.prospect_id), f, riga.linea ?? 'marketing')
+        const doc = documentoDi(riga, nomeDi(riga.prospect_id), f, riga.linea ?? 'marketing', studio)
         const tono = controllaTono(testoDi(doc))
         if (tono.length) throw new Error(`Il testo non passa il controllo del tono: ${tono.join(', ')}`)
         const { path } = await generaEArchivia(riga, nomeDi(riga.prospect_id), f)
@@ -300,6 +304,34 @@ export default function Preventivi({ onOpen }: Props) {
         </div>
       )}
 
+      {/* I DATI DELLO STUDIO: la controparte del documento. Si scrivono una volta */}
+      {studioAperto && (
+        <Card className="salta-su space-y-3 border-blu/40 p-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-base font-extrabold">Dati dello Studio</h2>
+            <button onClick={() => setStudioAperto(false)} className="text-xs font-semibold text-spento hover:text-inchiostro">chiudi</button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Sede'], ['pec', 'PEC'], ['iban', 'IBAN'], ['firmatario', 'Chi firma'], ['foro', 'Foro competente']] as Array<[keyof DatiStudio, string]>).map(([k, n]) => (
+              <label key={k}>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
+                <input value={String(studio[k] ?? '')} onChange={(e) => setStudio({ ...studio, [k]: e.target.value })}
+                       className="mt-0.5 w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
+              </label>
+            ))}
+            {([['iva', 'IVA %'], ['giorni', 'Pagamento entro (giorni)'], ['preavviso', 'Preavviso disdetta (giorni)']] as Array<[keyof DatiStudio, string]>).map(([k, n]) => (
+              <label key={k}>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
+                <input type="number" value={Number(studio[k] ?? 0)} onChange={(e) => setStudio({ ...studio, [k]: Number(e.target.value) || 0 })}
+                       className="mt-0.5 w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-blu" />
+              </label>
+            ))}
+          </div>
+          <button onClick={async () => { const e = await scriviStudio(studio); if (e) setProblema(e); else { setStudioAperto(false); setToast('Dati dello Studio salvati') } }}
+                  className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro">Salva</button>
+        </Card>
+      )}
+
       {/* le tessere: un colpo d'occhio, e cliccando filtrano */}
       <div className="flex flex-wrap gap-2">
         {tessera('In giro, in attesa', somma(inGiro), inGiro.length, scaduti.length ? 'text-amber-800' : '', 'giro')}
@@ -325,6 +357,8 @@ export default function Preventivi({ onOpen }: Props) {
         <div className="ml-auto flex items-center gap-2">
           <input type="search" value={cerca} onChange={(e) => setCerca(e.target.value)} placeholder="Cerca azienda o numero…"
                  className="w-56 rounded-full border border-bordo bg-white px-4 py-2 text-sm outline-none focus:border-blu" />
+          <button onClick={() => setStudioAperto((v) => !v)} title="Ragione sociale, P.IVA, IVA, termini: vanno nei PDF"
+                  className="rounded-full border border-bordo bg-white px-3.5 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy">Dati Studio</button>
           <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Nuovo preventivo</button>
         </div>
       </div>
