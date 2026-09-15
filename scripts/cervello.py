@@ -206,6 +206,68 @@ def _conta_uso(modello, dentro, fuori):
 RIGA = re.compile(r"^\s*(\d+)\s*\|\s*([a-z_]+)\s*\|\s*([\d-]{1,10})\s*\|\s*(.*?)\s*$")
 
 
+# IL RECAP DI UNA CALL (Dre, 15/9).
+#
+# «Per i recap vorrei il formato di Granola: è semplice e fa capire subito,
+# quello di Google a volte mi rompe e non è così intuitivo.» Ha ragione: gli
+# appunti di Gemini sono corretti ma lunghi, e nella Scheda diventano un muro
+# che nessuno rilegge. Qui dentro tornano corti: due righe che dicono a che
+# punto siamo, cosa ci si è detti, cosa si è deciso, chi fa cosa. Gli appunti
+# interi restano dove sono, col link: non si butta niente, si legge meglio.
+RECAP = """Sei l'assistente di uno studio italiano. Ti do gli appunti di una call con un cliente.
+Riscrivili nel formato qui sotto, in italiano, come li scriverebbe chi c'era: corti, concreti, niente giri di parole.
+
+FORMATO, esatto, salta le sezioni che restano vuote:
+
+In due righe: <a che punto siamo, in massimo due frasi. La prima cosa che uno legge>
+
+Cosa si sono detti
+- <un punto per riga, massimo cinque, solo quello che conta>
+
+Deciso
+- <le decisioni prese, se ce ne sono>
+
+Chi fa cosa
+- Noi: <cosa tocca a noi, con la data se è stata detta>
+- Loro: <cosa tocca a loro>
+
+Resta aperto
+- <le domande senza risposta, se ce ne sono>
+
+REGOLE
+Niente introduzioni e niente commenti tuoi: solo il formato.
+Non inventare niente: se una cosa non è stata detta, la sezione non c'è.
+Niente parole gonfie (innovativo, soluzioni, sinergia, a 360, ottimizzare, implementare).
+Niente punti esclamativi, niente trattini lunghi, niente puntini elenco diversi da «- ».
+I numeri e le date come sono stati detti.
+Massimo quindici righe in tutto.
+
+AZIENDA: {azienda}
+QUANDO: {quando}
+
+APPUNTI:
+{testo}
+"""
+
+
+def recap(testo, azienda="", quando="", modello=None):
+    """Gli appunti di una call, riscritti corti. Torna None se non ce la fa:
+    chi chiama tiene quello che aveva, non resta senza niente."""
+    grezzo = " ".join((testo or "").split())
+    if len(grezzo) < 200:
+        return None
+    try:
+        fuori = _chiedi(RECAP.format(azienda=azienda or "?", quando=quando or "?", testo=grezzo[:14000]) + istruzione("lettura"))
+    except Exception:
+        return None
+    fuori = (fuori or "").strip()
+    if len(fuori) < 60 or "In due righe" not in fuori:
+        return None
+    # le regole di casa valgono anche qui, senza fidarsi del modello
+    fuori = re.sub(r"\s*—\s*", ": ", fuori).replace("–", "-").replace("·", ",").replace("•", "-")
+    return fuori.replace("!", ".")
+
+
 def istruzione(chiave):
     """Le istruzioni che Dre scrive nella sala di controllo (tabella istruzioni).
     Senza tabella o senza testo si va avanti senza: sono un di piu', non un requisito."""

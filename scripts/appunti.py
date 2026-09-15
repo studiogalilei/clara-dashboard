@@ -30,6 +30,7 @@ import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, proponi                             # noqa: E402
+import cervello                                            # noqa: E402
 from google_api import drive_cerca, drive_testo, drive_copia, cartella   # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -166,7 +167,13 @@ def main():
         try:
             q = quando_dal_titolo(doc["name"])
             at = q.astimezone(datetime.timezone.utc).isoformat() if q else doc["createdTime"]
-            corpo = f"Appunti di Gemini: {doc.get('webViewLink', '')}\n\n" + " ".join(testo.split())[:12000]
+            # il recap corto in testa (Dre, 15/9: «come Granola, si capisce
+            # subito»), gli appunti interi restano nel Drive, col link. Se il
+            # cervello non risponde si tiene il testo com'e': meglio lungo
+            # che niente.
+            corto = cervello.recap(testo, azienda=nome, quando=(at or "")[:10])
+            corpo = (f"{corto}\n\nAppunti interi: {doc.get('webViewLink', '')}" if corto
+                     else f"Appunti di Gemini: {doc.get('webViewLink', '')}\n\n" + " ".join(testo.split())[:12000])
             sb("POST", "/rest/v1/interactions", {"prospect_id": p["id"], "at": at, "kind": "transcript", "body": corpo, "ref": ref})
             messi += 1
         except Exception as e:                                       # una riga rotta non ferma le altre
