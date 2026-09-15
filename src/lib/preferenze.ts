@@ -36,13 +36,32 @@ export const CHIAVI = [
 
 export type Chiave = (typeof CHIAVI)[number]
 
+// DI SESSIONE, NON PER SEMPRE (Dre, 15/9): «se clicco Bacheca resta cosi'
+// anche passando in altre tab, ma torna al difetto se chiudo l'app e
+// rientro». Come sto guardando una cosa adesso e' un gesto dentro una
+// sessione di lavoro, non una preferenza: se resta per sempre, un giorno
+// riapri il Workspace e non ti ricordi piu' perche' vedi quella roba li'.
+// Queste vivono in sessionStorage e basta: si spengono con la finestra.
+const DI_SESSIONE: readonly string[] = [
+  'task-vista', 'tutti-vista', 'tutti-filtro', 'tutti-modo',
+  'progetti-ordine', 'clienti-modo', 'oggi-clara', 'calendario-pod',
+]
+const sessione = (c: string) => DI_SESSIONE.includes(c)
+
 export function leggi(chiave: Chiave, difetto = ''): string {
-  try { return localStorage.getItem(chiave) ?? difetto } catch { return difetto }
+  try {
+    if (sessione(chiave)) return sessionStorage.getItem(chiave) ?? difetto
+    return localStorage.getItem(chiave) ?? difetto
+  } catch { return difetto }
 }
 
 // si scrive subito nel browser e si manda al database senza aspettarlo: se la
 // rete non c'e', la scelta vale lo stesso qui e riparte al prossimo salvataggio
 export function scrivi(chiave: Chiave, valore: string) {
+  if (sessione(chiave)) {
+    try { sessionStorage.setItem(chiave, valore) } catch { /* niente */ }
+    return
+  }
   try { localStorage.setItem(chiave, valore) } catch { /* niente */ }
   void inviaAlDatabase(chiave, valore)
 }
@@ -70,6 +89,7 @@ export async function scarica(): Promise<boolean> {
     let cambiato = false
     for (const r of data as Array<{ chiave: string; valore: unknown }>) {
       if (!(CHIAVI as readonly string[]).includes(r.chiave)) continue
+      if (sessione(r.chiave)) continue      // le viste non arrivano dal database
       const v = typeof r.valore === 'string' ? r.valore : JSON.stringify(r.valore)
       try {
         if (localStorage.getItem(r.chiave) !== v) { localStorage.setItem(r.chiave, v); cambiato = true }

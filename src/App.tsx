@@ -118,6 +118,33 @@ export default function App() {
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [pieno])
+  // IL RIPOSO (Dre, 15/9): «quando sono nella stessa tab da un po', si
+  // allarga lo schermo, sparisce la parte a lato e il logo di Clara; poi
+  // passo il mouse dove stavano e riappaiono». Non e' lo schermo intero, che
+  // e' una decisione: questo succede da solo mentre lavori, e si disfa da
+  // solo appena ti serve qualcosa. Solo su desktop, e mai mentre scrivi.
+  const [riposo, setRiposo] = useState(false)
+  const [sbircio, setSbircio] = useState(false)
+  useEffect(() => {
+    setRiposo(false)
+    if (pieno) return
+    if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) return
+    let t = 0
+    const riparti = () => {
+      window.clearTimeout(t)
+      setRiposo(false)
+      t = window.setTimeout(() => {
+        // se stai scrivendo, non ti si muove niente sotto le mani
+        const dentro = document.activeElement?.tagName
+        if (dentro === 'INPUT' || dentro === 'TEXTAREA') { riparti(); return }
+        setRiposo(true)
+      }, 75000)
+    }
+    riparti()
+    window.addEventListener('keydown', riparti)
+    return () => { window.clearTimeout(t); window.removeEventListener('keydown', riparti) }
+  }, [tab, pieno])
+
   const [daDecidere, setDaDecidere] = useState(0)     // le proposte aperte: il badge della Posta di Clara
   const [daLeggere, setDaLeggere] = useState(0)       // i messaggi della squadra non letti
   useEffect(() => {
@@ -284,9 +311,18 @@ export default function App() {
       )}
 
       {/* ── sidebar (solo desktop) ─────────────────────────────── */}
+      {/* il bordo da sfiorare per farlo riapparire: invisibile, largo un dito */}
+      {riposo && !pieno && (
+        <div onMouseEnter={() => setSbircio(true)}
+             className="fixed inset-y-0 left-0 z-30 hidden w-4 lg:block" aria-hidden />
+      )}
       <aside
-        style={{ width: menuLargo }}
-        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-bordo bg-white px-4 py-5 ${pieno ? '' : 'lg:flex'}`}
+        style={{ width: riposo && !sbircio ? 0 : menuLargo }}
+        onMouseEnter={() => setSbircio(true)}
+        onMouseLeave={() => setSbircio(false)}
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col overflow-hidden border-r bg-white py-5 transition-[width,opacity,padding] duration-300 ease-out ${
+          riposo && !sbircio ? 'border-transparent px-0 opacity-0' : 'border-bordo px-4 opacity-100'
+        } ${pieno ? '' : 'lg:flex'}`}
       >
         {/* il filo per allargare: si scurisce quando ci passi sopra */}
         <div
@@ -565,7 +601,7 @@ export default function App() {
       {openId && <Rete dove={openId}><Scheda key={openId} id={openId} onClose={chiudiScheda} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
-      <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} />
+      <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} />
     </div>
   )
 }

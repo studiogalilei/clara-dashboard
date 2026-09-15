@@ -116,6 +116,10 @@ interface Props {
   // menu in basso; la pallina e' solo la chat. Stesso componente, due modi.
   modo?: 'volante' | 'posta'
   compatta?: boolean      // schermo intero: niente colonna fissa, resta la pallina
+  // il riposo (Dre, 15/9): dopo un po' nella stessa pagina la pallina
+  // svanisce, e torna quando ci passi sopra il mouse. Resta cliccabile:
+  // sparisce alla vista, non dal posto dove la cerchi.
+  attenuata?: boolean
 }
 
 // ── capire i comandi detti in chat (dominio stretto: call e task) ──
@@ -252,7 +256,7 @@ function trovaMail(testo: string): string[] {
   return (testo.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []).map((m) => m.replace(/\.+$/, ''))
 }
 
-export default function ClaraVolante({ onOpen, modo = 'volante', compatta = false }: Props) {
+export default function ClaraVolante({ onOpen, modo = 'volante', compatta = false, attenuata = false }: Props) {
   const pagina = modo === 'posta'
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [ceo, setCeo] = useState(false)
@@ -1010,9 +1014,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             }}
             aria-label="Clara"
             title="Trascinami dove vuoi"
-            className={`relative flex w-[76px] cursor-grab touch-none flex-col items-center gap-0.5 rounded-[22px] border bg-white px-2 pb-2 pt-2.5 text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-transform hover:-translate-y-0.5 active:cursor-grabbing ${
+            className={`relative flex w-[76px] cursor-grab touch-none flex-col items-center gap-0.5 rounded-[22px] border bg-white px-2 pb-2 pt-2.5 text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-[transform,opacity] duration-300 hover:-translate-y-0.5 hover:opacity-100 active:cursor-grabbing ${
               daNotare ? 'rimbalza border-red-300' : 'border-bordo'
-            }`}
+            } ${attenuata && !daNotare ? 'opacity-0' : 'opacity-100'}`}
           >
             <ClaraLogo size={44} lavora={pensa} />
             {/* il nome fa parte del logo: stesso blu, stessa forma bianca (Dre, 9/9) */}
