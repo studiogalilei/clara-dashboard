@@ -5,6 +5,7 @@ import type { Classificazione } from '../lib/types'
 import Radar from './Radar'
 import { Card, Spinner, giorni, fmtDateShort, sgid } from './ui'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
+import { chiSono } from '../lib/accessi'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -67,6 +68,18 @@ interface TaskDre {
 }
 
 interface Persona { id: string; nome: string | null }
+
+// IL POD, IN UNA RIGA A TESTA (Carlo, 15/9). Per sapere come stava la sua
+// gente doveva aprire le persone una per una, e in una lista lunga non lo
+// fai mai: quello che cerca e' se qualcuno e' sott'acqua (scadute) e se si e'
+// mosso qualcosa. Le task del pod le legge gia' la RLS (nel_mio_pod).
+interface RigaPod {
+  id: string
+  nome: string | null
+  aperte: number
+  scadute: number
+  ultima: { titolo: string; fatta_il: string } | null
+}
 
 interface Sotto {
   chiave: string
@@ -164,6 +177,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [possoVedere, setPossoVedere] = useState(true)
   const [mandate, setMandate] = useState<TaskDre[]>([])
   const [tavolozza, setTavolozza] = useState<number | null>(null)
+  // chi ha qualcuno nel pod vede la card; chi non ce l'ha non sa che esiste
+  const [pod, setPod] = useState<RigaPod[]>([])
 
   const [stretto, setStretto] = useState(false)
   useEffect(() => {
@@ -203,6 +218,36 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     supabase.auth.getSession().then(({ data }) => setIo(data.session?.user?.id ?? null))
     supabase.from('profili').select('id,nome').order('nome', { ascending: true }).limit(20)
       .then(({ data }) => setPersone((data as Persona[]) ?? []))
+  }, [])
+
+  // il pod: chi e' dentro lo dice il database (chi_sono), i numeri li si
+  // chiede alla stessa tabella che apre la persona di lato, con lo stesso
+  // filtro, se no la riga dice tre e il pannello ne mostra due
+  useEffect(() => {
+    void chiSono().then(async ({ pod: miei }) => {
+      if (!miei.length) { setPod([]); return }
+      const ids = miei.map((p) => p.id)
+      const [ap, fa] = await Promise.all([
+        supabase.from('task').select('owner,scadenza')
+          .in('owner', ids).eq('fatta', false).neq('stato', 'rimandata').limit(500),
+        supabase.from('task').select('owner,titolo,fatta_il')
+          .in('owner', ids).not('fatta_il', 'is', null)
+          .order('fatta_il', { ascending: false }).limit(100),
+      ])
+      const aperte = (ap.data as Array<{ owner: string; scadenza: string | null }>) ?? []
+      const fatte = (fa.data as Array<{ owner: string; titolo: string; fatta_il: string }>) ?? []
+      const today = oggi()
+      setPod(miei.map((m) => {
+        const sue = aperte.filter((t) => t.owner === m.id)
+        const ultima = fatte.find((t) => t.owner === m.id)
+        return {
+          id: m.id, nome: m.nome,
+          aperte: sue.length,
+          scadute: sue.filter((t) => t.scadenza !== null && t.scadenza < today).length,
+          ultima: ultima ? { titolo: ultima.titolo, fatta_il: ultima.fatta_il } : null,
+        }
+      }))
+    })
   }, [])
 
   const nomeDi = (id: string | null) =>
@@ -245,6 +290,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         if (v.ragione === 'rispondi') return v.data ? `ha scritto lui il ${fmtDateShort(v.data)}` : 'ha scritto lui'
         if (v.ragione === 'followup') return v.fermoDa !== null ? `silenzio da ${giorni(v.fermoDa)}` : `dovuto dal ${fmtDateShort(v.data)}`
         if (v.ragione === 'ricontatto') return v.p.next_action ?? 'la data è arrivata'
+        // dei tuoi conta da dove arrivano: la campagna e' l'unica cosa
+        // scritta quando l'azienda nasce a mano e non da una mail
+        if (v.ragione === 'mio') return (v.p.campaign ?? '').trim() || 'senza un prossimo passo'
         return `rientrato il ${fmtDateShort(v.data)}`
       }
       const sotto = (v: VoceCoda): Sotto => ({
@@ -264,6 +312,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         ...gruppo('followup', 'Follow-up', (a, b) => (b.fermoDa ?? 0) - (a.fermoDa ?? 0)),
         ...gruppo('ricontatto', 'Ricontatti'),
         ...gruppo('rientro', 'Rientri'),
+        ...gruppo('mio', 'I tuoi, da portare avanti'),
         ...(vecchie.length ? [{ chiave: 'arretrato', titolo: 'Fermi da più di un mese', sotto: vecchie.map(sotto) }] : []),
       ])
     })
@@ -847,6 +896,43 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
           <p className="px-2 py-6 text-center text-sm text-spento">Nessuna task.</p>
         )}
       </Card>
+
+      {/* il pod sta sotto le proprie task, non sopra: anche un manager la
+          mattina deve guardare prima la sua roba (regola 9). La riga apre la
+          persona di lato, dove c'e' gia' tutto quello che ha in mano */}
+      {pod.length > 0 && (
+        <Card>
+          <header className="border-b border-velo px-3 py-2.5">
+            <p className="text-sm font-bold">Il pod oggi</p>
+          </header>
+          {pod.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => apriPersona(m.id)}
+              className={`flex w-full items-center gap-3 border-b border-velo px-3 py-2.5 text-left last:border-0 hover:bg-velo/50 ${
+                persona?.id === m.id ? 'bg-velo/60' : ''
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{m.nome ?? 'Senza nome'}</p>
+                <p className="truncate text-xs text-tenue">
+                  {m.ultima
+                    ? `${m.ultima.titolo}, fatta il ${fmtDateShort(m.ultima.fatta_il)}`
+                    : 'niente di fatto di recente'}
+                </p>
+              </div>
+              {m.scadute > 0 && (
+                <span className="shrink-0 rounded-full bg-red-50 px-2 py-px text-[11px] font-semibold text-red-700">
+                  {m.scadute === 1 ? '1 scaduta' : `${m.scadute} scadute`}
+                </span>
+              )}
+              <span className="shrink-0 text-xs text-tenue">
+                {m.aperte === 0 ? 'niente in mano' : m.aperte === 1 ? '1 aperta' : `${m.aperte} aperte`}
+              </span>
+            </button>
+          ))}
+        </Card>
+      )}
 
       {completate.length > 0 && (
         <Card className="p-3">

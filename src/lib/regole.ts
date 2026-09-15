@@ -3,6 +3,7 @@
 // la home diceva 12 prospect e la bacheca ne mostrava 20.
 
 import { supabase } from './supabase'
+import { chiSono } from './accessi'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from './types'
 
 // ── chi è vivo ────────────────────────────────────────────────────
@@ -252,9 +253,17 @@ export async function creaTask(t: NuovaTask): Promise<{ task: TaskRiga | null; p
 // filtri e tetti diversi. Due di quei numeri stanno sulla stessa schermata e
 // non tornavano mai. Adesso la domanda si fa qui, una volta (revisione 4/9).
 //
-// Quattro ragioni per cui uno finisce nella coda, in ordine di urgenza. Chi
+// Cinque ragioni per cui uno finisce nella coda, in ordine di urgenza. Chi
 // ne ha piu' d'una compare una volta sola, con la prima.
-export type Ragione = 'rispondi' | 'followup' | 'ricontatto' | 'rientro'
+//
+// `mio` e' l'ultima arrivata (Dre, 15/9) e l'unica che non nasce da una mail.
+// Le altre quattro contano i giorni a partire da qualcosa che e' successo
+// nella posta: chi acquisisce su LinkedIn scrive le aziende a mano, spesso
+// senza una sola mail dietro, quindi la sua giornata restava vuota mentre il
+// lavoro c'era. Quelle che segue lui e su cui nessuno ha scritto il prossimo
+// passo non le sta seguendo nessun automatismo: o le porta avanti lui, o
+// stanno ferme.
+export type Ragione = 'rispondi' | 'followup' | 'ricontatto' | 'rientro' | 'mio'
 
 export interface VoceCoda {
   p: Prospect
@@ -276,7 +285,11 @@ export const GIORNI_SILENZIO = 10
 
 export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string | null }> {
   const today = oggi()
-  const [dr, fu, ri, oo] = await Promise.all([
+  // il nome si cerca per pezzo: `chi_segue` lo scrivono a mano nel foglio
+  // («Carlo») mentre nel profilo c'e' il nome intero («Carlo Durigon»), e
+  // un confronto secco non ne pescherebbe nessuno
+  const mioNome = ((await chiSono()).nome ?? '').trim().split(' ')[0]
+  const [dr, fu, ri, oo, mi] = await Promise.all([
     supabase.from('prospects').select('*')
       .eq('awaiting_us', true).eq('fuori', false).or(VIVI)
       .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(300),
@@ -291,8 +304,16 @@ export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string
       .not('ooo_until', 'is', null).lte('ooo_until', today)
       .eq('no_followup', false).eq('fuori', false).or(VIVI)
       .order('ooo_until', { ascending: true }).limit(300),
+    // le mie, senza un prossimo passo scritto: se non c'e' una data, non c'e'
+    // niente che le riporti a galla da sole
+    mioNome
+      ? supabase.from('prospects').select('*')
+          .ilike('chi_segue', `%${mioNome}%`)
+          .is('next_action_date', null).or(VIVI)
+          .order('updated_at', { ascending: false, nullsFirst: false }).limit(300)
+      : Promise.resolve({ data: [] as Prospect[], error: null as { message: string } | null }),
   ])
-  const problema = dr.error?.message ?? fu.error?.message ?? ri.error?.message ?? oo.error?.message ?? null
+  const problema = dr.error?.message ?? fu.error?.message ?? ri.error?.message ?? oo.error?.message ?? mi.error?.message ?? null
 
   const voci: VoceCoda[] = []
   const visti = new Set<string>()
@@ -316,6 +337,11 @@ export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string
 
   for (const p of ((ri.data as Prospect[]) ?? [])) aggiungi(p, 'ricontatto', p.next_action_date, null)
   for (const p of ((oo.data as Prospect[]) ?? [])) aggiungi(p, 'rientro', p.ooo_until, null)
+
+  // per ultime, cosi' chi ha gia' una ragione piu' urgente resta li' dov'e'.
+  // Il tetto e' quello di tutti: `updated_at` e' l'ultima volta che si e'
+  // mosso qualcosa, e oltre il mese finiscono nell'arretrato come le altre
+  for (const p of ((mi.data as Prospect[] | null) ?? [])) aggiungi(p, 'mio', p.updated_at, null)
 
   return { voci, problema }
 }

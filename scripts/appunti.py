@@ -104,8 +104,31 @@ def main():
     prova = "--prova" in sys.argv
     giorni = int(sys.argv[sys.argv.index("--giorni") + 1]) if "--giorni" in sys.argv else 3
     da = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=giorni)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    docs = drive_cerca(f"name contains 'Appunti di Gemini' and mimeType = 'application/vnd.google-apps.document' "
-                       f"and modifiedTime > '{da}' and trashed = false")
+
+    # DA TUTTE LE CALL, NON SOLO DALLE MIE (Dre, 15/9): «se Carlo fa una call
+    # e gli appunti arrivano nel suo Drive, devono aggiornare anche il mio».
+    # Il progetto Cloud e' uno solo, ma il permesso lo da' ognuno per se':
+    # si gira su tutte le caselle collegate e si legge il Drive di ognuno.
+    # Quello che si trova finisce nella stessa Scheda, che e' di tutti.
+    persone = sb("GET", "/rest/v1/google_token?select=email,user_id") or []
+    if not persone:
+        print("appunti: nessuno ha collegato Google")
+        return
+    q = (f"name contains 'Appunti di Gemini' and mimeType = 'application/vnd.google-apps.document' "
+         f"and modifiedTime > '{da}' and trashed = false")
+    docs, visti, di_chi_e = [], set(), {}
+    for u in persone:
+        try:
+            suoi = drive_cerca(q, email=u["email"])
+        except Exception as e:      # un token revocato di uno non ferma gli altri
+            print(f"  Drive di {u['email']}: {str(e)[:140]}")
+            continue
+        for d in suoi:
+            if d["id"] in visti:
+                continue
+            visti.add(d["id"])
+            di_chi_e[d["id"]] = u["email"]
+            docs.append(d)
     if not docs:
         print("appunti: niente di nuovo nel Drive")
         return
@@ -122,7 +145,8 @@ def main():
         # unico di interactions fa 409 (28 corse in errore, QA del 14/9)
         if "(SG)" in doc["name"]:
             continue
-        testo = drive_testo(doc["id"])
+        mio = di_chi_e.get(doc["id"])
+        testo = drive_testo(doc["id"], email=mio)
         if len(testo.strip()) < 200:
             continue
         pid, come = di_chi(doc, testo, aziende)
@@ -151,11 +175,12 @@ def main():
             continue
         try:
             etichetta = f"SG-{p['sg_id']} {nome}" if p.get("sg_id") else nome
-            cart = cartella(etichetta if p.get("sg_id") else nome, CLIENTI)
-            drive_copia(doc["id"], f"{doc['name']} (SG)", cart)
+            cart = cartella(etichetta if p.get("sg_id") else nome, CLIENTI, email=mio)
+            drive_copia(doc["id"], f"{doc['name']} (SG)", cart, email=mio)
         except Exception as e:                                       # la copia e' un di piu': la Scheda e' gia' a posto
             print(f"     (copia nel Drive non riuscita: {str(e)[:120]})")
-    print(f"appunti: {messi} messi nelle Schede, {domande} domande, {saltati} saltati, {len(docs)} documenti visti")
+    print(f"appunti: {messi} messi nelle Schede, {domande} domande, {saltati} saltati, "
+          f"{len(docs)} documenti visti nei Drive di {len(persone)} persone")
 
 
 if __name__ == "__main__":

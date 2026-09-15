@@ -4,18 +4,32 @@ import type { Prospect, AgendaItem } from '../lib/types'
 import { Card, Micro, Empty, fmtDateShort, fmtOra } from './ui'
 import { giorno, creaTask } from '../lib/regole'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
+import CercaAzienda, { nomeAzienda, type Azienda } from './CercaAzienda'
 
 // Il calendario: griglia mensile con le chip dei prospect nelle celle
-// (desktop) e lista raggruppata sul telefono. Tre colori fissi:
-// call = blu Galilei, follow-up armato = ambra, scadenza/altro = rosso.
-// Sola lettura: i meeting li mette Dre su Google Calendar, regola fissa.
+// (desktop) e lista raggruppata sul telefono. Quattro colori fissi:
+// call = blu Galilei, follow-up armato = ambra, scadenza/altro = rosso,
+// scadenza di un account = verde.
+// I meeting restano in sola lettura: li mette Dre su Google Calendar.
 //
 // L'unica cosa che si scrive da qui e' una task, e sta apposta in fondo al
 // pannello del giorno e non nella barra in alto (Dre, 4/9): il calendario
 // non e' il posto delle task, ma se sei qui e ti viene in mente una cosa per
 // giovedi', doverla andare a scrivere altrove significa perderla.
 
-type Tipo = 'call' | 'followup' | 'task' | 'altro'
+type Tipo = 'call' | 'followup' | 'task' | 'altro' | 'account'
+
+// LE SCADENZE DI SALVATORE (15/9). Rifare il budget di un account e il
+// rinnovo o la revisione di una campagna sono meta' del mese di un ad
+// specialist e non stavano scritte da nessuna parte. Vivono nella tabella
+// agenda come tutti gli altri impegni, con un tipo loro: cosi' entrano nella
+// griglia che c'e' gia' e il manager le vede nella vista del pod, senza una
+// tabella nuova da tenere allineata.
+type Scadenza = 'budget' | 'rinnovo'
+const SCADENZE: Array<[Scadenza, string]> = [['budget', 'Budget'], ['rinnovo', 'Rinnovo']]
+const DETTAGLIO: Record<Scadenza, string> = { budget: 'budget da rifare', rinnovo: 'rinnovo campagna' }
+const sottoDi = (t: string | null | undefined): Scadenza | undefined =>
+  t === 'budget' || t === 'rinnovo' ? t : undefined
 
 interface Voce {
   at: string
@@ -23,6 +37,8 @@ interface Voce {
   tipo: Tipo
   prospect_id: string | null
   chi?: string          // del pod: il nome della persona
+  id?: number           // solo le righe di agenda: serve per toglierle
+  sotto?: Scadenza      // budget o rinnovo, per la riga del giorno
 }
 
 interface Props {
@@ -41,15 +57,18 @@ const COLORE: Record<Tipo, string> = {
   followup: 'bg-amber-100 text-amber-900',
   task: 'bg-velo text-tenue',
   altro: 'bg-red-100 text-red-900',
+  account: 'bg-green-100 text-green-900',
 }
 const PALLINO: Record<Tipo, string> = {
   call: 'bg-navy', followup: 'bg-amber-500', task: 'bg-spento', altro: 'bg-red-500',
+  account: 'bg-green-600',
 }
 
 const chiave = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 function tipoAgenda(t: string | null): Tipo {
+  if (sottoDi(t)) return 'account'
   if (t && ['conoscitiva', 'tecnica', 'avvio', 'call'].includes(t)) return 'call'
   if (t && ['invio', 'followup'].includes(t)) return 'followup'
   return 'altro'
@@ -77,6 +96,22 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   const [titoloTask, setTitoloTask] = useState('')
   const [salvo, setSalvo] = useState(false)
   const [esito, setEsito] = useState<string | null>(null)
+  const [giro, setGiro] = useState(0)     // si alza quando salvi: rilegge l'agenda
+
+  // la scadenza appena salvata deve comparire subito nella griglia, se no
+  // sembra che il salvataggio non abbia fatto niente
+  function salvata(messaggio: string) {
+    setEsito(messaggio)
+    setGiro((g) => g + 1)
+    setTimeout(() => setEsito(null), 3000)
+  }
+
+  async function togliScadenza(v: Voce) {
+    if (v.id == null) return
+    const { error } = await supabase.from('agenda').delete().eq('id', v.id)
+    if (error) { setEsito('Non si è tolta: ' + error.message); return }
+    setVoci((l) => (l ?? []).filter((x) => x.id !== v.id))
+  }
 
   async function aggiungiTask() {
     const titolo = titoloTask.trim()
@@ -128,10 +163,14 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       const nome = (id: string | null) => pod.find((p) => p.id === id)?.nome?.split(' ')[0] ?? ''
       const out: Voce[] = ((ag.data as Array<AgendaItem & { owner?: string | null }>) ?? []).filter((a) => !a.owner).map((a) => ({
         at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
+        id: a.id, sotto: sottoDi(a.tipo),
       }))
       for (const a of (agPod.data as Array<AgendaItem & { owner: string }>) ?? []) {
         // i miei senza etichetta, quelli del pod col nome davanti
-        out.push({ at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id, chi: a.owner === io ? undefined : nome(a.owner) })
+        out.push({
+          at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
+          chi: a.owner === io ? undefined : nome(a.owner), id: a.id, sotto: sottoDi(a.tipo),
+        })
       }
       for (const t of (taskPod.data as Array<{ titolo: string; scadenza: string; owner: string }>) ?? []) {
         out.push({ at: t.scadenza + 'T09:00:00', titolo: t.titolo, tipo: 'task', prospect_id: null, chi: t.owner === io ? undefined : nome(t.owner) })
@@ -165,7 +204,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
       setVoci(out)
     })
-  }, [pod, io])
+  }, [pod, io, giro])
 
   const visibili = useMemo(() => (voci ?? []).filter((v) => conPod || !v.chi), [voci, conPod])
   const perGiorno = useMemo(() => {
@@ -200,6 +239,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   const prossimi = visibili.filter((v) => v.at >= adesso && v.at <= fraSette)
   const nCall = prossimi.filter((v) => v.tipo === 'call').length
   const nFu = prossimi.filter((v) => v.tipo === 'followup').length
+  const nScad = prossimi.filter((v) => v.tipo === 'account').length
 
   function cambiaMese(delta: number) {
     const d = new Date(anno, mese + delta, 1)
@@ -304,7 +344,9 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
                   const delMese = voci.filter((v) => v.at.startsWith(meseStr))
                   const c = delMese.filter((v) => v.tipo === 'call').length
                   const f = delMese.filter((v) => v.tipo === 'followup').length
-                  return delMese.length === 0 ? 'mese libero' : `${c} call, ${f} follow-up`
+                  const s = delMese.filter((v) => v.tipo === 'account').length
+                  if (delMese.length === 0) return 'mese libero'
+                  return `${c} call, ${f} follow-up` + (s > 0 ? `, ${s === 1 ? '1 scadenza' : `${s} scadenze`}` : '')
                 })()}
               </span>
             </div>
@@ -322,12 +364,12 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
           </div>
 
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            {(nCall > 0 || nFu > 0) && (
+            {(nCall > 0 || nFu > 0 || nScad > 0) && (
               <button
                 onClick={() => { setAnno(oggi.getFullYear()); setMese(oggi.getMonth()); setScelto(oggiChiave) }}
                 className="flex-1 rounded-xl bg-velo px-3 py-2 text-left text-xs font-semibold text-tenue hover:bg-velo/70"
               >
-                Prossimi 7 giorni: {nCall} call, {nFu} follow-up
+                Prossimi 7 giorni: {nCall} call, {nFu} follow-up{nScad > 0 ? `, ${nScad === 1 ? '1 scadenza' : `${nScad} scadenze`}` : ''}
               </button>
             )}
             {pod.length > 0 && (
