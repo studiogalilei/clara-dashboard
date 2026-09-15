@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
@@ -97,6 +97,9 @@ export default function Lista({ onOpen, q }: Props) {
   // una colonna alla volta si puo' allargare per starci dentro
   const [fuoco, setFuoco] = useState<Chiave | null>(null)
   const [persiAperti, setPersiAperti] = useState(false)
+  // quante colonne restano fuori dallo schermo, a destra
+  const bacheca = useRef<HTMLDivElement | null>(null)
+  const [altre, setAltre] = useState(0)
   const [scartatiAperti, setScartatiAperti] = useState(false)
   // nella vista elenco si guarda una fascia alla volta: i numeri in cima
   // sono il filtro (prima erano tre forme della stessa lista, QA Dre 14/9)
@@ -120,6 +123,17 @@ export default function Lista({ onOpen, q }: Props) {
   // il riassunto non si butta prima di averlo salvato (2/9)
   const [salvando, setSalvando] = useState(false)
   const [erroreP, setErroreP] = useState('')
+
+  function misura() {
+    const el = bacheca.current
+    if (!el) { setAltre(0); return }
+    const fuoriDx = el.scrollWidth - el.clientWidth - el.scrollLeft
+    const colonna = Math.max(180, el.clientWidth / Math.max(1, Math.round(el.clientWidth / 260)))
+    setAltre(fuoriDx < 24 ? 0 : Math.max(1, Math.round(fuoriDx / colonna)))
+  }
+  function scorri() {
+    bacheca.current?.scrollBy({ left: Math.round(bacheca.current.clientWidth * 0.7), behavior: 'smooth' })
+  }
 
   function cambiaVista(v: Vista) {
     setVista(v)
@@ -203,6 +217,13 @@ export default function Lista({ onOpen, q }: Props) {
     }, 200)
     return () => { attivo = false; clearTimeout(t) }
   }, [q, giro])
+
+  useEffect(() => {
+    misura()
+    const r = () => misura()
+    window.addEventListener('resize', r)
+    return () => window.removeEventListener('resize', r)
+  })
 
   useEffect(() => {
     if (!toast) return
@@ -578,7 +599,19 @@ export default function Lista({ onOpen, q }: Props) {
           </Card>
         </>
       ) : (
+        <div className="relative">
+        {/* si scorre di lato: prima non c'era nessun segno e le colonne oltre
+            il bordo (Cliente compresa) si scoprivano per caso (QA browser, 15/9) */}
+        {altre > 0 && (
+          <button onClick={scorri} aria-label="Vedi le altre colonne"
+                  className="absolute right-0 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-1 rounded-full border border-bordo bg-white/95 px-2.5 py-2 text-xs font-bold text-navy shadow-[0_4px_14px_rgba(16,24,40,0.14)] lg:flex">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="h-4 w-4"><path d="M9 6l6 6-6 6" /></svg>
+            {altre}
+          </button>
+        )}
         <div
+          ref={bacheca}
+          onScroll={misura}
           className="-mx-4 grid gap-3 overflow-x-auto px-4 pb-2 lg:-mx-8 lg:px-8"
           style={{
             // ogni colonna ha una larghezza minima da leggere (Dre, 14/9: le
@@ -649,6 +682,7 @@ export default function Lista({ onOpen, q }: Props) {
               </section>
             )
           })}
+        </div>
         </div>
       )}
 

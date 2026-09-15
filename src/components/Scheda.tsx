@@ -785,7 +785,8 @@ export default function Scheda({ id, onClose }: Props) {
           )}
 
           {/* lo stepper delle fasi */}
-          <div className="mt-4 flex items-center gap-1 overflow-x-auto pb-1">
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pb-1">
             {TAPPE.map((t, i) => (
               <div key={t} className="flex shrink-0 items-center gap-1">
                 {i > 0 && <span className={`h-px w-4 ${i <= tappa ? 'bg-navy' : 'bg-bordo'}`} />}
@@ -799,15 +800,16 @@ export default function Scheda({ id, onClose }: Props) {
                 </span>
               </div>
             ))}
+          </div>
             {fermo !== null && p.pipeline_stage !== 'cliente' && !soppresso && (
-              <span className={`ml-auto shrink-0 pl-3 text-xs font-bold ${tonoFermo}`}>
+              <span className={`shrink-0 text-xs font-bold ${tonoFermo}`}>
                 fermo da {giorni(fermo)}
               </span>
             )}
             {p.fuori && next && !soppresso && (
               <button
                 onClick={() => { setAvanzaAperto(true); setTimeout(() => transcriptRef.current?.focus(), 50) }}
-                className={`${fermo !== null && p.pipeline_stage !== 'cliente' ? 'ml-3' : 'ml-auto'} shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro`}
+                className="shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
               >
                 Avanza
               </button>

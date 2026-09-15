@@ -54,10 +54,14 @@ function tipoAgenda(t: string | null): Tipo {
   return 'altro'
 }
 
-// il pezzo corto per la chip nella cella
+// il pezzo corto per la chip nella cella: si toglie solo il prefisso
+// «Call tecnica StudioGalilei - Azienda», non il trattino di «follow-up»,
+// che tagliava «Invio follow-up, 30 mail pronte» in «up, 30 mail p…»
+// (QA browser, 15/9)
 function corto(titolo: string): string {
-  const dopo = titolo.split('-').pop()?.trim() ?? titolo
-  return dopo.length > 14 ? dopo.slice(0, 13) + '…' : dopo
+  const pezzi = titolo.split(' - ')
+  const dopo = (pezzi.length > 1 ? pezzi[pezzi.length - 1] : titolo).trim()
+  return dopo.length > 18 ? dopo.slice(0, 17) + '…' : dopo
 }
 
 export default function Calendario({ onOpen, pod = [] }: Props) {

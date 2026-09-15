@@ -214,10 +214,18 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
                     <path fill="currentColor" d="M9 5h2v2H9zM13 5h2v2h-2zM9 11h2v2H9zM13 11h2v2h-2zM9 17h2v2H9zM13 17h2v2h-2z" />
                   </svg>
                 </span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                     className={`h-4 w-4 shrink-0 ${acceso && mio ? 'text-navy' : 'text-spento'}`}>
-                  <path d={w.icona} strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                {/* la stessa icona del menu: i Documenti qui erano un lucchetto
+                    e nel menu il marchio (QA browser, 15/9) */}
+                {w.immagine ? (
+                  <span aria-hidden
+                        className={`inline-block h-4 w-4 shrink-0 ${acceso && mio ? 'text-navy' : 'text-spento'}`}
+                        style={{ backgroundColor: 'currentColor', WebkitMaskImage: `url(${import.meta.env.BASE_URL}${w.immagine})`, maskImage: `url(${import.meta.env.BASE_URL}${w.immagine})`, WebkitMaskSize: 'contain', maskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                       className={`h-4 w-4 shrink-0 ${acceso && mio ? 'text-navy' : 'text-spento'}`}>
+                    <path d={w.icona} strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{w.nome}</p>
                   <p className="truncate text-xs text-tenue">{w.cosa}</p>

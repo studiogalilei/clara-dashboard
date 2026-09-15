@@ -5,6 +5,7 @@ import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref 
 import Login from './components/Login'
 import Oggi from './components/Oggi'
 import Radar from './components/Radar'
+import Rete from './components/Rete'
 import Aziende from './components/Aziende'
 import ClaraVolante from './components/ClaraVolante'
 import ClaraLogo from './components/ClaraLogo'
@@ -79,7 +80,7 @@ function saluto(nome: string): [string, string] {
 function Icona({ icona, immagine, className }: { icona: string; immagine?: string; className: string }) {
   if (immagine) {
     const url = `url(${import.meta.env.BASE_URL}${immagine})`
-    return <span aria-hidden className={className} style={{ backgroundColor: 'currentColor', WebkitMaskImage: url, maskImage: url, WebkitMaskSize: 'contain', maskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }} />
+    return <span aria-hidden className={`inline-block ${className}`} style={{ backgroundColor: 'currentColor', WebkitMaskImage: url, maskImage: url, WebkitMaskSize: 'contain', maskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }} />
   }
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -468,7 +469,7 @@ export default function App() {
           </>)}
           {pieno && (
             <button onClick={() => setPieno(false)} title="Esci dallo schermo intero (Esc)"
-                    className="fixed right-4 top-3 z-50 flex items-center gap-1.5 rounded-full border border-bordo bg-white px-3 py-1.5 text-xs font-bold text-tenue shadow-[0_4px_14px_rgba(16,24,40,0.12)] hover:border-navy hover:text-navy">
+                    className="fixed left-4 top-3 z-[80] flex items-center gap-1.5 rounded-full border border-bordo bg-white px-3 py-1.5 text-xs font-bold text-tenue shadow-[0_4px_14px_rgba(16,24,40,0.12)] hover:border-navy hover:text-navy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
               {titolo}: esci
             </button>
@@ -481,6 +482,7 @@ export default function App() {
             </div>
           )}
           <div key={versione}>
+            <Rete dove={tab}>
             {tab === 'oggi' || tab === 'pipeline' ? (
               <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
             ) : tab === 'calendario' ? (
@@ -503,6 +505,7 @@ export default function App() {
             ) : (
               <Aziende onOpen={setOpenId} q={q} />
             )}
+            </Rete>
           </div>
         </main>
       </div>
@@ -525,7 +528,7 @@ export default function App() {
         </div>
       </nav>
 
-      {openId && <Scheda key={openId} id={openId} onClose={chiudiScheda} />}
+      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} onClose={chiudiScheda} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} />

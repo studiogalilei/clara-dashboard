@@ -297,6 +297,7 @@ class Query {
   private patch: Riga | null = null
   private nuovo: Riga | null = null
   private uno = false
+  private cancella = false
   private conta = false
   private testa = false
 
@@ -325,18 +326,48 @@ class Query {
   order(c: string, o?: { ascending?: boolean }) { this.ordina = { col: c, asc: o?.ascending !== false }; return this }
   limit(n: number) { this.max = n; return this }
   single() { this.uno = true; return this }
+  // i metodi che il codice vero usa e che qui mancavano: bastava uno per
+  // mandare a schermo bianco tutta la pagina (QA browser, 15/9)
+  maybeSingle() { this.uno = true; return this }
+  like(c: string, v: string) { return this.ilike(c, v) }
+  ilike(c: string, v: string) {
+    const ago = String(v).replace(/^%|%$/g, '').toLowerCase()
+    this.filtri.push((r) => String(r[c] ?? '').toLowerCase().includes(ago))
+    return this
+  }
+  contains(c: string, v: unknown) {
+    const cerca = Array.isArray(v) ? v.map(String) : [String(v)]
+    this.filtri.push((r) => {
+      const dentro = Array.isArray(r[c]) ? (r[c] as unknown[]).map(String) : []
+      return cerca.every((x) => dentro.includes(x))
+    })
+    return this
+  }
+  range(da: number, a: number) { this.max = a - da + 1; return this }
+  upsert(riga: Riga) { this.nuovo = riga; return this }
+  delete() { this.cancella = true; return this }
   update(patch: Riga) { this.patch = patch; return this }
-  insert(riga: Riga) { this.nuovo = riga; return this }
+  insert(riga: Riga | Riga[]) { this.nuovo = riga as Riga; return this }
 
   then(risolvi: (r: { data: unknown; error: null; count?: number }) => unknown) {
     let righe = (TABELLE[this.tabella] ?? []).filter((r) => this.filtri.every((f) => f(r)))
+    if (this.cancella) {
+      const via = new Set(righe)
+      TABELLE[this.tabella] = (TABELLE[this.tabella] ?? []).filter((r) => !via.has(r))
+      return Promise.resolve(risolvi({ data: [], error: null }))
+    }
     if (this.nuovo) {
       // sul DB vero `at` ha default now(): senza, i messaggi nuovi
       // saltavano in cima alla chat e il Vault mostrava data vuota (2/9)
-      const r = { id: 'demo-' + Math.random().toString(36).slice(2, 8), at: new Date().toISOString(), ...this.nuovo }
-      if (r.at == null) r.at = new Date().toISOString()
-      TABELLE[this.tabella]?.push(r)
-      righe = [r]
+      // e si inserisce anche una lista, come fa la coda di Oggi
+      const nuove = (Array.isArray(this.nuovo) ? this.nuovo : [this.nuovo]) as Riga[]
+      righe = nuove.map((n) => {
+        const r = { id: 'demo-' + Math.random().toString(36).slice(2, 8), at: new Date().toISOString(), ...n }
+        if (r.at == null) r.at = new Date().toISOString()
+        TABELLE[this.tabella] ??= []
+        TABELLE[this.tabella].push(r)
+        return r
+      })
     }
     if (this.patch) righe.forEach((r) => Object.assign(r, this.patch))
     if (this.ordina) {
