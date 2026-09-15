@@ -161,7 +161,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
         .insert({ nome, path, mime: 'application/pdf', dimensione: blob.size, prospect_id: file.prospect_id }).select().single()
       if (e2 || !data) { await supabase.storage.from('vault').remove([path]); throw new Error(e2?.message ?? 'riga non scritta') }
       onSalvato?.(data as Parameters<NonNullable<Props['onSalvato']>>[0])
-      setStato(`Salvato: «${nome}», nella stessa cartella ✓`)
+      setStato(`Salvato: «${nome}», nella stessa cartella`)
       setTimeout(onClose, 1200)
     } catch (e) {
       setStato('Non salvato: ' + (e as Error).message)
@@ -185,7 +185,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
           {attrezzo('data', `Data di oggi`)}
           {attrezzo('firma', 'Firma', !firma)}
           {attrezzo('timbro', 'Timbro', !timbro)}
-          <span className="text-[11px] text-spento">{strumento ? 'clicca sulla pagina dove va' : 'scegli cosa mettere, poi clicca dove va'}</span>
+          <span className="text-[11px] text-spento">{strumento ? 'tocca la pagina dove va' : 'scegli cosa mettere, poi tocca dove va'}</span>
           <div className="ml-auto flex items-center gap-2">
             <button onClick={onClose} className="text-xs font-semibold text-tenue hover:text-inchiostro">annulla</button>
             <button onClick={() => void salva()} disabled={salvo || pezzi.length === 0}

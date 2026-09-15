@@ -204,7 +204,7 @@ export default function Analytics({ onOpen }: Props) {
                 <tr key={c} className="border-b border-velo last:border-0">
                   <td className="px-4 py-2.5 font-semibold text-spento">{c}</td>
                   <td colSpan={5} className="px-4 py-2.5 text-right text-xs text-spento">
-                    non passa ancora dalla Dashboard
+                    non passa ancora da SG Workspace
                   </td>
                 </tr>
               ))}

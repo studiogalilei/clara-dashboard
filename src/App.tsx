@@ -306,7 +306,7 @@ export default function App() {
                 {attivo && <span className="absolute -left-4 h-6 w-1 rounded-r-full bg-navy" />}
                 <Icona icona={icona} immagine={immagine} className={`h-[18px] w-[18px] ${attivo ? 'text-navy' : ''}`} />
                 {label}
-                {t === 'oggi' && inArrivo > 0 && (
+                {t === 'pipeline' && inArrivo > 0 && (
                   <span className="ml-auto rounded-full bg-blu px-1.5 py-px text-[10px] font-bold text-white" title="Task in arrivo da accettare">{inArrivo}</span>
                 )}
                 {t === 'clara' && daDecidere > 0 && (
@@ -389,6 +389,22 @@ export default function App() {
               </button>
             )}
           </div>
+          {/* la Posta, i Documenti e le Impostazioni: dal telefono si
+              raggiungevano solo dalla pallina, e una volta li' nessuna icona
+              era accesa (QA Dre, 14/9) */}
+          {vociSistema.filter((w) => w.chiave !== 'analytics').map(({ chiave: t, nome, icona, immagine }) => (
+            <button key={t} onClick={() => { setTab(t); setOpenId(null) }} aria-label={nome} title={nome}
+                    className={`relative shrink-0 rounded-full p-1.5 ${tab === t ? 'bg-velo text-navy' : 'text-tenue'}`}>
+              <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
+              {t === 'clara' && daDecidere > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-red-600 px-1 text-[9px] font-bold leading-4 text-white">{daDecidere}</span>
+              )}
+            </button>
+          ))}
+          <button onClick={() => { setTab('impostazioni'); setOpenId(null) }} aria-label="Impostazioni" title="Impostazioni"
+                  className={`shrink-0 rounded-full p-1.5 ${tab === 'impostazioni' ? 'bg-velo text-navy' : 'text-tenue'}`}>
+            <Icona icona="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" className="h-5 w-5" />
+          </button>
         </header>
 
         <main className={`${pieno ? 'px-4 py-4' : 'px-4 py-5 lg:px-8 lg:py-7'} ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
@@ -456,6 +472,13 @@ export default function App() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
               {titolo}: esci
             </button>
+          )}
+          {/* in schermo intero la testata non c'e': la prossima call resta
+              comunque, e' l'unica cosa che non si puo' perdere (QA Dre, 14/9) */}
+          {pieno && tab === 'pipeline' && (
+            <div className="mb-4 hidden lg:block">
+              <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
+            </div>
           )}
           <div key={versione}>
             {tab === 'oggi' || tab === 'pipeline' ? (

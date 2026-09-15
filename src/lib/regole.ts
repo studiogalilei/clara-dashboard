@@ -256,7 +256,13 @@ export interface VoceCoda {
   ragione: Ragione
   data: string | null      // la data che l'ha messo in coda
   fermoDa: number | null   // giorni dall'analisi, quando e' quello che conta
+  // la coda del giorno non e' l'arretrato di due mesi: quello che e' dovuto
+  // da piu' di un mese si mette da parte, se no la tendina si apre su 350
+  // nomi e non la riapri piu' (QA Dre, 14/9)
+  vecchia: boolean
 }
+
+export const GIORNI_ARRETRATO = 30
 
 // quanti giorni di silenzio dopo l'analisi prima di considerarlo dovuto
 // Dre (9/9): follow-up a 6 giorni dall'analisi; a 10 giorni di silenzio esce dai prospect
@@ -290,7 +296,8 @@ export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string
   const aggiungi = (p: Prospect, ragione: Ragione, data: string | null, fermoDa: number | null) => {
     if (visti.has(p.id) || eCliente(p) || ePerso(p) || passato(p)) return
     visti.add(p.id)
-    voci.push({ p, ragione, data, fermoDa })
+    const eta = giorniDa(data) ?? fermoDa ?? 0
+    voci.push({ p, ragione, data, fermoDa, vecchia: eta > GIORNI_ARRETRATO })
   }
 
   for (const p of ((dr.data as Prospect[]) ?? [])) aggiungi(p, 'rispondi', p.last_reply_at, null)

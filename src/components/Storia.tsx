@@ -153,7 +153,7 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-fondo">
       <header className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-3 lg:px-8">
-        <button onClick={onChiudi} className="rounded-full px-3 py-1.5 text-sm font-semibold text-tenue hover:bg-velo">← Indietro</button>
+        <button onClick={onChiudi} className="rounded-full px-3 py-1.5 text-sm font-semibold text-tenue hover:bg-velo">‹ Torna</button>
         <h1 className="text-[17px] font-extrabold">{nome}</h1>
         <Micro className="ml-1">tutta la storia, {eventi.length} eventi</Micro>
         <span className="ml-auto text-xs text-spento">Esc per chiudere</span>

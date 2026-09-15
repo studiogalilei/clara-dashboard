@@ -754,7 +754,7 @@ export default function Lista({ onOpen, q }: Props) {
             <p className="text-base font-extrabold">Riassunto di fase</p>
             <p className="mt-1 text-sm text-tenue">
               {pedaggio.p.company || pedaggio.p.name}
-              {`, ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} → ${PIPELINE_LABEL[pedaggio.target]}`}
+              {`, da ${PIPELINE_LABEL[pedaggio.da as PipelineStage]} a ${PIPELINE_LABEL[pedaggio.target]}`}
             </p>
             <textarea
               autoFocus
@@ -811,7 +811,7 @@ export default function Lista({ onOpen, q }: Props) {
                 disabled={!riassunto.trim() || salvando}
                 className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
               >
-                {salvando ? 'Salvo…' : 'Salva e porta avanti →'}
+                {salvando ? 'Salvo…' : 'Salva e porta avanti'}
               </button>
             </div>
           </div>
@@ -875,7 +875,7 @@ export default function Lista({ onOpen, q }: Props) {
                 }`}
               >
                 {conferma.tipo === 'perso' ? 'Segna come perso'
-                  : conferma.tipo === 'riapri' ? 'Riapri →'
+                  : conferma.tipo === 'riapri' ? 'Riapri'
                   : 'Sì, torna indietro'}
               </button>
             </div>

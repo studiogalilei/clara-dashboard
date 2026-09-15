@@ -175,7 +175,7 @@ export default function Scheda({ id, onClose }: Props) {
         if (!vivo) return
         // vuoto perche' non ce ne sono e vuoto perche' la colonna non esiste
         // erano la stessa immagine: due cose diverse (revisione 4/9)
-        if (error) setErrore('Le sue task non si leggono. ' + spiegaErrore(error))
+        if (error) setErrore('Le task di questa azienda non si leggono. ' + spiegaErrore(error))
         setTaskSue((data as Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>) ?? [])
       })
     supabase.from('progetti').select('*').eq('prospect_id', id)
@@ -388,7 +388,7 @@ export default function Scheda({ id, onClose }: Props) {
     await supabase.from('vault_file')
       .insert({ nome, path, mime: f.type || null, dimensione: f.size, prospect_id: p!.id })
       .select().single()
-    await segna('nota', `📎 ${f.name}, nei Documenti`)
+    await segna('nota', `${f.name}, nei Documenti`)
     setNotaEsito(`«${nome}» nei Documenti, agganciato a ${p!.company || p!.name}`)
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)
   }
@@ -506,7 +506,7 @@ export default function Scheda({ id, onClose }: Props) {
             dirty ? 'bg-blu text-white hover:bg-blu-scuro' : 'text-bordo'
           }`}
         >
-          {saving ? 'Salvo…' : saved ? 'Salvato ✓' : 'Salva'}
+          {saving ? 'Salvo…' : saved ? 'Salvato' : 'Salva'}
         </button>
       </div>
 
@@ -546,10 +546,10 @@ export default function Scheda({ id, onClose }: Props) {
           {avanzataA === 'cliente' ? (
             <div className="rounded-2xl bg-blu px-5 py-4 text-white shadow-[0_8px_24px_rgba(6,23,115,0.3)]">
               <p className="text-lg font-extrabold">
-                🏆 Nuovo cliente, {p.company || p.name} {codice && <span className="font-semibold text-white/70">{codice}</span>}
+                Nuovo cliente, {p.company || p.name} {codice && <span className="font-semibold text-white/70">{codice}</span>}
               </p>
               <p className="mt-0.5 text-sm text-white/80">
-                Da prospect a cliente: è l'obiettivo del gioco. L'ID resta lo stesso, cambia la relazione.
+                L'ID resta lo stesso, cambia la relazione.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
               <span className="text-sm text-white/80">Il contratto:</span>
@@ -569,7 +569,7 @@ export default function Scheda({ id, onClose }: Props) {
             </div>
           ) : (
             <div className="rounded-xl border border-green-300 bg-green-50 px-4 py-3">
-              <p className="text-sm font-bold text-green-800">Avanzata a {PIPELINE_LABEL[avanzataA]} ✓</p>
+              <p className="text-sm font-bold text-green-800">Avanzata a {PIPELINE_LABEL[avanzataA]}</p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
               <span className="text-sm text-green-900">Prossima call?</span>
               <input
@@ -605,7 +605,7 @@ export default function Scheda({ id, onClose }: Props) {
 
         {binarioSegnato && (
           <p className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-            Segnato ✓, non te lo chiedo più per questa scheda.
+            Segnato, non te lo chiedo più per questa scheda.
           </p>
         )}
 
@@ -668,7 +668,7 @@ export default function Scheda({ id, onClose }: Props) {
                   noteAperte ? 'border-navy bg-blu text-white' : 'border-bordo text-tenue hover:border-navy hover:text-navy'
                 }`}
               >
-                ✎ Nota
+                Nota
               </button>
               <button
                 onClick={() => setAltroAperto(!altroAperto)}
@@ -805,7 +805,7 @@ export default function Scheda({ id, onClose }: Props) {
                       onClick={() => docRef.current?.click()}
                       className="rounded-full border border-bordo bg-white px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy"
                     >
-                      📎 Allega documento
+                      Allega documento
                     </button>
                     <input
                       ref={docRef}
@@ -856,7 +856,7 @@ export default function Scheda({ id, onClose }: Props) {
                 onClick={() => { setAvanzaAperto(true); setTimeout(() => transcriptRef.current?.focus(), 50) }}
                 className={`${fermo !== null && p.pipeline_stage !== 'cliente' ? 'ml-3' : 'ml-auto'} shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro`}
               >
-                Avanza →
+                Avanza
               </button>
             )}
           </div>
@@ -906,7 +906,7 @@ export default function Scheda({ id, onClose }: Props) {
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{prep.body}</p>
                 ) : prepChiesta ? (
                   <p className="text-sm font-semibold text-green-700">
-                    Chiesta a Clara ✓: la troverai qui.
+                    Chiesta a Clara: la troverai qui.
                   </p>
                 ) : (
                   <div className="flex flex-wrap items-center gap-3">
@@ -1118,7 +1118,7 @@ export default function Scheda({ id, onClose }: Props) {
                   />
                   {premio.length > 0 && (
                     <div className="salta-su mt-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
-                      <p className="text-xs font-bold text-green-800">Riassunto salvato ✓</p>
+                      <p className="text-xs font-bold text-green-800">Riassunto salvato</p>
                       {premio.map((r, i) => (
                         <p key={i} className="text-xs text-green-900">{r}</p>
                       ))}
@@ -1138,7 +1138,7 @@ export default function Scheda({ id, onClose }: Props) {
                       title={transcriptCorrente ? undefined : 'Prima il riassunto: senza non si avanza'}
                       className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
                     >
-                      Avanza → {PIPELINE_LABEL[next]}
+                      Avanza {PIPELINE_LABEL[next]}
                     </button>
                   </div>
                 </div>
@@ -1156,7 +1156,7 @@ export default function Scheda({ id, onClose }: Props) {
                 </header>
 
                 <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
-                  <span className="mt-0.5 text-base" aria-hidden>📄</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-spento"><path d="M7 3h7l5 5v13H7zM14 3v5h5" /></svg>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">L'analisi</p>
                     {p.analysis_sent ? (
@@ -1177,7 +1177,7 @@ export default function Scheda({ id, onClose }: Props) {
                 </div>
 
                 <div className="flex items-start gap-3 px-4 py-3">
-                  <span className="mt-0.5 text-base" aria-hidden>🏢</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-spento"><path d="M4 21V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v15M14 10h5a1 1 0 0 1 1 1v10M7 9h4M7 13h4M7 17h4" /></svg>
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-sm font-semibold">
                       Chi sono

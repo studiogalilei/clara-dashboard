@@ -80,7 +80,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
     const { problema } = await creaTask({ titolo, scadenza: scelto })
     setSalvo(false)
     if (problema) { setEsito('Non si è salvata: ' + problema); return }
-    setEsito(`«${titolo}» è in Task per il ${fmtDateShort(scelto)} ✓`)
+    setEsito(`«${titolo}» è in Task per il ${fmtDateShort(scelto)}`)
     setTitoloTask('')
     setScrivoTask(false)
     setTimeout(() => setEsito(null), 3000)
@@ -302,7 +302,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
             {pod.length > 0 && (
               <button onClick={() => setConPod((v) => !v)}
                       className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold ${conPod ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue'}`}>
-                Il mio pod{conPod ? '' : ': nascosto'}
+                Pod{conPod ? '' : ': nascosto'}
               </button>
             )}
           </div>

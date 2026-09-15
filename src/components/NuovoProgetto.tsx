@@ -40,7 +40,7 @@ export default function NuovoProgetto({ prospectId, nomeCliente, onFatto }: Prop
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-inchiostro/30 px-4">
       <div className="salta-su w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-        <p className="text-base font-extrabold">🏆 {nomeCliente} è cliente</p>
+        <p className="text-base font-extrabold">{nomeCliente} è cliente</p>
         <p className="mt-1 text-sm text-tenue">Cosa gli abbiamo venduto?</p>
 
         <input
@@ -95,7 +95,7 @@ export default function NuovoProgetto({ prospectId, nomeCliente, onFatto }: Prop
             disabled={!nome.trim() || salvo}
             className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {salvo ? 'Salvo…' : 'Passa alla delivery →'}
+            {salvo ? 'Salvo…' : 'Passa alla delivery'}
           </button>
         </div>
       </div>

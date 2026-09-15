@@ -234,7 +234,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
             </button>
             {settimana > 1 && onCalendario && (
               <button onClick={onCalendario} className="shrink-0 text-xs font-semibold text-blu hover:underline">
-                altri {settimana - 1} in settimana →
+                altri {settimana - 1} in settimana
               </button>
             )}
           </div>
@@ -262,7 +262,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
       <div id="avvisi" className="scroll-mt-4">
         {avvisi.length === 0 ? (
           <p className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800">
-            <span className="font-bold">✓</span>
+            <span className="font-bold">fatto</span>
             Clara ha controllato tutto alle {oraControllo}: zero problemi.
           </p>
         ) : (

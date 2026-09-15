@@ -221,7 +221,7 @@ export default function Plugin() {
               >
                 Salva
               </button>
-              {salvata === i.chiave && <span className="text-xs font-semibold text-green-700">salvato ✓</span>}
+              {salvata === i.chiave && <span className="text-xs font-semibold text-green-700">salvato</span>}
               {i.testo && salvata !== i.chiave && <span className="text-[11px] text-spento">aggiornata il {fmtDateShort(i.aggiornata)}</span>}
             </div>
           </div>

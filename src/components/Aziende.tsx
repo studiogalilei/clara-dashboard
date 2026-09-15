@@ -15,18 +15,22 @@ interface Props { onOpen: (id: string) => void; q: string }
 export default function Aziende({ onOpen, q }: Props) {
   const [modo, setModo] = useState<Modo>(() => ((leggiPref('tutti-modo') as Modo) === 'foglio' ? 'foglio' : 'bacheca'))
   function cambia(m: Modo) { setModo(m); scriviPref('tutti-modo', m) }
+  // cercando un nome si va sempre nella Bacheca: il Foglio la ricerca non la
+  // sa fare e mostrava la tabella intera dicendo che aveva trovato qualcosa
+  // (QA Dre, 14/9)
+  const vista: Modo = q.trim() ? 'bacheca' : modo
   return (
     <div className="space-y-4">
       <div className="flex gap-6 border-b border-bordo">
         {MODI.map(([m, etichetta]) => (
           <button key={m} onClick={() => cambia(m)}
             className={`-mb-px border-b-2 pb-2.5 text-[15px] font-semibold transition-colors ${
-              modo === m ? 'border-navy text-navy' : 'border-transparent text-tenue hover:text-inchiostro'}`}>
+              vista === m ? 'border-navy text-navy' : 'border-transparent text-tenue hover:text-inchiostro'}`}>
             {etichetta}
           </button>
         ))}
       </div>
-      {modo === 'bacheca' ? <Lista onOpen={onOpen} q={q} /> : <TuttiFoglio onOpen={onOpen} />}
+      {vista === 'bacheca' ? <Lista onOpen={onOpen} q={q} /> : <TuttiFoglio onOpen={onOpen} />}
     </div>
   )
 }

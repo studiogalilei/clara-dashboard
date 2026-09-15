@@ -73,7 +73,7 @@ export default function Firma({ ceo }: { ceo: boolean }) {
 
   async function salva(dataUrl: string | null) {
     const err = await scriviFirma(dataUrl)
-    setEsito(err ? 'Non salvata: ' + err : dataUrl ? 'Firma salvata ✓' : 'Firma tolta')
+    setEsito(err ? 'Non salvata: ' + err : dataUrl ? 'Firma salvata' : 'Firma tolta')
     if (!err) { setFirma(dataUrl); setDisegno(false) }
     setTimeout(() => setEsito(null), 2500)
   }
@@ -82,14 +82,14 @@ export default function Firma({ ceo }: { ceo: boolean }) {
   }
   async function caricaTimbro(f: File) {
     const err = await scriviTimbro(f)
-    setEsito(err ? 'Timbro non salvato: ' + err : 'Timbro salvato ✓')
+    setEsito(err ? 'Timbro non salvato: ' + err : 'Timbro salvato')
     if (!err) setTimbro(await leggiTimbro())
     setTimeout(() => setEsito(null), 2500)
   }
 
   return (
     <Card className="p-5">
-      <TitoloCard>La tua firma</TitoloCard>
+      <TitoloCard>Firma</TitoloCard>
       <p className="mt-1 text-xs text-tenue">Una volta sola. Poi in «Compila PDF» clicchi dove va e ci finisce lei, con la data accanto.</p>
       {firma === undefined ? null : firma && !disegno ? (
         <div className="mt-3 flex flex-wrap items-center gap-4">

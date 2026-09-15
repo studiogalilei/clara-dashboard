@@ -63,7 +63,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   }, [demo, ruolo])
   async function chiediAccesso(w: Chiave) {
     const err = await chiedi(w, bozzaNome || nome)
-    setAccessoEsito(err ? 'Richiesta non partita: ' + err : 'Richiesta mandata a Dre e Giacomo ✓')
+    setAccessoEsito(err ? 'Richiesta non partita: ' + err : 'Richiesta mandata a Dre e Giacomo')
     setMiei(await mieiAccessi())
     setTimeout(() => setAccessoEsito(null), 3000)
   }
@@ -86,7 +86,16 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   const [notificheProblema, setNotificheProblema] = useState<string | null>(null)
   useEffect(() => { void statoNotifiche().then(setNotifiche); if (!demo) void googleCollegato().then(setGoogle) }, [demo])
   const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
-  const [vistaTutti, setVistaTutti] = useState(() => leggiPref('tutti-vista', 'board'))
+  // «Pipeline si apre su…» e' una scelta sola, ma dietro ci sono due
+  // preferenze: quale tab (bacheca o foglio) e, dentro la bacheca, quale
+  // forma (bacheca o elenco). Prima erano due interruttori scollegati.
+  const [vistaTutti, setVistaTutti] = useState(() =>
+    leggiPref('tutti-modo', 'bacheca') === 'foglio' ? 'foglio' : leggiPref('tutti-vista', 'board'))
+  function apriPipelineCome(v: string) {
+    setVistaTutti(v)
+    scriviPref('tutti-modo', v === 'foglio' ? 'foglio' : 'bacheca')
+    if (v !== 'foglio') scriviPref('tutti-vista', v)
+  }
   const [lista, setLista] = useState(() => inOrdine(WIDGET))
   const [presa, setPresa] = useState<Chiave | null>(null)
   const [sopra, setSopra] = useState<Chiave | null>(null)
@@ -142,13 +151,13 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
             </label>
             <p className="mt-1.5 text-xs text-tenue">
               {demo ? 'Stai guardando la demo, con dati finti' : email}
-              {salvato && <span className="ml-2 font-semibold text-green-700">salvato ✓</span>}
+              {salvato && <span className="ml-2 font-semibold text-green-700">salvato</span>}
             </p>
           </div>
         </div>
 
         <div className="mt-4 border-t border-velo pt-3">
-          <Micro>Il tuo ruolo</Micro>
+          <Micro>Ruolo</Micro>
           <p className="mt-1 text-sm font-semibold">{NOME_RUOLO[ruoloVero] ?? RUOLI.find(([r]) => r === ruolo)?.[1] ?? ruolo}</p>
         </div>
       </Card>
@@ -159,7 +168,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           <TitoloCard>Google</TitoloCard>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {google === null ? <span className="text-sm text-spento">controllo…</span>
-              : google ? <span className="text-sm font-semibold text-green-800">Collegato ✓</span>
+              : google ? <span className="text-sm font-semibold text-green-800">Collegato</span>
               : <span className="text-sm text-tenue">Non ancora collegato.</span>}
             <button onClick={() => void entraConGoogle()} className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
               {google ? 'Rinnova il collegamento' : 'Collega Google'}
@@ -296,7 +305,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         </header>
         <div className="flex items-center gap-3 border-b border-velo px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Task</p>
+            <p className="text-sm font-semibold">Le task in Oggi</p>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['ongo', 'On go'], ['big', 'Questa settimana']].map(([v, etichetta]) => (
@@ -312,8 +321,8 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
             <p className="text-sm font-semibold">Pipeline</p>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
-            {[['board', 'Bacheca'], ['elenco', 'Elenco']].map(([v, etichetta]) => (
-              <button key={v} onClick={() => preferenza('tutti-vista', v, setVistaTutti)}
+            {[['board', 'Bacheca'], ['elenco', 'Elenco'], ['foglio', 'Foglio']].map(([v, etichetta]) => (
+              <button key={v} onClick={() => apriPipelineCome(v)}
                 className={`px-3 py-1 text-xs font-bold ${vistaTutti === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
                 {etichetta}
               </button>
@@ -349,7 +358,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           </div>
           <p className="mt-1.5 text-xs text-spento">
             {vault.trim()
-              ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato ✓</span>}</>
+              ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato</span>}</>
               : 'Spento: senza il nome del vault i collegamenti non saprebbero dove andare'}
           </p>
         </div>
@@ -375,7 +384,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
               disabled={nuovaPassword.length < 8}
               onClick={async () => {
                 const { error } = await supabase.auth.updateUser({ password: nuovaPassword })
-                setPasswordEsito(error ? 'Non è cambiata: ' + error.message : 'Password cambiata ✓')
+                setPasswordEsito(error ? 'Non è cambiata: ' + error.message : 'Password cambiata')
                 if (!error) setNuovaPassword('')
               }}
               className="rounded-full bg-blu px-4 py-2 text-sm font-semibold text-white hover:bg-blu-scuro disabled:opacity-40"
@@ -414,7 +423,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
               {notifiche === 'attive' && 'Attive su questo dispositivo: quando ci sono bozze da approvare, Clara ti avvisa qui.'}
               {notifiche === 'spente' && 'Spente. Accendile e Clara ti avvisa quando c\'è qualcosa da approvare.'}
               {notifiche === 'negate' && 'Il browser le ha bloccate: si riaccendono dalle impostazioni del sito.'}
-              {notifiche === 'da-installare' && 'Su iPhone prima aggiungi la Dashboard alla schermata Home (condividi → Aggiungi alla schermata Home), poi riapri da lì.'}
+              {notifiche === 'da-installare' && 'Su iPhone prima aggiungi SG Workspace alla schermata Home: condividi, poi «Aggiungi alla schermata Home», e riapri da lì.'}
               {notifiche === 'non-supportate' && 'Questo browser non le supporta.'}
               {notifiche === null && '…'}
             </p>

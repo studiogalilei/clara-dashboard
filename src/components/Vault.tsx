@@ -167,7 +167,7 @@ export default function Vault({ onOpen }: Props) {
     } else {
       dimenticaFile(path)
       setFile((v) => [data as FileVault, ...(v ?? [])])
-      setToast(sezione === 'cliente' ? `«${riga.nome}» nella cartella di ${nomeProspect(resto!)} ✓` : `«${riga.nome}» in ${SEZIONI.find(([k]) => k === riga.sezione)?.[1]} ✓`)
+      setToast(sezione === 'cliente' ? `«${riga.nome}» nella cartella di ${nomeProspect(resto!)}` : `«${riga.nome}» in ${SEZIONI.find(([k]) => k === riga.sezione)?.[1]}`)
       setScelta(riga.sezione as Sezione)
     }
     setInAttesa(null); setDove(''); setCaricando(false)
@@ -417,7 +417,7 @@ export default function Vault({ onOpen }: Props) {
       {compila && (
         <Suspense fallback={null}>
           <CompilaPdf file={compila} onClose={() => setCompila(null)}
-                      onSalvato={(nuovo) => { setFile((v) => [{ ...(nuovo as FileVault), sezione: compila.sezione, gruppo: compila.gruppo, nota: null }, ...(v ?? [])]); setToast(`«${nuovo.nome}» salvato ✓`) }} />
+                      onSalvato={(nuovo) => { setFile((v) => [{ ...(nuovo as FileVault), sezione: compila.sezione, gruppo: compila.gruppo, nota: null }, ...(v ?? [])]); setToast(`«${nuovo.nome}» salvato`) }} />
         </Suspense>
       )}
 

@@ -87,12 +87,18 @@ interface Props {
   onCalendario?: () => void
 }
 
-const OGGI_CHIAVE = () => `task-fatte-${oggi()}`
-function leggiFatte(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(OGGI_CHIAVE()) ?? '[]')) } catch { return new Set() }
+// LE SPUNTE DELLA CODA, NEL DATABASE (QA Dre, 15/9). Stavano in
+// localStorage: spuntavi dal telefono la mattina e sul Mac erano ancora da
+// fare. Era l'unica lista della home che non passava dal database.
+async function leggiFatte(): Promise<Set<string>> {
+  const { data } = await supabase.from('coda_fatte').select('chiave').eq('giorno', oggi())
+  return new Set(((data as Array<{ chiave: string }>) ?? []).map((r) => r.chiave))
 }
-function salvaFatte(f: Set<string>) {
-  try { localStorage.setItem(OGGI_CHIAVE(), JSON.stringify([...f])) } catch { /* niente */ }
+async function segnaFatte(chiavi: string[]) {
+  await supabase.from('coda_fatte').insert(chiavi.map((chiave) => ({ chiave, giorno: oggi() })))
+}
+async function togliFatta(chiave: string) {
+  await supabase.from('coda_fatte').delete().eq('chiave', chiave).eq('giorno', oggi())
 }
 
 function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; onClick: () => void }) {
@@ -122,7 +128,7 @@ function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; o
 export default function Oggi({ onOpen, onCalendario }: Props) {
   const [attivita, setAttivita] = useState<TaskDre[] | null>(null)
   const [gruppi, setGruppi] = useState<Gruppo[] | null>(null)
-  const [fatteCoda, setFatteCoda] = useState<Set<string>>(leggiFatte)
+  const [fatteCoda, setFatteCoda] = useState<Set<string>>(new Set())
   const [spuntando, setSpuntando] = useState<string | null>(null)
   const [aggiungo, setAggiungo] = useState(false)
   const [nuovo, setNuovo] = useState('')
@@ -133,6 +139,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [sopraDi, setSopraDi] = useState<number | null>(null)
   const nuovoRef = useRef<HTMLInputElement>(null)
   const [problema, setProblema] = useState('')
+  // dieci nomi per gruppo, il resto a richiesta (Dre: poche cose alla volta)
+  const [apertoGruppo, setApertoGruppo] = useState<Set<string>>(new Set())
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [settimana, setSettimana] = useState(0)          // 0 = questa
   const [aggiungoIn, setAggiungoIn] = useState<string | null>(null)
@@ -218,6 +226,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     caricaTask()
   }
 
+  // le spunte della coda di oggi, dal database
+  useEffect(() => { void leggiFatte().then(setFatteCoda) }, [])
+
   useEffect(() => {
     caricaTask()
 
@@ -227,7 +238,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       const caldo = (a: VoceCoda, b: VoceCoda) =>
         (RANGO[a.p.classificazione ?? 'da_classificare'] ?? 5) - (RANGO[b.p.classificazione ?? 'da_classificare'] ?? 5)
       const nota = (v: VoceCoda): string => {
-        if (v.ragione === 'rispondi') return `ha scritto lui il ${fmtDateShort(v.data)}`
+        if (v.ragione === 'rispondi') return v.data ? `ha scritto lui il ${fmtDateShort(v.data)}` : 'ha scritto lui'
         if (v.ragione === 'followup') return v.fermoDa !== null ? `silenzio da ${giorni(v.fermoDa)}` : `dovuto dal ${fmtDateShort(v.data)}`
         if (v.ragione === 'ricontatto') return v.p.next_action ?? 'la data è arrivata'
         return `rientrato il ${fmtDateShort(v.data)}`
@@ -236,16 +247,20 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         chiave: `coda-${v.p.id}`, nome: v.p.company || v.p.name || v.p.email,
         nota: nota(v), prospect_id: v.p.id, sg: sgid(v.p.sg_id, v.p),
       })
+      // la coda del giorno e' quella del giorno: quello che e' dovuto da
+      // piu' di un mese sta in fondo, in un gruppo suo (QA Dre, 14/9)
       const gruppo = (r: VoceCoda['ragione'], titolo: string, ordina?: (a: VoceCoda, b: VoceCoda) => number) => {
-        const sue = voci.filter((v) => v.ragione === r)
+        const sue = voci.filter((v) => v.ragione === r && !v.vecchia)
         if (ordina) sue.sort(ordina)
         return sue.length ? [{ chiave: r, titolo, sotto: sue.map(sotto) }] : []
       }
+      const vecchie = voci.filter((v) => v.vecchia)
       setGruppi([
         ...gruppo('rispondi', 'Da rispondere', caldo),
         ...gruppo('followup', 'Follow-up', (a, b) => (b.fermoDa ?? 0) - (a.fermoDa ?? 0)),
         ...gruppo('ricontatto', 'Ricontatti'),
         ...gruppo('rientro', 'Rientri'),
+        ...(vecchie.length ? [{ chiave: 'arretrato', titolo: 'Fermi da più di un mese', sotto: vecchie.map(sotto) }] : []),
       ])
     })
   }, [caricaTask])
@@ -270,7 +285,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       const nuove = new Set(fatteCoda)
       chiavi.forEach((c) => nuove.add(c))
       setFatteCoda(nuove)
-      salvaFatte(nuove)
+      void segnaFatte(chiavi)
     }, 380)
   }
 
@@ -278,10 +293,11 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     setSpuntando(`dre-${t.id}`)
     setTimeout(async () => {
       setSpuntando(null)
-      const { data } = await supabase.from('task')
+      const { data, error } = await supabase.from('task')
         .update({ fatta: true, fatta_il: new Date().toISOString() })
         .eq('id', t.id).select().single()
-      if (data) setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))
+      if (error || !data) { setProblema('Non ho potuto spuntarla: riprova fra un attimo.'); return }
+      setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))
     }, 380)
   }
 
@@ -294,7 +310,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       const nuove = new Set(fatteCoda)
       nuove.delete(c.chiave)
       setFatteCoda(nuove)
-      salvaFatte(nuove)
+      void togliFatta(c.chiave)
     }
   }
 
@@ -378,10 +394,13 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     const t = nuovoIn.trim()
     if (!t) { setAggiungoIn(null); return }
     const min = Math.min(0, ...(attivita ?? []).map((x) => x.ordine))
-    const { data } = await supabase.from('task')
+    const { data, error } = await supabase.from('task')
       .insert({ titolo: t, scadenza: quando, fatta: false, ordine: min - 1, owner: io, da: io })
       .select().single()
-    if (data) setAttivita((a) => [data as TaskDre, ...(a ?? [])])
+    // se non si salva, il testo resta nel campo: era l'unico punto dove una
+    // task scritta spariva in silenzio (QA Dre, 15/9)
+    if (error || !data) { setProblema('La task non si è salvata: riprova.'); return }
+    setAttivita((a) => [data as TaskDre, ...(a ?? [])])
     setNuovoIn('')
     setAggiungoIn(null)
   }
@@ -660,7 +679,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
               <span className="text-xs text-spento">{g.sotto.length}</span>
             </div>
             <div className="ml-[1.35rem] border-l border-velo pl-1">
-              {g.sotto.map((s) => (
+              {(apertoGruppo.has(g.chiave) ? g.sotto : g.sotto.slice(0, 10)).map((s) => (
                 <div
                   key={s.chiave}
                   className={`flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-velo/50 ${
@@ -677,6 +696,14 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
                   </button>
                 </div>
               ))}
+              {g.sotto.length > 10 && (
+                <button
+                  onClick={() => setApertoGruppo((v) => { const n = new Set(v); if (n.has(g.chiave)) n.delete(g.chiave); else n.add(g.chiave); return n })}
+                  className="px-2 py-1.5 text-xs font-semibold text-blu hover:underline"
+                >
+                  {apertoGruppo.has(g.chiave) ? 'Mostra i primi dieci' : `Vedi tutti e ${g.sotto.length}`}
+                </button>
+              )}
             </div>
           </div>
         ))}
