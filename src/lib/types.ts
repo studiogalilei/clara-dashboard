@@ -160,6 +160,9 @@ export interface Prospect {
   market: Market | null
   contratto: 'prova' | 'stable' | null
   canone: number | null
+  // chi la segue: si scrive a mano nel Foglio, e ci si scrive da solo chi
+  // aggiunge un'azienda. E' anche una delle chiavi del perimetro
+  chi_segue: string | null
 }
 
 export interface Interaction {

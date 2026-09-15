@@ -19,7 +19,7 @@ const vuoto = {
   notes: null, enriched: {}, followup_due: null, ooo_until: null, prova_inizio: null, prova_fine: null,
   fuori: false, fuori_at: null, pipeline_stage: null,
   fuori_binario: null, market: null, contratto: null, canone: null,
-  descrizione: null, sg_id: null,
+  descrizione: null, sg_id: null, chi_segue: null,
 } as const
 
 export const prospects: Prospect[] = [
@@ -93,6 +93,23 @@ export const prospects: Prospect[] = [
     updated_at: gg(0),
   },
 ]
+
+prospects.push(
+  {
+    ...vuoto, id: 'p9', sg_id: 201, email: 'marco@tecnolegno.it', name: 'Marco Bianchi',
+    company: 'Tecnolegno', sector: 'serramenti', city: 'Udine',
+    campaign: 'LinkedIn, profilo 2', chi_segue: 'Dre', stage: 'risposto',
+    classificazione: 'positivo', awaiting_us: false,
+    analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(4), updated_at: gg(4),
+  },
+  {
+    ...vuoto, id: 'p10', sg_id: 202, email: 'info@verdeurbano.it', name: null,
+    company: 'Verde Urbano', sector: 'giardinaggio', city: 'Treviso',
+    campaign: 'LinkedIn, profilo 1', chi_segue: 'Dre', stage: 'risposto',
+    classificazione: 'tiepido', awaiting_us: false,
+    analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(11), updated_at: gg(11),
+  },
+)
 
 export const interactions: Interaction[] = [
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },
@@ -220,8 +237,13 @@ type Riga = Record<string, unknown>
 const sync_runs: Riga[] = [{ id: 1, finished_at: new Date(Date.now() - 13 * 60000).toISOString(), ok: true }]
 
 const task: Riga[] = [
-  { id: 1, at: gg(1), titolo: 'Mandare i 30 follow-up su Smartlead', dettagli: 'le bozze sono pronte', scadenza: data(-1), ordine: 0, fatta: false, fatta_il: null },
-  { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1) },
+  { id: 1, at: gg(1), titolo: 'Mandare i 30 follow-up su Smartlead', dettagli: 'le bozze sono pronte', scadenza: data(-1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'demo', stato: 'accettata' },
+  { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1), owner: 'demo', da: 'demo', stato: 'fatta' },
+  // il pod di Carlo: due persone con roba in mano, una scaduta
+  { id: 3, at: gg(3), titolo: 'Rifare il budget di Klavzar', dettagli: null, scadenza: data(2), ordine: 2, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
+  { id: 4, at: gg(1), titolo: 'Controllare le conversioni di settembre', dettagli: null, scadenza: data(-3), ordine: 3, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
+  { id: 5, at: gg(6), titolo: 'Pubblicare la landing di Zeni', dettagli: null, scadenza: null, ordine: 4, fatta: true, fatta_il: gg(2), owner: 'alex', da: 'carlo', stato: 'fatta' },
+  { id: 6, at: gg(1), titolo: 'Sistemare i moduli del sito Klavzar', dettagli: null, scadenza: data(4), ordine: 5, fatta: false, fatta_il: null, owner: 'alex', da: 'carlo', stato: 'accettata' },
 ]
 
 // le persone dentro la Dashboard: servono per mandarsi le task
@@ -486,7 +508,13 @@ export const demoClient = {
       return {
         data: {
           uid: 'demo', nome: 'Dre', ruolo: 'ceo',
-          pod: [], concessi: [], vista: null,
+          // in demo si e' Dre e si ha un pod: cosi' si vede com'e' fatta la
+          // card del manager senza dover entrare come Carlo
+          pod: [
+            { id: 'salvatore', nome: 'Salvatore', ruolo: 'specialist' },
+            { id: 'alex', nome: 'Alex', ruolo: 'frontend' },
+          ],
+          concessi: [], vista: null,
         },
         error: null,
       }
