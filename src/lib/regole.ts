@@ -59,7 +59,11 @@ export function passato(p: Fase): boolean {
 type Ingresso = Fase & Pick<Prospect, 'classificazione' | 'analysis_sent'>
 
 function haRisposto(p: Ingresso): boolean {
-  return !p.fuori && !eCliente(p) && !ePerso(p) && vivo(p) && !passato(p)
+  // `nuovo` = la mail e' partita e non ha risposto nessuno: non e' «in
+  // arrivo». Mancava qui e c'era invece nel gemello per il database
+  // (soloRisposto), quindi 7 carte comparivano in bacheca come «ha
+  // risposto: analisi da mandare» senza aver mai risposto (QA Dre, 14/9).
+  return !p.fuori && p.stage !== 'nuovo' && !eCliente(p) && !ePerso(p) && vivo(p) && !passato(p)
 }
 
 export function eInArrivo(p: Ingresso): boolean {
@@ -138,7 +142,9 @@ export type Fascia = 'arrivo' | 'prospect' | 'conoscitiva' | 'tecnica' | 'avvio'
 const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
   arrivo: soloInArrivo,
   prospect: soloProspect,
-  conoscitiva: (q) => q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva'),
+  // vivi: 53 negativi erano finiti in pipeline con pipeline_stage vuoto e la
+  // colonna diceva 60 quando le trattative vere erano 7 (QA Dre, 14/9)
+  conoscitiva: (q) => q.eq('fuori', true).or('pipeline_stage.is.null,pipeline_stage.eq.conoscitiva').or(VIVI),
   tecnica: (q) => q.eq('fuori', true).eq('pipeline_stage', 'tecnica'),
   avvio: (q) => q.eq('fuori', true).eq('pipeline_stage', 'avvio'),
   prova: (q) => q.eq('fuori', true).eq('pipeline_stage', 'prova'),
@@ -150,6 +156,13 @@ const DOMANDE: Record<Fascia, (q: Filtro) => Filtro> = {
 }
 
 export const FASCE = Object.keys(DOMANDE) as Fascia[]
+
+// la stessa domanda, per chi vuole le righe e non il conteggio: la bacheca
+// chiede una colonna alla volta, cosi' quello che c'e' scritto in testa e
+// quello che si vede sotto sono la stessa cosa (QA Dre, 14/9)
+export function perFascia<T>(f: Fascia, q: T): T {
+  return DOMANDE[f](q as unknown as Filtro) as unknown as T
+}
 
 export async function contaFasi(): Promise<Record<Fascia, number>> {
   const esiti = await Promise.all(FASCE.map((f) =>

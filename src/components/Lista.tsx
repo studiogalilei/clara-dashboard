@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
-import { STAGE_LABEL, PIPELINE_LABEL, type Prospect, type Stage, type PipelineStage } from '../lib/types'
+import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, pedaggioPagato, ricorrenteMensile, contaFasi, type Fascia } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, ricorrenteMensile, contaFasi, perFascia, type Fascia } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
@@ -22,12 +22,15 @@ interface Props {
 type Vista = 'board' | 'elenco'
 type Chiave = Fascia
 
+// quante carte per colonna: oltre non si guarda una bacheca, si cerca
+const LIMITE = 200
+
 // le colonne della bacheca: le fasi vere (ordine di Dre, 1/9)
 const TAPPE: Array<[string, Chiave, (p: Prospect) => boolean]> = [
   // ha risposto, l'analisi non e' ancora partita: Clara prepara, Dre manda (Dre, 9/9)
   ['In arrivo', 'arrivo', eInArrivo],
   ['Prospect', 'prospect', eProspect],
-  ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva'],
+  ['Call Conoscitiva', 'conoscitiva', (p) => p.fuori && (p.pipeline_stage ?? 'conoscitiva') === 'conoscitiva' && vivo(p)],
   ['Call Tecnica', 'tecnica', (p) => p.fuori && p.pipeline_stage === 'tecnica'],
   ['Call di Avvio', 'avvio', (p) => p.fuori && p.pipeline_stage === 'avvio'],
   ['Periodo di prova', 'prova', (p) => p.fuori && p.pipeline_stage === 'prova'],
@@ -95,7 +98,9 @@ export default function Lista({ onOpen, q }: Props) {
   const [fuoco, setFuoco] = useState<Chiave | null>(null)
   const [persiAperti, setPersiAperti] = useState(false)
   const [scartatiAperti, setScartatiAperti] = useState(false)
-  const [stage, setStage] = useState<Stage | 'attivi' | 'tutti'>('attivi')
+  // nella vista elenco si guarda una fascia alla volta: i numeri in cima
+  // sono il filtro (prima erano tre forme della stessa lista, QA Dre 14/9)
+  const [fascia, setFascia] = useState<Fascia | 'tutti'>('tutti')
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [dragId, setDragId] = useState<string | null>(null)
   const [sopra, setSopra] = useState<Chiave | null>(null)
@@ -153,43 +158,51 @@ export default function Lista({ onOpen, q }: Props) {
   }, [giro])
 
   useEffect(() => {
-    let vivo = true
+    let attivo = true
     const t = setTimeout(async () => {
-      let query = supabase.from('prospects').select('*')
-        .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(300)
-      if (stage === 'attivi') query = query.neq('stage', 'nuovo')
-      // cliente e perso non stanno in `stage`: la pipeline scrive solo
-      // pipeline_stage, e chiedendoli a `stage` si vedevano soltanto i record
-      // vecchio stile, cioe' l'esatto contrario (revisione 4/9)
-      else if (stage === 'cliente') {
-        query = query.or('and(fuori.eq.true,pipeline_stage.eq.cliente),and(fuori.eq.false,stage.eq.cliente)')
-      } else if (stage === 'perso') {
-        query = query.or('and(fuori.eq.true,pipeline_stage.eq.perso),and(fuori.eq.false,stage.eq.perso)')
-      } else if (stage !== 'tutti') query = query.eq('stage', stage)
+      // UNA DOMANDA PER COLONNA (QA Dre, 14/9). Prima erano le prime 300
+      // righe in ordine di ultima risposta: i 4 clienti (che non hanno
+      // last_reply_at) non entravano mai, la colonna diceva «4» e sotto
+      // «Nessuno», e qualunque carta ferma da prima di luglio era invisibile.
+      // Le colonne chiedono al database le stesse cose che contano i numeri
+      // in testa, quindi quello che leggi e quello che vedi combaciano.
       const pulito = q.trim().replace(/[,()"%]/g, ' ').trim()
-      if (pulito) {
+      const cerca = <Q extends { or(s: string): Q }>(query: Q): Q => {
+        if (!pulito) return query
         const term = `%${pulito}%`
         const campi = [`company.ilike.${term}`, `name.ilike.${term}`, `email.ilike.${term}`]
         // l'SG-ID sta in una colonna numerica: ilike non lo trova, serve l'uguale
         const num = pulito.replace(/^sg[-\s]?/i, '').replace(/\D/g, '')
         if (num && num.length <= 9 && Number(num) > 0) campi.push(`sg_id.eq.${Number(num)}`)
-        query = query.or(campi.join(','))
+        return query.or(campi.join(','))
+      }
+      const colonna = (chiave: Chiave) => cerca(perFascia(chiave, supabase.from('prospects').select('*')))
+        .order(chiave === 'cliente' ? 'canone' : 'last_reply_at', { ascending: false, nullsFirst: false })
+        .limit(LIMITE)
+      // cercando un nome si cerca in tutta la rubrica, anche fra le 12.500
+      // aziende a cui la mail e' partita e non ha risposto nessuno: quelle
+      // non stanno in nessuna colonna, ma se le cerchi devono uscire
+      const giro = pulito
+        ? cerca(supabase.from('prospects').select('*').eq('stage', 'nuovo').eq('fuori', false))
+            .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(60)
+        : null
+      const esiti = await Promise.all([...TAPPE.map(([, chiave]) => colonna(chiave)), ...(giro ? [giro] : [])])
+      if (!attivo) return
+      const visti = new Set<string>()
+      const out: Prospect[] = []
+      for (const e of esiti) {
+        for (const r of ((e as { data: Prospect[] | null }).data ?? [])) {
+          if (visti.has(r.id)) continue
+          visti.add(r.id)
+          out.push(r)
+        }
       }
       // in ordine di arrivo: l'ultima risposta piu' recente in cima
-      query = query.order('last_reply_at', { ascending: false, nullsFirst: false })
-      const { data } = await query
-      if (!vivo) return
-      let out = (data as Prospect[]) ?? []
-      // il finto Supabase della demo ignora .or(): si filtra qui (anche per SG-ID)
-      if (pulito) {
-        const term = pulito.toLowerCase()
-        out = out.filter((p) =>
-          [p.company, p.name, p.email, sgid(p.sg_id, p)].some((v) => v?.toLowerCase().includes(term)))
-      }
+      out.sort((a, b) => (b.last_reply_at ?? '').localeCompare(a.last_reply_at ?? ''))
       setRows(out)
     }, 200)
-    return () => { vivo = false; clearTimeout(t) }
-  }, [q, stage])
+    return () => { attivo = false; clearTimeout(t) }
+  }, [q, giro])
 
   useEffect(() => {
     if (!toast) return
@@ -202,6 +215,20 @@ export default function Lista({ onOpen, q }: Props) {
   // le colonne prima del proprio perimetro non si mostrano vuote: chi entra
   // dalla call tecnica non ha «In arrivo» e «Prospect» (QA Carlo, 14/9)
   const colonne = VIVE.filter(([, c]) => !['arrivo', 'prospect'].includes(c) || rows.some(TAPPE.find(([, k]) => k === c)![2]))
+
+  // in elenco si guarda una fascia alla volta
+  const elencate = fascia === 'tutti' ? rows : rows.filter(TAPPE.find(([, c]) => c === fascia)![2])
+  // mentre cerchi i cassetti si aprono da soli: prima diceva «1 risultato»
+  // con le sette colonne vuote e la carta chiusa dentro Scartati (QA Dre, 14/9)
+  const cercando = Boolean(q.trim())
+  const vedoPersi = persiAperti || cercando
+  const vedoScartati = scartatiAperti || cercando
+  // quelli a cui la mail e' partita e non hanno risposto: escono solo se li cerchi
+  const nelGiro = rows.filter((p) => !p.fuori && p.stage === 'nuovo')
+  // il numero in testa alla colonna: quello del database, tranne quando
+  // stai cercando (allora conta i trovati) o quando le carte sono tagliate
+  const conta = (chiave: Chiave, dentro: number) =>
+    cercando || dentro >= LIMITE || !quanti ? dentro : quanti[chiave]
 
   // ── il drop: le stesse regole del gioco di sempre ───────────────
   async function gestisciDrop(target: Chiave) {
@@ -288,7 +315,7 @@ export default function Lista({ onOpen, q }: Props) {
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
     setGiro((g) => g + 1)
     setMosso(p.id)
-    setToast({ testo: `${nome} → Conoscitiva ✓`, tono: 'ok', id: p.id })
+    setToast({ testo: `${nome} entra in Conoscitiva`, tono: 'ok', id: p.id })
     return true
   }
 
@@ -329,7 +356,7 @@ export default function Lista({ onOpen, q }: Props) {
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
     setGiro((g) => g + 1)
     setMosso(p.id)
-    setToast({ testo: `${nome} → Perso`, tono: 'ok', id: p.id })
+    setToast({ testo: `${nome} segnato perso`, tono: 'ok', id: p.id })
   }
 
   async function muovi(id: string, nome: string, target: PipelineStage, salto: number, come?: 'riapri'): Promise<boolean> {
@@ -360,9 +387,9 @@ export default function Lista({ onOpen, q }: Props) {
       setToast({ testo: `${nome} riaperta in ${PIPELINE_LABEL[target]}`, tono: 'ok', id })
     } else if (target === 'cliente') {
       setNuovoCliente(data as Prospect)
-      setToast({ testo: `🏆 ${nome} è CLIENTE, apri la scheda e scegli il contratto`, tono: 'oro', id })
+      setToast({ testo: `${nome} è cliente, apri la scheda e scegli il contratto`, tono: 'oro', id })
     } else if (salto > 0) {
-      setToast({ testo: `${nome} → ${PIPELINE_LABEL[target]} ✓`, tono: 'ok', id })
+      setToast({ testo: `${nome} passa a ${PIPELINE_LABEL[target]}`, tono: 'ok', id })
     } else {
       setToast({ testo: `${nome} torna in ${PIPELINE_LABEL[target]}`, tono: 'ok', id })
     }
@@ -419,7 +446,10 @@ export default function Lista({ onOpen, q }: Props) {
     const quando = fase ? calls[p.id]?.[fase] : undefined
     // LO STATO VIVO (Dre, 14/9): la riga sotto il nome dice la verita' di
     // oggi. Rassicura o dice chiaro che c'e' qualcosa da fare.
-    const stato = statoVivo(p, { call: quando ?? null, fase, bozza: aperte[p.id]?.bozza, domanda: aperte[p.id]?.domanda })
+    const stato = statoVivo(p, {
+      call: quando ?? null, fase, calls: calls[p.id],
+      bozza: aperte[p.id]?.bozza, domanda: aperte[p.id]?.domanda,
+    })
     const colore = COLORE_STATO[stato.tono]
     // i chiusi «vecchio stile» (mai passati dalla pipeline) non si trascinano
     // un passato a qualcun altro non si trascina, se no dopo il rilascio
@@ -437,14 +467,18 @@ export default function Lista({ onOpen, q }: Props) {
           e.dataTransfer.effectAllowed = 'move'
         }}
         onDragEnd={() => { setDragId(null); setSopra(null) }}
-        className={`flex w-full flex-col gap-1.5 rounded-xl border bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:border-blu ${
+        className={`group flex w-full flex-col gap-1.5 rounded-xl border bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:border-blu ${
           inPresa ? 'rotate-2 scale-[1.04] border-navy opacity-50 shadow-[0_12px_28px_rgba(6,23,115,0.2)]' : stato.tono === 'azione' ? 'border-red-200' : 'border-bordo'
         } ${mosso === p.id ? 'atterra' : ''} ${trascinabile ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
         <span className="flex items-center gap-2">
           <Faccia p={p} size={24} />
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{p.company || p.name || p.email}</span>
-          {codice && <span className="shrink-0 text-[10px] font-bold text-blu/70">{codice}</span>}
+          {codice && (
+            <span className="shrink-0 text-[10px] font-bold text-blu/70 opacity-0 transition-opacity group-hover:opacity-100">
+              {codice}
+            </span>
+          )}
         </span>
         <span className="flex items-start gap-1.5 text-[12px] leading-snug">
           <span className={`mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full ${colore.pallino}`} />
@@ -479,20 +513,9 @@ export default function Lista({ onOpen, q }: Props) {
           </button>
         </div>
 
-        {/* le colonne sono gia' le fasi: i filtri per stato erano un doppione (Dre, 12/9) */}
-        {(['attivi', 'tutti', 'perso'] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStage(s)}
-            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-              stage === s
-                ? 'border-navy bg-blu text-white'
-                : 'border-bordo bg-white text-tenue hover:border-spento'
-            }`}
-          >
-            {s === 'attivi' ? 'Attivi' : s === 'tutti' ? 'Tutti' : STAGE_LABEL[s as Stage]}
-          </button>
-        ))}
+        {/* i filtri per stato erano una terza forma della stessa lista: in
+            bacheca le fasi sono le colonne, in elenco sono i numeri in cima
+            (QA Dre, 14/9) */}
       </div>
 
       {q.trim() && (
@@ -504,7 +527,7 @@ export default function Lista({ onOpen, q }: Props) {
       {/* quando guardi i clienti, il numero che conta e' uno solo: e' lo
           stesso che vedi in Tutti, perche' e' la stessa domanda al database
           e non la somma delle righe di questa pagina (revisione 4/9) */}
-      {stage === 'cliente' && vedoSoldi && ricorrente && ricorrente.quanti > 0 && (
+      {vista === 'elenco' && fascia === 'cliente' && vedoSoldi && ricorrente && ricorrente.quanti > 0 && (
         <div className="mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-2.5">
           <span className="text-lg font-extrabold tabular-nums">{ricorrente.mese.toLocaleString('it-IT')} €</span>
           <Micro>al mese</Micro>
@@ -519,17 +542,25 @@ export default function Lista({ onOpen, q }: Props) {
         </div>
       )}
 
-      {vista === 'elenco' && quanti && (
+      {vista === 'elenco' && (
         <div className="mb-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-bordo bg-white px-4 py-2.5">
-          {TAPPE.map(([nome, chiave]) => (
+          <button
+            onClick={() => setFascia('tutti')}
+            className={`text-xs font-semibold ${fascia === 'tutti' ? 'text-blu' : 'text-tenue hover:text-inchiostro'}`}
+          >
+            Tutti
+          </button>
+          {TAPPE.map(([nome, chiave, filtro]) => (
             <button
               key={chiave}
-              onClick={() => { setStage(chiave === 'prospect' ? 'attivi' : (chiave as typeof stage)) }}
-              className="flex items-baseline gap-1.5 text-left"
+              onClick={() => setFascia((f) => (f === chiave ? 'tutti' : chiave))}
+              className={`flex items-baseline gap-1.5 text-left ${fascia === chiave ? '' : 'opacity-70 hover:opacity-100'}`}
             >
               <span className={`inline-block h-[7px] w-[7px] shrink-0 self-center rounded-full ${COLORE[chiave]}`} />
-              <span className="text-base font-extrabold tabular-nums">{quanti[chiave]}</span>
-              <Micro>{nome}</Micro>
+              <span className="text-base font-extrabold tabular-nums">
+                {q.trim() || rows.filter(filtro).length >= LIMITE || !quanti ? rows.filter(filtro).length : quanti[chiave]}
+              </span>
+              <Micro className={fascia === chiave ? 'text-blu' : undefined}>{nome}</Micro>
             </button>
           ))}
         </div>
@@ -538,9 +569,9 @@ export default function Lista({ onOpen, q }: Props) {
       {vista === 'elenco' ? (
         <>
           <Card>
-            {rows.length === 0
-              ? <Empty text={q.trim() ? `Niente per «${q.trim()}».` : 'Nessun prospect trovato.'} />
-              : rows.map(rigaElenco)}
+            {elencate.length === 0
+              ? <Empty text={q.trim() ? `Niente per «${q.trim()}».` : 'Nessuno qui dentro.'} />
+              : elencate.map(rigaElenco)}
           </Card>
         </>
       ) : (
@@ -585,13 +616,14 @@ export default function Lista({ onOpen, q }: Props) {
                     className="flex min-w-0 items-baseline gap-1.5 text-left"
                   >
                     <Micro className={fuoco === chiave ? 'text-blu' : 'text-inchiostro'}>{nome}</Micro>
-                    <span className={`shrink-0 text-[10px] ${fuoco === chiave ? 'text-blu' : 'text-spento'}`}>
-                      {fuoco === chiave ? '⤡' : '⤢'}
-                    </span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                      className={`h-3 w-3 shrink-0 self-center ${fuoco === chiave ? 'text-blu' : 'text-spento'}`}>
+                      {fuoco === chiave
+                        ? <path d="M9 15 4 20m0-5v5h5M15 9l5-5m0 5V4h-5" />
+                        : <path d="M4 20l5-5m-5 5v-5h5M20 4l-5 5m5-5v5h-5" />}
+                    </svg>
                   </button>
-                  <span className="text-xs font-semibold text-tenue">
-                    {quanti ? quanti[chiave] : dentro.length}
-                  </span>
+                  <span className="text-xs font-semibold text-tenue">{conta(chiave, dentro.length)}</span>
                 </header>
                 <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
                   {dentro.length === 0
@@ -653,19 +685,22 @@ export default function Lista({ onOpen, q }: Props) {
             onClick={() => setPersiAperti((v) => !v)}
             className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left hover:bg-velo"
           >
-            <span className={`text-[11px] text-spento transition-transform ${persiAperti ? 'rotate-90' : ''}`}>▸</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              className={`h-3 w-3 text-spento transition-transform ${vedoPersi ? 'rotate-90' : ''}`}>
+              <path d="M9 6l6 6-6 6" />
+            </svg>
             <Micro className="text-spento">Persi</Micro>
             <span className="text-xs font-semibold text-spento">
-              {quanti ? quanti.perso : rows.filter(PERSI[2]).length}
+              {conta('perso', rows.filter(PERSI[2]).length)}
             </span>
             {sopra === 'perso' && dragId !== null && (
               <span className="ml-2 text-xs font-bold text-navy">lascia qui per segnarlo perso</span>
             )}
           </button>
-          {persiAperti && (
+          {vedoPersi && (
             <div className="grid gap-1.5 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-4">
               {rows.filter(PERSI[2]).length === 0
-                ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno.</p>
+                ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno</p>
                 : rows.filter(PERSI[2]).map((p) => cartaBoard(p))}
             </div>
           )}
@@ -678,26 +713,38 @@ export default function Lista({ onOpen, q }: Props) {
             onClick={() => setScartatiAperti((v) => !v)}
             className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left hover:bg-velo"
           >
-            <span className={`text-[11px] text-spento transition-transform ${scartatiAperti ? 'rotate-90' : ''}`}>▸</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              className={`h-3 w-3 text-spento transition-transform ${vedoScartati ? 'rotate-90' : ''}`}>
+              <path d="M9 6l6 6-6 6" />
+            </svg>
             <Micro className="text-spento">Scartati</Micro>
             <span className="text-xs font-semibold text-spento">
-              {quanti ? quanti.scartato : rows.filter(SCARTATI[2]).length}
+              {conta('scartato', rows.filter(SCARTATI[2]).length)}
             </span>
           </button>
-          {scartatiAperti && (
+          {vedoScartati && (
             <div className="grid gap-1.5 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-4">
               {rows.filter(SCARTATI[2]).length === 0
-                ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno.</p>
+                ? <p className="px-1.5 py-1 text-xs text-spento">Nessuno</p>
                 : rows.filter(SCARTATI[2]).map((p) => cartaBoard(p))}
             </div>
           )}
         </section>
       )}
 
-      {rows.length >= 300 && (
-        <p className="mt-2 text-center text-xs text-spento">
-          In bacheca le prime 300 carte; i numeri sulle colonne sono tutti
-        </p>
+      {/* chi non ha ancora risposto non sta in nessuna colonna: se lo cerchi,
+          esce qui sotto, cosi' la lente trova tutta la rubrica (QA Dre, 14/9) */}
+      {vista === 'board' && nelGiro.length > 0 && (
+        <div className="mt-3 rounded-2xl bg-velo p-3">
+          <div className="mb-2 flex items-baseline gap-2 px-1">
+            <Micro className="text-inchiostro">Nel giro di mail</Micro>
+            <span className="text-xs font-semibold text-tenue">{nelGiro.length}</span>
+            <span className="text-xs text-spento">non hanno ancora risposto</span>
+          </div>
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+            {nelGiro.map((p) => cartaBoard(p))}
+          </div>
+        </div>
       )}
 
       {/* IL PEDAGGIO: la richiesta che si apre al rilascio della carta */}
