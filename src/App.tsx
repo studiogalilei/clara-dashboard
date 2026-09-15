@@ -12,6 +12,7 @@ import ClaraLogo from './components/ClaraLogo'
 import Vault from './components/Vault'
 import Plugin from './components/Plugin'
 import Feedback from './components/Feedback'
+import Aggiornato from './components/Aggiornato'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
@@ -456,6 +457,8 @@ export default function App() {
               ) : ruolo === 'ceo' && saluto(utente)[1] ? (
                 <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto(utente)[1]}</p>
               ) : null)}
+              {/* quanto e' fresco quello che stai guardando (Dre, 15/9) */}
+              {tab === 'pipeline' && <Aggiornato />}
             </div>
             {tab === 'pipeline' && (
               <div className="hidden w-[440px] shrink-0 lg:block">

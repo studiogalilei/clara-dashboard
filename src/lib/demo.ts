@@ -528,6 +528,8 @@ export const demoClient = {
   // fatta per far vedere com'e' (QA Dre, 15/9)
   async rpc(nome: string) {
     if (nome === 'sono_ceo') return { data: true, error: null }
+    // in demo il sistema e' appena passato: la riga verde si vede com'e'
+    if (nome === 'ultimo_giro') return { data: new Date(Date.now() - 4 * 60000).toISOString(), error: null }
     if (nome === 'chi_sono') {
       return {
         data: {
