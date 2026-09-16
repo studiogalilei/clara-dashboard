@@ -16,8 +16,11 @@ import { supabase, demo } from './supabase'
 //    finisce un giro cambia venti righe in due secondi e non ha senso
 //    rileggere venti volte;
 // 3. in demo non esiste: li' non c'e' database.
+//
+// Si chiama useVivo e non vivo perche' dentro usa altri hook: il prefisso
+// «use» e' la regola di React, non una scelta di lingua.
 
-export function vivo(tabelle: string[], quando: () => void, attivo = true) {
+export function useVivo(tabelle: string[], quando: () => void, attivo = true) {
   const ultimo = useRef(quando)
   ultimo.current = quando
 
