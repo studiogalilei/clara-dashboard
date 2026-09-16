@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
 import CercaAzienda, { CAMPI_AZIENDA } from './CercaAzienda'
+import Editor from './Editor'
+import { MODELLI } from '../lib/modelli'
 import { creaTask, giorno } from '../lib/regole'
 import { apriFile } from '../lib/file'
 import { LINEA_NOME, controllaTono, ripulisciTono, testoDi } from '../lib/tono'
@@ -56,8 +58,19 @@ interface Bozza {
 }
 const vuota = (): Bozza => ({ id: null, prospect_id: '', voci: [], valido_fino: fraGiorni(30), note: '', fatturazione: {} })
 
+// I DOCUMENTI (Dre, 16/9): «un luogo dove vengo, vedo, e clicco un + per
+// crearne uno nuovo». Il preventivo e' uno dei documenti, non una cosa a
+// parte: qui sopra c'e' il foglio bianco con i modelli, sotto i soldi.
+interface DocRiga {
+  id: number; prospect_id: string | null; modello: string; titolo: string
+  stato: string; aggiornato_il: string
+}
+
 export default function Preventivi({ onOpen }: Props) {
   const [righe, setRighe] = useState<Preventivo[] | null>(null)
+  const [documenti, setDocumenti] = useState<DocRiga[] | null>(null)
+  const [apro, setApro] = useState<{ id: number | null; modello: string } | null>(null)
+  const [scelgoModello, setScelgoModello] = useState(false)
   const [nomi, setNomi] = useState<Record<string, Nome>>({})
   const [listino, setListino] = useState<VoceListino[]>([])
   const [incassi, setIncassi] = useState<Incasso[] | null>(null)
@@ -84,6 +97,9 @@ export default function Preventivi({ onOpen }: Props) {
   const sto = useRef(false)
 
   useEffect(() => {
+    void supabase.from('documenti').select('id,prospect_id,modello,titolo,stato,aggiornato_il')
+      .order('aggiornato_il', { ascending: false }).limit(200)
+      .then(({ data }) => setDocumenti((data as DocRiga[] | null) ?? []))
     void supabase.from('preventivi').select('*').order('creato_il', { ascending: false }).limit(2000)
       .then(({ data, error }) => { if (error) setProblema(error.message); setRighe((data as Preventivo[]) ?? []) })
     void supabase.from('listino').select('*').eq('attivo', true).order('ordine')
@@ -469,6 +485,22 @@ export default function Preventivi({ onOpen }: Props) {
     return { testo: q.pdf_path ? 'Bozza, il PDF è pronto' : 'Bozza, senza PDF', pallino: 'bg-gray-300', testo_colore: 'text-spento' }
   }
 
+  // l'editor prende tutta la pagina: quando scrivi un documento, scrivi e basta
+  if (apro) {
+    return (
+      <Editor
+        id={apro.id}
+        modello={apro.modello}
+        onEsci={() => {
+          setApro(null)
+          void supabase.from('documenti').select('id,prospect_id,modello,titolo,stato,aggiornato_il')
+            .order('aggiornato_il', { ascending: false }).limit(200)
+            .then(({ data }) => setDocumenti((data as DocRiga[] | null) ?? []))
+        }}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4 pb-24 sm:pb-8">
       {problema && (
@@ -508,6 +540,46 @@ export default function Preventivi({ onOpen }: Props) {
                   className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro">Salva</button>
         </Card>
       )}
+
+      {/* I DOCUMENTI: il foglio bianco sta in cima, perche' e' la cosa che
+          si viene a fare qui. I modelli si aprono con un clic, non con un
+          modale: la scelta e' una riga di chip */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={() => setScelgoModello((v) => !v)}
+                  className="flex items-center gap-2 rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">
+            <span className="text-base leading-none">+</span> Nuovo documento
+          </button>
+          {scelgoModello && (
+            <div className="flex flex-wrap gap-1.5">
+              {MODELLI.map((m) => (
+                <button key={m.chiave} title={m.cosa}
+                        onClick={() => { setScelgoModello(false); setApro({ id: null, modello: m.chiave }) }}
+                        className="rounded-full border border-bordo bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:border-blu">
+                  {m.nome}
+                </button>
+              ))}
+            </div>
+          )}
+          {!scelgoModello && documenti && documenti.length > 0 && (
+            <span className="text-sm text-tenue">{documenti.length} document{documenti.length === 1 ? 'o' : 'i'}</span>
+          )}
+        </div>
+        {documenti && documenti.length > 0 && (
+          <ul className="mt-3 divide-y divide-velo border-t border-velo">
+            {documenti.slice(0, 8).map((d) => (
+              <li key={d.id}>
+                <button onClick={() => setApro({ id: d.id, modello: d.modello })}
+                        className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-0.5 px-1 py-2.5 text-left hover:bg-velo/60">
+                  <span className="text-sm font-semibold">{d.titolo}</span>
+                  <span className="text-xs text-tenue">{nomeDi(d.prospect_id ?? '') || 'senza azienda'}</span>
+                  <span className="ml-auto text-[11px] text-spento">{fmtDateShort(d.aggiornato_il.slice(0, 10))}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       {/* I NUMERI: uno grande, quello che aspetta una risposta. Gli altri
           sono di contorno: prima erano quattro riquadri uguali e uno diceva

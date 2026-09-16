@@ -1,0 +1,94 @@
+{
+  "tipo": "Report mensile",
+  "blocchi": [
+    { "tipo": "kicker", "testo": "modello da compilare" },
+    { "tipo": "h1", "testo": "Report mensile" },
+    { "tipo": "p", "testo": "Questo è il modello del report che ogni ad specialist manda al proprio cliente entro il 5 del mese, sul mese appena chiuso. Le parti fra parentesi quadre si sostituiscono. Quello che è già scritto resta com'è: è la parte che non cambia da un cliente all'altro." },
+    { "tipo": "p", "piccolo": true, "testo": "Se un dato non si riesce a leggere alla fonte si scrive [da verificare] e si spiega perché. Non si mette un numero plausibile al suo posto." },
+    { "tipo": "spazio", "mm": 4 },
+    { "tipo": "anagrafica", "colonne": [
+      { "titolo": "CLIENTE", "righe": ["[Nome azienda]"] },
+      { "titolo": "PERIODO", "righe": ["[mese] [anno]"] },
+      { "titolo": "A CURA DI", "righe": ["[Nome], Studio Galilei"] }
+    ]},
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Il mese in tre numeri" },
+    { "tipo": "p", "testo": "I tre numeri che contano per questo cliente, presi dalle dashboard delle piattaforme. Si scelgono una volta all'inizio del rapporto e non si cambiano ogni mese: un indicatore che cambia ogni mese non è un indicatore." },
+    { "tipo": "numeri", "voci": [
+      { "valore": "[dato]", "etichetta": "[primo indicatore]" },
+      { "valore": "[dato]", "etichetta": "[secondo indicatore]" },
+      { "valore": "[dato]", "etichetta": "[terzo indicatore]" }
+    ]},
+    { "tipo": "p", "testo": "[Due righe che dicono come è andato il mese. Il numero prima dell'aggettivo. Se il mese è andato male si scrive che è andato male.]" },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "i numeri" },
+    { "tipo": "h1", "testo": "Il confronto con il mese prima" },
+    { "tipo": "p", "testo": "Stesse voci ogni mese, stessa fonte ogni mese. La colonna della variazione si calcola, non si giudica: il commento sta sotto la tabella." },
+    { "tipo": "tabella",
+      "colonne": [
+        { "testo": "Voce", "larghezza": 34 },
+        { "testo": "Mese prima", "larghezza": 18, "destra": true },
+        { "testo": "Questo mese", "larghezza": 18, "destra": true },
+        { "testo": "Variazione", "larghezza": 18, "destra": true },
+        { "testo": "Fonte", "larghezza": 22 }
+      ],
+      "righe": [
+        [{ "testo": "Spesa pubblicitaria", "forte": true }, { "testo": "[dato]" }, { "testo": "[dato]" }, { "testo": "[%]" }, { "testo": "[piattaforma]" }],
+        [{ "testo": "Contatti in ingresso", "forte": true }, { "testo": "[dato]" }, { "testo": "[dato]" }, { "testo": "[%]" }, { "testo": "[piattaforma]" }],
+        [{ "testo": "Costo per contatto", "forte": true }, { "testo": "[dato]" }, { "testo": "[dato]" }, { "testo": "[%]" }, { "testo": "calcolo" }],
+        [{ "testo": "Contatti qualificati", "sotto": "come li definisce il cliente", "forte": true }, { "testo": "[dato]" }, { "testo": "[dato]" }, { "testo": "[%]" }, { "testo": "[CRM]" }],
+        [{ "testo": "Vendite chiuse", "sotto": "solo se il cliente ce le passa", "forte": true }, { "testo": "[dato]" }, { "testo": "[dato]" }, { "testo": "[%]" }, { "testo": "[cliente]" }]
+      ]
+    },
+    { "tipo": "p", "piccolo": true, "testo": "Il costo per contatto è la spesa pubblicitaria divisa i contatti in ingresso. Dove il dato arriva dal cliente e non da una piattaforma, la fonte lo dice." },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Come si leggono questi numeri" },
+    { "tipo": "p", "testo": "[Una riga per ogni scostamento che supera il 10%: cosa lo ha prodotto. Se non si sa, si scrive che non si sa e cosa si guarda per saperlo.]" },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Cosa non ha funzionato" },
+    { "tipo": "p", "testo": "[Almeno una cosa. Un mese senza niente da segnalare quasi sempre vuol dire che non si è guardato abbastanza. Si scrive prima dei risultati buoni, non dopo.]" },
+
+    { "tipo": "pagina" },
+    { "tipo": "kicker", "testo": "il lavoro" },
+    { "tipo": "h1", "testo": "Cosa abbiamo fatto" },
+    { "tipo": "p", "testo": "[Gli interventi del mese, in ordine di peso. Per ognuno: cosa è stato cambiato, quando, e cosa ci si aspettava. Niente elenco di attività: un elenco di attività non dice se sono servite.]" },
+    { "tipo": "elenco", "voci": [
+      "[Intervento 1: cosa, quando, effetto atteso.]",
+      "[Intervento 2: cosa, quando, effetto atteso.]",
+      "[Intervento 3: cosa, quando, effetto atteso.]"
+    ]},
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "h2", "testo": "Cosa facciamo il mese prossimo" },
+    { "tipo": "p", "testo": "[Da due a quattro cose, con la data. Una cosa senza data non è un piano.]" },
+    { "tipo": "tabella",
+      "colonne": [
+        { "testo": "Cosa", "larghezza": 46 },
+        { "testo": "Perché", "larghezza": 36 },
+        { "testo": "Entro", "larghezza": 18, "destra": true }
+      ],
+      "righe": [
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[il numero che dovrebbe muovere]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[il numero che dovrebbe muovere]" }, { "testo": "[gg/mm]" }],
+        [{ "testo": "[azione]", "forte": true }, { "testo": "[il numero che dovrebbe muovere]" }, { "testo": "[gg/mm]" }]
+      ]
+    },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "riquadro", "titolo": "COSA SERVE DA TE", "voci": [
+      "[Il dato o il materiale che serve, e entro quando.]",
+      "[La decisione che aspetta una risposta, con le opzioni.]",
+      "Se non serve niente si scrive: questo mese non serve niente."
+    ]},
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "p", "testo": "I numeri di questo report vengono dalle dashboard delle piattaforme nel periodo indicato. Se un dato non torna, scrivilo prima di fare qualsiasi altra cosa: si controlla insieme alla fonte." },
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "anagrafica", "colonne": [
+      { "titolo": "RIFERIMENTO", "righe": ["[Nome], [email]"] },
+      { "titolo": "TELEFONO", "righe": ["+39 371 11 69430"] },
+      { "titolo": "SITO", "righe": ["studiogalilei.com"] }
+    ]},
+    { "tipo": "spazio", "mm": 3 },
+    { "tipo": "p", "piccolo": true, "testo": "Studio Galilei. Documento riservato al destinatario." }
+  ],
+  "piede": "[mese anno]"
+}

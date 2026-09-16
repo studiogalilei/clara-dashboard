@@ -354,8 +354,13 @@ const proposte: Riga[] = [
 // comparire, come nel vero
 const feedback: Riga[] = []
 
+// i documenti scritti dentro l'editor: in demo si parte da zero e si vede
+// nascere il primo
+const documenti: Riga[] = []
+
 const TABELLE: Record<string, Riga[]> = {
   feedback,
+  documenti,
   proposte,
   chat,
   sync_runs,
@@ -546,6 +551,12 @@ export const demoClient = {
       }
     }
     return { data: null, error: null }
+  },
+  // in demo Clara non chiama il cervello vero: dice che qui non si puo'
+  functions: {
+    async invoke(_nome: string) {
+      return { data: { errore: 'Nella demo non scrivo davvero: entra con il tuo account' }, error: null }
+    },
   },
   storage: {
     from(_bucket: string) {

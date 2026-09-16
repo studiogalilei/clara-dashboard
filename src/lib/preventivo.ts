@@ -88,8 +88,14 @@ export function caricaRisorse(): Promise<Risorse> {
     risorse = Promise.all([
       prendi('fonts/Poppins-Regular.ttf'), prendi('fonts/Poppins-SemiBold.ttf'), prendi('brand/SG_logo_blu.png'),
       forse('brand/sg-segno-sottolineatura.png'), forse('brand/sg-segno-tratto.png'), forse('brand/sg-segno-spunta.png'),
-    ]).then(([regular, semibold, logo, sottolineatura, tratto, spunta]) => ({
-      regular, semibold, logo, segni: { sottolineatura, tratto, spunta },
+      // le copertine: logo bianco e sfondi. Senza, la copertina esce blu
+      // piatta e il documento sembra un altro documento (Dre, 16/9)
+      forse('brand/SG_logo_bianco.png'),
+      forse('brand/sg-sfondo-marketing.png'), forse('brand/sg-sfondo-ai.png'),
+      forse('brand/sg-sfondo-software.png'), forse('brand/sg-sfondo-istituzionale.png'),
+    ]).then(([regular, semibold, logo, sottolineatura, tratto, spunta, logoBianco, marketing, ai, software, istituzionale]) => ({
+      regular, semibold, logo, logoBianco, segni: { sottolineatura, tratto, spunta },
+      sfondi: { marketing, ai, software, istituzionale },
     }))
     risorse.catch(() => { risorse = null })
   }
