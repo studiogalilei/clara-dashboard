@@ -454,7 +454,8 @@ export default function App() {
 
         {/* barra mobile */}
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5 lg:hidden">
-          <span className="shrink-0 text-navy"><ClaraLogo size={28} /></span>
+          {/* sul telefono in alto a sinistra sta il marchio, come sul Mac */}
+          <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-7 w-7 shrink-0 object-contain" />
           <div className="relative min-w-0 flex-1">
             <input
               type="search"

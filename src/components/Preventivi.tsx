@@ -554,10 +554,15 @@ export default function Preventivi({ onOpen }: Props) {
           </button>
           {scelgoModello && (
             <div className="flex flex-wrap gap-1.5">
+              <button title="Il documento che si firma: voci, prezzi, condizioni"
+                      onClick={() => { setScelgoModello(false); apriNuovo() }}
+                      className="rounded-[6px] border border-bordo bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:border-blu">
+                Condizioni economiche
+              </button>
               {MODELLI.map((m) => (
                 <button key={m.chiave} title={m.cosa}
                         onClick={() => { setScelgoModello(false); setApro({ id: null, modello: m.chiave }) }}
-                        className="rounded-full border border-bordo bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:border-blu">
+                        className="rounded-[6px] border border-bordo bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:border-blu">
                   {m.nome}
                 </button>
               ))}
@@ -624,7 +629,7 @@ export default function Preventivi({ onOpen }: Props) {
                  className="w-full min-w-0 rounded-full border border-bordo bg-white px-4 py-1.5 text-sm outline-none focus:border-blu sm:w-48" />
           <button onClick={() => setStudioAperto((v) => !v)} title="Ragione sociale, P.IVA, IVA, termini: vanno nei PDF"
                   className="rounded-full px-2 py-1.5 text-sm font-semibold text-tenue hover:text-navy">Dati Studio</button>
-          <button onClick={() => apriNuovo()} className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">+ Crea preventivo</button>
+
         </div>
       </div>
 
