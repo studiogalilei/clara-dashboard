@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ClaraLogo from './ClaraLogo'
 import {
   STAGE_LABEL, CLS_LABEL, PIPELINE_LABEL,
   type Stage, type Classificazione, type PipelineStage, type Market, type Prospect,
@@ -168,17 +169,13 @@ export function initials(name: string | null, company: string | null): string {
   return ((parts[0]?.[0] ??'') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
 }
 
-// QUANDO CARICA (Dre, 16/9): «mettiamo il logo di qualcosa, magari quello
-// SG». Il marchio dello Studio che gira piano: un secondo di attesa diventa
-// un secondo di azienda, invece della parola «caricamento».
+// QUANDO CARICA (Dre, 16/9): Clara che lavora. Non il marchio che gira,
+// che «e' orrendo da vedere»: la costellazione ha gia' il suo movimento,
+// quello vero, che dice che sta succedendo qualcosa.
 export function Spinner() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <img
-        src={`${import.meta.env.BASE_URL}sg-simbolo.svg`}
-        alt="Sto caricando"
-        className="h-9 w-9 animate-[gira_1.6s_linear_infinite] opacity-70"
-      />
+    <div className="flex items-center justify-center py-12 text-navy">
+      <ClaraLogo size={40} lavora />
     </div>
   )
 }
