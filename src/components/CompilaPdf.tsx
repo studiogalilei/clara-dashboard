@@ -36,6 +36,15 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
   const [timbro, setTimbro] = useState<{ src: string; w: number; h: number } | null>(null)
   const [stato, setStato] = useState<string | null>(null)
   const [salvo, setSalvo] = useState(false)
+  // le date della prova (Dre, 16/9): il contratto resta uguale al suo
+  // originale, ma se quelle due date sono l'inizio e la fine della prova,
+  // da qui finiscono anche sulla scheda del cliente, e da li' le sanno il
+  // calendario, Oggi e Clara. Si compila il documento e il CRM in un gesto
+  const [prova, setProva] = useState(false)
+  // il nome del cliente, per battezzare la copia: «Contratto di prova, Klavzar»
+  const [nomeCliente, setNomeCliente] = useState('')
+  const [inizio, setInizio] = useState('')
+  const [fine, setFine] = useState('')
   const tele = useRef<Record<number, HTMLCanvasElement | null>>({})
   const trascino = useRef<{ id: number; dx: number; dy: number } | null>(null)
   const prossimoId = useRef(1)
@@ -132,6 +141,19 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
 
   function togli(id: number) { setPezzi((v) => v.filter((p) => p.id !== id)); setScelto(null) }
 
+  useEffect(() => {
+    if (!file.prospect_id) return
+    void supabase.from('prospects').select('company,name,email,prova_inizio,prova_fine')
+      .eq('id', file.prospect_id).maybeSingle()
+      .then(({ data }) => {
+        const a = data as { company: string | null; name: string | null; email: string; prova_inizio: string | null; prova_fine: string | null } | null
+        if (!a) return
+        setNomeCliente(a.company || a.name || '')
+        if (a.prova_inizio) setInizio(a.prova_inizio.slice(0, 10))
+        if (a.prova_fine) setFine(a.prova_fine.slice(0, 10))
+      })
+  }, [file.prospect_id])
+
   async function salva() {
     if (!byte) return
     setSalvo(true); setStato(null)
@@ -152,7 +174,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
         }
       }
       const fuori = await doc.save()
-      const nome = `${file.nome} (compilato)`
+      const nome = `${file.nome}${nomeCliente ? `, ${nomeCliente}` : ' (compilato)'}`
       const path = `${Date.now()}-${nome.replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf`
       const blob = new Blob([fuori as BlobPart], { type: 'application/pdf' })
       const { error } = await supabase.storage.from('vault').upload(path, blob, { contentType: 'application/pdf' })
@@ -160,8 +182,14 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
       const { data, error: e2 } = await supabase.from('vault_file')
         .insert({ nome, path, mime: 'application/pdf', dimensione: blob.size, prospect_id: file.prospect_id }).select().single()
       if (e2 || !data) { await supabase.storage.from('vault').remove([path]); throw new Error(e2?.message ?? 'riga non scritta') }
+      if (prova && file.prospect_id && inizio && fine) {
+        const { error: e3 } = await supabase.from('prospects')
+          .update({ prova_inizio: inizio, prova_fine: fine, contratto: 'prova' })
+          .eq('id', file.prospect_id)
+        if (e3) setStato(`Salvato, ma le date non sono arrivate sulla scheda: ${e3.message}`)
+      }
       onSalvato?.(data as Parameters<NonNullable<Props['onSalvato']>>[0])
-      setStato(`Salvato: «${nome}», nella stessa cartella`)
+      setStato(`Salvato: «${nome}», nella stessa cartella${prova && inizio && fine ? ', e la prova è segnata sulla scheda' : ''}`)
       setTimeout(onClose, 1200)
     } catch (e) {
       setStato('Non salvato: ' + (e as Error).message)
@@ -194,6 +222,30 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
             </button>
           </div>
         </div>
+        {file.prospect_id && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-bordo bg-white px-4 py-2">
+            <button onClick={() => setProva(!prova)}
+                    className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-tenue hover:text-inchiostro">
+              <span className={`flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border ${prova ? 'border-navy bg-navy text-white' : 'border-bordo bg-white'}`}>
+                {prova && <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+              </span>
+              è un contratto di prova
+            </button>
+            {prova && (
+              <>
+                <label className="flex items-center gap-1.5 rounded-[6px] border border-bordo px-2 py-1 text-xs">
+                  <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-spento">Inizio</span>
+                  <input type="date" value={inizio} onChange={(e) => setInizio(e.target.value)} className="bg-transparent outline-none" />
+                </label>
+                <label className="flex items-center gap-1.5 rounded-[6px] border border-bordo px-2 py-1 text-xs">
+                  <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-spento">Fine</span>
+                  <input type="date" value={fine} onChange={(e) => setFine(e.target.value)} className="bg-transparent outline-none" />
+                </label>
+                <span className="text-[11px] text-spento">finiscono anche sulla scheda del cliente</span>
+              </>
+            )}
+          </div>
+        )}
         {stato && <p className="border-b border-bordo bg-velo px-4 py-2 text-xs font-semibold text-inchiostro">{stato}</p>}
 
         <div className="flex-1 overflow-auto px-4 py-4">

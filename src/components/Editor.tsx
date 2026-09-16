@@ -467,9 +467,9 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
             )}
           </Card>
 
-          {/* IL PERIODO DI PROVA (Dre, 16/9): le date si scrivono una volta
-              sola, qui. Vanno nel documento e vanno sulla scheda del cliente,
-              cosi' il giorno che la prova finisce lo sanno tutti */}
+          {/* IL PERIODO DI PROVA: il contratto vero e' il PDF dello Studio e
+              si compila sopra l'originale (Documenti, «Compila»). Questo
+              riquadro resta per i documenti nostri che parlano di una prova */}
           {modello === 'prova' && (
             <Card className="p-4">
               <Micro>Periodo di prova</Micro>

@@ -2,7 +2,6 @@ import type { Documento, Blocco } from './tono'
 import proposta from '../modelli/doc-proposta-tecnica.json'
 import report from '../modelli/doc-report-mensile.json'
 import verbale from '../modelli/doc-verbale-call.json'
-import prova from '../modelli/doc-contratto-prova.json'
 
 // I MODELLI DENTRO L'APP (Dre, 16/9): «clicco un + e mi porta in un posto
 // tipo Word col template gia' li', collego l'azienda e i dati si riempiono,
@@ -31,10 +30,6 @@ const bianco = (): Documento => ({
 })
 
 export const MODELLI: Modello[] = [
-  // il contratto di prova (Dre, 16/9): le due date che scrivi qui tornano
-  // sulla scheda del cliente, quindi il giorno che la prova finisce lo sa
-  // il calendario, lo sa Oggi, lo sa Clara
-  { chiave: 'prova', nome: 'Contratto di prova', cosa: 'i due mesi: quando inizia, quando finisce, cosa succede dopo', doc: () => copia(prova) },
   { chiave: 'proposta', nome: 'Proposta tecnica', cosa: 'cosa costruiamo, in che ordine, cosa serve da voi', doc: () => copia(proposta) },
   { chiave: 'report', nome: 'Report mensile', cosa: 'com\'è andato il mese, con i numeri e il prossimo passo', doc: () => copia(report) },
   { chiave: 'verbale', nome: 'Verbale di call', cosa: 'cosa si è deciso, chi fa cosa entro quando', doc: () => copia(verbale) },
