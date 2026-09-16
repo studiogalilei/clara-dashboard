@@ -39,15 +39,26 @@ Preventivi e Numeri stanno per ora a Dre e Giacomo. Se ti servono, Impostazioni 
 «Chiedi un widget»: arriva a Dre e con un sì ce l'hai.
 
 **Clara**
-La pallina in basso a destra. Prepara bozze, segnala chi è fermo, tiene in ordine le schede.
-**Non manda niente e non decide niente da sola**: propone, tu dici sì o no dalla Posta.
+È la tua assistente, e sta nella pallina in basso a destra. Legge il calendario, gli appunti
+delle call e la posta di lavoro, tiene in ordine le schede al posto tuo, ti prepara le bozze
+di risposta e ti avvisa se qualcuno è fermo da troppo. Prima di ogni call ti lascia il punto
+della situazione sulla call stessa, in Oggi: chi sono, a che punto siamo, cosa chiedere. E
+tiene d'occhio le cose che si dimenticano (il preventivo senza risposta, i soldi che non
+arrivano, la prova che scade) e te le ricorda lei. **Non manda niente e non decide niente da
+sola**: ti propone, e tu le dici sì o no dalla sua Posta. Le puoi anche scrivere come a una
+persona: «ricordami giovedì di richiamare Klavzar». Se la pallina rimbalza, ha qualcosa per te.
 
 **Due regole di casa**
 1. Tutto si appende all'azienda: nota, documento, task. Lì lo ritrova chiunque.
 2. Quello che vedi è la verità di oggi. Se una carta dice una cosa che non ti torna, dillo:
    l'errore è nostro, non tuo.
 
-**Questa è una beta, e serve la tua testa**
-Nel menu c'è **Cosa cambieresti**. Scrivi lì qualunque cosa, anche minima: un bottone nel
-posto sbagliato, un giro troppo lungo, o una cosa che non c'è e ti servirebbe. Per il tuo
-lavoro su Google Ads mancano di sicuro dei pezzi: dicci quali e li mettiamo.
+**Il primo giorno**
+Al primo accesso parte da solo un giro guidato di due minuti che ti fa vedere dov'è cosa.
+Si salta quando vuoi e si rifà da Impostazioni. Sempre in Impostazioni, sotto «Il tuo
+Workspace», c'è la tua guida da scaricare: le tue sezioni, le parole che usiamo qui dentro e
+un elenco di cose che puoi chiedere a Clara.
+
+Nel menu c'è **Cosa cambieresti**: un bottone nel posto sbagliato, un giro troppo lungo, una
+cosa che non funziona, o una cosa che vorresti che Clara sapesse fare per te. Anche minima.
+Si legge tutto e si cambia: questo posto lo stiamo costruendo su come lavorate voi.

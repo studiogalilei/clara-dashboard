@@ -35,16 +35,26 @@ Python fatti partire da GitHub Actions. Ogni cosa che gira ha una riga nella tab
 `operazioni` e un comando dietro: non ci sono lavori nascosti da qualche parte.
 
 **Clara**
-La pallina in basso a destra. Prepara bozze, segnala anomalie, tiene in ordine le schede.
-**Non manda niente e non decide niente da sola**: propone, e la persona decide.
+È la tua assistente, e sta nella pallina in basso a destra. Legge il calendario, gli appunti
+delle call e la posta di lavoro, tiene in ordine le schede al posto tuo, ti prepara le bozze
+di risposta e ti avvisa se qualcuno è fermo da troppo. Prima di ogni call ti lascia il punto
+della situazione sulla call stessa, in Oggi: chi sono, a che punto siamo, cosa chiedere. E
+tiene d'occhio le cose che si dimenticano (il preventivo senza risposta, i soldi che non
+arrivano, la prova che scade) e te le ricorda lei. **Non manda niente e non decide niente da
+sola**: ti propone, e tu le dici sì o no dalla sua Posta. Le puoi anche scrivere come a una
+persona: «ricordami giovedì di richiamare Klavzar». Se la pallina rimbalza, ha qualcosa per te.
 
 **Due regole di casa**
 1. Tutto si appende all'azienda: nota, documento, task.
 2. Quello che vedi è la verità di oggi, calcolata dai dati, non un'etichetta scritta a mano.
    Se dice una cosa sbagliata, è un errore del sistema: si sistema.
 
-**Questa è una beta, e serve la tua testa**
-Nel menu c'è **Cosa cambieresti**. Da te servono soprattutto due tipi di segnalazione: le cose
-rotte (con cosa stavi facendo quando è successo) e le cose che un sistemista vorrebbe vedere
-e non ci sono: un allarme quando una sincronizzazione fallisce, un posto dove leggere i log,
-qualunque cosa. Scrivila lì, anche minima.
+**Il primo giorno**
+Al primo accesso parte da solo un giro guidato di due minuti che ti fa vedere dov'è cosa.
+Si salta quando vuoi e si rifà da Impostazioni. Sempre in Impostazioni, sotto «Il tuo
+Workspace», c'è la tua guida da scaricare: le tue sezioni, le parole che usiamo qui dentro e
+un elenco di cose che puoi chiedere a Clara.
+
+Nel menu c'è **Cosa cambieresti**: un bottone nel posto sbagliato, un giro troppo lungo, una
+cosa che non funziona, o una cosa che vorresti che Clara sapesse fare per te. Anche minima.
+Si legge tutto e si cambia: questo posto lo stiamo costruendo su come lavorate voi.

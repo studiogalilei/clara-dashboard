@@ -45,9 +45,14 @@ Preventivi e Numeri: per ora li tengono Dre e Giacomo. Se ti servono, in Imposta
 Widget c'è «Chiedi un widget»: arriva a Dre e con un sì ce l'hai.
 
 **Clara**
-È la pallina in basso a destra. Legge cosa succede, prepara le bozze di risposta, segnala chi
-è fermo da troppo tempo. **Non manda niente e non decide niente da sola**: propone, e tu dici
-sì o no dalla Posta. Se la pallina rimbalza, ha qualcosa per te.
+È la tua assistente, e sta nella pallina in basso a destra. Legge il calendario, gli appunti
+delle call e la posta di lavoro, tiene in ordine le schede al posto tuo, ti prepara le bozze
+di risposta e ti avvisa se qualcuno è fermo da troppo. Prima di ogni call ti lascia il punto
+della situazione sulla call stessa, in Oggi: chi sono, a che punto siamo, cosa chiedere. E
+tiene d'occhio le cose che si dimenticano (il preventivo senza risposta, i soldi che non
+arrivano, la prova che scade) e te le ricorda lei. **Non manda niente e non decide niente da
+sola**: ti propone, e tu le dici sì o no dalla sua Posta. Le puoi anche scrivere come a una
+persona: «ricordami giovedì di richiamare Klavzar». Se la pallina rimbalza, ha qualcosa per te.
 
 **Due regole di casa**
 1. Tutto si appende all'azienda: una nota, un documento, una task. Se lo appendi lì lo
@@ -55,7 +60,12 @@ sì o no dalla Posta. Se la pallina rimbalza, ha qualcosa per te.
 2. Quello che vedi è la verità di oggi, non un'etichetta che qualcuno deve ricordarsi di
    aggiornare. Se una carta dice una cosa che non ti torna, dillo: è un errore nostro.
 
-**Questa è una beta, e serve la tua testa**
-Nel menu c'è **Cosa cambieresti**. Scrivi lì qualunque cosa: un bottone nel posto sbagliato,
-un giro troppo lungo, una cosa che non funziona, o una che non c'è e ti farebbe comodo.
-Anche minima. Le cose scomode le cambiamo: per questo te lo diamo adesso e non fra un mese.
+**Il primo giorno**
+Al primo accesso parte da solo un giro guidato di due minuti che ti fa vedere dov'è cosa.
+Si salta quando vuoi e si rifà da Impostazioni. Sempre in Impostazioni, sotto «Il tuo
+Workspace», c'è la tua guida da scaricare: le tue sezioni, le parole che usiamo qui dentro e
+un elenco di cose che puoi chiedere a Clara.
+
+Nel menu c'è **Cosa cambieresti**: un bottone nel posto sbagliato, un giro troppo lungo, una
+cosa che non funziona, o una cosa che vorresti che Clara sapesse fare per te. Anche minima.
+Si legge tutto e si cambia: questo posto lo stiamo costruendo su come lavorate voi.

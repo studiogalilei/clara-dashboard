@@ -36,11 +36,14 @@ collegato Google) e **Salute dei dati** (le incoerenze fra tabelle).
 *Oggi, Calendario, Documenti, Condividi*: il lavoro quotidiano come per tutti.
 
 **Clara**
-La pallina in basso a destra. Legge quello che succede nelle caselle e nel calendario,
-prepara le bozze, tiene in ordine le schede, e quando non è sicura **chiede invece di
-scrivere**. Non manda niente e non decide niente da sola: propone, e tu dici sì o no dalla
-Posta. Quando ti fa la stessa domanda più volte, puoi rispondere a tutto il gruppo in un
-clic.
+È la tua assistente, e sta nella pallina in basso a destra. Legge il calendario, gli appunti
+delle call e la posta di lavoro, tiene in ordine le schede al posto tuo, ti prepara le bozze
+di risposta e ti avvisa se qualcuno è fermo da troppo. Prima di ogni call ti lascia il punto
+della situazione sulla call stessa, in Oggi: chi sono, a che punto siamo, cosa chiedere. E
+tiene d'occhio le cose che si dimenticano (il preventivo senza risposta, i soldi che non
+arrivano, la prova che scade) e te le ricorda lei. **Non manda niente e non decide niente da
+sola**: ti propone, e tu le dici sì o no dalla sua Posta. Le puoi anche scrivere come a una
+persona: «ricordami giovedì di richiamare Klavzar». Se la pallina rimbalza, ha qualcosa per te.
 
 **Due regole di casa**
 1. Tutto si appende all'azienda: nota, documento, task. Se resta su WhatsApp, è perso.
