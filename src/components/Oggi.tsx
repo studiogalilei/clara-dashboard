@@ -183,6 +183,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [gruppi, setGruppi] = useState<Gruppo[] | null>(null)
   const [fatteCoda, setFatteCoda] = useState<Set<string>>(new Set())
   const [spuntando, setSpuntando] = useState<string | null>(null)
+  const [scrivoAl, setScrivoAl] = useState<string | null>(null)   // a chi del pod sto scrivendo una task
+  const [testoPod, setTestoPod] = useState('')
   const [aggiungo, setAggiungo] = useState(false)
   const [nuovo, setNuovo] = useState('')
   const [nuovaData, setNuovaData] = useState('')
@@ -471,6 +473,22 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       return
     }
     setAttivita((a) => a!.map((t) => (t.id === id ? (data as TaskDre) : t)))
+  }
+
+  // la task al volo a una persona del pod: si scrive sulla sua riga
+  async function mandaAlPod(id: string, titolo: string) {
+    const t = titolo.trim()
+    if (!t) return
+    const { task, problema: guaio } = await creaTask({ titolo: t, perChi: id })
+    if (guaio) {
+      setProblema(guaio.includes('row-level security')
+        ? 'Non posso mandare una task a questa persona: chiedi a Dre.'
+        : 'La task non è stata salvata: ' + guaio)
+      return
+    }
+    if (task) setMandate((m) => [task as TaskDre, ...m])
+    setScrivoAl(null)
+    setTestoPod('')
   }
 
   async function aggiungi() {
@@ -819,7 +837,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
             <svg viewBox="0 0 24 24" className={`h-4 w-4 text-tenue transition-transform ${claraAperta ? 'rotate-90' : ''}`}>
               <path fill="currentColor" d="M9 6l6 6-6 6z" />
             </svg>
-            <span className="text-sm font-semibold">Promemoria di Clara</span>
+            <span className="text-sm font-semibold">Chi aspetta te</span>
             <span className="text-xs text-spento">{gruppiVivi.reduce((t, g) => t + g.sotto.length, 0)}</span>
             {!claraAperta && (
               <span className="ml-auto truncate text-xs text-tenue">{gruppiVivi.map((g) => `${g.titolo} ${g.sotto.length}`).join(', ')}</span>
@@ -1065,6 +1083,36 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
               )}
             </button>
           ))}
+          {/* il manager assegna da qui, che e' dove sta guardando */}
+          {scrivoAl ? (
+            <div className="flex items-center gap-2 border-t border-velo px-3 py-2">
+              <input
+                autoFocus
+                value={testoPod}
+                onChange={(e) => setTestoPod(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void mandaAlPod(scrivoAl, testoPod)
+                  if (e.key === 'Escape') { setScrivoAl(null); setTestoPod('') }
+                }}
+                placeholder={`Cosa serve da ${pod.find((m) => m.id === scrivoAl)?.nome?.split(' ')[0] ?? 'lui'}?`}
+                className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu"
+              />
+              <button onClick={() => void mandaAlPod(scrivoAl, testoPod)} disabled={!testoPod.trim()}
+                      className="shrink-0 rounded-full bg-blu px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30">
+                Manda
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-velo px-3 py-2">
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Manda una task a</span>
+              {pod.map((m) => (
+                <button key={m.id} onClick={() => setScrivoAl(m.id)}
+                        className="rounded-[6px] border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-blu">
+                  {m.nome?.split(' ')[0] ?? 'lui'}
+                </button>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
