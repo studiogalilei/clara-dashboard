@@ -38,6 +38,7 @@ interface Voce {
   titolo: string
   tipo: Tipo
   prospect_id: string | null
+  link?: string | null      // l'evento su Google, o il Meet: e' li' che vive
   chi?: string          // del pod: il nome della persona
   id?: number           // solo le righe di agenda: serve per toglierle
   sotto?: Scadenza      // budget o rinnovo, per la riga del giorno
@@ -165,13 +166,13 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       const nome = (id: string | null) => pod.find((p) => p.id === id)?.nome?.split(' ')[0] ?? ''
       const out: Voce[] = ((ag.data as Array<AgendaItem & { owner?: string | null }>) ?? []).filter((a) => !a.owner).map((a) => ({
         at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
-        id: a.id, sotto: sottoDi(a.tipo),
+        id: a.id, sotto: sottoDi(a.tipo), link: a.link,
       }))
       for (const a of (agPod.data as Array<AgendaItem & { owner: string }>) ?? []) {
         // i miei senza etichetta, quelli del pod col nome davanti
         out.push({
           at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
-          chi: a.owner === io ? undefined : nome(a.owner), id: a.id, sotto: sottoDi(a.tipo),
+          chi: a.owner === io ? undefined : nome(a.owner), id: a.id, sotto: sottoDi(a.tipo), link: a.link,
         })
       }
       for (const t of (taskPod.data as Array<{ titolo: string; scadenza: string; owner: string }>) ?? []) {
@@ -290,6 +291,13 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
         ) : (
           <div className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3">{dentro}</div>
         )}
+        {v.link && (
+          <a href={v.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+             title="Apri su Google"
+             className="self-center rounded-[6px] border border-bordo px-2 py-1 text-[10.5px] font-bold uppercase tracking-[0.06em] text-navy hover:border-navy">
+            apri
+          </a>
+        )}
         {mia && (
           <button
             onClick={() => void togliScadenza(v)}
@@ -370,6 +378,12 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
               </span>
             </div>
             <div className="flex items-center gap-1">
+              {/* Google resta il calendario vero: qui si vede quello che
+                  sappiamo noi in piu', ma gli appuntamenti vivono li' */}
+              <a href="https://calendar.google.com/calendar/r" target="_blank" rel="noreferrer"
+                 className="mr-1 rounded-[6px] border border-bordo px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy hover:border-navy">
+                Google Calendar
+              </a>
               <button onClick={() => cambiaMese(-1)} aria-label="Mese precedente"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo">‹</button>
               <button
@@ -384,12 +398,9 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
 
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {(nCall > 0 || nFu > 0 || nScad > 0) && (
-              <button
-                onClick={() => { setAnno(oggi.getFullYear()); setMese(oggi.getMonth()); setScelto(oggiChiave) }}
-                className="flex-1 rounded-xl bg-velo px-3 py-2 text-left text-xs font-semibold text-tenue hover:bg-velo/70"
-              >
+              <span className="flex-1 text-xs font-semibold text-tenue">
                 Prossimi 7 giorni: {nCall} call, {nFu} follow-up{nScad > 0 ? `, ${nScad === 1 ? '1 scadenza' : `${nScad} scadenze`}` : ''}
-              </button>
+              </span>
             )}
             {pod.length > 0 && (
               <button onClick={() => setConPod((v) => { scriviPref('calendario-pod', v ? 'no' : 'si'); return !v })}
