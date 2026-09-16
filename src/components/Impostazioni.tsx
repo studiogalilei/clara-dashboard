@@ -13,6 +13,9 @@ import Firma from './Firma'
 import Squadra from './Squadra'
 import { collegato as googleCollegato, entraConGoogle } from '../lib/google'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
+import { guidaDi } from '../lib/guida'
+import { caricaRisorse } from '../lib/preventivo'
+import { nomeFile } from '../lib/tono'
 
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
 // proprio nome, in basso a sinistra. Dentro solo cose vere, niente
@@ -44,6 +47,32 @@ interface Props {
   onCambio: () => void
   onNumeri?: () => void
   onWidget?: () => void
+}
+
+// IMPOSTAZIONI COME QUELLE DI UN'APP VERA (Dre, 16/9): «la trovo ancora
+// disordinata, vorrei fosse piu' ordinata, con cose dentro l'altro e nomi
+// puliti». Cinque gruppi, uno aperto: Tu, Il tuo Workspace, Collegamenti,
+// La squadra, Lo Studio. Dentro ognuno restano le stesse carte di prima:
+// cambia dove stanno, non cosa fanno.
+function Gruppo({ titolo, sotto, aperto = false, children }: {
+  titolo: string; sotto: string; aperto?: boolean; children: React.ReactNode
+}) {
+  const [su, setSu] = useState(aperto)
+  return (
+    <section className="overflow-hidden rounded-2xl border border-bordo bg-white">
+      <button onClick={() => setSu(!su)}
+              className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-velo/40">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-bold text-inchiostro">{titolo}</span>
+          <span className="block text-xs text-tenue">{sotto}</span>
+        </span>
+        <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 text-spento transition-transform ${su ? 'rotate-90' : ''}`}>
+          <path fill="currentColor" d="M9 6l6 6-6 6z" />
+        </svg>
+      </button>
+      {su && <div className="space-y-3 border-t border-velo bg-fondo/60 p-3">{children}</div>}
+    </section>
+  )
 }
 
 function Interruttore({ acceso, onClick, etichetta }: { acceso: boolean; onClick: () => void; etichetta: string }) {
@@ -216,6 +245,22 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
     onCambio()
   }
 
+  async function scaricaGuida() {
+    const doc = guidaDi({
+      nome: bozzaNome || nome,
+      ruolo,
+      ruoloVero,
+      concessi: (Object.entries(miei).filter(([, s]) => s === 'approvato').map(([w]) => w)) as Chiave[],
+    })
+    const { generaPdf } = await import('../lib/documento')
+    const bytes = await generaPdf(doc, await caricaRisorse())
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }))
+    a.download = nomeFile('workspace', bozzaNome || nome)
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+  }
+
   function preferenza(chiave: ChiavePref, valore: string, set: (v: string) => void) {
     scriviPref(chiave, valore)
     set(valore); onCambio()
@@ -224,6 +269,8 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-24 sm:pb-8">
 
+
+      <Gruppo titolo="Tu" sotto="nome, firma, password, notifiche" aperto={true}>
       {/* ── PROFILO ────────────────────────────────────────────── */}
       <Card className="p-5">
         <TitoloCard>Profilo</TitoloCard>
@@ -256,23 +303,97 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         </div>
       </Card>
 
-      {/* ── GOOGLE (11/9): Drive, Chat e Calendar a nome tuo ─────── */}
+      {/* ── LA FIRMA (Dre, 11/9) ───────────────────────────────── */}
+      {!demo && <Firma ceo={ruolo === 'ceo'} />}
+
+      {/* la password: al primo accesso ognuno si mette la sua (accessi creati il 9/9) */}
       {!demo && (
-        <Card className="p-5">
-          <TitoloCard>Google</TitoloCard>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            {google === null ? <span className="text-sm text-spento">controllo…</span>
-              : google ? <span className="text-sm font-semibold text-green-800">Collegato</span>
-              : <span className="text-sm text-tenue">Non ancora collegato.</span>}
-            <button onClick={() => void entraConGoogle()} className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
-              {google ? 'Rinnova il collegamento' : 'Collega Google'}
+        <Card>
+          <header className="border-b border-velo px-4 py-3">
+            <TitoloCard>Password</TitoloCard>
+          </header>
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+            <input
+              type="password"
+              value={nuovaPassword}
+              onChange={(e) => { setNuovaPassword(e.target.value); setPasswordEsito(null) }}
+              placeholder="Nuova password (almeno 8 caratteri)"
+              autoComplete="new-password"
+              className="min-w-[240px] flex-1 rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+            />
+            <button
+              type="button"
+              disabled={nuovaPassword.length < 8}
+              onClick={async () => {
+                const { error } = await supabase.auth.updateUser({ password: nuovaPassword })
+                setPasswordEsito(error ? 'Non è cambiata: ' + error.message : 'Password cambiata')
+                if (!error) setNuovaPassword('')
+              }}
+              className="rounded-full bg-blu px-4 py-2 text-sm font-semibold text-white hover:bg-blu-scuro disabled:opacity-40"
+            >
+              Cambia
             </button>
+            {passwordEsito && <p className={`w-full text-xs ${passwordEsito.startsWith('Non') ? 'text-red-700' : 'text-green-700'}`}>{passwordEsito}</p>}
           </div>
         </Card>
       )}
 
-      {/* ── LA FIRMA (Dre, 11/9) ───────────────────────────────── */}
-      {!demo && <Firma ceo={ruolo === 'ceo'} />}
+
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Notifiche</TitoloCard>
+        </header>
+        <div className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="min-w-[200px] flex-1 text-sm">
+              {notifiche === 'attive' && 'Attive su questo dispositivo: quando ci sono bozze da approvare, Clara ti avvisa qui.'}
+              {notifiche === 'spente' && 'Spente. Accendile e Clara ti avvisa quando c\'è qualcosa da approvare.'}
+              {notifiche === 'negate' && 'Il browser le ha bloccate: si riaccendono dalle impostazioni del sito.'}
+              {notifiche === 'da-installare' && 'Su iPhone prima aggiungi SG Workspace alla schermata Home: condividi, poi «Aggiungi alla schermata Home», e riapri da lì.'}
+              {notifiche === 'non-supportate' && 'Questo browser non le supporta.'}
+              {notifiche === null && '…'}
+            </p>
+            {(notifiche === 'spente' || notifiche === 'attive') && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setNotificheProblema(null)
+                  if (notifiche === 'attive') { setNotifiche(await spegniNotifiche()); return }
+                  const r = await attivaNotifiche()
+                  setNotifiche(r.stato); setNotificheProblema(r.problema ?? null)
+                }}
+                className="shrink-0 rounded-full border border-bordo px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy"
+              >
+                {notifiche === 'attive' ? 'Spegni' : 'Attiva le notifiche'}
+              </button>
+            )}
+          </div>
+          {notificheProblema && <p className="mt-1.5 text-xs text-red-700">Non si sono accese: {notificheProblema}</p>}
+        </div>
+      </Card>
+      </Gruppo>
+
+      <Gruppo titolo="Il tuo Workspace" sotto="i widget che vedi, la guida, il giro guidato" aperto={false}>
+
+      {/* LA GUIDA (Dre, 16/9): un PDF con dentro le sezioni che ha davvero
+          questa persona, le parole della casa e dove si scrivono i feedback.
+          Si genera adesso, quindi non invecchia */}
+      <Card className="p-5">
+        <TitoloCard>La tua guida</TitoloCard>
+        <p className="mt-1 text-sm text-tenue">
+          Cosa vedi tu, cosa ci fai, e cosa vogliono dire le parole che usiamo qui dentro.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button onClick={() => void scaricaGuida()}
+                  className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro">
+            Scarica la guida
+          </button>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('giro:rifai'))}
+                  className="rounded-full border border-bordo px-4 py-1.5 text-xs font-bold text-navy hover:border-navy">
+            Rifai il giro guidato
+          </button>
+        </div>
+      </Card>
 
       {/* ── WIDGET (Dre, 11/9): il catalogo, e la richiesta ───────── */}
       <Card>
@@ -349,24 +470,96 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         })}
       </Card>
 
-      {/* ── LE PERSONE (solo ceo, 15/9): ruoli e accessi, da qui ── */}
-      {ruolo === 'ceo' && !demo && <Squadra />}
-
-      {/* ── VEDI COME (solo ceo, 12/9): il Workspace nei panni di una persona ── */}
-      {ruolo === 'ceo' && !demo && persone.length > 0 && (
-        <Card className="p-5">
-          <TitoloCard>Vedi come</TitoloCard>
-          <p className="mt-1 text-xs text-tenue">Menu, aziende, chat e task diventano i suoi. In alto compare la striscia per tornare a te.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {persone.filter((p) => p.ruolo !== 'ceo').map((p) => (
-              <button key={p.id} onClick={() => { void vediCome(p.id).then(() => window.location.reload()) }}
-                      className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
-                {p.nome ?? p.id.slice(0, 8)}
+      {/* ── COME SI APRE ───────────────────────────────────────── */}
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Come si apre</TitoloCard>
+        </header>
+        <div className="flex items-center gap-3 border-b border-velo px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Le task in Oggi</p>
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
+            {[['ongo', 'On go'], ['big', 'Questa settimana']].map(([v, etichetta]) => (
+              <button key={v} onClick={() => preferenza('task-vista', v, setVistaTask)}
+                className={`px-3 py-1 text-xs font-bold ${vistaTask === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
+                {etichetta}
               </button>
             ))}
           </div>
+        </div>
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Pipeline</p>
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
+            {[['board', 'Bacheca'], ['elenco', 'Elenco'], ['foglio', 'Foglio']].map(([v, etichetta]) => (
+              <button key={v} onClick={() => apriPipelineCome(v)}
+                className={`px-3 py-1 text-xs font-bold ${vistaTutti === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
+                {etichetta}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      </Gruppo>
+
+      <Gruppo titolo="Collegamenti" sotto="Google e gli altri strumenti" aperto={false}>
+      {/* ── GOOGLE (11/9): Drive, Chat e Calendar a nome tuo ─────── */}
+      {!demo && (
+        <Card className="p-5">
+          <TitoloCard>Google</TitoloCard>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {google === null ? <span className="text-sm text-spento">controllo…</span>
+              : google ? <span className="text-sm font-semibold text-green-800">Collegato</span>
+              : <span className="text-sm text-tenue">Non ancora collegato.</span>}
+            <button onClick={() => void entraConGoogle()} className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
+              {google ? 'Rinnova il collegamento' : 'Collega Google'}
+            </button>
+          </div>
         </Card>
       )}
+
+      {/* ── OBSIDIAN ───────────────────────────────────────────── */}
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Obsidian</TitoloCard>
+        </header>
+        <div className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={vault}
+              onChange={(e) => { setVault(e.target.value); setVaultSalvato(false) }}
+              onBlur={() => { scriviPref('obsidian-vault', vault.trim()); setVaultSalvato(true); onCambio() }}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              placeholder="Nome del vault"
+              className="min-w-[200px] flex-1 rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
+            />
+            <a
+              href={vault.trim() ? `obsidian://open?vault=${encodeURIComponent(vault.trim())}` : undefined}
+              aria-disabled={!vault.trim()}
+              className={`shrink-0 rounded-full border border-bordo px-4 py-2 text-sm font-semibold ${
+                vault.trim() ? 'text-tenue hover:border-navy hover:text-navy' : 'pointer-events-none opacity-30'
+              }`}
+            >
+              Aprilo
+            </a>
+          </div>
+          <p className="mt-1.5 text-xs text-spento">
+            {vault.trim()
+              ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato</span>}</>
+              : 'Spento: senza il nome del vault i collegamenti non saprebbero dove andare'}
+          </p>
+        </div>
+      </Card>
+
+      </Gruppo>
+
+      {ruolo === 'ceo' && !demo && (
+      <Gruppo titolo="La squadra" sotto="chi entra, con che ruolo, chi vede cosa" aperto={false}>
+      {/* ── LE PERSONE (solo ceo, 15/9): ruoli e accessi, da qui ── */}
+      {ruolo === 'ceo' && !demo && <Squadra />}
 
       {/* ── CHI HA COSA (solo ceo): la mappa, e si da' o si toglie da qui ── */}
       {ruolo === 'ceo' && !demo && persone.some((p) => p.ruolo !== 'ceo') && (
@@ -407,121 +600,27 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         </Card>
       )}
 
-      {/* ── COME SI APRE ───────────────────────────────────────── */}
-      <Card>
-        <header className="border-b border-velo px-4 py-3">
-          <TitoloCard>Come si apre</TitoloCard>
-        </header>
-        <div className="flex items-center gap-3 border-b border-velo px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Le task in Oggi</p>
-          </div>
-          <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
-            {[['ongo', 'On go'], ['big', 'Questa settimana']].map(([v, etichetta]) => (
-              <button key={v} onClick={() => preferenza('task-vista', v, setVistaTask)}
-                className={`px-3 py-1 text-xs font-bold ${vistaTask === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
-                {etichetta}
+      {/* ── VEDI COME (solo ceo, 12/9): il Workspace nei panni di una persona ── */}
+      {ruolo === 'ceo' && !demo && persone.length > 0 && (
+        <Card className="p-5">
+          <TitoloCard>Vedi come</TitoloCard>
+          <p className="mt-1 text-xs text-tenue">Menu, aziende, chat e task diventano i suoi. In alto compare la striscia per tornare a te.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {persone.filter((p) => p.ruolo !== 'ceo').map((p) => (
+              <button key={p.id} onClick={() => { void vediCome(p.id).then(() => window.location.reload()) }}
+                      className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
+                {p.nome ?? p.id.slice(0, 8)}
               </button>
             ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Pipeline</p>
-          </div>
-          <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
-            {[['board', 'Bacheca'], ['elenco', 'Elenco'], ['foglio', 'Foglio']].map(([v, etichetta]) => (
-              <button key={v} onClick={() => apriPipelineCome(v)}
-                className={`px-3 py-1 text-xs font-bold ${vistaTutti === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
-                {etichetta}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* ── OBSIDIAN ───────────────────────────────────────────── */}
-      <Card>
-        <header className="border-b border-velo px-4 py-3">
-          <TitoloCard>Obsidian</TitoloCard>
-        </header>
-        <div className="px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              value={vault}
-              onChange={(e) => { setVault(e.target.value); setVaultSalvato(false) }}
-              onBlur={() => { scriviPref('obsidian-vault', vault.trim()); setVaultSalvato(true); onCambio() }}
-              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-              placeholder="Nome del vault"
-              className="min-w-[200px] flex-1 rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
-            />
-            <a
-              href={vault.trim() ? `obsidian://open?vault=${encodeURIComponent(vault.trim())}` : undefined}
-              aria-disabled={!vault.trim()}
-              className={`shrink-0 rounded-full border border-bordo px-4 py-2 text-sm font-semibold ${
-                vault.trim() ? 'text-tenue hover:border-navy hover:text-navy' : 'pointer-events-none opacity-30'
-              }`}
-            >
-              Aprilo
-            </a>
-          </div>
-          <p className="mt-1.5 text-xs text-spento">
-            {vault.trim()
-              ? <>Sulle schede compare «cerca in Obsidian», sotto i puntini{vaultSalvato && <span className="ml-2 font-semibold text-green-700">salvato</span>}</>
-              : 'Spento: senza il nome del vault i collegamenti non saprebbero dove andare'}
-          </p>
-        </div>
-      </Card>
-
-      {/* la password: al primo accesso ognuno si mette la sua (accessi creati il 9/9) */}
-      {!demo && (
-        <Card>
-          <header className="border-b border-velo px-4 py-3">
-            <TitoloCard>Password</TitoloCard>
-          </header>
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-            <input
-              type="password"
-              value={nuovaPassword}
-              onChange={(e) => { setNuovaPassword(e.target.value); setPasswordEsito(null) }}
-              placeholder="Nuova password (almeno 8 caratteri)"
-              autoComplete="new-password"
-              className="min-w-[240px] flex-1 rounded-lg border border-bordo px-3 py-2 text-sm outline-none focus:border-blu"
-            />
-            <button
-              type="button"
-              disabled={nuovaPassword.length < 8}
-              onClick={async () => {
-                const { error } = await supabase.auth.updateUser({ password: nuovaPassword })
-                setPasswordEsito(error ? 'Non è cambiata: ' + error.message : 'Password cambiata')
-                if (!error) setNuovaPassword('')
-              }}
-              className="rounded-full bg-blu px-4 py-2 text-sm font-semibold text-white hover:bg-blu-scuro disabled:opacity-40"
-            >
-              Cambia
-            </button>
-            {passwordEsito && <p className={`w-full text-xs ${passwordEsito.startsWith('Non') ? 'text-red-700' : 'text-green-700'}`}>{passwordEsito}</p>}
           </div>
         </Card>
       )}
 
-      {/* Numeri e Widget stanno qui dentro (intervista 9/9): non sono lavoro di tutti i giorni */}
-      {ruolo === 'ceo' && (
-      <Card>
-        <header className="border-b border-velo px-4 py-3">
-          <TitoloCard>Strumenti</TitoloCard>
-        </header>
-        <div className="divide-y divide-velo">
-          <button onClick={onNumeri} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-velo/50">
-            <span>Numeri<span className="ml-2 font-normal text-tenue">funnel, ricorrente, canali</span></span><span className="text-spento">›</span>
-          </button>
-          <button onClick={onWidget} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-velo/50">
-            <span>Widget e istruzioni<span className="ml-2 font-normal text-tenue">cosa sa fare Clara, e i collegamenti</span></span><span className="text-spento">›</span>
-          </button>
-        </div>
-      </Card>
+      </Gruppo>
       )}
 
+      {ruolo === 'ceo' && (
+      <Gruppo titolo="Lo Studio" sotto="listino, numeri, salute dei dati" aperto={false}>
       {/* IL LISTINO: i prezzi che finiscono nei preventivi */}
       {ruolo === 'ceo' && listino && (
         <Card>
@@ -565,6 +664,23 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         </Card>
       )}
 
+      {/* Numeri e Widget stanno qui dentro (intervista 9/9): non sono lavoro di tutti i giorni */}
+      {ruolo === 'ceo' && (
+      <Card>
+        <header className="border-b border-velo px-4 py-3">
+          <TitoloCard>Strumenti</TitoloCard>
+        </header>
+        <div className="divide-y divide-velo">
+          <button onClick={onNumeri} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-velo/50">
+            <span>Numeri<span className="ml-2 font-normal text-tenue">funnel, ricorrente, canali</span></span><span className="text-spento">›</span>
+          </button>
+          <button onClick={onWidget} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-velo/50">
+            <span>Widget e istruzioni<span className="ml-2 font-normal text-tenue">cosa sa fare Clara, e i collegamenti</span></span><span className="text-spento">›</span>
+          </button>
+        </div>
+      </Card>
+      )}
+
       {vedeSalute && salute && (
         <Card>
           <header className="border-b border-velo px-4 py-3">
@@ -593,39 +709,9 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           </div>
         </Card>
       )}
+      </Gruppo>
+      )}
 
-      <Card>
-        <header className="border-b border-velo px-4 py-3">
-          <TitoloCard>Notifiche</TitoloCard>
-        </header>
-        <div className="px-4 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="min-w-[200px] flex-1 text-sm">
-              {notifiche === 'attive' && 'Attive su questo dispositivo: quando ci sono bozze da approvare, Clara ti avvisa qui.'}
-              {notifiche === 'spente' && 'Spente. Accendile e Clara ti avvisa quando c\'è qualcosa da approvare.'}
-              {notifiche === 'negate' && 'Il browser le ha bloccate: si riaccendono dalle impostazioni del sito.'}
-              {notifiche === 'da-installare' && 'Su iPhone prima aggiungi SG Workspace alla schermata Home: condividi, poi «Aggiungi alla schermata Home», e riapri da lì.'}
-              {notifiche === 'non-supportate' && 'Questo browser non le supporta.'}
-              {notifiche === null && '…'}
-            </p>
-            {(notifiche === 'spente' || notifiche === 'attive') && (
-              <button
-                type="button"
-                onClick={async () => {
-                  setNotificheProblema(null)
-                  if (notifiche === 'attive') { setNotifiche(await spegniNotifiche()); return }
-                  const r = await attivaNotifiche()
-                  setNotifiche(r.stato); setNotificheProblema(r.problema ?? null)
-                }}
-                className="shrink-0 rounded-full border border-bordo px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy"
-              >
-                {notifiche === 'attive' ? 'Spegni' : 'Attiva le notifiche'}
-              </button>
-            )}
-          </div>
-          {notificheProblema && <p className="mt-1.5 text-xs text-red-700">Non si sono accese: {notificheProblema}</p>}
-        </div>
-      </Card>
 
       {!demo && (
         <button

@@ -13,6 +13,7 @@ import Vault from './components/Vault'
 import Plugin from './components/Plugin'
 import Feedback from './components/Feedback'
 import Aggiornato from './components/Aggiornato'
+import Giro from './components/Giro'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
@@ -118,6 +119,17 @@ export default function App() {
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [pieno])
+  // IL GIRO GUIDATO (Dre, 16/9): la prima volta parte da solo, dopo si
+  // rifa' da Impostazioni. Che l'hai fatto e' una preferenza vera: ti segue
+  // anche sul telefono, e non ti ricapita addosso
+  const [giro, setGiro] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => { if (!leggiPref('giro-fatto')) setGiro(true) }, 1400)
+    const rifai = () => setGiro(true)
+    window.addEventListener('giro:rifai', rifai)
+    return () => { clearTimeout(t); window.removeEventListener('giro:rifai', rifai) }
+  }, [demo])
+
   // IL RIPOSO (Dre, 15/9): «quando sono nella stessa tab da un po', si
   // allarga lo schermo, sparisce la parte a lato e il logo di Clara; poi
   // passo il mouse dove stavano e riappaiono». Non e' lo schermo intero, che
@@ -127,7 +139,9 @@ export default function App() {
   const [sbircio, setSbircio] = useState(false)
   useEffect(() => {
     setRiposo(false)
-    if (pieno) return
+    // durante il giro guidato niente si muove: le cose che illumina devono
+    // restare dove sono
+    if (pieno || giro) return
     if (typeof window === 'undefined' || !window.matchMedia('(min-width: 1024px)').matches) return
     let t = 0
     const riparti = () => {
@@ -143,7 +157,7 @@ export default function App() {
     riparti()
     window.addEventListener('keydown', riparti)
     return () => { window.clearTimeout(t); window.removeEventListener('keydown', riparti) }
-  }, [tab, pieno])
+  }, [tab, pieno, giro])
 
   const [daDecidere, setDaDecidere] = useState(0)     // le proposte aperte: il badge della Posta di Clara
   const [daLeggere, setDaLeggere] = useState(0)       // i messaggi della squadra non letti
@@ -361,6 +375,7 @@ export default function App() {
             return (
               <button
                 key={t}
+                data-giro={t}
                 onClick={() => { setTab(t); setOpenId(null) }}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   attivo ? 'bg-velo text-inchiostro' : 'text-tenue hover:bg-velo/60 hover:text-inchiostro'
@@ -389,6 +404,7 @@ export default function App() {
             return (
               <button
                 key={t}
+                data-giro={t}
                 onClick={() => { setTab(t); setOpenId(null) }}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   attivo ? 'bg-velo text-inchiostro' : 'text-tenue hover:bg-velo/60 hover:text-inchiostro'
@@ -606,6 +622,8 @@ export default function App() {
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} />
+
+      {giro && <Giro onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
     </div>
   )
 }

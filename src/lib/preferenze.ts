@@ -32,6 +32,7 @@ export const CHIAVI = [
   'calendario-pod',
   'chat-con',
   'chat-visto',
+  'giro-fatto',
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]
