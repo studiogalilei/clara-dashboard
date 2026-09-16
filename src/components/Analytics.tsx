@@ -89,13 +89,6 @@ export default function Analytics({ onOpen }: Props) {
 
   // ── la FOTO: numeri col confronto sui 30 giorni ───────────────
   const t30 = Date.now() - 30 * 86400e3
-  const t60 = Date.now() - 60 * 86400e3
-  const nel = (kind: Interaction['kind'], da: number, a: number) =>
-    storia.filter((i) => i.kind === kind && new Date(i.at).getTime() >= da && new Date(i.at).getTime() < a).length
-  const risposte30 = nel('email_in', t30, Date.now())
-  const rispostePrec = nel('email_in', t60, t30)
-  const call30 = nel('transcript', t30, Date.now()) + nel('call', t30, Date.now())
-  const callPrec = nel('transcript', t60, t30) + nel('call', t60, t30)
   // fuori_at e' la data di INGRESSO in pipeline, non quella della firma:
   // finche' non c'e' una data di conversione, la riga dice quello che sa
   const entratiNuovi30 = vivi.filter((p) => p.fuori_at && new Date(p.fuori_at).getTime() >= t30).length
@@ -104,9 +97,6 @@ export default function Analytics({ onOpen }: Props) {
     .map((p) => ({ p, gg: daysAgo(p.analysis_sent_at) ?? 0 }))
     .filter((x) => x.gg >= 30)
     .sort((a, b) => b.gg - a.gg)
-
-  const delta = (ora: number, prima: number) =>
-    ora === prima ? '=' : ora > prima ? `+${ora - prima}` : `${ora - prima}`
 
   // ── blocco 1: il battito (8 settimane) ────────────────────────
   const battito = ['email_in', 'analisi', 'transcript'].map((kind) => {
@@ -163,8 +153,49 @@ export default function Analytics({ onOpen }: Props) {
     }
   }).sort((a, b) => b.call - a.call)
 
+  // ── QUESTO MESE CONTRO LO SCORSO (Dre, 16/9) ───────────────────────
+  // «Numeri non lo guardera' nessuno finche' non risponde a una domanda».
+  // La domanda di un manager e' una sola: stiamo andando meglio o peggio?
+  // Quindi la prima riga e' il confronto, e il resto sta sotto.
+  const mese = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  const meseOra = mese(new Date())
+  const meseScorso = mese(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1))
+  const conta = (quale: string, filtro: (i: Interaction) => boolean) =>
+    (storia ?? []).filter((i) => (i.at ?? '').slice(0, 7) === quale && filtro(i)).length
+  const clientiDi = (quale: string) =>
+    (prospects ?? []).filter((x) => eCliente(x) && (x.fuori_at ?? '').slice(0, 7) === quale).length
+
+  const CONFRONTO: Array<[string, number, number]> = [
+    ['Risposte arrivate', conta(meseOra, (i) => i.kind === 'email_in'), conta(meseScorso, (i) => i.kind === 'email_in')],
+    ['Analisi mandate', conta(meseOra, (i) => i.kind === 'analisi'), conta(meseScorso, (i) => i.kind === 'analisi')],
+    ['Call fatte', conta(meseOra, (i) => i.kind === 'transcript' || i.kind === 'call'), conta(meseScorso, (i) => i.kind === 'transcript' || i.kind === 'call')],
+    ['Clienti nuovi', clientiDi(meseOra), clientiDi(meseScorso)],
+  ]
+
   return (
     <div className="space-y-4 pb-24 sm:pb-8">
+
+      {/* la prima cosa che si legge: come stiamo andando */}
+      <Card>
+        <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
+          <TitoloCard>Questo mese</TitoloCard>
+          <Micro>contro lo stesso periodo del mese scorso</Micro>
+        </header>
+        <div className="grid grid-cols-2 divide-x divide-velo sm:grid-cols-4">
+          {CONFRONTO.map(([nome, ora, prima]) => {
+            const delta = ora - prima
+            return (
+              <div key={nome} className="px-4 py-3">
+                <p className="text-[26px] font-extrabold leading-none tabular-nums">{fmtNum(ora)}</p>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-spento">{nome}</p>
+                <p className={`mt-1 text-xs font-semibold ${delta > 0 ? 'text-green-800' : delta < 0 ? 'text-red-700' : 'text-spento'}`}>
+                  {delta === 0 ? 'come il mese scorso' : `${delta > 0 ? '+' : ''}${delta} su ${fmtNum(prima)}`}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </Card>
 
       {tagliato && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
@@ -213,18 +244,14 @@ export default function Analytics({ onOpen }: Props) {
         </div>
       </Card>
 
-      {/* ── LA FOTO ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* ── LA FOTO: quello che c'e' adesso, non quello che si e' mosso ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
         {/* il ricorrente e i clienti li conta regole.ts, non questa lista:
             e' lo stesso numero che vedi in Tutti e in bacheca (4/9) */}
         <Foto etichetta="Ricorrente / mese" valore={ricorrente ? `${fmtNum(ricorrente.mese)} €` : '…'}
           confronto={entratiNuovi30 > 0 ? `+${entratiNuovi30} entrati in pipeline nel mese` : ''} />
         <Foto etichetta="Clienti" valore={ricorrente ? fmtNum(ricorrente.quanti) : '…'}
           confronto={entratiNuovi30 > 0 ? `+${entratiNuovi30} entrati in pipeline nel mese` : ''} />
-        <Foto etichetta="Risposte 30 giorni" valore={fmtNum(risposte30)}
-          confronto={`${delta(risposte30, rispostePrec)} sul mese prima`} />
-        <Foto etichetta="Call 30 giorni" valore={fmtNum(call30)}
-          confronto={`${delta(call30, callPrec)} sul mese prima`} />
       </div>
 
       {/* ── 1, il battito ──────────────────────────────────── */}
