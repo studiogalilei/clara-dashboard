@@ -51,6 +51,45 @@ const PAROLE: Array<[string, string]> = [
   ['Canone', 'Quanto paga un cliente al mese. Lo propone il software leggendo Stripe o l\'ultimo preventivo: basta confermarlo.'],
 ]
 
+// COSA PUOI CHIEDERLE DAVVERO (Dre, 16/9): «metti anche un elenco per
+// persona con esempi di casi d'uso». Solo cose che oggi fa: se non le fa,
+// non stanno qui dentro, se no la prima volta che ci provano perdiamo la
+// fiducia e non torna piu'.
+const CASI_TUTTI: string[] = [
+  '«Chi aspetta una risposta da me?» e te li elenca, dal più fermo',
+  '«Ricordami giovedì di richiamare Klavzar»: nasce la task, appesa a quella azienda',
+  '«Fissa una call tecnica con Verde Urbano giovedì alle 15»: prepara l\'invito, tu confermi',
+  'Dopo una call, ti mette il riassunto sulla scheda del cliente senza che tu faccia niente',
+]
+
+const CASI_RUOLO: Record<string, string[]> = {
+  ceo: [
+    '«Scrivimi la proposta per Bimout con quello che si sono detti in call»: la scrive dentro il documento, tu correggi',
+    '«Come siamo messi questa settimana?»: chi è fermo, chi aspetta, cosa si è chiuso',
+    'Ogni mattina ti lascia il punto della giornata, e la sera quello che è cambiato',
+  ],
+  manager: [
+    '«Scrivimi il verbale della call di ieri con Apiemme»: lo compila dagli appunti della call',
+    '«Chi del mio pod ha roba scaduta?»: una riga per persona, senza chiederlo a loro',
+    '«Manda una task ad Alex per gli accessi di Zeni entro venerdì»',
+  ],
+  specialist: [
+    '«Ricordami il primo del mese di rifare il budget di Klavzar»: torna ogni mese, non te lo devi ricordare',
+    '«Preparami il report mensile di Serenergy»: parte dal modello e dai numeri che ci sono',
+    '«Questa campagna è ferma da quanto?»',
+  ],
+  frontend: [
+    '«Scrivi tu a Zeni che mancano gli accessi all\'hosting»: prepara la mail, tu la mandi con un clic',
+    '«Segna che il sito di Tecnolegno è andato online oggi»',
+    '«Cosa manca per chiudere il progetto di Bimout?»',
+  ],
+  coordinamento: [
+    '«Ho appena parlato con questa azienda su LinkedIn»: te la aggiunge e ci appende la nota',
+    '«Chi mi ha risposto e non ho ancora ripreso in mano?»',
+    '«Prepara la risposta a CER Italia»: scrive la bozza, tu leggi e mandi',
+  ],
+}
+
 export function guidaDi(chi: Chi): Documento {
   const concessi = new Set(chi.concessi)
   const miei = WIDGET.filter((w) => haAccesso(w, chi.ruolo, concessi))
@@ -76,6 +115,11 @@ export function guidaDi(chi: Chi): Documento {
 
   b.push({ tipo: 'h2', testo: 'Clara' })
   b.push({ tipo: 'p', testo: 'È la pallina in basso a destra. Legge il calendario, gli appunti delle call e la posta di lavoro, tiene aggiornate le schede, prepara le bozze di risposta e segnala chi è fermo da troppo tempo. Non manda niente e non decide niente da sola: propone, e tu rispondi dalla sua Posta. Quando la pallina rimbalza, ha qualcosa per te.' })
+
+  b.push({ tipo: 'h2', testo: 'Cosa puoi chiederle, per davvero' })
+  b.push({ tipo: 'p', testo: 'Si scrive nella chat della pallina, come si scriverebbe a una persona. Queste le fa già oggi:' })
+  b.push({ tipo: 'elenco', voci: [...(CASI_RUOLO[chi.ruoloVero] ?? CASI_RUOLO.coordinamento), ...CASI_TUTTI] })
+  b.push({ tipo: 'p', piccolo: true, testo: 'Quando non è sicura non tira a indovinare: te lo chiede e aspetta. E qualunque cosa cambi una scheda passa sempre da un tuo sì.' })
 
   b.push({ tipo: 'h2', testo: 'Le parole che usiamo qui' })
   b.push({
