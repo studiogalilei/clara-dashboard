@@ -193,4 +193,7 @@ export interface AgendaItem {
   prospect_id: string | null
   link?: string | null
   fonte: string
+  // quello che Clara prepara prima della call (schema_v43)
+  preparazione?: string | null
+  preparata_il?: string | null
 }

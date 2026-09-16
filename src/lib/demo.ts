@@ -191,7 +191,22 @@ Budget reale, chi decide, accesso al sito/tag, obiettivo (biglietti o espositori
 export const agenda: AgendaItem[] = [
   { id: 4, at: gg(3).slice(0, 11) + '11:00:00', titolo: 'Conoscitiva, Zeni Sicurezza', tipo: 'conoscitiva', prospect_id: 'p6', fonte: 'gcal' },
   { id: 5, at: fra(12).slice(0, 11) + '10:00:00', titolo: 'Check mensile, Klavzar', tipo: 'altro', prospect_id: 'p7', fonte: 'gcal' },
-  { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva, Venice Design Week', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal' },
+  { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva, Venice Design Week', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal',
+    preparata_il: oreFa(3),
+    preparazione: `Chi sono: Venice Design Week, organizzano la settimana del design a Venezia a ottobre. Vendono biglietti e spazi espositivi, la stagione buona sono i tre mesi prima.
+
+A che punto siamo
+- Analisi mandata il 12 agosto, Anna ha risposto subito.
+- Il 6 settembre ha chiesto lei di sentirsi: e' il momento giusto, l'evento e' a ottobre.
+- Nessun preventivo ancora, nessun budget dichiarato.
+
+Cosa chiedere
+- Quanti biglietti vendono oggi online e quanti vorrebbero venderne.
+- Chi decide sulla spesa, e entro quando.
+- Se hanno gia' provato campagne e con chi.
+
+Attento a
+- L'evento e' a ottobre: se si parte, si parte adesso o non ha senso.` },
   { id: 2, at: fra(4).slice(0, 11) + '09:00:00', titolo: 'Invio follow-up, 30 mail pronte', tipo: 'invio', prospect_id: null, fonte: 'gcal' },
   { id: 3, at: fra(8).slice(0, 11) + '09:00:00', titolo: 'Ripartono le campagne', tipo: 'altro', prospect_id: null, fonte: 'gcal' },
   // le scadenze degli account, quelle di Salvatore: si mettono dal Calendario

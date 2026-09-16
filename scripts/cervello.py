@@ -268,6 +268,54 @@ def recap(testo, azienda="", quando="", modello=None):
     return fuori.replace("!", ".")
 
 
+PREPARO = """Sei l'assistente di uno studio italiano di marketing e software.
+Fra poche ore c'e' una call con questo cliente. Prepara chi ci va, in modo che
+entri in call sapendo tutto senza dover leggere niente d'altro.
+
+FORMATO, esatto, salta le sezioni che restano vuote:
+
+Chi sono: <una riga: cosa fanno, dove, da dove sono arrivati>
+
+A che punto siamo
+- <massimo quattro righe: cosa ci siamo detti finora, cosa aspetta chi>
+
+Cosa chiedere
+- <massimo tre domande vere, quelle che sbloccano la trattativa o il lavoro>
+
+Attento a
+- <massimo due cose: promesse fatte, cose delicate, date scadute>
+
+REGOLE
+Solo quello che c'e' nei dati che ti do: se una cosa non la sai, non la scrivi.
+Niente introduzioni, niente commenti tuoi, niente consigli generici da manuale.
+Niente parole gonfie (innovativo, soluzioni, sinergia, a 360, ottimizzare, implementare).
+Niente punti esclamativi, niente trattini lunghi.
+Massimo dodici righe in tutto.
+
+CALL: {quando}, {tipo}
+AZIENDA: {azienda}
+
+QUELLO CHE SAPPIAMO:
+{dati}
+"""
+
+
+def preparo(dati, azienda="", quando="", tipo="", modello=None):
+    """Il punto della situazione prima di una call. None se non ce la fa."""
+    grezzo = " ".join((dati or "").split())
+    if len(grezzo) < 120:
+        return None
+    try:
+        fuori = _chiedi(PREPARO.format(azienda=azienda or "?", quando=quando or "?", tipo=tipo or "call", dati=grezzo[:14000]) + istruzione("lettura"))
+    except Exception:
+        return None
+    fuori = (fuori or "").strip()
+    if len(fuori) < 50 or "Chi sono" not in fuori:
+        return None
+    fuori = re.sub(r"\s*—\s*", ": ", fuori).replace("–", "-").replace("·", ",").replace("•", "-")
+    return fuori.replace("!", ".")
+
+
 def istruzione(chiave):
     """Le istruzioni che Dre scrive nella sala di controllo (tabella istruzioni).
     Senza tabella o senza testo si va avanti senza: sono un di piu', non un requisito."""
