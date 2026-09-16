@@ -74,6 +74,7 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
   const [inizio, setInizio] = useState('')
   const [fine, setFine] = useState('')
   const [dateSalvate, setDateSalvate] = useState(false)
+  const [archivio, setArchivio] = useState<string | null>(null)
   const [menuBlocco, setMenuBlocco] = useState<number | null>(null)
   const [aggiungo, setAggiungo] = useState<number | null>(null)
   const primoGiro = useRef(true)
@@ -339,16 +340,34 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
     setDateSalvate(true)
   }
 
+  // il PDF si scarica E resta (Dre, 16/9): se e' di un cliente finisce anche
+  // nella sua cartella, se no fra un mese quel documento non lo trova nessuno
   async function scaricaPdf() {
     if (!doc) return
+    setArchivio('preparo il PDF…')
     const { generaPdf } = await import('../lib/documento')
     const bytes = await generaPdf(doc, await caricaRisorse())
     const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
+    const nome = nomeFile(titoloDoc(doc), azienda ? nomeAzienda(azienda as never) : '')
+
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = nomeFile(titoloDoc(doc), azienda ? nomeAzienda(azienda as never) : '')
+    a.download = nome
     a.click()
     setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+
+    if (!azienda) { setArchivio('scaricato. Collega l\'azienda e finisce anche nella sua cartella'); return }
+    const path = `clienti/${azienda.id}/${Date.now()}-${nome}`
+    const { error } = await supabase.storage.from('vault')
+      .upload(path, blob, { contentType: 'application/pdf', upsert: true })
+    if (error) { setArchivio(`scaricato, ma non archiviato: ${error.message}`); return }
+    const { error: e2 } = await supabase.from('vault_file').insert({
+      nome: titoloDoc(doc), path, mime: 'application/pdf', dimensione: blob.size,
+      prospect_id: azienda.id, sezione: 'clienti',
+      nota: `Scritto nel Workspace, ${new Date().toLocaleDateString('it-IT')}`,
+    })
+    setArchivio(e2 ? `scaricato, ma non archiviato: ${e2.message}` : `scaricato, e messo nella cartella di ${nomeAzienda(azienda as never)}`)
+    if (rigaId) await supabase.from('documenti').update({ file: path }).eq('id', rigaId)
   }
 
   const quantiBuchi = useMemo(() => (doc ? buchi(doc) : 0), [doc])
@@ -369,6 +388,7 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {archivio && <span className="text-[11px] text-spento">{archivio}</span>}
           <button onClick={() => void scaricaPdf()}
                   className="rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
             Scarica il PDF

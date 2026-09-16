@@ -5,6 +5,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { supabase } from '../lib/supabase'
 import { urlFile } from '../lib/file'
 import { leggiFirma, leggiTimbro, bytePng } from '../lib/firma'
+import CercaAzienda from './CercaAzienda'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -46,6 +47,9 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
   const [prova, setProva] = useState(false)
   // il nome del cliente, per battezzare la copia: «Contratto di prova, Klavzar»
   const [nomeCliente, setNomeCliente] = useState('')
+  // se il documento non e' ancora di nessuno (tipico dei modelli), prima di
+  // salvarlo si dice di chi e': se no nasce un PDF che non trova piu' nessuno
+  const [cliente, setCliente] = useState<string | null>(file.prospect_id)
   const [inizio, setInizio] = useState('')
   const [fine, setFine] = useState('')
   const tele = useRef<Record<number, HTMLCanvasElement | null>>({})
@@ -190,10 +194,10 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
       const { data, error: e2 } = await supabase.from('vault_file')
         .insert({ nome, path, mime: 'application/pdf', dimensione: blob.size, prospect_id: file.prospect_id }).select().single()
       if (e2 || !data) { await supabase.storage.from('vault').remove([path]); throw new Error(e2?.message ?? 'riga non scritta') }
-      if (prova && file.prospect_id && inizio && fine) {
+      if (prova && cliente && inizio && fine) {
         const { error: e3 } = await supabase.from('prospects')
           .update({ prova_inizio: inizio, prova_fine: fine, contratto: 'prova' })
-          .eq('id', file.prospect_id)
+          .eq('id', cliente)
         if (e3) setStato(`Salvato, ma le date non sono arrivate sulla scheda: ${e3.message}`)
       }
       onSalvato?.(data as Parameters<NonNullable<Props['onSalvato']>>[0])
@@ -225,14 +229,37 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
           <span className="text-[11px] text-spento">{strumento ? 'tocca la pagina dove va' : 'scegli cosa mettere, poi tocca dove va'}</span>
           <div className="ml-auto flex items-center gap-2">
             <button onClick={onClose} className="text-xs font-semibold text-tenue hover:text-inchiostro">Annulla</button>
-            <button onClick={() => void salva()} disabled={salvo || pezzi.length === 0}
+            <button onClick={() => void salva()} disabled={salvo || pezzi.length === 0 || !cliente}
+                    title={!cliente ? 'Prima dici di che cliente è' : undefined}
                     className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-30">
               {salvo ? 'Salvo…' : 'Salva come nuovo PDF'}
             </button>
           </div>
         </div>
-        {file.prospect_id && (
+        {!cliente && (
           <div className="flex flex-wrap items-center gap-2 border-b border-bordo bg-white px-4 py-2">
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Di chi è</span>
+            <div className="min-w-[220px] flex-1">
+              <CercaAzienda
+                dentro
+                placeholder="cerca il cliente…"
+                onScegli={(a) => {
+                  const az = a as unknown as { id: string; company: string | null; name: string | null; email: string; prova_inizio?: string | null; prova_fine?: string | null }
+                  setCliente(az.id)
+                  setNomeCliente(az.company || az.name || '')
+                  if (az.prova_inizio) setInizio(az.prova_inizio.slice(0, 10))
+                  if (az.prova_fine) setFine(az.prova_fine.slice(0, 10))
+                }}
+              />
+            </div>
+            <span className="text-[11px] text-spento">il PDF finisce nella sua cartella</span>
+          </div>
+        )}
+        {cliente && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-bordo bg-white px-4 py-2">
+            {nomeCliente && (
+              <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy">{nomeCliente}</span>
+            )}
             <button onClick={() => setProva(!prova)}
                     className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-tenue hover:text-inchiostro">
               <span className={`flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border ${prova ? 'border-navy bg-navy text-white' : 'border-bordo bg-white'}`}>
