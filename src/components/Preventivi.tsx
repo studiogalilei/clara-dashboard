@@ -508,7 +508,7 @@ export default function Preventivi({ onOpen }: Props) {
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
-          <button onClick={() => setProblema(null)} className="shrink-0 text-xs font-bold text-red-600 hover:text-red-900">Chiudi</button>
+          <button onClick={() => setProblema(null)} className="shrink-0 rounded-full px-2 py-1.5 text-xs font-bold text-red-600 hover:text-red-900">Chiudi</button>
         </div>
       )}
 
@@ -825,7 +825,7 @@ export default function Preventivi({ onOpen }: Props) {
                     )}
                     {q.stato === 'inviato' && (
                       <button onClick={() => { setChiedo({ id: q.id, cosa: 'rifiuto' }); setTestoChiesto('') }}
-                              className="whitespace-nowrap px-1 text-xs font-semibold text-tenue hover:text-red-700">
+                              className="whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold text-tenue hover:text-red-700">
                         Ha detto no
                       </button>
                     )}
