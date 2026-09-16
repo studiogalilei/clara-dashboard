@@ -30,6 +30,7 @@ export const CHIAVI = [
   'obsidian-vault',
   'oggi-clara',
   'calendario-pod',
+  'calendario-vista',
   'chat-con',
   'chat-visto',
   'giro-fatto',
@@ -45,7 +46,7 @@ export type Chiave = (typeof CHIAVI)[number]
 // Queste vivono in sessionStorage e basta: si spengono con la finestra.
 const DI_SESSIONE: readonly string[] = [
   'task-vista', 'tutti-vista', 'tutti-filtro', 'tutti-modo',
-  'progetti-ordine', 'clienti-modo', 'oggi-clara', 'calendario-pod',
+  'progetti-ordine', 'clienti-modo', 'oggi-clara', 'calendario-pod', 'calendario-vista',
 ]
 const sessione = (c: string) => DI_SESSIONE.includes(c)
 

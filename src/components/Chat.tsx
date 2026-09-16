@@ -269,6 +269,14 @@ export default function Chat({ onOpen }: Props) {
           <span className={`block text-[11px] ${mia ? 'text-white/70' : 'text-spento'}`}>
             {f.dimensione ? `${fmtNum(Math.round(f.dimensione / 1024))} KB, ` : ''}apri
           </span>
+          {/* Documenti e Condividi sono lo stesso posto visto da due porte:
+              qui si dice dove il file e' finito, se no sembrano due archivi
+              diversi e nessuno sa quale guardare (16/9) */}
+          {r.prospect_id && (
+            <span className={`block text-[11px] ${mia ? 'text-white/60' : 'text-spento'}`}>
+              è nella cartella di {nomi[r.prospect_id] ?? 'quel cliente'}, in Documenti
+            </span>
+          )}
         </span>
       </button>
     )

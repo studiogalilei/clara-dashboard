@@ -89,6 +89,13 @@ function corto(titolo: string): string {
 
 export default function Calendario({ onOpen, pod = [] }: Props) {
   const [conPod, setConPod] = useState(() => leggiPref('calendario-pod', 'si') === 'si')
+  // MESE O ELENCO (Dre, 16/9): chi non fa call in una griglia mensile vede
+  // tre righe in mezzo a trenta caselle vuote. Se nel prossimo mese non hai
+  // nessuna call, si apre l'elenco; la griglia resta a un clic di distanza.
+  // La scelta dura la sessione, come tutte le viste
+  const [vistaCal, setVistaCal] = useState<'mese' | 'elenco'>(
+    () => (leggiPref('calendario-vista') as 'mese' | 'elenco') || 'mese')
+  const [decisa, setDecisa] = useState(false)
   const [io, setIo] = useState<string | null>(null)
   const oggi = new Date()
   const [voci, setVoci] = useState<Voce[] | null>(null)
@@ -206,6 +213,14 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       }
       out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
       setVoci(out)
+      // la prima volta si sceglie da soli: chi non ha call nel mese apre
+      // l'elenco, chi ne ha apre la griglia (Dre, 16/9)
+      if (!decisa && !leggiPref('calendario-vista')) {
+        const fra30 = Date.now() + 30 * 86400e3
+        const callVicine = out.filter((v) => v.tipo === 'call' && new Date(v.at).getTime() <= fra30 && new Date(v.at).getTime() >= Date.now() - 86400e3)
+        setVistaCal(callVicine.length === 0 ? 'elenco' : 'mese')
+        setDecisa(true)
+      }
     })
   }, [pod, io, giro])
 
@@ -313,8 +328,25 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   return (
     <div className="pb-24 sm:pb-8">
 
-      {/* telefono: la lista raggruppata */}
-      <div className="space-y-5 lg:hidden">
+      {/* il commutatore, solo da computer: sul telefono l'elenco e' l'unica
+          forma possibile. Accanto, la porta per Google, che resta il
+          calendario vero */}
+      <div className="mb-4 hidden items-center gap-2 lg:flex">
+        {([['elenco', 'Elenco'], ['mese', 'Mese']] as const).map(([v, n]) => (
+          <button key={v} onClick={() => { setVistaCal(v); scriviPref('calendario-vista', v) }}
+                  className={`rounded-[6px] border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em] ${
+                    vistaCal === v ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue hover:border-navy'}`}>
+            {n}
+          </button>
+        ))}
+        <a href="https://calendar.google.com/calendar/r" target="_blank" rel="noreferrer"
+           className="rounded-[6px] border border-bordo px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy hover:border-navy">
+          Google Calendar
+        </a>
+      </div>
+
+      {/* telefono sempre, e sul computer quando si sceglie l'elenco */}
+      <div className={vistaCal === 'elenco' ? 'space-y-5' : 'space-y-5 lg:hidden'}>
         <Card className="px-4 py-2.5">
           {scrivoTask ? (
             <div className="flex items-center gap-2">
@@ -360,7 +392,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
 
       {/* desktop: griglia + giorno, a tutta larghezza (Dre, 3/9): un mese
           dentro un contenitore stretto si legge, non si scansiona */}
-      <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(0,9fr)_minmax(0,3fr)]">
+      <div className={vistaCal === 'elenco' ? 'hidden' : 'hidden gap-4 lg:grid lg:grid-cols-[minmax(0,9fr)_minmax(0,3fr)]'}>
         <Card className="p-5">
           <div className="mb-3 flex items-baseline justify-between">
             <div className="flex items-baseline gap-2.5">
@@ -378,12 +410,6 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {/* Google resta il calendario vero: qui si vede quello che
-                  sappiamo noi in piu', ma gli appuntamenti vivono li' */}
-              <a href="https://calendar.google.com/calendar/r" target="_blank" rel="noreferrer"
-                 className="mr-1 rounded-[6px] border border-bordo px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy hover:border-navy">
-                Google Calendar
-              </a>
               <button onClick={() => cambiaMese(-1)} aria-label="Mese precedente"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-tenue hover:bg-velo">‹</button>
               <button
