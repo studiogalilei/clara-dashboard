@@ -13,7 +13,7 @@ import {
 // Chi e' chiuso (perso, scartato, passato) e' grigio e non chiede niente;
 // quello che e' vecchio di piu' di due settimane e' giallo, non rosso.
 
-export type Tono = 'ok' | 'attesa' | 'azione' | 'spento'
+export type Tono = 'ok' | 'attesa' | 'azione' | 'spento' | 'clara'
 export interface Stato { testo: string; tono: Tono }
 
 interface Extra {
@@ -87,8 +87,10 @@ export function statoVivo(p: Prospect, x: Extra = {}): Stato {
     return { testo: `In prova fino al ${data(p.prova_fine)}`, tono: 'ok' }
   }
 
-  if (x.bozza) return { testo: 'Bozza pronta nella Posta di Clara', tono: 'azione' }
-  if (x.domanda) return { testo: 'Clara ha una domanda nella Posta', tono: 'azione' }
+  // il lavoro che Clara ha gia' fatto per te non e' un allarme: e' blu,
+  // perche' aspetta una tua decisione, non perche' e' in ritardo (16/9)
+  if (x.bozza) return { testo: 'Bozza pronta nella Posta di Clara', tono: 'clara' }
+  if (x.domanda) return { testo: 'Clara ha una domanda nella Posta', tono: 'clara' }
 
   if (p.awaiting_us && p.last_reply_at) {
     const n = giorniDa(p.last_reply_at)
@@ -172,4 +174,5 @@ export const COLORE_STATO: Record<Tono, { pallino: string; testo: string }> = {
   attesa: { pallino: 'bg-amber-500', testo: 'text-amber-800' },
   azione: { pallino: 'bg-red-600', testo: 'font-semibold text-red-800' },
   spento: { pallino: 'bg-gray-300', testo: 'text-spento' },
+  clara: { pallino: 'bg-blu', testo: 'font-semibold text-navy' },
 }

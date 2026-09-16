@@ -508,7 +508,10 @@ export default function Lista({ onOpen, q }: Props) {
         }}
         onDragEnd={() => { setDragId(null); setSopra(null) }}
         className={`group flex w-full flex-col gap-1.5 rounded-xl border bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:border-blu ${
-          inPresa ? 'rotate-2 scale-[1.04] border-navy opacity-50 shadow-[0_12px_28px_rgba(6,23,115,0.2)]' : stato.tono === 'azione' ? 'border-red-200' : 'border-bordo'
+          inPresa ? 'rotate-2 scale-[1.04] border-navy opacity-50 shadow-[0_12px_28px_rgba(6,23,115,0.2)]'
+            : stato.tono === 'azione' ? 'border-red-200'
+            : stato.tono === 'clara' ? 'border-blu/30'
+            : 'border-bordo'
         } ${mosso === p.id ? 'atterra' : ''} ${trascinabile ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
         <span className="flex items-center gap-2">
