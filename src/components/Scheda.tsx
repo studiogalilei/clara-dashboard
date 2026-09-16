@@ -412,7 +412,12 @@ export default function Scheda({ id, onClose }: Props) {
   // proprietario restano visibili a chi c'era prima (Dre, 3/9)
   const postit = (timeline ?? []).filter((t) =>
     t.kind === 'postit' && (!(t as { owner?: string }).owner || (t as { owner?: string }).owner === utenteId))
-  const prep = [...(timeline ?? [])].reverse().find((t) => t.kind === 'prep')
+  const prepVecchia = [...(timeline ?? [])].reverse().find((t) => t.kind === 'prep')
+  // quella che Clara scrive da sola prima della call vince: e' di stanotte,
+  // non di tre settimane fa (16/9)
+  const prep = prossimaCall?.preparazione
+    ? { body: prossimaCall.preparazione, at: prossimaCall.preparata_il ?? prossimaCall.at }
+    : prepVecchia
   const primaRisposta = (timeline ?? []).find((t) => t.kind === 'email_in')
   const mercato = p.market ?? mercatoDi(p.sector, p.city)
   const soppresso = p.classificazione === 'soppresso'
