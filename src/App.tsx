@@ -38,7 +38,7 @@ function pezzo<T>(carica: () => Promise<T>) {
 const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
-import { nomeDa } from './lib/profilo'
+import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
 
@@ -354,8 +354,10 @@ export default function App() {
           <span className="absolute inset-y-0 left-1.5 w-px bg-transparent transition-colors group-hover:bg-blu" />
           <span className="absolute left-[1px] top-1/2 h-8 w-[5px] -translate-y-1/2 rounded-full bg-transparent transition-colors group-hover:bg-blu/30" />
         </div>
+        {/* IL MARCHIO (Dre, 16/9): il posto e' dello Studio, l'assistente e'
+            Clara. Quindi qui sopra sta SG, e Clara resta la pallina */}
         <div className="mb-8 flex items-center gap-2.5 px-2">
-          <span className="text-navy"><ClaraLogo size={36} /></span>
+          <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-9 w-9 shrink-0 object-contain" />
           <span className="leading-tight tracking-tight text-navy">
             <span className="block text-[17px]">
               <span className="font-black">SG</span>
@@ -431,7 +433,10 @@ export default function App() {
               tab === 'impostazioni' ? 'bg-velo' : 'hover:bg-velo/60'
             }`}
           >
-            <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-8 w-8 shrink-0 object-contain" />
+            {/* qui sotto ci sei tu, non il marchio: le tue iniziali */}
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-[12px] font-bold text-white">
+              {iniziali(utente)}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">{utente}</span>
               <span className="block text-[11px] text-spento">Impostazioni</span>

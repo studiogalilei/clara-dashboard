@@ -17,7 +17,7 @@ export default defineConfig({
         start_url: './',
         scope: './',
         name: 'Studio Galilei Workspace',
-        short_name: 'Clara',
+        short_name: 'SG Workspace',
         description: 'Il workspace di Studio Galilei, con Clara',
         theme_color: '#111827',
         background_color: '#ffffff',

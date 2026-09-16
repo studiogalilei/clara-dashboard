@@ -168,8 +168,19 @@ export function initials(name: string | null, company: string | null): string {
   return ((parts[0]?.[0] ??'') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
 }
 
+// QUANDO CARICA (Dre, 16/9): «mettiamo il logo di qualcosa, magari quello
+// SG». Il marchio dello Studio che gira piano: un secondo di attesa diventa
+// un secondo di azienda, invece della parola «caricamento».
 export function Spinner() {
-  return <div className="py-10 text-center text-sm text-spento">Caricamento…</div>
+  return (
+    <div className="flex items-center justify-center py-12">
+      <img
+        src={`${import.meta.env.BASE_URL}sg-simbolo.svg`}
+        alt="Sto caricando"
+        className="h-9 w-9 animate-[gira_1.6s_linear_infinite] opacity-70"
+      />
+    </div>
+  )
 }
 
 // L'unica micro-etichetta maiuscola dell'app: stesso corpo, stesso tracking,

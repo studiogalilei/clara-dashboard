@@ -654,11 +654,18 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
                   </button>
                 ))}
               </div>
+              {/* niente pillola colorata: una casella, come su un modulo vero */}
               <button onClick={() => void scriviVoce(v, { attivo: !v.attivo })}
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold ${v.attivo ? 'bg-green-100 text-green-900' : 'bg-velo text-spento'}`}>
-                {v.attivo ? 'Nel listino' : 'Spenta'}
+                      title={v.attivo ? 'Esce nei preventivi' : 'Non esce nei preventivi'}
+                      className="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-tenue hover:text-inchiostro">
+                <span className={`flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border ${v.attivo ? 'border-navy bg-navy text-white' : 'border-bordo bg-white'}`}>
+                  {v.attivo && (
+                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                  )}
+                </span>
+                in listino
               </button>
-              {salvata === v.id && <span className="text-[11px] font-semibold text-green-700">salvato</span>}
+              {salvata === v.id && <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-spento">salvato</span>}
             </div>
           ))}
         </Card>

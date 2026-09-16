@@ -88,3 +88,10 @@ button, a, select, input[type=checkbox] { cursor: pointer; }
   }
 }
 
+
+
+/* il marchio che gira mentre carica: lento, costante, niente rimbalzi */
+@keyframes gira {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

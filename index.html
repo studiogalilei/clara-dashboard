@@ -2,20 +2,27 @@
 <html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/clara.svg">
+    <link rel="icon" type="image/svg+xml" href="/sg-simbolo.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#111827" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Clara" />
+    <meta name="apple-mobile-web-app-title" content="SG Workspace" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <title>Studio Galilei Workspace</title>
+    <!-- il primo mezzo secondo, prima che parta l'app: il marchio, non il
+         bianco. Sparisce da solo quando React disegna dentro #root -->
+    <style>
+      #root .avvio { display: flex; min-height: 100dvh; align-items: center; justify-content: center; background: #fff; }
+      #root .avvio img { width: 46px; height: 46px; opacity: .75; animation: gira 1.6s linear infinite; }
+      @keyframes gira { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="avvio"><img src="sg-simbolo.svg" alt="Studio Galilei" /></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
