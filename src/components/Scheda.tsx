@@ -138,6 +138,15 @@ export default function Scheda({ id, onClose }: Props) {
   // il canone non si inventa: e' quello del preventivo che ha accettato
   const mensileDaPreventivo = preventivi.find((q) => q.stato === 'accettato' && q.mensile)?.mensile ?? null
   const [compila, setCompila] = useState<{ id: number; nome: string; path: string } | null>(null)
+
+  // il modello del contratto di prova, dai Documenti dello Studio
+  async function apriModelloProva() {
+    const { data } = await supabase.from('vault_file')
+      .select('id,nome,path').eq('sezione', 'modelli').ilike('nome', '%contratto di prova%').maybeSingle()
+    const m = data as { id: number; nome: string; path: string } | null
+    if (!m) { setErrore('Il modello del contratto di prova non è nei Documenti: caricalo in Modelli.'); return }
+    setCompila(m)
+  }
   const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
   const [prepAperta, setPrepAperta] = useState(false)
@@ -1318,6 +1327,17 @@ export default function Scheda({ id, onClose }: Props) {
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Documenti</TitoloCard>
+                  {/* IL CONTRATTO DI PROVA (Dre, 16/9): il modello e' un PDF
+                      dello Studio e si compila sopra l'originale. Da qui si
+                      apre gia' intestato a questo cliente, e quando lo salvi
+                      finisce nella sua cartella */}
+                  <button
+                    onClick={() => void apriModelloProva()}
+                    title="Apre il contratto di prova dello Studio, da compilare per questo cliente"
+                    className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-navy"
+                  >
+                    Contratto di prova
+                  </button>
                   <button
                     onClick={() => docRef.current?.click()}
                     className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-navy hover:border-navy"
