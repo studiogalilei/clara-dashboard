@@ -185,6 +185,61 @@ export function Spinner() {
   )
 }
 
+// SCORRERE COL POLLICE (Dre, 16/9): «sul telefono quello che faranno
+// principalmente sara' aggiungere task e fare check delle robe da fare,
+// tutto deve essere actionable e a portata di mano». Quindi la riga si
+// trascina: verso destra e' fatta, verso sinistra si sposta a domani.
+// Sul computer non succede niente: reagisce solo al dito.
+export function Scorri({ onDestra, onSinistra, destra = 'Fatta', sinistra = 'Domani', children }: {
+  onDestra?: () => void
+  onSinistra?: () => void
+  destra?: string
+  sinistra?: string
+  children: React.ReactNode
+}) {
+  const [dx, setDx] = useState(0)
+  const [tiro, setTiro] = useState(false)
+  const partenza = useRef(0)
+  // il dito e' piu' veloce di React: se il primo touchmove arriva prima che
+  // lo stato si aggiorni, la riga non si muove. Quindi il «sto trascinando»
+  // vive in un ref, e lo stato serve solo a togliere l'animazione
+  const giu = useRef(false)
+  const SOGLIA = 88
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* quello che succede se molli adesso: si vede mentre trascini */}
+      {dx !== 0 && (
+        <div className={`absolute inset-0 flex items-center px-4 text-[11px] font-bold uppercase tracking-[0.06em] text-white ${
+          dx > 0 ? 'justify-start bg-green-600' : 'justify-end bg-amber-500'
+        }`}>
+          {dx > 0 ? destra : sinistra}
+        </div>
+      )}
+      <div
+        onTouchStart={(e) => { partenza.current = e.touches[0].clientX; giu.current = true; setTiro(true) }}
+        onTouchMove={(e) => {
+          if (!giu.current) return
+          const d = e.touches[0].clientX - partenza.current
+          if ((d > 0 && !onDestra) || (d < 0 && !onSinistra)) return
+          setDx(Math.max(-140, Math.min(140, d)))
+        }}
+        onTouchEnd={() => {
+          giu.current = false
+          setTiro(false)
+          if (dx > SOGLIA && onDestra) onDestra()
+          else if (dx < -SOGLIA && onSinistra) onSinistra()
+          setDx(0)
+        }}
+        style={{ transform: `translateX(${dx}px)` }}
+        className={`relative bg-white ${tiro ? '' : 'transition-transform duration-200 ease-out'}`}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // L'unica micro-etichetta maiuscola dell'app: stesso corpo, stesso tracking,
 // stesso colore ovunque (In arrivo, colonne, titoli delle card)
 export function Micro({ children, className = '' }: { children: React.ReactNode; className?: string }) {

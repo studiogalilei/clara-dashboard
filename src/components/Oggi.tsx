@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Classificazione } from '../lib/types'
 import Radar from './Radar'
-import { Card, Spinner, giorni, fmtDateShort, sgid } from './ui'
+import { Card, Spinner, Scorri, giorni, fmtDateShort, sgid } from './ui'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 import { chiSono } from '../lib/accessi'
 import { COLORE_STATO, type Tono } from '../lib/stato'
@@ -432,6 +432,15 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       if (error || !data) { setProblema('Non ho potuto spuntarla: riprova fra un attimo.'); return }
       setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))
     }, 380)
+  }
+
+  // sul telefono: trascini a sinistra e la task passa a domani. La stessa
+  // cosa che si fa col calendario, ma senza aprire niente (Dre, 16/9)
+  async function rimandaDomani(t: TaskDre) {
+    const domani = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
+    const { data } = await supabase.from('task').update({ scadenza: domani }).eq('id', t.id).select().single()
+    if (!data) { setProblema('Non sono riuscito a spostarla: riprova.'); return }
+    setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))
   }
 
   async function ripristina(c: { chiave: string; taskId: number | null }) {
@@ -927,6 +936,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
               trascino === t.id ? 'opacity-40' : ''
             } ${sopraDi === t.id && trascino !== t.id ? 'border-t-2 border-blu' : 'border-t-2 border-transparent'}`}
           >
+            <Scorri onDestra={() => spuntaMia(t)} onSinistra={() => rimandaDomani(t)}>
             <div className={`flex items-start gap-3 px-2 py-2 hover:bg-velo/50 ${spuntando === `dre-${t.id}` ? 'opacity-40' : ''}`}>
               <span className="mt-1.5 hidden h-4 w-2.5 shrink-0 cursor-grab flex-col justify-between opacity-0 transition-opacity group-hover:opacity-100 sm:flex" aria-hidden>
                 {[0, 1, 2].map((i) => (
@@ -947,6 +957,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
                 {apertaTask !== t.id && chipData(t.scadenza)}
               </button>
             </div>
+            </Scorri>
             {apertaTask === t.id && (
               <div className="salta-su space-y-2 px-2 pb-3 pl-[4.25rem] sm:pl-[4.9rem]">
                 <input
