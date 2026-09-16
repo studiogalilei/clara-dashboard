@@ -342,9 +342,13 @@ export default function App() {
         </div>
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <span className="text-navy"><ClaraLogo size={36} /></span>
-          <span className="text-[17px] leading-tight tracking-tight text-navy">
-            <span className="font-black">SG</span>
-            <span className="ml-1.5 font-bold">Workspace</span>
+          <span className="leading-tight tracking-tight text-navy">
+            <span className="block text-[17px]">
+              <span className="font-black">SG</span>
+              <span className="ml-1.5 font-bold">Workspace</span>
+            </span>
+            {/* beta: e' in mano alla squadra da oggi, e si vede (Dre, 16/9) */}
+            <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-spento">Beta</span>
           </span>
         </div>
 

@@ -31,8 +31,9 @@ export default function Login() {
     <div className="flex min-h-dvh items-center justify-center bg-fondo px-6">
       <div className="w-full max-w-sm rounded-2xl border border-bordo bg-white p-6 shadow-[0_4px_16px_rgba(16,24,40,0.05)]">
         <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="" className="mb-3 h-10 w-10 object-contain" />
-        <h1 className="text-xl font-bold text-navy">SG Workspace</h1>
-        <p className="mb-5 text-sm text-tenue">Studio Galilei</p>
+        <h1 className="text-xl text-navy"><span className="font-black">SG</span> <span className="font-bold">Workspace</span></h1>
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-spento">Beta</p>
+        <p className="mb-5 mt-1 text-sm text-tenue">Studio Galilei</p>
 
         <button
           onClick={() => void google()}
