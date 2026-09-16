@@ -25,16 +25,16 @@ const NOME_RUOLO: Record<string, string> = {
 // cosa ci fai davvero, sezione per sezione: la riga del menu dice cosa
 // mostra, questa dice cosa ci vieni a fare
 const COSA: Partial<Record<Chiave, string>> = {
-  pipeline: 'La tua giornata: chi aspetta una risposta da te, le tue task, la prossima call. Si parte da qui la mattina.',
-  prospect: 'Le aziende, dalla risposta alla firma. Le carte si trascinano da una colonna all\'altra: portandole avanti ti chiede il riassunto della call, e se gli appunti esistono già te li propone.',
+  pipeline: 'La tua giornata, come te l\'ha preparata Clara: chi aspetta una risposta da te, le tue task, la prossima call. Si parte da qui la mattina.',
+  prospect: 'Le aziende, dalla risposta alla firma. Le carte si trascinano da una colonna all\'altra: quando ne porti avanti una Clara ti chiede com\'è andata la call, e se gli appunti li ha già te li mette lì pronti.',
   progetti: 'Chi è già cliente, con i progetti: a che punto sono, chi li segue, gli accessi che mancano. Si scrive come un foglio, cella per cella.',
   calendario: 'Call, follow-up e scadenze. Le call arrivano da Google, non si ricopiano.',
   vault: 'La cassaforte: loghi, modelli, e i file di ogni cliente nella sua cartella.',
   clara: 'Quello che Clara ha preparato per te: bozze di risposta, domande, richieste. Si risponde sì o no.',
-  chat: 'Dove ci passiamo i documenti. Trascini il file, dici di che cliente è, e resta trovabile per sempre.',
-  preventivi: 'I documenti: proposte, report, verbali, condizioni economiche. Il "+" apre il modello già pronto e l\'azienda si collega con un clic.',
+  chat: 'Dove vi passate i documenti. Trascini il file, dici di che cliente è, e Clara lo mette anche nella cartella di quel cliente.',
+  preventivi: 'I documenti: proposte, report, verbali, condizioni economiche. Il "+" apre il modello già pronto, colleghi l\'azienda e Clara riempie quello che sa. Se vuoi, lo scrive lei e tu correggi.',
   analytics: 'I numeri dell\'outbound: risposte, conversioni, andamento.',
-  feedback: 'Dove scrivi cosa non va o cosa vorresti. Si legge tutto, e le cose scomode si cambiano.',
+  feedback: 'Dove scrivi cosa non va, cosa vorresti, o cosa ti piacerebbe che Clara sapesse fare per te. Si legge tutto, e si cambia.',
 }
 
 // i termini della casa: quelli che a noi sembrano ovvi e per chi entra non
@@ -114,7 +114,7 @@ export function guidaDi(chi: Chi): Documento {
   }
 
   b.push({ tipo: 'h2', testo: 'Clara' })
-  b.push({ tipo: 'p', testo: 'È la pallina in basso a destra. Legge il calendario, gli appunti delle call e la posta di lavoro, tiene aggiornate le schede, prepara le bozze di risposta e segnala chi è fermo da troppo tempo. Non manda niente e non decide niente da sola: propone, e tu rispondi dalla sua Posta. Quando la pallina rimbalza, ha qualcosa per te.' })
+  b.push({ tipo: 'p', testo: 'È la tua assistente, e sta nella pallina in basso a destra. Legge il calendario, gli appunti delle call e la posta di lavoro, tiene in ordine le schede al posto tuo, ti prepara le bozze di risposta e ti avvisa se qualcuno è fermo da troppo tempo. Non manda niente e non decide niente da sola: ti propone, e tu le dici sì o no dalla sua Posta. Quando la pallina rimbalza, ha qualcosa per te.' })
 
   b.push({ tipo: 'h2', testo: 'Cosa puoi chiederle, per davvero' })
   b.push({ tipo: 'p', testo: 'Si scrive nella chat della pallina, come si scriverebbe a una persona. Queste le fa già oggi:' })
@@ -138,7 +138,7 @@ export function guidaDi(chi: Chi): Documento {
   })
 
   b.push({ tipo: 'h2', testo: 'Questa è una beta, e serve la tua testa' })
-  b.push({ tipo: 'p', testo: 'Nel menu c\'è «Cosa cambieresti». Scrivi lì qualunque cosa: un bottone nel posto sbagliato, un giro troppo lungo, una cosa che non funziona, o una che non c\'è e ti farebbe comodo. Anche minima, anche una virgola. Si legge tutto e si cambia: lo strumento serve a farvi lavorare meglio, non il contrario.' })
+  b.push({ tipo: 'p', testo: 'Nel menu c\'è «Cosa cambieresti». Scrivi lì qualunque cosa: un bottone nel posto sbagliato, un giro troppo lungo, una cosa che non funziona, o una cosa che vorresti che Clara imparasse a fare per te. Anche minima, anche una virgola. Si legge tutto e si cambia: questo posto lo stiamo costruendo su come lavorate voi, non il contrario.' })
   b.push({ tipo: 'riquadro', titolo: 'A COSA SERVE', voci: [
     'Meno tempo su dove sta una cosa, più tempo sui clienti',
     'Quello che sai tu resta allo Studio anche quando non ci sei',

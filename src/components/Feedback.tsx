@@ -28,7 +28,19 @@ const GENERI: Array<[string, string, string]> = [
   ['guasto', 'Non funziona', 'border-red-200 bg-red-50 text-red-800'],
   ['scomodo', 'Scomodo', 'border-amber-200 bg-amber-50 text-amber-800'],
   ['desiderio', 'Sarebbe bello', 'border-blu/30 bg-blu/5 text-navy'],
+  // Dre, 16/9: «chiedi loro cosa vorrebbero che Clara sapesse fare, voglio
+  // che si sentano accuditi». Sta qui e non in un altro posto perche' e' lo
+  // stesso gesto: dire cosa ti renderebbe la giornata piu' facile
+  ['clara', 'Vorrei che Clara…', 'border-navy/30 bg-navy/5 text-navy'],
 ]
+
+// il campo cambia faccia a seconda di cosa stai per dire
+const INVITO: Record<string, string> = {
+  guasto: 'Ho cliccato qui e invece di aprirsi…',
+  scomodo: 'Per aggiungere una task dal telefono devo scorrere fino in fondo…',
+  desiderio: 'Mi piacerebbe poter vedere…',
+  clara: 'Vorrei che mi preparasse da sola il report di fine mese…',
+}
 const NOME_GENERE = Object.fromEntries(GENERI.map(([v, n]) => [v, n]))
 
 const quando = (iso: string) => {
@@ -91,14 +103,14 @@ export default function Feedback() {
         <TitoloCard>Cosa cambieresti</TitoloCard>
         <p className="mt-1 text-sm text-tenue">
           Qualunque cosa: un bottone nel posto sbagliato, un giro troppo lungo, una cosa che non funziona,
-          o una che non c'è e ti farebbe comodo. Anche minima. Si legge tutto.
+          o una cosa che vorresti che Clara sapesse fare per te. Anche minima. Si legge tutto, e si cambia.
         </p>
 
         <textarea
           value={testo}
           onChange={(e) => setTesto(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void manda() }}
-          placeholder="Quando apro una scheda dal telefono devo scorrere fino in fondo per…"
+          placeholder={INVITO[genere] ?? 'Scrivi qui…'}
           className="mt-3 min-h-28 w-full rounded-xl border border-bordo px-3 py-2.5 text-sm outline-none focus:border-blu"
         />
 
