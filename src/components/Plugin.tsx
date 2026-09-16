@@ -25,6 +25,12 @@ interface Operazione {
   ultima_durata_ms: number | null
 }
 interface Istruzione { chiave: string; titolo: string; testo: string; aggiornata: string }
+
+// le azioni di Clara (schema_v45): le attenzioni che tiene lei al posto tuo
+interface Azione {
+  chiave: string; nome: string; cosa: string; giorni: number; attiva: boolean
+  ordine: number; ultima_corsa: string | null; ultimo_esito: string | null
+}
 interface Richiesta {
   id: number; at: string; nome: string; cosa: string; per_chi: string | null
   fonte: string | null; cadenza: string | null; tipo: string; stato: string
@@ -55,6 +61,7 @@ const COLLEGAMENTI: Array<[string, 'ok' | 'attesa' | 'no', string]> = [
 
 export default function Plugin() {
   const [ops, setOps] = useState<Operazione[] | null>(null)
+  const [azioni, setAzioni] = useState<Azione[] | null>(null)
   const [istr, setIstr] = useState<Istruzione[]>([])
   const [bozze, setBozze] = useState<Record<string, string>>({})
   const [salvata, setSalvata] = useState<string | null>(null)
@@ -77,6 +84,8 @@ export default function Plugin() {
       })
     supabase.from('widget_richieste').select('*').order('at', { ascending: false }).limit(50)
       .then(({ data }) => setRichieste((data as Richiesta[]) ?? []))
+    supabase.from('azioni').select('*').order('ordine', { ascending: true })
+      .then(({ data }) => setAzioni((data as Azione[]) ?? []))
   }
   useEffect(() => {
     carica()
@@ -98,6 +107,12 @@ export default function Plugin() {
     if (error) { setProblema('Non ho potuto salvare: ' + error.message); return }
     setSalvata(chiave)
     setTimeout(() => setSalvata(null), 2000)
+  }
+
+  async function scriviAzione(chiave: string, patch: Partial<Azione>) {
+    const { data, error } = await supabase.from('azioni').update(patch).eq('chiave', chiave).select().single()
+    if (error) { setProblema('Non ho potuto cambiarla: ' + error.message); return }
+    setAzioni((l) => (l ?? []).map((x) => (x.chiave === chiave ? (data as Azione) : x)))
   }
 
   async function chiediWidget() {
@@ -132,6 +147,52 @@ export default function Plugin() {
           <button onClick={() => setProblema(null)} className="text-xs font-bold">Chiudi</button>
         </div>
       )}
+
+      {/* ── LE AZIONI DI CLARA (Dre, 16/9) ────────────────────────
+          «Quando invio un preventivo lei si mette un promemoria e controlla
+          se sono arrivati i soldi». Ogni riga e' una di queste attenzioni:
+          si accende, si spegne, si cambiano i giorni. Il promemoria nasce
+          nella Posta, e a decidere e' sempre una persona. */}
+      <Card>
+        <header className="flex items-baseline gap-3 border-b border-velo px-4 py-3">
+          <span className="text-[13px] font-bold">Le azioni di Clara</span>
+          <Micro>le cose che si dimenticano, e che lei tiene d'occhio al posto tuo</Micro>
+        </header>
+        {azioni === null && <p className="px-4 py-4 text-sm text-spento">Le leggo…</p>}
+        {azioni?.length === 0 && <p className="px-4 py-4 text-sm text-spento">Nessuna azione.</p>}
+        {(azioni ?? []).map((a) => (
+          <div key={a.chiave} className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-velo px-4 py-3 last:border-0 ${a.attiva ? '' : 'opacity-60'}`}>
+            <Dot tone={!a.attiva ? 'spento' : (a.ultimo_esito ?? '').startsWith('guasto') ? 'fermo' : a.ultima_corsa ? 'ok' : 'attesa'} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{a.nome}</p>
+              <p className="text-xs text-tenue">{a.cosa}</p>
+              {a.ultima_corsa && (
+                <p className="text-[11px] text-spento">
+                  {new Date(a.ultima_corsa).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {a.ultimo_esito ? `, ${a.ultimo_esito}` : ''}
+                </p>
+              )}
+            </div>
+            <label className="flex items-center gap-1.5 rounded-[6px] border border-bordo px-2 py-1 text-xs">
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-spento">dopo</span>
+              <input
+                type="number" min={1} max={365} value={a.giorni}
+                onChange={(e) => setAzioni((l) => (l ?? []).map((x) => (x.chiave === a.chiave ? { ...x, giorni: Number(e.target.value) || 1 } : x)))}
+                onBlur={(e) => void scriviAzione(a.chiave, { giorni: Math.max(1, Number(e.target.value) || 1) })}
+                className="w-12 bg-transparent text-right font-bold tabular-nums outline-none"
+              />
+              <span className="text-tenue">giorni</span>
+            </label>
+            <button onClick={() => void scriviAzione(a.chiave, { attiva: !a.attiva })}
+                    className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-tenue hover:text-inchiostro">
+              <span className={`flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border ${a.attiva ? 'border-navy bg-navy text-white' : 'border-bordo bg-white'}`}>
+                {a.attiva && <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>}
+              </span>
+              accesa
+            </button>
+          </div>
+        ))}
+      </Card>
 
       {/* ── LE OPERAZIONI ─────────────────────────────────────── */}
       <Card>
