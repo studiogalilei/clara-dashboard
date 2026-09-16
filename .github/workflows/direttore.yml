@@ -1,10 +1,16 @@
-# Il direttore: ogni ora (e subito, quando Smartlead bussa), in cloud, fa partire le operazioni dovute
-# alla cadenza scelta da Dre nella Dashboard. Non sul suo Mac. (7/9/2026)
+# Il direttore: ogni quarto d'ora (e subito, quando Smartlead bussa), in cloud, fa partire
+# le operazioni dovute alla cadenza scelta da Dre nella Dashboard. Non sul suo Mac. (7/9/2026)
+#
+# 16/9: da ogni ora a ogni quarto d'ora. Dre vuole il Workspace vivo, e un'ora
+# di ritardo non e' vivo. Piu' stretto di cosi' non conviene: ogni giro costa
+# un minuto e mezzo di runner, e sotto il quarto d'ora la bolletta di GitHub
+# cresce piu' in fretta di quanto migliori la vita. Le cose che devono
+# arrivare SUBITO passano dai campanelli (webhook), non dall'orologio.
 name: direttore
 
 on:
   schedule:
-    - cron: "7 * * * *"      # ogni ora, rete di sicurezza: le risposte arrivano via webhook (10/9)
+    - cron: "*/15 * * * *"   # ogni quarto d'ora; le risposte vere arrivano via webhook (10/9)
   workflow_dispatch:
     inputs:
       forza:

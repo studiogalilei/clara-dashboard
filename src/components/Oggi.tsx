@@ -4,6 +4,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Classificazione } from '../lib/types'
 import Radar from './Radar'
 import { Card, Spinner, Scorri, giorni, fmtDateShort, sgid } from './ui'
+import { vivo } from '../lib/vivo'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 import { chiSono } from '../lib/accessi'
 import { COLORE_STATO, type Tono } from '../lib/stato'
@@ -357,6 +358,10 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
 
   // le spunte della coda di oggi, dal database
   useEffect(() => { void leggiFatte().then(setFatteCoda) }, [])
+
+  // vivo (16/9): se qualcuno ti manda una task, o Clara chiude una domanda,
+  // la pagina si rifa' da sola mentre la stai guardando
+  vivo(['task', 'proposte', 'coda_fatte'], () => { caricaTask(); void leggiFatte().then(setFatteCoda) })
 
   useEffect(() => {
     caricaTask()

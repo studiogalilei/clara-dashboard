@@ -1,0 +1,133 @@
+{
+  "tipo": "Contratto di prova",
+  "copertina": {
+    "linea": "istituzionale",
+    "occhiello": "periodo di prova",
+    "titolo": "[Nome azienda]",
+    "sottotitolo": "Due mesi di lavoro vero, poi si decide insieme",
+    "data": "[mese anno]"
+  },
+  "blocchi": [
+    {
+      "tipo": "h2",
+      "testo": "Di cosa si tratta"
+    },
+    {
+      "tipo": "p",
+      "testo": "Questo documento mette per iscritto il periodo di prova: quando comincia, quando finisce, cosa facciamo dentro, e cosa succede alla fine. Non e' un contratto annuale: e' il tempo che serve per capire se ha senso continuare, da una parte e dall'altra."
+    },
+    {
+      "tipo": "anagrafica",
+      "colonne": [
+        {
+          "titolo": "CLIENTE",
+          "righe": [
+            "[Nome azienda]",
+            "[Referente]"
+          ]
+        },
+        {
+          "titolo": "INIZIO",
+          "righe": [
+            "[data inizio]"
+          ]
+        },
+        {
+          "titolo": "FINE",
+          "righe": [
+            "[data fine]"
+          ]
+        }
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Cosa facciamo in questi due mesi"
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "[La prima cosa che facciamo, con la data indicativa]",
+        "[La seconda]",
+        "[Cosa vedete alla fine del primo mese]"
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Cosa serve da voi"
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "[Accessi: account pubblicitari, sito, analytics]",
+        "[Le decisioni che spettano a voi, e chi le prende]",
+        "[Contenuti o materiali, se servono]"
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Quanto costa e come si paga"
+    },
+    {
+      "tipo": "p",
+      "testo": "[Importo] alla firma, che copre i due mesi. Il budget pubblicitario e' a parte e resta sui vostri account: quei soldi vanno a Google o a Meta, non a noi."
+    },
+    {
+      "tipo": "riquadro",
+      "titolo": "ALLA FINE DEI DUE MESI",
+      "voci": [
+        "Guardiamo insieme com'e' andata, con i numeri davanti",
+        "Se convince, si passa al lavoro continuativo e si firma quello",
+        "Se non convince, finisce qui: non serve motivare niente",
+        "Quello che abbiamo costruito per voi resta vostro in ogni caso"
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Le regole del rapporto"
+    },
+    {
+      "tipo": "elenco",
+      "voci": [
+        "Gli account pubblicitari, i dati e quello che costruiamo per voi restano vostri, anche se il rapporto finisce",
+        "Restano nostri il metodo, gli strumenti e i componenti che portiamo o sviluppiamo in forma generale, anche quando li usiamo qui: possiamo riutilizzarli con altri e farne un prodotto, senza mai portarci dietro i vostri dati o i vostri contenuti",
+        "Per lavorare entriamo negli strumenti che ci indicate: trattiamo i dati solo per questo lavoro e li restituiamo o cancelliamo quando finisce"
+      ]
+    },
+    {
+      "tipo": "h2",
+      "testo": "Firma per accettazione"
+    },
+    {
+      "tipo": "p",
+      "testo": "Si accetta firmando qui sotto e rimandando il documento, oppure rispondendo per iscritto «accetto» alla mail con cui lo avete ricevuto. Il pagamento della prima quota vale come accettazione."
+    },
+    {
+      "tipo": "anagrafica",
+      "colonne": [
+        {
+          "titolo": "PER IL CLIENTE",
+          "righe": [
+            "[Ragione sociale]",
+            "",
+            "Luogo e data",
+            "",
+            "Nome, ruolo e firma"
+          ]
+        },
+        {
+          "titolo": "PER LO STUDIO",
+          "righe": [
+            "Studio Galilei",
+            "",
+            "Luogo e data",
+            "",
+            "Nome, ruolo e firma"
+          ]
+        }
+      ]
+    }
+  ],
+  "formale": true,
+  "piede": "[mese anno]"
+}

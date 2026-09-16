@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Micro, Spinner, ZonaFile, fmtNum } from './ui'
+import { vivo } from '../lib/vivo'
 import { iniziali } from '../lib/profilo'
 import { apriFile } from '../lib/file'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
@@ -88,9 +89,12 @@ export default function Chat({ onOpen }: Props) {
 
   useEffect(() => {
     carica()
-    const t = setInterval(carica, 10_000)
+    // la rete di sicurezza: il vivo fa il lavoro, questo copre i buchi
+    const t = setInterval(carica, 60_000)
     return () => clearInterval(t)
   }, [carica])
+  // i documenti passati arrivano mentre li mandano, senza ricaricare
+  vivo(['chat'], carica)
 
   useEffect(() => {
     const idFile = [...new Set((righe ?? []).map((r) => r.file_id).filter(Boolean) as number[])].filter((i) => !file[i])

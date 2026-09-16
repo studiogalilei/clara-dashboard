@@ -8,7 +8,9 @@ import { sgid, Faccia, type FacciaP } from './ui'
 // trovava tre, perche' in ordine alfabetico stavano oltre il taglio.
 // Adesso la domanda va al database mentre scrivi, su tutte le 13.193.
 
-export const CAMPI_AZIENDA = 'id,company,name,email,sg_id,fuori,stage,pipeline_stage,fatturazione'
+// le date della prova servono al contratto di prova, che le riprende
+// invece di richiederle (Dre, 16/9)
+export const CAMPI_AZIENDA = 'id,company,name,email,sg_id,fuori,stage,pipeline_stage,fatturazione,prova_inizio,prova_fine'
 
 export type Azienda = FacciaP & {
   id: string

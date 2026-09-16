@@ -7,6 +7,7 @@ import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import ClaraPensa from './ClaraPensa'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
+import { vivo } from '../lib/vivo'
 import { CLS_LABEL } from '../lib/types'
 import { pulisci, creaTask } from '../lib/regole'
 
@@ -500,9 +501,13 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
 
   // il giro di Clara scrive mentre la Dashboard è aperta: si ricontrolla
   useEffect(() => {
-    const t = setInterval(caricaMessaggi, aperta ? 8000 : 60000)
+    const t = setInterval(caricaMessaggi, aperta ? 30000 : 120000)
     return () => clearInterval(t)
   }, [caricaMessaggi, aperta])
+
+  // vivo: una proposta nuova o un messaggio di Clara si vedono appena
+  // nascono, senza aspettare il giro dell'orologio
+  vivo(['proposte', 'clara_messaggi'], caricaMessaggi)
 
   // Clara sta pensando: l'ultimo messaggio e' di Dre (o si sta mandando) e
   // la risposta non e' ancora arrivata. Dopo due minuti smette: se non ha

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configured, demo } from './lib/supabase'
 import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
+import { vivo as filoVivo } from './lib/vivo'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
 import Radar from './components/Radar'
@@ -111,6 +112,10 @@ export default function App() {
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
   // tu le accetti. Ogni minuto, e quando cambi pagina. Niente rumore in piu'.
   const [inArrivo, setInArrivo] = useState(0)
+  // IL BATTITO (Dre, 16/9): quando una riga cambia nel database, i numeri
+  // sul menu si rifanno subito. Prima ci mettevano fino a un minuto
+  const [battito, setBattito] = useState(0)
+  filoVivo(['proposte', 'chat', 'task'], () => setBattito((n) => n + 1))
   // schermo intero (Dre, 14/9): via menu, testata e Clara fissa, resta solo la pagina. Esc per uscire
   const [pieno, setPieno] = useState(false)
   useEffect(() => {
@@ -183,7 +188,7 @@ export default function App() {
     window.addEventListener('preventivo:nuovo', nuovoPrev)
     window.addEventListener('clara:apri-posta', vai)
     return () => { clearInterval(t); window.removeEventListener('clara:vai-posta', vai); window.removeEventListener('clara:apri-posta', vai); window.removeEventListener('preventivo:nuovo', nuovoPrev) }
-  }, [])
+  }, [battito])
   useEffect(() => {
     let vivo = true
     async function conta() {
@@ -197,7 +202,7 @@ export default function App() {
     void conta()
     const t = setInterval(conta, 60_000)
     return () => { vivo = false; clearInterval(t) }
-  }, [tab])
+  }, [tab, battito])
   // alla chiusura della scheda le viste si ricaricano: la bacheca non deve
   // mai mentire su una fase appena cambiata
   const [versione, setVersione] = useState(0)
