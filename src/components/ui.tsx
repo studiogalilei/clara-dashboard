@@ -5,16 +5,21 @@ import {
   type Stage, type Classificazione, type PipelineStage, type Market, type Prospect,
 } from '../lib/types'
 
-// Etichette sobrie: bordo, quadrate, niente colori accesi.
-// Il colore vero lo portano solo i pallini di stato.
+// L'ETICHETTA DI STATO (rifatta 16/9). Dre: «le pillole pastello sanno di
+// roba generata dall'AI, voglio un feel piu' meccanico, serio».
+// Quindi: niente fondo colorato e niente pillola tonda. Un rettangolo con
+// il bordo sottile, il testo in maiuscoletto come su una targhetta, e il
+// colore ridotto a un punto: il colore dice lo stato, il testo lo nomina,
+// e la forma resta sempre la stessa in tutta l'app.
 function Eti({ testo, tono }: { testo: string; tono?: 'verde' | 'ambra' | 'rosso' }) {
-  const c =
-    tono === 'verde' ? 'bg-green-50 text-green-800 border-transparent'
-    : tono === 'ambra' ? 'bg-amber-50 text-amber-800 border-transparent'
-    : tono === 'rosso' ? 'bg-red-50 text-red-700 border-transparent'
-    : 'bg-velo text-tenue border-bordo'
+  const punto =
+    tono === 'verde' ? 'bg-green-600'
+    : tono === 'ambra' ? 'bg-amber-500'
+    : tono === 'rosso' ? 'bg-red-600'
+    : 'bg-spento'
   return (
-    <span className={`inline-block whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${c}`}>
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[4px] border border-bordo bg-white px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-tenue">
+      <span className={`h-[5px] w-[5px] shrink-0 rounded-[1px] ${punto}`} />
       {testo}
     </span>
   )

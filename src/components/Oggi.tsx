@@ -743,12 +743,14 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
                 {t.stato === 'rimandata' && t.motivo ? `, ${t.motivo}` : ''}
               </p>
             </div>
-            <span className={`mt-0.5 shrink-0 rounded-full px-2 py-px text-[10px] font-semibold ${
-              t.fatta ? 'bg-green-50 text-green-800'
-              : t.stato === 'proposta' ? 'bg-amber-50 text-amber-800'
-              : t.stato === 'rimandata' ? 'bg-red-50 text-red-700'
-              : 'bg-velo text-tenue'
-            }`}>
+            {/* la targhetta di stato: colore nel punto, non nel fondo */}
+            <span className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border border-bordo bg-white px-1.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.06em] text-tenue">
+              <span className={`h-[5px] w-[5px] shrink-0 rounded-[1px] ${
+                t.fatta ? 'bg-green-600'
+                : t.stato === 'proposta' ? 'bg-amber-500'
+                : t.stato === 'rimandata' ? 'bg-red-600'
+                : 'bg-spento'
+              }`} />
               {t.fatta ? 'fatta' : t.stato === 'proposta' ? 'da accettare' : t.stato === 'rimandata' ? 'rimandata' : 'presa'}
             </span>
           </div>

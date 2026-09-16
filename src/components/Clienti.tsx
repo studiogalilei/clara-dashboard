@@ -17,7 +17,9 @@ type Modo = 'elenco' | 'foglio'
 // il primo tab non ripete il nome della pagina (come in Pipeline: Bacheca, Foglio)
 const MODI: Array<[Modo, string]> = [['elenco', 'Elenco'], ['foglio', 'Foglio progetti']]
 const DENTRO: PipelineStage[] = ['avvio', 'prova', 'cliente']
-const TONO: Record<string, string> = { avvio: 'bg-sky-100 text-sky-900', prova: 'bg-amber-100 text-amber-900', cliente: 'bg-green-100 text-green-900' }
+// il colore sta nel punto, non nel fondo: stessa targhetta per tutti gli
+// stati, come nel resto dell'app (Dre, 16/9)
+const TONO: Record<string, string> = { avvio: 'bg-blu', prova: 'bg-amber-500', cliente: 'bg-green-600' }
 const ATTIVI = new Set(['active', 'trialing', 'past_due', 'unpaid'])
 
 interface Props { onOpen: (id: string) => void }
@@ -97,7 +99,10 @@ function Elenco({ onOpen }: Props) {
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="truncate text-[15px] font-bold">{c.company || c.name || c.email}</span>
                   {sgid(c.sg_id, c) && <span className="text-[11px] font-semibold text-spento">{sgid(c.sg_id, c)}</span>}
-                  <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${TONO[stage] ?? ''}`}>{PIPELINE_LABEL[stage]}</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-[4px] border border-bordo bg-white px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-tenue">
+                    <span className={`h-[5px] w-[5px] shrink-0 rounded-[1px] ${TONO[stage] ?? 'bg-spento'}`} />
+                    {PIPELINE_LABEL[stage]}
+                  </span>
                   {stage === 'prova' && c.prova_fine && <span className="text-[11px] text-tenue">fino al {fmtDateShort(c.prova_fine)}</span>}
                 </div>
                 <p className="truncate text-xs text-tenue">

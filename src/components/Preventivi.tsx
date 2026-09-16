@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
 import CercaAzienda, { CAMPI_AZIENDA } from './CercaAzienda'
 import Editor from './Editor'
+import Prezzo from './Prezzo'
 import { MODELLI } from '../lib/modelli'
 import { creaTask, giorno } from '../lib/regole'
 import { apriFile } from '../lib/file'
@@ -34,9 +35,10 @@ interface Incasso {
 }
 const GENERE: Record<Incasso['genere'], string> = { addebito: 'Pagamento', fattura: 'Fattura', abbonamento: 'Abbonamento' }
 function tonoStato(s: string | null) {
-  if (s === 'succeeded' || s === 'paid' || s === 'active' || s === 'trialing') return 'bg-green-100 text-green-900'
-  if (s === 'failed' || s === 'canceled' || s === 'incomplete_expired' || s === 'unpaid') return 'bg-red-50 text-red-700'
-  return 'bg-velo text-tenue'
+  // il fondo resta bianco, il colore sta nel punto (Dre, 16/9)
+  if (s === 'succeeded' || s === 'paid' || s === 'active' || s === 'trialing') return 'bg-green-600'
+  if (s === 'failed' || s === 'canceled' || s === 'incomplete_expired' || s === 'unpaid') return 'bg-red-600'
+  return 'bg-spento'
 }
 function statoIt(s: string | null) {
   return ({ succeeded: 'riuscito', paid: 'pagata', open: 'aperta', active: 'attivo', trialing: 'in prova', canceled: 'cancellato',
@@ -581,6 +583,9 @@ export default function Preventivi({ onOpen }: Props) {
         )}
       </Card>
 
+      {/* quanto chiedere: sta qui perche' e' il momento in cui lo decidi */}
+      <Prezzo />
+
       {/* I NUMERI: uno grande, quello che aspetta una risposta. Gli altri
           sono di contorno: prima erano quattro riquadri uguali e uno diceva
           zero, quindi non guardavi nessuno (Dre, 15/9) */}
@@ -892,7 +897,10 @@ export default function Preventivi({ onOpen }: Props) {
                       <td className="px-3 py-2 text-sm tabular-nums">{fmtDateShort(i.quando ? i.quando.slice(0, 10) : null)}</td>
                       <td className="px-3 py-2 text-sm">
                         {GENERE[i.genere]}{i.ricorrenza ? <span className="text-spento">, {i.ricorrenza === 'year' ? 'ogni anno' : 'ogni mese'}</span> : null}
-                        <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${tonoStato(i.stato)}`}>{statoIt(i.stato)}</span>
+                        <span className="ml-1.5 inline-flex items-center gap-1 rounded-[4px] border border-bordo bg-white px-1.5 py-[2px] text-[10px] font-bold uppercase tracking-[0.06em] text-tenue">
+                          <span className={`h-[5px] w-[5px] shrink-0 rounded-[1px] ${tonoStato(i.stato)}`} />
+                          {statoIt(i.stato)}
+                        </span>
                       </td>
                       <td className="px-3 py-2">
                         <p className="text-sm font-semibold">{i.cliente_nome || <span className="font-normal text-spento">senza nome</span>}</p>
