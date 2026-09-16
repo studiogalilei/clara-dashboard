@@ -18,7 +18,10 @@ export interface FilePdf { id: number; nome: string; path: string; prospect_id: 
 interface Props { file: FilePdf; onClose: () => void; onSalvato?: (nuovo: { id: number; nome: string; path: string; at: string; mime: string | null; dimensione: number | null; prospect_id: string | null }) => void }
 
 type Tipo = 'testo' | 'firma' | 'timbro'
-interface Pezzo { id: number; pagina: number; x: number; y: number; w: number; h: number; tipo: Tipo; testo: string; src?: string; bordo?: boolean }
+// «copri» (Dre, 16/9): il contratto nuovo e' identico, cambia solo la cifra.
+// Come si fa su Anteprima del Mac: una macchia bianca sopra quello che c'era
+// e il testo nuovo sopra. Il resto del documento non si tocca.
+interface Pezzo { id: number; pagina: number; x: number; y: number; w: number; h: number; tipo: Tipo; testo: string; src?: string; bordo?: boolean; copri?: boolean }
 interface Pagina { n: number; w: number; h: number }
 
 const LARGHEZZA = 720          // px della pagina a schermo: la scala viene da qui
@@ -30,7 +33,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
   const [pagine, setPagine] = useState<Pagina[]>([])
   const [byte, setByte] = useState<Uint8Array | null>(null)
   const [pezzi, setPezzi] = useState<Pezzo[]>([])
-  const [strumento, setStrumento] = useState<Tipo | 'data' | null>(null)
+  const [strumento, setStrumento] = useState<Tipo | 'data' | 'correggi' | null>(null)
   const [scelto, setScelto] = useState<number | null>(null)
   const [firma, setFirma] = useState<{ src: string; w: number; h: number } | null>(null)
   const [timbro, setTimbro] = useState<{ src: string; w: number; h: number } | null>(null)
@@ -109,9 +112,9 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
     const s = scala(pg)
     const x = (e.clientX - r.left) / s, y = (e.clientY - r.top) / s
     const id = prossimoId.current++
-    if (strumento === 'testo' || strumento === 'data') {
+    if (strumento === 'testo' || strumento === 'data' || strumento === 'correggi') {
       const testo = strumento === 'data' ? oggiIt() : ''
-      setPezzi((v) => [...v, { id, pagina: pg.n, x, y: y - 6, w: 160, h: 14, tipo: 'testo', testo }])
+      setPezzi((v) => [...v, { id, pagina: pg.n, x, y: y - 6, w: 160, h: 14, tipo: 'testo', testo, copri: strumento === 'correggi' }])
       setScelto(id)
     } else {
       const img = strumento === 'firma' ? firma : timbro
@@ -121,7 +124,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
       setPezzi((v) => [...v, { id, pagina: pg.n, x: x - w / 2, y: y - h / 2, w, h, tipo: strumento, testo: '', src: img.src }])
       setScelto(id)
     }
-    if (strumento !== 'testo') setStrumento(null)
+    if (strumento !== 'testo' && strumento !== 'correggi') setStrumento(null)
   }
 
   function iniziaTrascino(e: React.PointerEvent, p: Pezzo, pg: Pagina) {
@@ -165,6 +168,11 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
         const pagina = doc.getPage(p.pagina - 1)
         const ph = pagina.getHeight()
         if (p.tipo === 'testo') {
+          if (p.copri) {
+            // la macchia bianca: copre quello che c'era prima, larga quanto serve
+            const largo = Math.max(font.widthOfTextAtSize(p.testo || ' ', 11) + 6, 24)
+            pagina.drawRectangle({ x: p.x - 3, y: ph - p.y - 14, width: largo, height: 16, color: rgb(1, 1, 1) })
+          }
           if (!p.testo.trim()) continue
           pagina.drawText(p.testo, { x: p.x, y: ph - p.y - 11, size: 11, font, color: NAVY })
         } else if (p.src) {
@@ -197,7 +205,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
     }
   }
 
-  const attrezzo = (t: Tipo | 'data', etichetta: string, spento = false) => (
+  const attrezzo = (t: Tipo | 'data' | 'correggi', etichetta: string, spento = false) => (
     <button onClick={() => setStrumento(strumento === t ? null : t)} disabled={spento}
             className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${strumento === t ? 'bg-blu text-white' : 'border border-bordo bg-white text-tenue hover:border-navy'} disabled:opacity-30`}>
       {etichetta}
@@ -211,6 +219,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
           <p className="mr-2 truncate text-sm font-bold">{file.nome}</p>
           {attrezzo('testo', 'Testo')}
           {attrezzo('data', `Data di oggi`)}
+          {attrezzo('correggi', 'Correggi')}
           {attrezzo('firma', 'Firma', !firma)}
           {attrezzo('timbro', 'Timbro', !timbro)}
           <span className="text-[11px] text-spento">{strumento ? 'tocca la pagina dove va' : 'scegli cosa mettere, poi tocca dove va'}</span>
@@ -263,10 +272,11 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
                          style={{ left: p.x * s, top: p.y * s, width: p.w * s, height: p.h * s }}>
                       {p.tipo === 'testo' ? (
                         <input autoFocus={scelto === p.id && !p.testo} value={p.testo}
+                               data-copri={p.copri ? 'si' : undefined}
                                onChange={(e) => setPezzi((v) => v.map((x) => (x.id === p.id ? { ...x, testo: e.target.value } : x)))}
                                onPointerDown={(e) => e.stopPropagation()}
                                placeholder="scrivi qui"
-                               className="h-full w-full bg-transparent font-sans text-navy outline-none"
+                               className={`h-full w-full font-sans text-navy outline-none ${p.copri ? 'bg-white' : 'bg-transparent'}`}
                                style={{ fontSize: 11 * s, lineHeight: 1 }} />
                       ) : (
                         <img src={p.src} alt="" className="pointer-events-none h-full w-full object-contain" draggable={false} />
