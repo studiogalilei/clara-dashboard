@@ -1,0 +1,566 @@
+[
+{
+"chiave": "abbigliamento_sci",
+"tipo": "misto"
+},
+{
+"chiave": "addestramento_cani",
+"tipo": "B2C"
+},
+{
+"chiave": "addolcitori",
+"tipo": "B2C"
+},
+{
+"chiave": "agenzie_immobiliari",
+"tipo": "misto"
+},
+{
+"chiave": "allarmi_videosorv",
+"tipo": "misto"
+},
+{
+"chiave": "allestimento_lavoro",
+"tipo": "B2B"
+},
+{
+"chiave": "allestimento_negozi",
+"tipo": "B2B"
+},
+{
+"chiave": "antincendio",
+"tipo": "B2B"
+},
+{
+"chiave": "ascensori",
+"tipo": "misto"
+},
+{
+"chiave": "assetti_preparazioni",
+"tipo": "B2C"
+},
+{
+"chiave": "assistenza_elettro_top",
+"tipo": "B2C"
+},
+{
+"chiave": "assistenza_informatica",
+"tipo": "B2B"
+},
+{
+"chiave": "audioprotesisti",
+"tipo": "B2C"
+},
+{
+"chiave": "automazione_industriale",
+"tipo": "B2B"
+},
+{
+"chiave": "autonoleggio_lt",
+"tipo": "misto"
+},
+{
+"chiave": "biotech_ambientale",
+"tipo": "B2B"
+},
+{
+"chiave": "bonifica_amianto",
+"tipo": "B2B"
+},
+{
+"chiave": "cabine_armadio",
+"tipo": "B2C"
+},
+{
+"chiave": "calcestruzzo_inerti",
+"tipo": "B2B"
+},
+{
+"chiave": "caldaie",
+"tipo": "B2C"
+},
+{
+"chiave": "camperizzazione",
+"tipo": "B2C"
+},
+{
+"chiave": "car_detailing",
+"tipo": "B2C"
+},
+{
+"chiave": "carpenteria_meccanica",
+"tipo": "B2B"
+},
+{
+"chiave": "carpenteria_metallica",
+"tipo": "B2B"
+},
+{
+"chiave": "carrozzeria_pdr",
+"tipo": "B2C"
+},
+{
+"chiave": "cartongesso",
+"tipo": "B2C"
+},
+{
+"chiave": "case_legno",
+"tipo": "B2C"
+},
+{
+"chiave": "catering_az",
+"tipo": "misto"
+},
+{
+"chiave": "centralini_voip",
+"tipo": "B2B"
+},
+{
+"chiave": "certificazioni_iso",
+"tipo": "B2B"
+},
+{
+"chiave": "climatizzazione_ind",
+"tipo": "B2B"
+},
+{
+"chiave": "colonnine_ricarica",
+"tipo": "misto"
+},
+{
+"chiave": "comunita_energetiche",
+"tipo": "misto"
+},
+{
+"chiave": "consulenza_aziendale",
+"tipo": "B2B"
+},
+{
+"chiave": "consulenza_lavoro",
+"tipo": "B2B"
+},
+{
+"chiave": "cornici_specchi",
+"tipo": "misto"
+},
+{
+"chiave": "corsi_academy",
+"tipo": "B2C"
+},
+{
+"chiave": "corsi_sicurezza",
+"tipo": "B2B"
+},
+{
+"chiave": "corsi_sub_volo",
+"tipo": "B2C"
+},
+{
+"chiave": "cucine_esterne",
+"tipo": "B2C"
+},
+{
+"chiave": "cucine_misura",
+"tipo": "B2C"
+},
+{
+"chiave": "demolizioni_smaltimento",
+"tipo": "B2B"
+},
+{
+"chiave": "dentisti",
+"tipo": "B2C"
+},
+{
+"chiave": "depilazione_laser",
+"tipo": "B2C"
+},
+{
+"chiave": "disinfestazione",
+"tipo": "B2B"
+},
+{
+"chiave": "dolciaria_lusso",
+"tipo": "B2C"
+},
+{
+"chiave": "elettrodomestici",
+"tipo": "B2C"
+},
+{
+"chiave": "elettronica_industriale",
+"tipo": "B2B"
+},
+{
+"chiave": "ems_personal",
+"tipo": "B2C"
+},
+{
+"chiave": "esg_rating",
+"tipo": "B2B"
+},
+{
+"chiave": "esperienze_turistiche",
+"tipo": "B2C"
+},
+{
+"chiave": "etichette",
+"tipo": "B2B"
+},
+{
+"chiave": "eventi_auto_storiche",
+"tipo": "misto"
+},
+{
+"chiave": "eventi_aziendali",
+"tipo": "B2B"
+},
+{
+"chiave": "fabbro",
+"tipo": "B2C"
+},
+{
+"chiave": "ferro_battuto",
+"tipo": "B2C"
+},
+{
+"chiave": "formazione_aziendale",
+"tipo": "B2B"
+},
+{
+"chiave": "forniture_gelaterie",
+"tipo": "B2B"
+},
+{
+"chiave": "fotovoltaico",
+"tipo": "misto"
+},
+{
+"chiave": "fotovoltaico_casa",
+"tipo": "misto"
+},
+{
+"chiave": "gallerie_arte",
+"tipo": "B2C"
+},
+{
+"chiave": "giardini_irrigazione",
+"tipo": "B2C"
+},
+{
+"chiave": "grandi_cucine",
+"tipo": "B2B"
+},
+{
+"chiave": "grossista_horeca",
+"tipo": "B2B"
+},
+{
+"chiave": "home_staging",
+"tipo": "B2B"
+},
+{
+"chiave": "impianti_audio_auto",
+"tipo": "B2C"
+},
+{
+"chiave": "impianti_elettrici_domotica",
+"tipo": "misto"
+},
+{
+"chiave": "insegne_stampa",
+"tipo": "B2B"
+},
+{
+"chiave": "integratori_sportivi",
+"tipo": "B2C"
+},
+{
+"chiave": "laboratori_analisi",
+"tipo": "B2B"
+},
+{
+"chiave": "lavaggio_tappeti",
+"tipo": "B2C"
+},
+{
+"chiave": "lavorazioni_cnc",
+"tipo": "B2B"
+},
+{
+"chiave": "logistica_3pl",
+"tipo": "B2B"
+},
+{
+"chiave": "logistica_ecommerce",
+"tipo": "B2B"
+},
+{
+"chiave": "logopedia",
+"tipo": "B2C"
+},
+{
+"chiave": "manutenzione_verde",
+"tipo": "B2B"
+},
+{
+"chiave": "marmisti",
+"tipo": "B2C"
+},
+{
+"chiave": "medicina_estetica",
+"tipo": "B2C"
+},
+{
+"chiave": "medicina_lavoro",
+"tipo": "B2B"
+},
+{
+"chiave": "montascale",
+"tipo": "B2C"
+},
+{
+"chiave": "nautica_varo",
+"tipo": "B2C"
+},
+{
+"chiave": "ncc_transfer",
+"tipo": "misto"
+},
+{
+"chiave": "noleggio_barche",
+"tipo": "B2C"
+},
+{
+"chiave": "noleggio_camper",
+"tipo": "B2C"
+},
+{
+"chiave": "noleggio_edile",
+"tipo": "B2B"
+},
+{
+"chiave": "noleggio_lungo_termine",
+"tipo": "B2B"
+},
+{
+"chiave": "noleggio_piattaforme",
+"tipo": "B2B"
+},
+{
+"chiave": "officine_marchio",
+"tipo": "B2C"
+},
+{
+"chiave": "officine_veicoli_ind",
+"tipo": "B2B"
+},
+{
+"chiave": "onoranze_funebri",
+"tipo": "B2C"
+},
+{
+"chiave": "orologiai",
+"tipo": "B2C"
+},
+{
+"chiave": "packaging",
+"tipo": "B2B"
+},
+{
+"chiave": "parquet",
+"tipo": "B2C"
+},
+{
+"chiave": "parrucchieri",
+"tipo": "B2C"
+},
+{
+"chiave": "patenti_nautiche",
+"tipo": "B2C"
+},
+{
+"chiave": "patenti_superiori",
+"tipo": "B2C"
+},
+{
+"chiave": "patentini_muletto",
+"tipo": "B2B"
+},
+{
+"chiave": "pavimentazioni_esterne",
+"tipo": "B2C"
+},
+{
+"chiave": "piscine_spa",
+"tipo": "B2C"
+},
+{
+"chiave": "pompe_calore",
+"tipo": "B2B"
+},
+{
+"chiave": "pompe_calore_casa",
+"tipo": "misto"
+},
+{
+"chiave": "porte_blindate",
+"tipo": "B2C"
+},
+{
+"chiave": "prelievi_domicilio",
+"tipo": "B2C"
+},
+{
+"chiave": "prodotti_maternita",
+"tipo": "B2C"
+},
+{
+"chiave": "pulizie_industriali",
+"tipo": "B2B"
+},
+{
+"chiave": "recinzioni_cancelli",
+"tipo": "B2C"
+},
+{
+"chiave": "recupero_crediti",
+"tipo": "B2B"
+},
+{
+"chiave": "resine_pavimenti_ind",
+"tipo": "B2B"
+},
+{
+"chiave": "restauro_mobili",
+"tipo": "B2C"
+},
+{
+"chiave": "restauro_strumenti",
+"tipo": "B2C"
+},
+{
+"chiave": "rimessaggio",
+"tipo": "B2C"
+},
+{
+"chiave": "ristrutturazione_bagno",
+"tipo": "B2C"
+},
+{
+"chiave": "sartoria",
+"tipo": "B2C"
+},
+{
+"chiave": "saune_wellness",
+"tipo": "B2C"
+},
+{
+"chiave": "scale_soppalchi",
+"tipo": "B2C"
+},
+{
+"chiave": "scarichi_sportivi",
+"tipo": "B2C"
+},
+{
+"chiave": "scuole_musica_danza",
+"tipo": "B2C"
+},
+{
+"chiave": "self_checkin",
+"tipo": "B2B"
+},
+{
+"chiave": "serramenti",
+"tipo": "B2C"
+},
+{
+"chiave": "sgomberi",
+"tipo": "B2C"
+},
+{
+"chiave": "sicurezza_informatica",
+"tipo": "B2B"
+},
+{
+"chiave": "sicurezza_lavoro",
+"tipo": "B2B"
+},
+{
+"chiave": "software_gestionale",
+"tipo": "B2B"
+},
+{
+"chiave": "sport_welfare_online",
+"tipo": "B2B"
+},
+{
+"chiave": "stampaggio_plastica",
+"tipo": "B2B"
+},
+{
+"chiave": "stufe_pellet",
+"tipo": "B2C"
+},
+{
+"chiave": "tappezzeria_nautica",
+"tipo": "B2C"
+},
+{
+"chiave": "tappezzieri_divani",
+"tipo": "B2C"
+},
+{
+"chiave": "terzo_responsabile",
+"tipo": "B2B"
+},
+{
+"chiave": "ticket_eventi",
+"tipo": "B2C"
+},
+{
+"chiave": "tinteggiature",
+"tipo": "B2C"
+},
+{
+"chiave": "tour_operator",
+"tipo": "B2C"
+},
+{
+"chiave": "traduzioni",
+"tipo": "B2B"
+},
+{
+"chiave": "traslochi",
+"tipo": "misto"
+},
+{
+"chiave": "turismo_accessibile",
+"tipo": "misto"
+},
+{
+"chiave": "verande",
+"tipo": "B2C"
+},
+{
+"chiave": "veterinari",
+"tipo": "B2C"
+},
+{
+"chiave": "vigilanza",
+"tipo": "B2B"
+},
+{
+"chiave": "wedding_catering",
+"tipo": "B2C"
+},
+{
+"chiave": "wrapping_ppf",
+"tipo": "misto"
+},
+{
+"chiave": "zanzariere",
+"tipo": "B2C"
+}
+]

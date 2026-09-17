@@ -11,7 +11,7 @@ import { incassiSenzaAzienda, mensile, type Incasso } from './TuttiFoglio'
 import type { VoceListino } from '../lib/preventivo'
 import Firma from './Firma'
 import Squadra from './Squadra'
-import { collegato as googleCollegato, entraConGoogle } from '../lib/google'
+import { collegato as googleCollegato, entraConGoogle, SCOPO_CLOUD } from '../lib/google'
 import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNotifiche, type StatoNotifiche } from '../lib/notifiche'
 import { guidaDi } from '../lib/guida'
 import { caricaRisorse } from '../lib/preventivo'
@@ -515,6 +515,22 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
               {google ? 'Rinnova il collegamento' : 'Collega Google'}
             </button>
           </div>
+          {/* L'ORECCHIO (17/9): Gmail avvisa Clara appena arriva una mail.
+              Serve un permesso in piu' sul progetto Cloud, e lo da' solo
+              chi guida lo Studio, una volta */}
+          {ruolo === 'ceo' && (
+            <div className="mt-4 border-t border-velo pt-3">
+              <p className="text-sm font-semibold">La posta in tempo reale</p>
+              <p className="mt-0.5 text-xs text-tenue">
+                Con questo permesso Gmail avvisa Clara appena arriva una mail, e lei si muove subito invece di aspettare il giro.
+                Si dà una volta, da chi guida lo Studio: Google ti richiede l'accesso con una casella in più (Google Cloud), da spuntare.
+              </p>
+              <button onClick={() => void entraConGoogle([SCOPO_CLOUD])}
+                      className="mt-2 rounded-full border border-bordo px-3.5 py-1.5 text-xs font-bold text-navy hover:border-navy">
+                Dai il permesso
+              </button>
+            </div>
+          )}
         </Card>
       )}
 

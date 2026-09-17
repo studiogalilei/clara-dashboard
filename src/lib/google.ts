@@ -26,12 +26,17 @@ export const SCOPI = [
   'https://www.googleapis.com/auth/chat.memberships',
 ].join(' ')
 
-export async function entraConGoogle(): Promise<string | null> {
+// un permesso in piu' lo si chiede solo a chi serve (chi guida lo Studio,
+// per accendere l'orecchio di Gmail): non a tutta la squadra
+export const SCOPO_CLOUD = 'https://www.googleapis.com/auth/cloud-platform'
+
+export async function entraConGoogle(inPiu: string[] = []): Promise<string | null> {
+  try { sessionStorage.setItem('google-scopi-in-piu', inPiu.join(' ')) } catch { /* niente */ }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: window.location.origin + import.meta.env.BASE_URL,
-      scopes: SCOPI,
+      scopes: [SCOPI, ...inPiu].join(' '),
       queryParams: { access_type: 'offline', prompt: 'consent', hd: 'studiogalilei.com' },
     },
   })
@@ -43,8 +48,10 @@ export async function salvaTokenGoogle(s: Session | null): Promise<string | null
   let rt = s?.provider_refresh_token ?? null
   if (!rt) { try { rt = localStorage.getItem('google-refresh') } catch { /* niente */ } }
   if (!rt || !s?.user) return 'nessun token da salvare'
+  let inPiu = ''
+  try { inPiu = sessionStorage.getItem('google-scopi-in-piu') ?? ''; sessionStorage.removeItem('google-scopi-in-piu') } catch { /* niente */ }
   const { error } = await supabase.from('google_token').upsert(
-    { user_id: s.user.id, email: s.user.email ?? null, refresh_token: rt, scopes: SCOPI, aggiornato_il: new Date().toISOString() },
+    { user_id: s.user.id, email: s.user.email ?? null, refresh_token: rt, scopes: [SCOPI, inPiu].filter(Boolean).join(' '), aggiornato_il: new Date().toISOString() },
     { onConflict: 'user_id' })
   if (error) { console.warn('google_token non salvato:', error.message); return error.message }
   try { localStorage.removeItem('google-refresh') } catch { /* niente */ }

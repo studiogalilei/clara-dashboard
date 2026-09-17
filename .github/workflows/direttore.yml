@@ -6,11 +6,15 @@
 # un minuto e mezzo di runner, e sotto il quarto d'ora la bolletta di GitHub
 # cresce piu' in fretta di quanto migliori la vita. Le cose che devono
 # arrivare SUBITO passano dai campanelli (webhook), non dall'orologio.
+# 17/9: campanello anche per Gmail (funzione sveglia + scripts/orecchio.py):
+# una mail fa partire il direttore entro un minuto, e gli inviti del
+# calendario arrivano per mail. L'orologio passa a ogni venti minuti: e'
+# la rete di sicurezza, non piu' la strada principale.
 name: direttore
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # ogni quarto d'ora; le risposte vere arrivano via webhook (10/9)
+    - cron: "*/20 * * * *"   # ogni venti minuti; mail e risposte arrivano dai campanelli (17/9)
   workflow_dispatch:
     inputs:
       forza:

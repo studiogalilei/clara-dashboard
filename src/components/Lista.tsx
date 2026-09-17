@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
+import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, eSettoreDelFoglio, SETTORI, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
@@ -851,11 +851,20 @@ export default function Lista({ onOpen, q }: Props) {
                     </button>
                   ))}
                   <input
+                    list="settori-foglio"
                     value={settoriUsati.includes(settore) ? '' : nomeSettore(settore)}
                     onChange={(e) => setSettore(chiaveSettore(e.target.value))}
-                    placeholder="oppure scrivilo"
-                    className="w-36 rounded-full border border-bordo bg-white px-3 py-1 text-xs outline-none focus:border-blu"
+                    placeholder="oppure cercalo"
+                    title="I settori sono quelli del Foglio Settori: Clara li usa per le zone e per classificare"
+                    className="w-40 rounded-full border border-bordo bg-white px-3 py-1 text-xs outline-none focus:border-blu"
                   />
+                  {/* il vocabolario e' uno: il Foglio Settori, lo stesso di Clara */}
+                  <datalist id="settori-foglio">
+                    {SETTORI.map((x) => <option key={x.chiave} value={nomeSettore(x.chiave)} />)}
+                  </datalist>
+                  {settore && !settoriUsati.includes(settore) && !eSettoreDelFoglio(settore) && (
+                    <span className="text-[11px] text-amber-700">non è fra i settori misurati: Clara non lo sa leggere</span>
+                  )}
                 </div>
               </div>
             )}

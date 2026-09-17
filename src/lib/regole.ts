@@ -2,6 +2,7 @@
 // Prima erano copiate a mano in quattro file e i numeri divergevano:
 // la home diceva 12 prospect e la bacheca ne mostrava 20.
 
+import settoriJson from './settori.json'
 import { supabase } from './supabase'
 import { chiSono } from './accessi'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from './types'
@@ -430,13 +431,31 @@ export async function settoriPiuUsati(quanti = 8): Promise<string[]> {
     .map((v) => [...v.forme.entries()].sort((a, b) => b[1] - a[1])[0][0])
 }
 
+// IL VOCABOLARIO DEI SETTORI (17/9): uno solo, il Foglio Settori (data/
+// foglio_settori.csv, rigenerato in settori.json da scripts/settori_json.py).
+// E' la lista che usa Clara per classificare e per guardare le zone: se
+// una persona scrive un settore a mano, deve finire in quella lista
+export const SETTORI: Array<{ chiave: string; tipo: string }> = settoriJson as Array<{ chiave: string; tipo: string }>
+const CHIAVI_SETTORE = new Set(SETTORI.map((s) => s.chiave))
+
 // «consulenza_aziendale» si legge «Consulenza aziendale»; quello che si
 // scrive a mano torna nella stessa forma, se no i settori non si contano
 export const nomeSettore = (s: string) => {
   const t = s.replace(/_/g, ' ').trim()
   return t.charAt(0).toUpperCase() + t.slice(1)
 }
-export const chiaveSettore = (s: string) => s.trim().toLowerCase().replace(/\s+/g, '_')
+// quello che si scrive a mano diventa la chiave del Foglio, quando c'e':
+// «Consulenza aziendale», «consulenza_aziendale» e «CONSULENZA AZIENDALE»
+// sono la stessa voce. Se non c'e' nel Foglio resta com'e' scritto (in
+// chiave), e si vede nelle chip come voce nuova
+export const chiaveSettore = (s: string) => {
+  const k = s.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (CHIAVI_SETTORE.has(k)) return k
+  const senza = k.replace(/[^a-z0-9]/g, '')
+  const trovata = SETTORI.find((x) => x.chiave.replace(/[^a-z0-9]/g, '') === senza)
+  return trovata ? trovata.chiave : k
+}
+export const eSettoreDelFoglio = (s: string) => CHIAVI_SETTORE.has(chiaveSettore(s))
 
 export async function pedaggioPagato(prospectId: string, fase: PipelineStage): Promise<boolean> {
   const { data } = await supabase.from('interactions').select('*')
