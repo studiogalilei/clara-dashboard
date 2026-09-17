@@ -186,6 +186,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [spuntando, setSpuntando] = useState<string | null>(null)
   const [scrivoAl, setScrivoAl] = useState<string | null>(null)   // a chi del pod sto scrivendo una task
   const [testoPod, setTestoPod] = useState('')
+  const [scadPod, setScadPod] = useState('')       // Carlo, 17/9: «per le task del pod serve la scadenza»
   const [aggiungo, setAggiungo] = useState(false)
   const [nuovo, setNuovo] = useState('')
   const [nuovaData, setNuovaData] = useState('')
@@ -481,7 +482,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   async function mandaAlPod(id: string, titolo: string) {
     const t = titolo.trim()
     if (!t) return
-    const { task, problema: guaio } = await creaTask({ titolo: t, perChi: id })
+    const { task, problema: guaio } = await creaTask({ titolo: t, perChi: id, scadenza: scadPod || null })
     if (guaio) {
       setProblema(guaio.includes('row-level security')
         ? 'Non posso mandare una task a questa persona: chiedi a Dre.'
@@ -491,6 +492,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     if (task) setMandate((m) => [task as TaskDre, ...m])
     setScrivoAl(null)
     setTestoPod('')
+    setScadPod('')
   }
 
   async function aggiungi() {
@@ -1099,6 +1101,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
                 placeholder={`Cosa serve da ${pod.find((m) => m.id === scrivoAl)?.nome?.split(' ')[0] ?? 'lui'}?`}
                 className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu"
               />
+              <input type="date" value={scadPod} onChange={(e) => setScadPod(e.target.value)} aria-label="Entro quando" title="Entro quando"
+                     className="w-[124px] shrink-0 rounded-lg border border-bordo px-2 py-1.5 text-xs text-navy outline-none focus:border-blu" />
               <button onClick={() => void mandaAlPod(scrivoAl, testoPod)} disabled={!testoPod.trim()}
                       className="shrink-0 rounded-full bg-blu px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30">
                 Manda

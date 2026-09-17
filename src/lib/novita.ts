@@ -16,6 +16,12 @@ export interface Novita {
 
 export const NOVITA: Novita[] = [
   {
+    chiave: 'scadenza-pod-2026-09-17',
+    data: '2026-09-17',
+    titolo: 'La task al pod ha la scadenza',
+    testo: 'L\'ha chiesto Carlo: quando mandi una task a una persona del pod, adesso le dici anche entro quando. Sta accanto al testo, in Oggi. Se una cosa vi manca, ditela in «Cosa cambieresti»: questa è arrivata così.',
+  },
+  {
     chiave: 'piano-2026-09-17',
     data: '2026-09-17',
     titolo: 'Clara fa il piano',

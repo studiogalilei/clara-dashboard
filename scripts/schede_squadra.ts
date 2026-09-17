@@ -113,7 +113,7 @@ function documentoDi(nome: string, pezzi: Pezzo[]): Documento {
 
 async function main() {
   const dentro = join(__dirname, '..', 'docs', 'squadra')
-  for (const chi of ['carlo', 'salvatore', 'alex', 'lorenzo', 'okay', 'giacomo']) {
+  for (const chi of ['carlo', 'salvatore', 'alex', 'lorenzo', 'okay', 'giacomo', 'dramane']) {
     const { nome, pezzi } = leggi(join(dentro, `${chi}.md`))
     const doc = documentoDi(nome, pezzi)
     const problemi = controllaTono(testoDi(doc))
