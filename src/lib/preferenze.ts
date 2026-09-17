@@ -36,6 +36,7 @@ export const CHIAVI = [
   'giro-fatto',
   'task-apertura',       // «Come si apre» in Impostazioni: il difetto
   'pipeline-apertura',   // delle viste di sessione, e questo resta
+  'novita-viste',        // le novita' gia' viste (e votate): non tornano
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]

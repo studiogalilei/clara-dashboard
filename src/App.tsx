@@ -14,6 +14,7 @@ import Vault from './components/Vault'
 import Plugin from './components/Plugin'
 import Feedback from './components/Feedback'
 import Aggiornato from './components/Aggiornato'
+import Novita from './components/Novita'
 import Giro from './components/Giro'
 import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
@@ -523,6 +524,8 @@ export default function App() {
 
         <main className={`${pieno ? 'px-4 py-4' : 'px-4 py-5 lg:px-8 lg:py-7'} ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
           {!pieno && (<>
+          {/* le novita', una volta, a chi rientra (Dre, 17/9) */}
+          {tab !== 'impostazioni' && !giro && <Novita />}
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">

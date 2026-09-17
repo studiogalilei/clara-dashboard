@@ -21,6 +21,8 @@ interface Riga {
   genere: string
   stato: string
   risposta: string | null
+  voto?: number | null       // le stelle date a una novita'
+  novita?: string | null
 }
 
 const DOVE = ['Oggi', 'Pipeline', 'Clienti', 'Calendario', 'Documenti', 'Posta di Clara', 'Condividi', 'Preventivi', 'Tutto']
@@ -162,7 +164,7 @@ export default function Feedback() {
                   </p>
                 </div>
                 <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${GENERI.find(([v]) => v === r.genere)?.[2] ?? 'border-bordo text-tenue'}`}>
-                  {NOME_GENERE[r.genere] ?? r.genere}
+                  {r.genere === 'novita' ? (r.voto ? `Novità, ${r.voto} su 5` : 'Novità') : (NOME_GENERE[r.genere] ?? r.genere)}
                 </span>
                 {ceo && (
                   <div className="flex items-center gap-1.5">
