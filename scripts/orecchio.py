@@ -53,8 +53,9 @@ def tenta(metodo, url, corpo=None, ok_se=(409,)):
     try:
         return g(metodo, url, corpo)
     except RuntimeError as e:
+        # il messaggio e' «Google 409 su ...»: si guarda il numero, non l'inizio
         for codice in ok_se:
-            if str(e).startswith(str(codice)):
+            if f" {codice} " in str(e)[:16]:
                 return None
         raise
 
@@ -74,7 +75,7 @@ def prepara_canale():
     if tenta("PUT", f"{PUBSUB}/{topic}", {}) is not None:
         print(f"  canale {CANALE} creato")
     # 3. Gmail puo' scriverci
-    politica = g("POST", f"{PUBSUB}/{topic}:getIamPolicy", {}) or {}
+    politica = g("GET", f"{PUBSUB}/{topic}:getIamPolicy") or {}
     vincoli = politica.get("bindings") or []
     editori = next((b for b in vincoli if b.get("role") == "roles/pubsub.publisher"), None)
     if not editori:
