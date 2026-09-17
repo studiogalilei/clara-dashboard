@@ -16,7 +16,7 @@ export default defineConfig({
       manifest: {
         start_url: './',
         scope: './',
-        name: 'Studio Galilei Workspace',
+        name: 'SG Workspace',
         short_name: 'SG Workspace',
         description: 'Il workspace di Studio Galilei, con Clara',
         theme_color: '#111827',
