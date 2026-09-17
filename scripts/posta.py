@@ -268,16 +268,27 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
         # sbagliate. L'indirizzo e il dominio sono prove, l'oggetto e' un
         # sospetto: quindi non si scrive, si chiede.
         if come == "oggetto":
+            # se e' gia' attaccata (qualcuno ha detto si') o la domanda e' gia'
+            # in Posta (anche chiusa con un no), non si richiede: ogni quarto
+            # d'ora passiamo di qui, e la stessa domanda non deve rinascere
+            gia_scritta = sb("GET", f"/rest/v1/interactions?select=id&ref=eq.gmail:{m['id']}&limit=1")
+            if gia_scritta:
+                fatte["saltate"] += 1
+                continue
             if fatte["domande"] >= limite_domande:
                 fatte["saltate"] += 1
                 continue
-            fatte["domande"] += 1
             if not prova:
-                proponi("collega", f"Questa mail è di {nome}?",
-                        perche=f"Da {controparte[0]}, oggetto «{oggetto[:120]}». "
-                               f"L'ho riconosciuta solo dal nome nell'oggetto, non dall'indirizzo.",
-                        azione={"interazione": dict(riga)},
-                        owner=persona.get("user_id"))
+                nata = proponi("collega", f"Questa mail è di {nome}?",
+                               perche=f"Da {controparte[0]}, oggetto «{oggetto[:120]}». "
+                                      f"L'ho riconosciuta solo dal nome nell'oggetto, non dall'indirizzo.",
+                               azione={"interazione": dict(riga)},
+                               owner=persona.get("user_id"),
+                               ref=f"mail:{m['id']}")
+                if not nata:
+                    fatte["saltate"] += 1
+                    continue
+            fatte["domande"] += 1
             continue
 
         if prova:

@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configured, demo } from './lib/supabase'
 import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref } from './lib/preferenze'
-import { useVivo as filoVivo } from './lib/vivo'
+import { useVivo } from './lib/vivo'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
 import Radar from './components/Radar'
@@ -115,7 +115,7 @@ export default function App() {
   // IL BATTITO (Dre, 16/9): quando una riga cambia nel database, i numeri
   // sul menu si rifanno subito. Prima ci mettevano fino a un minuto
   const [battito, setBattito] = useState(0)
-  filoVivo(['proposte', 'chat', 'task'], () => setBattito((n) => n + 1))
+  useVivo(['proposte', 'chat', 'task'], () => setBattito((n) => n + 1))
   // schermo intero (Dre, 14/9): via menu, testata e Clara fissa, resta solo la pagina. Esc per uscire
   const [pieno, setPieno] = useState(false)
   useEffect(() => {
@@ -128,12 +128,19 @@ export default function App() {
   // rifa' da Impostazioni. Che l'hai fatto e' una preferenza vera: ti segue
   // anche sul telefono, e non ti ricapita addosso
   const [giro, setGiro] = useState(false)
+  // si decide solo dopo che le preferenze sono scese dal database: se no
+  // a chi entra da un telefono nuovo il giro ricapita addosso
+  const [prefPronte, setPrefPronte] = useState(false)
   useEffect(() => {
-    const t = setTimeout(() => { if (!leggiPref('giro-fatto')) setGiro(true) }, 1400)
     const rifai = () => setGiro(true)
     window.addEventListener('giro:rifai', rifai)
-    return () => { clearTimeout(t); window.removeEventListener('giro:rifai', rifai) }
-  }, [demo])
+    return () => window.removeEventListener('giro:rifai', rifai)
+  }, [])
+  useEffect(() => {
+    if (!prefPronte) return
+    const t = setTimeout(() => { if (!leggiPref('giro-fatto')) setGiro(true) }, 900)
+    return () => clearTimeout(t)
+  }, [prefPronte])
 
   // IL RIPOSO (Dre, 15/9): «quando sono nella stessa tab da un po', si
   // allarga lo schermo, sparisce la parte a lato e il logo di Clara; poi
@@ -181,14 +188,18 @@ export default function App() {
     }
     conta()
     const t = setInterval(conta, 60_000)
+    return () => clearInterval(t)
+  }, [battito])
+  // gli avvisi dalle altre schermate: si attaccano una volta, non a ogni battito
+  useEffect(() => {
     const vai = () => { setTab('clara'); setOpenId(null) }
     window.addEventListener('clara:vai-posta', vai)
     // «+ Nuovo preventivo» dalla scheda: si va al widget, che apre il pannello con l'azienda scelta
     const nuovoPrev = () => { setTab('preventivi'); setOpenId(null) }
     window.addEventListener('preventivo:nuovo', nuovoPrev)
     window.addEventListener('clara:apri-posta', vai)
-    return () => { clearInterval(t); window.removeEventListener('clara:vai-posta', vai); window.removeEventListener('clara:apri-posta', vai); window.removeEventListener('preventivo:nuovo', nuovoPrev) }
-  }, [battito])
+    return () => { window.removeEventListener('clara:vai-posta', vai); window.removeEventListener('clara:apri-posta', vai); window.removeEventListener('preventivo:nuovo', nuovoPrev) }
+  }, [])
   useEffect(() => {
     let vivo = true
     async function conta() {
@@ -246,6 +257,7 @@ export default function App() {
   useEffect(() => {
     if (!configured) {
       setReady(true)
+      setPrefPronte(true)
       return
     }
     supabase.auth.getSession().then(async ({ data }) => {
@@ -254,6 +266,7 @@ export default function App() {
       // browser: le preferenze seguono te, non la macchina (revisione 4/9)
       if (data.session && await scaricaPreferenze()) setVersione((v) => v + 1)
       setReady(true)
+      setPrefPronte(true)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => sub?.subscription.unsubscribe()
@@ -634,7 +647,7 @@ export default function App() {
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} />
 
-      {giro && <Giro onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
+      {giro && <Giro nome={utente} ruoloVero={ruoloVero} onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
     </div>
   )
 }

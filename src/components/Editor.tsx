@@ -71,9 +71,6 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
   const [chiedo, setChiedo] = useState('')
   const [claraLavora, setClaraLavora] = useState(false)
   const [claraDice, setClaraDice] = useState<string | null>(null)
-  const [inizio, setInizio] = useState('')
-  const [fine, setFine] = useState('')
-  const [dateSalvate, setDateSalvate] = useState(false)
   const [archivio, setArchivio] = useState<string | null>(null)
   const [menuBlocco, setMenuBlocco] = useState<number | null>(null)
   const [aggiungo, setAggiungo] = useState<number | null>(null)
@@ -328,18 +325,6 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
     }
   }
 
-  // le date del periodo di prova: una volta sola, e vanno in due posti
-  async function scriviDate() {
-    if (!azienda || !inizio || !fine) return
-    const it = (g: string) => g.split('-').reverse().join('/')
-    setDoc((d) => (d ? riempi(d, { azienda: nomeAzienda(azienda as never), inizio: it(inizio), fine: it(fine), io: nomeSalvato() }) : d))
-    const { error } = await supabase.from('prospects')
-      .update({ prova_inizio: inizio, prova_fine: fine, contratto: 'prova' })
-      .eq('id', azienda.id)
-    if (error) { setGuaio(`Le date non sono arrivate sulla scheda: ${error.message}`); return }
-    setDateSalvate(true)
-  }
-
   // il PDF si scarica E resta (Dre, 16/9): se e' di un cliente finisce anche
   // nella sua cartella, se no fra un mese quel documento non lo trova nessuno
   async function scaricaPdf() {
@@ -357,15 +342,21 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
     setTimeout(() => URL.revokeObjectURL(a.href), 4000)
 
     if (!azienda) { setArchivio('scaricato. Collega l\'azienda e finisce anche nella sua cartella'); return }
-    const path = `clienti/${azienda.id}/${Date.now()}-${nome}`
+    // un documento, un file: se lo scarichi tre volte la cartella del
+    // cliente non si riempie di tre copie, si aggiorna quella
+    const path = rigaId ? `clienti/${azienda.id}/doc-${rigaId}.pdf` : `clienti/${azienda.id}/${Date.now()}-${nome}`
     const { error } = await supabase.storage.from('vault')
       .upload(path, blob, { contentType: 'application/pdf', upsert: true })
     if (error) { setArchivio(`scaricato, ma non archiviato: ${error.message}`); return }
-    const { error: e2 } = await supabase.from('vault_file').insert({
+    const riga = {
       nome: titoloDoc(doc), path, mime: 'application/pdf', dimensione: blob.size,
       prospect_id: azienda.id, sezione: 'clienti',
       nota: `Scritto nel Workspace, ${new Date().toLocaleDateString('it-IT')}`,
-    })
+    }
+    const { data: gia } = await supabase.from('vault_file').select('id').eq('path', path).maybeSingle()
+    const { error: e2 } = gia
+      ? await supabase.from('vault_file').update(riga).eq('id', (gia as { id: number }).id)
+      : await supabase.from('vault_file').insert(riga)
     setArchivio(e2 ? `scaricato, ma non archiviato: ${e2.message}` : `scaricato, e messo nella cartella di ${nomeAzienda(azienda as never)}`)
     if (rigaId) await supabase.from('documenti').update({ file: path }).eq('id', rigaId)
   }
@@ -473,8 +464,6 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
                     const az = a as unknown as Azienda
                     setAzienda(az)
                     setCerco(false)
-                    if (az.prova_inizio) setInizio(az.prova_inizio.slice(0, 10))
-                    if (az.prova_fine) setFine(az.prova_fine.slice(0, 10))
                     setDoc((d) => (d ? riempi(d, { azienda: nomeAzienda(az as never), email: az.email, io: nomeSalvato() }) : d))
                   }}
                 />
@@ -487,29 +476,6 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
             )}
           </Card>
 
-          {/* IL PERIODO DI PROVA: il contratto vero e' il PDF dello Studio e
-              si compila sopra l'originale (Documenti, «Compila»). Questo
-              riquadro resta per i documenti nostri che parlano di una prova */}
-          {modello === 'prova' && (
-            <Card className="p-4">
-              <Micro>Periodo di prova</Micro>
-              <div className="mt-2 space-y-2">
-                {([['Inizio', inizio, setInizio], ['Fine', fine, setFine]] as const).map(([et, val, set]) => (
-                  <label key={et} className="flex items-center gap-2 rounded-[6px] border border-bordo px-2.5 py-1.5 text-sm">
-                    <span className="w-12 text-[11px] font-bold uppercase tracking-[0.06em] text-spento">{et}</span>
-                    <input type="date" value={val} onChange={(e) => { set(e.target.value); setDateSalvate(false) }}
-                           className="flex-1 bg-transparent outline-none" />
-                  </label>
-                ))}
-                <button onClick={() => void scriviDate()} disabled={!azienda || !inizio || !fine}
-                        className="w-full rounded-full bg-blu px-4 py-2 text-xs font-bold text-white hover:bg-blu-scuro disabled:opacity-40">
-                  {dateSalvate ? 'Scritte sulla scheda' : 'Scrivi le date nel documento e sulla scheda'}
-                </button>
-                {!azienda && <p className="text-[11px] text-spento">Prima collega l'azienda.</p>}
-                {dateSalvate && <p className="text-[11px] text-green-800">Da oggi la prova di {nomeAzienda(azienda as never)} finisce il {fine.split('-').reverse().join('/')}, e il Workspace lo sa.</p>}
-              </div>
-            </Card>
-          )}
 
           <Card className="p-4">
             <Micro>Chiedi a Clara</Micro>

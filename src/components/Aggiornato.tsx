@@ -21,9 +21,10 @@ function frase(quando: Date): { testo: string; tono: string } {
   const ora = quando.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
   if (min < 2) return { testo: 'Clara ha appena controllato tutto', tono: 'text-green-700' }
   if (min < 60) return { testo: `Clara ha controllato tutto ${min} minuti fa`, tono: 'text-green-700' }
-  if (min < 120) return { testo: `Clara ha controllato tutto un'ora fa, alle ${ora}`, tono: 'text-green-700' }
   const ore = Math.floor(min / 60)
-  if (ore < 6) return { testo: `L'ultimo controllo è di ${ore} ore fa, alle ${ora}`, tono: 'text-amber-700' }
+  // fino a 3 ore e' normale (e' lo stesso confine del Radar), poi e' fermo
+  if (ore < 3) return { testo: `Clara ha controllato tutto ${ore === 1 ? "un'ora" : `${ore} ore`} fa, alle ${ora}`, tono: 'text-green-700' }
+  if (ore < 6) return { testo: `L'ultimo controllo è di ${ore} ore fa, alle ${ora}: Clara è ferma`, tono: 'text-amber-700' }
   if (ore < 24) return { testo: `L'ultimo controllo è di stamattina, alle ${ora}`, tono: 'text-amber-700' }
   const giorni = Math.floor(ore / 24)
   return { testo: `Il controllo è fermo da ${giorni} ${giorni === 1 ? 'giorno' : 'giorni'}: quello che vedi è vecchio`, tono: 'text-red-700' }

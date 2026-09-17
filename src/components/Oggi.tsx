@@ -21,7 +21,8 @@ import { COLORE_STATO, type Tono } from '../lib/stato'
 type Vista = 'ongo' | 'big'
 
 function leggiVista(): Vista {
-  return (leggiPref('task-vista') as Vista) || 'ongo'
+  // la vista di questa sessione, se no quella scelta in Impostazioni
+  return (leggiPref('task-vista') as Vista) || (leggiPref('task-apertura') as Vista) || 'ongo'
 }
 
 const GIORNI_IT = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
@@ -363,7 +364,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
 
   // vivo (16/9): se qualcuno ti manda una task, o Clara chiude una domanda,
   // la pagina si rifa' da sola mentre la stai guardando
-  useVivo(['task', 'proposte', 'coda_fatte'], () => { caricaTask(); void leggiFatte().then(setFatteCoda) })
+  useVivo(['task', 'proposte'], caricaTask)
+  useVivo(['coda_fatte'], () => { void leggiFatte().then(setFatteCoda) })
 
   useEffect(() => {
     caricaTask()
@@ -444,7 +446,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   // sul telefono: trascini a sinistra e la task passa a domani. La stessa
   // cosa che si fa col calendario, ma senza aprire niente (Dre, 16/9)
   async function rimandaDomani(t: TaskDre) {
-    const domani = new Date(Date.now() + 86400e3).toISOString().slice(0, 10)
+    const domani = giorno(new Date(Date.now() + 86400e3))
     const { data } = await supabase.from('task').update({ scadenza: domani }).eq('id', t.id).select().single()
     if (!data) { setProblema('Non sono riuscito a spostarla: riprova.'); return }
     setAttivita((a) => a!.map((x) => (x.id === t.id ? (data as TaskDre) : x)))

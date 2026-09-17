@@ -42,9 +42,10 @@ FRESCA_ORE = 20
 
 def quando(iso):
     try:
-        return datetime.datetime.fromisoformat(re.sub(r"\.\d+", "", (iso or "").replace("Z", "+00:00")))
+        d = datetime.datetime.fromisoformat(re.sub(r"\.\d+", "", (iso or "").replace("Z", "+00:00")))
     except Exception:
         return None
+    return d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
 
 
 def dati_di(pid):

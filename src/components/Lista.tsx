@@ -82,7 +82,8 @@ interface Toast {
 }
 
 function leggiVista(): Vista {
-  return (leggiPref('tutti-vista') as Vista) || 'board'
+  const scelta = leggiPref('pipeline-apertura')
+  return (leggiPref('tutti-vista') as Vista) || ((scelta && scelta !== 'foglio' ? scelta : 'board') as Vista)
 }
 
 export default function Lista({ onOpen, q }: Props) {
@@ -898,7 +899,9 @@ export default function Lista({ onOpen, q }: Props) {
                   // il settore, se l'ha scelto: non blocca niente, e se la
                   // scrittura non riesce la carta si muove lo stesso
                   if (!p.sector && settore.trim()) {
-                    await supabase.from('prospects').update({ sector: chiaveSettore(settore) }).eq('id', p.id)
+                    // un settore gia' usato si scrive com'e' scritto sugli altri: se no
+                    // «consulenza aziendale» e «consulenza_aziendale» contano separati
+                    await supabase.from('prospects').update({ sector: settoriUsati.includes(settore) ? settore : chiaveSettore(settore) }).eq('id', p.id)
                   }
                   const mossa = await muovi(p.id, p.company || p.name || p.email, target, 1)
                   setSalvando(false)

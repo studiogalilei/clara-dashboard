@@ -16,7 +16,7 @@ const MODI: Array<[Modo, string]> = [['bacheca', 'Bacheca'], ['foglio', 'Foglio'
 interface Props { onOpen: (id: string) => void; q: string }
 
 export default function Aziende({ onOpen, q }: Props) {
-  const [modo, setModo] = useState<Modo>(() => ((leggiPref('tutti-modo') as Modo) === 'foglio' ? 'foglio' : 'bacheca'))
+  const [modo, setModo] = useState<Modo>(() => ((leggiPref('tutti-modo') || leggiPref('pipeline-apertura')) === 'foglio' ? 'foglio' : 'bacheca'))
   const [aggiungo, setAggiungo] = useState(false)
   const [nome, setNome] = useState(nomeSalvato())
   // il nome serve per «chi segue»: se non e' nel browser si chiede al database

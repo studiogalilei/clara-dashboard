@@ -187,12 +187,13 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
       }
       const fuori = await doc.save()
       const nome = `${file.nome}${nomeCliente ? `, ${nomeCliente}` : ' (compilato)'}`
-      const path = `${Date.now()}-${nome.replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf`
+      // nella cartella del cliente, come tutto il resto che lo riguarda
+      const path = `clienti/${cliente}/${Date.now()}-${nome.replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf`
       const blob = new Blob([fuori as BlobPart], { type: 'application/pdf' })
       const { error } = await supabase.storage.from('vault').upload(path, blob, { contentType: 'application/pdf' })
       if (error) throw new Error(error.message)
       const { data, error: e2 } = await supabase.from('vault_file')
-        .insert({ nome, path, mime: 'application/pdf', dimensione: blob.size, prospect_id: file.prospect_id }).select().single()
+        .insert({ nome, path, mime: 'application/pdf', dimensione: blob.size, prospect_id: cliente, sezione: 'clienti' }).select().single()
       if (e2 || !data) { await supabase.storage.from('vault').remove([path]); throw new Error(e2?.message ?? 'riga non scritta') }
       if (prova && cliente && inizio && fine) {
         const { error: e3 } = await supabase.from('prospects')

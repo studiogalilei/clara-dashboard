@@ -16,3 +16,4 @@ alter publication supabase_realtime add table clara_messaggi;
 alter publication supabase_realtime add table prospects;
 alter publication supabase_realtime add table documenti;
 alter publication supabase_realtime add table feedback;
+alter publication supabase_realtime add table coda_fatte;

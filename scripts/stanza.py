@@ -11,6 +11,7 @@ l'ascoltatore, cosi' la scrittura di una proposta e' una e non due.
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,13 +51,19 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
         raise RuntimeError(f"{e.code} {e.read()[:200].decode(errors='replace')}")
 
 
-def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None):
+def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None, ref=None):
     """Una proposta nella stanza. Non scrive niente nella pipeline: solo la domanda.
 
     Non ne mette due uguali aperte sulla stessa persona: Dre le vedrebbe
-    doppie e smetterebbe di leggerle.
+    doppie e smetterebbe di leggerle. Con `ref` (schema_v45) la stessa
+    domanda non nasce mai due volte, nemmeno dopo che e' stata chiusa: e' il
+    modo giusto per le cose che ripassano ogni quarto d'ora (posta, azioni).
     """
-    if prospect_id:
+    if ref:
+        gia = sb("GET", f"/rest/v1/proposte?select=id&ref=eq.{urllib.parse.quote(ref, safe='')}&limit=1")
+        if gia:
+            return None
+    elif prospect_id:
         gia = sb("GET", f"/rest/v1/proposte?select=id&stato=eq.aperta"
                         f"&tipo=eq.{tipo}&prospect_id=eq.{prospect_id}&limit=1")
         if gia:
@@ -64,6 +71,7 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
     return sb("POST", "/rest/v1/proposte", {
         "tipo": tipo, "titolo": titolo[:200], "prospect_id": prospect_id,
         "perche": (perche or "")[:300] or None, "azione": azione or {}, "owner": owner,
+        "ref": ref,
     }, {"Prefer": "return=representation"})
 
 

@@ -19,6 +19,12 @@ export type Chiave =
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
+// i ruoli veri dello Studio (documento «Divisioni e responsabilita'» di Giacomo)
+export const NOME_RUOLO: Record<string, string> = {
+  ceo: 'CEO', coordinamento: 'Coordinamento', manager: 'Marketing manager',
+  specialist: 'Ad specialist', frontend: 'Frontend',
+}
+
 export const RUOLI: Array<[Ruolo, string]> = [
   ['ceo', 'CEO'],
   ['coordinamento', 'Coordinamento'],

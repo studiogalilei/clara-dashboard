@@ -142,8 +142,9 @@ export default function Scheda({ id, onClose }: Props) {
   // il modello del contratto di prova, dai Documenti dello Studio
   async function apriModelloProva() {
     const { data } = await supabase.from('vault_file')
-      .select('id,nome,path').eq('sezione', 'modelli').ilike('nome', '%contratto di prova%').maybeSingle()
-    const m = data as { id: number; nome: string; path: string } | null
+      .select('id,nome,path').eq('sezione', 'modelli').ilike('nome', '%contratto di prova%')
+      .order('at', { ascending: false }).limit(1)
+    const m = ((data as Array<{ id: number; nome: string; path: string }> | null) ?? [])[0] ?? null
     if (!m) { setErrore('Il modello del contratto di prova non è nei Documenti: caricalo in Modelli.'); return }
     setCompila(m)
   }

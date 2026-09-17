@@ -507,7 +507,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
 
   // vivo: una proposta nuova o un messaggio di Clara si vedono appena
   // nascono, senza aspettare il giro dell'orologio
-  useVivo(['proposte', 'clara_messaggi'], caricaMessaggi)
+  // mentre Clara lavora a raffica (venti righe in due secondi) il filo
+  // sta zitto: si rilegge una volta alla fine, non venti
+  useVivo(['proposte', 'clara_messaggi'], caricaMessaggi, lavoro === null)
 
   // Clara sta pensando: l'ultimo messaggio e' di Dre (o si sta mandando) e
   // la risposta non e' ancora arrivata. Dopo due minuti smette: se non ha
@@ -1018,6 +1020,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
               else if (pallina) { try { localStorage.setItem('clara-pallina', JSON.stringify(pallina)) } catch { /* niente */ } }
             }}
             aria-label="Clara"
+            data-giro="pallina"
             title="Trascinami dove vuoi"
             className={`relative flex w-[76px] cursor-grab touch-none flex-col items-center gap-0.5 rounded-[22px] border bg-white px-2 pb-2 pt-2.5 text-navy shadow-[0_8px_28px_rgba(6,23,115,0.22)] transition-[transform,opacity] duration-300 hover:-translate-y-0.5 hover:opacity-100 active:cursor-grabbing ${
               daNotare ? 'rimbalza border-red-300' : 'border-bordo'

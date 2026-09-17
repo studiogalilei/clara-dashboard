@@ -413,12 +413,21 @@ export async function appuntiRecenti(prospectId: string, giorni = 21): Promise<A
 // «odontoiatria»: senza nomi uguali non si conta niente per settore.
 export async function settoriPiuUsati(quanti = 8): Promise<string[]> {
   const { data } = await supabase.from('prospects').select('sector').not('sector', 'is', null).limit(1000)
-  const conta = new Map<string, number>()
+  // si conta senza badare a maiuscole e spazi, ma si restituisce la
+  // forma in cui e' scritto davvero: cosi' chi clicca la voce scrive la
+  // stessa cosa degli altri e i settori restano uno
+  const conta = new Map<string, { n: number; forme: Map<string, number> }>()
   for (const r of ((data as Array<{ sector: string }> | null) ?? [])) {
-    const s = (r.sector ?? '').trim().toLowerCase()
-    if (s) conta.set(s, (conta.get(s) ?? 0) + 1)
+    const vero = (r.sector ?? '').trim()
+    if (!vero) continue
+    const k = chiaveSettore(vero)
+    const v = conta.get(k) ?? { n: 0, forme: new Map<string, number>() }
+    v.n += 1
+    v.forme.set(vero, (v.forme.get(vero) ?? 0) + 1)
+    conta.set(k, v)
   }
-  return [...conta.entries()].sort((a, b) => b[1] - a[1]).slice(0, quanti).map(([s]) => s)
+  return [...conta.values()].sort((a, b) => b.n - a.n).slice(0, quanti)
+    .map((v) => [...v.forme.entries()].sort((a, b) => b[1] - a[1])[0][0])
 }
 
 // «consulenza_aziendale» si legge «Consulenza aziendale»; quello che si

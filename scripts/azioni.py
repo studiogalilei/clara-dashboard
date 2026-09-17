@@ -27,9 +27,10 @@ import datetime
 import os
 import re
 import sys
+import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                      # noqa: E402
+from stanza import sb, proponi as proponi_stanza            # noqa: E402
 
 PROVA = "--prova" in sys.argv
 
@@ -47,10 +48,16 @@ def giorni_fa(n):
 
 
 def data(iso):
+    """Una data dal database, sempre con il fuso. Le colonne `date` (inviato_il,
+    accettato_il, accessi_chiesti_il) arrivano senza ora: si prendono come
+    mezzanotte UTC, se no la sottrazione con adesso() salta."""
     try:
-        return datetime.datetime.fromisoformat(re.sub(r"\.\d+", "", (iso or "").replace("Z", "+00:00")))
+        d = datetime.datetime.fromisoformat(re.sub(r"\.\d+", "", (iso or "").replace("Z", "+00:00")))
     except Exception:
         return None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=datetime.timezone.utc)
+    return d
 
 
 def quanti_giorni(iso):
@@ -62,6 +69,11 @@ def nome_di(p):
     return (p or {}).get("company") or (p or {}).get("name") or (p or {}).get("email") or "questa azienda"
 
 
+def segue(nomi, pid):
+    """Chi segue quell'azienda: la proposta finisce nella sua Posta."""
+    return (nomi.get(pid) or {}).get("chi_segue")
+
+
 def aziende(ids):
     ids = [i for i in set(ids) if i]
     if not ids:
@@ -71,19 +83,17 @@ def aziende(ids):
     return {r["id"]: r for r in righe}
 
 
-def proponi(ref, tipo, titolo, perche, prospect_id=None, azione=None):
-    """Una riga nella Posta. Se quel promemoria c'e' gia', non se ne fa un altro."""
-    gia = sb("GET", f"/rest/v1/proposte?select=id&ref=eq.{ref}&limit=1")
+def proponi(ref, tipo, titolo, perche, prospect_id=None, azione=None, owner=None):
+    """Una riga nella Posta. Se quel promemoria c'e' gia' (stesso ref), non se
+    ne fa un altro: la scrittura vera e' quella di stanza.proponi, cosi' il
+    taglio dei testi e il ref sono gli stessi di tutti gli altri script."""
+    gia = sb("GET", f"/rest/v1/proposte?select=id&ref=eq.{urllib.parse.quote(ref, safe='')}&limit=1")
     if gia:
         return False
     print(f"    -> {titolo}")
     if PROVA:
         return True
-    sb("POST", "/rest/v1/proposte", {
-        "tipo": tipo, "titolo": titolo, "perche": perche,
-        "prospect_id": prospect_id, "azione": azione or {}, "ref": ref,
-    })
-    return True
+    return bool(proponi_stanza(tipo, titolo, prospect_id, perche, azione, owner, ref=ref))
 
 
 # ── le azioni ───────────────────────────────────────────────────────────
@@ -104,7 +114,7 @@ def preventivo_senza_risposta(giorni):
             f"prev-fermo:{q['id']}", "umano",
             f"{azienda}: il preventivo {q.get('numero') or ''} è fermo da {g} giorni".replace("  ", " "),
             f"Mandato il {(q.get('inviato_il') or '')[:10]}, nessuna risposta. Lo richiami o lo lasci andare?",
-            q.get("prospect_id"),
+            q.get("prospect_id"), owner=segue(nomi, q.get("prospect_id")),
         )
     return n
 
@@ -129,7 +139,7 @@ def preventivo_accettato_non_pagato(giorni):
             f"prev-nonpagato:{q['id']}", "umano",
             f"{azienda}: accettato da {g} giorni, {soldi} non risulta incassato",
             "Ha detto sì ma il pagamento non si vede, né qui né su Stripe. Gli scrivi o l'hai già incassato fuori?",
-            q.get("prospect_id"),
+            q.get("prospect_id"), owner=segue(nomi, q.get("prospect_id")),
         )
     return n
 
@@ -155,14 +165,14 @@ def call_senza_riassunto(giorni):
             f"call-vuota:{c['id']}", "umano",
             f"{azienda}: la call del {(c.get('at') or '')[:10]} non ha un riassunto",
             "Due righe adesso valgono piu' di mezz'ora fra un mese. Cosa vi siete detti?",
-            c["prospect_id"],
+            c["prospect_id"], owner=segue(nomi, c["prospect_id"]),
         )
     return n
 
 
 def cliente_senza_canone(giorni):
     """E' diventato cliente e non si sa quanto paga."""
-    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,canone,fuori_at,pipeline_stage"
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,canone,fuori_at,pipeline_stage"
                       f"&fuori=eq.true&pipeline_stage=in.(cliente,prova)&canone=is.null"
                       f"&fuori_at=lte.{giorni_fa(giorni)}&limit=100") or []
     n = 0
@@ -171,7 +181,7 @@ def cliente_senza_canone(giorni):
             f"canone-manca:{p['id']}", "umano",
             f"{nome_di(p)}: è cliente e non sappiamo quanto paga",
             "Senza il canone i conti dello Studio sono sbagliati. Lo scrivi sulla sua scheda?",
-            p["id"],
+            p["id"], owner=p.get("chi_segue"),
         )
     return n
 
@@ -180,7 +190,7 @@ def prova_che_finisce(giorni):
     """La prova finisce fra poco: e' il momento di riaccordarsi."""
     fra = (adesso() + datetime.timedelta(days=giorni)).date().isoformat()
     oggi = adesso().date().isoformat()
-    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,prova_fine"
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,prova_fine"
                       f"&prova_fine=gte.{oggi}&prova_fine=lte.{fra}&limit=100") or []
     n = 0
     for p in righe:
@@ -190,6 +200,7 @@ def prova_che_finisce(giorni):
             "E' il momento di guardare i numeri insieme e dire come si continua.",
             p["id"],
             {"task": {"titolo": f"Chiamare {nome_di(p)} per il rinnovo", "scadenza": p["prova_fine"]}},
+            owner=p.get("chi_segue"),
         )
     return n
 
@@ -207,7 +218,7 @@ def accessi_che_non_arrivano(giorni):
             f"accessi-fermi:{r['id']}", "umano",
             f"{azienda}: gli accessi sono chiesti da {g} giorni e non sono arrivati",
             f"«{r.get('nome') or 'il progetto'}» è fermo li'. Glieli richiedi?",
-            r.get("prospect_id"),
+            r.get("prospect_id"), owner=r.get("chi_segue") or segue(nomi, r.get("prospect_id")),
         )
     return n
 
@@ -224,14 +235,14 @@ def progetto_senza_imparato(giorni):
             f"imparato-manca:{r['id']}", "umano",
             f"{azienda}: «{r.get('nome') or 'il progetto'}» è consegnato, cosa abbiamo imparato?",
             "Una riga sola. E' quella che il prossimo cliente dello stesso settore si ritrova gratis.",
-            r.get("prospect_id"),
+            r.get("prospect_id"), owner=segue(nomi, r.get("prospect_id")),
         )
     return n
 
 
 def cliente_dimenticato(giorni):
     """Paga tutti i mesi e non lo sente nessuno da troppo."""
-    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,canone,updated_at"
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,canone,updated_at"
                       f"&fuori=eq.true&pipeline_stage=eq.cliente&limit=200") or []
     n = 0
     for p in righe:
@@ -244,7 +255,7 @@ def cliente_dimenticato(giorni):
             f"cliente-muto:{p['id']}:{adesso().date().isoformat()[:7]}", "umano",
             f"{nome_di(p)}: nessuno lo sente da {g} giorni, e paga tutti i mesi",
             "I clienti non se ne vanno per i risultati, se ne vanno per il silenzio. Una call o due righe?",
-            p["id"],
+            p["id"], owner=p.get("chi_segue"),
         )
     return n
 
@@ -264,7 +275,7 @@ AZIONI = {
 def main():
     righe = sb("GET", "/rest/v1/azioni?select=*&order=ordine") or []
     if not righe:
-        print("nessuna azione nel database: lancia prima scripts/azioni_prime.py")
+        print("nessuna azione nel database: manca supabase/schema_v45.sql (le righe di `azioni`)")
         return
     totale = 0
     for a in righe:

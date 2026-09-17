@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
-  WIDGET, RUOLI, nascosti, haAccesso, inOrdine, salvaOrdine, type Chiave, type Ruolo,
+  WIDGET, RUOLI, NOME_RUOLO, nascosti, haAccesso, inOrdine, salvaOrdine, type Chiave, type Ruolo,
 } from '../lib/widget'
 import { mieiAccessi, tuttiAccessi, chiedi, decidi, vediCome, type StatoAccesso, type Accesso } from '../lib/accessi'
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
@@ -20,12 +20,6 @@ import { nomeFile } from '../lib/tono'
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
 // proprio nome, in basso a sinistra. Dentro solo cose vere, niente
 // interruttori che non cambiano niente (Dre, 3/9).
-
-// i ruoli veri dello Studio (documento «Divisioni e responsabilita'» di Giacomo)
-const NOME_RUOLO: Record<string, string> = {
-  ceo: 'CEO', coordinamento: 'Coordinamento', manager: 'Marketing manager',
-  specialist: 'Ad specialist', frontend: 'Frontend',
-}
 
 // SALUTE DEI DATI (Okay, 15/9): le incoerenze fra tabelle che oggi si
 // scoprono solo leggendo il database a mano. Una riga per incoerenza, con
@@ -194,14 +188,17 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   const [passwordEsito, setPasswordEsito] = useState<string | null>(null)
   const [notificheProblema, setNotificheProblema] = useState<string | null>(null)
   useEffect(() => { void statoNotifiche().then(setNotifiche); if (!demo) void googleCollegato().then(setGoogle) }, [demo])
-  const [vistaTask, setVistaTask] = useState(() => leggiPref('task-vista', 'ongo'))
+  // «Come si apre» decide il difetto: la vista di sessione (task-vista,
+  // tutti-vista) e' quella che scegli cliccando e sparisce chiudendo l'app
+  const [vistaTask, setVistaTask] = useState(() => leggiPref('task-apertura', 'ongo'))
   // «Pipeline si apre su…» e' una scelta sola, ma dietro ci sono due
   // preferenze: quale tab (bacheca o foglio) e, dentro la bacheca, quale
   // forma (bacheca o elenco). Prima erano due interruttori scollegati.
-  const [vistaTutti, setVistaTutti] = useState(() =>
-    leggiPref('tutti-modo', 'bacheca') === 'foglio' ? 'foglio' : leggiPref('tutti-vista', 'board'))
+  const [vistaTutti, setVistaTutti] = useState(() => leggiPref('pipeline-apertura', 'board'))
   function apriPipelineCome(v: string) {
     setVistaTutti(v)
+    scriviPref('pipeline-apertura', v)
+    // e vale da subito, non solo alla prossima apertura
     scriviPref('tutti-modo', v === 'foglio' ? 'foglio' : 'bacheca')
     if (v !== 'foglio') scriviPref('tutti-vista', v)
   }
@@ -481,7 +478,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
             {[['ongo', 'On go'], ['big', 'Questa settimana']].map(([v, etichetta]) => (
-              <button key={v} onClick={() => preferenza('task-vista', v, setVistaTask)}
+              <button key={v} onClick={() => { preferenza('task-apertura', v, setVistaTask); scriviPref('task-vista', v) }}
                 className={`px-3 py-1 text-xs font-bold ${vistaTask === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
                 {etichetta}
               </button>
@@ -619,7 +616,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
       </Gruppo>
       )}
 
-      {ruolo === 'ceo' && (
+      {(ruolo === 'ceo' || vedeSalute) && (
       <Gruppo titolo="Lo Studio" sotto="listino, numeri, salute dei dati" aperto={false}>
       {/* IL LISTINO: i prezzi che finiscono nei preventivi */}
       {ruolo === 'ceo' && listino && (

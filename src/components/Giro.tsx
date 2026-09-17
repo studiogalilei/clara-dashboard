@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import ClaraLogo from './ClaraLogo'
+import { CASI_RUOLO, CASI_TUTTI } from '../lib/guida'
 
 // IL GIRO GUIDATO (Dre, 16/9): «al primo accesso appare il coso che ti
 // presenta e ti guida su come puoi fare le cose, tipo onboarding guidato,
@@ -13,73 +15,95 @@ export interface Passo {
   chiave: string
   titolo: string
   testo: string
+  voci?: string[]        // un elenco sotto il testo (cosa so fare per te)
+  coda?: string          // una riga dopo l'elenco
   dove?: string          // il selettore della cosa da illuminare
 }
 
-const PASSI: Passo[] = [
-  {
-    chiave: 'ciao',
-    titolo: 'Benvenuto nel Workspace',
-    testo: 'Qui dentro c\'è il lavoro di tutti i giorni: chi stiamo seguendo, a che punto è, cosa manca. Non devi compilare niente: c\'è Clara che legge il calendario, le mail e gli appunti delle call e tiene le schede aggiornate al posto tuo. A te resta da decidere. Due minuti e ti faccio vedere dov\'è cosa.',
-  },
-  {
-    chiave: 'oggi',
-    titolo: 'Oggi',
-    testo: 'La tua giornata, come te l\'ha preparata Clara: chi aspetta una risposta da te, le tue task, la prossima call. La mattina si parte da qui.',
-    dove: '[data-giro="pipeline"]',
-  },
-  {
-    chiave: 'pipeline',
-    titolo: 'Pipeline',
-    testo: 'Le aziende, dalla prima risposta alla firma. Le carte si trascinano da una colonna all\'altra: quando ne porti avanti una, Clara ti chiede com\'è andata la call, e se gli appunti li ha già te li mette lì pronti, basta un clic.',
-    dove: '[data-giro="prospect"]',
-  },
-  {
-    chiave: 'clienti',
-    titolo: 'Clienti',
-    testo: 'Chi è già cliente, con i progetti: a che punto sono, chi li segue, cosa manca. Si scrive come un foglio, cella per cella, e Clara tiene il conto delle scadenze per te.',
-    dove: '[data-giro="progetti"]',
-  },
-  {
-    chiave: 'preventivi',
-    titolo: 'Preventivi e documenti',
-    testo: 'Il "+" apre un documento col modello già dentro. Colleghi l\'azienda e Clara riempie quello che sa; il giallo è quello che manca. E se non hai voglia di partire dal foglio bianco, «Scrivilo con me»: lo scrive lei, che si è letta tutte le vostre call.',
-    dove: '[data-giro="preventivi"]',
-  },
-  {
-    chiave: 'condividi',
-    titolo: 'Condividi',
-    testo: 'Qui vi passate i documenti. Trascini il file, dici di che cliente è, e Clara lo mette anche nella cartella di quel cliente: non lo perdi più. Su WhatsApp si parla, i documenti passano da qui.',
-    dove: '[data-giro="chat"]',
-  },
-  {
-    chiave: 'clara',
-    titolo: 'Questa è Clara',
-    testo: 'È la tua assistente, e sta sempre qui. Legge quello che succede, tiene in ordine le schede, ti prepara le bozze e ti avvisa se qualcuno è fermo da troppo. Non manda niente e non decide niente da sola: ti propone, e tu le dici sì o no. Le puoi anche scrivere come scriveresti a una persona: «ricordami giovedì di richiamare Klavzar».',
-    dove: '[aria-label="Clara"]',
-  },
-  {
-    chiave: 'feedback',
-    titolo: 'Cosa cambieresti',
-    testo: 'Questa è una beta, e la stiamo costruendo su come lavorate voi. Se un bottone sta nel posto sbagliato, se un giro è troppo lungo, o se c\'è una cosa che vorresti che Clara sapesse fare per te, scrivila qui: si legge tutto e si cambia.',
-    dove: '[data-giro="feedback"]',
-  },
-  {
-    chiave: 'fine',
-    titolo: 'Ultima cosa',
-    testo: 'In Impostazioni, sotto «Il tuo Workspace», c\'è la tua guida da scaricare: le tue sezioni, le parole che usiamo qui dentro e un elenco di cose che puoi chiedere a Clara. Il giro puoi rifarlo da lì quando vuoi.',
-  },
-]
+// CLARA SI PRESENTA (Dre, 17/9): «metti lei che si presenta, per ogni
+// persona elenca le cose che puo' fare, dice che nel tempo ne imparera' di
+// piu', che e' li' per semplificargli la vita come una segretaria, che il
+// nome viene da chiarezza, e che tiene in ordine progetti, task e clienti
+// anche facendo domande». Quindi parla lei, in prima persona, dall'inizio
+// alla fine: il giro e' la sua prima conversazione con ognuno.
+function passiDi(nome: string, ruoloVero: string): Passo[] {
+  const primo = nome.split(' ')[0]
+  const miei = CASI_RUOLO[ruoloVero] ?? CASI_RUOLO.coordinamento
+  return [
+    {
+      chiave: 'ciao',
+      titolo: `Ciao ${primo}, sono Clara.`,
+      testo: 'Il mio nome viene da chiarezza, ed è il mio lavoro: tenere in ordine clienti, progetti e task, così tu non devi ricordarti niente. Leggo il calendario, le mail e gli appunti delle call, e quando mi manca un pezzo te lo chiedo. Pensami come la segretaria dello Studio: sono qui per semplificarti la vita. Due minuti e ti faccio vedere dov\'è cosa.',
+    },
+    {
+      chiave: 'posso',
+      titolo: 'Cosa posso fare per te',
+      testo: 'Mi scrivi come scriveresti a una persona, e queste sono le cose che so fare già oggi:',
+      voci: [...miei, CASI_TUTTI[0], CASI_TUTTI[3]],
+      coda: 'Col tempo imparerò a fare altro. Se c\'è una cosa che vorresti che sapessi fare, me la scrivi in «Cosa cambieresti» e ci lavoro.',
+    },
+    {
+      chiave: 'oggi',
+      titolo: 'Oggi',
+      testo: 'La tua giornata, come te l\'ho preparata io: chi aspetta una risposta da te, le tue task, la prossima call. La mattina si parte da qui.',
+      dove: '[data-giro="pipeline"]',
+    },
+    {
+      chiave: 'pipeline',
+      titolo: 'Pipeline',
+      testo: 'Le aziende, dalla prima risposta alla firma. Le carte si trascinano da una colonna all\'altra: quando ne porti avanti una ti chiedo com\'è andata la call, e se gli appunti li ho già te li metto lì pronti, basta un clic.',
+      dove: '[data-giro="prospect"]',
+    },
+    {
+      chiave: 'clienti',
+      titolo: 'Clienti',
+      testo: 'Chi è già cliente, con i progetti: a che punto sono, chi li segue, cosa manca. Si scrive come un foglio, cella per cella, e al conto delle scadenze ci penso io.',
+      dove: '[data-giro="progetti"]',
+    },
+    {
+      chiave: 'preventivi',
+      titolo: 'Preventivi e documenti',
+      testo: 'Il "+" apre un documento col modello già dentro. Colleghi l\'azienda e io riempio quello che so; il giallo è quello che manca. E se non hai voglia di partire dal foglio bianco, «Scrivilo con me»: lo scrivo io, che mi sono letta tutte le vostre call.',
+      dove: '[data-giro="preventivi"]',
+    },
+    {
+      chiave: 'condividi',
+      titolo: 'Condividi',
+      testo: 'Qui vi passate i documenti. Trascini il file, dici di che cliente è, e io lo metto anche nella cartella di quel cliente: non lo perdi più. Su WhatsApp si parla, i documenti passano da qui.',
+      dove: '[data-giro="chat"]',
+    },
+    {
+      chiave: 'clara',
+      titolo: 'Io sto sempre qui',
+      testo: 'Mi trovi in questo angolo, in ogni schermata. Leggo quello che succede, tengo in ordine le schede, ti preparo le bozze e ti avviso se qualcuno è fermo da troppo. Non mando niente e non decido niente da sola: ti propongo, e tu mi dici sì o no. E se ti serve qualcosa, scrivimelo qui: «ricordami giovedì di richiamare Klavzar».',
+      dove: '[data-giro="pallina"]',
+    },
+    {
+      chiave: 'feedback',
+      titolo: 'Cosa cambieresti',
+      testo: 'Questa è una beta, e la stiamo costruendo su come lavorate voi. Se un bottone sta nel posto sbagliato, se un giro è troppo lungo, o se c\'è una cosa che vorresti che io sapessi fare per te, scrivila qui: si legge tutto e si cambia.',
+      dove: '[data-giro="feedback"]',
+    },
+    {
+      chiave: 'fine',
+      titolo: 'Ultima cosa',
+      testo: 'In Impostazioni, sotto «Il tuo Workspace», c\'è la tua guida da scaricare: le tue sezioni, le parole che usiamo qui dentro e un elenco di cose che puoi chiedermi. Il giro puoi rifarlo da lì quando vuoi. Buon lavoro.',
+    },
+  ]
+}
 
 interface Riquadro { top: number; left: number; width: number; height: number }
 
-export default function Giro({ onFine }: { onFine: () => void }) {
+interface Props { nome: string; ruoloVero: string; onFine: () => void }
+
+export default function Giro({ nome, ruoloVero, onFine }: Props) {
   const [i, setI] = useState(0)
   const [buco, setBuco] = useState<Riquadro | null>(null)
 
   // i passi che hanno senso per chi sta guardando: se il widget non ce l'ha,
   // il suo passo non esiste
-  const passi = PASSI.filter((p) => !p.dove || document.querySelector(p.dove))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const passi = useMemo(() => passiDi(nome, ruoloVero).filter((p) => !p.dove || document.querySelector(p.dove)), [])
   const passo = passi[Math.min(i, passi.length - 1)]
 
   useEffect(() => {
@@ -91,9 +115,19 @@ export default function Giro({ onFine }: { onFine: () => void }) {
       setBuco({ top: r.top - 6, left: r.left - 6, width: r.width + 12, height: r.height + 12 })
     }
     misura()
-    window.addEventListener('resize', misura)
-    window.addEventListener('scroll', misura, true)
-    return () => { window.removeEventListener('resize', misura); window.removeEventListener('scroll', misura, true) }
+    // scroll e resize arrivano a raffica: si misura una volta per fotogramma
+    let chiesto = 0
+    const piano = () => {
+      if (chiesto) return
+      chiesto = window.requestAnimationFrame(() => { chiesto = 0; misura() })
+    }
+    window.addEventListener('resize', piano)
+    window.addEventListener('scroll', piano, true)
+    return () => {
+      if (chiesto) window.cancelAnimationFrame(chiesto)
+      window.removeEventListener('resize', piano)
+      window.removeEventListener('scroll', piano, true)
+    }
   }, [passo])
 
   useEffect(() => {
@@ -119,19 +153,21 @@ export default function Giro({ onFine }: { onFine: () => void }) {
   // di fianco se c'e' spazio (le voci del menu stanno a sinistra), se no
   // sotto, se no sopra: la scheda non deve mai coprire quello che illumina
   const diLato = buco ? buco.left + buco.width + 384 < largo : false
+  // la pallina di Clara sta a destra: la scheda le va a sinistra
+  const aSinistra = buco ? !diLato && buco.left - 384 > 0 : false
   const sotto = buco ? buco.top + buco.height + 12 : 0
   const inBasso = buco ? sotto + 240 > alto : false
   const stile: React.CSSProperties = buco
-    ? diLato
+    ? diLato || aSinistra
       ? {
-          top: Math.min(Math.max(12, buco.top - 16), Math.max(12, alto - 250)),
-          left: buco.left + buco.width + 14,
+          top: Math.min(Math.max(12, buco.top - 16), Math.max(12, alto - 340)),
+          left: diLato ? buco.left + buco.width + 14 : buco.left - 374,
         }
       : {
           top: inBasso ? Math.max(12, buco.top - 228) : sotto,
           left: Math.min(Math.max(12, buco.left), Math.max(12, largo - 372)),
         }
-    : { top: Math.max(24, alto / 2 - 140), left: Math.max(12, largo / 2 - 180) }
+    : { top: Math.max(24, alto / 2 - 210), left: Math.max(12, largo / 2 - 180) }
 
   return (
     <div className="fixed inset-0 z-[120]">
@@ -153,8 +189,17 @@ export default function Giro({ onFine }: { onFine: () => void }) {
         <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-blu">
           {i + 1} di {passi.length}
         </p>
+        {passo.chiave === 'ciao' && <div className="mt-2"><ClaraLogo size={44} /></div>}
         <p className="mt-1 text-[17px] font-extrabold text-navy">{passo.titolo}</p>
         <p className="mt-1.5 text-[14px] leading-relaxed text-inchiostro">{passo.testo}</p>
+        {passo.voci && (
+          <ul className="mt-2 space-y-1.5 text-[13px] leading-snug text-inchiostro">
+            {passo.voci.map((v) => (
+              <li key={v} className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-blu" />{v}</li>
+            ))}
+          </ul>
+        )}
+        {passo.coda && <p className="mt-2 text-[13px] leading-snug text-tenue">{passo.coda}</p>}
         <div className="mt-4 flex items-center gap-3">
           <button onClick={avanti}
                   className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro">

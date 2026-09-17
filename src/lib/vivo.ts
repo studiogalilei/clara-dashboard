@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase, demo } from './supabase'
 
 // IL WORKSPACE VIVO (Dre, 16/9): «tutti gli update li voglio in realtime,
@@ -15,10 +16,36 @@ import { supabase, demo } from './supabase'
 // 2. si aspetta mezzo secondo prima di rileggere, perche' quando Clara
 //    finisce un giro cambia venti righe in due secondi e non ha senso
 //    rileggere venti volte;
-// 3. in demo non esiste: li' non c'e' database.
+// 3. in demo non esiste: li' non c'e' database;
+// 4. un canale per tabella, non uno per schermata: Oggi, Clara e il menu
+//    ascoltano tutti `proposte`, ma il filo verso il database e' uno solo.
 //
 // Si chiama useVivo e non vivo perche' dentro usa altri hook: il prefisso
 // «use» e' la regola di React, non una scelta di lingua.
+
+interface Filo { canale: RealtimeChannel; orecchie: Set<() => void> }
+const fili = new Map<string, Filo>()
+
+function ascolta(tabella: string, orecchio: () => void): () => void {
+  let filo = fili.get(tabella)
+  if (!filo) {
+    const nuovo: Filo = { canale: supabase.channel(`vivo:${tabella}`), orecchie: new Set() }
+    nuovo.canale.on('postgres_changes', { event: '*', schema: 'public', table: tabella }, () => {
+      for (const o of nuovo.orecchie) o()
+    })
+    nuovo.canale.subscribe()
+    fili.set(tabella, nuovo)
+    filo = nuovo
+  }
+  filo.orecchie.add(orecchio)
+  return () => {
+    filo.orecchie.delete(orecchio)
+    if (filo.orecchie.size === 0) {
+      fili.delete(tabella)
+      void supabase.removeChannel(filo.canale)
+    }
+  }
+}
 
 export function useVivo(tabelle: string[], quando: () => void, attivo = true) {
   const ultimo = useRef(quando)
@@ -31,14 +58,10 @@ export function useVivo(tabelle: string[], quando: () => void, attivo = true) {
       window.clearTimeout(attesa)
       attesa = window.setTimeout(() => ultimo.current(), 500)
     }
-    const canale = supabase.channel(`vivo:${tabelle.join(',')}:${Math.random().toString(36).slice(2, 8)}`)
-    for (const t of tabelle) {
-      canale.on('postgres_changes', { event: '*', schema: 'public', table: t }, sveglia)
-    }
-    canale.subscribe()
+    const stacca = tabelle.map((t) => ascolta(t, sveglia))
     return () => {
       window.clearTimeout(attesa)
-      void supabase.removeChannel(canale)
+      for (const s of stacca) s()
     }
     // le tabelle sono una lista fissa scritta a mano nei componenti
     // eslint-disable-next-line react-hooks/exhaustive-deps

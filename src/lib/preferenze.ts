@@ -34,6 +34,8 @@ export const CHIAVI = [
   'chat-con',
   'chat-visto',
   'giro-fatto',
+  'task-apertura',       // «Come si apre» in Impostazioni: il difetto
+  'pipeline-apertura',   // delle viste di sessione, e questo resta
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]

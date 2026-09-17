@@ -157,13 +157,24 @@ export default function Analytics({ onOpen }: Props) {
   // «Numeri non lo guardera' nessuno finche' non risponde a una domanda».
   // La domanda di un manager e' una sola: stiamo andando meglio o peggio?
   // Quindi la prima riga e' il confronto, e il resto sta sotto.
-  const mese = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  const meseOra = mese(new Date())
-  const meseScorso = mese(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1))
-  const conta = (quale: string, filtro: (i: Interaction) => boolean) =>
-    (storia ?? []).filter((i) => (i.at ?? '').slice(0, 7) === quale && filtro(i)).length
-  const clientiDi = (quale: string) =>
-    (prospects ?? []).filter((x) => eCliente(x) && (x.fuori_at ?? '').slice(0, 7) === quale).length
+  // il 17 del mese si confronta con i primi 17 giorni del mese scorso,
+  // non con tutto il mese scorso: se no fino al 28 si perde sempre.
+  // Le date si leggono in ora locale, come le vede chi guarda.
+  const ora = new Date()
+  const meseOra = { anno: ora.getFullYear(), mese: ora.getMonth() }
+  const prima = new Date(ora.getFullYear(), ora.getMonth() - 1, 1)
+  const meseScorso = { anno: prima.getFullYear(), mese: prima.getMonth() }
+  const giornoOggi = ora.getDate()
+  type Quale = { anno: number; mese: number }
+  const nelMese = (iso: string | null | undefined, q: Quale) => {
+    if (!iso) return false
+    const d = new Date(iso)
+    return d.getFullYear() === q.anno && d.getMonth() === q.mese && d.getDate() <= giornoOggi
+  }
+  const conta = (quale: Quale, filtro: (i: Interaction) => boolean) =>
+    (storia ?? []).filter((i) => nelMese(i.at, quale) && filtro(i)).length
+  const clientiDi = (quale: Quale) =>
+    (prospects ?? []).filter((x) => eCliente(x) && nelMese(x.fuori_at, quale)).length
 
   const CONFRONTO: Array<[string, number, number]> = [
     ['Risposte arrivate', conta(meseOra, (i) => i.kind === 'email_in'), conta(meseScorso, (i) => i.kind === 'email_in')],
@@ -179,7 +190,7 @@ export default function Analytics({ onOpen }: Props) {
       <Card>
         <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-3">
           <TitoloCard>Questo mese</TitoloCard>
-          <Micro>contro lo stesso periodo del mese scorso</Micro>
+          <Micro>fino a oggi, contro gli stessi giorni del mese scorso</Micro>
         </header>
         <div className="grid grid-cols-2 divide-x divide-velo sm:grid-cols-4">
           {CONFRONTO.map(([nome, ora, prima]) => {
