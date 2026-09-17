@@ -374,7 +374,10 @@ export default function App() {
         </div>
         {/* IL MARCHIO (Dre, 16/9): il posto e' dello Studio, l'assistente e'
             Clara. Quindi qui sopra sta SG, e Clara resta la pallina */}
-        <div className="mb-8 flex items-center gap-2.5 px-2">
+        {/* il marchio riporta a casa (Dre, 17/9): da qualunque schermata, Oggi */}
+        <button onClick={() => { setTab('pipeline'); setOpenId(null); window.scrollTo(0, 0) }}
+                title="Torna a Oggi" aria-label="Torna a Oggi"
+                className="mb-8 flex items-center gap-2.5 rounded-xl px-2 text-left hover:bg-velo/60">
           <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-9 w-9 shrink-0 object-contain" />
           <span className="leading-tight tracking-tight text-navy">
             <span className="block text-[17px]">
@@ -384,7 +387,7 @@ export default function App() {
             {/* beta: e' in mano alla squadra da oggi, e si vede (Dre, 16/9) */}
             <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-spento">Beta</span>
           </span>
-        </div>
+        </button>
 
         <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-spento">
           Menu
@@ -473,7 +476,9 @@ export default function App() {
         {/* barra mobile */}
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5 lg:hidden">
           {/* sul telefono in alto a sinistra sta il marchio, come sul Mac */}
-          <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-7 w-7 shrink-0 object-contain" />
+          <button onClick={() => { setTab('pipeline'); setOpenId(null); window.scrollTo(0, 0) }} aria-label="Torna a Oggi" className="shrink-0">
+            <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-7 w-7 object-contain" />
+          </button>
           <div className="relative min-w-0 flex-1">
             <input
               type="search"
