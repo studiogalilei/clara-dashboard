@@ -20,6 +20,7 @@ import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRec
 const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
+import Piano from './Piano'
 import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import { mensile, type Incasso } from './TuttiFoglio'
@@ -138,6 +139,9 @@ export default function Scheda({ id, onClose }: Props) {
   // il canone non si inventa: e' quello del preventivo che ha accettato
   const mensileDaPreventivo = preventivi.find((q) => q.stato === 'accettato' && q.mensile)?.mensile ?? null
   const [compila, setCompila] = useState<{ id: number; nome: string; path: string } | null>(null)
+  // IL PIANO (Dre, 17/9): dagli appunti della call, o da tutta la storia,
+  // Clara tira fuori le cose da fare giorno per giorno
+  const [piano, setPiano] = useState(false)
 
   // il modello del contratto di prova, dai Documenti dello Studio
   async function apriModelloProva() {
@@ -1124,9 +1128,20 @@ export default function Scheda({ id, onClose }: Props) {
                       {premio.map((r, i) => (
                         <p key={i} className="text-xs text-green-900">{r}</p>
                       ))}
+                      <button onClick={() => setPiano(true)}
+                              className="mt-1.5 rounded-full bg-green-800 px-3.5 py-1 text-xs font-bold text-white hover:bg-green-900">
+                        Fanne un piano
+                      </button>
                     </div>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={() => setPiano(true)}
+                      title="Clara mette in fila le cose da fare, giorno per giorno, da quello che vi siete detti"
+                      className="rounded-full border border-bordo px-4 py-2 text-sm font-semibold text-navy hover:border-navy"
+                    >
+                      Fammi il piano
+                    </button>
                     <button
                       onClick={salvaTranscript}
                       disabled={!transcript.trim()}
@@ -1370,6 +1385,10 @@ export default function Scheda({ id, onClose }: Props) {
                     </li>
                   ))}
                 </ul>
+                {piano && (
+                  <Piano prospectId={p.id} azienda={p.company || p.name || ''}
+                         onChiudi={() => { setPiano(false); setGiro((n) => n + 1) }} />
+                )}
                 {compila && (
                   <Suspense fallback={null}>
                     <CompilaPdf file={{ ...compila, prospect_id: p.id }} onClose={() => setCompila(null)}

@@ -569,7 +569,17 @@ export const demoClient = {
   },
   // in demo Clara non chiama il cervello vero: dice che qui non si puo'
   functions: {
-    async invoke(_nome: string) {
+    async invoke(nome: string) {
+      if (nome === 'piano') {
+        const g = (n: number) => { const d = new Date(Date.now() + n * 86400e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+        await new Promise((r) => setTimeout(r, 900))
+        return { data: { titolo: 'Il piano per Venice Design', azienda: 'Venice Design', passi: [
+          { giorno: g(1), titolo: 'Mandare a Venice Design la lista degli accessi che servono', perche: 'Senza accessi non parte niente: prima cosa.' },
+          { giorno: g(1), titolo: 'Chiedere a Carlo se il budget di ottobre è confermato', perche: 'Lo hanno lasciato in sospeso in call.' },
+          { giorno: g(3), titolo: 'Preparare la bozza di proposta con i due scenari', perche: 'Se la vedono prima di venerdì decidono in settimana.' },
+          { giorno: g(6), titolo: 'Richiamare Venice Design per la decisione', perche: 'Avevano detto una settimana.' },
+        ] }, error: null }
+      }
       return { data: { errore: 'Nella demo non scrivo davvero: entra con il tuo account' }, error: null }
     },
   },

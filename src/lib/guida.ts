@@ -57,6 +57,7 @@ export const CASI_TUTTI: string[] = [
   '«Ricordami giovedì di richiamare Klavzar»: nasce la task, appesa a quella azienda',
   '«Fissa una call tecnica con Verde Urbano giovedì alle 15»: preparo l\'invito, tu confermi',
   'Dopo una call, ti metto il riassunto sulla scheda del cliente senza che tu faccia niente',
+  '«Fammi un piano per Bimout»: metto in fila le cose da fare giorno per giorno, tu togli quello che non serve e diventano task',
 ]
 
 export const CASI_RUOLO: Record<string, string[]> = {

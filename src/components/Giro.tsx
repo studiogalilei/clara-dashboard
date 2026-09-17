@@ -39,7 +39,7 @@ function passiDi(nome: string, ruoloVero: string): Passo[] {
       chiave: 'posso',
       titolo: 'Cosa posso fare per te',
       testo: 'Mi scrivi come scriveresti a una persona, e queste sono le cose che so fare già oggi:',
-      voci: [...miei, CASI_TUTTI[0], CASI_TUTTI[3]],
+      voci: [...miei, CASI_TUTTI[0], CASI_TUTTI[4]],
       coda: 'Col tempo imparerò a fare altro. Se c\'è una cosa che vorresti che sapessi fare, me la scrivi in «Cosa cambieresti» e ci lavoro.',
     },
     {

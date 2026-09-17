@@ -6,6 +6,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import ClaraPensa from './ClaraPensa'
+import Piano from './Piano'
 import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
 import { useVivo } from '../lib/vivo'
 import { CLS_LABEL } from '../lib/types'
@@ -290,6 +291,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // su un lavoro veloce lampeggia e non lo vedi
   const [pensa, setPensa] = useState(false)
   const [comando, setComando] = useState<Comando | null>(null)
+  // «fammi un piano» (Dre, 17/9): le idee sparse diventano task con le date
+  const [piano, setPiano] = useState<{ testo: string; prospectId: string | null } | null>(null)
   const [pendente, setPendente] = useState<Pendente | null>(null)
   // il modulo della proposta
   const [pTitolo, setPTitolo] = useState('')
@@ -709,6 +712,16 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     if (pendente && /^(annulla|lascia stare|lascia perdere|niente|stop|basta|fa nulla|non importa)\b/.test(t)) {
       setPendente(null)
       await scriviMessaggio('controllo', 'Ok, lascio stare.')
+      return
+    }
+
+    // ── il piano: «fammi un piano per Bimout», «piano: ...» ───────────
+    // Le idee sparse, o quello che ci si e' detti in call, in fila con le
+    // date. Clara lo propone, la persona lo corregge, e nascono le task
+    if (/\bpiano\b/.test(t) && (/^piano\b/.test(t) || /\b(fammi|fai|facciamo|prepara|preparami|scrivi|scrivimi|butta|metti|mettimi)\b/.test(t))) {
+      setPendente(null)
+      setPiano({ testo: originale, prospectId: trovaProspect(t, prospects) ?? null })
+      await scriviMessaggio('controllo', 'Te lo metto in fila. Togli quello che non serve, sposta le date, e le task nascono da lì.')
       return
     }
 
@@ -1293,6 +1306,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             )}
           </aside>
         </>
+      )}
+      {piano && (
+        <Piano testo={piano.testo} prospectId={piano.prospectId}
+               azienda={prospects.find((x) => x.id === piano.prospectId)?.company ?? null}
+               onChiudi={() => setPiano(null)} />
       )}
     </>
   )

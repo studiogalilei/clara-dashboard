@@ -42,7 +42,9 @@ della situazione sulla call stessa, in Oggi: chi sono, a che punto siamo, cosa c
 tiene d'occhio le cose che si dimenticano (il preventivo senza risposta, i soldi che non
 arrivano, la prova che scade) e te le ricorda lei. **Non manda niente e non decide niente da
 sola**: ti propone, e tu le dici sì o no dalla sua Posta. Le puoi anche scrivere come a una
-persona: «ricordami giovedì di richiamare Klavzar». Se la pallina rimbalza, ha qualcosa per te.
+persona: «ricordami giovedì di richiamare Klavzar», oppure «fammi un piano per Klavzar» e lei mette
+in fila le cose da fare giorno per giorno, che con un clic diventano task. Se la pallina rimbalza,
+ha qualcosa per te.
 
 **Due regole di casa**
 1. Tutto si appende all'azienda: nota, documento, task.
