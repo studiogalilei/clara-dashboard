@@ -24,7 +24,9 @@ chiedere a Clara.
 **Clara.** È la pallina in basso a destra, ed è la vostra assistente. Legge quello che
 succede, tiene in ordine le schede, vi prepara le bozze e, prima di ogni call, il punto
 della situazione. Non manda niente e non decide niente da sola: vi propone, e voi dite sì o
-no dalla sua Posta. Se vi rimbalza, ha qualcosa per voi.
+no dalla sua Posta. Le potete scrivere come a una persona: «ricordami giovedì di richiamare
+Klavzar», o «fammi un piano per Klavzar» e vi mette in fila le cose da fare giorno per giorno.
+Se vi rimbalza, ha qualcosa per voi.
 
 **Due cose sole da tenere a mente.**
 
