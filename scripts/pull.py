@@ -222,13 +222,13 @@ def lotto(campione, massimo):
         print("pull: niente da fare"); return 0
 
     t0 = time.time()
-    # il sito in parallelo (zero crediti), i crediti in fila
-    with cf.ThreadPoolExecutor(16) as ex:
-        siti = dict(zip([r["dominio"] for r in righe], ex.map(leggi_sito, [r["dominio"] for r in righe])))
+    # ogni dominio per intero (sito + crediti) e subito scritto: si vede il
+    # progresso e se il run muore resta quello fatto. Il sito non costa
+    # crediti e si legge nel tempo morto fra una chiamata a quota e l'altra.
     fatti = 0
     def uno(r):
         out = raccogli(r)
-        out["sito_testo"] = siti.get(r["dominio"]) or None
+        out["sito_testo"] = leggi_sito(r["dominio"]) or None
         out["sito_letto"] = bool(out["sito_testo"])
         out["dominio"] = r["dominio"]; out["azienda"] = r.get("azienda")
         sb("POST", "/rest/v1/raccolta", out, {"Prefer": "resolution=merge-duplicates"})
