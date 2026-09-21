@@ -33,7 +33,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, env                                 # noqa: E402
 
 KEY = env("SEARCHAPI_KEY")
-PAUSA = 3600.0 / (7000 * 0.85)
+# il ritmo lo detta il piano SearchAPI (21/9: da 7.000 a 2.000 chiamate l'ora
+# col piano da 40$). Si legge dal conto all'avvio, all'85% del limite.
+def _limite_orario():
+    try:
+        return json.loads(urllib.request.urlopen(f"https://www.searchapi.io/api/v1/me?api_key={KEY}", timeout=30).read())["api_usage"]["hourly_rate_limit"]
+    except Exception:
+        return 2000
+PAUSA = 3600.0 / (_limite_orario() * 0.85)
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh) StudioGalilei/1.0"}
 import threading
 _ultima = [0.0]
@@ -160,7 +167,10 @@ def raccogli(riga):
     m, data_id = scheda_maps(nome, dom); out.update(m); out["crediti_usati"] += 1
     if data_id:
         out["recensioni_testi"] = testi_recensioni(data_id); out["crediti_usati"] += 1
-    out["raccolto_il"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    # un 429 (quota oraria) non e' un dato: il dominio resta da fare e si riprende
+    # al giro dopo, invece di finire in tabella con un buco (21/9)
+    if "429" not in (out.get("errore") or ""):
+        out["raccolto_il"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     return out
 
 
