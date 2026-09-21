@@ -1,0 +1,34 @@
+# IL FIT SULLE LISTE (21/9/2026). Dopo il pull, prima della campagna:
+# «evitare proprio di contattare quelli che non sono in target» (Dre).
+# Giudica i domini gia' raccolti e non ancora giudicati, a lotti, finche'
+# ce ne sono. Zero crediti SearchAPI: legge quello che il pull ha messo
+# in raccolta e chiede al cervello (gpt-5-mini: sono migliaia di chiamate
+# brevi, il modello grosso qui non serve).
+name: fit
+
+on:
+  schedule:
+    - cron: "35 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fit
+  cancel-in-progress: false
+
+jobs:
+  fit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: i domini raccolti, giudicati
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FORNITORE: openai
+          MODELLO_OPENAI: gpt-5-mini
+        run: python3 scripts/fit_liste.py --ore 5.6
