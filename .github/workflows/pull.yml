@@ -1,0 +1,37 @@
+# IL PULL DELLE LISTE (21/9/2026). Dre: «prima si raccoglie, poi si risponde».
+#
+# Raccoglie, per ogni dominio delle liste in attesa: fa ads (Transparency
+# Center), la scheda Maps con le recensioni, il sito. Ha il suo workflow e non
+# sta nel direttore perche' dura ore: il direttore deve restare libero per la
+# posta e le bozze. Gira finche' c'e' lavoro; quando raccolta e' completa
+# esce in pochi secondi. Il limite e' la quota SearchAPI del piano, non il
+# runner: ~6.000 chiamate l'ora, tre per dominio.
+name: pull
+
+on:
+  schedule:
+    - cron: "5 * * * *"        # ogni ora: se un giro e' in corso, il nuovo aspetta in coda
+  workflow_dispatch:
+
+concurrency:
+  group: pull
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: le liste in attesa
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
+        run: |
+          python3 scripts/pull.py --stato
+          python3 scripts/pull.py --max 1000 --ore 5.6
+          python3 scripts/pull.py --stato
