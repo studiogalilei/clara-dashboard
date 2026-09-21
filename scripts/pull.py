@@ -185,6 +185,19 @@ def main():
             print("pull: crediti SearchAPI quasi finiti, mi fermo: ricaricare e riparte da solo"); break
     if not campione:
         print(f"pull: finito il giro in {int((time.time() - inizio) / 60)} min, {_usati[0]} crediti in tutto")
+    # Dre (21/9): «sull'andamento mi aggiorna Clara?». Una riga in chat a fine giro,
+    # solo se il giro ha lavorato: quando e' tutto finito, i giri a vuoto stanno zitti.
+    if ore and _usati[0]:
+        from stanza import di_clara
+        tot = conta("/rest/v1/raccolta?select=dominio")
+        fatti = conta("/rest/v1/raccolta?select=dominio&raccolto_il=not.is.null")
+        ads = conta("/rest/v1/raccolta?select=dominio&fa_ads=eq.true")
+        resto = crediti_residui()
+        if fatti >= tot:
+            testo = f"Pull finito: {tot} domini raccolti, {ads} fanno gia' ads. Crediti SearchAPI rimasti: {resto}. Ora si puo' fare il fit e dividere le campagne."
+        else:
+            testo = f"Pull: {fatti} domini su {tot} ({100 * fatti // tot}%), {ads} fanno gia' ads. Mancano {tot - fatti}, crediti SearchAPI rimasti {resto}. Riprende da solo al prossimo giro."
+        di_clara("controllo", testo)
 
 
 def lotto(campione, massimo):
