@@ -1,0 +1,30 @@
+# L'IMPRONTA DIGITALE (22/9/2026). Dre: «se fanno pubblicità la domanda diventa
+# se la fanno bene o male, e lì si va a penetrare». Per ogni dominio raccolto:
+# chi paga gli annunci (e se quel pagante serve piu' aziende, e' un rivenditore)
+# e quali tag ha sul sito. Costa zero: legge le home, non chiama nessuna API a
+# pagamento. Gira dopo il pull, in parallelo al fit.
+name: impronta
+
+on:
+  schedule:
+    - cron: "50 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: impronta
+  cancel-in-progress: false
+
+jobs:
+  impronta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: angolo, rivenditore e tag
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 scripts/impronta.py --ore 5.6
