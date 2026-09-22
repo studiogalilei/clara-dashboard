@@ -36,6 +36,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import urllib.error
 import urllib.request
 
@@ -169,11 +170,27 @@ def _chiedi_openai(prompt, modello):
     req = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions", data=corpo, method="POST",
         headers={"Authorization": "Bearer " + chiave, "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=ATTESA_MAX) as r:
-            d = json.load(r)
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"OpenAI {e.code}: {e.read()[:200].decode(errors='replace')}")
+    # il 429 di OpenAI e' quasi sempre «vai troppo veloce», non «sei a secco»:
+    # in cloud partono 24 richieste insieme e il limite scatta. Si aspetta e si
+    # riprova, a passi piu' lunghi; solo dopo tre tentativi si molla (22/9/2026).
+    ultimo = None
+    for tentativo in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=ATTESA_MAX) as r:
+                d = json.load(r)
+            break
+        except urllib.error.HTTPError as e:
+            ultimo = f"OpenAI {e.code}: {e.read()[:200].decode(errors='replace')}"
+            if e.code in (429, 500, 502, 503) and tentativo < 2:
+                time.sleep(5 * (tentativo + 1))
+                continue
+            raise RuntimeError(ultimo)
+        except (urllib.error.URLError, TimeoutError) as e:
+            ultimo = f"OpenAI rete: {str(e)[:120]}"
+            if tentativo < 2:
+                time.sleep(5 * (tentativo + 1))
+                continue
+            raise RuntimeError(ultimo)
     uso = d.get("usage", {})
     _conta_uso(modello, uso.get("prompt_tokens", 0), uso.get("completion_tokens", 0))
     return d["choices"][0]["message"]["content"] or ""

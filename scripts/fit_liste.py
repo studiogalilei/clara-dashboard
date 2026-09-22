@@ -61,7 +61,10 @@ def lotto(prova):
         print("fit: niente da giudicare (o il pull non e' ancora arrivato qui)"); return 0
     t0 = time.time()
     fatti, esiti = 0, {"SI": 0, "PARZIALE": 0, "NO": 0}
-    with cf.ThreadPoolExecutor(24) as ex:
+    # 24 insieme fanno scattare il limite di OpenAI quando gira in cloud,
+    # dove la rete e' molto piu' veloce del Mac (22/9/2026).
+    insieme = int(os.environ.get("FIT_PARALLELI", "8"))
+    with cf.ThreadPoolExecutor(insieme) as ex:
         for g in ex.map(lambda r: giudica(r, settori), righe):
             esiti[g["fit"]] += 1; fatti += 1
             if prova:
