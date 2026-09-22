@@ -28,7 +28,14 @@ import googlefit as gf                                     # noqa: E402
 
 def giudica(r, settori):
     # al fit bastano le prime 5.000 battute del sito: il resto e' footer e ripetizioni, e costa tempo
-    c = gf.capisci(r.get("azienda") or r["dominio"], (r.get("sito_testo") or "")[:5000], settori)
+    try:
+        c = gf.capisci(r.get("azienda") or r["dominio"], (r.get("sito_testo") or "")[:5000], settori)
+    except Exception as e:
+        # un sito che fa arrabbiare il modello non deve fermare il giro intero:
+        # resta senza fit e lo riprende il lotto dopo (22/9, visto in cloud con
+        # un OpenAI 400 su un sito con caratteri strani)
+        print(f"  salto {r['dominio']}: {str(e)[:90]}", flush=True)
+        return None
     rec = {"recensioni": int(r["recensioni"]), "voto": r.get("voto")} if r.get("recensioni") is not None else None
     v, motivo = gf.verdetto(c, None, rec)
     return {"dominio": r["dominio"], "fit": v, "fit_motivo": motivo[:300], "fa_ads": bool(r.get("fa_ads")),
@@ -66,6 +73,8 @@ def lotto(prova):
     insieme = int(os.environ.get("FIT_PARALLELI", "8"))
     with cf.ThreadPoolExecutor(insieme) as ex:
         for g in ex.map(lambda r: giudica(r, settori), righe):
+            if g is None:      # saltato: lo riprende il lotto dopo
+                continue
             esiti[g["fit"]] += 1; fatti += 1
             if prova:
                 print(f"  {g['fit']:8} ads={'SI' if g['fa_ads'] else 'no':2} {g['dominio'][:30]:30} {(g['settore'] or '?')[:18]:18} {(g['raggio'] or '?')[:10]:10} {g['fit_motivo'][:60]}")

@@ -181,7 +181,10 @@ def _chiedi_openai(prompt, modello):
             break
         except urllib.error.HTTPError as e:
             ultimo = f"OpenAI {e.code}: {e.read()[:200].decode(errors='replace')}"
-            if e.code in (429, 500, 502, 503) and tentativo < 2:
+            # 520 e' un guasto di Cloudflare davanti a OpenAI, 400 «something
+            # went wrong reading your request» capita su siti con caratteri
+            # strani: entrambi passano al secondo tentativo (22/9, visti in cloud)
+            if e.code in (400, 429, 500, 502, 503, 520, 524) and tentativo < 2:
                 time.sleep(5 * (tentativo + 1))
                 continue
             raise RuntimeError(ultimo)
