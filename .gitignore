@@ -36,3 +36,17 @@ dist-ssr
 *.pem
 secrets.env
 .clara/
+
+# Riservato: il metodo dello Studio vive nel vault, non nel repo pubblico (22/9/2026)
+docs/clara-sg-*.md
+docs/ARCHITETTURA-CLARA.md
+docs/DECISIONI-E-DIVIETI.md
+docs/LA-STANZA-DI-CLARA.md
+docs/WORKSPACE.md
+docs/messaggio-squadra.md
+docs/squadra/
+docs/archivio/
+docs/modelli/doc-studio-di-mercato-agriverse.json
+CANTIERE-CRUSCOTTO.md
+LEGGIMI-PRIMA.md
+intent/

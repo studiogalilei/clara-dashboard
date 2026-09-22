@@ -103,7 +103,22 @@ def cancello(testo):
 
 
 def playbook():
-    return open(os.path.join(RADICE, "docs", "clara-sg-outbound.md"), encoding="utf-8").read()
+    """Il playbook outbound NON sta nel repo (22/9/2026: il repo e' pubblico
+    per avere le Actions gratis, e il playbook e' il nostro metodo, non
+    roba da regalare ai concorrenti). Vive nel vault privato; in cloud
+    arriva dal segreto PLAYBOOK_OUTBOUND."""
+    dal_segreto = os.environ.get("PLAYBOOK_OUTBOUND")
+    if dal_segreto:
+        return dal_segreto
+    vault = os.path.expanduser(
+        "~/Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/"
+        "ODYN Cockpit/riservato/clara-sg-outbound.md")
+    if os.path.exists(vault):
+        return open(vault, encoding="utf-8").read()
+    raise RuntimeError(
+        "manca il playbook outbound: deve stare nel vault "
+        "(ODYN Cockpit/riservato/clara-sg-outbound.md) oppure nel segreto "
+        "PLAYBOOK_OUTBOUND del workflow")
 
 
 def proposta_giorno_ora():

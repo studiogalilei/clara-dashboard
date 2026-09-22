@@ -51,6 +51,8 @@ jobs:
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
           CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
           GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
+          # il playbook outbound non sta nel repo (22/9): arriva da qui
+          PLAYBOOK_OUTBOUND: ${{ secrets.PLAYBOOK_OUTBOUND }}
           FORNITORE: openai
           MODELLO_OPENAI: gpt-5
         run: |
