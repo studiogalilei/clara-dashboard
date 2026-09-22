@@ -37,7 +37,11 @@ def main():
         if "@" not in em:
             continue
         d = dominio(K(r, "website"), em)
-        az = K(r, "company_clean_final") or K(r, "company_clean") or K(r, "company_name")
+        # «azienda» e' la colonna dei NOSTRI csv (giugno e 21/9); le altre sono i nomi di Lorenzo.
+        # Il 21/9 mancava e tutta lead_lista e' finita senza nome: {{azienda}} vuoto in ogni mail (22/9).
+        az = K(r, "azienda") or K(r, "company_clean_final") or K(r, "company_clean") or K(r, "company_name")
+        if not az:
+            sys.exit(f"riga senza nome azienda ({em}): la colonna si chiama azienda o company_clean_final")
         righe.append({"lista": lista, "email": em, "first_name": K(r, "first_name") or None, "website": K(r, "website") or None,
                       "dominio": d, "azienda": az or None, "icebreaker": K(r, "icebreaker") or None})
         domini.setdefault(d, az)
