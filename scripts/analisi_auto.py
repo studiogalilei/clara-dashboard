@@ -197,6 +197,9 @@ def fatti_in_testo(s, p):
                      + ", ".join(f"{t['k']} ({t['n']})" for t in (vol.get("top") or [])[:10]))
     else:
         righe.append("VOLUMI: non precalcolati per questa coppia settore/provincia. Non inventare numeri: parla di domanda in termini qualitativi e dichiara «valutazione di Studio Galilei sul settore».")
+    if fit.get("esclusione") == "onlus":
+        righe.append("ATTENZIONE: e' una ONLUS / ONG. L'angolo dell'analisi e' GOOGLE AD GRANTS (fino a 10.000 $ al mese di annunci Search gratis "
+                     "per il no profit): donazioni, 5x1000, volontari, servizi ai beneficiari. Niente «ottimizzazione degli annunci a pagamento».")
     if s["ultime"]:
         righe.append("COSA CI HA SCRITTO (ultimo messaggio):\n" + (s["ultime"][0].get("body") or "")[:1200])
     return "\n".join(righe)
@@ -364,18 +367,35 @@ def lavora(p):
     return True
 
 
+MAI = ("agenzia", "portale", "catena", "franchising", "multinazionale", "privacy")
+
+
+def servita(p):
+    """A chi si fa l'analisi (regola 5 di Dre: quando si risponde si manda SEMPRE l'analisi).
+    Serve il sito letto e il fit. Il fit NO non ferma chi ha risposto positivo o tiepido:
+    l'analisi dira' la verita' scomoda. Le ONLUS la ricevono con l'angolo Ad Grants.
+    Mai ad agenzie, portali, catene, franchising, multinazionali, chi cita la privacy."""
+    fit = (p.get("enriched") or {}).get("google_fit") or {}
+    if not fit or not fit.get("sito_letto"):
+        return False
+    if fit.get("esclusione") in MAI:
+        return False
+    if fit.get("verdetto") in ("SI", "SI'", "PARZIALE"):
+        return True
+    return (p.get("classificazione") or "") in ("positivo", "tiepido")
+
+
 def main():
     a = sys.argv[1:]
     if "--email" in a:
         email = a[a.index("--email") + 1]
-        righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf&email=eq.{urllib.parse.quote(email)}")
+        righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione&email=eq.{urllib.parse.quote(email)}")
     else:
-        righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf"
+        righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione"
                           "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&awaiting_us=eq.true&stage=neq.nuovo&passato_a=is.null"
-                          "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))"
+                          "&or=(classificazione.is.null,classificazione.not.in.(fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=60") or []
-        righe = [p for p in righe if (fit := ((p.get("enriched") or {}).get("google_fit") or {}))
-                 and fit.get("verdetto") in ("SI", "SI'", "PARZIALE") and not fit.get("esclusione") and fit.get("sito_letto")][:QUANTI]
+        righe = [p for p in righe if servita(p)][:QUANTI]
     if not righe:
         print("analisi: nessuno da servire"); return
     fatte = 0

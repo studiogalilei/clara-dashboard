@@ -144,15 +144,20 @@ def main():
             patch["next_action"] = "Rientra" if v["classe"] == "ooo" else "Ricontatto: l'aveva chiesto lui"
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
 
+    # 23/9 (pulizia di Dre): niente piu' domande in Posta. Clara decide, scrive
+    # il perche' nella scheda (enriched.lettura) e Dre corregge se sbaglia.
+    # 67 «da positivo a tiepido?» aperte erano lavoro in piu', non in meno.
     for p, prima, v, tipo, titolo in proposte:
-        azione = {"prospects": {"classificazione": v["classe"]}}
+        arr = dict(p.get("enriched") or {})
+        arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello", "prima": prima}
+        patch = {"enriched": arr, "classificazione": "fuori_target" if tipo == "scarta" else v["classe"]}
         if tipo == "scarta":
-            azione = {"prospects": {"classificazione": "fuori_target", "no_followup": True}}
+            patch["no_followup"] = True
         if v["quando"]:
-            azione["prospects"]["next_action_date"] = v["quando"]
-        proponi(tipo, titolo, prospect_id=p["id"], perche=v["perche"], azione=azione)
+            patch["next_action_date"] = v["quando"]
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
 
-    print(f"\n  scritte {len(sicure)} correzioni, messe {len(proposte)} proposte nella stanza.")
+    print(f"\n  scritte {len(sicure)} correzioni sicure e {len(proposte)} decise da sola (annotate nella scheda).")
 
 
 if __name__ == "__main__":

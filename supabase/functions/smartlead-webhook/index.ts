@@ -21,7 +21,7 @@ const REPO = Deno.env.get("GITHUB_REPO") ?? "studiogalilei/clara-dashboard";
 
 // cosa far partire per ogni evento di Smartlead
 const CATENA: Record<string, string> = {
-  EMAIL_REPLY: "sync_smartlead,googlefit,bozze",
+  EMAIL_REPLY: "sync_smartlead,googlefit,analisi,bozze",   // 23/9: l'analisi prima della bozza
   LEAD_CATEGORY_UPDATED: "sync_smartlead",
   EMAIL_BOUNCE: "sync_smartlead",
   LEAD_UNSUBSCRIBED: "sync_smartlead",

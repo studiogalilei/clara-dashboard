@@ -315,7 +315,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   const [guaio, setGuaio] = useState<string | null>(null)
   // dove atterri quando apri Clara: se ha bozze pronte e non ci sono
   // messaggi nuovi, il lavoro e' nella Posta, non in chat (Dre, 15/9)
-  const [vista, setVista] = useState<'chat' | 'posta'>('chat')
+  // 23/9 (Dre): la chat rispondeva senza leggere il CRM e inventava. Spenta di
+  // default: Clara prepara e mette in fila, non chiacchiera. Si riaccende da qui.
+  const [chatSpenta, setChatSpenta] = useState(() => leggiPref('clara-chat', 'no') === 'no')
+  const [vista, setVista] = useState<'chat' | 'posta'>(leggiPref('clara-chat', 'no') === 'no' ? 'posta' : 'chat')
+  function accendiChat(si: boolean) { scriviPref('clara-chat', si ? 'si' : 'no'); setChatSpenta(!si); setVista(si ? 'chat' : 'posta') }
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
   const [contesto, setContesto] = useState<Record<number, { p: Prospect | null; ultimo: string | null; quando: string | null }>>({})
@@ -1079,7 +1083,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
 
             <header className="flex items-center gap-3 border-b border-velo px-5 py-3.5">
               {vista === 'posta' ? (
-                <button onClick={() => setVista('chat')} className="-ml-2 rounded-full px-2 py-1 text-sm font-semibold text-tenue hover:bg-velo" aria-label="Torna alla chat">←</button>
+                chatSpenta
+                  ? <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>
+                  : <button onClick={() => setVista('chat')} className="-ml-2 rounded-full px-2 py-1 text-sm font-semibold text-tenue hover:bg-velo" aria-label="Torna alla chat">←</button>
               ) : (
                 <span className="text-navy"><ClaraLogo size={30} lavora={pensa} /></span>
               )}
@@ -1088,6 +1094,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                 {vista === 'chat' && <span className="block truncate text-[11px] text-tenue">{presenza}</span>}
               </span>
               {vista === 'posta' && <span className="text-sm font-bold tabular-nums text-navy">{proposte.length}</span>}
+              {vista === 'posta' && (
+                <button onClick={() => accendiChat(chatSpenta)} title={chatSpenta ? 'La chat è spenta: Clara prepara e mette in fila, non chiacchiera' : 'Spegni la chat'}
+                        className="rounded-full border border-bordo px-2 py-0.5 text-[10px] font-bold text-tenue hover:border-navy">
+                  {chatSpenta ? 'chat spenta' : 'spegni chat'}
+                </button>
+              )}
               <div className="ml-auto flex items-center gap-1">
                 {vista === 'chat' && (
                   <button

@@ -145,6 +145,7 @@ def preventivo_accettato_non_pagato(giorni):
 
 
 def call_senza_riassunto(giorni):
+    return 0   # 23/9 (pulizia di Dre): rumore, spento
     """La call e' passata e nessuno ha scritto com'e' andata."""
     da = zulu(adesso() - datetime.timedelta(days=giorni + 5))
     fino = zulu(adesso() - datetime.timedelta(days=giorni))
@@ -171,6 +172,7 @@ def call_senza_riassunto(giorni):
 
 
 def cliente_senza_canone(giorni):
+    return 0   # 23/9 (pulizia di Dre): rumore, spento; i canoni si mettono a mano nella scheda
     """E' diventato cliente e non si sa quanto paga."""
     righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,canone,fuori_at,pipeline_stage"
                       f"&fuori=eq.true&pipeline_stage=in.(cliente,prova)&canone=is.null"

@@ -292,6 +292,23 @@ def sorveglia_call_fissate():
                p["id"])
 
 
+PUNTO_OGGI = []   # le righe del brief, che vanno anche in calendario (23/9: la chat e' spenta)
+
+
+def punto_in_calendario(righe, prova):
+    """«Clara: il punto di oggi», un evento a giornata intera in SG Scadenze, uno al giorno."""
+    try:
+        sys.path.insert(0, HERE)
+        import calendario_sg as cal
+        cid = cal.calendario(prova)
+        if not cid:
+            return
+        cal.scrivi(cid, f"punto-{date.today().isoformat()}", "Clara: il punto di oggi", date.today().isoformat(), "\n".join(righe), prova)
+        print("  il punto di oggi e' in calendario")
+    except Exception as e:                                        # noqa: BLE001
+        print(f"  punto non scritto in calendario: {str(e)[:120]}")
+
+
 def main():
     prova = "--prova" in sys.argv
     oggi = date.today().isoformat()
@@ -355,6 +372,7 @@ def main():
     else:
         saluto = f"Buongiorno Dre. {nome_giorno} pulito: tutto in ordine."
     scrivi("saluto", saluto)
+    PUNTO_OGGI.append(saluto)
 
     # ── il brief ─────────────────────────────────────────────────
     righe = ["Buongiorno Dre. Il punto di oggi:"]
@@ -377,6 +395,7 @@ def main():
         righe.append("• Coda pulita: nessun lead aspetta te.")
     righe.append("Ho controllato tutto io. Il resto è nella sezione Task.")
     scrivi("brief", "\n".join(righe))
+    punto_in_calendario(righe, prova)
 
     # ── i promemoria concreti ────────────────────────────────────
     for c in clienti:

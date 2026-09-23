@@ -152,8 +152,18 @@ export function haAccesso(w: Widget, ruolo: Ruolo, concessi: ReadonlySet<Chiave>
 }
 
 // il menu vero: quello a cui arrivi, meno quello che hai spento
+// IL MENU ESSENZIALE (Dre, 23/9): «non overbuildato, architettura semplice».
+// Restano Pipeline, Clienti, Calendario, Posta, Preventivi. Oggi, Documenti,
+// Condividi, Cosa cambieresti e Numeri spariscono dal menu (le pagine restano,
+// si riaccendono da Impostazioni). Acceso di default.
+const FUORI_DAL_MENU_CORTO: Chiave[] = ['pipeline', 'vault', 'chat', 'feedback', 'analytics']
+export function menuEssenziale(): boolean {
+  return leggiPref('menu-essenziale', 'si') === 'si'
+}
 export function menuDi(ruolo: Ruolo, zona: 'menu' | 'sistema', concessi: ReadonlySet<Chiave> = new Set()): Widget[] {
   const spenti = nascosti()
+  const corto = menuEssenziale()
   return inOrdine(WIDGET.filter((w) =>
-    w.zona === zona && haAccesso(w, ruolo, concessi) && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave))))
+    w.zona === zona && haAccesso(w, ruolo, concessi) && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave))
+    && !(corto && FUORI_DAL_MENU_CORTO.includes(w.chiave))))
 }

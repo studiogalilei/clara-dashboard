@@ -32,6 +32,8 @@ export const CHIAVI = [
   'calendario-pod',
   'calendario-vista',
   'chat-con',
+  'clara-chat',
+  'menu-essenziale', // 23/9: il menu corto di Dre (Pipeline, Clienti, Calendario, Posta, Preventivi)      // 23/9: la chat di Clara, spenta finche' non sa leggere il CRM prima di rispondere
   'chat-visto',
   'giro-fatto',
   'task-apertura',       // «Come si apre» in Impostazioni: il difetto

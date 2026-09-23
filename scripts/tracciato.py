@@ -78,7 +78,7 @@ def main():
         if prova:
             print(f"  {titolo}\n      {perche}")
         else:
-            if proponi("avanza", titolo, prospect_id=pid, perche=perche, azione=azione):
+            if False and proponi("avanza", titolo, prospect_id=pid, perche=perche, azione=azione):   # 23/9: spento, rumore
                 proposte += 1
     # --- le call con gente che nel CRM non c'e' ---
     nuovi = sconosciuti(prova, adesso)
@@ -142,7 +142,7 @@ def sconosciuti(prova, adesso):
         if prova:
             print(f"  {titolo}")
             continue
-        if proponi("avanza", titolo, perche=perche[:280], azione={"nuovo": nuovo, "agenda_ids": [c["id"] for c in calls]}):
+        if False and proponi("avanza", titolo, perche=perche[:280], azione={"nuovo": nuovo, "agenda_ids": [c["id"] for c in calls]}):   # 23/9: spento
             fatte += 1
     return fatte
 

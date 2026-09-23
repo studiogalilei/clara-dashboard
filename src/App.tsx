@@ -38,7 +38,7 @@ function pezzo<T>(carica: () => Promise<T>) {
   }) as Promise<T>
 }
 const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
-import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
+import { menuDi, menuEssenziale, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
@@ -106,8 +106,14 @@ function Icona({ icona, immagine, className }: { icona: string; immagine?: strin
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
-  const [tab, setTab] = useState<Tab>('pipeline')
+  const [tab, setTab] = useState<Tab>(menuEssenziale() ? 'prospect' : 'pipeline')   // col menu corto si parte dalla Pipeline
   const [openId, setOpenId] = useState<string | null>(null)
+  // 23/9 (Dre: Google Calendar e' la plancia): ogni blocco di Clara porta un
+  // link ?scheda=<id>, e da li' si entra nella scheda giusta, anche dal telefono
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('scheda')
+    if (id) { setOpenId(id); setTab('prospect') }
+  }, [])
   const [q, setQ] = useState('')
   const [cercaAperta, setCercaAperta] = useState(false)
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che

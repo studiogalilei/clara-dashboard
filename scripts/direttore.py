@@ -116,7 +116,12 @@ def main():
         # non si accendono da sole a ogni risposta (--anche-spente per forzare)
         anche_spente = "--anche-spente" in sys.argv
         per_chiave = {op["chiave"]: op for op in ops}
-        for chiave in [c.strip() for c in forza.split(",") if c.strip()]:
+        catena = [c.strip() for c in forza.split(",") if c.strip()]
+        # 23/9: la bozza deve trovare l'analisi gia' pronta. Il campanello di
+        # Smartlead chiede «sync,googlefit,bozze»: l'analisi si infila da sola.
+        if "bozze" in catena and "analisi" not in catena:
+            catena.insert(catena.index("bozze"), "analisi")
+        for chiave in catena:
             op = per_chiave.get(chiave)
             if not op:
                 print(f"operazione sconosciuta: {chiave}")

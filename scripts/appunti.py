@@ -155,7 +155,8 @@ def main():
         titolo = doc["name"].replace(" - Appunti di Gemini", "")
         if not p:
             print(f"  ?  {titolo[:70]}")
-            if not prova and proponi("richiesta", f"Appunti di Gemini: «{titolo[:80]}». Di che azienda sono?",
+            # 23/9 (pulizia): niente domande in Posta, resta nel log
+            if False and not prova and proponi("richiesta", f"Appunti di Gemini: «{titolo[:80]}». Di che azienda sono?",
                                      perche="Non ho trovato l'evento in agenda ne' un nome che conosco. Dimmi l'azienda e li metto nella sua Scheda.",
                                      azione={"appunti_id": doc["id"], "link": doc.get("webViewLink")}):
                 domande += 1

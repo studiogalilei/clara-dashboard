@@ -245,7 +245,10 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
             if d0 and d0 not in GENERICI and fatte["domande"] < limite_domande and not nostra:
                 fatte["domande"] += 1
                 print(f"    [?] {controparte[0]}: «{oggetto[:60]}» non e' nel CRM")
-                if not prova:
+                # 23/9 (pulizia di Dre): non si propone piu' nulla, si registra e basta.
+                # 1.058 «non e' nel CRM» in Posta e nessuno era un lead: le risposte
+                # alle campagne le porta il sync, il resto e' rumore.
+                if False and not prova:
                     proponi("nuovo", f"{controparte[0]} ci ha scritto e non e' nel CRM",
                             perche=f"Oggetto: {oggetto[:150]}",
                             azione={"nuovo": {"email": controparte[0], "company": d0.split(".")[0].title(),

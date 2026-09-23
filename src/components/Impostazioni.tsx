@@ -191,6 +191,8 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   // «Come si apre» decide il difetto: la vista di sessione (task-vista,
   // tutti-vista) e' quella che scegli cliccando e sparisce chiudendo l'app
   const [vistaTask, setVistaTask] = useState(() => leggiPref('task-apertura', 'ongo'))
+  // 23/9 (Dre): il menu corto, acceso di default. Il resto delle pagine si riaccende da qui
+  const [menuCorto, setMenuCorto] = useState(() => leggiPref('menu-essenziale', 'si'))
   // «Pipeline si apre su…» e' una scelta sola, ma dietro ci sono due
   // preferenze: quale tab (bacheca o foglio) e, dentro la bacheca, quale
   // forma (bacheca o elenco). Prima erano due interruttori scollegati.
@@ -472,6 +474,20 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
         <header className="border-b border-velo px-4 py-3">
           <TitoloCard>Come si apre</TitoloCard>
         </header>
+        <div className="flex items-center gap-3 border-b border-velo px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Il menu</p>
+            <p className="text-xs text-tenue">Corto: Pipeline, Clienti, Calendario, Posta, Preventivi. Completo: anche Oggi, Documenti, Condividi, Cosa cambieresti, Numeri.</p>
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-bordo">
+            {[['si', 'Corto'], ['no', 'Completo']].map(([v, etichetta]) => (
+              <button key={v} onClick={() => preferenza('menu-essenziale', v, setMenuCorto)}
+                className={`px-3 py-1 text-xs font-bold ${menuCorto === v ? 'bg-blu text-white' : 'bg-white text-tenue'}`}>
+                {etichetta}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center gap-3 border-b border-velo px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Le task in Oggi</p>

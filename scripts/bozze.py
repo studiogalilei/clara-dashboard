@@ -154,7 +154,42 @@ Regole che non si discutono: registro «lei», mai «tu»; mai il trattino
 lungo; mai aprire con «volentieri.» o «si'.» secchi; niente firma; il link
 del calendario solo a chi e' caldo o l'ha chiesto, mai ai tiepidi o nei
 follow-up; se ha chiesto lui la call non mandare l'analisi, fissa la call;
-se e' un «ok» o «grazie» secco senza richiesta, FERMATI: si'."""
+se e' un «ok» o «grazie» secco: NON fermarti, e' un consenso, gli si manda
+l'analisi con due righe (23/9). Se analisi_pronta_in_allegato e' true, la
+bozza dice che l'analisi e' allegata e non chiede piu' il consenso; non
+fermarti mai per «allegati mancanti»: l'allegato lo mette Dre."""
+
+
+def come_corregge_dre(quante=8):
+    """Le ultime bozze che Dre ha cambiato prima di mandarle: la versione di Clara
+    contro la sua. Vanno nel prompt, cosi' la volta dopo Clara parte da li'.
+    (23/9: «le correzioni che faccio deve ragionare, capirne il motivo e impostarsi per migliorare»)."""
+    try:
+        fatte = sb("GET", "/rest/v1/proposte?select=prospect_id,azione,risposta_il,risposta&tipo=eq.risposta&stato=in.(fatta,no)"
+                          "&risposta_il=not.is.null&order=risposta_il.desc&limit=40") or []
+    except Exception:
+        return ""
+    lezioni = []
+    for x in fatte:
+        bozza = ((x.get("azione") or {}).get("bozza") or "").strip()
+        if not bozza or not x.get("prospect_id"):
+            continue
+        if x.get("risposta") and "pulizia" in x["risposta"]:
+            continue
+        if x.get("risposta") and x["risposta"].startswith("NO:"):
+            lezioni.append(f"SCARTATA da Dre: {x['risposta'][3:200]}\n  la bozza era: {bozza[:300]}")
+        else:
+            out = sb("GET", f"/rest/v1/interactions?select=body&prospect_id=eq.{x['prospect_id']}&kind=eq.email_out"
+                            f"&at=gte.{x['risposta_il'][:10]}&order=at.asc&limit=1") or []
+            finale = (out[0].get("body") or "").strip() if out else ""
+            if finale and finale != bozza:
+                lezioni.append(f"BOZZA DI CLARA: {bozza[:350]}\nVERSIONE DI DRE: {finale[:350]}")
+        if len(lezioni) >= quante:
+            break
+    if not lezioni:
+        return ""
+    return ("\n\nCOME CORREGGE DRE (le ultime volte). Guarda cosa cambia e perche': tono, lunghezza, "
+            "cosa toglie, cosa aggiunge. Parti gia' da li'.\n\n" + "\n\n".join(lezioni))
 
 
 def chiedi_bozza(p, ultimo, riprova=None):
@@ -162,6 +197,8 @@ def chiedi_bozza(p, ultimo, riprova=None):
         "nome": p.get("name") or "", "azienda": p.get("company") or "", "email": p.get("email"),
         "classificazione": p.get("classificazione"), "stage": p.get("stage"),
         "analisi_inviata": bool(p.get("analysis_sent")), "analisi_inviata_il": (p.get("analysis_sent_at") or "")[:10],
+        # 23/9: l'analisi la prepara analisi_auto.py prima delle bozze; se c'e', la bozza la allega («gliela allego qui sotto»)
+        "analisi_pronta_in_allegato": bool(p.get("analysis_pdf")),
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
     # il Google Fit di Clara (googlefit.py): il numero della zona va nel messaggio,
@@ -170,7 +207,7 @@ def chiedi_bozza(p, ultimo, riprova=None):
     if fit:
         fatti["google_fit"] = {"verdetto": fit.get("verdetto"), "motivo": fit.get("motivo"), "cosa_fa": fit.get("cosa_fa"),
                                "provincia": fit.get("provincia"), "zona": fit.get("zona")}
-    prompt = (playbook() + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") +
+    prompt = (playbook() + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + LEZIONI +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
@@ -193,11 +230,18 @@ def chiedi_bozza(p, ultimo, riprova=None):
             "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza}
 
 
+LEZIONI = ""
+
+
 def main():
+    global LEZIONI
     print("LE BOZZE" + (" (prova: non scrive niente)" if PROVA else ""))
+    LEZIONI = come_corregge_dre()
+    if LEZIONI:
+        print(f"  (Clara ha {LEZIONI.count('BOZZA DI CLARA') + LEZIONI.count('SCARTATA')} correzioni di Dre da cui partire)")
     persone = sb("GET", "/rest/v1/prospects?awaiting_us=eq.true&fuori=eq.false"
                         f"&classificazione=in.({','.join(CLASSI)})"
-                        "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_sent_at,"
+                        "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_sent_at,analysis_pdf,"
                         "last_reply_at,sector,city,enriched&order=last_reply_at.desc&limit=300") or []
     righe = sb("GET", "/rest/v1/interactions?kind=eq.email_in&select=prospect_id,body&order=at.desc&limit=3000") or []
     ultima = {}
