@@ -122,6 +122,11 @@ Rispondi SOLO con un JSON su una riga, con queste chiavi:
    false se la vendita avviene solo di persona o per telefono,
  "due_cose_scomode": array di due stringhe brevi: le due ragioni per cui questo cliente
    potrebbe NON funzionare con Google Ads. Sempre due, anche quando l'azienda ti convince.
+ "come_lo_cercano": come si arriva a comprare quello che vendono. Una fra
+   "ricerca" (la gente lo cerca su Google con parole chiare: un idraulico, una casa, un infisso),
+   "impulso" (si compra perche' lo si vede, non perche' lo si cerca: meglio social o display),
+   "da_spiegare" (prodotto nuovo o che va capito prima di poterlo cercare: nessuno digita il suo nome),
+   "per_pubblico" (il cliente si riconosce bene per eta', interessi o zona, ma quasi mai da una parola chiave).
  "esclusione": "" oppure uno fra "agenzia" (marketing/comunicazione/web agency/lead generation), "portale", "catena", "franchising", "multinazionale", "onlus", "privacy"}}
 
 I settori possibili: {lista}
@@ -212,6 +217,25 @@ def verdetto(c, zona, rec):
         return "NO", f"provincia rossa: {zona['domanda_mese']} ricerche/mese, meno di 2 clic al giorno"
     elif zona["verdetto"] == "GIALLO":
         motivi.append(f"provincia gialla ({zona['domanda_mese']} ricerche/mese): si va se il ticket e' alto")
+    # ── le red flag di Carlo (23/9/2026) ──────────────────────────
+    # 4 e 8: ticket troppo basso, la nostra fee (1.200 €/mese) pesa piu' della campagna
+    tmax = c.get("ticket_max") or c.get("ticket_min") or 0
+    if tmax and tmax < 100:
+        return "NO", f"ticket sotto i 100 € ({_ticket_scritto(c)}): la fee pesa piu' della campagna"
+    if tmax and tmax < 300:
+        motivi.append(f"ticket basso ({_ticket_scritto(c)}): la fee pesa, si va solo con volumi alti")
+    # 6: competizione alta rispetto al valore di un cliente (33 clic per cliente, al 3% di conversione)
+    if zona and tmax and float(zona.get("cpc") or 0) * 33 > tmax:
+        motivi.append(f"CPC {zona['cpc']} € alto rispetto al ticket ({_ticket_scritto(c)}): un cliente costa piu' di quanto vale")
+    # 9, 10, 11: se nessuno lo cerca su Google, Google Ads non e' il servizio giusto
+    come = (c.get("come_lo_cercano") or "ricerca").lower()
+    if come in ("impulso", "da_spiegare", "per_pubblico"):
+        spiega = {"impulso": "si compra d'impulso, non si cerca: meglio social o display",
+                  "da_spiegare": "prodotto da spiegare prima che qualcuno lo cerchi",
+                  "per_pubblico": "il cliente si riconosce per pubblico, non per parola chiave"}[come]
+        if (zona and zona["verdetto"] == "GIALLO") or (tmax and tmax < 300):
+            return "NO", f"{spiega}; e in piu' " + (f"provincia gialla" if zona and zona["verdetto"] == "GIALLO" else "ticket basso")
+        motivi.append(spiega)
     if rec is not None:
         if rec["recensioni"] < 5:
             return "NO", f"meno di 5 recensioni ({rec['recensioni']}): troppo piccolo"
