@@ -50,3 +50,6 @@ docs/modelli/doc-studio-di-mercato-agriverse.json
 CANTIERE-CRUSCOTTO.md
 LEGGIMI-PRIMA.md
 intent/
+
+# liste e verifiche delle campagne: dati dei lead, mai nel repo pubblico (23/9)
+data/campagne_*.csv

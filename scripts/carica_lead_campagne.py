@@ -65,13 +65,60 @@ def api(metodo, p, corpo=None):
             raise
 
 
+# ── IL CONTROLLO EMAIL (23/9/2026): 1.149 email sbagliate erano finite in campagna
+# (PEC, supporto Webador, sentry di Wix, maria@esempio.it, mario.rossi@, gmail.co,
+# privacy@, Comuni). Il fit guarda il sito, l'email non la guardava nessuno.
+# Da qui in poi chi non passa non si carica, e si dice quante e perche'.
+VENDOR = ("webador", "wixpress", "sentry", "wix.com", "jimdo", "shopify", "prestashop", "qodeinteractive", "squarespace", "weebly",
+          "godaddy", "ionos", "register.it", "siteground", "wordpress", "elementor", "iubenda", "cookiebot", "instagram.com", "facebook.com",
+          "casa.it", "casa.com", "immobiliare.it", "idealista", "subito.it", "paginegialle", "paginesi", "altervista", "readymag", "site123",
+          "b12sites", "website.com", "eclouditalia", "ocalab", "blu.it")
+FINTI_DOM = re.compile(r"^(esempio|example|dominio|domain|tuodominio|tuosito|yourdomain|yoursite|azienda|nomeazienda|sito|website|address|"
+                       r"youremail|mailservice|placeholder|test|xxx|nome|tuamail|miosito|miaazienda|server|host|localhost|ilmiosito|providermail|echoecho|xyz)\.(it|com|net|org|eu)$|\.(local|test|example|invalid)$")
+FINTI_LP = re.compile(r"^(mario\.?rossi|mario\.?bianchi|paolo\.?rossi|giuseppe\.?verdi|nome\.?cognome|nomecognome|tuo\.?nome|test|prova|esempio|example|"
+                      r"email|mail|name\.?surname|john\.?doe|user|utente|nome|cognome|tua\.?email|tuamail|xxx+|aaa+|abc|indirizzo|indirizzoemail|[0-9]+)$")
+TECNICHE = re.compile(r"^(noreply|no-reply|no_reply|donotreply|sentry|privacy|abuse|postmaster|mailer-daemon|dpo|unsubscribe|cookie|gdpr)$")
+REFUSI = {"gmail.co", "gmail.comt", "gmail.it", "gmial.com", "gmal.com", "gamil.com", "gmail.con", "gmail.cm", "hotmal.it", "hotmail.i", "libero.com",
+          "yahoo.i", "gmail.om", "gmai.com", "hotmail.co", "outlook.i", "libero.i", "icloud.it", "gmail.cpm", "gmail.comm"}
+PEC = {"ticertifica.it", "pcert.it", "postacertificata.com", "sicurezzapostale.it", "postecert.it", "legalmail.it", "legalmail.com"}
+
+
+def perche_sporca(email):
+    """Il motivo per cui NON si carica, o None se e' pulita."""
+    e = (email or "").strip().lower()
+    if not re.match(r"^[a-z0-9._%+\-']+@[a-z0-9.\-]+\.[a-z]{2,}$", e):
+        return "formato"
+    lp, d = e.split("@", 1)
+    if d in REFUSI:
+        return "refuso freemail"
+    if FINTI_DOM.search(d) or FINTI_LP.match(lp):
+        return "email finta"
+    if any(d == v or d.endswith("." + v) for v in VENDOR) or any(k in d for k in ("webador", "wixpress", "sentry")):
+        return "piattaforma / chi ha fatto il sito"
+    if d in PEC or "legalmail" in d or d.startswith("cert.") or any(l.startswith("pec") or l.endswith("pec") for l in d.split(".")) or lp == "pec":
+        return "PEC"
+    if TECNICHE.match(lp):
+        return "casella tecnica"
+    if "comune." in d or d.startswith("comune") or d.endswith(".gov.it") or "regione." in d or "provincia." in d:
+        return "ente pubblico"
+    return None
+
+
 def carica(cid):
     pref = CAMP[cid]
     file = [f for f in os.listdir(D) if f.startswith(pref)]
     if not file:
         print(f"  {cid}: manca il file {pref}*"); return
-    righe = list(csv.DictReader(open(os.path.join(D, file[0]), encoding="utf-8")))
-    print(f"  {file[0]}: {len(righe)} lead")
+    tutte = list(csv.DictReader(open(os.path.join(D, file[0]), encoding="utf-8")))
+    scarti = {}
+    righe = []
+    for r in tutte:
+        m = perche_sporca(r.get("email"))
+        if m:
+            scarti[m] = scarti.get(m, 0) + 1
+        else:
+            righe.append(r)
+    print(f"  {file[0]}: {len(tutte)} lead, {len(righe)} da caricare" + (f", NON caricati {sum(scarti.values())}: {scarti}" if scarti else ""))
     tot = {"caricati": 0, "doppioni": 0, "bloccati": 0, "non_validi": 0}
     for i in range(0, len(righe), 100):
         lotto = [{

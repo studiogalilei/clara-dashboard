@@ -36,6 +36,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -q pywebpush
+      # l'analisi in PDF (23/9): weasyprint vuole pango e cairo di sistema, pillow legge i loghi
+      - run: |
+          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null
+          pip install -q weasyprint pillow
       - name: le operazioni dovute
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -55,6 +59,7 @@ jobs:
           PLAYBOOK_OUTBOUND: ${{ secrets.PLAYBOOK_OUTBOUND }}
           FORNITORE: openai
           MODELLO_OPENAI: gpt-5
+          MODELLO_ANALISI: gpt-5
         run: |
           if [ -n "${{ github.event.inputs.forza }}" ]; then
             python3 scripts/direttore.py --forza "${{ github.event.inputs.forza }}"
