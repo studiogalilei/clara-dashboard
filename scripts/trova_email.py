@@ -42,6 +42,7 @@ BASE = "https://server.smartlead.ai/api/v1"
 FREE = {"gmail.com", "yahoo.it", "yahoo.com", "hotmail.it", "hotmail.com", "libero.it", "outlook.it", "outlook.com", "live.it", "live.com",
         "tiscali.it", "alice.it", "virgilio.it", "tin.it", "icloud.com", "me.com", "email.it", "fastwebnet.it", "vodafone.it", "msn.com",
         "protonmail.com", "tim.it", "inwind.it", "iol.it", "poste.it", "ymail.com", "googlemail.com", "tiscalinet.it", "bluewin.ch", "mail.com", "mail.it"}
+GENERICA = re.compile(r"^(info|contatti|contact|amministrazione|commerciale|vendite|segreteria|ufficio|mail|posta|direzione|hello|sales|marketing|ordini|preventivi|reception|booking|prenotazioni|agenzia|studio|ufficiotecnico|assistenza|servizioclienti|customer|support)@")   # 24/9: catch-all solo se generica
 DECIDE = re.compile(r"titolare|owner|ceo|founder|fondat|amministrat|direttor|director|president|responsabile|manager|socio|partner|head", re.I)
 
 
@@ -214,7 +215,7 @@ def cerca_tutte(prova):
 
 def carica():
     K = chiave("SMARTLEAD_API_KEY")
-    righe = [x for x in csv.DictReader(open(TROVATE, encoding="utf-8")) if x["email_nuova"] and x["verifica"] in ("valid", "accept_all", "webmail")]
+    righe = [x for x in csv.DictReader(open(TROVATE, encoding="utf-8")) if x["email_nuova"] and (x["verifica"] in ("valid", "webmail") or (x["verifica"] == "accept_all" and GENERICA.match(x["email_nuova"])))]
     per = {}
     viste = set()
     for x in righe:

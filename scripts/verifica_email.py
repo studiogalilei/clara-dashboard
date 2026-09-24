@@ -16,6 +16,11 @@ Chiave in ~/.hermes/config.yaml come MILLIONVERIFIER_KEY.
 """
 import csv, io, json, os, re, sys, time, urllib.request, urllib.error, collections
 
+# 24/9: i domini catch-all dicono si' a qualunque nome, il verificatore non puo' sapere se la
+# casella esiste. Dati veri del 23-24/9: catch-all generiche 1,2% di bounce, catch-all con nome
+# e cognome 10%, «ok» 0 su 566. Quindi: catch-all si tiene SOLO se generica.
+GENERICA = re.compile(r"^(info|contatti|contact|amministrazione|commerciale|vendite|segreteria|ufficio|mail|posta|direzione|hello|sales|marketing|ordini|preventivi|reception|booking|prenotazioni|agenzia|studio|ufficiotecnico|assistenza|servizioclienti|customer|support)@")
+
 BASE = "https://server.smartlead.ai/api/v1"
 MV = "https://bulkapi.millionverifier.com/bulkapi/v2"
 D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
@@ -122,7 +127,8 @@ def applica(prova=False):
         e = (r.get("email") or r.get("Email") or "").lower()
         ver[e] = (r.get("result") or r.get("quality") or "").lower()
     # ok e catch_all restano; invalid, disposable, unknown escono (unknown = il server non risponde: a bounce si va lo stesso)
-    via = [l for l in lead if ver.get(l["email"], "") in ("invalid", "disposable", "unknown", "error")]
+    via = [l for l in lead if ver.get(l["email"], "") in ("invalid", "disposable", "unknown", "error")
+           or (ver.get(l["email"], "") == "catch_all" and not GENERICA.match(l["email"]))]
     print(f"da togliere {len(via)} su {len(lead)}:", dict(collections.Counter(ver.get(l['email']) for l in via)))
     with open(DA_RIFARE, "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(lead[0]) + ["esito"]); w.writeheader()

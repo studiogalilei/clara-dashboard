@@ -29,6 +29,8 @@ COME FUNZIONA (fonte diretta, riconciliata):
 Uso:  python3 scripts/sync_v2.py            # sync completo
       python3 scripts/sync_v2.py --dry-run  # mostra cosa farebbe, non scrive
 """
+import datetime as _dt
+STALE = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%S")   # 24/9: oltre, non si risuscita
 import csv as csvmod
 import io
 import json, os, re, sys, time, html as ihtml
@@ -311,6 +313,12 @@ def main():
                 awaiting = False
             body_first_reply = (replies[0].get("time") or "")[:19]
             body_last_reply = (last_reply.get("time") or "")[:19]
+            # 24/9: il sync notturno rimetteva in coda 119 risposte di giugno-luglio che
+            # la pulizia aveva chiuso (negativi, ferie, corpi vuoti). Una risposta
+            # vecchia di piu' di 30 giorni non «aspetta noi»: se nel CRM e' gia'
+            # chiusa, resta chiusa. E' materiale della ripresa, non della coda.
+            if awaiting and rec and not rec.get("awaiting_us") and body_last_reply and body_last_reply < STALE:
+                awaiting = False
 
             patch = {
                 "enriched": {**((rec or {}).get("enriched") or {}), "sl_firma": wrap.get("_firma")},

@@ -296,7 +296,7 @@ def main():
 
     # ── il gigante buono: i negativi cortesi, una volta sola ────────
     negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
-                         "&select=id,name,company,email,classificazione,stage,analysis_sent,last_reply_at,sector,city,enriched,no_followup"
+                         "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup"
                          "&order=last_reply_at.desc&limit=200") or []
     soppresse = sb("GET", "/rest/v1/suppressions?select=email,domain&limit=5000") or []
     mail_no = {(x.get("email") or "").lower() for x in soppresse}
@@ -314,8 +314,8 @@ def main():
         if len(testo.strip()) < 20 or NON_TOCCARE.search(testo) or mail in mail_no or mail.split("@")[-1] in dom_no:
             continue
         fit = (p.get("enriched") or {}).get("google_fit") or {}
-        if fit.get("verdetto") == "NO" or not fit.get("zona"):
-            continue                       # senza un'analisi vera (la zona misurata) non c'e' niente da lasciare
+        if fit.get("verdetto") == "NO" or not (fit.get("zona") or p.get("analysis_pdf")):
+            continue                       # senza un'analisi vera (PDF o zona misurata) non c'e' niente da lasciare
         ultimo_no = (p.get("last_reply_at") or "")[:10]
         if ultimo_no and (datetime.date.today() - datetime.date.fromisoformat(ultimo_no)).days > GIORNI_GB:
             continue
