@@ -241,9 +241,10 @@ def main():
         return
 
     lette = {r["ref"][6:] for r in (sb("GET", "/rest/v1/interactions?select=ref&ref=like.letta:*&limit=5000") or []) if r.get("ref")}
-    # i transcript letti prima del 24/9 hanno gia' la nota vecchia (di_clara) e nessun ref: si parte da oggi
-    da = max(datetime.datetime(2026, 9, 24, tzinfo=datetime.timezone.utc),
-             datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # «at» e' l'ora della call, non quella in cui arrivano gli appunti (che
+    # possono arrivare il giorno dopo): si guardano gli ultimi tre giorni. Quelli
+    # piu' vecchi hanno gia' la nota di prima e non si rileggono.
+    da = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
     transcript = sb("GET", f"/rest/v1/interactions?select=id,at,prospect_id,body&kind=eq.transcript&at=gte.{da}&order=at.desc&limit=200") or []
     nuovi = [t for t in transcript if str(t["id"]) not in lette and t.get("prospect_id") and len(t.get("body") or "") > 200]
     fatti = 0
