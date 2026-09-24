@@ -165,5 +165,6 @@ export function menuDi(ruolo: Ruolo, zona: 'menu' | 'sistema', concessi: Readonl
   const corto = menuEssenziale()
   return inOrdine(WIDGET.filter((w) =>
     w.zona === zona && haAccesso(w, ruolo, concessi) && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave))
-    && !(corto && FUORI_DAL_MENU_CORTO.includes(w.chiave))))
+    // Oggi sparisce dal menu corto solo per il ceo: per chi consegna e' la prima pagina (Dre, 24/9)
+    && !(corto && FUORI_DAL_MENU_CORTO.includes(w.chiave) && !(w.chiave === 'pipeline' && ruolo !== 'ceo'))))
 }

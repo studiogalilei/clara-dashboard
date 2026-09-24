@@ -313,7 +313,14 @@ export default function App() {
 
   useEffect(() => {
     if (!session || demo) return
-    void chiSono().then((c) => { setRuoloDb(c.ruolo); setRuoloVero(c.ruoloVero); setConcessi(new Set(c.concessi)); setVista(c.vista); setPod(c.pod) })
+    void chiSono().then((c) => {
+      setRuoloDb(c.ruolo); setRuoloVero(c.ruoloVero); setConcessi(new Set(c.concessi)); setVista(c.vista); setPod(c.pod)
+      // LA PRIMA PAGINA DI CHI CONSEGNA (Dre, 24/9): «fai cominciare dalle cose
+      // actionable, non da una home generica». Il ceo entra sulla Pipeline;
+      // gli altri su Oggi: le task da accettare, le proprie, la prossima call.
+      // Se si arriva con ?scheda= si va dritti alla scheda, per tutti.
+      if (c.ruolo !== 'ceo' && !new URLSearchParams(window.location.search).get('scheda')) setTab('pipeline')
+    })
   }, [session, versione])
 
   if (!configured) {
