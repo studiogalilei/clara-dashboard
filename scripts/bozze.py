@@ -30,6 +30,7 @@ import datetime
 import os
 import re
 import sys
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -102,6 +103,25 @@ def cancello(testo):
     return errori
 
 
+def template_verbatim():
+    """I TEMPLATE DI DRE, PAROLA PER PAROLA (24/9: «Clara non scrive rispettando le bozze»).
+    Stanno nel bucket privato (riservato/risposte-template.md), copia del file del vault
+    «Risposte (template verbatim).md». Se il bucket non risponde, si va avanti col solo playbook."""
+    try:
+        import tempfile, time as _t
+        loc = os.path.join(tempfile.gettempdir(), "odyn-risposte-template.md")
+        if not os.path.exists(loc) or _t.time() - os.path.getmtime(loc) > 3600:
+            from stanza import env
+            req = urllib.request.Request(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/vault/riservato/risposte-template.md",
+                                         headers={"apikey": env("SUPABASE_SERVICE_KEY"), "Authorization": f"Bearer {env('SUPABASE_SERVICE_KEY')}"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                open(loc, "wb").write(r.read())
+        return "\n\n" + open(loc, encoding="utf-8").read()
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (template verbatim non caricati: {str(e)[:80]})")
+        return ""
+
+
 def playbook():
     """Il playbook outbound NON sta nel repo (22/9/2026: il repo e' pubblico
     per avere le Actions gratis, e il playbook e' il nostro metodo, non
@@ -149,6 +169,24 @@ Se FERMATI e' si', la bozza e' comunque la migliore che puoi, e dopo il testo
 aggiungi una riga: [ESCALATION] azienda, nome, intento, cosa chiede
 Se INT-25 (non e' chiaro cosa vuole): due bozze alternative, separate da una
 riga «=== ALTERNATIVA ===».
+
+I TEMPLATE DI DRE SONO LA LEGGE (24/9). Qui sotto trovi «Risposte (template
+verbatim)»: per ogni intento c'e' il testo che Dre vuole, parola per parola.
+La bozza E' quel testo: lo copi intero e cambi SOLO (a) l'incipit, adattato a
+cosa ha scritto davvero la persona («Va bene perfetto» non e' fisso), (b) nome,
+azienda e slot proposto, (c) le righe che il template stesso dice di adattare.
+Niente riscritture, niente frasi tue al posto delle sue, niente paragrafi in
+piu'. Mappa: INT-01 e INT-02 → INTERESSATO; INT-03 e INT-04 → CHI SEI?;
+INT-15 → QUAL'E' LA VOSTRA SOCIETA'?; INT-05 e INT-06 → SENTIAMOCI PIU' AVANTI;
+INT-07 → RICONTATTO DOPO OUT OF OFFICE; INT-08 e INT-09 → RIMBALZO INTERNO;
+INT-22 → FOLLOW UP 1; INT-23 → INTERESSATO senza la proposta di call. Per gli
+altri intenti segui il playbook con lo stesso tono dei template. Il link del
+calendario e' sempre {{CALENDARIO}}, non quello scritto nel template.
+
+MAI INVENTARE (24/9, Dre): non dire mai che abbiamo letto, visto, controllato o
+apprezzato qualcosa se non sta scritto nella SCHEDA o nel suo messaggio. Un
+numero, un luogo, un fatto: solo dalla scheda. Se non c'e', non c'e'. Al
+massimo ringrazi, senza aggiungere cose nostre.
 
 Regole che non si discutono: registro «lei», mai «tu»; mai il trattino
 lungo; mai aprire con «volentieri.» o «si'.» secchi; niente firma; il link
@@ -207,7 +245,7 @@ def chiedi_bozza(p, ultimo, riprova=None):
     if fit:
         fatti["google_fit"] = {"verdetto": fit.get("verdetto"), "motivo": fit.get("motivo"), "cosa_fa": fit.get("cosa_fa"),
                                "provincia": fit.get("provincia"), "zona": fit.get("zona")}
-    prompt = (playbook() + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + LEZIONI +
+    prompt = (playbook() + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + template_verbatim() + cervello.istruzione("chat") + LEZIONI +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
