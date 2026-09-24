@@ -192,6 +192,20 @@ def main():
                                          "file_type": "application/pdf", "file_size": peso}]
             else:
                 torna_aperta(pr, azienda, "il PDF dell'analisi non si apre: non la mando senza", prova); continue
+        # LA PRESENTAZIONE (FOLLOW UP 1: «le allego anche una breve presentazione»)
+        if az.get("allega_presentazione"):
+            from stanza import env as _env
+            url_p = link_fresco(f"{_env('VITE_SUPABASE_URL')}/storage/v1/object/sign/vault/modelli/sg-presentazione.pdf")
+            try:
+                with urllib.request.urlopen(urllib.request.Request(url_p, method="HEAD"), timeout=30) as r:
+                    peso_p = int(r.headers.get("Content-Length") or 0)
+            except Exception:                                 # noqa: BLE001
+                peso_p = 0
+            if peso_p:
+                corpo.setdefault("attachments", []).append({"file_name": "Presentazione Studio Galilei.pdf", "file_url": url_p,
+                                                             "file_type": "application/pdf", "file_size": peso_p})
+            else:
+                torna_aperta(pr, azienda, "la presentazione dello Studio non si apre dal bucket: non la mando senza", prova); continue
         print(f"  {azienda} → {a}  (campagna {cid}, risposta del {str(ultima.get('time'))[:16]})")
         if prova:
             print("    " + bozza[:160].replace("\n", " ") + "…"); continue
