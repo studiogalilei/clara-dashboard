@@ -20,6 +20,7 @@ import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRec
 const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
+import DaMandare from './DaMandare'
 import Piano from './Piano'
 import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
@@ -940,6 +941,9 @@ export default function Scheda({ id, onClose }: Props) {
             ))}
           </div>
         )}
+
+        {/* DA MANDARE (Dre, 24/9): la prima cosa della scheda e' cosa mando adesso */}
+        <div className="mb-3"><DaMandare p={p} /></div>
 
         {/* ── due colonne: identita' | il vivo ─────────────────── */}
         <div className="grid grid-cols-1 gap-3">
