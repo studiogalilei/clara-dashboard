@@ -336,6 +336,52 @@ def preparo(dati, azienda="", quando="", tipo="", modello=None):
     return fuori.replace("!", ".")
 
 
+# ── IL MANUALE DI CLARA (24/9/2026) ────────────────────────────────
+# Dre: «c'è da darle tutti gli strumenti e le cose che le potrebbero servire, in
+# ordine e struttura, e le regole». Il manuale e' la testa di Clara: un documento
+# solo, nel bucket privato (riservato/manuale-clara.md), scritto da Achille con le
+# regole di Dre e corretto da Dre. Ogni operazione lo carica per intero prima di
+# fare qualsiasi cosa. Le parti: "testa" (il manuale), "outbound" (preflight,
+# intenti, stile), "template" (le risposte di Dre parola per parola),
+# "analisi" (playbook + esempio). Se il bucket non risponde, si va avanti con
+# quello che c'e', e si dice.
+_RISERVATO = {"testa": "manuale-clara.md", "outbound": None, "template": "risposte-template.md", "analisi": "playbook-analisi.md"}
+
+
+def _dal_bucket(nome):
+    import tempfile
+    loc = os.path.join(tempfile.gettempdir(), "odyn-riservato-" + nome)
+    if os.path.exists(loc) and time.time() - os.path.getmtime(loc) < 3600:
+        return open(loc, encoding="utf-8").read()
+    from stanza import env
+    req = urllib.request.Request(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/vault/riservato/{nome}",
+                                 headers={"apikey": env("SUPABASE_SERVICE_KEY"), "Authorization": f"Bearer {env('SUPABASE_SERVICE_KEY')}"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        testo = r.read().decode("utf-8")
+    open(loc, "w", encoding="utf-8").write(testo)
+    return testo
+
+
+def manuale(*parti):
+    """La testa di Clara, assemblata: manuale("testa", "outbound", "template")."""
+    parti = parti or ("testa",)
+    pezzi = []
+    for p in parti:
+        try:
+            if p == "outbound":
+                t = _env("PLAYBOOK_OUTBOUND") or ""
+                if not t:
+                    v = os.path.expanduser("~/Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/ODYN Cockpit/riservato/clara-sg-outbound.md")
+                    t = open(v, encoding="utf-8").read() if os.path.exists(v) else ""
+            else:
+                t = _dal_bucket(_RISERVATO[p])
+            if t:
+                pezzi.append(t)
+        except Exception as e:                                       # noqa: BLE001
+            print(f"  (manuale, parte «{p}» non caricata: {str(e)[:80]})")
+    return "\n\n".join(pezzi)
+
+
 def istruzione(chiave):
     """Le istruzioni che Dre scrive nella sala di controllo (tabella istruzioni).
     Senza tabella o senza testo si va avanti senza: sono un di piu', non un requisito."""
@@ -354,7 +400,7 @@ def _leggi_gruppo(gruppo, modello=None):
     for i, (_, testo) in enumerate(gruppo, 1):
         t = " ".join((testo or "").split())[:1200]
         pezzi.append(f"--- messaggio {i} ---\n{t}")
-    prompt = REGOLE + istruzione("lettura") + "\n\nI MESSAGGI:\n\n" + "\n\n".join(pezzi)
+    prompt = manuale("testa") + "\n\n" + REGOLE + istruzione("lettura") + "\n\nI MESSAGGI:\n\n" + "\n\n".join(pezzi)
 
     fuori = {}
     for riga in _chiedi(prompt, modello).splitlines():

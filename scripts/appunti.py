@@ -189,6 +189,14 @@ def main():
             print(f"     (copia nel Drive non riuscita: {str(e)[:120]})")
     print(f"appunti: {messi} messi nelle Schede, {domande} domande, {saltati} saltati, "
           f"{len(docs)} documenti visti nei Drive di {len(persone)} persone")
+    # 24/9 (Dre: «un sync realtime dopo le call»): niente attesa del giro dopo,
+    # i transcript appena messi si leggono adesso (fase, blocco in calendario)
+    if messi and not prova:
+        try:
+            import transcript
+            transcript.main()
+        except Exception as e:                                       # noqa: BLE001
+            print(f"  (lettura subito non riuscita, la fa il giro dopo: {str(e)[:100]})")
 
 
 if __name__ == "__main__":

@@ -552,7 +552,7 @@ export default function App() {
                 <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto(utente)[1]}</p>
               ) : null)}
               {/* quanto e' fresco quello che stai guardando (Dre, 15/9) */}
-              {tab === 'pipeline' && <Aggiornato />}
+              {(tab === 'pipeline' || tab === 'prospect') && <Aggiornato />}
             </div>
             {tab === 'pipeline' && (
               <div className="hidden w-[440px] shrink-0 lg:block">

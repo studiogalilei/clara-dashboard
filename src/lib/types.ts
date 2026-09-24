@@ -92,15 +92,18 @@ export const CLASSIFICAZIONI: Classificazione[] = [
   'soppresso',
 ]
 
+// Le stesse parole della bacheca (Caldi, Tiepidi, Rinviati, Da capire): un
+// nome solo per ogni cosa, nel menu, nella scheda e nella bocca di Clara
+// (glossario, 24/9). Le chiavi nel database non cambiano.
 export const CLS_LABEL: Record<Classificazione, string> = {
-  da_classificare: 'Da classificare',
-  positivo: 'Positivo',
+  da_classificare: 'Da capire',
+  positivo: 'Caldo',
   tiepido: 'Tiepido',
-  negativo: 'Negativo',
+  negativo: 'No',
   ooo: 'Fuori ufficio',
-  rinvio: 'Rinvio',
+  rinvio: 'Rinviato',
   fuori_target: 'Fuori target',
-  soppresso: 'Soppresso',
+  soppresso: 'Non contattare',
 }
 
 // Il mercato del prospect, dalla base precalcolata (333 combinazioni settore x provincia)

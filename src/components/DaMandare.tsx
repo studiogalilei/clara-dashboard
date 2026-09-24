@@ -10,15 +10,21 @@ import { Card, Spinner } from './ui'
 // bozza e analisi e invio in chill». Questo blocco sta in cima alla scheda e
 // risponde a una domanda sola: cosa mando a questa persona, adesso.
 // Tre stati: Clara ci sta lavorando (con cosa è già pronto), la bozza è qui
-// (leggi, correggi, copia, «l'ho mandata»), niente da mandare.
+// (leggi, correggi, «Approva e manda»), niente da mandare.
+//
+// 24/9, Dre: «fai che Clara invia i messaggi: io clicco Approva e lei invia».
+// Il bottone approva la bozza com'è nel riquadro; l'operazione `manda` in
+// cloud (scripts/manda.py) la spedisce dal thread di Smartlead entro un paio
+// di minuti. «L'ho mandata io» resta per chi la manda a mano.
 
 type Proposta = {
   id: number
   tipo: string
   titolo: string
   perche: string | null
-  azione: { bozza?: string; intento?: string; template?: string } | null
+  azione: { bozza?: string; bozza_originale?: string; intento?: string; template?: string; allega?: boolean; approvata_da?: string; approvata_il?: string } | null
   at: string
+  stato: string
 }
 
 export default function DaMandare({ p }: { p: Prospect }) {
@@ -35,8 +41,8 @@ export default function DaMandare({ p }: { p: Prospect }) {
   useEffect(() => {
     let vivo = true
     supabase.from('proposte')
-      .select('id,tipo,titolo,perche,azione,at')
-      .eq('prospect_id', p.id).eq('stato', 'aperta').in('tipo', ['risposta', 'umano'])
+      .select('id,tipo,titolo,perche,azione,at,stato')
+      .eq('prospect_id', p.id).in('stato', ['aperta', 'approvata', 'in_invio']).in('tipo', ['risposta', 'umano'])
       .order('at', { ascending: false }).limit(1)
       .then(({ data }) => {
         if (!vivo) return
@@ -48,13 +54,32 @@ export default function DaMandare({ p }: { p: Prospect }) {
   }, [p.id, giro])
 
   const fit = (p.enriched as Record<string, unknown> | null)?.google_fit as { verdetto?: string } | undefined
+  const analisi = (p.enriched as Record<string, unknown> | null)?.analisi as { trattenuta?: string; il?: string } | undefined
+  const trattenuta = !p.analysis_pdf && analisi?.trattenuta
   const destinatario = ((p as unknown as { email_alt?: string[] | null }).email_alt)?.[0] ?? p.email
 
   // niente da mandare: la persona non aspetta noi e non c'è una bozza
   if (!p.awaiting_us && !pr) return null
   if (pr === undefined) return null
 
-  async function mandata() {
+  // «Approva e manda»: la bozza com'è nel riquadro passa a Clara, che la manda
+  // da Smartlead nel thread della persona (manda.py). Chi ha approvato resta scritto.
+  async function approva() {
+    if (!pr || lavoro) return
+    setLavoro(true); setEsito(null)
+    const corpo = testo.trim()
+    if (!corpo) { setEsito('La bozza è vuota.'); setLavoro(false); return }
+    const { data: sess } = await supabase.auth.getSession()
+    const azione = { ...(pr.azione ?? {}), bozza_originale: pr.azione?.bozza_originale ?? pr.azione?.bozza, bozza: corpo, allega: allego && Boolean(p.analysis_pdf), approvata_da: sess?.session?.user.id ?? 'demo', approvata_il: new Date().toISOString() }
+    const { error } = await supabase.from('proposte').update({ stato: 'approvata', azione }).eq('id', pr.id)
+    if (error) { setEsito(`Non sono riuscita ad approvarla: ${error.message}`); setLavoro(false); return }
+    void supabase.rpc('chiama_direttore', { forza: 'manda' })
+    setEsito('Approvata. Clara la manda da Smartlead entro un paio di minuti.')
+    setLavoro(false); setPr({ ...pr, stato: 'approvata', azione })
+  }
+
+  // mandata a mano da Smartlead: si segna e basta
+  async function mandataAMano() {
     if (!pr || lavoro) return
     setLavoro(true); setEsito(null)
     const corpo = testo.trim()
@@ -68,7 +93,7 @@ export default function DaMandare({ p }: { p: Prospect }) {
     if (pr.azione?.intento === 'INT-GB') { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString(); agg.no_followup = true }
     await supabase.from('prospects').update(agg).eq('id', p.id)
     await supabase.from('proposte').update({ stato: 'fatta', risposta_il: new Date().toISOString() }).eq('id', pr.id)
-    setEsito('Segnata come mandata.'); setLavoro(false); setPr(null)
+    setEsito('Segnata come mandata a mano.'); setLavoro(false); setPr(null)
   }
 
   async function nonCosi() {
@@ -103,7 +128,7 @@ export default function DaMandare({ p }: { p: Prospect }) {
             <p className="mt-0.5 text-xs text-tenue">Di solito ci vuole qualche minuto dalla risposta. Questa pagina si aggiorna da sola.</p>
             <ul className="mt-3 space-y-1">
               <Voce ok={Boolean(fit?.verdetto)} testo={fit?.verdetto ? `Sito letto, fit ${fit.verdetto}` : 'Legge il sito'} inCorso={!fit?.verdetto} />
-              <Voce ok={Boolean(p.analysis_pdf)} testo={p.analysis_pdf ? 'Analisi pronta' : 'Scrive l\'analisi'} inCorso={Boolean(fit?.verdetto) && !p.analysis_pdf} />
+              <Voce ok={Boolean(p.analysis_pdf)} testo={p.analysis_pdf ? 'Analisi pronta' : trattenuta ? 'Analisi trattenuta' : 'Scrive l\'analisi'} inCorso={Boolean(fit?.verdetto) && !p.analysis_pdf && !trattenuta} />
               <Voce ok={false} testo="Scrive la bozza" inCorso={Boolean(p.analysis_pdf)} />
             </ul>
             {p.analysis_pdf && (
@@ -111,10 +136,20 @@ export default function DaMandare({ p }: { p: Prospect }) {
                 Apri l'analisi (PDF)
               </a>
             )}
+            {trattenuta && (
+              <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900"><b>Clara ha trattenuto l'analisi</b>: {analisi?.trattenuta}. Riprova al prossimo giro; se resta ferma, la si fa a mano.</p>
+            )}
           </div>
         </div>
+      ) : pr.stato !== 'aperta' ? (
+        // APPROVATA: Clara la sta mandando. Il testo resta a vista, senza bottoni
+        <div className="px-4 py-3">
+          <p className="flex items-center gap-2 text-sm font-semibold"><Spinner /> Approvata: Clara la sta mandando da Smartlead</p>
+          <p className="mt-0.5 text-xs text-tenue">Di solito un paio di minuti. Quando è partita, questo blocco sparisce e la mail compare nella Storia.</p>
+          <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-velo bg-carta px-3 py-2 font-sans text-[13px] leading-snug text-tenue">{pr.azione?.bozza}</pre>
+        </div>
       ) : (
-        // LA BOZZA È QUI: leggi, correggi, copia, manda, torna e conferma
+        // LA BOZZA È QUI: leggi, correggi, approva
         <div className="px-4 py-3">
           {pr.tipo === 'umano' && (
             <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">Clara si è fermata: {pr.perche}</p>
@@ -146,14 +181,15 @@ export default function DaMandare({ p }: { p: Prospect }) {
             <span className="ml-auto flex items-center gap-2">
               {p.analysis_pdf && (
                 <label className="flex items-center gap-1 text-[11px] text-tenue">
-                  <input type="checkbox" checked={allego} onChange={(e) => setAllego(e.target.checked)} /> ho allegato l'analisi
+                  <input type="checkbox" checked={allego} onChange={(e) => setAllego(e.target.checked)} /> allega l'analisi (PDF)
                 </label>
               )}
-              <button onClick={mandata} disabled={lavoro} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">L'ho mandata</button>
+              <button onClick={approva} disabled={lavoro} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Approva e manda</button>
               <button onClick={nonCosi} disabled={lavoro} className="rounded-full border border-bordo px-3 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">Non così</button>
             </span>
           </div>
           {destinatario !== p.email && <p className="mt-2 text-[11px] text-tenue">Va mandata a {destinatario} (ci ha dato questo indirizzo).</p>}
+          <p className="mt-2 text-[11px] text-tenue">L'hai mandata tu da Smartlead? <button onClick={mandataAMano} disabled={lavoro} className="font-semibold text-blu hover:underline">Segnala mandata</button></p>
         </div>
       )}
       {esito && <p className="border-t border-velo px-4 py-2 text-xs text-navy">{esito}</p>}

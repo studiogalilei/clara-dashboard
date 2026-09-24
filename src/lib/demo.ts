@@ -550,6 +550,8 @@ export const demoClient = {
     if (nome === 'sono_ceo') return { data: true, error: null }
     // in demo il sistema e' appena passato: la riga verde si vede com'e'
     if (nome === 'ultimo_giro') return { data: new Date(Date.now() - 4 * 60000).toISOString(), error: null }
+    if (nome === 'chiama_direttore') return { data: null, error: null }
+    if (nome === 'clara_misure') return { data: { bozze: 41, minuti_mediani: 14, mandate: 30, senza_correzioni: 22, con_correzioni: 8, rifiutate: 6 }, error: null }
     if (nome === 'chi_sono') {
       return {
         data: {

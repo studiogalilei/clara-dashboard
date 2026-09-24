@@ -41,6 +41,7 @@ RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 25
 IN_PARALLELO = 5
+PRONTE = []        # (prospect_id, nome, con_analisi): per la notifica sul telefono
 CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da Dre il 7/9
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
@@ -143,14 +144,41 @@ def playbook():
 
 def proposta_giorno_ora():
     """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
-    stesso giorno; scritto sempre «giorno + data»."""
-    d = datetime.date.today() + datetime.timedelta(days=2)
-    while d.weekday() >= 5:
-        d += datetime.timedelta(days=1)
+    stesso giorno; scritto sempre «giorno + data».
+    24/9 (Dre: «per decidere l'ora ha guardato il mio calendario?»): adesso si'.
+    Il primo buco libero di Dre nei prossimi giorni feriali, fra le 10 e le
+    16:30, saltando la pausa pranzo, a un'ora di distanza da ogni evento suo."""
     giorni = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
     mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
             "settembre", "ottobre", "novembre", "dicembre"]
-    return f"{giorni[d.weekday()]} {d.day} {mesi[d.month - 1]} alle 11"
+    roma = datetime.timezone(datetime.timedelta(hours=2))
+    oggi = datetime.datetime.now(roma).date()
+    d = oggi + datetime.timedelta(days=2)
+    while d.weekday() >= 5:
+        d += datetime.timedelta(days=1)
+    occupati = []
+    try:
+        da = (d - datetime.timedelta(days=1)).isoformat(); a = (d + datetime.timedelta(days=8)).isoformat()
+        for ev in sb("GET", f"/rest/v1/agenda?select=at,fonte,owner&at=gte.{da}&at=lte.{a}&limit=300") or []:
+            # il calendario di Dre entra come fonte «gcal» secca (gli altri hanno la mail nella fonte)
+            if (ev.get("fonte") or "gcal") == "gcal" or "dramane" in (ev.get("fonte") or ""):
+                occupati.append(datetime.datetime.fromisoformat(ev["at"].replace("Z", "+00:00")).astimezone(roma))
+    except Exception:
+        occupati = []
+    # Documento Gold (Dre): pomeriggio preferito, mai weekend, mai lunedi' a meno
+    # che lo propongano loro. Quindi prima i pomeriggi della settimana, poi le mattine.
+    for fascia in (((14, 30), (15, 0), (15, 30), (16, 0), (16, 30)), ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))):
+      for salto in range(7):
+        g = d + datetime.timedelta(days=salto)
+        if g.weekday() >= 5 or g.weekday() == 0:
+            continue
+        for ora, minuti in fascia:
+            t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
+            if all(abs((t - o).total_seconds()) >= 3600 for o in occupati):
+                return f"{giorni[g.weekday()]} {g.day} {mesi[g.month - 1]} alle {ora}" + (f":{minuti:02d}" if minuti else "")
+    while d.weekday() in (0, 5, 6):
+        d += datetime.timedelta(days=1)
+    return f"{giorni[d.weekday()]} {d.day} {mesi[d.month - 1]} alle 15"
 
 
 ISTRUZIONE = """Sei Clara. Prepari la risposta con l'identita' di Lorenzo; la manda lui
@@ -245,7 +273,17 @@ def chiedi_bozza(p, ultimo, riprova=None):
     if fit:
         fatti["google_fit"] = {"verdetto": fit.get("verdetto"), "motivo": fit.get("motivo"), "cosa_fa": fit.get("cosa_fa"),
                                "provincia": fit.get("provincia"), "zona": fit.get("zona")}
-    prompt = (playbook() + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + template_verbatim() + cervello.istruzione("chat") + LEZIONI +
+    # 24/9: il filo intero (ultime 6 cose: mail nostre e sue, call, note), cosi' non
+    # ripete quello che abbiamo gia' detto e sa cosa e' successo prima
+    try:
+        storia = sb("GET", f"/rest/v1/interactions?select=kind,at,body&prospect_id=eq.{p['id']}&kind=in.(email_in,email_out,call,nota)&order=at.desc&limit=6") or []
+        fatti["storia"] = [f"{x['at'][:10]} {x['kind']}: {' '.join((x.get('body') or '').split())[:300]}" for x in reversed(storia)]
+    except Exception:
+        pass
+    sintesi = (p.get("enriched") or {}).get("analisi") or {}
+    if sintesi:
+        fatti["analisi_sintesi"] = sintesi
+    prompt = (cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
@@ -264,6 +302,7 @@ def chiedi_bozza(p, ultimo, riprova=None):
     fermati = campi.get("FERMATI", "no")
     if campi.get("PREFLIGHT", "ok").lower().startswith("fallito") and fermati.lower().startswith("no"):
         fermati = "si': preflight " + campi["PREFLIGHT"]
+    bozza = bozza.replace("{{CALENDARIO}}", CALENDARIO).replace("{{ CALENDARIO }}", CALENDARIO)
     return {"intento": campi.get("INTENTO", "?")[:6], "template": campi.get("INTENTO", ""),
             "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza}
 
@@ -327,6 +366,7 @@ def main():
         if not PROVA:
             proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche,
                     azione={"bozza": b["bozza"], "intento": b["intento"], "template": b["template"]})
+            PRONTE.append((p["id"], (p.get("company") or p.get("name") or "")[:30], bool(p.get("analysis_pdf"))))
         if ferma: ferme += 1
         else: fatte += 1
 
@@ -360,7 +400,7 @@ def main():
         nome = (p.get("company") or p.get("name") or mail)[:34]
         fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
                  "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
-        prompt = (ISTRUZIONE_GB + cervello.istruzione("chat") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
+        prompt = (cervello.manuale("testa") + "\n\n" + ISTRUZIONE_GB + cervello.istruzione("chat") + cervello.istruzione("bozze") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
                   f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
         try:
             grezzo = cervello._chiedi(prompt) or ""
@@ -379,6 +419,7 @@ def main():
             continue
         print(f"\n  [GB] Gigante buono per {nome}\n      " + bozza[:200].replace("\n", " ") + "…")
         if not PROVA:
+            PRONTE.append((p["id"], nome, True))
             proponi("risposta", f"Gigante buono per {nome}, INT-GB", prospect_id=p["id"],
                     perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
                     azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB"})
@@ -386,9 +427,20 @@ def main():
     print(f"  giganti buoni pronti: {gb}")
     # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare
     if not PROVA and (fatte or ferme):
+        # LA BOZZA PRONTA ARRIVA SUL TELEFONO (Dre, 24/9): una notifica che dice chi,
+        # se c'e' l'analisi, e apre la scheda giusta: leggi, Approva e manda.
         from avvisa import avvisa
-        pezzi = ([f"{fatte} bozze da approvare"] if fatte else []) + ([f"{ferme} da guardare tu"] if ferme else [])
-        avvisa(", ".join(pezzi) + ". Apri la posta e approva.")
+        import os as _os
+        base = _os.environ.get("DASHBOARD_URL", "./")
+        if len(PRONTE) == 1:
+            pid, nome, con_pdf = PRONTE[0]
+            con = ", con l'analisi" if con_pdf else ""
+            avvisa(f"Bozza pronta per {nome}{con}: apri, leggi, Approva e manda.",
+                   titolo="Clara", url=f"{base}?scheda={pid}")
+        else:
+            nomi = ", ".join(n for _, n, _ in PRONTE[:3]) + ("…" if len(PRONTE) > 3 else "")
+            pezzi = ([f"{fatte} bozze pronte ({nomi})"] if fatte else []) + ([f"{ferme} da guardare tu"] if ferme else [])
+            avvisa(", ".join(pezzi) + ". Apri la Posta e approva.", titolo="Clara", url=base)
 
 
 if __name__ == "__main__":

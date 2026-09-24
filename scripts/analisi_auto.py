@@ -57,7 +57,7 @@ MODELLO = os.environ.get("MODELLO_ANALISI", "gpt-5")
 SB = env("VITE_SUPABASE_URL")
 SK = env("SUPABASE_SERVICE_KEY")
 CACHE = os.path.join(tempfile.gettempdir(), "odyn-analisi")
-VALIDITA_LINK = 60 * 60 * 24 * 60           # due mesi: il link firmato nella scheda
+VALIDITA_LINK = 60 * 60 * 24 * 365 * 10     # dieci anni (Dre, 24/9: «non voglio analisi che scadono»); prima erano due mesi
 # la cartella del vault, se questo gira sul Mac di Dre: copia del PDF anche li'
 VAULT_ANALISI = os.path.expanduser("~/Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/Analisi")
 # come in bozze.py: chi ha chiesto di non essere contattato non riceve niente
@@ -244,8 +244,7 @@ Lunghezza: come l'esempio, 3-4 pagine di testo denso, frasi lunghe e naturali.
 
 
 def chiedi(p, s, correzioni=None):
-    playbook = open(riservato("playbook-analisi.md"), encoding="utf-8").read()
-    prompt = (playbook + "\n\n" + ISTRUZIONE + "\n\nI FATTI:\n" + fatti_in_testo(s, p))
+    prompt = (cervello.manuale("testa", "analisi") + "\n\n" + ISTRUZIONE + "\n\nI FATTI:\n" + fatti_in_testo(s, p))
     if correzioni:
         prompt += "\n\nLA VERSIONE PRECEDENTE E' STATA BOCCIATA DAL CANCELLO. Correggi questi punti e rispondi di nuovo col JSON completo:\n- " + "\n- ".join(correzioni)
     grezzo = cervello._chiedi(prompt, MODELLO) or ""
@@ -262,10 +261,53 @@ def chiedi(p, s, correzioni=None):
 SEZIONI = ["Lettura iniziale", "Domanda", "Filtro", "Percorsi", ["Copertura", "Geografia"], "Stagionalit", "Credibilit", "Osservazione finale"]
 
 
-def cancello(an):
+# I NUMERI LI DA' IL CODICE, NON IL MODELLO (da Galileo, 24/9). Ogni numero che
+# compare nell'analisi deve stare nei fatti: volumi, CPC, recensioni, annunci,
+# date. Se il modello ne inventa uno (un «30% delle ricerche», un «2.300
+# aziende»), l'analisi si ferma e lo si dice. Passano i numeri piccoli (fino a
+# 12: mesi, elenchi, sezioni), gli anni, e quello che sta nei fatti.
+NUMERO = re.compile(r"(?<![\w/])(\d{1,3}(?:[.\s]\d{3})+|\d+(?:[.,]\d+)?)\s*(%|€|\$)?")
+
+
+def _norma(n):
+    n = n.replace(" ", "")
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", n):
+        return n.replace(".", "").replace(",", "")   # 4.400 e 4,400 -> 4400
+    return n.replace(",", ".")                        # 3,5 -> 3.5
+
+
+def numeri_di(testo):
+    return {(_norma(m.group(1)), m.group(2) or "") for m in NUMERO.finditer(testo)}
+
+
+def numeri_non_nei_fatti(tutto, fatti):
+    if not fatti:
+        return []
+    testo = re.sub(r"<[^>]+>", " ", tutto)
+    noti = {n for n, _ in numeri_di(fatti)}
+    # nei fatti le serie stanno anche come liste json: prendo tutte le cifre
+    noti |= {_norma(x) for x in re.findall(r"\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?", fatti)}
+    fuori = []
+    for n, unita in sorted(numeri_di(testo)):
+        try:
+            v = float(n)
+        except ValueError:
+            continue
+        if n in noti:
+            continue
+        if unita == "" and (v <= 12 or 2000 <= v <= 2035):
+            continue
+        fuori.append(f"{n}{unita}")
+    return fuori
+
+
+def cancello(an, fatti=""):
     errs = []
     intro, body = an.get("intro") or "", an.get("body") or ""
     tutto = intro + " " + body
+    inventati = numeri_non_nei_fatti(tutto, fatti)
+    if inventati:
+        errs.append(f"numeri che non stanno nei fatti: {', '.join(inventati[:8])}. Toglili o usa solo i numeri dei fatti (i numeri li da' il codice, non tu)")
     if "—" in tutto:
         errs.append(f"trattino lungo presente {tutto.count('—')} volte: usa virgola, due punti, o riformula")
     if CHIUSURA.lower()[:40] not in intro.lower():
@@ -345,13 +387,23 @@ def lavora(p):
     if s["ultime"] and NON_TOCCARE.search(s["ultime"][0].get("body") or ""):
         print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
     an = chiedi(p, s)
-    errori = cancello(an) if an else ["risposta non in JSON"]
+    fatti = fatti_in_testo(s, p)
+    errori = cancello(an, fatti) if an else ["risposta non in JSON"]
     if errori:
         print(f"    bocciata una volta: {'; '.join(errori)[:160]}")
         an = chiedi(p, s, errori)
-        errori = cancello(an) if an else ["risposta non in JSON"]
+        errori = cancello(an, fatti) if an else ["risposta non in JSON"]
     if errori:
-        print(f"  {nome}: NON passa il cancello: {'; '.join(errori)[:200]}"); return False
+        # TRATTENUTA CON MOTIVO (da Galileo): non si pubblica, e il motivo resta
+        # nella scheda, cosi' nessuno aspetta un PDF che non arriva
+        print(f"  {nome}: NON passa il cancello: {'; '.join(errori)[:200]}")
+        try:
+            arr = dict(p.get("enriched") or {})
+            arr["analisi"] = {**(arr.get("analisi") or {}), "trattenuta": "; ".join(errori)[:300], "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
+        except Exception as e:                                    # noqa: BLE001
+            print(f"    (motivo non scritto: {str(e)[:60]})")
+        return False
     pdf, azienda = renderizza(an, p, s)
     print(f"  {nome}: PDF pronto ({os.path.getsize(pdf) // 1024} KB) → {pdf}")
     if os.path.isdir(VAULT_ANALISI):
@@ -359,7 +411,11 @@ def lavora(p):
     if PROVA:
         return True
     link = carica_pdf(pdf, s["dominio"])
-    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"analysis_pdf": link})
+    bomba = re.search(r"class='bomba'>\s*<p>(.*?)</p>", an.get("body") or "", re.S)
+    arr = dict(p.get("enriched") or {})
+    arr["analisi"] = {"intro": re.sub(r"<[^>]+>", "", an.get("intro") or "")[:600], "frase_forte": re.sub(r"<[^>]+>", "", bomba.group(1) if bomba else "")[:300],
+                      "tipo": an.get("type"), "fatta_il": datetime.date.today().isoformat()}
+    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"analysis_pdf": link, "enriched": arr})
     # la proposta aperta in Posta: il PDF sta accanto alla bozza
     for pr in sb("GET", f"/rest/v1/proposte?select=id,perche&prospect_id=eq.{p['id']}&tipo=eq.risposta&stato=eq.aperta&limit=3") or []:
         if "Analisi PDF pronta" not in (pr.get("perche") or ""):

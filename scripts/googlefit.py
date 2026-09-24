@@ -88,8 +88,23 @@ def leggi_sito(url):
 
 
 # ── il cervello: settore, provincia, natura ───────────────────────
+def lezioni_dai_persi():
+    """I PERSI INSEGNANO AL FIT (Dre, 24/9): il motivo di ogni perso, con le parole
+    del cliente quando ci sono, torna qui come bandierina per i prossimi simili."""
+    try:
+        righe = sb("GET", "/rest/v1/prospects?select=sector,lost_reason,notes&lost_reason=not.is.null&order=updated_at.desc&limit=25") or []
+    except Exception:                                             # noqa: BLE001
+        return ""
+    if not righe:
+        return ""
+    voci = [f"- {(r.get('sector') or 'settore ?')[:30]}: {r['lost_reason'][:120]}" for r in righe if r.get("lost_reason")]
+    return ("\nCOSA ABBIAMO IMPARATO DAI PERSI (motivi veri, recenti): usali per le due cose scomode e per l'esclusione, "
+            "se il caso somiglia:\n" + "\n".join(voci[:25]) + "\n") if voci else ""
+
+
 def capisci(azienda, sito_testo, settori):
     lista = ", ".join(sorted(settori))
+    persi = lezioni_dai_persi()
     prompt = f"""Sei l'analista di Studio Galilei, agenzia Google Ads di Silea (TV).
 Devi capire un'azienda che ha risposto a una nostra mail, leggendo il suo sito.
 
@@ -130,7 +145,7 @@ Rispondi SOLO con un JSON su una riga, con queste chiavi:
  "esclusione": "" oppure uno fra "agenzia" (marketing/comunicazione/web agency/lead generation), "portale", "catena", "franchising", "multinazionale", "onlus", "privacy"}}
 
 I settori possibili: {lista}
-
+{persi}
 AZIENDA: {azienda}
 SITO:
 {sito_testo or '(sito non leggibile)'}

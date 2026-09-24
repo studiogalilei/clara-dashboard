@@ -269,7 +269,9 @@ def main():
             known_replied = em in known and known[em].get("last_reply_at")
             firma = f"{rc}|{r.get('category') or ''}|{r.get('is_unsubscribed') or ''}|{r.get('status') or ''}"
             if rc > 0 or known_replied:
-                if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma):
+                # 24/9 (Dre: «il thread si aggiorna anche se non clicco»): chi aspetta noi si
+                # rilegge a ogni giro, perche' la nostra risposta manuale non cambia la firma
+                if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma) and not known[em].get("awaiting_us"):
                     invariati += 1
                     continue
                 r["_firma"] = firma
@@ -374,6 +376,34 @@ def main():
                     rec = created[0] if isinstance(created, list) else created
                     known[em] = rec
                     anomalies.append(f"NUOVO nel CRM (mancava!): {em}")
+                # 24/9: quello che abbiamo mandato DOPO la sua ultima risposta (Dre da Smartlead,
+                # o una mini campagna di risposta) finisce nella storia come email_out, chiude
+                # la bozza aperta in Posta e, se dentro c'e' l'analisi, segna analysis_sent.
+                nostre = [m for m in msgs if m.get("type") == "SENT" and (m.get("time") or "") > (last_reply.get("time") or "")]
+                for m in nostre[-2:]:
+                    body = corpo_pulito(m.get("email_body"))[:1500]
+                    if not DRY:
+                        try:
+                            sb("POST", "/rest/v1/interactions",
+                               {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19], "kind": "email_out", "body": body},
+                               headers={"Prefer": "resolution=ignore-duplicates"})
+                        except RuntimeError:
+                            pass
+                if nostre and not DRY:
+                    try:
+                        chiuse = sb("PATCH", f"/rest/v1/proposte?prospect_id=eq.{rec['id']}&stato=eq.aperta&tipo=in.(risposta,umano)",
+                                    {"stato": "fatta", "risposta": "mandata da Smartlead (vista dal sync)", "risposta_il": datetime.utcnow().isoformat()},
+                                    headers={"Prefer": "return=representation"}) or []
+                        testo_nostro = " ".join(corpo_pulito(m.get("email_body")) for m in nostre).lower()
+                        agg = {}
+                        if ("analisi" in testo_nostro) and ("allega" in testo_nostro or "apri l" in testo_nostro or "pdf" in testo_nostro or "inoltro" in testo_nostro):
+                            agg = {"analysis_sent": True, "analysis_sent_at": (nostre[-1].get("time") or "")[:19]}
+                        if agg and not rec.get("analysis_sent"):
+                            sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", agg)
+                        if chiuse:
+                            print(f"    ✓ {em}: risposta nostra vista, {len(chiuse)} bozze chiuse" + (", analisi segnata" if agg else ""))
+                    except RuntimeError:
+                        pass
                 # timeline: le reply come interactions (dedup su unique constraint)
                 for m in replies[-3:]:
                     body = corpo_pulito(m.get("email_body"))[:800]

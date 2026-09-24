@@ -17,12 +17,18 @@ export async function urlFile(path: string, minuti = 60): Promise<string | null>
 
 // apre il file in una scheda nuova (il clic deve partire prima della firma,
 // se no Safari blocca la finestra: si apre subito e si punta dopo)
+// BUG (Alex 17/9, Lorenzo 19/9: «Apri restituisce una pagina about:blank»):
+// con 'noopener' il browser NON restituisce la finestra, quindi la scheda
+// vuota restava vuota e la seconda apertura, dopo l'attesa, la bloccava il
+// popup blocker. Si apre senza noopener (la finestra e' nostra), si stacca
+// l'opener a mano, poi si punta al file.
 export async function apriFile(path: string): Promise<boolean> {
-  const w = window.open('', '_blank', 'noopener')
+  const w = window.open('', '_blank')
+  if (w) { try { w.opener = null } catch { /* niente */ } }
   const url = await urlFile(path)
   if (!url) { w?.close(); return false }
-  if (w) w.location.href = url
-  else window.open(url, '_blank', 'noopener')
+  if (w) w.location.replace(url)
+  else window.open(url, '_blank')
   return true
 }
 

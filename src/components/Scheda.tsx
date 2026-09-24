@@ -112,10 +112,12 @@ export default function Scheda({ id, onClose }: Props) {
   // «Perso» si raggiunge da ogni fase, anche da qui (Dre, 2/9)
   const [persoAperto, setPersoAperto] = useState(false)
   const [motivoPerso, setMotivoPerso] = useState('')
+  const [paroleSue, setParoleSue] = useState('')     // cosa ha detto, con le sue parole: e' la prova (Dre, 24/9)
   // la terza uscita: passato a qualcun altro (Dre, 3/9)
   const [passoAperto, setPassoAperto] = useState(false)
   const [altroAperto, setAltroAperto] = useState(false)
   const [storiaAperta, setStoriaAperta] = useState(false)
+  const [clsAperta, setClsAperta] = useState(false)          // i chip della classificazione, in testata
   const [agendaSua, setAgendaSua] = useState<AgendaItem[]>([])
   // il ponte verso Obsidian, dove vivono gli originali: acceso o spento
   // dalle Impostazioni, non da qui
@@ -332,9 +334,11 @@ export default function Scheda({ id, onClose }: Props) {
       ? { pipeline_stage: 'perso' as PipelineStage, lost_reason: perche, next_action: null, next_action_date: null }
       : { stage: 'perso' as Stage, lost_reason: perche, next_action: null, next_action_date: null }
     if (!(await aggiorna(patch))) return
-    await segna('nota', `Segnato come perso: ${perche}`)
+    // come in un tribunale (Dre, 24/9): il motivo e, se c'e', la prova con le
+    // parole del cliente. Tornano nel Google Fit dei prossimi simili.
+    await segna('nota', `Segnato come perso: ${perche}${paroleSue.trim() ? `\nParole sue: «${paroleSue.trim()}»` : ''}`)
     setPersoAperto(false)
-    setMotivoPerso('')
+    setMotivoPerso(''); setParoleSue('')
   }
 
   // passa a qualcun altro: non e' ne' vinto ne' perso, ed e' la rete di Dre
@@ -598,7 +602,7 @@ export default function Scheda({ id, onClose }: Props) {
         <Card className="p-5">
           <div className="flex flex-wrap items-start gap-4">
             <Faccia p={p} size={44} />
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[220px] flex-1">
               <p className="flex items-center gap-2 text-[11px] font-bold tracking-wide text-blu">
                 {codice ?? '—'}
                 {eCliente(p)
@@ -635,12 +639,40 @@ export default function Scheda({ id, onClose }: Props) {
                   </button>
                 )
               })()}
+              {/* la classificazione a portata di mano (Dre, 24/9): la pillola dice
+                  com'e' messo, un clic apre le altre, un altro clic e' fatto */}
+              {!eCliente(p) && !ePerso(p) && !soppresso && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => setClsAperta(!clsAperta)}
+                    title="La classificazione: come ha risposto. Clicca per cambiarla"
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                      p.classificazione === 'positivo' ? 'bg-green-50 text-green-800' : p.classificazione === 'negativo' ? 'bg-red-50 text-red-700'
+                      : p.classificazione ? 'bg-amber-50 text-amber-800' : 'border border-dashed border-bordo text-tenue'}`}
+                  >
+                    {p.classificazione ? CLS_LABEL[p.classificazione] : 'Da capire'} {clsAperta ? '▴' : '▾'}
+                  </button>
+                  {clsAperta && CLASSIFICAZIONI.filter((c) => c !== p.classificazione && c !== 'soppresso').map((c) => (
+                    <button key={c} onClick={() => { void setCls(c); setClsAperta(false) }}
+                            className="rounded-full border border-bordo bg-white px-2.5 py-0.5 text-[11px] font-semibold text-tenue hover:border-blu hover:text-blu">
+                      {CLS_LABEL[c]}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {/* Un gesto solo e visibile per quello che si fa spesso; il
                 resto sotto i puntini. Tre bottoni in fila di cui uno diceva
                 «Segna come perso» erano un invito a perdere un lead: un
                 default e' letto come un consiglio (Dre, 4/9) */}
             <div className="relative flex shrink-0 items-center gap-2">
+              {/* LA STORIA A UN CLIC (Dre, 24/9): «vedere facilmente il pulsante per lo storico» */}
+              <button
+                onClick={() => setStoriaAperta(true)}
+                className="rounded-full border border-bordo px-4 py-2.5 text-sm font-bold text-tenue transition-colors hover:border-navy hover:text-navy"
+              >
+                Storia
+              </button>
               <button
                 onClick={() => { setNoteAperte(!noteAperte); setNotaEsito(null) }}
                 className={`rounded-full border px-4 py-2.5 text-sm font-bold transition-colors ${
@@ -737,6 +769,13 @@ export default function Scheda({ id, onClose }: Props) {
                 onChange={(e) => setMotivoPerso(e.target.value)}
                 placeholder="O scrivilo con parole tue"
                 className="w-full resize-none rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-red-400"
+              />
+              <textarea
+                rows={2}
+                value={paroleSue}
+                onChange={(e) => setParoleSue(e.target.value)}
+                placeholder="Le sue parole, se le hai (una frase della mail o della call): sono la prova, e insegnano al fit"
+                className="mt-2 w-full resize-none rounded-lg border border-bordo bg-white px-3 py-2 text-sm outline-none focus:border-red-400"
               />
               <div className="mt-2 flex justify-end gap-2">
                 <button
@@ -850,7 +889,12 @@ export default function Scheda({ id, onClose }: Props) {
               </button>
             )}
           </div>
+          <CosaManca p={p} aggiorna={aggiorna} />
         </Card>
+
+        {/* DA MANDARE (Dre, 24/9): la prima cosa della scheda e' cosa mando adesso,
+            con l'analisi accanto se e' la prima volta */}
+        <DaMandare p={p} />
 
         {/* la prossima call: quando c'è, sta sopra a tutto */}
         {prossimaCall && (
@@ -941,9 +985,6 @@ export default function Scheda({ id, onClose }: Props) {
             ))}
           </div>
         )}
-
-        {/* DA MANDARE (Dre, 24/9): la prima cosa della scheda e' cosa mando adesso */}
-        <div className="mb-3"><DaMandare p={p} /></div>
 
         {/* ── due colonne: identita' | il vivo ─────────────────── */}
         <div className="grid grid-cols-1 gap-3">
@@ -1470,6 +1511,85 @@ export default function Scheda({ id, onClose }: Props) {
       )}
 
       </aside>
+    </div>
+  )
+}
+
+// COSA MANCA (Dre, 24/9): «che riempire le info sia piu' smooth e faccia venire
+// voglia di riempirlo». Una riga di chip per i campi vuoti della scheda: un
+// clic, scrivi, Invio. La barretta dice quanto e' completa. Quando non manca
+// niente, sparisce: non e' un modulo, e' un invito.
+const DA_RIEMPIRE: Array<{ key: keyof Prospect; label: string; type?: string; lungo?: boolean; aiuto: string }> = [
+  { key: 'name', label: 'referente', aiuto: 'Nome e cognome di chi ci ha risposto' },
+  { key: 'role', label: 'ruolo', aiuto: 'Titolare, marketing, commerciale…' },
+  { key: 'phone', label: 'telefono', type: 'tel', aiuto: 'Con il prefisso' },
+  { key: 'website', label: 'sito', aiuto: 'www.azienda.it' },
+  { key: 'linkedin', label: 'LinkedIn', aiuto: 'Il link al profilo' },
+  { key: 'city', label: 'città', aiuto: 'Dove stanno' },
+  { key: 'sector', label: 'settore', aiuto: 'Cosa fanno, in una parola' },
+  { key: 'descrizione', label: 'chi sono', lungo: true, aiuto: 'Cosa fanno e a chi lo vendono, due righe' },
+]
+function CosaManca({ p, aggiorna }: { p: Prospect; aggiorna: (patch: Partial<Prospect>) => Promise<boolean> }) {
+  const [aperto, setAperto] = useState<keyof Prospect | null>(null)
+  const [valore, setValore] = useState('')
+  const [salvo, setSalvo] = useState(false)
+  const vuoti = DA_RIEMPIRE.filter((c) => !String(p[c.key] ?? '').trim())
+  const pieni = DA_RIEMPIRE.length - vuoti.length
+  if (vuoti.length === 0) return null
+  async function salva() {
+    if (!aperto) return
+    const v = valore.trim()
+    if (!v) { setAperto(null); return }
+    setSalvo(true)
+    const ok = await aggiorna({ [aperto]: v } as Partial<Prospect>)
+    setSalvo(false)
+    if (ok) { setAperto(null); setValore('') }
+  }
+  const c = aperto ? DA_RIEMPIRE.find((x) => x.key === aperto) : null
+  return (
+    <div className="mt-4 border-t border-velo pt-3">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.05em] text-spento">
+          Cosa manca
+          <span className="h-1 w-14 overflow-hidden rounded-full bg-velo" title={`${pieni} campi su ${DA_RIEMPIRE.length}`}>
+            <span className="block h-full rounded-full bg-blu transition-all" style={{ width: `${Math.round((pieni / DA_RIEMPIRE.length) * 100)}%` }} />
+          </span>
+        </span>
+        {vuoti.map((x) => (
+          <button
+            key={x.key}
+            onClick={() => { setAperto(aperto === x.key ? null : x.key); setValore('') }}
+            title={x.aiuto}
+            className={`rounded-full border border-dashed px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+              aperto === x.key ? 'border-blu bg-blu/5 text-blu' : 'border-bordo text-tenue hover:border-blu hover:text-blu'}`}
+          >
+            + {x.label}
+          </button>
+        ))}
+      </div>
+      {c && (
+        <div className="salta-su mt-2 flex items-start gap-2">
+          {c.lungo ? (
+            <textarea
+              autoFocus rows={2} value={valore} onChange={(e) => setValore(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void salva() } if (e.key === 'Escape') setAperto(null) }}
+              placeholder={c.aiuto}
+              className="flex-1 resize-none rounded-lg border border-blu bg-white px-3 py-1.5 text-sm outline-none"
+            />
+          ) : (
+            <input
+              autoFocus type={c.type ?? 'text'} value={valore} onChange={(e) => setValore(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void salva(); if (e.key === 'Escape') setAperto(null) }}
+              placeholder={c.aiuto}
+              className="flex-1 rounded-lg border border-blu bg-white px-3 py-1.5 text-sm outline-none"
+            />
+          )}
+          <button onClick={() => void salva()} disabled={salvo || !valore.trim()} className="rounded-full bg-blu px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-30">
+            {salvo ? '…' : 'Salva'}
+          </button>
+          <button onClick={() => setAperto(null)} className="rounded-full border border-bordo px-3 py-1.5 text-xs font-semibold text-tenue">Annulla</button>
+        </div>
+      )}
     </div>
   )
 }

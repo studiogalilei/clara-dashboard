@@ -137,8 +137,20 @@ def applica(prova=False):
     print(f"aziende da rifare col finder → {DA_RIFARE}")
     if prova:
         return
+    # IL POLIZIOTTO (24/9): regole dure, seconda testa, ok di Dre sopra soglia
+    from polizia import controlla
+    via = controlla("cancello lead dalle campagne Smartlead (email invalide/sconosciute/catch-all nominative)", via,
+                    chiave=lambda l: l["email"], irreversibile=True, motivo="il verificatore le ha bocciate: rimbalzano")
     n = 0
     for l in via:
+        # 24/9: MAI cancellare chi ha risposto. Cancellare il lead cancella il thread
+        # dalla Master Inbox di Smartlead (successo con 5 rispondenti su 6, 24/9).
+        try:
+            dati = sl("GET", f"/leads/?email={l['email']}")
+            if any(c.get("last_reply_at") for c in (dati.get("lead_campaign_data") or []) if isinstance(dati, dict)):
+                print(f"  tengo {l['email']}: ha risposto"); continue
+        except Exception:
+            pass
         r = sl("DELETE", f"/campaigns/{l['campagna']}/leads/{l['lead_id']}")
         n += r == "success"; time.sleep(0.2)
     print(f"tolti {n}/{len(via)}. Le campagne restano in pausa: lo Start e' di Dre.")

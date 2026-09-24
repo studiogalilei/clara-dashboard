@@ -31,11 +31,13 @@ interface Proposta {
   azione: {
     prospects?: Record<string, unknown>
     task?: { titolo: string; scadenza?: string | null }
-    bozza?: string; intento?: string; template?: string
+    bozza?: string; bozza_originale?: string; intento?: string; template?: string
     // «non e' nel CRM, lo aggiungo?»: il prospect da creare e le call da attaccargli
     nuovo?: Record<string, unknown>; agenda_ids?: number[]
     // «X chiede il widget Y»: la decide un ceo (lib/accessi.ts)
     accesso?: { user_id: string; widget: string; nome?: string }
+    // «ho imparato dalle tue correzioni»: sul si' il testo si appende alle istruzioni (scripts/lezioni.py)
+    istruzione?: { chiave: string; titolo: string; testo: string }
     // «questa mail e' di X?»: riconosciuta solo dal nome nell'oggetto, quindi
     // la scheda la tocca una persona (scripts/posta.py)
     interazione?: Record<string, unknown>
@@ -422,12 +424,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                             <button onClick={() => { if (pr.azione?.intento === 'INT-GB' && chiedoConferma !== pr.id) { setChiedoConferma(pr.id); return } rispondi(pr, true) }}
                                     disabled={rispondo === pr.id || lavoro !== null}
                                     className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
-                              {pr.azione?.bozza !== undefined ? 'L\'ho mandata' : 'Sì'}
+                              {pr.azione?.bozza !== undefined ? 'Approva e manda' : 'Sì'}
                             </button>
                             <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id || lavoro !== null} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
                             {chiedoConferma === pr.id && (
                               <span className="w-full text-[11px] font-semibold text-amber-800">
-                                Questa è l'ultima mail che gli mandiamo: dopo non lo risentiamo più. Ripremi «L'ho mandata» per confermare.
+                                Questa è l'ultima mail che gli mandiamo: dopo non lo risentiamo più. Ripremi «Approva e manda» per confermare.
                               </span>
                             )}
                             {pr.prospect_id && (
@@ -612,16 +614,19 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     // dalla Posta lo stesso e il lavoro era perso senza saperlo (QA Dre, 15/9)
     let riuscito = true
     if (si && p.azione?.bozza !== undefined && p.prospect_id) {
-      // «l'ho mandata»: la mail nostra entra nella storia, e lei smette di aspettare
+      // «Approva e manda» (Dre, 24/9): la bozza com'e' nel riquadro passa a
+      // Clara, che la manda da Smartlead nel thread della persona (manda.py)
       const testo = (bozze[p.id] ?? p.azione.bozza).trim()
-      const { error } = await supabase.from('interactions')
-        .insert({ prospect_id: p.prospect_id, at: new Date().toISOString(), kind: 'email_out', body: testo })
-      if (error) { esito = `Non sono riuscita a segnarla: ${error.message}`; riuscito = false }
-      else if (p.azione.intento === 'INT-GB') {
-        // il gigante buono (14/9): una volta sola, poi silenzio. L'analisi e' partita, niente follow-up
-        await supabase.from('prospects').update({ awaiting_us: false, analysis_sent: true, analysis_sent_at: new Date().toISOString(), no_followup: true }).eq('id', p.prospect_id)
-      } else await supabase.from('prospects').update({ awaiting_us: false }).eq('id', p.prospect_id)
-      esito = error ? esito : `Segnata come mandata: ${p.titolo}`
+      const { data: sess } = await supabase.auth.getSession()
+      const azione = { ...p.azione, bozza_originale: p.azione.bozza_originale ?? p.azione.bozza, bozza: testo, approvata_da: sess?.session?.user.id ?? 'demo', approvata_il: new Date().toISOString() }
+      const { error } = await supabase.from('proposte').update({ stato: 'approvata', azione }).eq('id', p.id)
+      if (error) { esito = `Non sono riuscita ad approvarla: ${error.message}`; riuscito = false }
+      else { void supabase.rpc('chiama_direttore', { forza: 'manda' }); esito = `Approvata, Clara la manda da Smartlead: ${p.titolo}` }
+      if (riuscito) setProposte((l) => l.filter((x) => x.id !== p.id))
+      else if (!muto) setGuaio(esito)
+      if (!muto) await scriviMessaggio('controllo', esito, p.prospect_id)
+      setRispondo(null)
+      return riuscito
     } else if (p.azione?.accesso) {
       const err = await decidiAccesso(p.azione.accesso.user_id, p.azione.accesso.widget, si)
       if (err) riuscito = false
@@ -643,6 +648,14 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       if (p.azione?.prospects && p.prospect_id) {
         const { error } = await supabase.from('prospects').update(p.azione.prospects).eq('id', p.prospect_id)
         if (error) { esito = `Non sono riuscita a scriverlo: ${error.message}`; riuscito = false }
+      }
+      if (p.azione?.istruzione) {
+        const { chiave, titolo, testo } = p.azione.istruzione
+        const { data: prima } = await supabase.from('istruzioni').select('testo').eq('chiave', chiave).maybeSingle()
+        const vecchio = ((prima as { testo?: string } | null)?.testo ?? '').trim()
+        const { error } = await supabase.from('istruzioni').upsert({ chiave, titolo, testo: vecchio ? `${vecchio}\n\n${testo}` : testo, aggiornata: new Date().toISOString() })
+        if (error) { esito = `Non sono riuscita a scriverla: ${error.message}`; riuscito = false }
+        else esito = 'Scritta nelle mie regole: dalla prossima bozza vale.'
       }
       if (p.azione?.task) {
         const { problema } = await creaTask({ titolo: p.azione.task.titolo, scadenza: p.azione.task.scadenza ?? null, prospect_id: p.prospect_id })

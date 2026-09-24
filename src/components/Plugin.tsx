@@ -194,6 +194,9 @@ export default function Plugin() {
         ))}
       </Card>
 
+      {/* ── CLARA, ULTIMI 30 GIORNI (da Galileo, 24/9): prima si misura ── */}
+      <Misure />
+
       {/* ── LE OPERAZIONI ─────────────────────────────────────── */}
       <Card>
         <header className="flex items-baseline gap-3 border-b border-velo px-4 py-3">
@@ -353,5 +356,33 @@ export default function Plugin() {
         ))}
       </Card>
     </div>
+  )
+}
+
+// MISURARE CLARA (Dre, 24/9: «senza questi non sappiamo se sta migliorando»).
+// Tre numeri, dal database (clara_misure): quanto ci mette dalla risposta
+// alla bozza, quante bozze passano senza correzioni, quante vengono scartate.
+function Misure() {
+  const [m, setM] = useState<Record<string, number | null> | null>(null)
+  useEffect(() => {
+    void supabase.rpc('clara_misure').then(({ data }) => setM((data as Record<string, number | null>) ?? null))
+  }, [])
+  if (!m) return null
+  const n = (k: string) => Number(m[k] ?? 0)
+  const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '–')
+  const giudicate = n('senza_correzioni') + n('con_correzioni')
+  return (
+    <Card>
+      <header className="border-b border-velo px-5 py-3">
+        <p className="text-sm font-bold">Clara, ultimi 30 giorni</p>
+        <Micro>i numeri che dicono se migliora: si guardano prima di costruire altro</Micro>
+      </header>
+      <div className="grid grid-cols-2 gap-4 px-5 py-4 sm:grid-cols-4">
+        <div><p className="text-2xl font-extrabold">{m.minuti_mediani == null ? '–' : `${n('minuti_mediani')}′`}</p><p className="text-xs text-tenue">dalla risposta alla bozza (mediana)</p></div>
+        <div><p className="text-2xl font-extrabold">{n('bozze')}</p><p className="text-xs text-tenue">bozze scritte, {n('mandate')} mandate</p></div>
+        <div><p className="text-2xl font-extrabold">{pct(n('senza_correzioni'), giudicate)}</p><p className="text-xs text-tenue">approvate senza correzioni{giudicate === 0 ? ' (dal 24/9 in poi)' : ` (${giudicate} giudicate)`}</p></div>
+        <div><p className="text-2xl font-extrabold">{pct(n('rifiutate'), n('bozze'))}</p><p className="text-xs text-tenue">scartate con «Non così»</p></div>
+      </div>
+    </Card>
   )
 }

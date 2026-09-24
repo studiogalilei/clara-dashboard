@@ -77,6 +77,40 @@ def dati_di(pid):
     return nome, "\n\n".join(pezzi)
 
 
+MARCA = "── Preparazione di Clara ──"
+
+
+def nell_evento(r, testo):
+    """LA PREP DENTRO L'EVENTO (Dre, 24/9: vive in Google Calendar, la legge dal
+    telefono prima di entrare in call). L'id dell'evento sta nel link
+    (eid = base64 di «id calendario»); si scrive nella descrizione, sopra
+    quello che c'era, con una marca per non duplicarla al giro dopo."""
+    import base64
+    import re as _re
+    import urllib.parse as _up
+    link = r.get("link") or ""
+    m = _re.search(r"[?&]eid=([A-Za-z0-9_\-=]+)", link)
+    if not m or not r.get("owner"):
+        return
+    try:
+        raw = m.group(1) + "=" * (-len(m.group(1)) % 4)
+        eid = base64.urlsafe_b64decode(raw).decode("utf-8", "replace").split(" ")[0]
+        chi = (sb("GET", f"/rest/v1/google_token?select=email&user_id=eq.{r['owner']}&limit=1") or [{}])[0].get("email")
+        if not chi:
+            return
+        from google_api import g
+        base = f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{_up.quote(eid)}"
+        ev = g("GET", base, email=chi) or {}
+        vecchia = ev.get("description") or ""
+        if MARCA in vecchia:
+            vecchia = vecchia.split(MARCA)[-1].split("── fine ──")[-1].strip()
+        nuova = f"{MARCA}\n{testo.strip()[:3500]}\n── fine ──\n\n{vecchia}".strip()
+        g("PATCH", base, {"description": nuova[:8000]}, email=chi)
+        print("    scritta anche nell'evento di Google")
+    except Exception as e:                                        # noqa: BLE001
+        print(f"    (non scritta nell'evento: {str(e)[:100]})")
+
+
 def main():
     prova = "--prova" in sys.argv
     ore = 30
@@ -112,6 +146,7 @@ def main():
             continue
         sb("PATCH", f"/rest/v1/agenda?id=eq.{r['id']}",
            {"preparazione": testo, "preparata_il": zulu(adesso)})
+        nell_evento(r, testo)
         fatte += 1
 
     print(f"{'(prova) ' if prova else ''}preparate {fatte}")
