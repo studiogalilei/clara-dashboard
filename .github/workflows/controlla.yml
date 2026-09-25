@@ -20,5 +20,11 @@ jobs:
       - run: npm ci
       - name: compilatore, lint e prove
         run: npm run controlla
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # gli invarianti di Clara (24/9, da Galileo): se uno cade, il push non passa
+      - name: gli invarianti di Clara
+        run: python3 scripts/test_invarianti.py
       - name: build vera
         run: npm run build
