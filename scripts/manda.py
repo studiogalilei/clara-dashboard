@@ -151,6 +151,10 @@ def torna_aperta(pr, azienda, motivo, prova):
 def main():
     prova = "--prova" in sys.argv
     approvate = sb("GET", "/rest/v1/proposte?select=id,tipo,titolo,prospect_id,azione,at&stato=eq.approvata&tipo=in.(risposta,umano)&order=at") or []
+    MAX_PER_GIRO = 12          # in fila, non a raffica (25/9): dodici ogni cinque minuti
+    if len(approvate) > MAX_PER_GIRO:
+        print(f"  {len(approvate)} approvate: ne mando {MAX_PER_GIRO} questo giro, le altre al prossimo")
+        approvate = approvate[:MAX_PER_GIRO]
     bloccate = sb("GET", "/rest/v1/proposte?select=id,titolo,at&stato=eq.in_invio") or []
     for b in bloccate:
         print(f"  ferma in invio dal {b['at'][:16]}: {b['titolo'][:60]} (non riparte da sola)")

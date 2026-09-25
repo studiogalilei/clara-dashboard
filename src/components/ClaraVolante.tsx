@@ -686,6 +686,22 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // Tutto il gruppo in un colpo (Dre: «scarto questi nove?»). Le proposte si
   // fanno UNA ALLA VOLTA, in fila, con la stessa rispondi() del singolo: la
   // logica resta una sola, e se una fallisce le altre vanno avanti lo stesso.
+  // LE RIPRESE (25/9): le bozze con intento RIPRESA, tutte insieme su un clic di Dre
+  const riprese = proposte.filter((x) => x.azione?.intento === 'RIPRESA' && x.azione?.bozza !== undefined)
+  const [chiedoRiprese, setChiedoRiprese] = useState(false)
+  async function approvaRiprese() {
+    if (riprese.length === 0 || lavoro) return
+    setChiedoRiprese(false); setGuaio(null)
+    setLavoro({ tipo: 'ripresa', fatte: 0, totali: riprese.length })
+    let bene = 0
+    for (const p of riprese) {
+      if (await rispondi(p, true, true)) bene++
+      setLavoro((l) => (l ? { ...l, fatte: l.fatte + 1 } : l))
+    }
+    setLavoro(null)
+    await scriviMessaggio('controllo', `Approvate ${bene} riprese su ${riprese.length}: Clara le manda in fila, dodici ogni cinque minuti.`)
+  }
+
   async function rispondiGruppo(tipo: string, si: boolean) {
     const gruppo = proposte.filter((x) => x.tipo === tipo)
     const voce = BLOCCO[tipo]
@@ -945,6 +961,27 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
           <div className="m-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
             <span className="flex-1">{guaio}</span>
             <button onClick={() => setGuaio(null)} className="shrink-0 font-bold text-red-600">Chiudi</button>
+          </div>
+        )}
+        {/* LA RIPRESA IN BLOCCO (Dre, 25/9: «riprendi TUTTI, prepara tutto e invia»): un
+            clic solo, e Clara le manda in fila, dodici ogni cinque minuti. Il clic e' suo. */}
+        {riprese.length >= 2 && (
+          <div className="m-3 rounded-xl border border-blu/30 bg-blu/[0.05] px-4 py-3">
+            <p className="text-sm font-bold text-navy">{riprese.length} riprese pronte: analisi e proposta di call a chi era rimasto in sospeso</p>
+            <p className="mt-0.5 text-xs text-tenue">Le puoi leggere una per una qui sotto, oppure approvarle tutte: partono in fila, dodici ogni cinque minuti.</p>
+            <div className="mt-2 flex items-center gap-2">
+              {chiedoRiprese ? (
+                <>
+                  <span className="text-[11px] font-semibold text-inchiostro">Approvo e mando tutte e {riprese.length}?</span>
+                  <button onClick={() => void approvaRiprese()} disabled={lavoro !== null} className="rounded-full bg-blu px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-40">Conferma</button>
+                  <button onClick={() => setChiedoRiprese(false)} className="rounded-full border border-bordo px-3 py-1.5 text-[11px] font-semibold text-tenue">Annulla</button>
+                </>
+              ) : lavoro?.tipo === 'ripresa' ? (
+                <span className="text-[11px] font-semibold text-tenue">Ci sto lavorando, {lavoro.fatte} di {lavoro.totali}</span>
+              ) : (
+                <button onClick={() => setChiedoRiprese(true)} disabled={lavoro !== null} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Approva e manda tutte</button>
+              )}
+            </div>
           </div>
         )}
         {proposte.length === 0 ? (
