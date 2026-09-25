@@ -50,12 +50,36 @@ def quando(iso):
 
 def dati_di(pid):
     """Tutto quello che sappiamo di quell'azienda, in un testo solo."""
-    p = (sb("GET", f"/rest/v1/prospects?select=company,name,email,sector,city,website,descrizione,"
+    p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,email,sector,city,website,descrizione,"
                    f"stage,pipeline_stage,classificazione,canone,contratto,notes,next_action,next_action_date,"
-                   f"analysis_sent_at,last_reply_at,prova_fine&id=eq.{pid}") or [None])[0]
+                   f"analysis_sent_at,last_reply_at,prova_fine,enriched&id=eq.{pid}") or [None])[0]
     if not p:
         return None, None
-    pezzi = ["SCHEDA: " + ", ".join(f"{k}={v}" for k, v in p.items() if v not in (None, "", False))]
+    arr = p.pop("enriched", None) or {}
+    pezzi = ["SCHEDA: " + ", ".join(f"{k}={v}" for k, v in p.items() if v not in (None, "", False) and k != "id")]
+    # IL BILANCIO PRIMA DELLA CALL (Dre, 26/9): «cosi' so gia' come impostarmi, che domande
+    # fare e che lingo usare». Se manca, si prende adesso da OpenAPI (una volta, 0,10 €).
+    bil = arr.get("bilancio") or {}
+    if not bil.get("fatturato") and not bil.get("fonte") and "--prova" not in sys.argv:
+        try:
+            import prezzo
+            nuovo = prezzo.bilancio_openapi({**p, "enriched": arr})
+            if nuovo:
+                fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{pid}") or [{}])[0]
+                arr = dict(fresco.get("enriched") or {}); arr["bilancio"] = {**bil, **{k: v for k, v in nuovo.items() if v not in (None, "")}}
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{pid}", {"enriched": arr}); bil = arr["bilancio"]
+        except Exception as e:                                # noqa: BLE001
+            print(f"    bilancio non preso: {str(e)[:60]}")
+    if bil.get("fatturato"):
+        pezzi.append("BILANCIO (fonte " + str(bil.get("fonte") or "scheda") + "): " +
+                     ", ".join(f"{k}={bil[k]}" for k in ("fatturato", "utile", "anno", "dipendenti", "forma") if bil.get(k)))
+    pz = arr.get("prezzo") or {}
+    if pz.get("fascia"):
+        pezzi.append(f"PREZZO SUGGERITO (interno, non si dice in call): {pz['fascia'][0]}-{pz['fascia'][1]} €/mese, affidabilita' {pz.get('affidabilita')}, "
+                     f"spesa Ads sostenibile ~{pz.get('spesa_ads_mese')} €/mese" + (f", flag: {'; '.join(pz['flag'])}" if pz.get("flag") else ""))
+    fit = arr.get("google_fit") or {}
+    if fit.get("verdetto"):
+        pezzi.append("GOOGLE FIT: " + ", ".join(f"{k}={fit[k]}" for k in ("verdetto", "settore", "tipo", "cosa_fa", "ticket_min", "ticket_max", "zona", "motivo") if fit.get(k)))
 
     storia = sb("GET", f"/rest/v1/interactions?select=at,kind,body&prospect_id=eq.{pid}"
                        f"&order=at.desc&limit=12") or []

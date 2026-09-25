@@ -149,6 +149,53 @@ def calcola(p, P, vol, fit, racc):
     }
 
 
+# IL BILANCIO DA OPENAPI (Dre, 26/9): «si fa quando ha prenotato la call conoscitiva: e' bene
+# averlo nella preparazione pre call, cosi' so gia' come impostarmi, che domande fare e che
+# lingo usare». Company Advanced, 0,10 € a chiamata: fatturato, utile, dipendenti, forma,
+# anno. Una volta per lead, da quando entra in pipeline, solo se la chiave c'e' (OPENAPI_KEY).
+DA_TECNICA = ("conoscitiva", "tecnica", "avvio", "prova", "cliente")
+
+
+def bilancio_openapi(p):
+    """Torna il blocco bilancio, o None. Cerca per nome (IT-search, 0,01 €) e poi legge
+    l'Advanced (0,10 €). I nomi dei campi si tengono larghi: la risposta grezza resta nel blocco."""
+    import urllib.parse
+    import urllib.request
+    from stanza import env
+    k = os.environ.get("OPENAPI_KEY") or env("OPENAPI_KEY")
+    if not k or not p.get("company"):
+        return None
+
+    def g(url):
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {k}", "User-Agent": "clara/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.loads(r.read() or b"{}")
+    try:
+        cerca = g(f"https://company.openapi.com/IT-search?denominazione={urllib.parse.quote(p['company'])}&limit=5")
+        trovati = cerca.get("data") or []
+        citta = (p.get("city") or "").lower()
+        scelto = next((t for t in trovati if citta and citta in json.dumps(t, ensure_ascii=False).lower()), trovati[0] if trovati else None)
+        if not scelto:
+            return {"esito": "non trovata su OpenAPI", "il": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+        piva = scelto.get("vatCode") or scelto.get("taxCode") or scelto.get("piva")
+        adv = (g(f"https://company.openapi.com/IT-advanced/{piva}").get("data") or {})
+        adv = adv[0] if isinstance(adv, list) and adv else adv
+        bil = adv.get("balanceSheets") or adv.get("balanceSheet") or adv.get("bilanci") or {}
+        ultimo = (bil.get("last") if isinstance(bil, dict) else (bil[0] if bil else {})) or {}
+        return {
+            "fatturato": ultimo.get("turnover") or ultimo.get("revenue") or ultimo.get("fatturato") or adv.get("turnover") or adv.get("revenue"),
+            "utile": ultimo.get("netWorth") if False else (ultimo.get("profit") or ultimo.get("netProfit") or ultimo.get("utile")),
+            "anno": ultimo.get("year") or ultimo.get("balanceSheetDate", "")[:4] or ultimo.get("anno"),
+            "dipendenti": adv.get("employees") or ultimo.get("employees"),
+            "forma": (adv.get("legalForm") or {}).get("description") if isinstance(adv.get("legalForm"), dict) else adv.get("legalForm"),
+            "piva": piva, "fonte": "openapi IT-advanced", "grezzo": json.dumps(adv, ensure_ascii=False)[:1500],
+            "il": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        }
+    except Exception as e:                                    # noqa: BLE001
+        print(f"    openapi non risponde per {p.get('company')[:30]}: {str(e)[:80]}")
+        return None
+
+
 def main():
     import analisi_auto
     P = parametri()
@@ -169,6 +216,15 @@ def main():
         par_il = max((r.get("aggiornato_il") or "" for r in (sb("GET", "/rest/v1/parametri?select=aggiornato_il&chiave=like.prezzo.*") or [])), default="")
         if vecchio.get("il") and vecchio["il"] > max(bil_il, val_il, par_il) and (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(vecchio["il"])).days < 7 and not SOLO:
             saltati += 1; continue
+        # dalla call tecnica in poi, il bilancio si prende da OpenAPI una volta sola
+        bil = arr.get("bilancio") or {}
+        if p.get("pipeline_stage") in DA_TECNICA and not bil.get("fatturato") and not bil.get("fonte") and not PROVA:
+            nuovo = bilancio_openapi(p)
+            if nuovo:
+                fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{p['id']}") or [{}])[0]
+                arr = dict(fresco.get("enriched") or {}); arr["bilancio"] = {**bil, **{k: v for k, v in nuovo.items() if v not in (None, "")}}
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr}); p["enriched"] = arr
+                print(f"  {(p.get('company') or p['email'])[:36]}: bilancio da OpenAPI: {nuovo.get('fatturato')} € ({nuovo.get('anno')}), {nuovo.get('esito', '')}")
         try:
             s = analisi_auto.scheda(p)
         except Exception as e:                                # noqa: BLE001

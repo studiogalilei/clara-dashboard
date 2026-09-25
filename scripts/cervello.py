@@ -309,15 +309,23 @@ A che punto siamo
 Cosa chiedere
 - <massimo tre domande vere, quelle che sbloccano la trattativa o il lavoro>
 
+Come parlargli
+- <una riga: la taglia dell'azienda dal bilancio (micro sotto 1 M€, piccola fino a 10, media oltre), il registro e le parole
+  da usare e da evitare: al titolare di una micro si parla di clienti e telefonate, non di budget e KPI; a una media
+  di canale, costo per acquisizione e margine. Se il bilancio manca, salta la sezione>
+
 Attento a
-- <massimo due cose: promesse fatte, cose delicate, date scadute>
+- <massimo due cose: promesse fatte, cose delicate, date scadute, un bilancio in perdita>
 
 REGOLE
 Solo quello che c'e' nei dati che ti do: se una cosa non la sai, non la scrivi.
+Se c'e' il BILANCIO, le domande si adattano alla taglia: a una micro non chiedi il budget marketing,
+chiedi quanti clienti nuovi in un mese cambierebbero le cose; a una media chiedi chi decide e quanto
+spendono oggi. Il PREZZO SUGGERITO e' interno: serve a te per tarare le domande, non si nomina mai.
 Niente introduzioni, niente commenti tuoi, niente consigli generici da manuale.
 Niente parole gonfie (innovativo, soluzioni, sinergia, a 360, ottimizzare, implementare).
 Niente punti esclamativi, niente trattini lunghi.
-Massimo dodici righe in tutto.
+Massimo quattordici righe in tutto.
 
 CALL: {quando}, {tipo}
 AZIENDA: {azienda}
@@ -339,6 +347,8 @@ def preparo(dati, azienda="", quando="", tipo="", modello=None):
     fuori = (fuori or "").strip()
     if len(fuori) < 50 or "Chi sono" not in fuori:
         return None
+    if re.search(r"prezzo suggerito|€/mese", fuori, re.I):
+        fuori = "\n".join(r for r in fuori.splitlines() if not re.search(r"prezzo suggerito|€/mese", r, re.I))   # interno, non entra nella preparazione
     fuori = re.sub(r"\s*—\s*", ": ", fuori).replace("–", "-").replace("·", ",").replace("•", "-")
     return fuori.replace("!", ".")
 

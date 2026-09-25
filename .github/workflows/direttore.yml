@@ -45,6 +45,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAPI_KEY: ${{ secrets.OPENAPI_KEY }}
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
           SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
           WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
