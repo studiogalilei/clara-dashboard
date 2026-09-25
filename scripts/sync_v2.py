@@ -115,7 +115,7 @@ def sl_export(cid, tries=5):
 CAT_HINT = {
     "Interested": "positivo", "Meeting Request": "positivo", "Information Request": "positivo",
     "Not Interested": "negativo", "Do Not Contact": "negativo",
-    "Out Of Office": "ooo", "Wrong Person": "da_classificare",
+    "Out Of Office": "ooo", "Wrong Person": "persona_sbagliata",
 }
 
 def sb(method, path, body=None, headers=None):

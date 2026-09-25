@@ -56,10 +56,11 @@ const SCARTATI = TAPPE.find(([, c]) => c === 'scartato')!
 // dentro i Lead si vede chi e' chi senza aprire (Dre, 7/9): non un sacco
 // di 343 carte uguali, ma cinque gruppi con un nome
 const GRUPPI_PROSPECT: Array<[string, (p: Prospect) => boolean]> = [
-  ['Caldi', (p) => p.classificazione === 'positivo'],
+  ['Positivi', (p) => p.classificazione === 'positivo'],
+  ['Parziali', (p) => p.classificazione === 'tiepido'],
   ['Rinviati', (p) => p.classificazione === 'rinvio'],
   ['Fuori ufficio', (p) => p.classificazione === 'ooo'],
-  ['Tiepidi', (p) => p.classificazione === 'tiepido'],
+  ['Persona sbagliata', (p) => p.classificazione === 'persona_sbagliata'],
   ['Da capire', (p) => !p.classificazione || p.classificazione === 'da_classificare'],
 ]
 

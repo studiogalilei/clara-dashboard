@@ -51,7 +51,7 @@ function lunediDi(d: Date): Date {
 }
 
 const RANGO: Partial<Record<Classificazione, number>> = {
-  positivo: 0, da_classificare: 1, tiepido: 2, rinvio: 3, ooo: 4,
+  positivo: 0, da_classificare: 1, tiepido: 2, persona_sbagliata: 3, rinvio: 4, ooo: 5,
 }
 
 interface TaskDre {

@@ -31,7 +31,8 @@ export function StageBadge({ stage }: { stage: Stage }) {
 }
 
 export function ClsBadge({ cls }: { cls: Classificazione }) {
-  const tono = cls === 'positivo' ? 'verde' : cls === 'negativo' ? 'rosso' : cls === 'tiepido' || cls === 'rinvio' ? 'ambra' : undefined
+  const tono = cls === 'positivo' ? 'verde' : cls === 'negativo' || cls === 'nervoso' || cls === 'soppresso' ? 'rosso'
+    : cls === 'tiepido' || cls === 'rinvio' || cls === 'persona_sbagliata' ? 'ambra' : undefined
   return <Eti testo={CLS_LABEL[cls] ?? cls} tono={tono} />
 }
 

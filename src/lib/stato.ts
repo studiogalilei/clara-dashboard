@@ -65,7 +65,7 @@ export function statoVivo(p: Prospect, x: Extra = {}): Stato {
   if (!vivo(p)) {
     const c = p.classificazione
     return {
-      testo: c === 'fuori_target' ? 'Fuori target' : c === 'soppresso' ? 'Non vuole essere contattato' : 'Ha detto no',
+      testo: c === 'fuori_target' ? 'Fuori target' : c === 'soppresso' ? 'Ha chiesto di essere rimosso' : c === 'nervoso' ? 'Nervoso: si lascia stare' : 'Ha detto no',
       tono: 'spento',
     }
   }
@@ -124,6 +124,7 @@ export function statoVivo(p: Prospect, x: Extra = {}): Stato {
       ? { testo: `Risentirlo ${tra(n)}, dal ${data(q)}`, tono: 'ok' }
       : { testo: `Da risentire: era ${il(q)}`, tono: invecchia(-n) }
   }
+  if (p.classificazione === 'persona_sbagliata') return { testo: 'Persona sbagliata: cercare il referente giusto', tono: 'attesa' }
   if (p.classificazione === 'ooo') {
     if (p.ooo_until && giorniA(p.ooo_until) >= 0) return { testo: `Fuori ufficio fino al ${data(p.ooo_until)}`, tono: 'ok' }
     const q = quandoRisentirlo(p)

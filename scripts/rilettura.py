@@ -40,11 +40,12 @@ PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else None
 
 INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
-SICURE = {"ooo", "negativo", "rinvio", "tiepido"}
+SICURE = {"ooo", "negativo", "rinvio", "tiepido", "persona_sbagliata", "nervoso", "soppresso"}
 AUTOMATICA = re.compile(r"automatic|autorispo|auto-?repl|out of office|fuori ufficio|assen|ferie|vacan|rientr|chius", re.I)
-ETICHETTA = {"positivo": "positivo", "tiepido": "tiepido", "negativo": "negativo",
-             "ooo": "fuori ufficio", "rinvio": "rinvio", "fuori_target": "fuori target",
-             "da_classificare": "da capire"}
+ETICHETTA = {"positivo": "positivo", "tiepido": "parziale", "negativo": "negativo",
+             "ooo": "fuori ufficio", "rinvio": "rinviato", "fuori_target": "fuori target",
+             "da_classificare": "da capire", "soppresso": "richiesta di rimozione",
+             "persona_sbagliata": "persona sbagliata", "nervoso": "nervoso"}
 
 
 def ultima_risposta_per_persona():

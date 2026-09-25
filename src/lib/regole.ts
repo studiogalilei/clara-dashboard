@@ -9,7 +9,7 @@ import { PIPELINE_LABEL, type Prospect, type PipelineStage } from './types'
 
 // ── chi è vivo ────────────────────────────────────────────────────
 // I morti dichiarati non si contano, non si ricontattano, non appaiono.
-export const MORTI = ['negativo', 'fuori_target', 'soppresso']
+export const MORTI = ['negativo', 'fuori_target', 'soppresso', 'nervoso']   // nervoso (25/9): infastidito, si lascia stare
 
 // lo stesso filtro, nella lingua di PostgREST
 export const VIVI = `classificazione.is.null,classificazione.not.in.("${MORTI.join('","')}")`

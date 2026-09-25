@@ -77,7 +77,11 @@ FINTI_DOM = re.compile(r"^(esempio|example|dominio|domain|tuodominio|tuosito|you
                        r"youremail|mailservice|placeholder|test|xxx|nome|tuamail|miosito|miaazienda|server|host|localhost|ilmiosito|providermail|echoecho|xyz)\.(it|com|net|org|eu)$|\.(local|test|example|invalid)$")
 FINTI_LP = re.compile(r"^(mario\.?rossi|mario\.?bianchi|paolo\.?rossi|giuseppe\.?verdi|nome\.?cognome|nomecognome|tuo\.?nome|test|prova|esempio|example|"
                       r"email|mail|name\.?surname|john\.?doe|user|utente|nome|cognome|tua\.?email|tuamail|xxx+|aaa+|abc|indirizzo|indirizzoemail|[0-9]+)$")
-TECNICHE = re.compile(r"^(noreply|no-reply|no_reply|donotreply|sentry|privacy|abuse|postmaster|mailer-daemon|dpo|unsubscribe|cookie|gdpr)$")
+# 25/9 (Dre: «mail di supporto, fanno schifo»): anche le caselle di servizio non entrano
+TECNICHE = re.compile(r"^(noreply|no-reply|no_reply|donotreply|sentry|privacy|abuse|postmaster|mailer-daemon|dpo|unsubscribe|cookie|gdpr"
+                      r"|support|supporto|assistenza|help|helpdesk|customercare|customerservice|customer\.service|ticket|servizioclienti|clienti"
+                      r"|newsletter|webmaster|hr|risorseumane|jobs|lavoraconnoi|careers|recruiting|fatture|fatturazione|amministrazione|contabilita"
+                      r"|billing|ordini|orders|prenotazioni|booking|reception|segreteria)([\w.-]*)$")
 REFUSI = {"gmail.co", "gmail.comt", "gmail.it", "gmial.com", "gmal.com", "gamil.com", "gmail.con", "gmail.cm", "hotmal.it", "hotmail.i", "libero.com",
           "yahoo.i", "gmail.om", "gmai.com", "hotmail.co", "outlook.i", "libero.i", "icloud.it", "gmail.cpm", "gmail.comm"}
 PEC = {"ticertifica.it", "pcert.it", "postacertificata.com", "sicurezzapostale.it", "postecert.it", "legalmail.it", "legalmail.com"}
