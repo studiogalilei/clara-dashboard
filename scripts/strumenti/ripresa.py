@@ -30,7 +30,7 @@ import os
 import re
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
 from stanza import sb, proponi                              # noqa: E402
 
 GIORNI = 30
@@ -60,6 +60,18 @@ Se le fa piacere approfondire, mi scriva pure e ci sentiamo. In caso contrario n
 """
 
 
+def template_ooo():
+    """Il testo di Dre, parola per parola (Risposte template: RICONTATTO DOPO OUT OF OFFICE)."""
+    import cervello, re as _re
+    t = cervello.manuale("template")
+    m = _re.search(r"## RICONTATTO DOPO OUT OF OFFICE[^\n]*\n.*?```\s*(.*?)```", t, _re.S)
+    if not m:
+        raise RuntimeError("template RICONTATTO DOPO OUT OF OFFICE non trovato")
+    testo = m.group(1).strip()
+    testo = _re.sub(r"https?://calendar\.app\.google/\S+", CALENDARIO, testo)
+    return testo
+
+
 def nome_di(p):
     n = re.sub(r"\s+", " ", (p.get("name") or "").strip()).split(" ")[0] if p.get("name") else ""
     return f" {n}" if re.fullmatch(r"[A-Za-zÀ-ÿ'\-]{2,}", n or "") and n.lower() not in ("info", "amministrazione", "ufficio", "segreteria") else ""
@@ -67,6 +79,10 @@ def nome_di(p):
 
 def bozza_per(p, gruppo):
     fit = ((p.get("enriched") or {}).get("google_fit") or {})
+    if gruppo == "RICONTATTO OOO":
+        n = nome_di(p).strip()
+        t = template_ooo().replace("Salve [Nome],", f"Salve {n}," if n else "Salve,")
+        return t + ("\n\nAllego anche una breve presentazione di Studio Galilei." if "presentazione" not in t.lower() else "")
     chi = CHIUSURA_SI.format(cal=CALENDARIO)      # Dre, 25/9: «proporli la call», a tutti
     t = (RIPRESA if gruppo == "RIPRESA" else RINVIO).format(nome=nome_di(p), chiusura=chi)
     if fit.get("settore") and fit.get("settore") != "altro":
@@ -99,8 +115,31 @@ def candidati():
     outs = {}
     for r in sb("GET", "/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup,analisi)&order=at.desc&limit=6000") or []:
         outs.setdefault(r["prospect_id"], r["at"])
-    gia = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&azione->>template=in.(RIPRESA,RINVIO%20SCADUTO)&limit=5000") or [])}
+    gia = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&azione->>template=in.(RIPRESA,RINVIO%20SCADUTO,RICONTATTO%20OOO)&limit=5000") or [])}
     out = []
+    if "--ooo" in sys.argv:
+        # DOPO LE FERIE (Dre, 25/9): chi ci ha risposto solo con un'assenza ha comunque risposto,
+        # quindi l'analisi puo' viaggiare in allegato. Solo chi e' in target: il fit si fa qui se manca.
+        import googlefit
+        zone, settori = googlefit.carica_fogli()
+        ooo = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website"
+                        "&fuori=eq.false&stage=not.in.(perso,cliente)&no_followup=eq.false&analysis_sent=eq.false&classificazione=eq.ooo&limit=3000") or []
+        for p in ooo:
+            if p["id"] in gia:
+                continue
+            fit = ((p.get("enriched") or {}).get("google_fit") or {})
+            if not fit.get("verdetto"):
+                try:
+                    fit = googlefit.valuta(p, zone, settori)
+                    arr = dict(p.get("enriched") or {}); arr["google_fit"] = fit
+                    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr}); p["enriched"] = arr
+                    print(f"  fit {fit['verdetto']:8} {(p.get('company') or p['email'])[:34]}")
+                except Exception as e:                                # noqa: BLE001
+                    print(f"  fit non fatto per {(p.get('company') or p['email'])[:30]}: {str(e)[:60]}"); continue
+            if fit.get("verdetto") == "NO":
+                continue
+            out.append((p, "RICONTATTO OOO"))
+        return out
     for p in rs:
         if p["id"] in gia:
             continue
@@ -160,9 +199,12 @@ def main():
         import datetime as _dt
         for v_ in sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=eq.aperta&tipo=in.(risposta,umano)") or []:
             sb("PATCH", f"/rest/v1/proposte?id=eq.{v_['id']}", {"stato": "no", "risposta": "sostituita dalla ripresa del 25/9 (la risposta è vecchia di settimane)", "risposta_il": _dt.datetime.now(_dt.timezone.utc).isoformat()})
-        proponi("risposta", f"{'Ripresa' if gruppo == 'RIPRESA' else 'Rinvio scaduto'}: {nome}", prospect_id=p["id"],
-                perche=("Ha scritto lui per ultimo il " + p["last_reply_at"][:10] + " e non ha mai avuto risposta: la scusa di Dre, analisi e presentazione in allegato." if gruppo == "RIPRESA"
-                        else "Aveva chiesto di risentirci e la data (" + str(p.get("next_action_date")) + ") è passata: ci facciamo vivi come promesso, con analisi e presentazione.")[:280],
+        titoli = {"RIPRESA": "Ripresa", "RINVIO SCADUTO": "Rinvio scaduto", "RICONTATTO OOO": "Dopo le ferie"}
+        perche = {"RIPRESA": "Ha scritto lui per ultimo il " + p["last_reply_at"][:10] + " e non ha mai avuto risposta: la scusa di Dre, analisi e presentazione in allegato.",
+                  "RINVIO SCADUTO": "Aveva chiesto di risentirci e la data (" + str(p.get("next_action_date")) + ") è passata: ci facciamo vivi come promesso, con analisi e presentazione.",
+                  "RICONTATTO OOO": "Ci aveva risposto solo con un'assenza (" + p["last_reply_at"][:10] + "): il template «dopo le ferie» di Dre, con analisi e presentazione. Fit " + str(((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto")) + "."}
+        proponi("risposta", f"{titoli[gruppo]}: {nome}", prospect_id=p["id"],
+                perche=perche[gruppo][:280],
                 azione={"bozza": testo, "intento": "RIPRESA", "template": gruppo, "allega": True, "allega_presentazione": True})
         visti.add(gruppo); fatti += 1
         print(f"  {gruppo:15} {nome:36} bozza in Posta")

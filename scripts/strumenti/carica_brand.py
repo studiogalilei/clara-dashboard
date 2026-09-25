@@ -1,7 +1,7 @@
 """Carica la Clara Capsule nei Documenti (sezione brand e modelli), una volta.
    python3 scripts/carica_brand.py <cartella capsule v3> <cartella capsule v1>"""
 import mimetypes, os, re, sys, urllib.request, json
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
 from stanza import env, sb
 
 SB = env("VITE_SUPABASE_URL"); SK = env("SUPABASE_SERVICE_KEY")

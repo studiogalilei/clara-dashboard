@@ -22,7 +22,7 @@ import re
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
 import sync_v2 as sl                                       # noqa: E402  (gli aiutanti Smartlead)
 from stanza import sb                                      # noqa: E402
 

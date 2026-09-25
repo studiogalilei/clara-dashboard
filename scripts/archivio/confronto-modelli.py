@@ -18,7 +18,7 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
 import cervello                                            # noqa: E402
 from stanza import sb                                      # noqa: E402
 

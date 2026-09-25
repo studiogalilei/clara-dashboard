@@ -30,7 +30,7 @@ import os
 import sys
 import urllib.parse
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
 from stanza import sb                                      # noqa: E402
 from google_api import g, cartella                         # noqa: E402
 
