@@ -525,11 +525,14 @@ export default function Lista({ onOpen, q }: Props) {
             </span>
           )}
         </span>
+        {/* LA CLASSIFICAZIONE SULLA CARTA (Dre, 25/9): come ha risposto, a colpo d'occhio.
+            Su una riga sua: accanto al testo stringeva lo stato a tre righe (25/9, prova a 820px) */}
+        {!p.fuori && p.classificazione && p.classificazione !== 'da_classificare' && (
+          <span className="flex"><ClsBadge cls={p.classificazione} /></span>
+        )}
         <span className="flex items-start gap-1.5 text-[12px] leading-snug">
           <span className={`mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full ${colore.pallino}`} />
-          {/* LA CLASSIFICAZIONE SULLA CARTA (Dre, 25/9): come ha risposto, a colpo d'occhio, in In arrivo e Lead */}
-          {!p.fuori && p.classificazione && p.classificazione !== 'da_classificare' && <ClsBadge cls={p.classificazione} />}
-          <span className={colore.testo}>{stato.testo}</span>
+          <span className={`min-w-0 ${colore.testo}`}>{stato.testo}</span>
         </span>
       </button>
     )
