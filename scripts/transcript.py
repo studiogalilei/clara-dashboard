@@ -259,7 +259,7 @@ def main():
             print(f"  {azienda}: il cervello non ha risposto, riprovo al giro dopo"); continue
         esito = avanzamento(p, azienda, L, t["id"], prova)
         if L.passo and not L.fase and not prova:
-            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"next_action": L.passo[:200], "next_action_date": L.quando})
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"next_action": L.passo[:200], **({"next_action_date": L.quando} if L.quando else {})})
         t0 = blocco_dopo_call(p, azienda, L, t["id"], prova)
         blocco = f"Le cose da fare sono in calendario {t0:%A %d/%m alle %H:%M}." if t0 else ("Nessuna cosa da fare rilevata." if not L.azioni else "")
         nota = f"Dalla call: {L.riassunto[:500]}" + (f"\n{esito}" if esito else "") + (f"\n{blocco}" if blocco else "")

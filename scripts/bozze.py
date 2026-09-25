@@ -389,7 +389,7 @@ def main():
     gb = 0
     # a chi Dre ha gia' detto no, non si riscrive: la proposta rifiutata vale
     # come risposta (prima tornava ogni giro, QA del 14/9)
-    rifiutate = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.chiusa&tipo=eq.risposta&limit=5000") or [])
+    rifiutate = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
                  if x.get("prospect_id")}
     for p in negativi:
         if gb >= QUANTI_GB or p["id"] in aperte or p["id"] in rifiutate or p.get("stage") in INTOCCABILI:

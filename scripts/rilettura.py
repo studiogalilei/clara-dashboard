@@ -29,6 +29,7 @@ USO
 """
 
 import os
+import datetime
 import re
 import sys
 
@@ -136,7 +137,7 @@ def main():
 
     for p, prima, v, cosa in sicure:
         arr = dict(p.get("enriched") or {})
-        arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello"}
+        arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello", "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
         patch = {"enriched": arr}
         if cosa == "classe":
             patch["classificazione"] = v["classe"]
@@ -158,7 +159,7 @@ def main():
     # 67 «da positivo a tiepido?» aperte erano lavoro in piu', non in meno.
     for p, prima, v, tipo, titolo in proposte:
         arr = dict(p.get("enriched") or {})
-        arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello", "prima": prima}
+        arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello", "il": datetime.datetime.now(datetime.timezone.utc).isoformat(), "prima": prima}
         patch = {"enriched": arr, "classificazione": "fuori_target" if tipo == "scarta" else v["classe"]}
         if tipo == "scarta":
             patch["no_followup"] = True

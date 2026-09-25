@@ -51,6 +51,8 @@ def main():
         perche = ((p.get("enriched") or {}).get("lettura") or {}).get("perche") or ""
         if AUTO.search(perche) or AUTO.search(p.get("email") or ""):
             continue
+        if ((p.get("enriched") or {}).get("contatto_nuovo")):
+            continue                                        # gia' fatto: non si rimette in coda a ogni giro
         nuovo = (p.get("email_alt") or [None])[0] or nuovo_indirizzo(p)
         nome = (p.get("company") or p.get("email"))[:32]
         if not nuovo:

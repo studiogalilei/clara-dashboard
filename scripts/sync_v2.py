@@ -321,18 +321,29 @@ def main():
             # chiusa, resta chiusa. E' materiale della ripresa, non della coda.
             if awaiting and rec and not rec.get("awaiting_us") and body_last_reply and body_last_reply < STALE:
                 awaiting = False
+            # 25/9: se nel CRM c'e' una risposta piu' recente (arrivata da Gmail, che Smartlead
+            # non vede), Smartlead non comanda: awaiting e last_reply restano quelli del CRM
+            gmail_dopo = bool(rec and (rec.get("last_reply_at") or "")[:19] > (body_last_reply or ""))
+            if gmail_dopo:
+                awaiting = bool(rec.get("awaiting_us"))
 
+            # 3. (25/9) enriched si rilegge ADESSO, non dall'elenco letto all'avvio: nel
+            # frattempo fit, analisi, rilettura e punto possono averci scritto
+            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
+            enr = dict(fresco.get("enriched") or {})
             patch = {
-                "enriched": {**((rec or {}).get("enriched") or {}), "sl_firma": wrap.get("_firma")},
+                "enriched": {**enr, "sl_firma": wrap.get("_firma")},
                 "awaiting_us": awaiting,
-                "last_reply_at": body_last_reply or None,
+                "last_reply_at": (fresco.get("last_reply_at") if gmail_dopo else body_last_reply) or None,
                 "first_reply_at": body_first_reply or None,
             }
             if lead.get("is_unsubscribed"):
                 patch["no_followup"] = True   # unsubscribed su Smartlead: non si tocca piu'
             # classificazione: solo se non corretta a mano
-            manual = (rec or {}).get("enriched", {}).get("classificazione") == "manual"
-            if not manual:
+            manual = enr.get("classificazione") == "manual"
+            lettura = enr.get("lettura") or {}
+            letta_dopo = bool((lettura.get("il") or "") >= (body_last_reply or "~")) if lettura else False
+            if not manual and not letta_dopo:
                 patch["classificazione"] = cls
                 if ooo_until:
                     patch["ooo_until"] = ooo_until
@@ -393,7 +404,10 @@ def main():
                             pass
                 if nostre and not DRY:
                     try:
-                        chiuse = sb("PATCH", f"/rest/v1/proposte?prospect_id=eq.{rec['id']}&stato=eq.aperta&tipo=in.(risposta,umano)",
+                        # 25/9: solo le bozze scritte PRIMA della nostra ultima mail: una ripresa o un
+                        # follow-up scritti dopo (per definizione dopo una nostra mail) restano aperti
+                        ultima_nostra = (nostre[-1].get("time") or "")[:19]
+                        chiuse = sb("PATCH", f"/rest/v1/proposte?prospect_id=eq.{rec['id']}&stato=eq.aperta&tipo=in.(risposta,umano)&at=lt.{ultima_nostra}",
                                     {"stato": "fatta", "risposta": "mandata da Smartlead (vista dal sync)", "risposta_il": datetime.utcnow().isoformat()},
                                     headers={"Prefer": "return=representation"}) or []
                         testo_nostro = " ".join(corpo_pulito(m.get("email_body")) for m in nostre).lower()

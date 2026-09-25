@@ -58,7 +58,7 @@ export function passato(p: Fase): boolean {
 // gli prepara il pacchetto (fit, analisi, bozza) e Dre lo manda. Il pedaggio
 // e' l'invio. Prima questa regola era scritta in tre punti diversi e i tre
 // numeri non tornavano (revisione 4/9): resta una sola.
-type Ingresso = Fase & Pick<Prospect, 'classificazione' | 'analysis_sent'>
+type Ingresso = Fase & Pick<Prospect, 'classificazione' | 'analysis_sent' | 'awaiting_us'>
 
 function haRisposto(p: Ingresso): boolean {
   // `nuovo` = la mail e' partita e non ha risposto nessuno: non e' «in
@@ -68,12 +68,16 @@ function haRisposto(p: Ingresso): boolean {
   return !p.fuori && p.stage !== 'nuovo' && !eCliente(p) && !ePerso(p) && vivo(p) && !passato(p)
 }
 
+// IN ARRIVO = tocca a te, adesso (Dre, 25/9: «la prassi è che sia vuota: se è
+// piena non sto lavorando»). Prima era «ha risposto e l'analisi non è partita»,
+// e teneva dentro 227 carte vecchie di mesi. Ora: ha scritto lui per ultimo.
+// Tutto il resto di chi ha risposto sta in Lead, nei suoi gruppi.
 export function eInArrivo(p: Ingresso): boolean {
-  return haRisposto(p) && !p.analysis_sent
+  return haRisposto(p) && Boolean(p.awaiting_us)
 }
 
 export function eProspect(p: Ingresso): boolean {
-  return haRisposto(p) && Boolean(p.analysis_sent)
+  return haRisposto(p) && !p.awaiting_us
 }
 
 // le stesse domande nella lingua di PostgREST, per quando a contare e' il
@@ -98,10 +102,10 @@ function soloRisposto(q: Filtro): Filtro {
     .or(VIVI)
 }
 export function soloProspect(q: Filtro): Filtro {
-  return soloRisposto(q).eq('analysis_sent', true)
+  return soloRisposto(q).eq('awaiting_us', false)
 }
 export function soloInArrivo(q: Filtro): Filtro {
-  return soloRisposto(q).eq('analysis_sent', false)
+  return soloRisposto(q).eq('awaiting_us', true)
 }
 
 // in pipeline: fra la prima call e la firma

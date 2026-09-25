@@ -63,14 +63,17 @@ describe('perso, e la storia finita', () => {
 })
 
 describe('prospect: la stessa risposta in tutte le schermate', () => {
-  it('chi ha risposto e ha ricevuto l\'analisi: il pedaggio e\' l\'invio (Dre, 9/9)', () => {
-    expect(eProspect(p({ stage: 'risposto', analysis_sent: true }))).toBe(true)
-    expect(eProspect(p({ stage: 'risposto', analysis_sent: false }))).toBe(false)
+  // IN ARRIVO = tocca a te (Dre, 25/9: «la prassi e' che sia vuota»): chi ha scritto per
+  // ultimo aspetta la tua risposta; tutto il resto di chi ha risposto sta in Lead
+  it('chi ha scritto per ultimo aspetta te: e\' in arrivo, non in Lead', () => {
+    expect(eInArrivo(p({ stage: 'risposto', awaiting_us: true }))).toBe(true)
+    expect(eProspect(p({ stage: 'risposto', awaiting_us: true }))).toBe(false)
+    expect(eInArrivo(p({ stage: 'risposto', awaiting_us: true, classificazione: 'negativo' }))).toBe(false)
   })
-  it('chi ha risposto e l\'analisi non e\' partita e\' in arrivo, non prospect', () => {
-    expect(eInArrivo(p({ stage: 'risposto', analysis_sent: false }))).toBe(true)
-    expect(eInArrivo(p({ stage: 'risposto', analysis_sent: true }))).toBe(false)
-    expect(eInArrivo(p({ stage: 'risposto', analysis_sent: false, classificazione: 'negativo' }))).toBe(false)
+  it('chi ha risposto e non aspetta niente da te sta in Lead, con o senza analisi', () => {
+    expect(eProspect(p({ stage: 'risposto', awaiting_us: false, analysis_sent: true }))).toBe(true)
+    expect(eProspect(p({ stage: 'risposto', awaiting_us: false, analysis_sent: false }))).toBe(true)
+    expect(eInArrivo(p({ stage: 'risposto', awaiting_us: false, analysis_sent: false }))).toBe(false)
   })
   it('chi e\' entrato in pipeline non e\' piu\' un prospect', () => {
     expect(eProspect(p({ fuori: true, pipeline_stage: 'conoscitiva' }))).toBe(false)
