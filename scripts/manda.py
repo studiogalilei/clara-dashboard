@@ -76,29 +76,14 @@ def sl(metodo, percorso, corpo=None):
         return {"grezzo": t}
 
 
-# I LINK CON UNA PAROLA (Dre, 25/9: «mette il link in testo, non e' il top»).
-# La mail parte in HTML: il calendario e l'analisi diventano parole cliccabili,
-# non indirizzi lunghi. Un link che non riconosco resta com'e', cliccabile.
-PAROLE_LINK = [
-    (re.compile(r"https?://(calendar\.app\.google|calendar\.google\.com|calendly\.com)[^\s<]*"), "il mio calendario"),
-    (re.compile(r"https?://[^\s<]*/storage/v1/object/[^\s<]*analisi/[^\s<]*"), "l'analisi in PDF"),
-    (re.compile(r"https?://[^\s<]*/storage/v1/object/[^\s<]*"), "il documento"),
-]
-
-
 def in_html(testo):
-    """La bozza e' testo semplice: paragrafi separati da riga vuota, a capo dentro."""
+    """La bozza e' testo semplice: paragrafi separati da riga vuota, a capo dentro.
+    I link al bucket (analisi, presentazione) non ci vanno: quei file partono in allegato."""
+    testo = re.sub(r"https?://\S*/storage/v1/object/\S+", "", testo)
     par = [p.strip() for p in re.split(r"\n\s*\n", testo.strip()) if p.strip()]
-    def link(m):
-        url = html.unescape(m.group(1)).rstrip(".,;:)")
-        coda = m.group(1)[len(m.group(1).rstrip(".,;:)")):]
-        for rx, parola in PAROLE_LINK:
-            if rx.match(url):
-                return f'<a href="{html.escape(url)}">{parola}</a>{coda}'
-        return f'<a href="{html.escape(url)}">{html.escape(url)}</a>{coda}'
     def riga(s):
         s = html.escape(s)
-        return re.sub(r"(https?://[^\s<]+)", link, s).replace("\n", "<br>")
+        return re.sub(r"(https?://[^\s<]+)", r'<a href="\1">\1</a>', s).replace("\n", "<br>")
     return "".join(f"<p>{riga(p)}</p>" for p in par)
 
 
@@ -192,11 +177,12 @@ def main():
                  "reply_email_time": ultima.get("time"),
                  "reply_email_body": ultima.get("email_body") or "",
                  "add_signature": True, "to_email": a}
-        # L'ANALISI IN ALLEGATO (Dre, 24/9: «pdf sono good, non voglio analisi che
-        # scadono»): al primo invio il PDF va attaccato alla mail, cosi' resta
-        # nella sua casella per sempre, link o non link. Anche se la spunta e'
-        # spenta: la prima volta l'analisi ci va.
-        if p.get("analysis_pdf") and (az.get("allega") or not p.get("analysis_sent")):
+        # GLI ALLEGATI IN PDF (Dre, 25/9): «alla prima risposta mandiamo l'analisi e
+        # la presentazione in PDF allegato, nessun link da cliccare, semplicemente
+        # quello». Nei follow-up: la presentazione se il template la prevede,
+        # l'analisi se la spunta e' accesa.
+        prima_risposta = not p.get("analysis_sent")
+        if p.get("analysis_pdf") and (prima_risposta or az.get("allega")):
             url = link_fresco(p["analysis_pdf"])
             try:
                 with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as r:
@@ -209,7 +195,7 @@ def main():
             else:
                 torna_aperta(pr, azienda, "il PDF dell'analisi non si apre: non la mando senza", prova); continue
         # LA PRESENTAZIONE (FOLLOW UP 1: «le allego anche una breve presentazione»)
-        if az.get("allega_presentazione"):
+        if prima_risposta or az.get("allega_presentazione"):
             from stanza import env as _env
             url_p = link_fresco(f"{_env('VITE_SUPABASE_URL')}/storage/v1/object/sign/vault/modelli/sg-presentazione.pdf")
             try:
