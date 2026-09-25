@@ -620,6 +620,17 @@ export default function Scheda({ id, onClose }: Props) {
               </p>
               <h2 className="mt-0.5 truncate text-lg font-extrabold">{p.company || p.name || p.email}</h2>
               <p className="mt-0.5 text-sm text-tenue">{adesso()}</p>
+              {/* IL PUNTO DI CLARA (Dre, 25/9): dalle mail e dalle call, a che punto siamo e la prossima mossa */}
+              {(() => {
+                const pt = (p.enriched as Record<string, unknown> | null)?.punto as { testo?: string; passo?: string; il?: string } | undefined
+                if (!pt?.testo) return null
+                return (
+                  <p className="mt-1.5 rounded-lg bg-blu/5 px-3 py-2 text-sm leading-snug">
+                    <span className="font-semibold text-blu">Il punto{pt.il ? `, ${fmtDateShort(pt.il)}` : ''}:</span> {pt.testo}
+                    {pt.passo && <span className="block text-tenue">Prossimo passo: {pt.passo}</span>}
+                  </p>
+                )
+              })()}
               {(() => {
                 const presoDa = (p as unknown as { preso_da?: string | null }).preso_da
                 const passato = (p as unknown as { passato_a?: string | null }).passato_a

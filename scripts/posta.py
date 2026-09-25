@@ -45,6 +45,9 @@ import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, proponi                             # noqa: E402
+import cervello                                            # noqa: E402
+
+TOCCATI = set()        # le aziende con mail nuove in questo giro: per loro si rifa' «il punto»
 from google_api import g                                   # noqa: E402
 
 NOSTRO_DOMINIO = "studiogalilei.com"
@@ -87,8 +90,8 @@ def carica_rubrica():
     # riconosciuta come le altre
     righe, pagina = [], 0
     while True:
-        blocco = sb("GET", "/rest/v1/prospects?select=id,name,company,email,email_alt,stage,pipeline_stage,fuori,"
-                           f"awaiting_us,last_reply_at,classificazione&limit=1000&offset={pagina * 1000}") or []
+        blocco = sb("GET", "/rest/v1/prospects?select=id,name,company,email,email_alt,website,stage,pipeline_stage,fuori,"
+                           f"awaiting_us,last_reply_at,classificazione,next_action_date&limit=1000&offset={pagina * 1000}") or []
         righe += blocco
         if len(blocco) < 1000 or pagina > 40:
             break
@@ -104,6 +107,11 @@ def carica_rubrica():
             d = dominio(m)
             if d and d not in GENERICI and d != NOSTRO_DOMINIO:
                 per_dominio.setdefault(d, p["id"])
+        # anche il dominio del sito (25/9): chi ci scrive da info@azienda.it e'
+        # l'azienda con sito azienda.it, anche se in scheda c'e' un altro indirizzo
+        w = re.sub(r"^https?://", "", (p.get("website") or "").lower()).split("/")[0].replace("www.", "").strip()
+        if w and "." in w and w not in GENERICI:
+            per_dominio.setdefault(w, p["id"])
         ps = parole(p.get("company") or "")
         if ps:
             aziende.append((p["id"], ps))
@@ -200,8 +208,15 @@ def quando(headers):
 def leggi_casella(email_persona, giorni, prova):
     q = urllib.parse.quote(f"newer_than:{giorni}d -in:spam -in:chats -in:drafts "
                            f"-category:promotions -category:social -category:forums")
-    lista = g("GET", f"{GMAIL}/messages?q={q}&maxResults=80", email=email_persona) or {}
-    return lista.get("messages", []) or []
+    # tutte le pagine (25/9): la casella di Dre in trenta giorni supera gli ottanta
+    fuori, pagina = [], ""
+    while len(fuori) < 400:
+        lista = g("GET", f"{GMAIL}/messages?q={q}&maxResults=100" + (f"&pageToken={pagina}" if pagina else ""), email=email_persona) or {}
+        fuori += lista.get("messages", []) or []
+        pagina = lista.get("nextPageToken") or ""
+        if not pagina:
+            break
+    return fuori
 
 
 def macina(persona, rubrica, giorni, prova, limite_domande):
@@ -216,7 +231,17 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
 
     for m in messaggi:
         try:
-            d = g("GET", f"{GMAIL}/messages/{m['id']}?format=full", email=email_persona)
+            d = None
+            for tentativo in range(3):
+                try:
+                    d = g("GET", f"{GMAIL}/messages/{m['id']}?format=full", email=email_persona)
+                    break
+                except Exception as e:                            # noqa: BLE001
+                    if "Quota exceeded" in str(e) and tentativo < 2:
+                        import time as _t; _t.sleep(25)
+                        continue
+                    raise
+            import time as _t; _t.sleep(0.2)
         except RuntimeError as e:
             print(f"    {m['id']}: {e}")
             continue
@@ -242,18 +267,29 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
         pid, come = trova(rubrica, controparte, oggetto)
         if not pid:
             d0 = dominio(controparte[0])
-            if d0 and d0 not in GENERICI and fatte["domande"] < limite_domande and not nostra:
-                fatte["domande"] += 1
-                print(f"    [?] {controparte[0]}: «{oggetto[:60]}» non e' nel CRM")
-                # 23/9 (pulizia di Dre): non si propone piu' nulla, si registra e basta.
-                # 1.058 «non e' nel CRM» in Posta e nessuno era un lead: le risposte
-                # alle campagne le porta il sync, il resto e' rumore.
-                if False and not prova:
-                    proponi("nuovo", f"{controparte[0]} ci ha scritto e non e' nel CRM",
-                            perche=f"Oggetto: {oggetto[:150]}",
-                            azione={"nuovo": {"email": controparte[0], "company": d0.split(".")[0].title(),
-                                              "stage": "risposto", "awaiting_us": True}},
-                            owner=persona.get("user_id"))
+            # CHI CI SCRIVE E NON E' NEL WORKSPACE (Dre, 25/9: «Clara deve avere il
+            # contesto degli scambi con i clienti»): se e' una conversazione vera
+            # (una mail nostra, o una risposta) con un dominio non generico, Clara
+            # chiede una volta sola per dominio se aggiungere l'azienda.
+            vera = nostra or re.match(r"^\s*(re|r|fwd|fw|i):", oggetto or "", re.I)
+            # niente rumore (prima passata del 25/9: banche, commercialisti, tool, PA, unsubscribe)
+            RUMORE = re.compile(r"rocketreach|carabinieri|banca|\.gov|\.gob|pec\.|reachly|advisa|studiocommercial|commercialist|notai|inps|agenziaentrate|noreply|no-reply", re.I)
+            if RUMORE.search(d0) or re.search(r"unsubscribe|newsletter|benvenuto|welcome|conferma iscrizione|verify|password", oggetto or "", re.I):
+                vera = False
+            if d0 and d0 not in GENERICI and vera and fatte["domande"] < limite_domande and not prova:
+                gia_chiesto = sb("GET", f"/rest/v1/proposte?select=id&tipo=eq.nuovo&azione->>dominio=eq.{d0}&limit=1") or []
+                if not gia_chiesto:
+                    chi = (h.get("to") if nostra else h.get("from")) or ""
+                    nome_persona = re.sub(r"<.*>", "", chi).strip(" \"'") or None
+                    radice = d0.split(".")[0]
+                    nata = proponi("nuovo", f"{radice.capitalize()}: ci scriviamo, ma non è nel workspace. Lo aggiungo?",
+                                   perche=f"{'Hai scritto a' if nostra else 'Ha scritto'} {controparte[0]}, oggetto «{oggetto[:90]}». Senza la scheda Clara non tiene il filo di questi scambi.",
+                                   azione={"dominio": d0, "nuovo": {"company": radice.capitalize(), "name": nome_persona, "email": controparte[0], "website": d0,
+                                                                   "stage": "risposto", "chi_segue": persona.get("email", "").split("@")[0].capitalize(),
+                                                                   "fuori_binario": "si", "first_reply_at": at, "last_reply_at": at}},
+                                   owner=persona.get("user_id"))
+                    if nata:
+                        fatte["domande"] += 1
             continue
 
         p = rubrica["indice"][pid]
@@ -305,6 +341,7 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
         try:
             sb("POST", "/rest/v1/interactions", riga)
             fatte["scritte"] += 1
+            TOCCATI.add(pid)
         except RuntimeError as e:
             if "409" in str(e) or "duplicate" in str(e).lower():
                 fatte["saltate"] += 1
@@ -331,6 +368,54 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
     return fatte
 
 
+PUNTO = """Sei Clara, la memoria di Studio Galilei. Qui sotto gli ultimi scambi con un'azienda
+(mail nostre e sue, call, note), dal piu' recente. Rispondi SOLO con tre righe:
+
+DOVE_SIAMO: due frasi, a che punto e' il rapporto e cosa e' stato deciso per ultimo
+PROSSIMO_PASSO: una frase, visto da OGGI: di chi e' la mossa e cosa deve fare (noi o loro). Se la data promessa e' passata, di' cosa manca adesso; «-» se non c'e'
+QUANDO: la data YYYY-MM-DD se e' stata detta o promessa (oggi e' {oggi}), altrimenti -
+
+Non inventare: se una cosa non sta negli scambi, non c'e'.
+
+AZIENDA: {azienda} ({fase})
+SCAMBI:
+{scambi}
+"""
+
+
+def il_punto(pid, indice):
+    """A CHE PUNTO SIAMO (Dre, 25/9): dopo mail nuove Clara rilegge gli ultimi
+    scambi e scrive nella scheda due righe e il prossimo passo. Se c'e' una data
+    detta, e l'azienda e' in pipeline o cliente, la mette come prossima azione."""
+    p = indice.get(pid) or {}
+    righe = sb("GET", f"/rest/v1/interactions?select=kind,at,body&prospect_id=eq.{pid}&kind=in.(email_in,email_out,call,transcript,nota)&order=at.desc&limit=8") or []
+    if not righe:
+        return
+    nomi = {"email_in": "LORO", "email_out": "NOI", "call": "CALL", "transcript": "CALL", "nota": "NOTA"}
+    scambi = "\n\n".join(f"[{r['at'][:10]} {nomi.get(r['kind'], r['kind'])}] {' '.join((r.get('body') or '').split())[:700]}" for r in righe)
+    fase = p.get("pipeline_stage") if p.get("fuori") else (p.get("stage") or "lead")
+    prompt = cervello.manuale("testa") + "\n\n" + PUNTO.format(oggi=datetime.date.today().isoformat(), azienda=p.get("company") or p.get("email") or "?", fase=fase, scambi=scambi[:9000])
+    campi = {"DOVE_SIAMO": "", "PROSSIMO_PASSO": "-", "QUANDO": "-"}
+    for r in (cervello._chiedi(prompt) or "").splitlines():
+        m = re.match(r"\s*(DOVE_SIAMO|PROSSIMO_PASSO|QUANDO)\s*:\s*(.*)", r)
+        if m:
+            campi[m.group(1)] = m.group(2).strip()
+    if not campi["DOVE_SIAMO"]:
+        return
+    pieno = sb("GET", f"/rest/v1/prospects?select=enriched,next_action_date,fuori,stage&id=eq.{pid}") or [{}]
+    arr = dict((pieno[0].get("enriched") or {}))
+    quando = campi["QUANDO"] if re.fullmatch(r"\d{4}-\d{2}-\d{2}", campi["QUANDO"]) else None
+    arr["punto"] = {"testo": campi["DOVE_SIAMO"][:400], "passo": (campi["PROSSIMO_PASSO"] if campi["PROSSIMO_PASSO"] != "-" else "")[:200],
+                    "quando": quando, "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    patch = {"enriched": arr}
+    dentro = pieno[0].get("fuori") or pieno[0].get("stage") == "cliente"
+    vecchia = pieno[0].get("next_action_date")
+    if quando and quando >= datetime.date.today().isoformat() and dentro and arr["punto"]["passo"] and (not vecchia or vecchia < datetime.date.today().isoformat()):
+        patch.update({"next_action": arr["punto"]["passo"], "next_action_date": quando})
+    sb("PATCH", f"/rest/v1/prospects?id=eq.{pid}", patch)
+    print(f"    punto: {p.get('company') or pid}: {campi['DOVE_SIAMO'][:90]}… | passo: {arr['punto']['passo'][:60]} {quando or ''}")
+
+
 def main():
     prova = "--prova" in sys.argv
     giorni = 2
@@ -351,8 +436,13 @@ def main():
         f = macina(persona, rubrica, giorni, prova, limite_domande=5)
         for k in totale:
             totale[k] += f[k]
+    for pid in list(TOCCATI)[:20]:
+        try:
+            il_punto(pid, rubrica["indice"])
+        except Exception as e:                                   # noqa: BLE001
+            print(f"    punto non scritto ({str(e)[:80]})")
     print(f"{'(prova) ' if prova else ''}scritte {totale['scritte']}, "
-          f"aggiornate {totale['aggiornate']}, saltate {totale['saltate']}, domande {totale['domande']}")
+          f"aggiornate {totale['aggiornate']}, saltate {totale['saltate']}, domande {totale['domande']}, punti {len(TOCCATI)}")
 
 
 if __name__ == "__main__":
