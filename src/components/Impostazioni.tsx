@@ -1,3 +1,4 @@
+import Parametri from './Parametri'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
@@ -649,7 +650,8 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
       )}
 
       {(ruolo === 'ceo' || vedeSalute) && (
-      <Gruppo titolo="Lo Studio" sotto="listino, numeri, salute dei dati" aperto={false}>
+      <Gruppo titolo="Lo Studio" sotto="listino, prezzo suggerito, numeri, salute dei dati" aperto={false}>
+      {ruolo === 'ceo' && <Parametri />}
       {/* IL LISTINO: i prezzi che finiscono nei preventivi */}
       {ruolo === 'ceo' && listino && (
         <Card>

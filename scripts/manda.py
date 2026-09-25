@@ -130,9 +130,14 @@ def link_fresco(url):
         return url
 
 
-def controlla(bozza):
+def controlla(bozza, p=None):
     if "{{" in bozza or "}}" in bozza or "[[" in bozza:
         return ["segnaposto lasciato nel testo"]
+    # IL PREZZO SUGGERITO E' INTERNO (Dre, 26/9): se il numero della scheda compare nel testo, non parte
+    pz = ((p or {}).get("enriched") or {}).get("prezzo") or {}
+    for n in [pz.get("punto")] + list(pz.get("fascia") or []):
+        if n and re.search(rf"\b{int(n):,}\b|\b{int(n)}\b|\b{int(n):,}\b".replace(",", r"[.,]"), bozza):
+            return [f"il prezzo suggerito ({int(n)} €) e' interno: non entra in una mail"]
     try:
         import bozze
         return bozze.cancello(bozza)
@@ -198,7 +203,7 @@ def main():
             continue
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
-        errori = controlla(bozza)
+        errori = controlla(bozza, p)
         if errori:
             torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         cid, lid, ultima = thread(p)

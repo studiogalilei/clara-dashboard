@@ -169,6 +169,22 @@ def _():
         assert '"coda"' in t
 
 
+@prova("prezzo: fascia dalla domanda, il bilancio corregge, mai sotto il floor, e non entra in una mail")
+def _():
+    import prezzo as Z, manda as M
+    P = {"base": 1400, "soglia": 5000, "quota": 0.10, "floor": 1200, "fascia": 0.15, "quota_cattura": 0.03, "conversione": 0.02, "tetto_quota": 1 / 3,
+         "scaglioni": [[1000000, 0.02], [3000000, 0.015], [10000000, 0.01], [None, 0.005]], "quota_agenzia": 0.25,
+         "margine": [[0, 0.5], [0.03, 0.7], [0.08, 1.0], [0.15, 1.2], [None, 1.4]], "cluster": {"A": 1.1, "B": 0.9}}
+    assert Z.scaglioni(8_000_000, P["scaglioni"]) == 100000                    # a scaglioni, come l'IRPEF
+    vol = {"tam": 91020, "cpc_medio": 3.54}
+    b = Z.calcola({"enriched": {}}, P, vol, {}, {"fa_ads": True})
+    assert b["formula"] == "domanda" and b["fascia"][0] < b["punto"] < b["fascia"][1] and b["affidabilita"] == "media"
+    c = Z.calcola({"enriched": {"bilancio": {"fatturato": 2000000, "utile": -1, "anno": 2025}}}, P, vol, {}, {})
+    assert c["formula"] == "bilancio" and c["punto"] >= P["floor"] and any("rischio" in f for f in c["flag"])
+    assert Z.calcola({"enriched": {}}, P, None, {}, {}) is None                 # senza niente, niente numero
+    assert M.controlla("il canone sarebbe 2.000 € al mese", {"enriched": {"prezzo": {"punto": 2000, "fascia": [1700, 2300]}}})
+
+
 # ── 6. Clara riempie: niente slop ─────────────────────────────────
 @prova("arricchisci: le parole generiche non bastano a riconoscere un sito")
 def _():

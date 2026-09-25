@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 import { Card, Micro } from './ui'
 
 // QUANTO CHIEDERE (Dre, 16/9): «chiediamo una parte del valore che
@@ -11,9 +12,11 @@ import { Card, Micro } from './ui'
 const euro = (n: number) => `${Math.round(n).toLocaleString('it-IT')} €`
 
 // ── il continuativo ─────────────────────────────────────────────────────
-const BASE = 1400          // il lavoro fisso: gestione, report, call
-const SOGLIA = 5000        // sotto questa spesa il lavoro e' sempre quello
-const QUOTA = 0.10         // sopra, cresce con quanto si gestisce
+// 26/9: base, soglia e quota vivono nella tabella `parametri` (prezzo.*), le stesse
+// che usa il prezzo suggerito nelle schede; questi sono i valori di partenza
+const BASE_DEF = 1400      // il lavoro fisso: gestione, report, call
+const SOGLIA_DEF = 5000    // sotto questa spesa il lavoro e' sempre quello
+const QUOTA_DEF = 0.10     // sopra, cresce con quanto si gestisce
 const SUCCESSO = 0.06      // sul margine lordo in piu', dove si misura davvero
 
 // ── i progetti ──────────────────────────────────────────────────────────
@@ -28,6 +31,15 @@ const MINIMO = 1500
 
 export default function Prezzo() {
   const [modo, setModo] = useState<'canone' | 'progetto'>('canone')
+  const [par, setPar] = useState({ BASE: BASE_DEF, SOGLIA: SOGLIA_DEF, QUOTA: QUOTA_DEF })
+  useEffect(() => {
+    supabase.from('parametri').select('chiave,valore').in('chiave', ['prezzo.base', 'prezzo.soglia', 'prezzo.quota'])
+      .then(({ data }) => {
+        const m = Object.fromEntries((data ?? []).map((r: { chiave: string; valore: unknown }) => [r.chiave, Number(r.valore)]))
+        setPar({ BASE: m['prezzo.base'] || BASE_DEF, SOGLIA: m['prezzo.soglia'] || SOGLIA_DEF, QUOTA: m['prezzo.quota'] || QUOTA_DEF })
+      })
+  }, [])
+  const { BASE, SOGLIA, QUOTA } = par
 
   // continuativo
   const [spesa, setSpesa] = useState('')

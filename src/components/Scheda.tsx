@@ -21,6 +21,7 @@ const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
 import DaMandare from './DaMandare'
+import PrezzoSuggerito from './PrezzoSuggerito'
 import Piano from './Piano'
 import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
@@ -1174,6 +1175,10 @@ export default function Scheda({ id, onClose, onApri }: Props) {
               </Card>
             )}
 
+            {/* QUANTO CHIEDERE, per chi e' in pipeline (Dre, 26/9): la fascia suggerita, interna */}
+            {p.fuori && !ePerso(p) && !soppresso && (
+              <PrezzoSuggerito p={p} onSalvato={(enriched) => setP({ ...p, enriched } as Prospect)} />
+            )}
             {eCliente(p) && (
               <Card className="p-4">
                 <TitoloCard>Contratto</TitoloCard>
