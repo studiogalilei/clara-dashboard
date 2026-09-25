@@ -51,6 +51,20 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
         raise RuntimeError(f"{e.code} {e.read()[:200].decode(errors='replace')}")
 
 
+def contattabile(p):
+    """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
+    (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa
+    regola sta nel database (trigger proposta_ammessa): qui serve per dirlo
+    prima, con parole, e per i test."""
+    if not p:
+        return False
+    if p.get("fuori") or p.get("stage") in ("cliente", "perso") or p.get("pipeline_stage") in ("cliente", "perso"):
+        return False
+    if p.get("no_followup") or p.get("classificazione") in ("soppresso", "nervoso"):
+        return False
+    return True
+
+
 def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None, ref=None):
     """Una proposta nella stanza. Non scrive niente nella pipeline: solo la domanda.
 
@@ -68,11 +82,18 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
                         f"&tipo=eq.{tipo}&prospect_id=eq.{prospect_id}&limit=1")
         if gia:
             return None
-    return sb("POST", "/rest/v1/proposte", {
-        "tipo": tipo, "titolo": titolo[:200], "prospect_id": prospect_id,
-        "perche": (perche or "")[:300] or None, "azione": azione or {}, "owner": owner,
-        "ref": ref,
-    }, {"Prefer": "return=representation"})
+    try:
+        return sb("POST", "/rest/v1/proposte", {
+            "tipo": tipo, "titolo": titolo[:200], "prospect_id": prospect_id,
+            "perche": (perche or "")[:300] or None, "azione": azione or {}, "owner": owner,
+            "ref": ref,
+        }, {"Prefer": "return=representation"})
+    except RuntimeError as e:
+        # il database rifiuta le bozze a chi non e' piu' un lead (trigger proposta_ammessa, 25/9)
+        if "proposta rifiutata" in str(e):
+            print(f"  proposta rifiutata dal database (non è più un lead): {titolo[:60]}")
+            return None
+        raise
 
 
 def di_clara(tipo, testo, prospect_id=None, owner=None, letto=False, diario=False):

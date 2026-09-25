@@ -113,6 +113,17 @@ def _():
 
 
 # ── 5. il follow-up: template parola per parola, nome giusto ──────
+@prova("mai una bozza a un cliente, a chi e' in pipeline, perso, senza follow-up o bloccato (caso Zafferano)")
+def _():
+    from stanza import contattabile
+    assert contattabile({"fuori": False, "stage": "risposto", "classificazione": "positivo"})
+    for p in ({"fuori": True, "stage": "risposto", "pipeline_stage": "prova"}, {"stage": "cliente"}, {"pipeline_stage": "cliente"},
+              {"stage": "perso"}, {"no_followup": True}, {"classificazione": "soppresso"}, {"classificazione": "nervoso"}, None):
+        assert not contattabile(p), p
+    src = open(os.path.join(os.path.dirname(__file__), "manda.py"), encoding="utf-8").read()
+    assert "contattabile(stato_p)" in src, "manda deve controllare la scheda prima di mandare"
+
+
 @prova("bozze: mai una chiusura scritta da Clara, mai righe interne nel testo")
 def _():
     import bozze

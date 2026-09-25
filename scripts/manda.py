@@ -42,7 +42,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara                             # noqa: E402
+from stanza import sb, di_clara, contattabile               # noqa: E402
 
 BASE = "https://server.smartlead.ai/api/v1"
 ROMA = datetime.timezone(datetime.timedelta(hours=2))
@@ -166,6 +166,15 @@ def main():
         if not p or not bozza:
             torna_aperta(pr, pr["titolo"], "manca la scheda o la bozza", prova); continue
         azienda = p.get("company") or p.get("name") or p["email"]
+        # MAI A UN CLIENTE O A CHI E' IN PIPELINE (25/9, caso Zafferano): si controlla
+        # anche qui, all'ultimo passo, con la scheda riletta adesso
+        stato_p = (sb("GET", f"/rest/v1/prospects?select=fuori,stage,pipeline_stage,no_followup,classificazione&id=eq.{p['id']}") or [{}])[0]
+        if not contattabile(stato_p):
+            print(f"  {azienda}: NON mando, non è più un lead (pipeline/cliente/perso/no follow-up)")
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "no", "risposta": "non mandata: l'azienda è in pipeline, cliente, persa o senza follow-up (regola del 25/9)",
+                                                                 "risposta_il": datetime.datetime.now(ROMA).isoformat()})
+            di_clara("controllo", f"Non ho mandato la bozza a {azienda}: non è più un lead (pipeline/cliente). Chiusa.", prospect_id=p["id"], letto=True)
+            continue
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
         errori = controlla(bozza)
