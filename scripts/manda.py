@@ -148,8 +148,29 @@ def torna_aperta(pr, azienda, motivo, prova):
     di_clara("domanda", f"Non sono riuscita a mandare la risposta a {azienda}: {motivo}. Correggi la bozza e ripremi «Approva e manda», oppure mandala tu da Smartlead e segnala mandata.", prospect_id=pr.get("prospect_id"))
 
 
+def pulizia():
+    """LE BOZZE DI CHI NON E' PIU' UN LEAD si chiudono da sole (25/9, caso Zafferano):
+    se un'azienda e' passata in pipeline, cliente, persa o senza follow-up dopo
+    che la bozza era stata scritta, la bozza non deve restare in Posta."""
+    ap = sb("GET", "/rest/v1/proposte?select=id,titolo,prospect_id&stato=in.(aperta,approvata)&tipo=in.(risposta,umano)&prospect_id=not.is.null&limit=1000") or []
+    ids = list({x["prospect_id"] for x in ap})
+    stato = {}
+    for i in range(0, len(ids), 100):
+        for p in sb("GET", f"/rest/v1/prospects?select=id,fuori,stage,pipeline_stage,no_followup,classificazione&id=in.({','.join(ids[i:i+100])})") or []:
+            stato[p["id"]] = p
+    n = 0
+    for x in ap:
+        if x["prospect_id"] in stato and not contattabile(stato[x["prospect_id"]]):
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}", {"stato": "no", "risposta": "chiusa da sola: l'azienda non è più un lead (pipeline, cliente, persa o senza follow-up)",
+                                                                 "risposta_il": datetime.datetime.now(ROMA).isoformat()})
+            print(f"  chiusa: {x['titolo'][:60]} (non è più un lead)"); n += 1
+    return n
+
+
 def main():
     prova = "--prova" in sys.argv
+    if not prova:
+        pulizia()
     approvate = sb("GET", "/rest/v1/proposte?select=id,tipo,titolo,prospect_id,azione,at&stato=eq.approvata&tipo=in.(risposta,umano)&order=at") or []
     MAX_PER_GIRO = 12          # in fila, non a raffica (25/9): dodici ogni cinque minuti
     if len(approvate) > MAX_PER_GIRO:
@@ -195,6 +216,10 @@ def main():
         # quello». Nei follow-up: la presentazione se il template la prevede,
         # l'analisi se la spunta e' accesa.
         prima_risposta = not p.get("analysis_sent")
+        if (prima_risposta or az.get("allega")) and not p.get("analysis_pdf"):
+            # l'analisi non c'e' ancora (la sta facendo l'operazione «analisi»): si aspetta,
+            # senza rimbalzare la bozza e senza domande a ogni giro
+            print(f"  {azienda}: aspetto l'analisi, riprovo al giro dopo"); continue
         if p.get("analysis_pdf") and (prima_risposta or az.get("allega")):
             url = link_fresco(p["analysis_pdf"])
             try:

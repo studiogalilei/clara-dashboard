@@ -375,7 +375,9 @@ def main():
                                  headers={"Prefer": "return=representation"})
                     rec = created[0] if isinstance(created, list) else created
                     known[em] = rec
-                    anomalies.append(f"NUOVO nel CRM (mancava!): {em}")
+                    # 25/9: chi risponde e non era nel CRM (lead caricato da CSV, mini campagne) e'
+                    # normale, non un'anomalia: si crea e si dice, senza segnare il giro in errore
+                    print(f"    nuovo nel CRM: {em} ({c.get('name', '')[:30]})")
                 # 24/9: quello che abbiamo mandato DOPO la sua ultima risposta (Dre da Smartlead,
                 # o una mini campagna di risposta) finisce nella storia come email_out, chiude
                 # la bozza aperta in Posta e, se dentro c'e' l'analisi, segna analysis_sent.

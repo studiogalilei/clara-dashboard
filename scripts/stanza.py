@@ -9,6 +9,7 @@ l'ascoltatore, cosi' la scrittura di una proposta e' una e non due.
 """
 
 import json
+import sys
 import os
 import urllib.error
 import urllib.parse
@@ -35,6 +36,9 @@ URL = env("VITE_SUPABASE_URL")
 CHIAVE = env("SUPABASE_SERVICE_KEY") or env("SUPABASE_SERVICE_ROLE_KEY")
 
 
+CHI_SCRIVE = os.path.basename(sys.argv[0]).replace(".py", "") if sys.argv and sys.argv[0] else "python"
+
+
 def sb(metodo, percorso, corpo=None, intestazioni=None):
     if not URL or not CHIAVE:
         raise RuntimeError("manca VITE_SUPABASE_URL o la service key in .env.local")
@@ -42,7 +46,10 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
         URL.rstrip("/") + percorso, method=metodo,
         data=json.dumps(corpo).encode() if corpo is not None else None,
         headers={"apikey": CHIAVE, "Authorization": "Bearer " + CHIAVE,
-                 "Content-Type": "application/json", **(intestazioni or {})})
+                 "Content-Type": "application/json",
+                 # IL REGISTRO (25/9): ogni scrittura porta il nome dello script; il database
+                 # lo mette in `registro` accanto a cosa e' cambiato (trigger registra_*)
+                 "X-Clara-Script": CHI_SCRIVE, **(intestazioni or {})})
     try:
         with urllib.request.urlopen(req, timeout=40) as r:
             grezzo = r.read()
