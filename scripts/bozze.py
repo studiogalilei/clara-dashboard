@@ -45,7 +45,7 @@ PRONTE = []        # (prospect_id, nome, con_analisi): per la notifica sul telef
 CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da Dre il 7/9
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
-CLASSI = ("positivo", "tiepido", "rinvio", "da_classificare")
+CLASSI = ("positivo", "tiepido", "rinvio", "da_classificare", "persona_sbagliata")   # persona sbagliata: solo se ci ha dato il contatto nuovo (email_alt), 25/9
 INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 
 # IL GIGANTE BUONO (Dre, 14/9): ai negativi cortesi mandiamo lo stesso
