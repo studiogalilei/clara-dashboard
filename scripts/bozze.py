@@ -83,6 +83,10 @@ PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato
 
 def cancello(testo):
     """Torna la lista dei motivi per cui la bozza NON va bene (vuota = passa)."""
+    if re.search(r"\[(ESCALATION|NOTA|INTERNO|FERMATI)", testo, re.I):
+        return ["riga interna nel testo ([ESCALATION]/nota): il lead non deve vederla"]
+    if re.search(r"rimuov\w* dalle (nostre )?liste|non la disturber|per policy lavoriamo solo", testo, re.I):
+        return ["chiusura scritta da Clara: non chiude mai lei, decide Dre"]
     errori = []
     low = testo.lower()
     if "—" in testo:
@@ -193,8 +197,11 @@ NOTA: una riga su cosa hai adattato e perche'
 ---
 il testo della bozza, pronto da incollare, SENZA firma (la mette Smartlead),
 con {{CALENDARIO}} e {giorno data ora} gia' sostituiti coi valori che ti do.
-Se FERMATI e' si', la bozza e' comunque la migliore che puoi, e dopo il testo
-aggiungi una riga: [ESCALATION] azienda, nome, intento, cosa chiede
+Se FERMATI e' si', la bozza e' comunque la risposta del template come se non ti
+fossi fermata: MAI una chiusura, MAI «la rimuovo dalle liste», MAI un rifiuto
+scritto da te (Dre, 25/9: «Clara questo non lo deve fare»). Il dubbio va nel
+campo FERMATI e nella NOTA, non nel testo. Nel testo della bozza non ci sono
+mai righe interne, tag fra parentesi quadre o note per Dre.
 Se INT-25 (non e' chiaro cosa vuole): due bozze alternative, separate da una
 riga «=== ALTERNATIVA ===».
 

@@ -142,7 +142,7 @@ Rispondi SOLO con un JSON su una riga, con queste chiavi:
    "impulso" (si compra perche' lo si vede, non perche' lo si cerca: meglio social o display),
    "da_spiegare" (prodotto nuovo o che va capito prima di poterlo cercare: nessuno digita il suo nome),
    "per_pubblico" (il cliente si riconosce bene per eta', interessi o zona, ma quasi mai da una parola chiave).
- "esclusione": "" oppure uno fra "agenzia" (marketing/comunicazione/web agency/lead generation), "portale", "catena", "franchising", "multinazionale", "onlus", "privacy"}}
+ "esclusione": "" oppure uno fra "agenzia" (marketing/comunicazione/web agency/lead generation), "portale", "catena", "franchising" (SOLO i network Tecnocasa, Tecnorete, Tempocasa: un affiliato Century 21, RE/MAX, Coldwell Banker o simili NON e' un'esclusione, decide il suo marketing e va bene, Dre 25/9), "multinazionale", "onlus", "privacy"}}
 
 I settori possibili: {lista}
 {persi}

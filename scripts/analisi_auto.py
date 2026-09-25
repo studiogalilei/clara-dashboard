@@ -423,14 +423,14 @@ def lavora(p):
     return True
 
 
-MAI = ("agenzia", "portale", "catena", "franchising", "multinazionale", "privacy")
+MAI = ("agenzia", "portale", "catena", "multinazionale", "privacy")   # franchising va bene (Dre 25/9), tranne i network Tecnocasa che il fit segna
 
 
 def servita(p):
     """A chi si fa l'analisi (regola 5 di Dre: quando si risponde si manda SEMPRE l'analisi).
     Serve il sito letto e il fit. Il fit NO non ferma chi ha risposto positivo o tiepido:
     l'analisi dira' la verita' scomoda. Le ONLUS la ricevono con l'angolo Ad Grants.
-    Mai ad agenzie, portali, catene, franchising, multinazionali, chi cita la privacy."""
+    Mai ad agenzie, portali, catene, multinazionali, chi cita la privacy. Un affiliato in franchising (Century 21, RE/MAX) va bene."""
     fit = (p.get("enriched") or {}).get("google_fit") or {}
     if not fit or not fit.get("sito_letto"):
         return False

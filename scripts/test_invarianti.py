@@ -113,6 +113,13 @@ def _():
 
 
 # ── 5. il follow-up: template parola per parola, nome giusto ──────
+@prova("bozze: mai una chiusura scritta da Clara, mai righe interne nel testo")
+def _():
+    import bozze
+    assert any("riga interna" in e for e in bozze.cancello("Salve Rino,\n\ngrazie.\n\n[ESCALATION] Allegro, INT-15"))
+    assert any("chiusura" in e for e in bozze.cancello("Salve,\n\nper policy lavoriamo solo con realtà indipendenti. Non la disturberò oltre e la rimuovo dalle nostre liste."))
+
+
 @prova("follow-up: il nome sostituisce solo il segnaposto, le caselle generiche restano «Salve,»")
 def _():
     import followup as F
