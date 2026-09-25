@@ -620,6 +620,23 @@ export default function Scheda({ id, onClose }: Props) {
               </p>
               <h2 className="mt-0.5 truncate text-lg font-extrabold">{p.company || p.name || p.email}</h2>
               <p className="mt-0.5 text-sm text-tenue">{adesso()}</p>
+              {/* I CONTATTI SOTTO IL NOME (Dre, 25/9): «le info della persona in alto, ordinate e
+                  compatte, che le posso copiare facile». Testo selezionabile, niente bottoni. */}
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] leading-snug">
+                {p.name && <span className="font-semibold">{p.name}{p.role ? <span className="font-normal text-tenue">, {p.role}</span> : null}</span>}
+                <a href={`mailto:${p.email}`} className="text-blu hover:underline">{p.email}</a>
+                {(p as unknown as { email_alt?: string[] | null }).email_alt?.[0] && (
+                  <a href={`mailto:${(p as unknown as { email_alt?: string[] }).email_alt![0]}`} className="text-blu hover:underline">{(p as unknown as { email_alt?: string[] }).email_alt![0]}</a>
+                )}
+                {p.phone && <a href={`tel:${p.phone}`} className="text-blu hover:underline">{p.phone}</a>}
+                {p.website && (
+                  <a href={p.website.startsWith('http') ? p.website : `https://${p.website}`} target="_blank" rel="noreferrer" className="text-blu hover:underline">
+                    {p.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  </a>
+                )}
+                {p.linkedin && <a href={p.linkedin} target="_blank" rel="noreferrer" className="text-blu hover:underline">LinkedIn</a>}
+                {p.city && <span className="text-tenue">{p.city}</span>}
+              </p>
               {/* IL PUNTO DI CLARA (Dre, 25/9): dalle mail e dalle call, a che punto siamo e la prossima mossa */}
               {(() => {
                 const pt = (p.enriched as Record<string, unknown> | null)?.punto as { testo?: string; passo?: string; il?: string } | undefined

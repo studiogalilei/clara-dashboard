@@ -140,6 +140,14 @@ def main():
         patch = {"enriched": arr}
         if cosa == "classe":
             patch["classificazione"] = v["classe"]
+            # RICHIESTA DI RIMOZIONE (25/9): chi lo chiede finisce subito nella lista di
+            # blocco, cosi' nessuna lista futura lo ricarica
+            if v["classe"] == "soppresso":
+                try:
+                    sb("POST", "/rest/v1/suppressions", [{"kind": "email", "email": e.lower(), "reason": "richiesta di rimozione", "source": "rilettura"}
+                                                         for e in [p.get("email")] if e], {"Prefer": "resolution=merge-duplicates"})
+                except Exception as e2:                          # noqa: BLE001
+                    print(f"    (blocco non scritto: {str(e2)[:60]})")
         if v["quando"] and v["classe"] in ("rinvio", "ooo") and not p.get("next_action_date"):
             patch["next_action_date"] = v["quando"]
             patch["next_action"] = "Rientra" if v["classe"] == "ooo" else "Ricontatto: l'aveva chiesto lui"

@@ -72,7 +72,7 @@ A_GRUPPI_DI = 18          # quanti messaggi per volta: piu' su, meno precisione
 ATTESA_MAX = 180          # secondi per gruppo
 
 CLASSI = ("positivo", "tiepido", "negativo", "ooo", "rinvio",
-          "fuori_target", "da_classificare")
+          "fuori_target", "da_classificare", "persona_sbagliata", "nervoso", "soppresso")
 
 # Le regole sono di Dre, non mie: vengono dal Playbook Classificazione e
 # dalle regole d'oro in CLAUDE.md. Se cambiano li', cambiano qui.
@@ -88,9 +88,16 @@ rinvio        vuole risentirsi piu' avanti («a ottobre», «dopo le ferie»,
               «fine anno»). E' un DOPO, non un no: per Dre vale quasi come un
               positivo, va solo ripreso alla data giusta.
 ooo           risposta automatica di assenza, ferie, fuori ufficio.
-negativo      chiude: «non interessati», «rimuovetemi», «abbiamo gia'
-              un'agenzia» detto come stop senza finestra futura, oppure ti
-              scarica in modo generico («guardi i contatti sul sito»).
+negativo      chiude: «non interessati», «abbiamo gia' un'agenzia» detto come
+              stop senza finestra futura, oppure ti scarica in modo generico
+              («guardi i contatti sul sito»). Calmo, non ostile.
+nervoso       infastidito o ostile: «smettetela», «come avete avuto la mia mail»,
+              minacce, sarcasmo, insulti. Si lascia stare per sempre, come un no.
+soppresso     RICHIESTA DI RIMOZIONE esplicita: «rimuovetemi», «cancellate i
+              miei dati», «non contattatemi piu'», GDPR. Mai piu' una mail.
+persona_sbagliata  chi risponde non c'entra o non decide: «non sono io la persona»,
+              «ha sbagliato indirizzo», «non lavoro piu' qui», «siamo un privato».
+              Se pero' indica CHI contattare per approfondire, e' positivo.
 fuori_target  non e' un cliente possibile: agenzie di marketing o concorrenti,
               caselle privacy/GDPR/legali, aziende senza clienti da acquisire.
 da_classificare  il corpo non e' leggibile (solo firma o disclaimer), o e'

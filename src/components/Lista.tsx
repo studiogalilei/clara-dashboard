@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
-import { StageBadge, PipelineBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
+import { StageBadge, PipelineBadge, ClsBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
 import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, eSettoreDelFoglio, SETTORI, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
@@ -527,6 +527,8 @@ export default function Lista({ onOpen, q }: Props) {
         </span>
         <span className="flex items-start gap-1.5 text-[12px] leading-snug">
           <span className={`mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full ${colore.pallino}`} />
+          {/* LA CLASSIFICAZIONE SULLA CARTA (Dre, 25/9): come ha risposto, a colpo d'occhio, in In arrivo e Lead */}
+          {!p.fuori && p.classificazione && p.classificazione !== 'da_classificare' && <ClsBadge cls={p.classificazione} />}
           <span className={colore.testo}>{stato.testo}</span>
         </span>
       </button>
