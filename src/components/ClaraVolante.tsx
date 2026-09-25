@@ -21,6 +21,31 @@ import { pulisci, creaTask } from '../lib/regole'
 // una proposta nella stanza di Clara: cosa vuole fare, su chi, perche'.
 // Sul si' si scrive azione.prospects sulla scheda; sul no si annota e basta.
 // Vedi docs/LA-STANZA-DI-CLARA.md
+export interface Lettura {
+  ultima_loro?: string; ultima_loro_il?: string; ultima_nostra?: string; ultima_nostra_il?: string
+  scritto_dopo_di_lei?: number; analisi_ricevuta?: boolean; detto_no?: boolean; autorisposta?: boolean; girato_a?: string[]
+  coerenza?: string; coerenza_motivo?: string; gruppo?: string | null; letta_da_clara?: string
+}
+
+/** Loro / noi / seconda testa, sotto ogni bozza: quello che si e' letto prima di scrivere. */
+export function LetturaBox({ l }: { l: Lettura }) {
+  const ok = l.coerenza === 'COERENTE'
+  return (
+    <div className="mt-2 space-y-1 rounded-lg border border-velo bg-velo/30 px-3 py-2 text-[12px] leading-snug">
+      <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-spento">la lettura</p>
+      {l.ultima_loro && <p><b>Loro</b>{l.ultima_loro_il ? `, ${l.ultima_loro_il}` : ''}: <span className="text-tenue">{l.ultima_loro.slice(0, 260)}{l.ultima_loro.length > 260 ? '…' : ''}</span></p>}
+      {l.ultima_nostra && <p><b>Noi</b>{l.ultima_nostra_il ? `, ${l.ultima_nostra_il}` : ''}{l.scritto_dopo_di_lei ? ' (dopo la loro)' : ''}: <span className="text-tenue">{l.ultima_nostra.slice(0, 200)}{l.ultima_nostra.length > 200 ? '…' : ''}</span></p>}
+      <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-tenue">
+        {l.analisi_ricevuta && <span>analisi già ricevuta</span>}
+        {l.detto_no && <span className="text-red-700">ha detto no</span>}
+        {l.autorisposta && <span className="text-amber-700">autorisposta</span>}
+        {l.girato_a && l.girato_a.length > 0 && <span>ci gira a {l.girato_a.join(', ')}</span>}
+        <span className={ok ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>seconda testa: {ok ? 'coerente' : `incoerente${l.coerenza_motivo ? `, ${l.coerenza_motivo}` : ''}`}</span>
+      </p>
+    </div>
+  )
+}
+
 interface Proposta {
   id: number
   at: string
@@ -32,6 +57,8 @@ interface Proposta {
     prospects?: Record<string, unknown>
     task?: { titolo: string; scadenza?: string | null }
     bozza?: string; bozza_originale?: string; intento?: string; template?: string
+    // LA LETTURA (25/9): nessuna bozza senza lettura. Loro, noi, e il verdetto della seconda testa
+    lettura?: Lettura
     // «non e' nel CRM, lo aggiungo?»: il prospect da creare e le call da attaccargli
     nuovo?: Record<string, unknown>; agenda_ids?: number[]
     // «X chiede il widget Y»: la decide un ceo (lib/accessi.ts)
@@ -383,6 +410,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                 </blockquote>
                               )}
                               {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
+                              {pr.azione?.lettura && <LetturaBox l={pr.azione.lettura} />}
                               {pr.azione?.bozza !== undefined && (
                                 <div className="mt-2">
                                   <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
@@ -686,22 +714,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // Tutto il gruppo in un colpo (Dre: «scarto questi nove?»). Le proposte si
   // fanno UNA ALLA VOLTA, in fila, con la stessa rispondi() del singolo: la
   // logica resta una sola, e se una fallisce le altre vanno avanti lo stesso.
-  // LE RIPRESE (25/9): le bozze con intento RIPRESA, tutte insieme su un clic di Dre
-  const riprese = proposte.filter((x) => x.azione?.intento === 'RIPRESA' && x.azione?.bozza !== undefined)
-  const [chiedoRiprese, setChiedoRiprese] = useState(false)
-  async function approvaRiprese() {
-    if (riprese.length === 0 || lavoro) return
-    setChiedoRiprese(false); setGuaio(null)
-    setLavoro({ tipo: 'ripresa', fatte: 0, totali: riprese.length })
-    let bene = 0
-    for (const p of riprese) {
-      if (await rispondi(p, true, true)) bene++
-      setLavoro((l) => (l ? { ...l, fatte: l.fatte + 1 } : l))
-    }
-    setLavoro(null)
-    await scriviMessaggio('controllo', `Approvate ${bene} riprese su ${riprese.length}: Clara le manda in fila, dodici ogni cinque minuti.`)
-  }
-
+  // 25/9: il bottone «Approva e manda tutte» non esiste piu'. Dre, dopo le 4 mail sbagliate su 10:
+  // «questo metodo fa schifo, elimina subito». Ogni bozza si legge (loro / noi) e si approva da sola.
   async function rispondiGruppo(tipo: string, si: boolean) {
     const gruppo = proposte.filter((x) => x.tipo === tipo)
     const voce = BLOCCO[tipo]
@@ -961,27 +975,6 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
           <div className="m-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
             <span className="flex-1">{guaio}</span>
             <button onClick={() => setGuaio(null)} className="shrink-0 font-bold text-red-600">Chiudi</button>
-          </div>
-        )}
-        {/* LA RIPRESA IN BLOCCO (Dre, 25/9: «riprendi TUTTI, prepara tutto e invia»): un
-            clic solo, e Clara le manda in fila, dodici ogni cinque minuti. Il clic e' suo. */}
-        {riprese.length >= 2 && (
-          <div className="m-3 rounded-xl border border-blu/30 bg-blu/[0.05] px-4 py-3">
-            <p className="text-sm font-bold text-navy">{riprese.length} riprese pronte: analisi e proposta di call a chi era rimasto in sospeso</p>
-            <p className="mt-0.5 text-xs text-tenue">Le puoi leggere una per una qui sotto, oppure approvarle tutte: partono in fila, dodici ogni cinque minuti.</p>
-            <div className="mt-2 flex items-center gap-2">
-              {chiedoRiprese ? (
-                <>
-                  <span className="text-[11px] font-semibold text-inchiostro">Approvo e mando tutte e {riprese.length}?</span>
-                  <button onClick={() => void approvaRiprese()} disabled={lavoro !== null} className="rounded-full bg-blu px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-40">Conferma</button>
-                  <button onClick={() => setChiedoRiprese(false)} className="rounded-full border border-bordo px-3 py-1.5 text-[11px] font-semibold text-tenue">Annulla</button>
-                </>
-              ) : lavoro?.tipo === 'ripresa' ? (
-                <span className="text-[11px] font-semibold text-tenue">Ci sto lavorando, {lavoro.fatte} di {lavoro.totali}</span>
-              ) : (
-                <button onClick={() => setChiedoRiprese(true)} disabled={lavoro !== null} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Approva e manda tutte</button>
-              )}
-            </div>
           </div>
         )}
         {proposte.length === 0 ? (

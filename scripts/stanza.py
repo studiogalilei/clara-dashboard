@@ -100,6 +100,9 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
         if "proposta rifiutata" in str(e):
             print(f"  proposta rifiutata dal database (non è più un lead): {titolo[:60]}")
             return None
+        if "bozza rifiutata" in str(e):                 # schema_v58: nessuna bozza senza lettura
+            print(f"  bozza rifiutata dal database (senza lettura o incoerente): {titolo[:60]}")
+            return None
         raise
 
 

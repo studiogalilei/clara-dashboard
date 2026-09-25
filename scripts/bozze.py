@@ -20,6 +20,16 @@ Ogni bozza passa dal CANCELLO QUALITA' (lo stesso di lint_risposta.py del
 promesse vietate. Se non passa, si riscrive una volta; se non passa ancora,
 si mette in stanza con l'avviso invece di sparire.
 
+NESSUNA BOZZA SENZA LETTURA (25/9/2026, dopo le quattro riprese sbagliate).
+Un motore solo scrive, e prima LEGGE: il thread vero (lettura.filo, anche da
+Smartlead), i fatti che il codice sa verificare (lettura.ha_gia: abbiamo gia'
+scritto dopo? ha gia' l'analisi? ha detto no? autorisposta?), le regole dure
+(lettura.regola_dura) e una seconda testa che confronta loro/noi/bozza
+(lettura.coerenza). La lettura viaggia dentro la proposta (azione.lettura) e il
+database rifiuta una «risposta» che non ce l'ha (schema_v58). I follow-up e le
+riprese non scrivono piu': followup.py e strumenti/ripresa.py mettono in coda
+(prospects.coda = il gruppo), e scrive questo motore, con il template di Dre.
+
 USO
   python3 scripts/bozze.py --prova      mostra le bozze, non scrive
   python3 scripts/bozze.py              mette le bozze nella stanza
@@ -36,10 +46,12 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
 from stanza import sb, proponi                             # noqa: E402
+import lettura                                             # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 25
+SOLO = [e.strip().lower() for e in sys.argv[sys.argv.index("--email") + 1].split(",")] if "--email" in sys.argv else []   # solo queste (rifare una bozza, o provare)
 IN_PARALLELO = 5
 PRONTE = []        # (prospect_id, nome, con_analisi): per la notifica sul telefono
 CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da Dre il 7/9
@@ -87,6 +99,8 @@ def cancello(testo):
         return ["riga interna nel testo ([ESCALATION]/nota): il lead non deve vederla"]
     if re.search(r"rimuov\w* dalle (nostre )?liste|non la disturber|per policy lavoriamo solo", testo, re.I):
         return ["chiusura scritta da Clara: non chiude mai lei, decide Dre"]
+    if re.search(r"(^|\n)\s*(salve|buongiorno|gentile|ciao)?\s*[\w.+-]+@[\w-]+\.[\w.-]+\s*[,:]", testo, re.I):
+        return ["un indirizzo email usato come nome (caso Kormed, 25/9)"]
     errori = []
     low = testo.lower()
     if "—" in testo:
@@ -190,6 +204,8 @@ o Dre dopo l'ok (legge zero). Il playbook qui sopra e' la legge: fai gli 8
 controlli del preflight, scegli l'intento nella tabella, applica le regole di
 calendario e di stile. Rispondi ESATTAMENTE in questo formato, niente altro:
 
+LETTURA: cosa dice l'ultima mail loro, in una riga, con le SUE parole (citala)
+HA_GIA: analisi ricevuta si'/no; ha detto no si'/no; autorisposta si'/no; ci gira a: email o no
 INTENTO: INT-xx (il codice della tabella)
 PREFLIGHT: ok | fallito: quale controllo e perche'
 FERMATI: no | si': il motivo in 10 parole (i casi del capitolo 5, o preflight fallito)
@@ -230,7 +246,24 @@ follow-up; se ha chiesto lui la call non mandare l'analisi, fissa la call;
 se e' un «ok» o «grazie» secco: NON fermarti, e' un consenso, gli si manda
 l'analisi con due righe (23/9). Se analisi_pronta_in_allegato e' true, la
 bozza dice che l'analisi e' allegata e non chiede piu' il consenso; non
-fermarti mai per «allegati mancanti»: l'allegato lo mette Dre."""
+fermarti mai per «allegati mancanti»: l'allegato lo mette Dre.
+
+SE C'E' UN GRUPPO (RIPRESA, RINVIO SCADUTO, RICONTATTO OOO, FOLLOW UP 1, MINI
+FOLLOW UP): non e' una risposta a una mail nuova, e' un ricontatto deciso da noi.
+La bozza E' il template di quel gruppo, parola per parola, con il nome. Il codice
+ha gia' verificato che il gruppo regge (per RIPRESA: che non abbiamo mai scritto
+dopo la sua mail e che non ha l'analisi). Tu leggi lo stesso la sua ultima mail:
+se il template stona con quello che ha scritto (una domanda precisa rimasta senza
+risposta, un dettaglio che lui aspettava, un nome diverso in firma), adatta SOLO
+l'incipit o fermati con il motivo. L'INTENTO per i gruppi e' RIPRESA. Nei gruppi
+NON aggiungi uno slot («le propongo martedi'...»), non aggiungi righe, non
+togli righe: il template e' gia' completo, cambi solo nome e incipit.
+
+SE C'E' UN DESTINATARIO NUOVO (destinatario_effettivo diverso dall'email della
+scheda): la mail PARTE a quell'indirizzo, non nel vecchio thread. Scrivi al
+nuovo contatto direttamente, come prima mail a lui: niente «metto in copia»,
+niente «grazie per il passaggio» rivolto a chi non la legge. Un indirizzo email
+NON e' un nome: se il nome non c'e', «Salve,» secco."""
 
 
 def come_corregge_dre(quante=8):
@@ -265,7 +298,7 @@ def come_corregge_dre(quante=8):
             "cosa toglie, cosa aggiunge. Parti gia' da li'.\n\n" + "\n\n".join(lezioni))
 
 
-def chiedi_bozza(p, ultimo, riprova=None):
+def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     fatti = {
         "nome": p.get("name") or "", "azienda": p.get("company") or "", "email": p.get("email"),
         "classificazione": p.get("classificazione"), "stage": p.get("stage"),
@@ -290,6 +323,18 @@ def chiedi_bozza(p, ultimo, riprova=None):
     sintesi = (p.get("enriched") or {}).get("analisi") or {}
     if sintesi:
         fatti["analisi_sintesi"] = sintesi
+    alt = p.get("email_alt") or []
+    alt = (alt if isinstance(alt, list) else [alt])
+    if alt and alt[0]:
+        fatti["destinatario_effettivo"] = alt[0]
+        fatti["nome_del_nuovo_contatto"] = ""          # se non e' nella scheda non c'e': «Salve,»
+    if letti:
+        fatti["fatti_verificati_dal_codice"] = {k: letti[k] for k in ("scritto_dopo_di_lei", "analisi_ricevuta", "analisi_gia_letta", "detto_no", "autorisposta", "girato_a")}
+        if letti.get("ultima_nostra"):
+            fatti["ultima_mail_nostra"] = f"{letti['ultima_nostra_il']}: {letti['ultima_nostra'][:400]}"
+    if gruppo:
+        fatti["gruppo"] = gruppo
+        fatti["template_da_usare"] = gruppo
     prompt = (cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
@@ -310,8 +355,9 @@ def chiedi_bozza(p, ultimo, riprova=None):
     if campi.get("PREFLIGHT", "ok").lower().startswith("fallito") and fermati.lower().startswith("no"):
         fermati = "si': preflight " + campi["PREFLIGHT"]
     bozza = bozza.replace("{{CALENDARIO}}", CALENDARIO).replace("{{ CALENDARIO }}", CALENDARIO)
-    return {"intento": campi.get("INTENTO", "?")[:6], "template": campi.get("INTENTO", ""),
-            "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza}
+    return {"intento": campi.get("INTENTO", "?")[:7], "template": gruppo or campi.get("INTENTO", ""),
+            "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza,
+            "lettura_di_clara": campi.get("LETTURA", ""), "ha_gia_di_clara": campi.get("HA_GIA", "")}
 
 
 LEZIONI = ""
@@ -323,61 +369,125 @@ def main():
     LEZIONI = come_corregge_dre()
     if LEZIONI:
         print(f"  (Clara ha {LEZIONI.count('BOZZA DI CLARA') + LEZIONI.count('SCARTATA')} correzioni di Dre da cui partire)")
+    CAMPI = ("id,name,company,email,email_alt,classificazione,stage,analysis_sent,analysis_sent_at,analysis_pdf,"
+             "last_reply_at,sector,city,enriched,campaign_id,lead_id,coda,coda_il,next_action_date,campaign")
     persone = sb("GET", "/rest/v1/prospects?awaiting_us=eq.true&fuori=eq.false"
                         f"&classificazione=in.({','.join(CLASSI)})"
-                        "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_sent_at,analysis_pdf,"
-                        "last_reply_at,sector,city,enriched&order=last_reply_at.desc&limit=300") or []
-    righe = sb("GET", "/rest/v1/interactions?kind=eq.email_in&select=prospect_id,body&order=at.desc&limit=3000") or []
-    ultima = {}
-    for r in righe:
-        if r.get("prospect_id") and r["prospect_id"] not in ultima:
-            ultima[r["prospect_id"]] = r.get("body") or ""
+                        f"&select={CAMPI}&order=last_reply_at.desc&limit=300") or []
+    # LA CODA (25/9): chi va ricontattato (ripresa, rinvio scaduto, dopo le ferie, follow-up).
+    # Lo hanno messo in coda followup.py e ripresa.py; il testo lo scrive solo questo motore.
+    in_coda = sb("GET", f"/rest/v1/prospects?coda=not.is.null&fuori=eq.false&select={CAMPI}&order=coda_il.asc&limit=300") or []
     # con una proposta aperta di qualunque tipo si aspetta Dre: se la classe e'
     # in discussione, la bozza sarebbe scritta sulla classe sbagliata
-    aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.aperta") or [])}
+    aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)") or [])}
+    if SOLO:
+        persone = sb("GET", f"/rest/v1/prospects?email=in.({','.join(SOLO)})&select={CAMPI}") or []
+        in_coda, aperte = [p for p in persone if p.get("coda")], set()
+        persone = [p for p in persone if not p.get("coda")]
+
+    def gia_letta(p):
+        """Saltata con motivo dopo la sua ultima mail: non si rilegge ogni cinque minuti."""
+        e = (p.get("enriched") or {}).get("lettura_esito") or {}
+        return bool(e.get("il")) and e["il"] >= (p.get("last_reply_at") or "")[:19] and not SOLO
 
     candidate = []
     for p in persone:
-        testo = ultima.get(p["id"], "")
-        if len(testo.strip()) < 30 or p["id"] in aperte or p.get("stage") in INTOCCABILI:
+        if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
             continue
-        candidate.append((p, testo))
-        if len(candidate) >= QUANTI:
-            break
+        candidate.append((p, None))
+    for p in in_coda:
+        if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") not in lettura.GRUPPI:
+            continue
+        candidate.append((p, p["coda"]))
+    candidate = candidate[:QUANTI]
+
+    def esito_coda(p, motivo):
+        """La coda si svuota con il motivo scritto nella scheda: si vede perche' non e' partita.
+        Fuori coda, lo stesso motivo resta in enriched.lettura_esito: si rilegge solo a una mail nuova."""
+        if PROVA:
+            return
+        fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{p['id']}") or [{}])[0]
+        arr = dict(fresco.get("enriched") or {})
+        adesso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        if p.get("coda"):
+            arr["coda_esito"] = {"gruppo": p.get("coda"), "motivo": motivo, "il": adesso}
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None, "enriched": arr})
+        else:
+            arr["lettura_esito"] = {"motivo": motivo, "il": adesso}
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
 
     def lavora(coppia):
-        p, testo = coppia
+        p, gruppo = coppia
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
-        b = chiedi_bozza(p, testo)
+        # 1. LA LETTURA: il filo vero e i fatti
+        try:
+            _, letti = lettura.leggi(p)
+        except Exception as e:                                # noqa: BLE001
+            return (p, gruppo, nome, None, [f"lettura non riuscita: {str(e)[:80]}"], None, None)
+        # 2. LE REGOLE DURE
+        dura = lettura.regola_dura(gruppo, letti, p.get("classificazione"))
+        if dura and dura[0] == "salta":
+            return (p, gruppo, nome, None, [], letti, dura)
+        if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO") and not p.get("analysis_pdf"):
+            return (p, gruppo, nome, None, [], letti, ("aspetta", "l'analisi non c'e' ancora (la fa l'operazione analisi)"))
+        if not gruppo and len((letti.get("ultima_loro") or "").strip()) < 30:
+            return (p, gruppo, nome, None, [], letti, ("salta", "l'ultima mail loro e' vuota o illeggibile"))
+        # 3. LA BOZZA
+        b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
-            return (p, nome, None, [])
+            return (p, gruppo, nome, None, [], letti, None)
         errori = cancello(b["bozza"])
         if errori:
-            b2 = chiedi_bozza(p, testo, riprova="; ".join(errori))
+            b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
             if b2 and not cancello(b2["bozza"]):
-                return (p, nome, b2, [])
-        return (p, nome, b, errori)
+                b, errori = b2, []
+        if dura and dura[0] == "fermati" and b["fermati"].lower().startswith("no"):
+            b["fermati"] = "si': " + dura[1]
+        # 4. LA SECONDA TESTA
+        verdetto, motivo = lettura.coerenza(letti, b["bozza"], gruppo)
+        b["lettura"] = {**letti, "letta_da_clara": b.get("lettura_di_clara", ""), "ha_gia_di_clara": b.get("ha_gia_di_clara", ""),
+                        "coerenza": verdetto, "coerenza_motivo": motivo, "gruppo": gruppo}
+        if verdetto != "COERENTE" and b["fermati"].lower().startswith("no"):
+            b["fermati"] = "si': la seconda testa dice INCOERENTE: " + motivo
+        return (p, gruppo, nome, b, errori, letti, None)
 
-    fatte, ferme, bocciate = 0, 0, 0
+    fatte, ferme, bocciate, saltate = 0, 0, 0, 0
     with ThreadPoolExecutor(max_workers=IN_PARALLELO) as pool:
         esiti = list(pool.map(lavora, candidate))
-    for p, nome, b, errori in esiti:
+    for p, gruppo, nome, b, errori, letti, dura in esiti:
+        if dura:
+            print(f"  {(gruppo or 'risposta'):15} {nome:34} {dura[0]}: {dura[1]}")
+            if dura[0] == "salta":
+                saltate += 1
+                esito_coda(p, dura[1])
+            continue
         if not b:
-            print(f"  ? {nome}: risposta del cervello non leggibile"); continue
+            print(f"  ? {nome}: {errori[0] if errori else 'risposta del cervello non leggibile'}"); continue
         if errori:
             bocciate += 1
         ferma = not b["fermati"].lower().startswith("no")
-        titolo = (f"Da guardare tu: {nome}" if ferma else f"Bozza per {nome}") + f", {b['intento']}"
+        titolo = (f"Da guardare tu: {nome}" if ferma else (f"{gruppo.capitalize()}: {nome}" if gruppo else f"Bozza per {nome}")) + f", {b['intento']}"
         perche = (b["fermati"] if ferma else b["nota"])[:280] + (f", CANCELLO: {'; '.join(errori)}" if errori else "")
-        print(f"\n  [{b['intento']}] {titolo}\n      {perche}\n      " + b["bozza"][:220].replace("\n", " ") + "…")
+        if PROVA:
+            print(f"\n  [{b['intento']}] {titolo}\n      LORO ({letti['ultima_loro_il']}): {letti['ultima_loro'][:400]}\n      " +
+                  (f"NOI PRIMA ({letti['ultima_nostra_il']}): {letti['ultima_nostra'][:200]}\n      " if letti.get("ultima_nostra") else "") +
+                  f"{perche}\n      SECONDA TESTA: {b['lettura']['coerenza']} {b['lettura']['coerenza_motivo']}\n      NOI ORA:\n" + "\n".join("        " + r for r in b["bozza"].splitlines()))
+        else:
+            print(f"\n  [{b['intento']}] {titolo}\n      LORO ({letti['ultima_loro_il']}): {letti['ultima_loro'][:160]}\n      {perche}\n      NOI: " + b["bozza"][:220].replace("\n", " ") + "…")
         if not PROVA:
-            proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche,
-                    azione={"bozza": b["bozza"], "intento": b["intento"], "template": b["template"]})
+            azione = {"bozza": b["bozza"], "intento": b["intento"], "template": b["template"], "lettura": b["lettura"]}
+            if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"):
+                azione["allega_presentazione"] = True
+            if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):
+                azione["allega"] = True
+            pid = proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche, azione=azione)
+            if pid and gruppo:
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None})
             PRONTE.append((p["id"], (p.get("company") or p.get("name") or "")[:30], bool(p.get("analysis_pdf"))))
         if ferma: ferme += 1
         else: fatte += 1
 
-    print(f"\n  bozze pronte {fatte}, da guardare tu {ferme}, non passate il cancello {bocciate}")
+    print(f"\n  bozze pronte {fatte}, da guardare tu {ferme}, non passate il cancello {bocciate}, saltate con motivo {saltate}")
 
     # ── il gigante buono: i negativi cortesi, una volta sola ────────
     negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
@@ -394,9 +504,16 @@ def main():
     for p in negativi:
         if gb >= QUANTI_GB or p["id"] in aperte or p["id"] in rifiutate or p.get("stage") in INTOCCABILI:
             continue
-        testo = ultima.get(p["id"], "")
         mail = (p.get("email") or "").lower()
-        if len(testo.strip()) < 20 or NON_TOCCARE.search(testo) or mail in mail_no or mail.split("@")[-1] in dom_no:
+        if mail in mail_no or mail.split("@")[-1] in dom_no:
+            continue
+        # anche il gigante buono legge (25/9): il suo no vero, dal filo
+        try:
+            _, letti = lettura.leggi(p)
+        except Exception as e:                                # noqa: BLE001
+            print(f"  [GB] salto {nome if False else (p.get('company') or mail)[:34]}: lettura non riuscita ({str(e)[:60]})"); continue
+        testo = letti["ultima_loro"]
+        if len(testo.strip()) < 20 or NON_TOCCARE.search(testo) or letti["scritto_dopo_di_lei"]:
             continue
         fit = (p.get("enriched") or {}).get("google_fit") or {}
         if fit.get("verdetto") == "NO" or not (fit.get("zona") or p.get("analysis_pdf")):
@@ -424,12 +541,17 @@ def main():
         if errori or not fermati.lower().startswith("no"):
             print(f"  [GB] salto {nome}: {fermati if not fermati.lower().startswith('no') else '; '.join(errori)}")
             continue
+        # la seconda testa, anche per lui
+        verdetto, motivo = lettura.coerenza(letti, bozza, "GIGANTE BUONO")
+        if verdetto != "COERENTE":
+            print(f"  [GB] salto {nome}: la seconda testa dice {motivo}"); continue
+        lett = {**letti, "coerenza": verdetto, "coerenza_motivo": motivo, "gruppo": "GIGANTE BUONO"}
         print(f"\n  [GB] Gigante buono per {nome}\n      " + bozza[:200].replace("\n", " ") + "…")
         if not PROVA:
             PRONTE.append((p["id"], nome, True))
             proponi("risposta", f"Gigante buono per {nome}, INT-GB", prospect_id=p["id"],
                     perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
-                    azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB"})
+                    azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB", "lettura": lett})
         gb += 1
     print(f"  giganti buoni pronti: {gb}")
     # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare

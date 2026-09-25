@@ -16,14 +16,16 @@ FUORI: fit NO, no_followup (gigante buono), soppressi, persona sbagliata, nervos
 negativi, chi ha gia' avuto una nostra mail dopo la sua, chi e' in pipeline o cliente.
 L'ANALISI: se manca e il fit non e' NO, si fa adesso (analisi_auto); senza analisi
 non si scrive (la mail promette l'allegato).
-LE BOZZE: template qui sotto, parola per parola; nome della persona se c'e'.
-Vanno in Posta come «risposta», con analisi e presentazione in allegato; Dre
-approva (o approva in blocco, su suo ordine) e manda.py le spedisce.
+LE BOZZE (25/9, nessuna bozza senza lettura): questo script NON scrive piu'.
+Mette in coda (prospects.coda = il gruppo) e il motore delle bozze legge il filo
+vero, verifica che il gruppo regga (mai scritto dopo la sua mail, analisi mai
+ricevuta, nessun no, nessuna autorisposta), scrive col template di Dre e passa
+dalla seconda testa. Il 25/9 il metodo vecchio (template alla cieca, approva
+tutte) ha mandato 4 mail sbagliate su 10: Dre, «elimina subito».
 
 USO
-  python3 scripts/ripresa.py --prova            conta e mostra i primi
-  python3 scripts/ripresa.py --campione         una bozza per gruppo, in Posta (per il tono)
-  python3 scripts/ripresa.py                    tutte le bozze in Posta
+  python3 scripts/strumenti/ripresa.py --prova   conta e mostra
+  python3 scripts/strumenti/ripresa.py           mette in coda (--ooo: il gruppo dopo le ferie)
 """
 import datetime
 import os
@@ -31,63 +33,15 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
-from stanza import sb, proponi                              # noqa: E402
+from stanza import sb                                       # noqa: E402
 
 GIORNI = 30
-CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"
 
-RIPRESA = """Salve{nome},
-
-le avevo risposto qualche settimana fa, ma ci siamo accorti solo ora che il messaggio non era partito: le riscrivo perché non vada perso, e mi scuso per l'attesa.
-
-Le lascio qui l'analisi esterna che avevamo preparato sulla vostra attività: uno sguardo dall'esterno su come intercettare la domanda che oggi esiste su Google per un'azienda come la vostra. Allego anche una breve presentazione di Studio Galilei, per darle un po' di contesto su chi siamo e su come lavoriamo.
-{chiusura}
-Un saluto"""
-
-RINVIO = """Salve{nome},
-
-ci eravamo detti di risentirci più avanti, e ci siamo: le riscrivo come promesso.
-
-Le lascio qui l'analisi esterna che avevamo preparato sulla vostra attività: uno sguardo dall'esterno su come intercettare la domanda che oggi esiste su Google per un'azienda come la vostra. Allego anche una breve presentazione di Studio Galilei, per darle un po' di contesto su chi siamo e su come lavoriamo.
-{chiusura}
-Un saluto"""
-
-CHIUSURA_SI = """
-Se le fa piacere approfondire, qui trova il calendario per scegliere il giorno più comodo: {cal}
-"""
-CHIUSURA_NO = """
-Se le fa piacere approfondire, mi scriva pure e ci sentiamo. In caso contrario nessun problema: l'analisi resta sua.
-"""
-
-
-def template_ooo():
-    """Il testo di Dre, parola per parola (Risposte template: RICONTATTO DOPO OUT OF OFFICE)."""
-    import cervello, re as _re
-    t = cervello.manuale("template")
-    m = _re.search(r"## RICONTATTO DOPO OUT OF OFFICE[^\n]*\n.*?```\s*(.*?)```", t, _re.S)
-    if not m:
-        raise RuntimeError("template RICONTATTO DOPO OUT OF OFFICE non trovato")
-    testo = m.group(1).strip()
-    testo = _re.sub(r"https?://calendar\.app\.google/\S+", CALENDARIO, testo)
-    return testo
-
-
-def nome_di(p):
-    n = re.sub(r"\s+", " ", (p.get("name") or "").strip()).split(" ")[0] if p.get("name") else ""
-    return f" {n}" if re.fullmatch(r"[A-Za-zÀ-ÿ'\-]{2,}", n or "") and n.lower() not in ("info", "amministrazione", "ufficio", "segreteria") else ""
-
-
-def bozza_per(p, gruppo):
-    fit = ((p.get("enriched") or {}).get("google_fit") or {})
-    if gruppo == "RICONTATTO OOO":
-        n = nome_di(p).strip()
-        t = template_ooo().replace("Salve [Nome],", f"Salve {n}," if n else "Salve,")
-        return t + ("\n\nAllego anche una breve presentazione di Studio Galilei." if "presentazione" not in t.lower() else "")
-    chi = CHIUSURA_SI.format(cal=CALENDARIO)      # Dre, 25/9: «proporli la call», a tutti
-    t = (RIPRESA if gruppo == "RIPRESA" else RINVIO).format(nome=nome_di(p), chiusura=chi)
-    if fit.get("settore") and fit.get("settore") != "altro":
-        t = t.replace("per un'azienda come la vostra", f"per un'azienda come la vostra")
-    return t
+def gia_avute(*template):
+    """Chi ha gia' avuto quella proposta: aperta, mandata, o rifiutata da Dre («NO: ...»).
+    Le proposte chiuse dagli script il 25/9 (scritte senza lettura) non contano: si rifanno."""
+    rs = sb("GET", f"/rest/v1/proposte?select=prospect_id,stato,risposta&azione->>template=in.({','.join(template)})&limit=5000") or []
+    return {x["prospect_id"] for x in rs if x["stato"] != "no" or (x.get("risposta") or "").startswith("NO:")}
 
 
 def gia_scritto_da_gmail(email):
@@ -109,23 +63,23 @@ def gia_scritto_da_gmail(email):
 
 def candidati():
     oggi = datetime.date.today()
-    rs = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website"
+    rs = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website,coda"
                    "&last_reply_at=not.is.null&fuori=eq.false&stage=not.in.(perso,cliente)&no_followup=eq.false"
-                   "&classificazione=in.(positivo,tiepido,rinvio,da_classificare)&limit=3000") or []
+                   "&classificazione=in.(positivo,tiepido,rinvio)&campaign=not.ilike.*USA*&limit=3000") or []      # da_classificare: prima la rilettura; USA: fuori dal giro
     outs = {}
     for r in sb("GET", "/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup,analisi)&order=at.desc&limit=6000") or []:
         outs.setdefault(r["prospect_id"], r["at"])
-    gia = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&azione->>template=in.(RIPRESA,RINVIO%20SCADUTO,RICONTATTO%20OOO)&limit=5000") or [])}
+    gia = gia_avute("RIPRESA", "RINVIO%20SCADUTO", "RICONTATTO%20OOO")
     out = []
     if "--ooo" in sys.argv:
         # DOPO LE FERIE (Dre, 25/9): chi ci ha risposto solo con un'assenza ha comunque risposto,
         # quindi l'analisi puo' viaggiare in allegato. Solo chi e' in target: il fit si fa qui se manca.
         import googlefit
         zone, settori = googlefit.carica_fogli()
-        ooo = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website"
-                        "&fuori=eq.false&stage=not.in.(perso,cliente)&no_followup=eq.false&analysis_sent=eq.false&classificazione=eq.ooo&limit=3000") or []
+        ooo = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website,coda"
+                        "&fuori=eq.false&stage=not.in.(perso,cliente)&no_followup=eq.false&analysis_sent=eq.false&classificazione=eq.ooo&campaign=not.ilike.*USA*&limit=3000") or []
         for p in ooo:
-            if p["id"] in gia:
+            if p["id"] in gia or p.get("coda"):
                 continue
             fit = ((p.get("enriched") or {}).get("google_fit") or {})
             if not fit.get("verdetto"):
@@ -141,7 +95,7 @@ def candidati():
             out.append((p, "RICONTATTO OOO"))
         return out
     for p in rs:
-        if p["id"] in gia:
+        if p["id"] in gia or p.get("coda"):
             continue
         fit = ((p.get("enriched") or {}).get("google_fit") or {})
         if fit.get("verdetto") == "NO":
@@ -157,32 +111,13 @@ def candidati():
     return out
 
 
-def con_analisi(p, prova):
-    if p.get("analysis_pdf"):
-        return p["analysis_pdf"]
-    if prova:
-        return None
-    try:
-        import analisi_auto
-        ok = analisi_auto.lavora(p)
-        if ok:
-            q = (sb("GET", f"/rest/v1/prospects?select=analysis_pdf&id=eq.{p['id']}") or [{}])[0]
-            return q.get("analysis_pdf")
-    except Exception as e:                                        # noqa: BLE001
-        print(f"    analisi non fatta: {str(e)[:100]}")
-    return None
-
-
 def main():
     prova = "--prova" in sys.argv
-    campione = "--campione" in sys.argv
     cand = candidati()
-    print(f"candidati: {len(cand)}  (RIPRESA {sum(1 for _, g in cand if g == 'RIPRESA')}, RINVIO SCADUTO {sum(1 for _, g in cand if g != 'RIPRESA')})")
-    print(f"  senza analisi pronta: {sum(1 for p, _ in cand if not p.get('analysis_pdf'))}")
-    fatti, visti = 0, set()
+    print(f"candidati: {len(cand)}  " + ", ".join(f"{g} {sum(1 for _, x in cand if x == g)}" for g in sorted({g for _, g in cand})))
+    print(f"  senza analisi pronta: {sum(1 for p, _ in cand if not p.get('analysis_pdf'))} (la fa l'operazione analisi, il motore aspetta)")
+    fatti = 0
     for p, gruppo in cand:
-        if campione and gruppo in visti:
-            continue
         nome = (p.get("company") or p.get("email"))[:36]
         if prova:
             print(f"  {gruppo:15} {nome:36} {p['classificazione']:16} {'pdf' if p.get('analysis_pdf') else 'NO PDF'}")
@@ -190,27 +125,14 @@ def main():
         chi = gia_scritto_da_gmail(p["email"])
         if chi:
             print(f"  {gruppo:15} {nome:36} salto: gli ha già scritto {chi.split('@')[0]} da Gmail"); continue
-        pdf = con_analisi(p, prova)
-        if not pdf:
-            print(f"  {gruppo:15} {nome:36} salto: senza analisi"); continue
-        testo = bozza_per(p, gruppo)
         # una bozza «normale» gia' aperta per lui (scritta come se avesse risposto ieri)
-        # non regge dopo settimane: si chiude e la ripresa prende il suo posto
-        import datetime as _dt
+        # non regge dopo settimane: si chiude e la coda prende il suo posto
         for v_ in sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=eq.aperta&tipo=in.(risposta,umano)") or []:
-            sb("PATCH", f"/rest/v1/proposte?id=eq.{v_['id']}", {"stato": "no", "risposta": "sostituita dalla ripresa del 25/9 (la risposta è vecchia di settimane)", "risposta_il": _dt.datetime.now(_dt.timezone.utc).isoformat()})
-        titoli = {"RIPRESA": "Ripresa", "RINVIO SCADUTO": "Rinvio scaduto", "RICONTATTO OOO": "Dopo le ferie"}
-        perche = {"RIPRESA": "Ha scritto lui per ultimo il " + p["last_reply_at"][:10] + " e non ha mai avuto risposta: la scusa di Dre, analisi e presentazione in allegato.",
-                  "RINVIO SCADUTO": "Aveva chiesto di risentirci e la data (" + str(p.get("next_action_date")) + ") è passata: ci facciamo vivi come promesso, con analisi e presentazione.",
-                  "RICONTATTO OOO": "Ci aveva risposto solo con un'assenza (" + p["last_reply_at"][:10] + "): il template «dopo le ferie» di Dre, con analisi e presentazione. Fit " + str(((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto")) + "."}
-        proponi("risposta", f"{titoli[gruppo]}: {nome}", prospect_id=p["id"],
-                perche=perche[gruppo][:280],
-                azione={"bozza": testo, "intento": "RIPRESA", "template": gruppo, "allega": True, "allega_presentazione": True})
-        visti.add(gruppo); fatti += 1
-        print(f"  {gruppo:15} {nome:36} bozza in Posta")
-        if campione and len(visti) == 2:
-            break
-    print(f"ripresa: {fatti} bozze")
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{v_['id']}", {"stato": "no", "risposta": f"sostituita dalla coda {gruppo} (la risposta è vecchia di settimane)", "risposta_il": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": gruppo, "coda_il": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        fatti += 1
+        print(f"  {gruppo:15} {nome:36} in coda")
+    print(f"ripresa: {fatti} in coda (il motore delle bozze legge e scrive al prossimo giro)")
 
 
 if __name__ == "__main__":

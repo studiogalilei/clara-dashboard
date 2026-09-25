@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useVivo } from '../lib/vivo'
 import type { Prospect } from '../lib/types'
 import { Card, Spinner } from './ui'
+import { LetturaBox, type Lettura } from './ClaraVolante'
 
 // DA MANDARE (Dre, 24/9): «quando sono nella scheda del cliente non vedo la
 // bozza, c'è solo un pulsante per scaricare l'analisi. Se entro e non è
@@ -22,7 +23,7 @@ type Proposta = {
   tipo: string
   titolo: string
   perche: string | null
-  azione: { bozza?: string; bozza_originale?: string; intento?: string; template?: string; allega?: boolean; approvata_da?: string; approvata_il?: string } | null
+  azione: { bozza?: string; bozza_originale?: string; intento?: string; template?: string; allega?: boolean; approvata_da?: string; approvata_il?: string; lettura?: Lettura } | null
   at: string
   stato: string
 }
@@ -177,6 +178,8 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
               <span className={`whitespace-pre-wrap ${tuttoScritto ? '' : 'line-clamp-4'}`}>{scritto.body.replace(/\n{3,}/g, '\n\n')}</span>
             </blockquote>
           )}
+          {/* LA LETTURA (25/9): loro, noi, seconda testa. Nessuna bozza senza. */}
+          {pr.azione?.lettura && <div className="mb-2"><LetturaBox l={pr.azione.lettura} /></div>}
           <textarea
             value={testo}
             onChange={(e) => setTesto(e.target.value)}

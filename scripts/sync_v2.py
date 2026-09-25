@@ -394,7 +394,7 @@ def main():
                 # la bozza aperta in Posta e, se dentro c'e' l'analisi, segna analysis_sent.
                 nostre = [m for m in msgs if m.get("type") == "SENT" and (m.get("time") or "") > (last_reply.get("time") or "")]
                 for m in nostre[-2:]:
-                    body = corpo_pulito(m.get("email_body"))[:1500]
+                    body = corpo_pulito(m.get("email_body"))[:3000]
                     if not DRY:
                         try:
                             sb("POST", "/rest/v1/interactions",
@@ -422,7 +422,7 @@ def main():
                         pass
                 # timeline: le reply come interactions (dedup su unique constraint)
                 for m in replies[-3:]:
-                    body = corpo_pulito(m.get("email_body"))[:800]
+                    body = corpo_pulito(m.get("email_body"))[:3000]      # intero: la lettura (25/9) legge da qui
                     try:
                         sb("POST", "/rest/v1/interactions",
                            {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19],

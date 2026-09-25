@@ -131,14 +131,42 @@ def _():
     assert any("chiusura" in e for e in bozze.cancello("Salve,\n\nper policy lavoriamo solo con realtà indipendenti. Non la disturberò oltre e la rimuovo dalle nostre liste."))
 
 
-@prova("follow-up: il nome sostituisce solo il segnaposto, le caselle generiche restano «Salve,»")
+@prova("lettura: i quattro errori del 25/9 fermano la bozza in codice, prima del modello")
 def _():
-    import followup as F
-    assert F.nome_di({"name": "Maria Rossi"}) == "Maria"
-    assert F.nome_di({"name": "info"}) == ""
-    assert F.nome_di({"name": None}) == ""
-    base = "Salve Stefania,\n\ntorno brevemente sull'analisi."
-    assert base.replace("Salve Stefania,", "Salve Maria,") .startswith("Salve Maria,")
+    import lettura as L
+    base = {"ultima_loro": "Ho letto l'analisi, grazie, ma non fa per noi.", "ultima_loro_il": "2026-08-12", "ultima_nostra": "", "ultima_nostra_il": "",
+            "scritto_dopo_di_lei": 0, "analisi_ricevuta": False, "analisi_gia_letta": False, "detto_no": False, "autorisposta": False, "girato_a": []}
+    # 1. gli abbiamo gia' scritto dopo la sua mail: «la mail non era partita» sarebbe una bugia
+    assert L.regola_dura("RIPRESA", {**base, "scritto_dopo_di_lei": 1})[0] == "salta"
+    # 2. ha gia' l'analisi: la ripresa la promette come nuova
+    assert L.regola_dura("RIPRESA", {**base, "analisi_ricevuta": True})[0] == "salta"
+    # 3. ha detto no: nessun ricontatto; in una risposta normale ci si ferma
+    assert L.regola_dura("FOLLOW UP 1", {**base, "detto_no": True})[0] == "salta"
+    assert L.regola_dura(None, {**base, "detto_no": True}, "positivo")[0] == "fermati"
+    # 4. autorisposta: non e' una persona (salvo il gruppo dopo le ferie)
+    assert L.regola_dura(None, {**base, "autorisposta": True}, "positivo")[0] == "fermati"
+    assert L.regola_dura("RICONTATTO OOO", {**base, "autorisposta": True}, "ooo") is None
+    # senza l'ultima mail loro non si scrive niente
+    assert L.regola_dura(None, {**base, "ultima_loro": ""})[0] == "salta"
+    # i fatti si leggono dal testo vero
+    assert L.DETTO_NO.search("la ringrazio ma non è di nostro interesse")
+    assert L.AUTORISPOSTA.search("CONFERMIAMO L'AVVENUTA RICEZIONE. PROVVEDEREMO AD EVADERLA")
+    assert L.GIA_LETTA.search("la ringrazio per il materiale che mi ha trasmesso")
+
+
+@prova("bozze: ogni proposta «risposta» porta la lettura (il database la rifiuta altrimenti, schema_v58)")
+def _():
+    src = open(os.path.join(os.path.dirname(__file__), "bozze.py"), encoding="utf-8").read()
+    # ogni proponi di tipo risposta/umano nel motore passa una azione con la lettura dentro
+    import re as _re
+    for m in _re.finditer(r"proponi\((?:\"umano\" if ferma else \"risposta\"|\"risposta\")[^\n]*azione=(\w+)", src):
+        assert m.group(1) in ("azione",) or "lettura" in src[m.start():m.end() + 200], m.group(0)
+    assert '"lettura": b["lettura"]' in src and '"lettura": lett' in src
+    # nessuno scrive piu' bozze da template alla cieca: followup e ripresa mettono solo in coda
+    for f in ("followup.py", "strumenti/ripresa.py"):
+        t = open(os.path.join(os.path.dirname(__file__), f), encoding="utf-8").read()
+        assert "proponi(" not in t, f"{f} scrive ancora proposte"
+        assert '"coda"' in t
 
 
 # ── 6. Clara riempie: niente slop ─────────────────────────────────

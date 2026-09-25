@@ -448,7 +448,7 @@ def main():
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione&email=eq.{urllib.parse.quote(email)}")
     else:
         righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione"
-                          "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&awaiting_us=eq.true&stage=neq.nuovo&passato_a=is.null"
+                          "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=60") or []
         righe = [p for p in righe if servita(p)][:QUANTI]
