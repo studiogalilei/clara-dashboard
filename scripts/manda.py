@@ -76,13 +76,29 @@ def sl(metodo, percorso, corpo=None):
         return {"grezzo": t}
 
 
+# I LINK CON UNA PAROLA (Dre, 25/9: «mette il link in testo, non e' il top»).
+# La mail parte in HTML: il calendario e l'analisi diventano parole cliccabili,
+# non indirizzi lunghi. Un link che non riconosco resta com'e', cliccabile.
+PAROLE_LINK = [
+    (re.compile(r"https?://(calendar\.app\.google|calendar\.google\.com|calendly\.com)[^\s<]*"), "il mio calendario"),
+    (re.compile(r"https?://[^\s<]*/storage/v1/object/[^\s<]*analisi/[^\s<]*"), "l'analisi in PDF"),
+    (re.compile(r"https?://[^\s<]*/storage/v1/object/[^\s<]*"), "il documento"),
+]
+
+
 def in_html(testo):
     """La bozza e' testo semplice: paragrafi separati da riga vuota, a capo dentro."""
     par = [p.strip() for p in re.split(r"\n\s*\n", testo.strip()) if p.strip()]
+    def link(m):
+        url = html.unescape(m.group(1)).rstrip(".,;:)")
+        coda = m.group(1)[len(m.group(1).rstrip(".,;:)")):]
+        for rx, parola in PAROLE_LINK:
+            if rx.match(url):
+                return f'<a href="{html.escape(url)}">{parola}</a>{coda}'
+        return f'<a href="{html.escape(url)}">{html.escape(url)}</a>{coda}'
     def riga(s):
         s = html.escape(s)
-        # i link nudi diventano cliccabili
-        return re.sub(r"(https?://[^\s<]+)", r'<a href="\1">\1</a>', s).replace("\n", "<br>")
+        return re.sub(r"(https?://[^\s<]+)", link, s).replace("\n", "<br>")
     return "".join(f"<p>{riga(p)}</p>" for p in par)
 
 

@@ -87,6 +87,10 @@ def _():
     h = M.in_html("Buongiorno,\n\nle mando il link: https://x.y/z\nA presto")
     assert h == '<p>Buongiorno,</p><p>le mando il link: <a href="https://x.y/z">https://x.y/z</a><br>A presto</p>', h
     assert M.in_html("<script>alert(1)</script>") == "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"
+    cal = M.in_html("qui trova il calendario: https://calendar.app.google/AbC123.")
+    assert cal == '<p>qui trova il calendario: <a href="https://calendar.app.google/AbC123">il mio calendario</a>.</p>', cal
+    pdf = M.in_html("https://x.supabase.co/storage/v1/object/sign/vault/analisi/acme.pdf?token=abc")
+    assert '>l&#x27;analisi in PDF</a>' in pdf or ">l'analisi in PDF</a>" in pdf, pdf
     assert M.controlla("Le propongo {{CALENDARIO}}") == ["segnaposto lasciato nel testo"]
 
 
