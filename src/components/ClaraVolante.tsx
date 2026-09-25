@@ -606,6 +606,14 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // non finisce ne' in chat ne' nel riquadro rosso una riga per proposta.
   // A raccontare com'e' andata ci pensa chi l'ha chiamata, alla fine, in una
   // riga sola. Torna true se l'azione vera e' andata a buon fine.
+  // LA FILA (Dre, 25/9): risposto a una, si apre la prossima dello stesso tipo,
+  // senza tornare all'elenco. Si approva a raffica, una alla volta.
+  function inFila(p: Proposta) {
+    const idx = proposte.findIndex((x) => x.id === p.id)
+    const dopo = [...proposte.slice(idx + 1), ...proposte.slice(0, idx)].find((x) => x.id !== p.id && x.tipo === p.tipo)
+    if (dopo) void apriProposta(dopo)
+  }
+
   async function rispondi(p: Proposta, si: boolean, muto = false): Promise<boolean> {
     setRispondo(p.id)
     if (!muto) setGuaio(null)
@@ -622,7 +630,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       const { error } = await supabase.from('proposte').update({ stato: 'approvata', azione }).eq('id', p.id)
       if (error) { esito = `Non sono riuscita ad approvarla: ${error.message}`; riuscito = false }
       else { void supabase.rpc('chiama_direttore', { forza: 'manda' }); esito = `Approvata, Clara la manda da Smartlead: ${p.titolo}` }
-      if (riuscito) setProposte((l) => l.filter((x) => x.id !== p.id))
+      if (riuscito) { setProposte((l) => l.filter((x) => x.id !== p.id)); if (!muto) inFila(p) }
       else if (!muto) setGuaio(esito)
       if (!muto) await scriviMessaggio('controllo', esito, p.prospect_id)
       setRispondo(null)
@@ -666,6 +674,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       await supabase.from('proposte')
         .update({ stato: si ? 'fatta' : 'no', risposta_il: new Date().toISOString() }).eq('id', p.id)
       setProposte((l) => l.filter((x) => x.id !== p.id))
+      if (!muto) inFila(p)
     } else if (!muto) {
       setGuaio(esito)
     }

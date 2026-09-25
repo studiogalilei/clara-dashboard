@@ -538,7 +538,8 @@ export default function App() {
         <main className={`${pieno ? 'px-4 py-4' : 'px-4 py-5 lg:px-8 lg:py-7'} ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
           {!pieno && (<>
           {/* le novita', una volta, a chi rientra (Dre, 17/9) */}
-          {tab !== 'impostazioni' && !giro && <Novita />}
+          {/* le novita' solo sulla prima pagina (Dre, 25/9): su ogni pagina erano la prima cosa che vedevi, sempre */}
+          {(tab === 'prospect' || tab === 'pipeline') && !giro && <Novita />}
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
@@ -663,7 +664,7 @@ export default function App() {
         </div>
       </nav>
 
-      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} onClose={chiudiScheda} /></Rete>}
+      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} onClose={chiudiScheda} onApri={(id) => setOpenId(id)} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} />

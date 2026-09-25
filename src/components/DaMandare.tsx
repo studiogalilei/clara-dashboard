@@ -27,7 +27,7 @@ type Proposta = {
   stato: string
 }
 
-export default function DaMandare({ p }: { p: Prospect }) {
+export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () => void }) {
   const [pr, setPr] = useState<Proposta | null | undefined>(undefined)   // undefined = non ancora letto
   const [testo, setTesto] = useState('')
   const [copiata, setCopiata] = useState(false)
@@ -35,6 +35,8 @@ export default function DaMandare({ p }: { p: Prospect }) {
   const [esito, setEsito] = useState<string | null>(null)
   const [allego, setAllego] = useState(true)
   const [giro, setGiro] = useState(0)
+  const [scritto, setScritto] = useState<{ at: string; body: string } | null>(null)   // l'ultima mail sua, sopra la bozza
+  const [tuttoScritto, setTuttoScritto] = useState(false)
 
   useVivo(['proposte', 'prospects'], () => setGiro((n) => n + 1))
 
@@ -50,6 +52,13 @@ export default function DaMandare({ p }: { p: Prospect }) {
         setPr(x)
         if (x?.azione?.bozza !== undefined) setTesto((t) => t || x.azione!.bozza!)
       })
+    return () => { vivo = false }
+  }, [p.id, giro])
+  useEffect(() => {
+    let vivo = true
+    supabase.from('interactions').select('at,body').eq('prospect_id', p.id).eq('kind', 'email_in')
+      .order('at', { ascending: false }).limit(1)
+      .then(({ data }) => { if (vivo) setScritto((data?.[0] as { at: string; body: string } | undefined) ?? null) })
     return () => { vivo = false }
   }, [p.id, giro])
 
@@ -116,7 +125,11 @@ export default function DaMandare({ p }: { p: Prospect }) {
     <Card className="border-blu/40">
       <header className="flex items-center justify-between gap-2 border-b border-velo px-4 py-2.5">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-blu">Da mandare</span>
-        {pr?.azione?.template && <span className="text-[11px] text-tenue">{pr.azione.template}</span>}
+        <span className="flex items-center gap-3">
+          {pr?.azione?.template && <span className="text-[11px] text-tenue">{pr.azione.template}</span>}
+          {/* la Storia a un clic, vicino al testo (Dre, 25/9) */}
+          {onStoria && <button onClick={onStoria} className="rounded-full border border-bordo px-3 py-0.5 text-[11px] font-bold text-navy hover:border-navy">Storia</button>}
+        </span>
       </header>
 
       {!pr ? (
@@ -155,6 +168,15 @@ export default function DaMandare({ p }: { p: Prospect }) {
             <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">Clara si è fermata: {pr.perche}</p>
           )}
           {pr.tipo === 'risposta' && pr.perche && <p className="mb-2 text-xs text-tenue">Clara: {pr.perche}</p>}
+          {/* COSA HA SCRITTO (Dre, 25/9): si legge la sua mail e si risponde, senza cercarla in fondo */}
+          {scritto && (
+            <blockquote onClick={() => setTuttoScritto(!tuttoScritto)} className="mb-2 cursor-pointer rounded-lg border-l-2 border-bordo bg-velo/40 px-3 py-2 text-[13px] leading-snug text-tenue">
+              <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                ha scritto, {new Date(scritto.at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}{tuttoScritto ? '' : ' (clicca per tutto)'}
+              </span>
+              <span className={`whitespace-pre-wrap ${tuttoScritto ? '' : 'line-clamp-4'}`}>{scritto.body.replace(/\n{3,}/g, '\n\n')}</span>
+            </blockquote>
+          )}
           <textarea
             value={testo}
             onChange={(e) => setTesto(e.target.value)}

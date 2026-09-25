@@ -110,6 +110,7 @@ export default function Lista({ onOpen, q }: Props) {
   // nella vista elenco si guarda una fascia alla volta: i numeri in cima
   // sono il filtro (prima erano tre forme della stessa lista, QA Dre 14/9)
   const [fascia, setFascia] = useState<Fascia | 'tutti'>('tutti')
+  const [soloBozza, setSoloBozza] = useState(false)     // 25/9: un clic e vedi solo le carte su cui puoi agire ora
   const [vista, setVista] = useState<Vista>(leggiVista)
   const [dragId, setDragId] = useState<string | null>(null)
   const [sopra, setSopra] = useState<Chiave | null>(null)
@@ -252,7 +253,8 @@ export default function Lista({ onOpen, q }: Props) {
   const colonne = VIVE.filter(([, c]) => !['arrivo', 'prospect'].includes(c) || rows.some(TAPPE.find(([, k]) => k === c)![2]))
 
   // in elenco si guarda una fascia alla volta
-  const elencate = fascia === 'tutti' ? rows : rows.filter(TAPPE.find(([, c]) => c === fascia)![2])
+  const conBozza = (p: Prospect) => !soloBozza || Boolean(aperte[p.id]?.bozza)
+  const elencate = (fascia === 'tutti' ? rows : rows.filter(TAPPE.find(([, c]) => c === fascia)![2])).filter(conBozza)
   // mentre cerchi i cassetti si aprono da soli: prima diceva «1 risultato»
   // con le sette colonne vuote e la carta chiusa dentro Scartati (QA Dre, 14/9)
   const cercando = Boolean(q.trim())
@@ -562,6 +564,13 @@ export default function Lista({ onOpen, q }: Props) {
             </svg>
           </button>
         </div>
+        {/* SOLO CON BOZZA PRONTA (Dre, 25/9): le carte su cui puoi agire adesso */}
+        <button
+          onClick={() => setSoloBozza(!soloBozza)}
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${soloBozza ? 'border-blu bg-blu text-white' : 'border-bordo bg-white text-tenue hover:border-blu hover:text-blu'}`}
+        >
+          Solo con bozza pronta
+        </button>
 
         {/* i filtri per stato erano una terza forma della stessa lista: in
             bacheca le fasi sono le colonne, in elenco sono i numeri in cima
@@ -608,7 +617,7 @@ export default function Lista({ onOpen, q }: Props) {
             >
               <span className={`inline-block h-[7px] w-[7px] shrink-0 self-center rounded-full ${COLORE[chiave]}`} />
               <span className="text-base font-extrabold tabular-nums">
-                {q.trim() || rows.filter(filtro).length >= LIMITE || !quanti ? rows.filter(filtro).length : quanti[chiave]}
+                {soloBozza ? rows.filter(filtro).filter(conBozza).length : q.trim() || rows.filter(filtro).length >= LIMITE || !quanti ? rows.filter(filtro).length : quanti[chiave]}
               </span>
               <Micro className={fascia === chiave ? 'text-blu' : undefined}>{nome}</Micro>
             </button>
@@ -651,7 +660,7 @@ export default function Lista({ onOpen, q }: Props) {
           }}
         >
           {colonne.map(([nome, chiave, filtro]) => {
-            const dentro = rows.filter(filtro)
+            const dentro = rows.filter(filtro).filter(conBozza)
             // la corsia Persi c'e' sempre: prima compariva quando alzavi una
             // carta e spostava tutte le altre sotto il dito (revisione 4/9)
             const evidenziata = sopra === chiave && dragId !== null

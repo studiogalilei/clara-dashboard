@@ -180,6 +180,23 @@ function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; o
 }
 
 export default function Oggi({ onOpen, onCalendario }: Props) {
+  // le aziende con una bozza pronta, dalla piu' vecchia: la fila della mattina
+  const [bozzePronte, setBozzePronte] = useState<string[]>([])
+  useEffect(() => {
+    let vivo = true
+    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta')
+      .order('at', { ascending: true }).limit(100)
+      .then(({ data }) => {
+        if (!vivo) return
+        const visti = new Set<string>()
+        const ids: string[] = []
+        for (const x of (data ?? []) as Array<{ prospect_id: string | null }>) {
+          if (x.prospect_id && !visti.has(x.prospect_id)) { visti.add(x.prospect_id); ids.push(x.prospect_id) }
+        }
+        setBozzePronte(ids)
+      })
+    return () => { vivo = false }
+  }, [])
   const [attivita, setAttivita] = useState<TaskDre[] | null>(null)
   const [gruppi, setGruppi] = useState<Gruppo[] | null>(null)
   const [fatteCoda, setFatteCoda] = useState<Set<string>>(new Set())
@@ -800,6 +817,17 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       {/* la giornata (Dre, 9/9): la prossima call sta in testata (App), qui le task e in fondo gli avvisi;
           sul telefono la call resta qui sopra */}
       <div className="lg:hidden"><Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" /></div>
+
+      {/* LE BOZZE PRIMA DI TUTTO (Dre, 25/9): la mattina la prima cosa e' approvare quello che Clara ha pronto */}
+      {bozzePronte.length > 0 && (
+        <button onClick={() => onOpen(bozzePronte[0])}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-blu/30 bg-blu/[0.05] px-5 py-3.5 text-left hover:bg-blu/10">
+          <span className="text-[15px] font-bold text-navy">
+            {bozzePronte.length === 1 ? 'Una bozza pronta da approvare' : `${bozzePronte.length} bozze pronte da approvare`}
+          </span>
+          <span className="shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white">Apri la prima ›</span>
+        </button>
+      )}
 
       {problema && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">

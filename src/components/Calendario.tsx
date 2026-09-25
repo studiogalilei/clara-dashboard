@@ -94,7 +94,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   // nessuna call, si apre l'elenco; la griglia resta a un clic di distanza.
   // La scelta dura la sessione, come tutte le viste
   const [vistaCal, setVistaCal] = useState<'mese' | 'elenco'>(
-    () => (leggiPref('calendario-vista') as 'mese' | 'elenco') || 'mese')
+    () => (leggiPref('calendario-vista') as 'mese' | 'elenco') || 'elenco')   // 25/9: apre sull'elenco, il mese ce l'hai in Google
   const [decisa, setDecisa] = useState(false)
   const [io, setIo] = useState<string | null>(null)
   const oggi = new Date()
@@ -213,12 +213,10 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       }
       out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
       setVoci(out)
-      // la prima volta si sceglie da soli: chi non ha call nel mese apre
-      // l'elenco, chi ne ha apre la griglia (Dre, 16/9)
+      // la prima volta apre sull'elenco (Dre, 25/9): la griglia del mese ce
+      // l'ha gia' in Google, qui servono le prossime call con la scheda e la prep
       if (!decisa && !leggiPref('calendario-vista')) {
-        const fra30 = Date.now() + 30 * 86400e3
-        const callVicine = out.filter((v) => v.tipo === 'call' && new Date(v.at).getTime() <= fra30 && new Date(v.at).getTime() >= Date.now() - 86400e3)
-        setVistaCal(callVicine.length === 0 ? 'elenco' : 'mese')
+        setVistaCal('elenco')
         setDecisa(true)
       }
     })

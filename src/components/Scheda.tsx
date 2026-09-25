@@ -39,6 +39,7 @@ import {
 interface Props {
   id: string
   onClose: () => void
+  onApri?: (id: string) => void     // la prossima scheda, senza tornare in Pipeline (Dre, 25/9)
 }
 
 const CAMPI: Array<{ key: keyof Prospect; label: string; type?: string }> = [
@@ -87,7 +88,7 @@ function tappaCorrente(p: Prospect): number {
   return 0
 }
 
-export default function Scheda({ id, onClose }: Props) {
+export default function Scheda({ id, onClose, onApri }: Props) {
   // chi sta guardando: serve per i post-it, che sono suoi
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [nonCe, setNonCe] = useState(false)        // l'azienda non c'e', o e' fuori dal tuo perimetro
@@ -118,6 +119,20 @@ export default function Scheda({ id, onClose }: Props) {
   const [altroAperto, setAltroAperto] = useState(false)
   const [storiaAperta, setStoriaAperta] = useState(false)
   const [clsAperta, setClsAperta] = useState(false)          // i chip della classificazione, in testata
+  const [prossima, setProssima] = useState<string | null>(null)   // la prossima azienda con una bozza pronta
+  // LA FILA (Dre, 25/9): dopo «Approva e manda» si passa alla prossima bozza da qui,
+  // senza tornare in Pipeline. La fila e' la Posta: le bozze aperte, dalla piu' vecchia.
+  useEffect(() => {
+    let vivo = true
+    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta')
+      .order('at', { ascending: true }).limit(60)
+      .then(({ data }) => {
+        if (!vivo) return
+        const ids = ((data ?? []) as Array<{ prospect_id: string | null }>).map((x) => x.prospect_id).filter((x): x is string => Boolean(x) && x !== id)
+        setProssima(ids[0] ?? null)
+      })
+    return () => { vivo = false }
+  }, [id])
   const [agendaSua, setAgendaSua] = useState<AgendaItem[]>([])
   // il ponte verso Obsidian, dove vivono gli originali: acceso o spento
   // dalle Impostazioni, non da qui
@@ -498,6 +513,25 @@ export default function Scheda({ id, onClose }: Props) {
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)
   }
 
+  // LA STORIA VICINO ALLA BOZZA (Dre, 25/9): per un lead si legge cosa ha scritto e
+  // si risponde; la storia sta li', non in fondo. Per un cliente resta in fondo.
+  const cardStoria = (
+            <Card className="p-4" id="storia">
+              <TitoloCard>Storia</TitoloCard>
+              <Timeline timeline={timeline} agenda={agendaSua} onTutta={() => setStoriaAperta(true)} />
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addNota()}
+                  placeholder="Aggiungi una nota…"
+                  className="flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu"
+                />
+                <button onClick={addNota} className="rounded-full bg-blu px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">Aggiungi</button>
+              </div>
+            </Card>
+  )
+
   return (
     <div className="fixed inset-0 z-50">
       {/* la scheda scivola da destra e la pagina resta dietro (intervista a Dre, 9/9):
@@ -512,6 +546,12 @@ export default function Scheda({ id, onClose }: Props) {
         <p className="min-w-0 flex-1 truncate text-sm text-tenue">
           {eCliente(p) ? 'Clienti' : 'Pipeline'} <span className="mx-1 text-spento">›</span> <span className="font-bold text-inchiostro">{p.company || p.name || p.email}</span>
         </p>
+        {prossima && onApri && (
+          <button onClick={() => onApri(prossima)} title="La prossima azienda con una bozza pronta"
+                  className="shrink-0 rounded-full border border-blu px-3 py-1.5 text-sm font-semibold text-blu hover:bg-blu/5">
+            Prossima bozza ›
+          </button>
+        )}
         <button
           onClick={save}
           disabled={!dirty || saving}
@@ -636,7 +676,42 @@ export default function Scheda({ id, onClose }: Props) {
                 )}
                 {p.linkedin && <a href={p.linkedin} target="_blank" rel="noreferrer" className="text-blu hover:underline">LinkedIn</a>}
                 {p.city && <span className="text-tenue">{p.city}</span>}
+                <button onClick={() => setModifica(!modifica)} className="text-[11px] font-semibold text-blu hover:underline">{modifica ? 'Chiudi' : 'Modifica'}</button>
               </p>
+              {/* il modulo dei contatti sta qui, sotto la riga: la card in basso non c'e' piu' (Dre, 25/9) */}
+              {modifica && (
+                <div className="mt-2 max-w-md">
+                <div className="space-y-2">
+                  {CAMPI.map(({ key, label, type }) => (
+                    <label key={key} className="block">
+                      <span className="mb-0.5 flex items-center gap-1 text-[11px] text-tenue">
+                        {label}
+                        {p.enriched?.[key] === 'auto' && <Auto />}
+                      </span>
+                      <input
+                        type={type ?? 'text'}
+                        value={val(key) == null ? '' : String(val(key))}
+                        onChange={(e) => edit(key, e.target.value)}
+                        className="w-full rounded-lg border border-bordo px-2 py-1.5 text-sm outline-none focus:border-blu"
+                      />
+                    </label>
+                  ))}
+                </div>
+                </div>
+              )}
+              {/* LA CONSEGNA (Dre, 25/9): per un cliente la testata dice progetti, scadenza e accessi, non la vendita */}
+              {eCliente(p) && progetti.length > 0 && (() => {
+                const inCorso = progetti.filter((x) => x.stato !== 'consegnato')
+                const prossima = inCorso.map((x) => x.scadenza).filter((d): d is string => Boolean(d)).sort()[0]
+                const senzaAccessi = inCorso.filter((x) => x.accessi_stato === 'mancano' || x.accessi_stato === 'chiesti')
+                return (
+                  <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px]">
+                    <span><b>{inCorso.length}</b> {inCorso.length === 1 ? 'progetto in corso' : 'progetti in corso'}{inCorso[0]?.chi_segue ? <span className="text-tenue">, segue {inCorso[0].chi_segue}</span> : null}</span>
+                    {prossima && <span>prossima scadenza <b>{fmtDateShort(prossima)}</b></span>}
+                    {senzaAccessi.length > 0 && <span className="font-semibold text-amber-800">accessi da avere: {senzaAccessi.map((x) => x.nome).join(', ')}</span>}
+                  </p>
+                )
+              })()}
               {/* IL PUNTO DI CLARA (Dre, 25/9): dalle mail e dalle call, a che punto siamo e la prossima mossa */}
               {(() => {
                 const pt = (p.enriched as Record<string, unknown> | null)?.punto as { testo?: string; passo?: string; il?: string } | undefined
@@ -886,7 +961,8 @@ export default function Scheda({ id, onClose }: Props) {
             </div>
           )}
 
-          {/* lo stepper delle fasi */}
+          {/* lo stepper delle fasi: per un cliente e' rumore, la vendita e' finita (25/9) */}
+          {!eCliente(p) && (
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pb-1">
             {TAPPE.map((t, i) => (
@@ -917,12 +993,14 @@ export default function Scheda({ id, onClose }: Props) {
               </button>
             )}
           </div>
+          )}
           <CosaManca p={p} aggiorna={aggiorna} />
         </Card>
 
         {/* DA MANDARE (Dre, 24/9): la prima cosa della scheda e' cosa mando adesso,
             con l'analisi accanto se e' la prima volta */}
-        <DaMandare p={p} />
+        <DaMandare p={p} onStoria={() => setStoriaAperta(true)} />
+        {!eCliente(p) && cardStoria}
 
         {/* la prossima call: quando c'è, sta sopra a tutto */}
         {prossimaCall && (
@@ -1019,50 +1097,6 @@ export default function Scheda({ id, onClose }: Props) {
 
           {/* SX: l'identita' */}
           <div className="space-y-3">
-            <Card className="p-4">
-              <div className="flex items-baseline justify-between">
-                <TitoloCard>Contatti</TitoloCard>
-                <button onClick={() => setModifica(!modifica)} className="text-[11px] font-semibold text-blu hover:underline">
-                  {modifica ? 'Chiudi' : 'Modifica'}
-                </button>
-              </div>
-              {modifica ? (
-                <div className="space-y-2">
-                  {CAMPI.map(({ key, label, type }) => (
-                    <label key={key} className="block">
-                      <span className="mb-0.5 flex items-center gap-1 text-[11px] text-tenue">
-                        {label}
-                        {p.enriched?.[key] === 'auto' && <Auto />}
-                      </span>
-                      <input
-                        type={type ?? 'text'}
-                        value={val(key) == null ? '' : String(val(key))}
-                        onChange={(e) => edit(key, e.target.value)}
-                        className="w-full rounded-lg border border-bordo px-2 py-1.5 text-sm outline-none focus:border-blu"
-                      />
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-1.5 text-sm">
-                  <a href={`mailto:${p.email}`} className="block truncate text-blu hover:underline">{p.email}</a>
-                  {p.phone
-                    ? <a href={`tel:${p.phone}`} className="block text-blu hover:underline">{p.phone}</a>
-                    : <p className="text-spento">Telefono: non trovato</p>}
-                  {p.website && (
-                    <a href={p.website.startsWith('http') ? p.website : `https://${p.website}`}
-                       target="_blank" rel="noreferrer" className="block truncate text-blu hover:underline">
-                      {p.website.replace(/^https?:\/\//, '')}
-                    </a>
-                  )}
-                  {p.linkedin
-                    ? <a href={p.linkedin} target="_blank" rel="noreferrer" className="block truncate text-blu hover:underline">LinkedIn</a>
-                    : <p className="text-spento">Nessun LinkedIn</p>}
-                  {p.city && <p>{p.city}</p>}
-                  {p.campaign && <p className="text-xs text-spento">campagna: {p.campaign}</p>}
-                </div>
-              )}
-            </Card>
 
 
             {/* il mercato, compresso nel verdetto: serve a decidere se scrivergli */}
@@ -1472,20 +1506,7 @@ export default function Scheda({ id, onClose }: Props) {
             )}
 
 
-            <Card className="p-4" id="storia">
-              <TitoloCard>Storia</TitoloCard>
-              <Timeline timeline={timeline} agenda={agendaSua} onTutta={() => setStoriaAperta(true)} />
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addNota()}
-                  placeholder="Aggiungi una nota…"
-                  className="flex-1 rounded-lg border border-bordo px-3 py-1.5 text-sm outline-none focus:border-blu"
-                />
-                <button onClick={addNota} className="rounded-full bg-blu px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-blu-scuro">Aggiungi</button>
-              </div>
-            </Card>
+            {eCliente(p) && cardStoria}
 
 
 
