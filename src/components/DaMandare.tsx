@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useVivo } from '../lib/vivo'
 import type { Prospect } from '../lib/types'
-import { Card, Spinner } from './ui'
+import { Avviso, Card, Spinner } from './ui'
 import { LetturaBox, type Lettura } from './ClaraVolante'
 
 // DA MANDARE (Dre, 24/9): «quando sono nella scheda del cliente non vedo la
@@ -123,7 +123,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
   )
 
   return (
-    <Card className="border-blu/40">
+    <Card tono="blu">
       <header className="flex items-center justify-between gap-2 border-b border-velo px-4 py-2.5">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-blu">Da mandare</span>
         <span className="flex items-center gap-3">
@@ -151,7 +151,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
               </a>
             )}
             {trattenuta && (
-              <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900"><b>Clara ha trattenuto l'analisi</b>: {analisi?.trattenuta}. Riprova al prossimo giro; se resta ferma, la si fa a mano.</p>
+              <Avviso className="mt-3" titolo="Clara ha trattenuto l'analisi">{analisi?.trattenuta}. Riprova al prossimo giro; se resta ferma, la si fa a mano.</Avviso>
             )}
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
         // LA BOZZA È QUI: leggi, correggi, approva
         <div className="px-4 py-3">
           {pr.tipo === 'umano' && (
-            <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">Clara si è fermata: {pr.perche}</p>
+            <Avviso className="mb-2" titolo="Clara si è fermata">{pr.perche}</Avviso>
           )}
           {pr.tipo === 'risposta' && pr.perche && <p className="mb-2 text-xs text-tenue">Clara: {pr.perche}</p>}
           {/* COSA HA SCRITTO (Dre, 25/9): si legge la sua mail e si risponde, senza cercarla in fondo */}

@@ -89,7 +89,13 @@ function tappaCorrente(p: Prospect): number {
   return 0
 }
 
+type Sezione = 'adesso' | 'azienda' | 'lavoro'
+
 export default function Scheda({ id, onClose, onApri }: Props) {
+  // LA SCHEDA A TAB (Dre, 26/9: «una cosa per tab, come in una console seria»):
+  // Adesso = cosa mando e cosa succede; Azienda = chi sono, contatti, mercato,
+  // prezzo; Lavoro = progetti, preventivi, pagamenti, documenti.
+  const [sez, setSez] = useState<Sezione>('adesso')
   // chi sta guardando: serve per i post-it, che sono suoi
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [nonCe, setNonCe] = useState(false)        // l'azienda non c'e', o e' fuori dal tuo perimetro
@@ -103,6 +109,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
   const [transcript, setTranscript] = useState('')
   const [pronti, setPronti] = useState<Appunto[]>([])   // gli appunti che ci sono gia'
   const [avanzaAperto, setAvanzaAperto] = useState(false)   // il riassunto si chiede solo quando premi Avanza
+  useEffect(() => { if (avanzaAperto) setSez('adesso') }, [avanzaAperto])   // il pedaggio sta nella tab Adesso
   const [modifica, setModifica] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -544,9 +551,16 @@ export default function Scheda({ id, onClose, onApri }: Props) {
         <button onClick={chiudi} className="shrink-0 text-sm font-semibold text-blu hover:underline">
           ‹ Torna
         </button>
-        <p className="min-w-0 flex-1 truncate text-sm text-tenue">
-          {eCliente(p) ? 'Clienti' : 'Pipeline'} <span className="mx-1 text-spento">›</span> <span className="font-bold text-inchiostro">{p.company || p.name || p.email}</span>
-        </p>
+        {/* LE BRICIOLE (26/9): da dove vengo e dove sono, cliccabili */}
+        <nav aria-label="Dove sei" className="flex min-w-0 flex-1 items-center gap-1 truncate text-sm">
+          <button onClick={chiudi} className="shrink-0 text-tenue hover:text-navy hover:underline">{eCliente(p) ? 'Clienti' : 'Pipeline'}</button>
+          <span className="text-spento">/</span>
+          {p.fuori && !eCliente(p) && !ePerso(p) && p.pipeline_stage && (<>
+            <span className="shrink-0 text-tenue">{PIPELINE_LABEL[p.pipeline_stage]}</span>
+            <span className="text-spento">/</span>
+          </>)}
+          <span className="truncate font-bold text-inchiostro">{p.company || p.name || p.email}</span>
+        </nav>
         {prossima && onApri && (
           <button onClick={() => onApri(prossima)} title="La prossima azienda con una bozza pronta"
                   className="shrink-0 rounded-full border border-blu px-3 py-1.5 text-sm font-semibold text-blu hover:bg-blu/5">
@@ -998,6 +1012,18 @@ export default function Scheda({ id, onClose, onApri }: Props) {
           <CosaManca p={p} aggiorna={aggiorna} />
         </Card>
 
+        {/* LE TAB DELLA SCHEDA (26/9) */}
+        <div className="flex gap-1 border-b border-bordo" role="tablist">
+          {([['adesso', eCliente(p) ? 'Adesso' : 'Da mandare'], ['azienda', 'Azienda'], ['lavoro', 'Lavoro']] as Array<[Sezione, string]>).map(([k, n]) => (
+            <button key={k} role="tab" aria-selected={sez === k} onClick={() => setSez(k)}
+                    className={`-mb-px rounded-t-lg border px-4 py-2 text-[13px] font-bold transition-colors ${
+                      sez === k ? 'border-bordo border-b-white bg-white text-navy' : 'border-transparent text-tenue hover:text-navy'}`}>
+              {n}
+            </button>
+          ))}
+        </div>
+
+        {sez === 'adesso' && (<>
         {/* DA MANDARE (Dre, 24/9): la prima cosa della scheda e' cosa mando adesso,
             con l'analisi accanto se e' la prima volta */}
         <DaMandare p={p} onStoria={() => setStoriaAperta(true)} />
@@ -1005,7 +1031,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
 
         {/* la prossima call: quando c'è, sta sopra a tutto */}
         {prossimaCall && (
-          <Card className="border-l-4 border-l-navy">
+          <Card tono="navy">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -1093,10 +1119,13 @@ export default function Scheda({ id, onClose, onApri }: Props) {
           </div>
         )}
 
+        </>)}
+
         {/* ── due colonne: identita' | il vivo ─────────────────── */}
         <div className="grid grid-cols-1 gap-3">
 
-          {/* SX: l'identita' */}
+          {/* SX: l'identita' (tab Azienda) */}
+          {sez === 'azienda' && (
           <div className="space-y-3">
 
 
@@ -1198,12 +1227,13 @@ export default function Scheda({ id, onClose, onApri }: Props) {
               </Card>
             )}
           </div>
+          )}
 
           {/* CENTRO: il vivo */}
           <div className="space-y-3">
             {/* il pedaggio: chiuso finche' non premi «Avanza» accanto alle fasi (Dre, 9/9) */}
-            {p.fuori && next && !soppresso && avanzaAperto && (
-              <Card className="salta-su border-blu/30">
+            {sez === 'adesso' && p.fuori && next && !soppresso && avanzaAperto && (
+              <Card tono="blu" alta className="salta-su">
                 <header className="flex items-baseline gap-2 border-b border-velo px-4 py-2.5">
                   <h3 className="text-sm font-bold">Avanza a {PIPELINE_LABEL[next]}</h3>
                   <button onClick={() => setAvanzaAperto(false)} className="ml-auto text-xs font-semibold text-tenue hover:text-inchiostro">Chiudi</button>
@@ -1277,7 +1307,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             {/* LA CARTELLA (Dre, 2/9): una sola e cresce. Nasce con quello
                 che gia' sappiamo di lui, senza che nessuno lo debba scrivere:
                 l'analisi ricevuta, chi sono, se vale la pena */}
-            {(
+            {sez === 'azienda' && (
               <Card>
                 <header className="flex items-baseline justify-between gap-2 border-b border-velo px-4 py-2.5">
                   <TitoloCard>Cartella</TitoloCard>
@@ -1322,7 +1352,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             )}
 
             {/* DA FARE PER LUI: la scheda deve rispondere anche a questo */}
-            {taskSue.length > 0 && (
+            {sez === 'adesso' && taskSue.length > 0 && (
               <Card className="p-4">
                 <TitoloCard>Da fare</TitoloCard>
                 <ul className="divide-y divide-velo">
@@ -1343,7 +1373,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
 
             {/* PROGETTI: il lavoro a scadenza, quello che non e' canone. Si vedono
                 da quando il cliente e' in avvio: e' li' che il pod comincia */}
-            {(eCliente(p) || progetti.length > 0 || ['avvio', 'prova'].includes(p.pipeline_stage ?? '')) && (
+            {sez === 'lavoro' && (eCliente(p) || progetti.length > 0 || ['avvio', 'prova'].includes(p.pipeline_stage ?? '')) && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Progetti</TitoloCard>
@@ -1382,7 +1412,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
 
             {/* I PREVENTIVI (14/9): cosa gli abbiamo proposto e a che punto e'. Il
                 nuovo si fa dal widget Preventivi, gia' con questa azienda scelta */}
-            {ceo && (
+            {sez === 'lavoro' && ceo && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Preventivi</TitoloCard>
@@ -1408,7 +1438,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
 
             {/* I SUOI PAGAMENTI (10/9): quello che Stripe dice di lui. Solo per chi
                 vede i soldi (Dre e Giacomo): agli altri la tabella non risponde. */}
-            {incassi.length > 0 && (() => {
+            {sez === 'lavoro' && incassi.length > 0 && (() => {
               const ATTIVI = new Set(['active', 'trialing', 'past_due', 'unpaid'])
               const abb = incassi.find((i) => i.genere === 'abbonamento' && ATTIVI.has(i.stato ?? ''))
               const pagati = incassi.filter((i) => i.genere === 'addebito' && i.stato === 'succeeded')
@@ -1456,7 +1486,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             {/* I SUOI DOCUMENTI: la cartella vera, quella coi file dentro.
                 Sta sempre, anche vuota: se no non sai dove finiscono quando
                 li salvi (Dre, 4/9) */}
-            {(
+            {sez === 'lavoro' && (
               <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <TitoloCard>Documenti</TitoloCard>
@@ -1511,11 +1541,13 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             )}
 
 
-            {eCliente(p) && cardStoria}
+            {sez === 'adesso' && eCliente(p) && cardStoria}
 
+            {sez === 'lavoro' && !eCliente(p) && progetti.length === 0 && (
+              <p className="px-1 py-6 text-center text-sm text-spento">Niente lavoro ancora: progetti, preventivi e documenti compaiono qui.</p>
+            )}
 
-
-            {!p.fuori && (
+            {sez === 'adesso' && !p.fuori && (
             <Card className="bg-velo/40 p-4">
               <TitoloCard>Fuori binario</TitoloCard>
               <textarea
@@ -1531,7 +1563,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             </Card>
             )}
 
-            {!p.fuori && (p.followup_due || p.ooo_until || p.no_followup) && (
+            {sez === 'adesso' && !p.fuori && (p.followup_due || p.ooo_until || p.no_followup) && (
               <Card className="space-y-1 p-4 text-xs text-tenue">
                 {p.followup_due && <p>Follow-up dovuto il {fmtDate(p.followup_due)}</p>}
                 {p.ooo_until && <p>Fuori ufficio fino al {fmtDate(p.ooo_until)}</p>}

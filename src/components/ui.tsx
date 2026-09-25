@@ -256,10 +256,33 @@ export function Empty({ text }: { text: string }) {
 }
 
 // Il contenitore standard: card bianca, bordo netto, angoli appena smussati
-export function Card({ children, className = '', id }: { children: React.ReactNode; className?: string; id?: string }) {
+// LA CARTA (26/9): bianca, con l'ombra morbida che la stacca dallo sfondo. `tono`
+// mette la riga colorata in testa: blu = da fare adesso, ambra = attenzione,
+// verde = a posto, rossa = problema, navy = in evidenza. Il colore sta in una
+// riga, non su tutta la carta: e' quello che la fa sembrare uno strumento e non
+// un poster.
+export type TonoCarta = 'blu' | 'navy' | 'ambra' | 'verde' | 'rossa'
+export function Card({ children, className = '', id, tono, alta = false }: {
+  children: React.ReactNode; className?: string; id?: string; tono?: TonoCarta; alta?: boolean
+}) {
   return (
-    <div id={id} className={`overflow-hidden rounded-2xl border border-bordo bg-white ${className}`}>
+    <div id={id} className={`carta overflow-hidden ${tono ? `carta-${tono}` : ''} ${alta ? 'carta-alta' : ''} ${className}`}>
       {children}
+    </div>
+  )
+}
+
+// L'AVVISO (26/9): un pannello col bordo colorato a sinistra, come nelle console
+// serie. Sostituisce i riquadri ambra pieni: il colore sta nel bordo e nel titolo.
+export function Avviso({ children, tono = 'ambra', titolo, className = '' }: {
+  children: React.ReactNode; tono?: 'ambra' | 'blu' | 'rosso' | 'verde'; titolo?: string; className?: string
+}) {
+  const bordo = tono === 'blu' ? 'border-l-blu' : tono === 'rosso' ? 'border-l-red-600' : tono === 'verde' ? 'border-l-green-600' : 'border-l-amber-500'
+  const testo = tono === 'blu' ? 'text-navy' : tono === 'rosso' ? 'text-red-800' : tono === 'verde' ? 'text-green-800' : 'text-amber-900'
+  return (
+    <div className={`rounded-[10px] border border-bordo border-l-4 bg-white px-3 py-2 text-xs shadow-[var(--shadow-carta)] ${bordo} ${className}`}>
+      {titolo && <p className={`mb-0.5 font-bold ${testo}`}>{titolo}</p>}
+      <div className="text-tenue">{children}</div>
     </div>
   )
 }

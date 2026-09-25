@@ -4,8 +4,23 @@
     {
       "name": "odyn-crm",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173,
+      "cwd": "/Users/dramane/Documents/odyn-crm"
+    },
+    {
+      "name": "vite",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
+      "port": 5174,
       "cwd": "/Users/dramane/Documents/odyn-crm"
     }
   ]

@@ -19,8 +19,30 @@
   --color-spento: #8d92a1;
   --color-bordo: #e5e7ec;
   --color-velo: #f1f2f6;
-  --color-fondo: #f7f8fa;
+  /* 26/9, Dre guardando una console «aziendale»: «il gioco di ombre che mi da'
+     profondita', layer». Tre livelli: lo sfondo un grado piu' scuro delle
+     carte, le carte bianche con un'ombra morbida, l'elemento in evidenza con
+     una riga di stato in testa. Niente vetro, niente gradienti, niente viola:
+     restano navy, blu SG e i neutri; rosso, ambra e verde solo per gli stati. */
+  --color-fondo: #eef0f4;
+  --shadow-carta: 0 1px 2px rgba(20, 34, 90, 0.06), 0 2px 8px rgba(20, 34, 90, 0.06);
+  --shadow-alta: 0 4px 16px rgba(20, 34, 90, 0.10), 0 1px 3px rgba(20, 34, 90, 0.08);
 }
+
+/* la carta: il secondo livello, sopra lo sfondo */
+.carta {
+  background: #fff;
+  border: 1px solid var(--color-bordo);
+  border-radius: 14px;
+  box-shadow: var(--shadow-carta);
+}
+.carta-alta { box-shadow: var(--shadow-alta); }
+/* la riga di stato in testa a una carta: dice cosa e' senza colorare tutto */
+.carta-blu   { border-top: 3px solid var(--color-blu); }
+.carta-navy  { border-top: 3px solid var(--color-navy); }
+.carta-ambra { border-top: 3px solid #d97706; }
+.carta-verde { border-top: 3px solid #16a34a; }
+.carta-rossa { border-top: 3px solid #dc2626; }
 
 html {
   -webkit-tap-highlight-color: transparent;

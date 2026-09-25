@@ -511,7 +511,7 @@ export default function Lista({ onOpen, q }: Props) {
           e.dataTransfer.effectAllowed = 'move'
         }}
         onDragEnd={() => { setDragId(null); setSopra(null) }}
-        className={`group flex w-full flex-col gap-1.5 rounded-xl border bg-white px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-all hover:border-blu ${
+        className={`carta group flex w-full flex-col gap-1.5 !rounded-xl px-3 py-2.5 text-left transition-all hover:border-blu hover:shadow-[var(--shadow-alta)] ${
           inPresa ? 'rotate-2 scale-[1.04] border-navy opacity-50 shadow-[0_12px_28px_rgba(6,23,115,0.2)]'
             : stato.tono === 'azione' ? 'border-red-200'
             : stato.tono === 'clara' ? 'border-blu/30'
@@ -587,7 +587,7 @@ export default function Lista({ onOpen, q }: Props) {
           stesso che vedi in Tutti, perche' e' la stessa domanda al database
           e non la somma delle righe di questa pagina (revisione 4/9) */}
       {vista === 'elenco' && fascia === 'cliente' && vedoSoldi && ricorrente && ricorrente.quanti > 0 && (
-        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-2.5">
+        <div className="carta mb-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 !rounded-xl px-4 py-2.5">
           <span className="text-lg font-extrabold tabular-nums">{ricorrente.mese.toLocaleString('it-IT')} €</span>
           <Micro>al mese</Micro>
           <span className="text-sm font-semibold text-tenue">
@@ -602,7 +602,7 @@ export default function Lista({ onOpen, q }: Props) {
       )}
 
       {vista === 'elenco' && (
-        <div className="mb-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-bordo bg-white px-4 py-2.5">
+        <div className="carta mb-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 !rounded-xl px-4 py-2.5">
           <button
             onClick={() => setFascia('tutti')}
             className={`text-xs font-semibold ${fascia === 'tutti' ? 'text-blu' : 'text-tenue hover:text-inchiostro'}`}

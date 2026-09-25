@@ -366,7 +366,7 @@ export default function App() {
         style={{ width: riposo && !sbircio ? 0 : menuLargo }}
         onMouseEnter={() => setSbircio(true)}
         onMouseLeave={() => setSbircio(false)}
-        className={`sticky top-0 hidden h-dvh shrink-0 flex-col overflow-hidden border-r bg-white py-5 transition-[width,opacity,padding] duration-300 ease-out ${
+        className={`sticky top-0 z-20 hidden h-dvh shrink-0 flex-col overflow-hidden border-r bg-white py-5 shadow-[var(--shadow-carta)] transition-[width,opacity,padding] duration-300 ease-out ${
           riposo && !sbircio ? 'border-transparent px-0 opacity-0' : 'border-bordo px-4 opacity-100'
         } ${pieno ? '' : 'lg:flex'}`}
       >
