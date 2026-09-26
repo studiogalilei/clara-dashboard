@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { menuDi, type Chiave, type Ruolo } from '../lib/widget'
 import { recenti } from '../lib/recenti'
+import { leggiCodice, paiUnCodice, TIPO_NOME } from '../lib/codice'
 import { Spinner } from './ui'
 
 // LA PALETTE DEI COMANDI (Dre, 26/9: «il feel di un software professionale, la
@@ -48,6 +49,23 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
     setCerco(true)
     const t = setTimeout(() => {
       const s = q.trim().replace(/[%,]/g, ' ')
+      // IL CODICE INCOLLATO (Dre, 26/9): «SG-201» o «SG-201-AN-02» portano
+      // dritti all'azienda, senza doversi ricordare come si chiamava
+      const cod = paiUnCodice(s) ? leggiCodice(s) : null
+      if (cod?.azienda != null) {
+        void supabase.from('prospects').select('id,company,name,email,city').eq('sg_id', cod.azienda).limit(1)
+          .then(({ data }) => { if (vivo) { setTrovate(data ?? []); setCerco(false) } })
+        return
+      }
+      if (cod?.tipo === 'PR' && cod.linea) {   // un numero di preventivo: si risale all'azienda
+        void supabase.from('preventivi').select('prospect_id').ilike('numero', s).limit(1)
+          .then(async ({ data }) => {
+            const pid = (data ?? [])[0]?.prospect_id
+            const r = pid ? await supabase.from('prospects').select('id,company,name,email,city').eq('id', pid).limit(1) : { data: [] }
+            if (vivo) { setTrovate(r.data ?? []); setCerco(false) }
+          })
+        return
+      }
       void supabase.from('prospects').select('id,company,name,email,city')
         .or(`company.ilike.%${s}%,name.ilike.%${s}%,email.ilike.%${s}%`).limit(8)
         .then(({ data }) => { if (vivo) { setTrovate(data ?? []); setCerco(false) } })
@@ -62,10 +80,12 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
     const viste: Comando[] = testo ? [] : recenti().slice(0, 5)
       .map((r) => ({ id: `rec:${r.id}`, titolo: r.nome, gruppo: 'Visti di recente' as const, fai: () => apriScheda(r.id) }))
     const az: Comando[] = azioni
+    const cod = testo ? leggiCodice(testo) : null
     const aziende: Comando[] = trovate.map((p) => ({
       id: `az:${p.id}`,
       titolo: p.company || p.name || p.email || 'senza nome',
-      sotto: [p.name, p.city, p.email].filter(Boolean).join(' · '),
+      sotto: cod?.tipo ? `${TIPO_NOME[cod.tipo]} ${testo.toUpperCase()}, nella sua scheda`
+             : [p.name, p.city, p.email].filter(Boolean).join(' · '),
       gruppo: 'Aziende' as const,
       fai: () => apriScheda(p.id),
     }))
@@ -88,7 +108,7 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-[18px] w-[18px] shrink-0 text-spento"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
           <input
             ref={campo} value={q} onChange={(e) => { setQ(e.target.value); setScelto(0) }}
-            placeholder="Cerca un'azienda, una sezione, un'azione…"
+            placeholder="Cerca un'azienda, un codice SG, una sezione, un'azione…"
             className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-spento"
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') { e.preventDefault(); setScelto((s) => Math.min(s + 1, lista.length - 1)) }

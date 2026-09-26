@@ -40,10 +40,11 @@ export interface Preventivo {
 export interface VoceListino { id: number; nome: string; descrizione: string | null; prezzo: number; ricorrenza: Ricorrenza; linea: Linea; ordine: number; attivo: boolean }
 
 export const STATI: Array<[StatoPreventivo, string, string]> = [
+  // le targhette (26/9): fondo pieno, niente pastello trasparente
   ['bozza', 'bozza', 'bg-velo text-tenue'],
-  ['inviato', 'inviato', 'bg-sky-100 text-sky-900'],
-  ['accettato', 'accettato', 'bg-green-100 text-green-900'],
-  ['rifiutato', 'rifiutato', 'bg-red-50 text-red-700'],
+  ['inviato', 'inviato', 'bg-blu text-white'],
+  ['accettato', 'accettato', 'bg-green-700 text-white'],
+  ['rifiutato', 'rifiutato', 'bg-red-700 text-white'],
 ]
 
 export const scaduto = (q: Preventivo) => q.stato === 'inviato' && !!q.valido_fino && q.valido_fino < new Date().toISOString().slice(0, 10)

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Card, Spinner, Micro, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
+import { Card, Spinner, Micro, Empty, sgid, fmtDateShort, Faccia, type FacciaP } from './ui'
 import CercaAzienda, { CAMPI_AZIENDA } from './CercaAzienda'
+import Copia from './Copia'
 import Editor from './Editor'
 import Prezzo from './Prezzo'
 import { MODELLI } from '../lib/modelli'
@@ -108,10 +109,11 @@ export default function Preventivi({ onOpen }: Props) {
       .then(({ data, error }) => { if (error) setProblema(`Il listino non si carica: ${error.message}`); setListino((data as VoceListino[]) ?? []) })
     void datiStudio().then((d) => {
       setStudio(d)
-      // la prima volta in assoluto i dati dello Studio non ci sono: si
-      // chiedono subito e una volta sola, invece di bloccare il primo
-      // preventivo di un cliente con un messaggio in fondo al pannello
-      if (mancaStudio(d).length) { setStudioAperto(true); setStudioChiesto(true) }
+      // 26/9 (Dre: «entro là dentro, mi vedo sta roba vuota»): i dati dello
+      // Studio NON si chiedono all'ingresso. Sono configurazione, non lavoro:
+      // si chiedono quando servono davvero, cioè quando si fa il primo PDF.
+      // In cima resta una riga che dice che mancano, e si aprono da lì.
+      if (mancaStudio(d).length) setStudioChiesto(true)
     })
     void supabase.from('incassi').select('*').order('quando', { ascending: false }).limit(500)
       .then(({ data, error }) => { if (!error && data && data.length) setIncassi(data as Incasso[]) })
@@ -177,10 +179,10 @@ export default function Preventivi({ onOpen }: Props) {
   }
 
   // ── il pannello: nuovo o modifica ─────────────────────────────────────
-  function apriNuovo(prospect_id = '') {
+  function apriNuovo(prospect_id = '', voci: Voce[] = []) {
     setDallaPiva(null)
     const n = nomi[prospect_id]
-    setBozza({ ...vuota(), prospect_id, fatturazione: n?.fatturazione ?? (n ? { ragione: n.company ?? '' } : {}) })
+    setBozza({ ...vuota(), prospect_id, voci, fatturazione: n?.fatturazione ?? (n ? { ragione: n.company ?? '' } : {}) })
   }
   function apriModifica(q: Preventivo) {
     const n = nomi[q.prospect_id]
@@ -446,6 +448,7 @@ export default function Preventivi({ onOpen }: Props) {
   // stessa frase, una per il cliente e una per lo Studio)
   const buchiCliente = bozza ? cosaManca(bozza.fatturazione) : []
   const buchiStudio = bozza ? mancaStudio(studio) : []
+  const buchiStudioSempre = mancaStudio(studio)   // per la riga in cima: i dati mancano anche senza bozza aperta
   const manca = [...buchiCliente, ...buchiStudio]
 
   const somma = (l: Preventivo[]) => l.reduce((s, q) => s + (Number(q.importo) || 0), 0)
@@ -543,13 +546,57 @@ export default function Preventivi({ onOpen }: Props) {
         </Card>
       )}
 
-      {/* I DOCUMENTI: il foglio bianco sta in cima, perche' e' la cosa che
-          si viene a fare qui. I modelli si aprono con un clic, non con un
-          modale: la scelta e' una riga di chip */}
+      {/* LE PARTENZE (Dre, 26/9: «entro e mi vedo sta roba vuota, non mi viene
+          voglia di creare un preventivo»). Un software fatto bene non ti mette
+          davanti a un foglio bianco: ti fa partire da qualcosa. Qui le partenze
+          sono le voci del listino, quelle che usi davvero. Un clic e il
+          preventivo esiste già con dentro quella voce: resta da scegliere chi. */}
+      {!bozza && !apro && (
+        <Card tono="blu" className="p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[15px] font-bold text-navy">Fai un preventivo</h2>
+            <span className="text-[11px] text-spento">parti da una voce del listino, o da zero</span>
+          </div>
+          {listino.length > 0 ? (
+            <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {listino.slice(0, 6).map((v) => (
+                <button key={v.id} data-tip={v.descrizione ?? `${v.nome}: ${euro(v.prezzo)}${v.ricorrenza === 'mese' ? ' al mese' : ''}`}
+                        onClick={() => apriNuovo('', [{ nome: v.nome, descrizione: v.descrizione ?? '', prezzo: v.prezzo, ricorrenza: v.ricorrenza, quantita: 1 }])}
+                        className="carta flex flex-col gap-0.5 !rounded-xl px-3 py-2.5 text-left transition-all hover:border-blu hover:shadow-[var(--shadow-alta)]">
+                  <span className="truncate text-[13px] font-bold text-inchiostro">{v.nome}</span>
+                  <span className="text-[12px] text-tenue">{euro(v.prezzo)}{v.ricorrenza === 'mese' ? ' al mese' : ' una tantum'}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[13px] text-tenue">Il listino è vuoto: aggiungi le tue voci in Impostazioni, Lo Studio, e da qui partiranno con un clic.</p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-velo pt-3">
+            <button onClick={() => apriNuovo()} data-tip="Un preventivo vuoto: scegli tu azienda e voci"
+                    className="rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white hover:bg-blu-scuro">
+              Preventivo da zero
+            </button>
+            {MODELLI.map((m) => (
+              <button key={m.chiave} data-tip={m.cosa} onClick={() => setApro({ id: null, modello: m.chiave })}
+                      className="rounded-full border border-bordo bg-white px-3 py-1.5 text-[13px] font-semibold text-navy hover:border-blu">
+                {m.nome}
+              </button>
+            ))}
+            {buchiStudioSempre.length > 0 && (
+              <button onClick={() => setStudioAperto(true)} data-tip="Ragione sociale, P.IVA, IVA, termini: finiscono in ogni PDF"
+                      className="ml-auto text-[12px] font-semibold text-amber-700 hover:underline">
+                Mancano i dati dello Studio per il PDF
+              </button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* I DOCUMENTI gia' fatti */}
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={() => setScelgoModello((v) => !v)}
-                  className="flex items-center gap-2 rounded-full bg-blu px-4 py-1.5 text-sm font-bold text-white shadow-[0_4px_12px_rgba(6,23,115,0.25)] hover:bg-blu-scuro">
+                  className="flex items-center gap-2 rounded-full border border-bordo bg-white px-4 py-1.5 text-sm font-bold text-navy hover:border-blu">
             <span className="text-base leading-none">+</span> Nuovo documento
           </button>
           {scelgoModello && (
@@ -779,9 +826,16 @@ export default function Preventivi({ onOpen }: Props) {
 
       {/* LA LISTA: una riga per preventivo, con l'esito a portata di mano */}
       {visibili.length === 0 ? (
-        <Card><p className="px-4 py-8 text-center text-sm text-spento">
-          {righe.length === 0 ? 'Nessun preventivo ancora.' : t ? `Niente per «${cerca.trim()}»` : filtro === 'giro' ? 'Nessuno sta aspettando una risposta.' : 'Nessuno qui dentro.'}
-        </p></Card>
+        <Card><Empty
+          text={righe.length === 0 ? 'Nessun preventivo ancora'
+                : t ? `Niente per «${cerca.trim()}»`
+                : filtro === 'giro' ? 'Nessuno sta aspettando una risposta'
+                : 'Nessuno qui dentro'}
+          cosa={righe.length === 0
+                ? 'Un preventivo nasce da una voce del listino qui sopra: scegli la voce, poi l\'azienda. Diventa un PDF con le condizioni economiche, e quando lo accettano nasce il progetto.'
+                : filtro === 'giro' ? 'Qui compaiono i preventivi mandati e ancora senza risposta, con da quanti giorni aspettano.'
+                : undefined} />
+        </Card>
       ) : (
         <div className="space-y-2">
           {visibili.map((q) => {
@@ -792,19 +846,27 @@ export default function Preventivi({ onOpen }: Props) {
             return (
               <Card key={q.id} className="px-4 py-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
-                  <button onClick={() => onOpen(q.prospect_id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    {n && <Faccia p={n} size={36} />}
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <button onClick={() => onOpen(q.prospect_id)} data-tip="Apri la scheda dell'azienda" className="shrink-0">
+                      {n && <Faccia p={n} size={36} />}
+                    </button>
                     <span className="min-w-0">
                       <span className="flex items-baseline gap-2">
-                        <span className="truncate text-[15px] font-bold">{nomeDi(q.prospect_id)}</span>
-                        <span className="shrink-0 text-[11px] text-spento">{q.numero}</span>
+                        <button onClick={() => onOpen(q.prospect_id)} className="truncate text-left text-[15px] font-bold hover:text-blu">
+                          {nomeDi(q.prospect_id)}
+                        </button>
+                        {q.numero && (
+                          <Copia testo={q.numero} cosa="il numero: lo incolli in ⌘K o in una mail">
+                            <span className="shrink-0 text-[11px] text-spento">{q.numero}</span>
+                          </Copia>
+                        )}
                       </span>
                       <span className="mt-0.5 flex items-center gap-1.5">
                         <span className={`inline-block h-[7px] w-[7px] shrink-0 rounded-full ${st.pallino}`} />
                         <span className={`truncate text-[12px] ${st.testo_colore}`}>{st.testo}</span>
                       </span>
                     </span>
-                  </button>
+                  </div>
 
                   <div className="flex items-center justify-between gap-3 pl-[48px] sm:contents">
                   <span className="shrink-0 text-right sm:w-32">

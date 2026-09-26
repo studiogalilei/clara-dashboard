@@ -111,8 +111,12 @@ function Icona({ icona, immagine, className }: { icona: string; immagine?: strin
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
-  const [tab, setTab] = useState<Tab>('prospect')   // 24/9 (Dre): si entra sulla Pipeline e si lavora, sempre
-  const [openId, setOpenId] = useState<string | null>(null)
+  // 26/9: l'indirizzo comanda dal primo disegno. Se il link dice #/preventivi
+  // si apre lì, senza lampeggiare prima sulla Pipeline.
+  const dIniziale = leggiIndirizzo()
+  const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'prospect')   // 24/9 (Dre): senza indirizzo si entra sulla Pipeline
+  const [openId, setOpenId] = useState<string | null>(dIniziale?.id ?? null)
+  const [sezione, setSezione] = useState<string | null>(dIniziale?.sezione ?? null)
   // GLI INDIRIZZI (Dre, 26/9): quello che guardi ha un indirizzo suo, lo copi e
   // lo mandi. All'avvio si legge, poi si scrive a ogni passo, e Indietro torna.
   // Valgono ancora i vecchi link di Clara in calendario (?scheda=<id>).
@@ -120,17 +124,16 @@ export default function App() {
     function dallUrl() {
       const d = leggiIndirizzo()
       if (!d) return
-      setTab(d.tab); setOpenId(d.id)
+      setTab(d.tab); setOpenId(d.id); setSezione(d.sezione)
     }
-    dallUrl()
     window.addEventListener('popstate', dallUrl)
     return () => window.removeEventListener('popstate', dallUrl)
   }, [])
   const primoGiro = useRef(true)
   useEffect(() => {
-    scriviIndirizzo({ tab, id: openId, sezione: null }, primoGiro.current)
+    scriviIndirizzo({ tab, id: openId, sezione }, primoGiro.current)
     primoGiro.current = false
-  }, [tab, openId])
+  }, [tab, openId, sezione])
   const [q, setQ] = useState('')
   const [cercaAperta, setCercaAperta] = useState(false)
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
@@ -356,7 +359,10 @@ export default function App() {
       // actionable, non da una home generica». Il ceo entra sulla Pipeline;
       // gli altri su Oggi: le task da accettare, le proprie, la prossima call.
       // Se si arriva con ?scheda= si va dritti alla scheda, per tutti.
-      if (c.ruolo !== 'ceo' && !new URLSearchParams(window.location.search).get('scheda')) setTab('pipeline')
+      // 26/9: se l'indirizzo dice gia' dove andare (link condiviso, ricarica,
+      // tasto indietro) comanda lui. La pagina d'ingresso vale solo quando si
+      // entra senza indirizzo: se no un link mandato a Carlo lo porta altrove.
+      if (c.ruolo !== 'ceo' && !leggiIndirizzo()) setTab('pipeline')
     })
   }, [session, versione])
 
@@ -410,7 +416,7 @@ export default function App() {
       <Comandi
         aperto={comandi} chiudi={() => setComandi(false)} ruolo={ruolo} concessi={concessi}
         vaiA={(t) => { setTab(t); setOpenId(null) }}
-        apriScheda={(id) => { setOpenId(id); setTab('prospect') }}
+        apriScheda={(id) => { setOpenId(id); setSezione(null); setTab('prospect') }}
         azioni={[
           { id: 'do:azienda', titolo: "Aggiungi un'azienda", sotto: 'una scheda nuova nella Pipeline', gruppo: 'Azioni',
             fai: () => { setTab('prospect'); setOpenId(null); window.dispatchEvent(new CustomEvent('azienda:nuova')) } },
@@ -419,7 +425,7 @@ export default function App() {
           { id: 'do:sync', titolo: 'Sincronizza adesso', sotto: 'rilegge Smartlead, il calendario e la posta', gruppo: 'Azioni',
             fai: () => { void supabase.rpc('chiama_direttore', { forza: 'sync_smartlead' }) } },
           { id: 'do:link', titolo: 'Copia il link di questa pagina', sotto: 'da mandare a qualcuno', gruppo: 'Azioni',
-            fai: () => { void navigator.clipboard.writeText(linkDi({ tab, id: openId, sezione: null })).catch(() => {}) } },
+            fai: () => { void navigator.clipboard.writeText(linkDi({ tab, id: openId, sezione })).catch(() => {}) } },
         ] as Comando[]}
       />
       <Suggerimento />
@@ -740,7 +746,7 @@ export default function App() {
         </div>
       </nav>
 
-      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} onClose={chiudiScheda} onApri={(id) => setOpenId(id)} /></Rete>}
+      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} />

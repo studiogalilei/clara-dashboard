@@ -22,6 +22,8 @@ const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
 import DaMandare from './DaMandare'
+import Copia from './Copia'
+import { linkDi } from '../lib/indirizzo'
 import PrezzoSuggerito from './PrezzoSuggerito'
 import Piano from './Piano'
 import { Timeline, StoriaCompleta } from './Storia'
@@ -40,6 +42,8 @@ import {
 
 interface Props {
   id: string
+  sezione?: string | null           // la tab aperta, dall'indirizzo (26/9)
+  onSezione?: (s: string | null) => void
   onClose: () => void
   onApri?: (id: string) => void     // la prossima scheda, senza tornare in Pipeline (Dre, 25/9)
 }
@@ -92,11 +96,15 @@ function tappaCorrente(p: Prospect): number {
 
 type Sezione = 'adesso' | 'azienda' | 'lavoro'
 
-export default function Scheda({ id, onClose, onApri }: Props) {
+export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Props) {
   // LA SCHEDA A TAB (Dre, 26/9: «una cosa per tab, come in una console seria»):
   // Adesso = cosa mando e cosa succede; Azienda = chi sono, contatti, mercato,
   // prezzo; Lavoro = progetti, preventivi, pagamenti, documenti.
-  const [sez, setSez] = useState<Sezione>('adesso')
+  const [sez, setSezStato] = useState<Sezione>((sezione as Sezione) ?? 'adesso')
+  // la tab sta nell'indirizzo: «#/azienda/<id>/lavoro» apre qui, e cambiando
+  // tab il link si aggiorna, così quello che mandi è quello che vedi (26/9)
+  const setSez = (v: Sezione) => { setSezStato(v); onSezione?.(v === 'adesso' ? null : v) }
+  useEffect(() => { if (sezione && sezione !== sez) setSezStato(sezione as Sezione) }, [sezione])
   // «visti di recente» nella palette dei comandi (Dre, 26/9): non si ricomincia mai da zero
   // chi sta guardando: serve per i post-it, che sono suoi
   const [utenteId, setUtenteId] = useState<string | null>(null)
@@ -662,7 +670,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             <Faccia p={p} size={44} />
             <div className="min-w-[220px] flex-1">
               <p className="flex items-center gap-2 text-[11px] font-bold tracking-wide text-blu">
-                {codice ?? '—'}
+                {codice ? <Copia testo={codice} cosa="il codice: lo incolli in ⌘K e torni qui"><span>{codice}</span></Copia> : '—'}
                 {/* LA TARGHETTA DI STATO (Dre, 26/9: «il giallo trasparente dietro
                     sa di AI»): fondo pieno, testo che si legge, angoli quasi dritti */}
                 {eCliente(p)
@@ -684,7 +692,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
                   compatte, che le posso copiare facile». Testo selezionabile, niente bottoni. */}
               <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] leading-snug">
                 {p.name && <span className="font-semibold">{p.name}{p.role ? <span className="font-normal text-tenue">, {p.role}</span> : null}</span>}
-                <a href={`mailto:${p.email}`} className="text-blu hover:underline">{p.email}</a>
+                <Copia testo={p.email ?? ''} cosa="l'indirizzo"><a href={`mailto:${p.email}`} onClick={(e) => e.preventDefault()} className="text-blu">{p.email}</a></Copia>
                 {(p as unknown as { email_alt?: string[] | null }).email_alt?.[0] && (
                   <a href={`mailto:${(p as unknown as { email_alt?: string[] }).email_alt![0]}`} className="text-blu hover:underline">{(p as unknown as { email_alt?: string[] }).email_alt![0]}</a>
                 )}
@@ -696,6 +704,9 @@ export default function Scheda({ id, onClose, onApri }: Props) {
                 )}
                 {p.linkedin && <a href={p.linkedin} target="_blank" rel="noreferrer" className="text-blu hover:underline">LinkedIn</a>}
                 {p.city && <span className="text-tenue">{p.city}</span>}
+                <Copia testo={linkDi({ tab: 'prospect', id: p.id, sezione: null })} cosa="il link di questa scheda, da mandare a qualcuno">
+                  <span className="text-[11px] font-semibold text-blu">Link</span>
+                </Copia>
                 <button onClick={() => setModifica(!modifica)} className="text-[11px] font-semibold text-blu hover:underline">{modifica ? 'Chiudi' : 'Modifica'}</button>
               </p>
               {/* il modulo dei contatti sta qui, sotto la riga: la card in basso non c'e' piu' (Dre, 25/9) */}
