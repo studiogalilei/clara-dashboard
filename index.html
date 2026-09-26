@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/sg-simbolo.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#111827" />
+    <meta name="theme-color" content="#061773" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SG Workspace" />
@@ -30,13 +30,26 @@
     <!-- il primo mezzo secondo, prima che parta l'app: il marchio, non il
          bianco. Sparisce da solo quando React disegna dentro #root -->
     <style>
-      #root .avvio { display: flex; min-height: 100dvh; align-items: center; justify-content: center; background: #fff; }
-      #root .avvio img { width: 52px; height: 52px; opacity: .85; animation: gira 9s linear infinite; }
-      @keyframes gira { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+      /* l'apertura (Dre, 26/9): il fondo del reparto e l'albero bianco, come
+         Smartlead. Il colore si ricorda dall'ultimo ingresso, cosi' c'e' subito. */
+      #root .avvio { display: flex; min-height: 100dvh; align-items: center; justify-content: center; background: var(--reparto, #061773); }
+      #root .avvio img { height: min(40vh, 40vw, 340px); width: auto; }
     </style>
   </head>
   <body>
-    <div id="root"><div class="avvio"><img src="clara.svg" alt="Clara" /></div></div>
+    <div id="root"><div class="avvio"><img src="reparti/albero-bianco.svg" alt="" /></div></div>
+    <script>
+      // il colore dell'ultimo reparto, prima ancora che parta l'app
+      try {
+        var C = { direzione: '#061773', marketing: '#D21205', software: '#2F6B33', ai: '#0689FF' }
+        var r = C[localStorage.getItem('sg:reparto')] || C.direzione
+        document.documentElement.style.setProperty('--reparto', r)
+        document.querySelector('meta[name=theme-color]').setAttribute('content', r)
+        // l'icona in home e' quella del reparto, subito: iOS la legge al momento del «Aggiungi a Home»
+        var n = localStorage.getItem('sg:reparto') || 'direzione'
+        document.querySelectorAll('link[rel=apple-touch-icon]').forEach(function (l) { l.setAttribute('href', 'reparti/icona-' + n + '-192.png') })
+      } catch (e) {}
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

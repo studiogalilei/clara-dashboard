@@ -40,6 +40,8 @@ function pezzo<T>(carica: () => Promise<T>) {
 const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import Suggerimento from './components/Suggerimento'
+import Apertura from './components/Apertura'
+import { ricordaReparto, repartoRicordato } from './lib/reparto'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
@@ -226,6 +228,7 @@ export default function App() {
   // mai mentire su una fase appena cambiata
   const [versione, setVersione] = useState(0)
   const [ruoloDb, setRuoloDb] = useState<Ruolo>('coordinamento')     // il ruolo vero, dal database (profili)
+  const [rep, setRep] = useState(repartoRicordato())                 // il reparto: il colore di tutto (schema_v60)
   const [concessi, setConcessi] = useState<Set<Chiave>>(new Set())      // i widget a richiesta che ho
   const [vista, setVista] = useState<ChiSono['vista']>(null)           // un ceo nei panni di qualcun altro
   const [pod, setPod] = useState<Persona[]>([])
@@ -316,6 +319,8 @@ export default function App() {
     if (!session || demo) return
     void chiSono().then((c) => {
       setRuoloDb(c.ruolo); setRuoloVero(c.ruoloVero); setConcessi(new Set(c.concessi)); setVista(c.vista); setPod(c.pod)
+      // il reparto veste l'app: icona in home, barra di stato, e l'apertura del prossimo ingresso (Dre, 26/9)
+      ricordaReparto(c.reparto); setRep(repartoRicordato())
       // LA PRIMA PAGINA DI CHI CONSEGNA (Dre, 24/9): «fai cominciare dalle cose
       // actionable, non da una home generica». Il ceo entra sulla Pipeline;
       // gli altri su Oggi: le task da accettare, le proprie, la prossima call.
@@ -350,6 +355,7 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
+      <Apertura reparto={rep} />
       <Suggerimento />
       {vista && (
         <div className="fixed inset-x-0 top-0 z-[70] flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-900">

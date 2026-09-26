@@ -19,8 +19,8 @@ export default defineConfig({
         name: 'SG Workspace',
         short_name: 'SG Workspace',
         description: 'Il workspace di Studio Galilei, con Clara',
-        theme_color: '#111827',
-        background_color: '#ffffff',
+        theme_color: '#061773',
+        background_color: '#061773',
         display: 'standalone',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
