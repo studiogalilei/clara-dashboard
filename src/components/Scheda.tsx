@@ -787,12 +787,14 @@ export default function Scheda({ id, onClose, onApri }: Props) {
               {/* LA STORIA A UN CLIC (Dre, 24/9): «vedere facilmente il pulsante per lo storico» */}
               <button
                 onClick={() => setStoriaAperta(true)}
+                data-tip="Tutto il filo: mail, call, note, in ordine di tempo"
                 className="rounded-full border border-bordo px-4 py-2.5 text-sm font-bold text-tenue transition-colors hover:border-navy hover:text-navy"
               >
                 Storia
               </button>
               <button
                 onClick={() => { setNoteAperte(!noteAperte); setNotaEsito(null) }}
+                data-tip="Una nota sulla scheda: chi l'ha detta e quando restano scritti"
                 className={`rounded-full border px-4 py-2.5 text-sm font-bold transition-colors ${
                   noteAperte ? 'border-navy bg-blu text-white' : 'border-bordo text-tenue hover:border-navy hover:text-navy'
                 }`}
@@ -1014,8 +1016,8 @@ export default function Scheda({ id, onClose, onApri }: Props) {
 
         {/* LE TAB DELLA SCHEDA (26/9) */}
         <div className="flex gap-1 border-b border-bordo" role="tablist">
-          {([['adesso', eCliente(p) ? 'Adesso' : 'Da mandare'], ['azienda', 'Azienda'], ['lavoro', 'Lavoro']] as Array<[Sezione, string]>).map(([k, n]) => (
-            <button key={k} role="tab" aria-selected={sez === k} onClick={() => setSez(k)}
+          {([['adesso', eCliente(p) ? 'Adesso' : 'Da mandare', 'La bozza da approvare, la storia, la prossima call, le cose da fare'], ['azienda', 'Azienda', 'Chi sono: mercato, classificazione, cartella, contratto, prezzo suggerito'], ['lavoro', 'Lavoro', 'Progetti, preventivi, pagamenti e documenti']] as Array<[Sezione, string, string]>).map(([k, n, tip]) => (
+            <button key={k} role="tab" aria-selected={sez === k} onClick={() => setSez(k)} data-tip={tip}
                     className={`-mb-px rounded-t-lg border px-4 py-2 text-[13px] font-bold transition-colors ${
                       sez === k ? 'border-bordo border-b-white bg-white text-navy' : 'border-transparent text-tenue hover:text-navy'}`}>
               {n}

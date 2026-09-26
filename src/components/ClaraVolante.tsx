@@ -32,7 +32,7 @@ export function LetturaBox({ l }: { l: Lettura }) {
   const ok = l.coerenza === 'COERENTE'
   return (
     <div className="mt-2 space-y-1 rounded-lg border border-velo bg-velo/30 px-3 py-2 text-[12px] leading-snug">
-      <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-spento">la lettura</p>
+      <p data-tip="Quello che Clara ha letto prima di scrivere: l'ultima mail loro, l'ultima nostra, i fatti verificati e il verdetto della seconda testa" className="text-[10px] font-bold uppercase tracking-[0.05em] text-spento">la lettura</p>
       {l.ultima_loro && <p><b>Loro</b>{l.ultima_loro_il ? `, ${l.ultima_loro_il}` : ''}: <span className="text-tenue">{l.ultima_loro.slice(0, 260)}{l.ultima_loro.length > 260 ? '…' : ''}</span></p>}
       {l.ultima_nostra && <p><b>Noi</b>{l.ultima_nostra_il ? `, ${l.ultima_nostra_il}` : ''}{l.scritto_dopo_di_lei ? ' (dopo la loro)' : ''}: <span className="text-tenue">{l.ultima_nostra.slice(0, 200)}{l.ultima_nostra.length > 200 ? '…' : ''}</span></p>}
       <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-tenue">

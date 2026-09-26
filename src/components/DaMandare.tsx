@@ -125,7 +125,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
   return (
     <Card tono="blu">
       <header className="flex items-center justify-between gap-2 border-b border-velo px-4 py-2.5">
-        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-blu">Da mandare</span>
+        <span data-tip="La bozza di Clara: leggi la sua mail, correggi se serve, Approva e manda. Parte da Smartlead in un paio di minuti" className="text-[11px] font-bold uppercase tracking-[0.06em] text-blu">Da mandare</span>
         <span className="flex items-center gap-3">
           {pr?.azione?.template && <span className="text-[11px] text-tenue">{pr.azione.template}</span>}
           {/* la Storia a un clic, vicino al testo (Dre, 25/9) */}

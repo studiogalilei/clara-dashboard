@@ -39,6 +39,7 @@ function pezzo<T>(carica: () => Promise<T>) {
 }
 const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
+import Suggerimento from './components/Suggerimento'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
@@ -349,6 +350,7 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
+      <Suggerimento />
       {vista && (
         <div className="fixed inset-x-0 top-0 z-[70] flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-900">
           Stai vedendo il Workspace come {vista.nome ?? 'un\'altra persona'}: menu, aziende e chat sono i suoi.
@@ -407,12 +409,13 @@ export default function App() {
           Menu
         </p>
         <nav className="space-y-1">
-          {voci.map(({ chiave: t, nome: label, icona, immagine }) => {
+          {voci.map(({ chiave: t, nome: label, icona, immagine, cosa }) => {
             const attivo = tab === t
             return (
               <button
                 key={t}
                 data-giro={t}
+                data-tip={cosa}
                 onClick={() => { setTab(t); setOpenId(null) }}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   attivo ? 'bg-velo text-inchiostro' : 'text-tenue hover:bg-velo/60 hover:text-inchiostro'
@@ -436,12 +439,13 @@ export default function App() {
           Sistema
         </p>
         <nav className="space-y-1">
-          {vociSistema.map(({ chiave: t, nome: label, icona, immagine }) => {
+          {vociSistema.map(({ chiave: t, nome: label, icona, immagine, cosa }) => {
             const attivo = tab === t
             return (
               <button
                 key={t}
                 data-giro={t}
+                data-tip={cosa}
                 onClick={() => { setTab(t); setOpenId(null) }}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   attivo ? 'bg-velo text-inchiostro' : 'text-tenue hover:bg-velo/60 hover:text-inchiostro'
