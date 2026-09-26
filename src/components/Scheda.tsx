@@ -17,6 +17,7 @@ import {
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
 import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, MOTIVI_PERSO, type Appunto } from '../lib/regole'
+import { segnaRecente } from '../lib/recenti'
 const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
 import NuovoProgetto from './NuovoProgetto'
@@ -96,6 +97,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
   // Adesso = cosa mando e cosa succede; Azienda = chi sono, contatti, mercato,
   // prezzo; Lavoro = progetti, preventivi, pagamenti, documenti.
   const [sez, setSez] = useState<Sezione>('adesso')
+  // «visti di recente» nella palette dei comandi (Dre, 26/9): non si ricomincia mai da zero
   // chi sta guardando: serve per i post-it, che sono suoi
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [nonCe, setNonCe] = useState(false)        // l'azienda non c'e', o e' fuori dal tuo perimetro
@@ -110,6 +112,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
   const [pronti, setPronti] = useState<Appunto[]>([])   // gli appunti che ci sono gia'
   const [avanzaAperto, setAvanzaAperto] = useState(false)   // il riassunto si chiede solo quando premi Avanza
   useEffect(() => { if (avanzaAperto) setSez('adesso') }, [avanzaAperto])   // il pedaggio sta nella tab Adesso
+  useEffect(() => { if (p) segnaRecente(p.id, p.company || p.name || p.email || 'senza nome') }, [p])
   const [modifica, setModifica] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -244,7 +247,7 @@ export default function Scheda({ id, onClose, onApri }: Props) {
     onClose()
   }
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') void chiudi() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.body.dataset.sopra) void chiudi() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -660,15 +663,17 @@ export default function Scheda({ id, onClose, onApri }: Props) {
             <div className="min-w-[220px] flex-1">
               <p className="flex items-center gap-2 text-[11px] font-bold tracking-wide text-blu">
                 {codice ?? '—'}
+                {/* LA TARGHETTA DI STATO (Dre, 26/9: «il giallo trasparente dietro
+                    sa di AI»): fondo pieno, testo che si legge, angoli quasi dritti */}
                 {eCliente(p)
-                  ? <span className="rounded-full bg-green-50 px-2.5 py-0.5 font-semibold text-green-800">CLIENTE</span>
+                  ? <span className="rounded-[4px] bg-green-700 px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-white">Cliente</span>
                   : ePerso(p)
-                  ? <span className="rounded-full bg-gray-100 px-2.5 py-0.5 font-semibold text-gray-500">PERSO</span>
+                  ? <span className="rounded-[4px] bg-spento px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-white">Perso</span>
                   : p.fuori && p.pipeline_stage
-                  ? <span className="rounded-full bg-blu/10 px-2.5 py-0.5 font-semibold text-navy">{PIPELINE_LABEL[p.pipeline_stage].toUpperCase()}</span>
-                  : <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-700">PROSPECT</span>}
+                  ? <span className="rounded-[4px] bg-navy px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-white">{PIPELINE_LABEL[p.pipeline_stage]}</span>
+                  : <span className="rounded-[4px] bg-[#F5B200] px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-inchiostro">Prospect</span>}
                 {p.fuori_binario === 'si' && (
-                  <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-800" title="già sentito fuori dai sistemi">
+                  <span className="rounded-[4px] border border-bordo bg-white px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-tenue" data-tip="Già sentito fuori dai sistemi: telefono, WhatsApp, di persona">
                     sentito a voce
                   </span>
                 )}

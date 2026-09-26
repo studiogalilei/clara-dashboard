@@ -57,10 +57,10 @@ const GIORNI_LUNGHI = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerd�
 
 const COLORE: Record<Tipo, string> = {
   call: 'bg-blu text-white',
-  followup: 'bg-amber-100 text-amber-900',
+  followup: 'bg-[#F5B200] text-inchiostro',
   task: 'bg-velo text-tenue',
-  altro: 'bg-red-100 text-red-900',
-  account: 'bg-green-100 text-green-900',
+  altro: 'bg-red-700 text-white',
+  account: 'bg-green-700 text-white',
 }
 const PALLINO: Record<Tipo, string> = {
   call: 'bg-navy', followup: 'bg-amber-500', task: 'bg-spento', altro: 'bg-red-500',

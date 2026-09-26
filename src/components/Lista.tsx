@@ -629,7 +629,9 @@ export default function Lista({ onOpen, q }: Props) {
         <>
           <Card>
             {elencate.length === 0
-              ? <Empty text={q.trim() ? `Niente per «${q.trim()}».` : 'Nessuno qui dentro.'} />
+              ? <Empty text={q.trim() ? `Niente per «${q.trim()}»` : 'Qui non c\'è ancora nessuno'}
+                       cosa={q.trim() ? 'Prova con il nome dell\'azienda, il referente o la città. ⌘K cerca ovunque.'
+                                      : 'Le aziende arrivano qui quando rispondono a una campagna, oppure le aggiungi tu.'} />
               : elencate.map(rigaElenco)}
           </Card>
         </>

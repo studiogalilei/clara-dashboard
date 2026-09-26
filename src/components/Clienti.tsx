@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
-import { Card, Spinner, Faccia, sgid, fmtDateShort } from './ui'
+import { Card, Spinner, Faccia, sgid, fmtDateShort, Empty } from './ui'
 import Progetti, { STATI, TIPI, ordineProgetti, type Progetto } from './Progetti'
 import { euro, mensile, type Preventivo, type Incasso } from './TuttiFoglio'
 
@@ -81,7 +81,7 @@ function Elenco({ onOpen }: Props) {
         {vedoSoldi && retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese di retainer</span>}
       </div>
 
-      {lista.length === 0 && <Card><p className="px-4 py-6 text-center text-sm text-spento">Nessun cliente ancora.</p></Card>}
+      {lista.length === 0 && <Card><Empty text="Nessun cliente ancora" cosa="Un'azienda diventa cliente quando la porti in avvio dalla sua scheda: da lì compaiono progetti, canone e pagamenti." /></Card>}
 
       {lista.map((c) => {
         const suoi = progetti.filter((g) => g.prospect_id === c.id)

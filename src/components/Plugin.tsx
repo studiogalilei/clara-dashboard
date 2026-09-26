@@ -42,7 +42,7 @@ const CADENZE: Array<[number, string]> = [
 const STATO_RICHIESTA: Record<string, [string, string]> = {
   richiesto: ['Richiesto', 'bg-velo text-tenue'],
   in_costruzione: ['In costruzione', 'bg-blu/10 text-blu'],
-  attivo: ['Attivo', 'bg-green-50 text-green-800'],
+  attivo: ['Attivo', 'bg-green-700 text-white'],
   scartato: ['Scartato', 'bg-gray-100 text-spento'],
 }
 

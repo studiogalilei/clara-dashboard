@@ -20,11 +20,12 @@ type StatoFoglio = 'prospect' | 'preventivo' | 'prova' | 'cliente' | 'perso'
 type Filtro = 'clienti' | 'prospect' | 'tutti'
 
 export const STATI_FOGLIO: Array<[StatoFoglio, string, string]> = [
-  ['prospect', 'Prospect', 'bg-amber-50 text-amber-900'],
-  ['preventivo', 'Preventivo inviato', 'bg-sky-100 text-sky-900'],
-  ['prova', 'In prova', 'bg-teal-100 text-teal-900'],
-  ['cliente', 'Cliente', 'bg-green-100 text-green-900'],
-  ['perso', 'Perso', 'bg-velo text-spento'],
+  // LE TARGHETTE (26/9): fondo pieno, testo che si legge. Niente pastello
+  ['prospect', 'Prospect', 'bg-[#F5B200] text-inchiostro'],
+  ['preventivo', 'Preventivo inviato', 'bg-blu text-white'],
+  ['prova', 'In prova', 'bg-teal-700 text-white'],
+  ['cliente', 'Cliente', 'bg-green-700 text-white'],
+  ['perso', 'Perso', 'bg-spento text-white'],
 ]
 
 export { STATI as STATI_PREVENTIVO } from '../lib/preventivo'
@@ -44,6 +45,22 @@ export function euro(n: number | null | undefined): string {
 }
 
 interface Props { onOpen: (id: string) => void }
+
+// SCARICARE LA LISTA (Dre, 26/9): quello che vedi te lo porti via, con le
+// colonne che vedi e nell'ordine che hai scelto. Punto e virgola e BOM,
+// così Excel in italiano lo apre senza chiedere niente.
+function scarica(righe: Array<{ p: Riga; s: StatoFoglio }>) {
+  const testa = ['SG-ID', 'Azienda', 'Referente', 'Email', 'Città', 'Stato', 'Chi segue', 'Canone/mese', 'Note']
+  const campo = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`
+  const corpo = righe.map(({ p, s }) => [sgid(p.sg_id, p) ?? '', p.company ?? '', p.name ?? '', p.email ?? '', p.city ?? '',
+    STATI_FOGLIO.find(([k]) => k === s)?.[1] ?? s, p.chi_segue ?? '', p.canone ?? '', p.notes ?? ''].map(campo).join(';'))
+  const testo = '\ufeff' + [testa.map(campo).join(';'), ...corpo].join('\r\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([testo], { type: 'text/csv;charset=utf-8' }))
+  a.download = `studio-galilei-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+}
 
 // IL BLOCCO PAGAMENTI (Dre, 10/9): sulla riga del cliente come paga, quanto al
 // mese, prossimo addebito; in cima il mese. Viene da `incassi` (Stripe, letto
@@ -88,6 +105,17 @@ export default function TuttiFoglio({ onOpen }: Props) {
   // il canone si riempie nella cella qui sotto: il filtro serve solo a
   // portare in cima le righe da riempire, non a mandare Giacomo altrove
   const [soloSenzaCanone, setSoloSenzaCanone] = useState(false)
+  // L'ORDINAMENTO (Dre, 26/9): una lista vera si ordina da ogni colonna, e
+  // l'ordine scelto resta anche domani. Un clic ordina, un altro inverte.
+  const [ordina, setOrdina] = useState<{ col: string; giu: boolean }>(() => {
+    try { return JSON.parse(leggiPref('foglio-ordine') || '') } catch { return { col: 'stato', giu: false } }
+  })
+  function perColonna(col: string) {
+    setOrdina((o) => {
+      const n = o.col === col ? { col, giu: !o.giu } : { col, giu: false }
+      scriviPref('foglio-ordine', JSON.stringify(n)); return n
+    })
+  }
   const [aperta, setAperta] = useState<string | null>(null)     // la riga con i preventivi aperti
   const [problema, setProblema] = useState<string | null>(null)
   const [quante, setQuante] = useState<number | null>(null)
@@ -167,7 +195,14 @@ export default function TuttiFoglio({ onOpen }: Props) {
   const mostrate = soloVuoti ? [...senzaCanone] : conStato.filter(({ s }) =>
     filtro === 'clienti' ? s === 'cliente' || s === 'prova' : filtro === 'prospect' ? s === 'prospect' || s === 'preventivo' : true)
   const ordine: Record<StatoFoglio, number> = { cliente: 0, prova: 1, preventivo: 2, prospect: 3, perso: 4 }
-  mostrate.sort((a, b) => ordine[a.s] - ordine[b.s] || (a.p.company || a.p.name || '').localeCompare(b.p.company || b.p.name || ''))
+  const nomeDi = (p: Riga) => (p.company || p.name || p.email || '').toLowerCase()
+  mostrate.sort((a, b) => {
+    const v = ordina.col === 'azienda' ? nomeDi(a.p).localeCompare(nomeDi(b.p))
+      : ordina.col === 'chi' ? (a.p.chi_segue || 'zzz').localeCompare(b.p.chi_segue || 'zzz')
+      : ordina.col === 'canone' ? (Number(a.p.canone ?? -1) - Number(b.p.canone ?? -1))
+      : ordine[a.s] - ordine[b.s] || nomeDi(a.p).localeCompare(nomeDi(b.p))
+    return ordina.giu ? -v : v
+  })
   const conta = (s: StatoFoglio) => conStato.filter((x) => x.s === s).length
 
   // il mese, dai pagamenti
@@ -308,14 +343,26 @@ export default function TuttiFoglio({ onOpen }: Props) {
       )}
 
       <Card>
+        <div className="flex items-center gap-3 border-b border-velo px-3 py-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">{mostrate.length} {mostrate.length === 1 ? 'riga' : 'righe'}</span>
+          <button onClick={() => scarica(mostrate)} data-tip="Scarica queste righe in un foglio da aprire con Excel o Numbers"
+                  className="ml-auto rounded-full border border-bordo px-3 py-1 text-[11px] font-bold text-tenue hover:border-navy hover:text-navy">
+            Scarica in CSV
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-velo/60 text-left text-[11px] font-bold uppercase tracking-wide text-tenue">
-                <th className="min-w-[220px] px-3 py-2.5">Azienda</th>
-                <th className="min-w-[150px] px-3 py-2.5">Stato</th>
-                <th className="min-w-[110px] px-3 py-2.5">Chi segue</th>
-                <th className="min-w-[100px] px-3 py-2.5 text-right">Canone/mese</th>
+                {([['azienda', 'Azienda', 'min-w-[220px]'], ['stato', 'Stato', 'min-w-[150px]'], ['chi', 'Chi segue', 'min-w-[110px]'], ['canone', 'Canone/mese', 'min-w-[100px] text-right']] as Array<[string, string, string]>).map(([k, n, cl]) => (
+                  <th key={k} className={`${cl} px-3 py-2.5`}>
+                    <button onClick={() => perColonna(k)} data-tip={`Ordina per ${n.toLowerCase()}`}
+                            className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-navy ${ordina.col === k ? 'text-navy' : ''}`}>
+                      {n}
+                      <span className={`text-[9px] ${ordina.col === k ? '' : 'opacity-0'}`}>{ordina.giu ? '▼' : '▲'}</span>
+                    </button>
+                  </th>
+                ))}
                 {incassi && <th className="min-w-[210px] px-3 py-2.5">Pagamenti</th>}
                 <th className="min-w-[200px] px-3 py-2.5">Ultimo preventivo</th>
                 <th className="min-w-[220px] px-2 py-2">Note</th>

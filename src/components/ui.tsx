@@ -251,8 +251,23 @@ export function Micro({ children, className = '' }: { children: React.ReactNode;
   )
 }
 
-export function Empty({ text }: { text: string }) {
-  return <div className="px-4 py-5 text-sm text-spento">{text}</div>
+// LO STATO VUOTO CHE INSEGNA (Dre, 26/9): una lista vuota non dice «nessun
+// elemento», dice cosa ci finisce dentro e cosa fare adesso. Chi apre una
+// sezione per la prima volta capisce a cosa serve senza chiedere.
+export function Empty({ text, cosa, azione, suAzione }: {
+  text: string; cosa?: string; azione?: string; suAzione?: () => void
+}) {
+  return (
+    <div className="px-4 py-8 text-center">
+      <p className="text-sm font-semibold text-tenue">{text}</p>
+      {cosa && <p className="mx-auto mt-1 max-w-[380px] text-[13px] leading-snug text-spento">{cosa}</p>}
+      {azione && suAzione && (
+        <button onClick={suAzione} className="mt-3 rounded-full border border-navy px-4 py-1.5 text-xs font-bold text-navy hover:bg-velo">
+          {azione}
+        </button>
+      )}
+    </div>
+  )
 }
 
 // Il contenitore standard: card bianca, bordo netto, angoli appena smussati

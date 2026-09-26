@@ -41,6 +41,8 @@ const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import Suggerimento from './components/Suggerimento'
 import Apertura from './components/Apertura'
+import Comandi, { type Comando } from './components/Comandi'
+import { leggiIndirizzo, scriviIndirizzo, linkDi } from './lib/indirizzo'
 import { ricordaReparto, repartoRicordato } from './lib/reparto'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
@@ -111,12 +113,24 @@ export default function App() {
   const [ready, setReady] = useState(false)
   const [tab, setTab] = useState<Tab>('prospect')   // 24/9 (Dre): si entra sulla Pipeline e si lavora, sempre
   const [openId, setOpenId] = useState<string | null>(null)
-  // 23/9 (Dre: Google Calendar e' la plancia): ogni blocco di Clara porta un
-  // link ?scheda=<id>, e da li' si entra nella scheda giusta, anche dal telefono
+  // GLI INDIRIZZI (Dre, 26/9): quello che guardi ha un indirizzo suo, lo copi e
+  // lo mandi. All'avvio si legge, poi si scrive a ogni passo, e Indietro torna.
+  // Valgono ancora i vecchi link di Clara in calendario (?scheda=<id>).
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('scheda')
-    if (id) { setOpenId(id); setTab('prospect') }
+    function dallUrl() {
+      const d = leggiIndirizzo()
+      if (!d) return
+      setTab(d.tab); setOpenId(d.id)
+    }
+    dallUrl()
+    window.addEventListener('popstate', dallUrl)
+    return () => window.removeEventListener('popstate', dallUrl)
   }, [])
+  const primoGiro = useRef(true)
+  useEffect(() => {
+    scriviIndirizzo({ tab, id: openId, sezione: null }, primoGiro.current)
+    primoGiro.current = false
+  }, [tab, openId])
   const [q, setQ] = useState('')
   const [cercaAperta, setCercaAperta] = useState(false)
   // il puntino sul menu Task: quante task ti hanno mandato e aspettano che
@@ -130,7 +144,7 @@ export default function App() {
   const [pieno, setPieno] = useState(false)
   useEffect(() => {
     if (!pieno) return
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPieno(false) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.body.dataset.sopra) setPieno(false) }
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [pieno])
@@ -301,15 +315,32 @@ export default function App() {
       })
   }, [])
 
-  // ⌘K (o Ctrl+K) porta sempre alla ricerca
+  // LE SCORCIATOIE (Dre, 26/9: «il feel di un software professionale»).
+  // ⌘K apre la palette; «/» fa lo stesso, per chi la conosce da prima.
+  // G e poi una lettera salta a una sezione: o=Oggi, p=Pipeline, c=Clienti,
+  // k=Calendario, m=posta (Clara), v=preventivi. «?» mostra l'elenco.
+  const [comandi, setComandi] = useState(false)
+  const [scorciatoie, setScorciatoie] = useState(false)
   useEffect(() => {
+    let g = false
+    let quando = 0
+    const SALTI: Record<string, Chiave> = { o: 'pipeline', p: 'prospect', c: 'progetti', k: 'calendario', m: 'clara', v: 'preventivi', d: 'vault' }
     function giu(e: KeyboardEvent) {
-      const dentroUnCampo = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)
+      const dentroUnCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)
+        || (e.target as HTMLElement)?.isContentEditable
       if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !dentroUnCampo)) {
-        e.preventDefault()
-        setOpenId(null)
-        { setCercaAperta(true); setTimeout(() => cercaRef.current?.focus(), 30) }
+        e.preventDefault(); setComandi(true); return
       }
+      if (dentroUnCampo || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'Escape') { setScorciatoie(false); return }
+      if (e.key === '?') { e.preventDefault(); setScorciatoie((s) => !s); return }
+      if (document.body.dataset.sopra) return   // con un pannello aperto i salti non sparano
+      if (e.key.toLowerCase() === 'g') { g = true; quando = Date.now(); return }
+      if (g && Date.now() - quando < 1200) {
+        const t = SALTI[e.key.toLowerCase()]
+        g = false
+        if (t) { e.preventDefault(); setTab(t); setOpenId(null); setScorciatoie(false) }
+      } else g = false
     }
     window.addEventListener('keydown', giu)
     return () => window.removeEventListener('keydown', giu)
@@ -356,6 +387,41 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
       <Apertura reparto={rep} />
+      {/* L'ELENCO DELLE SCORCIATOIE, con «?» (Dre, 26/9) */}
+      {scorciatoie && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4" onMouseDown={() => setScorciatoie(false)}>
+          <div className="absolute inset-0 bg-inchiostro/25" />
+          <div onMouseDown={(e) => e.stopPropagation()} className="carta carta-alta relative w-full max-w-[420px] p-5">
+            <h2 className="mb-3 text-[15px] font-bold text-navy">Le scorciatoie</h2>
+            <ul className="space-y-1.5 text-[13px]">
+              {[['⌘K', 'Cerca e comanda: aziende, sezioni, azioni'], ['G poi O', 'Oggi'], ['G poi P', 'Pipeline'],
+                ['G poi C', 'Clienti'], ['G poi K', 'Calendario'], ['G poi M', 'Posta di Clara'],
+                ['G poi V', 'Preventivi'], ['G poi D', 'Documenti'], ['Esc', 'Chiude quello che è aperto'], ['?', 'Questo elenco']].map(([k, n]) => (
+                <li key={k} className="flex items-baseline gap-3">
+                  <kbd className="shrink-0 rounded border border-bordo bg-velo px-1.5 py-0.5 font-mono text-[11px] font-semibold text-tenue">{k}</kbd>
+                  <span className="text-tenue">{n}</span>
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setScorciatoie(false)} className="mt-4 w-full rounded-full border border-bordo py-1.5 text-xs font-bold text-tenue hover:border-navy hover:text-navy">Chiudi</button>
+          </div>
+        </div>
+      )}
+      <Comandi
+        aperto={comandi} chiudi={() => setComandi(false)} ruolo={ruolo} concessi={concessi}
+        vaiA={(t) => { setTab(t); setOpenId(null) }}
+        apriScheda={(id) => { setOpenId(id); setTab('prospect') }}
+        azioni={[
+          { id: 'do:azienda', titolo: "Aggiungi un'azienda", sotto: 'una scheda nuova nella Pipeline', gruppo: 'Azioni',
+            fai: () => { setTab('prospect'); setOpenId(null); window.dispatchEvent(new CustomEvent('azienda:nuova')) } },
+          { id: 'do:preventivo', titolo: 'Nuovo preventivo', sotto: 'parte dal listino', gruppo: 'Azioni',
+            fai: () => setTab('preventivi') },
+          { id: 'do:sync', titolo: 'Sincronizza adesso', sotto: 'rilegge Smartlead, il calendario e la posta', gruppo: 'Azioni',
+            fai: () => { void supabase.rpc('chiama_direttore', { forza: 'sync_smartlead' }) } },
+          { id: 'do:link', titolo: 'Copia il link di questa pagina', sotto: 'da mandare a qualcuno', gruppo: 'Azioni',
+            fai: () => { void navigator.clipboard.writeText(linkDi({ tab, id: openId, sezione: null })).catch(() => {}) } },
+        ] as Comando[]}
+      />
       <Suggerimento />
       {vista && (
         <div className="fixed inset-x-0 top-0 z-[70] flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-900">

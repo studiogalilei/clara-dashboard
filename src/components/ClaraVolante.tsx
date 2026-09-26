@@ -83,9 +83,9 @@ interface Messaggio {
 
 const CHIP: Record<string, [string, string]> = {
   brief: ['Brief', 'bg-velo text-navy'],
-  promemoria: ['Promemoria', 'bg-amber-50 text-amber-800'],
-  domanda: ['Domanda', 'bg-red-50 text-red-700'],
-  controllo: ['Fatto', 'bg-green-50 text-green-800'],
+  promemoria: ['Promemoria', 'bg-[#F5B200] text-inchiostro'],
+  domanda: ['Domanda', 'bg-red-700 text-white'],
+  controllo: ['Fatto', 'bg-green-700 text-white'],
   anomalia: ['Anomalia', 'bg-red-600 text-white'],
 }
 
@@ -978,7 +978,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
           </div>
         )}
         {proposte.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-spento">Niente da chiedere. Tutto in ordine.</p>
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm font-semibold text-tenue">Niente da chiedere, tutto in ordine</p>
+            <p className="mx-auto mt-1 max-w-[320px] text-[13px] leading-snug text-spento">Qui arrivano le bozze da approvare, le domande di Clara e le cose che ha fatto. Controlla ogni 5 minuti.</p>
+          </div>
         ) : proposte.map((pr, i) => {
           const aperto = apertaId === pr.id
           const nuovoGruppo = i === 0 || proposte[i - 1].tipo !== pr.tipo

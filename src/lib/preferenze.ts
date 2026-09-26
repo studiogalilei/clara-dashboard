@@ -39,6 +39,7 @@ export const CHIAVI = [
   'task-apertura',       // «Come si apre» in Impostazioni: il difetto
   'pipeline-apertura',   // delle viste di sessione, e questo resta
   'novita-viste',        // le novita' gia' viste (e votate): non tornano
+  'foglio-ordine',       // per quale colonna e' ordinata la lista, e in che verso
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]

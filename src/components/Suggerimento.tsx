@@ -15,11 +15,15 @@ export default function Suggerimento() {
   useEffect(() => {
     if (window.matchMedia('(hover: none)').matches) return
     let timer: number | undefined
+    let vita: number | undefined
     let corrente: Element | null = null
 
     function mostra(el: Element) {
       const testo = el.getAttribute('data-tip') || ''
-      if (!testo) return
+      if (!testo || !el.isConnected) return
+      // dopo otto secondi sparisce da solo: l'hai letto, e se il puntatore resta
+      // fermo non arriva nessun altro evento a spegnerlo
+      window.clearTimeout(vita); vita = window.setTimeout(spegni, 8000)
       const r = el.getBoundingClientRect()
       const sotto = r.top < 56                         // troppo in alto: la targhetta va sotto
       setS({ testo, x: r.left + r.width / 2, y: sotto ? r.bottom + 8 : r.top - 8, sotto })
@@ -39,12 +43,27 @@ export default function Suggerimento() {
       if (el && el !== corrente) return
       window.clearTimeout(timer); corrente = null; setS(null)
     }
-    function spegni() { window.clearTimeout(timer); corrente = null; setS(null) }
+    function spegni() { window.clearTimeout(timer); window.clearTimeout(vita); corrente = null; setS(null) }
     // se il puntatore esce dall'elemento senza che il browser lo dica, si spegne lo stesso
     function muove(e: MouseEvent) {
-      if (corrente && !corrente.contains(e.target as Node)) spegni()
+      if (corrente && (!corrente.isConnected || !corrente.contains(e.target as Node))) spegni()
     }
+    // se l'elemento sparisce dalla pagina (cambio sezione, lista rifatta), il
+    // suggerimento non resta appeso in aria
+    let dove = { x: -1, y: -1 }
+    document.addEventListener('mousemove', (e) => { dove = { x: e.clientX, y: e.clientY } }, { passive: true })
+    const guardia = window.setInterval(() => {
+      if (!corrente) return
+      // sparito dalla pagina, o il puntatore non e' piu' sopra: si spegne
+      if (!corrente.isConnected) { spegni(); return }
+      if (dove.x >= 0) {
+        const sotto = document.elementFromPoint(dove.x, dove.y)
+        if (!sotto || !corrente.contains(sotto)) spegni()
+      }
+    }, 120)
     document.addEventListener('mousemove', muove)
+    window.addEventListener('hashchange', spegni)
+    window.addEventListener('popstate', spegni)
     document.addEventListener('mouseover', sopra)
     document.addEventListener('mouseout', via)
     document.addEventListener('focusin', sopra)
@@ -57,6 +76,8 @@ export default function Suggerimento() {
       document.removeEventListener('focusin', sopra); document.removeEventListener('focusout', via)
       document.removeEventListener('mousedown', spegni); document.removeEventListener('scroll', spegni, true)
       document.removeEventListener('keydown', spegni); document.removeEventListener('mousemove', muove)
+      window.removeEventListener('hashchange', spegni); window.removeEventListener('popstate', spegni)
+      window.clearInterval(guardia)
     }
   }, [])
 
