@@ -69,9 +69,30 @@ def nome_di(p):
     return (p or {}).get("company") or (p or {}).get("name") or (p or {}).get("email") or "questa azienda"
 
 
+# CHI SEGUE E' UN NOME, IL PROPRIETARIO E' UN ID (bug trovato il 26/9: tutte le
+# azioni fallivano con «invalid input syntax for type uuid: Carlo», quindi Clara
+# non ricordava piu' niente a nessuno). Qui si traduce, una volta sola.
+_PROFILI = {}
+
+
+def chi_e(nome):
+    """L'id di chi si chiama cosi'. None se non e' una persona che conosciamo:
+    meglio una proposta senza proprietario che un'azione che non parte."""
+    global _PROFILI
+    if not nome:
+        return None
+    if re.fullmatch(r"[0-9a-f-]{36}", str(nome)):   # gia' un id
+        return nome
+    if not _PROFILI:
+        for p in sb("GET", "/rest/v1/profili?select=id,nome") or []:
+            _PROFILI[(p.get("nome") or "").strip().lower()] = p["id"]
+            _PROFILI[(p.get("nome") or "").split(" ")[0].strip().lower()] = p["id"]
+    return _PROFILI.get(str(nome).strip().lower())
+
+
 def segue(nomi, pid):
     """Chi segue quell'azienda: la proposta finisce nella sua Posta."""
-    return (nomi.get(pid) or {}).get("chi_segue")
+    return chi_e((nomi.get(pid) or {}).get("chi_segue"))
 
 
 def aziende(ids):
@@ -183,7 +204,7 @@ def cliente_senza_canone(giorni):
             f"canone-manca:{p['id']}", "umano",
             f"{nome_di(p)}: è cliente e non sappiamo quanto paga",
             "Senza il canone i conti dello Studio sono sbagliati. Lo scrivi sulla sua scheda?",
-            p["id"], owner=p.get("chi_segue"),
+            p["id"], owner=chi_e(p.get("chi_segue")),
         )
     return n
 
@@ -202,7 +223,7 @@ def prova_che_finisce(giorni):
             "E' il momento di guardare i numeri insieme e dire come si continua.",
             p["id"],
             {"task": {"titolo": f"Chiamare {nome_di(p)} per il rinnovo", "scadenza": p["prova_fine"]}},
-            owner=p.get("chi_segue"),
+            owner=chi_e(p.get("chi_segue")),
         )
     return n
 
@@ -220,7 +241,7 @@ def accessi_che_non_arrivano(giorni):
             f"accessi-fermi:{r['id']}", "umano",
             f"{azienda}: gli accessi sono chiesti da {g} giorni e non sono arrivati",
             f"«{r.get('nome') or 'il progetto'}» è fermo li'. Glieli richiedi?",
-            r.get("prospect_id"), owner=r.get("chi_segue") or segue(nomi, r.get("prospect_id")),
+            r.get("prospect_id"), owner=chi_e(r.get("chi_segue")) or segue(nomi, r.get("prospect_id")),
         )
     return n
 
@@ -257,12 +278,38 @@ def cliente_dimenticato(giorni):
             f"cliente-muto:{p['id']}:{adesso().date().isoformat()[:7]}", "umano",
             f"{nome_di(p)}: nessuno lo sente da {g} giorni, e paga tutti i mesi",
             "I clienti non se ne vanno per i risultati, se ne vanno per il silenzio. Una call o due righe?",
-            p["id"], owner=p.get("chi_segue"),
+            p["id"], owner=chi_e(p.get("chi_segue")),
+        )
+    return n
+
+
+def trattativa_ferma(giorni):
+    """LA TRATTATIVA CHE NON SI MUOVE (26/9, dal check: nove aziende erano ferme
+    in pipeline da settimane e nessuno lo diceva). Una conoscitiva fatta e poi
+    piu' niente non e' un no: e' una cosa che si perde da sola."""
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,pipeline_stage,fuori_at,next_action,next_action_date"
+                      "&fuori=eq.true&pipeline_stage=not.in.(cliente,perso)&limit=200") or []
+    n = 0
+    for p in righe:
+        # se c'e' gia' un appuntamento o una prossima mossa con una data futura, non e' ferma
+        if p.get("next_action_date") and p["next_action_date"] >= adesso().date().isoformat():
+            continue
+        ultima = sb("GET", f"/rest/v1/interactions?select=at&prospect_id=eq.{p['id']}&order=at.desc&limit=1")
+        g = quanti_giorni((ultima or [{}])[0].get("at") or p.get("fuori_at"))
+        if g is None or g < giorni:
+            continue
+        fase = (p.get("pipeline_stage") or "in pipeline").replace("_", " ")
+        n += proponi(
+            f"trattativa-ferma:{p['id']}:{adesso().date().isoformat()[:7]}", "umano",
+            f"{nome_di(p)}: ferma in {fase} da {g} giorni",
+            "Nessuno le ha piu' parlato e non c'e' una prossima mossa in agenda. La riprendi, o la chiudiamo?",
+            p["id"], owner=chi_e(p.get("chi_segue")),
         )
     return n
 
 
 AZIONI = {
+    "trattativa_ferma": trattativa_ferma,
     "prev_fermo": preventivo_senza_risposta,
     "prev_non_pagato": preventivo_accettato_non_pagato,
     "call_vuota": call_senza_riassunto,

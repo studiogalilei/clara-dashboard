@@ -23,6 +23,7 @@ const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); r
 import NuovoProgetto from './NuovoProgetto'
 import DaMandare from './DaMandare'
 import Copia from './Copia'
+import { codiceDi } from '../lib/codice'
 import { linkDi } from '../lib/indirizzo'
 import PrezzoSuggerito from './PrezzoSuggerito'
 import Piano from './Piano'
@@ -1335,7 +1336,14 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                 <div className="flex items-start gap-3 border-b border-velo px-4 py-3">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-spento"><path d="M7 3h7l5 5v13H7zM14 3v5h5" /></svg>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">L'analisi</p>
+                    <p className="flex items-baseline gap-2 text-sm font-semibold">
+                      L'analisi
+                      {p.analysis_pdf && codiceDi(p.sg_id, 'AN', 1) && (
+                        <Copia testo={codiceDi(p.sg_id, 'AN', 1)!} cosa="il codice dell'analisi">
+                          <span className="text-[10.5px] font-bold tracking-wide text-spento">{codiceDi(p.sg_id, 'AN', 1)}</span>
+                        </Copia>
+                      )}
+                    </p>
                     {p.analysis_sent ? (
                       <p className="text-xs text-tenue">
                         Ricevuta il {fmtDateShort(p.analysis_sent_at)}
@@ -1346,10 +1354,15 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                     )}
                   </div>
                   {p.analysis_pdf && (
-                    <a href={p.analysis_pdf} target="_blank" rel="noreferrer"
-                       className="shrink-0 rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-navy hover:border-navy">
-                      Apri
-                    </a>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <Copia testo={p.analysis_pdf} cosa="il link dell'analisi, da mandare al cliente">
+                        <span className="rounded-full border border-bordo px-2.5 py-1 text-xs font-semibold text-tenue">Link</span>
+                      </Copia>
+                      <a href={p.analysis_pdf} target="_blank" rel="noreferrer" data-tip="Apre il PDF in una scheda nuova"
+                         className="rounded-full border border-bordo px-3 py-1 text-xs font-semibold text-navy hover:border-navy">
+                        Apri
+                      </a>
+                    </span>
                   )}
                 </div>
 
@@ -1532,12 +1545,17 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                   </p>
                 )}
                 <ul className="divide-y divide-velo">
-                  {documenti.map((d) => (
+                  {documenti.map((d, i) => (
                     <li key={d.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <button onClick={() => void apriFile(d.path)}
+                      <button onClick={() => void apriFile(d.path)} data-tip="Apre il documento"
                               className="min-w-0 flex-1 truncate text-left text-blu hover:underline">
                         {d.nome}
                       </button>
+                      {codiceDi(p.sg_id, 'DOC', documenti.length - i) && (
+                        <Copia testo={codiceDi(p.sg_id, 'DOC', documenti.length - i)!} cosa="il codice del documento">
+                          <span className="shrink-0 text-[10.5px] font-bold tracking-wide text-spento">{codiceDi(p.sg_id, 'DOC', documenti.length - i)}</span>
+                        </Copia>
+                      )}
                       {/\.pdf$/i.test(d.path) && (
                         <button onClick={() => setCompila(d)} className="shrink-0 rounded-full border border-bordo px-2 py-0.5 text-[11px] font-bold text-navy hover:border-navy">Compila</button>
                       )}

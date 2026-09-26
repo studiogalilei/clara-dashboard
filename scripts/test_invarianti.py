@@ -185,6 +185,23 @@ def _():
     assert M.controlla("il canone sarebbe 2.000 € al mese", {"enriched": {"prezzo": {"punto": 2000, "fascia": [1700, 2300]}}})
 
 
+@prova("i promemoria interni non sono mail: la regola Zafferano colpisce solo chi porta un testo (26/9)")
+def _():
+    # Il 25/9 la regola vietava OGNI proposta per chi non e' contattabile: cosi'
+    # azioni.py non riusciva piu' a dire «il preventivo e' fermo da 15 giorni»,
+    # perche' quei promemoria parlano proprio di clienti. Nessuno veniva avvisato
+    # di niente, in silenzio, per giorni. Il divieto vale per le MAIL, cioe' per
+    # le proposte che portano azione.bozza: qui si verifica che il trigger dica
+    # esattamente questo, senza bisogno di toccare il database.
+    import os
+    sql = open(os.path.join(os.path.dirname(__file__), "..", "supabase", "schema_v61.sql"), encoding="utf-8").read()
+    riga = next(r for r in sql.splitlines() if "new.tipo in ('risposta', 'umano')" in r)
+    assert "azione ? 'bozza'" in riga, "il divieto deve guardare prima se c'e' un testo da mandare"
+    # e chi traduce il nome in identificativo non deve sparire: era l'altra meta' del bug
+    import azioni
+    assert hasattr(azioni, "chi_e"), "azioni.py deve tradurre «Carlo» nell'id della persona"
+
+
 # ── 6. Clara riempie: niente slop ─────────────────────────────────
 @prova("arricchisci: le parole generiche non bastano a riconoscere un sito")
 def _():

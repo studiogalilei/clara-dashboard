@@ -63,6 +63,7 @@ export const prospects: Prospect[] = [
     descrizione: 'Organizzano la settimana del design a Venezia, a ottobre. Vendono biglietti e spazi espositivi: la campagna serve nei tre mesi prima dell’evento.',
     stage: 'call_fissata', classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(35), last_reply_at: gg(10),
+    analysis_pdf: 'https://example.com/analisi-venicedesignweek.pdf',
     fuori: true, fuori_at: gg(9), pipeline_stage: 'conoscitiva',
     fuori_binario: 'no', next_action: 'Conoscitiva fissata',
     next_action_date: fra(1).slice(0, 10), updated_at: gg(0),
