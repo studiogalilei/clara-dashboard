@@ -34,7 +34,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                       # noqa: E402
+from stanza import sb, soldi_clienti, con_soldi           # noqa: E402
 
 PROVA = "--prova" in sys.argv
 SOLO = sys.argv[sys.argv.index("--email") + 1] if "--email" in sys.argv else None
@@ -206,6 +206,9 @@ def main():
         righe = sb("GET", f"/rest/v1/prospects?select={campi}&email=eq.{SOLO}") or []
     else:
         righe = sb("GET", f"/rest/v1/prospects?select={campi}&fuori=eq.true&pipeline_stage=not.in.(perso)&limit=300") or []
+    # prezzo, bilancio e valore stanno in cassaforte (29/9): si rimettono in memoria per il calcolo
+    soldi = soldi_clienti([r["id"] for r in righe])
+    righe = [con_soldi(r, soldi) for r in righe]
     fatti, saltati = 0, 0
     for p in righe:
         arr = p.get("enriched") or {}

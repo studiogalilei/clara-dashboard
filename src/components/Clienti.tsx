@@ -6,6 +6,7 @@ import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { Card, Spinner, Faccia, sgid, fmtDateShort, Empty, Avviso } from './ui'
 import Progetti, { STATI, TIPI, ordineProgetti, type Progetto } from './Progetti'
 import { euro, mensile, type Preventivo, type Incasso } from './TuttiFoglio'
+import { conSoldi, conValore, soldiClienti, soldiProgetti } from '../lib/soldi'
 
 // CLIENTI (Dre, 12/9): «non sono solo progetti, sono proprio i clienti».
 // Chi e' dentro, dopo la firma: una riga per cliente e sotto di lui tutto
@@ -61,8 +62,15 @@ function Elenco({ onOpen }: Props) {
     // dice: «non sono riuscito a leggere» porta a riprovare, «non c'e' niente»
     // porta a creare, e sono due azioni diverse.
     supabase.from('prospects').select('*').eq('fuori', true).in('pipeline_stage', DENTRO).limit(500)
-      .then(({ data, error }) => { if (error) setGuaio(error.message); setClienti((data as Riga[]) ?? []) })
-    supabase.from('progetti').select('*').limit(1000).then(({ data }) => setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)))
+      .then(async ({ data, error }) => {
+        if (error) setGuaio(error.message)
+        const m = await soldiClienti()          // i soldi dalla cassaforte: solo per chi li puo' vedere (29/9)
+        setClienti(((data as Riga[]) ?? []).map((c) => conSoldi(c, m)))
+      })
+    supabase.from('progetti').select('*').limit(1000).then(async ({ data }) => {
+      const mv = await soldiProgetti()
+      setProgetti(((data as Progetto[]) ?? []).map((g) => conValore(g, mv)).sort(ordineProgetti))
+    })
     supabase.from('preventivi').select('*').limit(2000).then(({ data }) => setPreventivi((data as Preventivo[]) ?? []))
     void sonoCeo().then(setVedoSoldi)
     supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')

@@ -17,6 +17,7 @@ import { stato as statoNotifiche, attiva as attivaNotifiche, spegni as spegniNot
 import { guidaDi } from '../lib/guida'
 import { caricaRisorse } from '../lib/preventivo'
 import { nomeFile } from '../lib/tono'
+import { soldiClienti } from '../lib/soldi'
 
 // Le Impostazioni sono il tuo angolo, non una voce di menu: ci si entra dal
 // proprio nome, in basso a sinistra. Dentro solo cose vere, niente
@@ -150,13 +151,14 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
     void Promise.all([
       supabase.from('incassi').select('prospect_id,importo,ricorrenza').eq('genere', 'abbonamento')
         .in('stato', ['active', 'trialing']).not('prospect_id', 'is', null).limit(500),
-      supabase.from('prospects').select('id,canone').or(CLIENTI).limit(2000),
+      supabase.from('prospects').select('id').or(CLIENTI).limit(1000),
       supabase.from('progetti').select('id', { count: 'exact', head: true }).is('prospect_id', null),
       supabase.from('proposte').select('id', { count: 'exact', head: true }).eq('stato', 'aperta').lte('at', treGiorniFa),
       supabase.from('incassi').select(CAMPI_INCASSO).is('prospect_id', null).limit(500),
-    ]).then(([abb, cli, prog, prop, inc]) => {
+      soldiClienti(),                      // il canone, dalla cassaforte (29/9)
+    ]).then(([abb, cli, prog, prop, inc, soldi]) => {
       if (!vivo) return
-      const clienti = (cli.data as Array<{ id: string; canone: number | null }>) ?? []
+      const clienti = ((cli.data as Array<{ id: string }>) ?? []).map((c) => ({ ...c, canone: soldi.get(c.id)?.canone ?? null }))
       const canoneDi = new Map(clienti.map((c) => [c.id, c.canone]))
       // il canone nullo ha gia' la sua riga qui sotto: contarlo anche come
       // «diverso da Stripe» sarebbe lo stesso buco contato due volte

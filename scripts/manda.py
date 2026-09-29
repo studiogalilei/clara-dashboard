@@ -42,7 +42,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, quando       # noqa: E402
+from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi  # noqa: E402
 
 BASE = "https://server.smartlead.ai/api/v1"
 ROMA = datetime.timezone(datetime.timedelta(hours=2))
@@ -189,6 +189,9 @@ def main():
         az = pr.get("azione") or {}
         bozza = (az.get("bozza") or "").strip()
         p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,campaign_id,lead_id,analysis_pdf,analysis_sent&id=eq.{pr['prospect_id']}") or [None])[0] if pr.get("prospect_id") else None
+        # 29/9: il prezzo suggerito sta in cassaforte. Prima qui non arrivava proprio (la
+        # scheda si leggeva senza enriched): il controllo «il prezzo non entra in una mail» era cieco
+        p = con_soldi(p, soldi_clienti([p["id"]])) if p else p
         if not p or not bozza:
             torna_aperta(pr, pr["titolo"], "manca la scheda o la bozza", prova); continue
         azienda = p.get("company") or p.get("name") or p["email"]

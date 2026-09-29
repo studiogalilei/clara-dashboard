@@ -11,6 +11,7 @@ import { Avviso, Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
 import { useVivo } from '../lib/vivo'
 import { CLS_LABEL } from '../lib/types'
 import { pulisci, creaTask } from '../lib/regole'
+import { conSoldi, soldiClienti } from '../lib/soldi'
 
 // Clara volante: pannello allargabile (trascina il bordo sinistro), la
 // conversazione stile Claude, e i COMANDI RAPIDI. Regola del workflow
@@ -502,7 +503,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         .eq('kind', 'email_in').order('at', { ascending: false }).limit(1),
     ])
     const u = (ult as Array<{ body: string | null; at: string }> | null)?.[0]
-    setContesto((c) => ({ ...c, [pr.id]: { p: (p as Prospect) ?? null, ultimo: u?.body ?? null, quando: u?.at ?? null } }))
+    const soldi = await soldiClienti()
+    setContesto((c) => ({ ...c, [pr.id]: { p: p ? conSoldi(p as Prospect, soldi) : null, ultimo: u?.body ?? null, quando: u?.at ?? null } }))
   }
 
   // «Storia»: alla scheda, dritto sulla sua storia

@@ -743,6 +743,27 @@ def _():
     assert "fuori_coda" in b and "esito_coda(p, motivo)" in b, "chi e' perso o cliente resta in coda per sempre"
 
 
+@prova("i soldi li vedono solo Dre e Giacomo: niente soldi dove li legge la squadra")
+def _():
+    import pathlib
+    from stanza import con_soldi
+    # 29/9, Dre: «niente soldi per gli altri, solo io e Giacomo». Il database li tiene
+    # in cassaforte (schema_v67); qui le regole del codice che non devono cedere.
+    qui = pathlib.Path(__file__).resolve().parent
+    prep = qui.joinpath("preparo.py").read_text(encoding="utf-8")
+    assert "PREZZO SUGGERITO" not in prep and "importo,mensile" not in prep and "stato,valore" not in prep, \
+        "la preparazione della call (che la squadra vede nell'evento) contiene di nuovo soldi"
+    sch = qui.parents[0].joinpath("src", "components", "Scheda.tsx").read_text(encoding="utf-8")
+    assert "{ceo && p.fuori && !ePerso(p) && !soppresso && (\n              <PrezzoSuggerito" in sch, "il prezzo suggerito si vede anche a chi non e' ceo"
+    st = qui.parents[0].joinpath("src", "lib", "stato.ts").read_text(encoding="utf-8")
+    assert "x.soldi === false" in st, "a chi non vede i soldi la pipeline direbbe «canone da mettere»"
+    # con_soldi rimette i soldi solo se la cassaforte li ha dati
+    p = {"id": "a", "canone": None, "enriched": {"google_fit": 1}}
+    assert con_soldi(p, {}) == p
+    q = con_soldi(p, {"a": {"canone": 900, "prezzo": {"punto": 1500}}})
+    assert q["canone"] == 900 and q["enriched"]["prezzo"] == {"punto": 1500} and q["enriched"]["google_fit"] == 1
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

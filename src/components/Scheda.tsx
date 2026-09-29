@@ -30,6 +30,7 @@ import Piano from './Piano'
 import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import { mensile, type Incasso } from './TuttiFoglio'
+import { conSoldi, conValore, soldiClienti, soldiProgetti } from '../lib/soldi'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
   fmtDate, fmtDateShort, fmtOra, daysAgo, giorni, fmtNum, sgid,
@@ -211,7 +212,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
       .then(({ data }) => { if (vivo) setAgendaSua((data as AgendaItem[]) ?? []) })
     setNonCe(false)
     supabase.from('prospects').select('*').eq('id', id).maybeSingle()
-      .then(({ data }) => { if (vivo) { setP(data as Prospect); if (!data) setNonCe(true) } })
+      .then(async ({ data }) => { const x = await conCassaforte(data as Prospect | null); if (vivo) { setP(x); if (!data) setNonCe(true) } })
     supabase.from('interactions').select('*').eq('prospect_id', id)
       .order('at', { ascending: false }).limit(200)
       .then(({ data }) => { if (vivo) setTimeline([...((data as Interaction[]) ?? [])].reverse()) })
@@ -229,7 +230,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
       })
     supabase.from('progetti').select('*').eq('prospect_id', id)
       .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
-      .then(({ data }) => { if (vivo) setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)) })
+      .then(async ({ data }) => { const mv = await soldiProgetti(); if (vivo) setProgetti(((data as Progetto[]) ?? []).map((g) => conValore(g, mv)).sort(ordineProgetti)) })
     supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')
       .eq('prospect_id', id).order('quando', { ascending: false }).limit(50)
       .then(({ data }) => { if (vivo) setIncassi((data as Incasso[]) ?? []) })
@@ -277,7 +278,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     const { data, error } = await supabase.from('prospects')
       .update({ ...draft, enriched }).eq('id', id).select().single()
     if (!error && data) {
-      setP(data as Prospect)
+      setP(await conCassaforte(data as Prospect, true))
       setDraft({})
       setSaved(true)
     } else if (error) {
@@ -286,11 +287,18 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     setSaving(false)
   }
 
+  // LA CASSAFORTE (29/9): il database risponde senza soldi; qui si rimettono sulla
+  // scheda per chi li puo' vedere (a chi non e' ceo la cassaforte risponde vuota)
+  async function conCassaforte(x: Prospect | null, fresca = false): Promise<Prospect | null> {
+    if (!x) return x
+    return conSoldi(x, await soldiClienti(fresca))
+  }
+
   async function aggiorna(patch: Partial<Prospect>): Promise<boolean> {
     if (!p) return false
     const { data, error } = await supabase.from('prospects')
       .update(patch).eq('id', id).select().single()
-    if (data) setP(data as Prospect)
+    if (data) setP(await conCassaforte(data as Prospect, true))
     if (error) setErrore(spiegaErrore(error))
     return Boolean(data) && !error
   }
@@ -1224,7 +1232,8 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
             )}
 
             {/* QUANTO CHIEDERE, per chi e' in pipeline (Dre, 26/9): la fascia suggerita, interna */}
-            {p.fuori && !ePerso(p) && !soppresso && (
+            {/* 29/9: i soldi li vedono solo i ceo (Dre e Giacomo) */}
+            {ceo && p.fuori && !ePerso(p) && !soppresso && (
               <PrezzoSuggerito p={p} onSalvato={(enriched) => setP({ ...p, enriched } as Prospect)} />
             )}
             {eCliente(p) && (
@@ -1627,7 +1636,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
             setChiedoProgetto(false)
             supabase.from('progetti').select('*').eq('prospect_id', p.id)
               .order('scadenza', { ascending: true, nullsFirst: false }).limit(20)
-              .then(({ data }) => setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)))
+              .then(async ({ data }) => { const mv = await soldiProgetti(true); setProgetti(((data as Progetto[]) ?? []).map((g) => conValore(g, mv)).sort(ordineProgetti)) })
           }}
         />
       )}

@@ -20,7 +20,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, proponi, sb_tutte                             # noqa: E402
+from stanza import sb, proponi, sb_tutte, soldi_clienti, con_soldi  # noqa: E402
 
 PREAVVISO = 14
 
@@ -31,6 +31,8 @@ def main():
     entro = (oggi + datetime.timedelta(days=PREAVVISO)).isoformat()
     righe = sb("GET", f"/rest/v1/prospects?select=id,name,company,prova_inizio,prova_fine,canone"
                       f"&fuori=eq.true&pipeline_stage=eq.prova&prova_fine=lte.{entro}&order=prova_fine.asc&limit=200") or []
+    soldi = soldi_clienti([p["id"] for p in righe])      # il canone sta in cassaforte (29/9)
+    righe = [con_soldi(p, soldi) for p in righe]
     gia = {((p.get("azione") or {}).get("prova_fine"), p.get("prospect_id"))
            for p in (sb_tutte("/rest/v1/proposte?select=prospect_id,azione&tipo=eq.richiesta&limit=5000") or [])}
     fatte = 0

@@ -195,9 +195,13 @@ def call_senza_riassunto(giorni):
 def cliente_senza_canone(giorni):
     return 0   # 23/9 (pulizia di Dre): rumore, spento; i canoni si mettono a mano nella scheda
     """E' diventato cliente e non si sa quanto paga."""
-    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,canone,fuori_at,pipeline_stage"
-                      f"&fuori=eq.true&pipeline_stage=in.(cliente,prova)&canone=is.null"
+    # 29/9: il canone sta in cassaforte, non nella scheda
+    from stanza import soldi_clienti
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,fuori_at,pipeline_stage"
+                      f"&fuori=eq.true&pipeline_stage=in.(cliente,prova)"
                       f"&fuori_at=lte.{giorni_fa(giorni)}&limit=100") or []
+    soldi = soldi_clienti([p["id"] for p in righe])
+    righe = [p for p in righe if (soldi.get(p["id"]) or {}).get("canone") is None]
     n = 0
     for p in righe:
         n += proponi(
@@ -265,7 +269,7 @@ def progetto_senza_imparato(giorni):
 
 def cliente_dimenticato(giorni):
     """Paga tutti i mesi e non lo sente nessuno da troppo."""
-    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,canone,updated_at"
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,email,chi_segue,updated_at"
                       f"&fuori=eq.true&pipeline_stage=eq.cliente&limit=200") or []
     n = 0
     for p in righe:

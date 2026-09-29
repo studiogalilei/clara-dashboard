@@ -123,6 +123,38 @@ def sb_tutte(percorso, passo=1000):
         da += passo
 
 
+def soldi_clienti(ids=None):
+    """LA CASSAFORTE (Dre, 29/9: «i soldi li vediamo solo io e Giacomo»). Canone,
+    fatturazione, prezzo suggerito e numeri del cliente stanno in soldi_clienti
+    (schema_v67); gli script li leggono con la chiave di servizio. {prospect_id: riga}."""
+    if ids is not None:
+        ids = [i for i in ids if i]
+        righe = []
+        for i in range(0, len(ids), 100):
+            righe += sb("GET", f"/rest/v1/soldi_clienti?select=*&prospect_id=in.({','.join(ids[i:i+100])})") or []
+    else:
+        righe = sb_tutte("/rest/v1/soldi_clienti?select=*")
+    return {r["prospect_id"]: r for r in righe}
+
+
+def con_soldi(p, soldi):
+    """La scheda con i suoi soldi rimessi al loro posto, in memoria: canone e, dentro
+    enriched, prezzo, bilancio e valore. Cosi' la logica degli script non cambia."""
+    s = (soldi or {}).get((p or {}).get("id"))
+    if not p or not s:
+        return p
+    arr = dict(p.get("enriched") or {})
+    for k in ("prezzo", "bilancio", "valore"):
+        if s.get(k) is not None:
+            arr[k] = s[k]
+    return {**p, "canone": p.get("canone") if p.get("canone") is not None else s.get("canone"), "enriched": arr}
+
+
+def soldi_progetti():
+    """Il valore dei progetti, dalla cassaforte: {progetto_id: valore}."""
+    return {int(r["progetto_id"]): r.get("valore") for r in sb_tutte("/rest/v1/soldi_progetti?select=progetto_id,valore")}
+
+
 def contattabile(p):
     """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
     (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa

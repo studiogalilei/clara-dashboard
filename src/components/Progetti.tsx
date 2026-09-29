@@ -4,6 +4,7 @@ import { sonoCeo } from '../lib/accessi'
 import { Card, Spinner, Micro, Cella, Faccia, sgid, fmtDateShort, type FacciaP } from './ui'
 import { giorno } from '../lib/regole'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
+import { azzeraValore, conValore, soldiProgetti } from '../lib/soldi'
 
 // PROGETTI = IL FOGLIO DI GIACOMO (Dre, 8/9): «un excel con selettore, serve
 // per seguire i progetti in corso». Una riga per progetto, si scrive dentro
@@ -113,9 +114,10 @@ export default function Progetti({ onOpen }: Props) {
       .then(({ error }) => setAccessiPronti(!error))
     supabase.from('progetti').select('*')
       .order('data_inizio', { ascending: true, nullsFirst: false }).order('id', { ascending: true }).limit(300)
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (error) setProblema('Il foglio non si legge: ' + error.message)
-        setRighe((data as Progetto[]) ?? [])
+        const mv = await soldiProgetti()        // il valore dalla cassaforte (29/9)
+        setRighe(((data as Progetto[]) ?? []).map((g) => conValore(g, mv)))
       })
     supabase.from('prospects').select('id,company,name,email,sg_id,fuori,stage,pipeline_stage').neq('stage', 'nuovo')
       .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(1000)
@@ -139,7 +141,10 @@ export default function Progetti({ onOpen }: Props) {
       return
     }
     setProblema(null)
-    setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Progetto) : x)))
+    if ('valore' in patch) {
+      if (patch.valore == null) void azzeraValore(p.id); else void soldiProgetti(true)
+    }
+    setRighe((r) => r!.map((x) => (x.id === p.id ? { ...(data as Progetto), valore: 'valore' in patch ? (patch.valore ?? null) : x.valore } : x)))
   }
 
   function campo(p: Progetto, k: Campo, v: string) {

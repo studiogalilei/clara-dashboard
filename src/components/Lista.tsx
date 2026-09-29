@@ -8,6 +8,7 @@ import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, viv
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
+import { azzeraCanone, conSoldi, soldiClienti } from '../lib/soldi'
 
 // Tutti: l'archivio vivo, in DUE viste (Dre, 1/9). Si apre a BACHECA
 // (le fasi a colonne, statica: tutto nella larghezza, niente scroll);
@@ -207,7 +208,7 @@ export default function Lista({ onOpen, q }: Props) {
         return query.or(campi.join(','))
       }
       const colonna = (chiave: Chiave) => cerca(perFascia(chiave, supabase.from('prospects').select('*')))
-        .order(chiave === 'cliente' ? 'canone' : 'last_reply_at', { ascending: false, nullsFirst: false })
+        .order('last_reply_at', { ascending: false, nullsFirst: false })   // 29/9: il canone e' in cassaforte, si ordina dopo
         .limit(LIMITE)
       // cercando un nome si cerca in tutta la rubrica, anche fra le 12.500
       // aziende a cui la mail e' partita e non ha risposto nessuno: quelle
@@ -218,13 +219,14 @@ export default function Lista({ onOpen, q }: Props) {
         : null
       const esiti = await Promise.all([...TAPPE.map(([, chiave]) => colonna(chiave)), ...(giro ? [giro] : [])])
       if (!attivo) return
+      const soldi = await soldiClienti()    // i soldi dalla cassaforte, solo per chi li puo' vedere (29/9)
       const visti = new Set<string>()
       const out: Prospect[] = []
       for (const e of esiti) {
         for (const r of ((e as { data: Prospect[] | null }).data ?? [])) {
           if (visti.has(r.id)) continue
           visti.add(r.id)
-          out.push(r)
+          out.push(conSoldi(r, soldi))
         }
       }
       // L'ORDINE PER URGENZA (Dre, 29/9: «le cose importanti in alto, le meno
@@ -420,7 +422,7 @@ export default function Lista({ onOpen, q }: Props) {
     // resta appeso al record un canone che nessuno paga più
     const prima = rows!.find((x) => x.id === id)
     const eraCliente = prima?.pipeline_stage === 'cliente' && target !== 'cliente'
-    if (eraCliente) { patch.contratto = null; patch.canone = null }
+    if (eraCliente) { patch.contratto = null; void azzeraCanone(id) }   // il canone sta in cassaforte (29/9)
     const { data } = await supabase.from('prospects').update(patch).eq('id', id).select().single()
     if (!data) {
       setToast({ testo: `${nome}: non sono riuscito a salvare, la carta resta dov'era`, tono: 'stop', id })
@@ -508,7 +510,7 @@ export default function Lista({ onOpen, q }: Props) {
     // oggi. Rassicura o dice chiaro che c'e' qualcosa da fare.
     const stato = statoVivo(p, {
       call: quando ?? null, fase, calls: calls[p.id],
-      bozza: aperte[p.id]?.bozza, domanda: aperte[p.id]?.domanda,
+      bozza: aperte[p.id]?.bozza, domanda: aperte[p.id]?.domanda, soldi: vedoSoldi,
     })
     const colore = COLORE_STATO[stato.tono]
     // i chiusi «vecchio stile» (mai passati dalla pipeline) non si trascinano

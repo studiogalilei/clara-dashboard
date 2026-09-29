@@ -112,7 +112,7 @@ def contesto(msg):
     if pid:
         p = (sb("GET", f"/rest/v1/prospects?id=eq.{pid}&select=company,name,email,stage,"
                        f"pipeline_stage,classificazione,last_reply_at,next_action,next_action_date,"
-                       f"canone,fuori,sg_id&limit=1") or [None])[0]
+                       f"fuori,sg_id&limit=1") or [None])[0]
         if p:
             pezzi.append("LA PERSONA DI CUI SI PARLA:\n" + json.dumps(p, ensure_ascii=False))
             ult = sb("GET", f"/rest/v1/interactions?prospect_id=eq.{pid}&select=kind,body,at"

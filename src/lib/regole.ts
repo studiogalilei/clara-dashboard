@@ -6,6 +6,7 @@ import settoriJson from './settori.json'
 import { supabase } from './supabase'
 import { chiSono } from './accessi'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from './types'
+import { soldiClienti } from './soldi'
 
 // ── chi è vivo ────────────────────────────────────────────────────
 // I morti dichiarati non si contano, non si ricontattano, non appaiono.
@@ -128,12 +129,14 @@ export async function ricorrenteMensile(): Promise<{
 }> {
   const { data, error } = await supabase
     .from('prospects')
-    .select('canone, fuori, stage, pipeline_stage')
+    .select('id, fuori, stage, pipeline_stage')
     .or(CLIENTI_QUERY)
-    .order('canone', { ascending: false, nullsFirst: false })
-    .limit(2000)
+    .limit(1000)
   if (error) return { mese: 0, quanti: 0, senza: 0, problema: error.message }
-  const clienti = ((data ?? []) as Array<Fase & { canone: number | null }>).filter(eCliente)
+  // 29/9: il canone sta in cassaforte (solo i ceo lo leggono)
+  const soldi = await soldiClienti()
+  const clienti = ((data ?? []) as Array<Fase & { id: string }>).filter(eCliente)
+    .map((c) => ({ ...c, canone: soldi.get(c.id)?.canone ?? null }))
   return {
     mese: clienti.reduce((t, c) => t + (Number(c.canone) || 0), 0),
     quanti: clienti.length,

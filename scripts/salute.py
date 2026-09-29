@@ -266,6 +266,17 @@ def main():
             problemi.append(f"{len(ferme_call)} call prenotate con la scheda ancora ferma (es. {schede[ferme_call[0]['prospect_id']].get('company')}): "
                             "rischiano un follow-up il giorno prima della call")
 
+    # 29/9, LA CASSAFORTE: i soldi stanno solo in soldi_clienti e soldi_progetti (li
+    # leggono Dre e Giacomo). Se ne compare uno nelle tabelle che la squadra legge, il
+    # controllo nel database (schema_v67) non c'e' piu': e' una fuga, si dice subito.
+    try:
+        fuga = (sb("GET", "/rest/v1/prospects?select=id&or=(canone.not.is.null,fatturazione.not.is.null,enriched->prezzo.not.is.null,enriched->bilancio.not.is.null)&limit=5") or []) \
+            + (sb("GET", "/rest/v1/progetti?select=id&valore=not.is.null&limit=5") or [])
+        if fuga:
+            problemi.append(f"soldi fuori dalla cassaforte su {len(fuga)} righe: la squadra li puo' leggere. Il controllo del database (schema v67) va rimesso")
+    except Exception as e:                                   # noqa: BLE001
+        problemi.append(f"non riesco a controllare la cassaforte dei soldi: {str(e)[:80]}")
+
     testo = "Tutto in ordine: nessun errore, operazioni regolari, Posta pulita." if not problemi else "Salute del sistema:\n- " + "\n- ".join(problemi)
     print(testo)
     if prova:

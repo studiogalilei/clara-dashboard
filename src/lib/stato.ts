@@ -22,6 +22,7 @@ interface Extra {
   call?: string | null                  // la data della call della fase (dall'agenda)
   calls?: Record<string, string>         // tutte le sue call in agenda, per tipo
   fase?: string                          // la colonna in cui sta
+  soldi?: boolean                        // chi guarda vede i soldi (solo i ceo, 29/9): se no, niente canone
 }
 
 // ── le date, in giorni di calendario ──────────────────────────────
@@ -71,6 +72,9 @@ export function statoVivo(p: Prospect, x: Extra = {}): Stato {
   }
 
   if (eCliente(p)) {
+    // 29/9: a chi non vede i soldi non si dice «canone da mettere» (falso per lui, e
+    // racconta che li' c'e' un numero): si dice solo che e' cliente
+    if (x.soldi === false) return { testo: p.contratto === 'prova' ? 'Cliente in prova' : 'Cliente', tono: 'ok' }
     const canone = p.canone
     if (!canone) return { testo: 'Cliente: canone da mettere', tono: 'attesa' }
     return {

@@ -30,6 +30,7 @@ export const STATI_FOGLIO: Array<[StatoFoglio, string, string]> = [
 
 export { STATI as STATI_PREVENTIVO } from '../lib/preventivo'
 import { STATI as STATI_PREVENTIVO } from '../lib/preventivo'
+import { azzeraCanone, conSoldi, soldiClienti } from '../lib/soldi'
 
 // lo stato che si vede nel foglio: una lettura sola, da regole.ts + preventivi
 export function statoFoglio(p: Riga, suoi: Preventivo[]): StatoFoglio {
@@ -131,9 +132,10 @@ export default function TuttiFoglio({ onOpen }: Props) {
     // basso del vero senza dirlo (QA Dre, 15/9)
     supabase.from('prospects').select('*', { count: 'exact' }).neq('stage', 'nuovo')
       .order('last_reply_at', { ascending: false, nullsFirst: false }).limit(3000)
-      .then(({ data, error, count }) => {
+      .then(async ({ data, error, count }) => {
         if (error) setProblema('Le aziende non si leggono: ' + error.message)
-        setRighe((data as Riga[]) ?? [])
+        const m = await soldiClienti()          // i soldi dalla cassaforte (29/9)
+        setRighe(((data as Riga[]) ?? []).map((r) => conSoldi(r, m)))
         setQuante(count ?? null)
       })
     supabase.from('preventivi').select('*').order('inviato_il', { ascending: true }).limit(2000)
@@ -150,7 +152,12 @@ export default function TuttiFoglio({ onOpen }: Props) {
     const { data, error } = await supabase.from('prospects').update(patch).eq('id', p.id).select().single()
     if (error || !data) { setProblema(`«${p.company || p.name}» non si è salvato: ${error?.message ?? ''}`); return }
     setProblema(null)
-    setRighe((r) => r!.map((x) => (x.id === p.id ? (data as Riga) : x)))
+    // 29/9: il database risponde senza soldi (stanno in cassaforte): la cella tiene
+    // quello che hai scritto, e l'azzeramento va a svuotare la cassaforte
+    if ('canone' in patch) {
+      if (patch.canone == null) void azzeraCanone(p.id); else void soldiClienti(true)
+    }
+    setRighe((r) => r!.map((x) => (x.id === p.id ? { ...(data as Riga), canone: 'canone' in patch ? (patch.canone ?? null) : x.canone, enriched: 'enriched' in patch ? (data as Riga).enriched : x.enriched } : x)))
   }
 
   // il preventivo si fa nel suo widget (numero, voci, PDF secondo il brand):

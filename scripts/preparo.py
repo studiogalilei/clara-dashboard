@@ -31,7 +31,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                      # noqa: E402
+from stanza import sb, soldi_clienti, con_soldi          # noqa: E402
 import cervello                                            # noqa: E402
 
 CALL = ("conoscitiva", "tecnica", "avvio", "call", "prep")
@@ -51,10 +51,12 @@ def quando(iso):
 def dati_di(pid):
     """Tutto quello che sappiamo di quell'azienda, in un testo solo."""
     p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,email,sector,city,website,descrizione,"
-                   f"stage,pipeline_stage,classificazione,canone,contratto,notes,next_action,next_action_date,"
+                   f"stage,pipeline_stage,classificazione,contratto,notes,next_action,next_action_date,"
                    f"analysis_sent_at,last_reply_at,prova_fine,enriched&id=eq.{pid}") or [None])[0]
     if not p:
         return None, None
+    p = con_soldi(p, soldi_clienti([pid]))      # il bilancio sta in cassaforte (29/9): si legge, non si ricompra
+    p.pop("canone", None)                        # e i soldi nella preparazione non entrano
     arr = p.pop("enriched", None) or {}
     pezzi = ["SCHEDA: " + ", ".join(f"{k}={v}" for k, v in p.items() if v not in (None, "", False) and k != "id")]
     # IL BILANCIO PRIMA DELLA CALL (Dre, 26/9): «cosi' so gia' come impostarmi, che domande
@@ -70,13 +72,12 @@ def dati_di(pid):
                 sb("PATCH", f"/rest/v1/prospects?id=eq.{pid}", {"enriched": arr}); bil = arr["bilancio"]
         except Exception as e:                                # noqa: BLE001
             print(f"    bilancio non preso: {str(e)[:60]}")
-    if bil.get("fatturato"):
-        pezzi.append("BILANCIO (fonte " + str(bil.get("fonte") or "scheda") + "): " +
-                     ", ".join(f"{k}={bil[k]}" for k in ("fatturato", "utile", "anno", "dipendenti", "forma") if bil.get(k)))
-    pz = arr.get("prezzo") or {}
-    if pz.get("fascia"):
-        pezzi.append(f"PREZZO SUGGERITO (interno, non si dice in call): {pz['fascia'][0]}-{pz['fascia'][1]} €/mese, affidabilita' {pz.get('affidabilita')}, "
-                     f"spesa Ads sostenibile ~{pz.get('spesa_ads_mese')} €/mese" + (f", flag: {'; '.join(pz['flag'])}" if pz.get("flag") else ""))
+    # 29/9, LA CASSAFORTE: i soldi li vedono solo Dre e Giacomo. La preparazione della
+    # call sta nell'evento, e l'evento lo vede anche chi fa la call con noi (Carlo in
+    # tecnica): bilancio, prezzo suggerito, valori e importi qui non entrano. Il prezzo
+    # suggerito resta nella scheda, dove lo vedono solo i ceo.
+    if bil.get("dipendenti") or bil.get("forma"):
+        pezzi.append("AZIENDA: " + ", ".join(f"{k}={bil[k]}" for k in ("dipendenti", "forma", "anno") if bil.get(k)))
     fit = arr.get("google_fit") or {}
     if fit.get("verdetto"):
         pezzi.append("GOOGLE FIT: " + ", ".join(f"{k}={fit[k]}" for k in ("verdetto", "settore", "tipo", "cosa_fa", "ticket_min", "ticket_max", "zona", "motivo") if fit.get(k)))
@@ -87,12 +88,12 @@ def dati_di(pid):
         pezzi.append("COSA CI SIAMO DETTI (dal piu' recente):\n" + "\n".join(
             f"- [{(r.get('at') or '')[:10]}, {r.get('kind')}] {(r.get('body') or '')[:700]}" for r in storia))
 
-    prog = sb("GET", f"/rest/v1/progetti?select=nome,natura,stato,valore,scadenza,note,imparato"
+    prog = sb("GET", f"/rest/v1/progetti?select=nome,natura,stato,scadenza,note,imparato"
                      f"&prospect_id=eq.{pid}&limit=8") or []
     if prog:
         pezzi.append("PROGETTI: " + str(prog))
 
-    quote = sb("GET", f"/rest/v1/preventivi?select=numero,titolo,importo,mensile,stato,inviato_il"
+    quote = sb("GET", f"/rest/v1/preventivi?select=numero,titolo,stato,inviato_il"
                       f"&prospect_id=eq.{pid}&order=creato_il.desc&limit=3") or []
     if quote:
         pezzi.append("PREVENTIVI: " + str(quote))
