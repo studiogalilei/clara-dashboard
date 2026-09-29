@@ -1267,7 +1267,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                       transcript incollato): un clic e sono dentro */}
                   {pronti.length > 0 && transcript.trim() === '' && (
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-spento">Ce l'ho già</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-navy/70">Ce l'ho già</span>
                       {pronti.map((a) => (
                         <button key={a.at} onClick={() => setTranscript(a.body)}
                                 className="rounded-full border border-blu/40 bg-blu/5 px-3 py-1 text-xs font-semibold text-navy hover:border-blu">
@@ -1671,7 +1671,7 @@ function CosaManca({ p, aggiorna }: { p: Prospect; aggiorna: (patch: Partial<Pro
   return (
     <div className="mt-4 border-t border-velo pt-3">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.05em] text-spento">
+        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.05em] text-navy/70">
           Cosa manca
           <span className="h-1 w-14 overflow-hidden rounded-full bg-velo" title={`${pieni} campi su ${DA_RIEMPIRE.length}`}>
             <span className="block h-full rounded-full bg-blu transition-all" style={{ width: `${Math.round((pieni / DA_RIEMPIRE.length) * 100)}%` }} />

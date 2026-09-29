@@ -507,7 +507,7 @@ export default function Preventivi({ onOpen }: Props) {
   }
 
   return (
-    <div className="space-y-4 pb-24 sm:pb-8">
+    <div className="space-y-4 pb-36 sm:pb-8">
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
@@ -528,14 +528,14 @@ export default function Preventivi({ onOpen }: Props) {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Sede'], ['pec', 'PEC'], ['iban', 'IBAN'], ['firmatario', 'Chi firma'], ['foro', 'Foro competente']] as Array<[keyof DatiStudio, string]>).map(([k, n]) => (
               <label key={k}>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">{n}</span>
                 <input value={String(studio[k] ?? '')} onChange={(e) => setStudio({ ...studio, [k]: e.target.value })}
                        className="mt-0.5 w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
               </label>
             ))}
             {([['iva', 'IVA %'], ['giorni', 'Pagamento entro (giorni)'], ['preavviso', 'Preavviso disdetta (giorni)']] as Array<[keyof DatiStudio, string]>).map(([k, n]) => (
               <label key={k}>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">{n}</span>
                 <input type="number" value={Number(studio[k] ?? 0)} onChange={(e) => setStudio({ ...studio, [k]: Number(e.target.value) || 0 })}
                        className="mt-0.5 w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-blu" />
               </label>
@@ -714,7 +714,7 @@ export default function Preventivi({ onOpen }: Props) {
               </p>
               {([['ragione', 'Ragione sociale'], ['piva', 'Partita IVA'], ['indirizzo', 'Indirizzo'], ['pec', 'PEC'], ['sdi', 'Codice SDI']] as Array<[keyof Fatturazione, string]>).map(([k, n]) => (
                 <label key={k} className={k === 'indirizzo' ? 'col-span-2' : ''}>
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{n}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">{n}</span>
                   <input value={bozza.fatturazione[k] ?? ''}
                          onChange={(e) => setBozza({ ...bozza, fatturazione: { ...bozza.fatturazione, [k]: e.target.value } })}
                          onBlur={(e) => { if (k === 'piva') void cercaPiva(e.target.value) }}
@@ -780,12 +780,12 @@ export default function Preventivi({ onOpen }: Props) {
           {/* 3. validita' e note, poi il PDF */}
           <div className="flex flex-wrap items-end gap-3">
             <label>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-spento">Valido fino al</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">Valido fino al</span>
               <input type="date" value={bozza.valido_fino} onChange={(e) => setBozza({ ...bozza, valido_fino: e.target.value })}
                      className="mt-0.5 block rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
             </label>
             <label className="min-w-[240px] flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-spento">Note interne (non vanno nel PDF)</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">Note interne (non vanno nel PDF)</span>
               <input value={bozza.note} onChange={(e) => setBozza({ ...bozza, note: e.target.value })}
                      className="mt-0.5 block w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
             </label>

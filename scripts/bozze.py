@@ -45,7 +45,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
-from stanza import sb, proponi                             # noqa: E402
+from stanza import sb, proponi, quando                     # noqa: E402
 import lettura                                             # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -67,8 +67,19 @@ INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 QUANTI_GB = 5        # per giro, cosi' la Posta non si riempie
 GIORNI_GB = 45       # oltre, «l'avevamo gia' preparata» suona strano
 # «privacy» c'e' apposta: chi la nomina (anche solo in firma) non riceve niente
-NON_TOCCARE = re.compile(r"rimuov|cancell|non (vogliamo|voglio|desider)|non (ci|mi) contatt|non (ci|mi) scriv|privacy|gdpr|"
-                         r"diffid|denunc|garante|spam|molest|smett|basta\b|lasciateci|lasciatemi|opt.?out|unsubscribe|disiscri", re.I)
+# la stessa regola di analisi_auto, in un posto solo (28/9): due copie divergono
+def _non_toccare():
+    import importlib
+    return importlib.import_module("analisi_auto").NON_TOCCARE
+
+
+class _Pigra:
+    """Si carica alla prima domanda: analisi_auto importa bozze, e viceversa."""
+    def search(self, t):
+        return _non_toccare().search(t)
+
+
+NON_TOCCARE = _Pigra()
 ISTRUZIONE_GB = """Scrivi la risposta a un'azienda che ci ha detto di NO in modo cortese (non
 interessati, hanno gia' un'agenzia, non e' il momento). L'analisi della sua zona
 l'avevamo gia' preparata: gliela lasciamo lo stesso, senza chiedere niente in
@@ -93,8 +104,19 @@ APERTURE_SECCHE = ("si'.", "sì.", "no.", "volentieri.", "certo.", "ok.", "va be
 PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato", "senza impegno")
 
 
-def cancello(testo):
-    """Torna la lista dei motivi per cui la bozza NON va bene (vuota = passa)."""
+def cancello(testo, senza_analisi=False):
+    """Torna la lista dei motivi per cui la bozza NON va bene (vuota = passa).
+
+    `senza_analisi` e' vero quando l'analisi non esiste e non nascera' (fit NO):
+    in quel caso la bozza non deve prometterla. 29/9: Elettroone ha chiesto
+    l'analisi, la bozza ha risposto «le inoltro qui l'analisi», e quel documento
+    non poteva nascere perche' a Trento ci sono 50 ricerche al mese.
+    """
+    if senza_analisi and re.search(
+            r"(?:inoltro|allego|le lascio|trova|in allegato|le mando|le invio|gliela mando)"
+            r"[^.]{0,40}\banalisi\b|\banalisi\b[^.]{0,30}(?:in allegato|qui sotto|allegata)", testo, re.I):
+        return ["promette un'analisi che non puo' nascere (il fit dice NO): "
+                "va risposto senza prometterla, dicendo il motivo"]
     if re.search(r"\[(ESCALATION|NOTA|INTERNO|FERMATI)", testo, re.I):
         return ["riga interna nel testo ([ESCALATION]/nota): il lead non deve vederla"]
     if re.search(r"rimuov\w* dalle (nostre )?liste|non la disturber|per policy lavoriamo solo", testo, re.I):
@@ -202,7 +224,36 @@ def proposta_giorno_ora():
 ISTRUZIONE = """Sei Clara. Prepari la risposta con l'identita' di Lorenzo; la manda lui
 o Dre dopo l'ok (legge zero). Il playbook qui sopra e' la legge: fai gli 8
 controlli del preflight, scegli l'intento nella tabella, applica le regole di
-calendario e di stile. Rispondi ESATTAMENTE in questo formato, niente altro:
+calendario e di stile.
+
+SE CHIEDE L'ANALISI, SI MANDA. SEMPRE. (Dre, 29/9: «inviamo comunque e chiediamo
+la call, seguiamo il playbook tutte le volte possibili»). Il playbook INT-01 dice
+«manda analisi + presentazione, poi orario proposto + calendario», e non fa
+eccezioni: quando una persona la chiede esplicitamente, quella e' la risposta.
+Il verdetto del fit NON cambia questa regola.
+
+Se nei fatti «analisi_non_si_puo_fare» e' vero, vuol dire solo che il mercato su
+Google e' piccolo per loro (il motivo sta in «perche_niente_analisi»). Allora:
+  - si manda lo stesso l'analisi, che dentro dira' la verita' scomoda;
+  - si aggiunge UNA riga onesta prima della call, per esempio «le anticipo che
+    nella vostra zona la domanda su Google e' bassa: nell'analisi trova i numeri
+    e dove conviene spendere invece»;
+  - si propone la call come sempre.
+Non si rifiuta mai di mandare un documento che la persona ha chiesto. Quello che
+non si fa e' prometterlo quando non esiste ancora e non verra' preparato: in quel
+caso la bozza aspetta che l'analisi ci sia.
+
+LA SCRIVANIA. Nei fatti trovi «sequenza»: TUTTO lo scambio con questa persona in
+ordine di tempo, le nostre mail e le sue, piu' «quante_ne_abbiamo_mandate» e
+«quante_ne_ha_scritte». Leggila tutta PRIMA di scrivere. Serve a tre cose:
+  - non ripetere quello che gli abbiamo gia' detto, e non riproporre una cosa
+    che ha gia' ricevuto o gia' rifiutato;
+  - continuare il discorso da dove si e' fermato, non ricominciare da capo;
+  - accorgerti se gli abbiamo scritto tante volte e lui ha risposto poco: in quel
+    caso si abbassa il tono e non si insiste.
+Se la sequenza si contraddice con l'ultima mail, vince la sequenza intera.
+
+Rispondi ESATTAMENTE in questo formato, niente altro:
 
 LETTURA: cosa dice l'ultima mail loro, in una riga, con le SUE parole (citala)
 HA_GIA: analisi ricevuta si'/no; ha detto no si'/no; autorisposta si'/no; ci gira a: email o no
@@ -305,6 +356,16 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
         "analisi_inviata": bool(p.get("analysis_sent")), "analisi_inviata_il": (p.get("analysis_sent_at") or "")[:10],
         # 23/9: l'analisi la prepara analisi_auto.py prima delle bozze; se c'e', la bozza la allega («gliela allego qui sotto»)
         "analisi_pronta_in_allegato": bool(p.get("analysis_pdf")),
+        # L'ANALISI CHE NON ARRIVERA' MAI (29/9). Elettroone ha chiesto «puo'
+        # inviarmi pure l'analisi» e la bozza ha risposto «le inoltro qui
+        # l'analisi»: ma il fit dice NO (50 ricerche/mese a Trento, meno di due
+        # clic al giorno), quindi quell'analisi non nascera'. Promettere una cosa
+        # che non arriva e' peggio che dire di no. Lo stesso su Studio Canova.
+        "analisi_non_si_puo_fare": (not p.get("analysis_pdf")
+                                    and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO"),
+        "perche_niente_analisi": (((p.get("enriched") or {}).get("google_fit") or {}).get("motivo") or "")[:160]
+        if (not p.get("analysis_pdf")
+            and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO") else "",
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
     # il Google Fit di Clara (googlefit.py): il numero della zona va nel messaggio,
@@ -313,13 +374,28 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if fit:
         fatti["google_fit"] = {"verdetto": fit.get("verdetto"), "motivo": fit.get("motivo"), "cosa_fa": fit.get("cosa_fa"),
                                "provincia": fit.get("provincia"), "zona": fit.get("zona")}
-    # 24/9: il filo intero (ultime 6 cose: mail nostre e sue, call, note), cosi' non
-    # ripete quello che abbiamo gia' detto e sa cosa e' successo prima
+    # LA SCRIVANIA: TUTTA LA SEQUENZA, NON DUE MESSAGGI (Dre, 28/9). Fino a oggi
+    # la storia si prendeva dal CRM, che NON ha le mail partite da Smartlead: su
+    # Istituto Flegreo il CRM conosceva due righe su sei, e tutte e due in arrivo.
+    # Il modello scriveva senza sapere nemmeno cosa gli avevamo gia' mandato.
+    # Il filo completo lo costruisce gia' lettura.filo() unendo CRM e Smartlead:
+    # si usa quello. Dre: «una scrivania per lead, con le sequenze in ordine e il
+    # playbook accanto, cosi' sa sempre cosa scrivere e ha sempre contesto».
     try:
-        storia = sb("GET", f"/rest/v1/interactions?select=kind,at,body&prospect_id=eq.{p['id']}&kind=in.(email_in,email_out,call,nota)&order=at.desc&limit=6") or []
-        fatti["storia"] = [f"{x['at'][:10]} {x['kind']}: {' '.join((x.get('body') or '').split())[:300]}" for x in reversed(storia)]
-    except Exception:
-        pass
+        intero = lettura.filo(p)
+        if intero:
+            fatti["sequenza"] = [
+                f"{str(x.get('at'))[:10]} {'NOI' if x.get('kind') in ('email_out', 'followup', 'analisi') else 'LORO' if x.get('kind') == 'email_in' else x.get('kind').upper()}: "
+                + " ".join((x.get("body") or "").split())[:400]
+                for x in intero[-12:]
+            ]
+            fatti["quante_ne_abbiamo_mandate"] = sum(1 for x in intero if x.get("kind") in ("email_out", "followup", "analisi"))
+            fatti["quante_ne_ha_scritte"] = sum(1 for x in intero if x.get("kind") == "email_in")
+        else:
+            storia = sb("GET", f"/rest/v1/interactions?select=kind,at,body&prospect_id=eq.{p['id']}&kind=in.(email_in,email_out,call,nota)&order=at.desc&limit=6") or []
+            fatti["sequenza"] = [f"{x['at'][:10]} {x['kind']}: {' '.join((x.get('body') or '').split())[:300]}" for x in reversed(storia)]
+    except Exception as e:                                    # noqa: BLE001
+        fatti["sequenza"] = [f"(non sono riuscita a ricostruire il filo: {str(e)[:60]})"]
     sintesi = (p.get("enriched") or {}).get("analisi") or {}
     if sintesi:
         fatti["analisi_sintesi"] = sintesi
@@ -335,7 +411,7 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if gruppo:
         fatti["gruppo"] = gruppo
         fatti["template_da_usare"] = gruppo
-    prompt = (cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI +
+    prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
@@ -399,6 +475,19 @@ def main():
         if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") not in lettura.GRUPPI:
             continue
         candidate.append((p, p["coda"]))
+    # CHI E' PRONTO PASSA DAVANTI (27/9). Il giro ne serve venticinque, e il
+    # posto se lo prendevano quelli che aspettano un'analisi che non c'e'
+    # ancora: due giorni con nove follow-up pronti fermi dietro di loro, e
+    # ogni corsa che finiva con «zero bozze, ok». Chi ha tutto quello che
+    # serve viene prima; chi aspetta qualcos'altro sta dietro e il suo turno
+    # arriva quando l'attesa e' finita. Stessa regola dell'analisi: un lavoro
+    # che non puo' riuscire non deve affamare quelli che possono.
+    def pronto(voce):
+        pr, gruppo = voce
+        if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO") and not pr.get("analysis_pdf"):
+            return 1                                          # aspetta l'analisi: dietro
+        return 0
+    candidate.sort(key=pronto)
     candidate = candidate[:QUANTI]
 
     def esito_coda(p, motivo):
@@ -413,8 +502,17 @@ def main():
             arr["coda_esito"] = {"gruppo": p.get("coda"), "motivo": motivo, "il": adesso}
             sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None, "enriched": arr})
         else:
+            # FUORI CODA (27/9): il motivo non bastava. Chi viene saltato restava
+            # awaiting_us=true, quindi tornava ogni giorno nella lista «da rispondere»
+            # di Dre pur avendo gia' un verdetto. Tre caselle di servizio (ticket
+            # automatici) occupavano la lista da venerdi'. Se non c'e' nessuno a cui
+            # scrivere, l'attesa si chiude: la mail resta nella storia, il motivo nella
+            # scheda, e si riapre da sola se quella persona riscrive davvero.
             arr["lettura_esito"] = {"motivo": motivo, "il": adesso}
-            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
+            patch = {"enriched": arr}
+            if "non c'è nessuno a cui scrivere" in motivo or "nessun ricontatto" in motivo:
+                patch["awaiting_us"] = False
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
 
     def lavora(coppia):
         p, gruppo = coppia
@@ -429,6 +527,14 @@ def main():
         if dura and dura[0] == "salta":
             return (p, gruppo, nome, None, [], letti, dura)
         if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO") and not p.get("analysis_pdf"):
+            # L'ATTESA NON E' INFINITA (Dre, 28/9: «se è ferma deve avvisarmi in
+            # qualche modo»). Istituto Flegreo ha aspettato l'analisi per giorni
+            # senza che nessuno lo dicesse: il loro sito rispondeva 500, quindi
+            # l'analisi non poteva proprio nascere. Dopo due giorni si smette di
+            # aspettare in silenzio e si chiede a una persona, con il motivo vero.
+            fermo_da = (datetime.datetime.now(datetime.timezone.utc) - quando(p.get("coda_il") or p.get("last_reply_at") or "")).days if (p.get("coda_il") or p.get("last_reply_at")) else 0
+            if fermo_da >= 2:
+                return (p, gruppo, nome, None, [], letti, ("chiedi", f"aspetta l'analisi da {fermo_da} giorni e non arriva"))
             return (p, gruppo, nome, None, [], letti, ("aspetta", "l'analisi non c'e' ancora (la fa l'operazione analisi)"))
         if not gruppo and len((letti.get("ultima_loro") or "").strip()) < 30:
             return (p, gruppo, nome, None, [], letti, ("salta", "l'ultima mail loro e' vuota o illeggibile"))
@@ -436,10 +542,12 @@ def main():
         b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
             return (p, gruppo, nome, None, [], letti, None)
-        errori = cancello(b["bozza"])
+        niente_analisi = (not p.get("analysis_pdf")
+                          and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO")
+        errori = cancello(b["bozza"], senza_analisi=niente_analisi)
         if errori:
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
-            if b2 and not cancello(b2["bozza"]):
+            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi):
                 b, errori = b2, []
         if dura and dura[0] == "fermati" and b["fermati"].lower().startswith("no"):
             b["fermati"] = "si': " + dura[1]
@@ -452,6 +560,7 @@ def main():
         return (p, gruppo, nome, b, errori, letti, None)
 
     fatte, ferme, bocciate, saltate = 0, 0, 0, 0
+    ferme_da_dire = []                  # chi aspetta da troppo: una domanda sola alla fine
     with ThreadPoolExecutor(max_workers=IN_PARALLELO) as pool:
         esiti = list(pool.map(lavora, candidate))
     for p, gruppo, nome, b, errori, letti, dura in esiti:
@@ -460,6 +569,11 @@ def main():
             if dura[0] == "salta":
                 saltate += 1
                 esito_coda(p, dura[1])
+            elif dura[0] == "chiedi":
+                # ferma da troppo: si mette da parte e si chiede a Dre. UNA domanda
+                # sola per tutte, non una a testa: otto domande insieme sono un muro,
+                # e la regola e' una cosa alla volta.
+                ferme_da_dire.append((p, nome, dura[1]))
             continue
         if not b:
             print(f"  ? {nome}: {errori[0] if errori else 'risposta del cervello non leggibile'}"); continue
@@ -487,6 +601,22 @@ def main():
         if ferma: ferme += 1
         else: fatte += 1
 
+    # LA DOMANDA UNICA (28/9, Dre: «se è ferma deve avvisarmi in qualche modo»).
+    # Prima queste aspettavano in silenzio a ogni giro, per sempre. Il ref del
+    # giorno fa si' che la domanda si riscriva una volta sola, non ogni cinque minuti.
+    if ferme_da_dire:
+        righe_f = "\n".join(f"- {n}: {m}" + (f" ({p.get('website')})" if p.get("website") else "")
+                            for p, n, m in ferme_da_dire[:8])
+        quante = len(ferme_da_dire)
+        titolo_f = (f"{quante} risposte sono ferme: aspettano un'analisi che non arriva"
+                    if quante > 1 else f"Ferma da giorni: {ferme_da_dire[0][1]}")
+        if not PROVA:
+            proponi("umano", titolo_f,
+                    perche=(f"Aspettano da due giorni o piu'. Apri il loro sito: se non risponde, l'analisi non puo' nascere. "
+                            f"Puoi mandarle senza l'analisi o lasciarle.\n{righe_f}")[:280],
+                    azione={"ferme": [{"id": p.get("id"), "nome": n, "motivo": m, "sito": p.get("website")} for p, n, m in ferme_da_dire]},
+                    ref=f"ferme:{datetime.date.today().isoformat()}")
+        print(f"  {quante} ferme da troppo: l'ho chiesto a Dre in Posta")
     print(f"\n  bozze pronte {fatte}, da guardare tu {ferme}, non passate il cancello {bocciate}, saltate con motivo {saltate}")
 
     # ── il gigante buono: i negativi cortesi, una volta sola ────────
@@ -513,7 +643,9 @@ def main():
         except Exception as e:                                # noqa: BLE001
             print(f"  [GB] salto {nome if False else (p.get('company') or mail)[:34]}: lettura non riuscita ({str(e)[:60]})"); continue
         testo = letti["ultima_loro"]
-        if len(testo.strip()) < 20 or NON_TOCCARE.search(testo) or letti["scritto_dopo_di_lei"]:
+        # 28/9: NON_TOCCARE sulle sue righe soltanto (il caso dell'immobiliare del 28/9: «cancellarlo»
+        # stava nella nostra firma GDPR citata sotto la sua risposta positiva)
+        if len(testo.strip()) < 20 or NON_TOCCARE.search(lettura.solo_suo(testo)) or letti["scritto_dopo_di_lei"]:
             continue
         fit = (p.get("enriched") or {}).get("google_fit") or {}
         if fit.get("verdetto") == "NO" or not (fit.get("zona") or p.get("analysis_pdf")):
@@ -524,7 +656,7 @@ def main():
         nome = (p.get("company") or p.get("name") or mail)[:34]
         fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
                  "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
-        prompt = (cervello.manuale("testa") + "\n\n" + ISTRUZIONE_GB + cervello.istruzione("chat") + cervello.istruzione("bozze") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
+        prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa") + "\n\n" + ISTRUZIONE_GB + cervello.istruzione("chat") + cervello.istruzione("bozze") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
                   f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
         try:
             grezzo = cervello._chiedi(prompt) or ""

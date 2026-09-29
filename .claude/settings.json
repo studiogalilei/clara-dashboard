@@ -33,6 +33,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/dramane/Documents/odyn-crm/.claude/hooks/inizio-sessione.sh",
+            "statusMessage": "Carico lo stato e il punto su dove siamo",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   }
 }

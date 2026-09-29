@@ -79,13 +79,13 @@ export default function Prezzo() {
         <div className="mt-3 space-y-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 rounded-[6px] border border-bordo px-2.5 py-1.5 text-sm">
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Spende al mese</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">Spende al mese</span>
               <input value={spesa} onChange={(e) => setSpesa(e.target.value.replace(/[^0-9.,]/g, ''))}
                      placeholder="0" className="w-24 bg-transparent text-right font-bold tabular-nums outline-none" />
               <span className="text-tenue">€</span>
             </label>
             <label className="flex items-center gap-2 rounded-[6px] border border-bordo px-2.5 py-1.5 text-sm">
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Margine in più, al mese</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">Margine in più, al mese</span>
               <input value={margine} onChange={(e) => setMargine(e.target.value.replace(/[^0-9.,]/g, ''))}
                      placeholder="0" className="w-24 bg-transparent text-right font-bold tabular-nums outline-none" />
               <span className="text-tenue">€</span>
@@ -95,7 +95,7 @@ export default function Prezzo() {
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-velo pt-2.5">
             <span className="flex items-baseline gap-2">
               <span className="text-[26px] font-extrabold leading-none tabular-nums">{euro(canone)}</span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">al mese</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">al mese</span>
             </span>
             {successo > 0 && (
               <span className="text-sm text-tenue">
@@ -114,7 +114,7 @@ export default function Prezzo() {
         <div className="mt-3 space-y-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 rounded-[6px] border border-bordo px-2.5 py-1.5 text-sm">
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Giornate</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">Giornate</span>
               <input value={giorni} onChange={(e) => setGiorni(e.target.value.replace(/[^0-9.,]/g, ''))}
                      placeholder="0" className="w-16 bg-transparent text-right font-bold tabular-nums outline-none" />
             </label>
@@ -127,7 +127,7 @@ export default function Prezzo() {
               ))}
             </div>
             <label className="flex items-center gap-2 rounded-[6px] border border-bordo px-2.5 py-1.5 text-sm">
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Ore che gli fa risparmiare, al mese</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">Ore che gli fa risparmiare, al mese</span>
               <input value={ore} onChange={(e) => setOre(e.target.value.replace(/[^0-9.,]/g, ''))}
                      placeholder="0" className="w-16 bg-transparent text-right font-bold tabular-nums outline-none" />
             </label>
@@ -136,7 +136,7 @@ export default function Prezzo() {
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-velo pt-2.5">
             <span className="flex items-baseline gap-2">
               <span className="text-[26px] font-extrabold leading-none tabular-nums">{euro(consiglio)}</span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">a progetto</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">a progetto</span>
             </span>
             {valoreAnno > 0 && (
               <span className="text-sm text-tenue">

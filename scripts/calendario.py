@@ -41,7 +41,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb                                 # noqa: E402
+from stanza import env, sb, di_clara, quando                # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 INDIETRO = 400      # giorni di storia da tenere (il tracciato)
@@ -313,6 +313,49 @@ def calendari_persone(prova, prospects):
         print(f"  calendario di {u['email']}: {nuovi} nuovi, {agg} aggiornati, {saltati} personali saltati, {len(eventi)} letti")
 
 
+def fasi_dalle_call(prova):
+    """UNA CALL IN AGENDA SPOSTA LA SCHEDA (29/9). Il calendario attaccava le call
+    alle aziende ma non cambiava mai la loro fase: una lead immobiliare
+    aveva prenotato la conoscitiva per il 2/10 col link del calendario e restava
+    «da rispondere», con una bozza vecchia in Posta; un'azienda di tende, call il 30/9,
+    restava «in follow-up», cioe' candidato a un sollecito il giorno prima della
+    call. In «Call fissata» nessuno gli prepara piu' niente in automatico
+    (bozze, rilettura e sync la trattano come intoccabile).
+    Solo avanti, mai indietro: si tocca solo chi e' fra la risposta e la call,
+    e solo per una conoscitiva futura, cosi' un evento attaccato all'azienda
+    sbagliata («visita medica», un follow-up interno) non sposta nessuno."""
+    adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    call = sb("GET", f"/rest/v1/agenda?select=at,titolo,prospect_id&tipo=eq.conoscitiva&prospect_id=not.is.null"
+                     f"&at=gte.{urllib.parse.quote(adesso)}&order=at") or []
+    prima = {}
+    for c in call:
+        prima.setdefault(c["prospect_id"], c)              # la prossima, per ciascuno
+    if not prima:
+        return 0
+    schede = sb("GET", f"/rest/v1/prospects?select=id,company,name,stage,pipeline_stage,fuori"
+                       f"&id=in.({','.join(prima)})") or []
+    spostate = 0
+    for p in schede:
+        if p.get("stage") not in PRIMA_DELLA_CALL or p.get("pipeline_stage") or p.get("fuori"):
+            continue
+        c = prima[p["id"]]
+        quando_roma = quando(c["at"]).astimezone(ROMA)
+        nome = p.get("company") or p.get("name") or p["id"]
+        print(f"  call fissata: {nome} il {quando_roma:%d/%m %H:%M} (era {p['stage']})")
+        if prova:
+            continue
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}&stage=eq.{p['stage']}",
+           {"stage": "call_fissata", "next_action": "Call conoscitiva", "next_action_date": quando_roma.date().isoformat()})
+        di_clara("controllo", f"{nome}: ha una call conoscitiva il {quando_roma:%d/%m alle %H:%M}, l'ho messa in «Call fissata».",
+                 prospect_id=p["id"], letto=True)
+        spostate += 1
+    return spostate
+
+
+# fra la risposta e la call: da qui una conoscitiva in agenda porta in «Call fissata»
+PRIMA_DELLA_CALL = ("risposto", "analisi_inviata", "in_follow_up")
+
+
 def main():
     prova = "--prova" in sys.argv
     if "--da-json" in sys.argv:
@@ -361,6 +404,7 @@ def main():
 
     print(f"calendario ({fonte}): {nuovi} nuovi, {aggiornati} aggiornati, {saltati} personali saltati, {len(eventi)} letti")
     calendari_persone(prova, prospects)
+    fasi_dalle_call(prova)
 
 
 if __name__ == "__main__":

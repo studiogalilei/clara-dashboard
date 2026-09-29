@@ -267,7 +267,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 pb-24 sm:pb-8">
+    <div className="mx-auto max-w-2xl space-y-4 pb-36 sm:pb-8">
 
 
       <Gruppo titolo="Tu" sotto="nome, firma, password, notifiche" aperto={true}>
@@ -696,7 +696,7 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
                 </span>
                 in listino
               </button>
-              {salvata === v.id && <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-spento">salvato</span>}
+              {salvata === v.id && <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-navy/70">salvato</span>}
             </div>
           ))}
         </Card>

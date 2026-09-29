@@ -239,7 +239,7 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
         </div>
         {!cliente && (
           <div className="flex flex-wrap items-center gap-2 border-b border-bordo bg-white px-4 py-2">
-            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">Di chi è</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">Di chi è</span>
             <div className="min-w-[220px] flex-1">
               <CercaAzienda
                 dentro
@@ -271,11 +271,11 @@ export default function CompilaPdf({ file, onClose, onSalvato }: Props) {
             {prova && (
               <>
                 <label className="flex items-center gap-1.5 rounded-[6px] border border-bordo px-2 py-1 text-xs">
-                  <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-spento">Inizio</span>
+                  <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-navy/70">Inizio</span>
                   <input type="date" value={inizio} onChange={(e) => setInizio(e.target.value)} className="bg-transparent outline-none" />
                 </label>
                 <label className="flex items-center gap-1.5 rounded-[6px] border border-bordo px-2 py-1 text-xs">
-                  <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-spento">Fine</span>
+                  <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-navy/70">Fine</span>
                   <input type="date" value={fine} onChange={(e) => setFine(e.target.value)} className="bg-transparent outline-none" />
                 </label>
                 <span className="text-[11px] text-spento">finiscono anche sulla scheda del cliente</span>

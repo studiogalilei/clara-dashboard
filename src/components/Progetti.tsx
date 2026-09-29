@@ -74,9 +74,9 @@ export const STATI: Array<[Progetto['stato'], string, string]> = [
 
 // le tre voci del suo foglio, con i suoi colori (verde, giallo, azzurro)
 export const TIPI: Array<[NonNullable<Progetto['tipo']>, string, string]> = [
-  ['trial', 'Trial', 'bg-amber-100 text-amber-900'],
-  ['retainer', 'Retainer', 'bg-green-100 text-green-900'],
-  ['onboarding', 'onboarding', 'bg-sky-100 text-sky-900'],
+  ['trial', 'Prova', 'bg-[#F5B200] text-inchiostro'],
+  ['retainer', 'Canone', 'bg-green-700 text-white'],
+  ['onboarding', 'Avvio', 'bg-blu text-white'],
 ]
 
 // L'ORDINE DEL FOGLIO (Dre, 11/9): «prima i clienti, poi a scendere», o lo
@@ -388,7 +388,7 @@ export default function Progetti({ onOpen }: Props) {
   )
 
   return (
-    <div className="space-y-3 pb-24 sm:pb-8">
+    <div className="space-y-3 pb-36 sm:pb-8">
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>

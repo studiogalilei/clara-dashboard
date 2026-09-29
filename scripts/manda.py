@@ -42,7 +42,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile               # noqa: E402
+from stanza import sb, di_clara, contattabile, quando       # noqa: E402
 
 BASE = "https://server.smartlead.ai/api/v1"
 ROMA = datetime.timezone(datetime.timedelta(hours=2))
@@ -224,7 +224,18 @@ def main():
         if (prima_risposta or az.get("allega")) and not p.get("analysis_pdf"):
             # l'analisi non c'e' ancora (la sta facendo l'operazione «analisi»): si aspetta,
             # senza rimbalzare la bozza e senza domande a ogni giro
-            print(f"  {azienda}: aspetto l'analisi, riprovo al giro dopo"); continue
+            # 28/9: l'attesa non e' infinita. Istituto Flegreo era approvato dal 25
+            # e a ogni giro, ogni cinque minuti, si scriveva «aspetto l'analisi»:
+            # ma l'analisi non poteva arrivare, perche' il loro sito rispondeva 500
+            # e senza sito letto non si fa. Nessuno lo diceva. Dopo un giorno di
+            # attesa la mail torna in Posta con il motivo: la decide una persona.
+            ferma_da = (datetime.datetime.now(datetime.timezone.utc) - quando(az.get("approvata_il") or pr["at"])).total_seconds() / 3600
+            if ferma_da > 24:
+                torna_aperta(pr, pr["titolo"],
+                             f"aspetta l'analisi da {int(ferma_da)} ore e non arriva: guarda se il sito loro risponde, "
+                             f"oppure togli l'allegato e mandala cosi'", prova)
+                continue
+            print(f"  {azienda}: aspetto l'analisi da {int(ferma_da)}h, riprovo al giro dopo"); continue
         if p.get("analysis_pdf") and (prima_risposta or az.get("allega")):
             url = link_fresco(p["analysis_pdf"])
             try:

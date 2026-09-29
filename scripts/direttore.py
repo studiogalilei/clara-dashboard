@@ -34,7 +34,7 @@ import time
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                      # noqa: E402
+from stanza import sb, quando                                      # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -54,7 +54,7 @@ def dovuta(op):
     ultima = op.get("ultima_corsa")
     if not ultima:
         return True
-    u = datetime.datetime.fromisoformat(ultima.replace("Z", "+00:00"))
+    u = quando(ultima)          # 28/9: i microsecondi senza zeri finali rompevano la lettura
     ora = op.get("ora_preferita")
     if ora and op.get("cadenza_minuti", 0) >= 1440:
         # giornaliera a un'ora: e' dovuta se oggi (a Roma) e' passata quell'ora

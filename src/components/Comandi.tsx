@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { menuDi, type Chiave, type Ruolo } from '../lib/widget'
+import { menuDi, WIDGET, type Chiave, type Ruolo } from '../lib/widget'
 import { recenti } from '../lib/recenti'
 import { leggiCodice, paiUnCodice, TIPO_NOME } from '../lib/codice'
 import { Spinner } from './ui'
@@ -75,7 +75,12 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
 
   const lista = useMemo<Comando[]>(() => {
     const testo = q.trim().toLowerCase()
-    const sezioni: Comando[] = [...menuDi(ruolo, 'menu', concessi), ...menuDi(ruolo, 'sistema', concessi)]
+    // tutte le sezioni a cui questa persona ha accesso, anche quelle che il menu
+    // corto nasconde: nascosta dal menu non vuol dire irraggiungibile (26/9)
+    const nelMenu = new Set([...menuDi(ruolo, 'menu', concessi), ...menuDi(ruolo, 'sistema', concessi)].map((w) => w.chiave))
+    const tutte = [...WIDGET.filter((w) => nelMenu.has(w.chiave)),
+                   ...WIDGET.filter((w) => !nelMenu.has(w.chiave) && (w.base || w.ruoli.includes(ruolo) || concessi.has(w.chiave)))]
+    const sezioni: Comando[] = tutte
       .map((w) => ({ id: `vai:${w.chiave}`, titolo: w.nome, sotto: w.cosa, gruppo: 'Vai a' as const, fai: () => vaiA(w.chiave) }))
     const viste: Comando[] = testo ? [] : recenti().slice(0, 5)
       .map((r) => ({ id: `rec:${r.id}`, titolo: r.nome, gruppo: 'Visti di recente' as const, fai: () => apriScheda(r.id) }))
@@ -124,7 +129,7 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
           {lista.length === 0 && <p className="px-4 py-6 text-center text-sm text-spento">Niente con «{q}». Prova con il nome dell'azienda o della sezione.</p>}
           {Object.entries(gruppi).map(([nome, voci]) => (
             <div key={nome}>
-              <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.06em] text-spento">{nome}</p>
+              <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.06em] text-navy/70">{nome}</p>
               {voci.map((c) => {
                 indice += 1
                 const mio = indice

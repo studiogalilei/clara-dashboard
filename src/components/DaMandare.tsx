@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useVivo } from '../lib/vivo'
 import type { Prospect } from '../lib/types'
-import { Avviso, Card, Spinner } from './ui'
+import { Avviso, Card, Spinner, fmtDateShort, fmtOra } from './ui'
 import { LetturaBox, type Lettura } from './ClaraVolante'
 
 // DA MANDARE (Dre, 24/9): «quando sono nella scheda del cliente non vedo la
@@ -38,8 +38,19 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
   const [giro, setGiro] = useState(0)
   const [scritto, setScritto] = useState<{ at: string; body: string } | null>(null)   // l'ultima mail sua, sopra la bozza
   const [tuttoScritto, setTuttoScritto] = useState(false)
+  // IL POSTINO C'È? (Dre, 28/9: «ho inviato dal telefono e non è andato... è molto
+  // pericoloso, dopo non so quale hai già inviato e quale no»). Il bottone approva,
+  // a mandare davvero è Clara in cloud (l'operazione «manda»). Se quella è spenta,
+  // la schermata diceva lo stesso «la sta mandando» con la rotella che gira, per
+  // sempre. Adesso lo stato vero si legge prima, e si dice.
+  const [postino, setPostino] = useState<{ attiva: boolean; ultima: string | null } | null>(null)
 
   useVivo(['proposte', 'prospects'], () => setGiro((n) => n + 1))
+
+  useEffect(() => {
+    supabase.from('operazioni').select('attiva,ultima_corsa').eq('chiave', 'manda').maybeSingle()
+      .then(({ data }) => setPostino(data ? { attiva: Boolean((data as { attiva: boolean }).attiva), ultima: (data as { ultima_corsa: string | null }).ultima_corsa } : null))
+  }, [giro])
 
   useEffect(() => {
     let vivo = true
@@ -84,7 +95,9 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
     const { error } = await supabase.from('proposte').update({ stato: 'approvata', azione }).eq('id', pr.id)
     if (error) { setEsito(`Non sono riuscita ad approvarla: ${error.message}`); setLavoro(false); return }
     void supabase.rpc('chiama_direttore', { forza: 'manda' })
-    setEsito('Approvata. Clara la manda da Smartlead entro un paio di minuti.')
+    setEsito(postino && !postino.attiva
+      ? 'Approvata, ma NON parte: l\'invio automatico è spento. Riaccendilo, o copia il testo e mandala tu.'
+      : 'Approvata. Clara la manda da Smartlead entro un paio di minuti.')
     setLavoro(false); setPr({ ...pr, stato: 'approvata', azione })
   }
 
@@ -102,7 +115,11 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
     if (allego && p.analysis_pdf) { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString() }
     if (pr.azione?.intento === 'INT-GB') { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString(); agg.no_followup = true }
     await supabase.from('prospects').update(agg).eq('id', p.id)
-    await supabase.from('proposte').update({ stato: 'fatta', risposta_il: new Date().toISOString() }).eq('id', pr.id)
+    // 29/9: la correzione di Dre resta scritta (bozza di Clara vs testo mandato).
+    // Senza questa riga `lezioni` non vede piu' niente da quando si manda a mano,
+    // e le correzioni non diventano mai regole.
+    const azione = { ...(pr.azione ?? {}), bozza_originale: pr.azione?.bozza_originale ?? pr.azione?.bozza, bozza: corpo }
+    await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', pr.id)
     setEsito('Segnata come mandata a mano.'); setLavoro(false); setPr(null)
   }
 
@@ -158,8 +175,27 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
       ) : pr.stato !== 'aperta' ? (
         // APPROVATA: Clara la sta mandando. Il testo resta a vista, senza bottoni
         <div className="px-4 py-3">
-          <p className="flex items-center gap-2 text-sm font-semibold"><Spinner /> Approvata: Clara la sta mandando da Smartlead</p>
-          <p className="mt-0.5 text-xs text-tenue">Di solito un paio di minuti. Quando è partita, questo blocco sparisce e la mail compare nella Storia.</p>
+          {postino && !postino.attiva ? (
+            <>
+              <Avviso tono="ambra" titolo="Approvata, ma la mandi tu">
+                Le mail non partono da sole: questa resta qui finché non la mandi da Smartlead.
+                Copia il testo qui sotto, mandalo, poi torna e premi «Fatto, l'ho mandata».
+                Nessuna mail esce da sola, quindi non rischi di mandarla due volte.
+              </Avviso>
+              <button onClick={() => { void navigator.clipboard?.writeText(pr.azione?.bozza ?? ''); setCopiata(true) }}
+                      className="mt-2 rounded-full border border-bordo px-3 py-1.5 text-xs font-bold text-navy hover:border-navy">
+                {copiata ? 'Copiato' : 'Copia il testo'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="flex items-center gap-2 text-sm font-semibold"><Spinner /> Approvata: Clara la sta mandando da Smartlead</p>
+              <p className="mt-0.5 text-xs text-tenue">
+                Di solito un paio di minuti. Quando è partita, questo blocco sparisce e la mail compare nella Storia.
+                {postino?.ultima ? ` Ultimo giro dell'invio: ${fmtDateShort(postino.ultima)} alle ${fmtOra(postino.ultima)}.` : ''}
+              </p>
+            </>
+          )}
           <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-velo bg-carta px-3 py-2 font-sans text-[13px] leading-snug text-tenue">{pr.azione?.bozza}</pre>
         </div>
       ) : (
@@ -172,7 +208,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
           {/* COSA HA SCRITTO (Dre, 25/9): si legge la sua mail e si risponde, senza cercarla in fondo */}
           {scritto && (
             <blockquote onClick={() => setTuttoScritto(!tuttoScritto)} className="mb-2 cursor-pointer rounded-lg border-l-2 border-bordo bg-velo/40 px-3 py-2 text-[13px] leading-snug text-tenue">
-              <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+              <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">
                 ha scritto, {new Date(scritto.at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}{tuttoScritto ? '' : ' (clicca per tutto)'}
               </span>
               <span className={`whitespace-pre-wrap ${tuttoScritto ? '' : 'line-clamp-4'}`}>{scritto.body.replace(/\n{3,}/g, '\n\n')}</span>
@@ -209,12 +245,29 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
                   <input type="checkbox" checked={allego} onChange={(e) => setAllego(e.target.checked)} /> allega l'analisi (PDF)
                 </label>
               )}
-              <button onClick={approva} disabled={lavoro} className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Approva e manda</button>
+              {/* A MANO (Dre, 28/9: «d'ora in poi copio e incollo, imposta il sistema
+                  così»). Il gesto principale non è più approvare: è segnare che l'hai
+                  mandata tu. Così la scheda resta vera senza che nessuno spedisca al
+                  posto tuo. Il bottone che approva compare solo se l'invio è acceso. */}
+              <button onClick={mandataAMano} disabled={lavoro}
+                      data-tip="L'hai già mandata da Smartlead: la scrivo nella storia, tolgo l'attesa e chiudo la bozza"
+                      className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
+                Fatto, l'ho mandata
+              </button>
+              {postino?.attiva && (
+                <button onClick={approva} disabled={lavoro}
+                        data-tip="La bozza passa a Clara, che la manda dal thread di Smartlead"
+                        className="rounded-full border border-blu px-3 py-1.5 text-xs font-bold text-blu hover:bg-blu/5 disabled:opacity-40">
+                  Falla mandare a Clara
+                </button>
+              )}
               <button onClick={nonCosi} disabled={lavoro} className="rounded-full border border-bordo px-3 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">Non così</button>
             </span>
           </div>
           {destinatario !== p.email && <p className="mt-2 text-[11px] text-tenue">Va mandata a {destinatario} (ci ha dato questo indirizzo).</p>}
-          <p className="mt-2 text-[11px] text-tenue">L'hai mandata tu da Smartlead? <button onClick={mandataAMano} disabled={lavoro} className="font-semibold text-blu hover:underline">Segnala mandata</button></p>
+          <p className="mt-2 text-[11px] text-tenue">
+            Copia il testo, mandalo dal thread di Smartlead, poi premi «Fatto, l'ho mandata»: la mail entra nella storia e la bozza si chiude.
+          </p>
         </div>
       )}
       {esito && <p className="border-t border-velo px-4 py-2 text-xs text-navy">{esito}</p>}

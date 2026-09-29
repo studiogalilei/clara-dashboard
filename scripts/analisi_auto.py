@@ -47,7 +47,8 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb                                 # noqa: E402
+from stanza import env, sb, proponi                        # noqa: E402
+import lettura                                            # noqa: E402
 import cervello                                            # noqa: E402
 import brand_assets                                        # noqa: E402
 
@@ -61,8 +62,22 @@ VALIDITA_LINK = 60 * 60 * 24 * 365 * 10     # dieci anni (Dre, 24/9: «non vogli
 # la cartella del vault, se questo gira sul Mac di Dre: copia del PDF anche li'
 VAULT_ANALISI = os.path.expanduser("~/Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/Analisi")
 # come in bozze.py: chi ha chiesto di non essere contattato non riceve niente
-NON_TOCCARE = re.compile(r"rimuov|cancell|non (vogliamo|voglio|desider)|non (ci|mi) contatt|non (ci|mi) scriv|privacy|gdpr|"
-                         r"diffid|denunc|garante|spam|molest|smett|basta\b|lasciateci|lasciatemi|opt.?out|unsubscribe|disiscri", re.I)
+# 28/9: le parole vanno prese nel loro senso, non a pezzi. Prima bastava «smett»
+# in qualunque frase («la software house dovrebbe concludere... smettere») e
+# «privacy» ovunque, anche dentro una firma. Adesso ogni parola porta il suo
+# contesto: «smettere DI scrivere/mandare», «privacy» solo se chiede qualcosa.
+NON_TOCCARE = re.compile(
+    r"(?:ci |mi |vi )?rimuov\w*\s+(?:dal|dalla|da|il|i |le |mi|ci)|"
+    r"cancell\w*\s+(?:i |il |la |le |dal|dalla|da |mi|ci|nostri|miei)|cancellami|cancellatemi|"
+    r"non (?:vogliamo|voglio|desider\w+)\s+(?:piu'|più|essere|ricevere|altre)|"
+    r"non (?:ci|mi) contatt|non (?:ci|mi) (?:scriv|invi|mand)|"
+    r"diffid\w*|denunc\w*|garante (?:della )?privacy|"
+    r"\bspam\b|molest\w*|"
+    r"smett\w*\s+(?:di |con )(?:scriver|mandar|inviar|contattar|disturbar)|"
+    r"la smetta|smettila|"
+    r"basta (?:mail|email|messaggi|con queste|cosi)|"
+    r"lasciateci|lasciatemi (?:in pace|stare)|opt.?out|unsubscribe|disiscri\w*|"
+    r"(?:trattamento|dati) .{0,20}(?:senza|non) .{0,20}consenso", re.I)
 GENERICHE = re.compile(r"^(info|contatti|contact|amministrazione|commerciale|vendite|segreteria|ufficio|mail|posta|direzione|hello|sales|marketing|ordini|preventivi|reception|booking|prenotazioni)@", re.I)
 
 
@@ -244,7 +259,7 @@ Lunghezza: come l'esempio, 3-4 pagine di testo denso, frasi lunghe e naturali.
 
 
 def chiedi(p, s, correzioni=None):
-    prompt = (cervello.manuale("testa", "analisi") + "\n\n" + ISTRUZIONE + "\n\nI FATTI:\n" + fatti_in_testo(s, p))
+    prompt = (cervello.ruolo("raccolta") + cervello.manuale("testa", "analisi") + "\n\n" + ISTRUZIONE + "\n\nI FATTI:\n" + fatti_in_testo(s, p))
     if correzioni:
         prompt += "\n\nLA VERSIONE PRECEDENTE E' STATA BOCCIATA DAL CANCELLO. Correggi questi punti e rispondi di nuovo col JSON completo:\n- " + "\n- ".join(correzioni)
     grezzo = cervello._chiedi(prompt, MODELLO) or ""
@@ -384,7 +399,10 @@ def lavora(p):
     s = scheda(p)
     if not s["dominio"]:
         print(f"  salto {nome}: senza sito"); return False
-    if s["ultime"] and NON_TOCCARE.search(s["ultime"][0].get("body") or ""):
+    # 28/9: si guarda SOLO quello che ha scritto lui. Prima si leggeva tutta la
+    # mail, firma e disclaimer compresi, e la parola «cancellarlo» dentro la
+    # NOSTRA firma sul GDPR bloccava chi aveva appena detto di si'.
+    if s["ultime"] and NON_TOCCARE.search(lettura.solo_suo(s["ultime"][0].get("body") or "")):
         print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
     an = chiedi(p, s)
     fatti = fatti_in_testo(s, p)
@@ -399,7 +417,10 @@ def lavora(p):
         print(f"  {nome}: NON passa il cancello: {'; '.join(errori)[:200]}")
         try:
             arr = dict(p.get("enriched") or {})
-            arr["analisi"] = {**(arr.get("analisi") or {}), "trattenuta": "; ".join(errori)[:300], "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            vecchia = arr.get("analisi") or {}
+            arr["analisi"] = {**vecchia, "trattenuta": "; ".join(errori)[:300],
+                              "bocciature": int(vecchia.get("bocciature") or 0) + 1,
+                              "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
             sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
         except Exception as e:                                    # noqa: BLE001
             print(f"    (motivo non scritto: {str(e)[:60]})")
@@ -426,6 +447,35 @@ def lavora(p):
 MAI = ("agenzia", "portale", "catena", "multinazionale", "privacy")   # franchising va bene (Dre 25/9), tranne i network Tecnocasa che il fit segna
 
 
+# Le parole con cui una persona chiede il documento. Vengono dai segnali del
+# playbook (INT-01) piu' quelli visti nelle risposte vere: «puo' inviarmi pure
+# l'analisi», «mandi pure», «la leggo volentieri», «confermo la mail».
+CHIEDE_ANALISI = re.compile(
+    r"(?:mandi|invii|inviarmi|inviatemi|mandatemi|puo' inviar|può inviar|mi mandi|ce la mandi|"
+    r"la mandi|mandarmela|inviarla|spedirla)\w*\s*(?:pure\b|l[ae']\s*analisi|il documento|il materiale|"
+    r"il pdf|la documentazione)|"
+    r"(?:invio|invii|invia)\w*\s+(?:dell[ae']\s*)?analisi|"
+    r"resto in attesa dell.analisi|attendo l.analisi|"
+    r"(?:confermo|e' corretta|è corretta|va bene)\s+(?:la\s+)?(?:mail|email|l.indirizzo)|"
+    r"la legger(?:o|ò|emo)|la valuter(?:o|ò|emo)|"
+    r"(?:sono|siamo) curios\w+|"
+    # «volentieri» da solo e' troppo largo: «ben volentieri se qualcuno riprende
+    # il progetto» non e' una richiesta (caso Cit by Subway, 29/9). Vale solo
+    # accanto a un verbo di ricezione.
+    r"(?:legg\w+|ricev\w+|vedr\w+|guard\w+|grazie|attend\w+)\W{0,3}(?:\w{1,6}\W{0,3}){0,2}volentieri|"
+    r"volentieri\W{0,12}(?:la legg|ricev|grazie)", re.I)
+
+
+def _l_ha_chiesta(p):
+    """La persona ha chiesto esplicitamente l'analisi nella sua ultima mail?"""
+    try:
+        t = (sb("GET", f"/rest/v1/interactions?select=body&prospect_id=eq.{p['id']}"
+                       "&kind=eq.email_in&order=at.desc&limit=1") or [{}])[0].get("body") or ""
+    except Exception:                                        # noqa: BLE001
+        return False
+    return bool(CHIEDE_ANALISI.search(lettura.solo_suo(t)))
+
+
 def servita(p):
     """A chi si fa l'analisi (regola 5 di Dre: quando si risponde si manda SEMPRE l'analisi).
     Serve il sito letto e il fit. Il fit NO non ferma chi ha risposto positivo o tiepido:
@@ -438,7 +488,45 @@ def servita(p):
         return False
     if fit.get("verdetto") in ("SI", "SI'", "PARZIALE"):
         return True
-    return (p.get("classificazione") or "") in ("positivo", "tiepido")
+    if (p.get("classificazione") or "") in ("positivo", "tiepido"):
+        return True
+    # SE L'HA CHIESTA, SI FA (Dre, 29/9: «inviamo comunque e chiediamo la call,
+    # seguiamo il playbook tutte le volte possibili»). Il playbook INT-01 non fa
+    # eccezioni: quando una persona chiede l'analisi, quella e' la risposta, e il
+    # verdetto del fit non conta. Studio Canova ha scritto ma e' rimasto
+    # «da_classificare», quindi la regola sulla classe non bastava.
+    return _l_ha_chiesta(p)
+
+
+MAX_TENTATIVI = 2                    # due bocciature e poi si chiede a una persona
+
+
+def _quante_bocciature(p):
+    """Quante volte il cancello ha gia' bocciato l'analisi di questa azienda."""
+    return int((((p.get("enriched") or {}).get("analisi") or {}).get("bocciature")) or 0)
+
+
+def _chiedi_aiuto(p):
+    """Fuori dalla fila dopo due tentativi: il motivo diventa una domanda in Posta,
+    una volta sola, cosi' nessuno riprova all'infinito e nessuno se ne dimentica."""
+    an = ((p.get("enriched") or {}).get("analisi") or {})
+    if an.get("chiesto_aiuto"):
+        return
+    nome = (p.get("company") or p.get("email") or "")[:40]
+    motivo = str(an.get("trattenuta") or "non passa il controllo qualita'")[:200]
+    try:
+        proponi("umano", f"L'analisi di {nome} non passa il controllo, guardala tu",
+                perche=f"Provata {an.get('bocciature')} volte, sempre bocciata: {motivo}"[:280],
+                azione={"analisi_ferma": {"prospect_id": p.get("id"), "motivo": motivo}},
+                prospect_id=p.get("id"))
+    except Exception as e:                                   # noqa: BLE001
+        print(f"    (domanda non scritta per {nome}: {str(e)[:60]})")
+    try:
+        arr = dict(p.get("enriched") or {})
+        arr["analisi"] = {**an, "chiesto_aiuto": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
+    except Exception:                                        # noqa: BLE001
+        pass
 
 
 def main():
@@ -451,7 +539,21 @@ def main():
                           "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=60") or []
-        righe = [p for p in righe if servita(p)][:QUANTI]
+        # CHI FALLISCE VA IN FONDO, NON DAVANTI (27/9). Il 26/9 Studio Bossi e Studio
+        # Lievito sono state riscritte sedici volte ciascuna, sempre bocciate dal
+        # cancello per gli stessi due motivi: undici ore di macchina in un giorno e
+        # mezzo, e le trenta aziende in coda dietro di loro non arrivavano mai al
+        # turno (la fila ne serve quattro per giro). Due regole, in ordine:
+        #   - dopo due bocciature l'azienda esce dalla fila e diventa una domanda
+        #     in Posta: una cosa che non riesce due volte vuole una persona;
+        #   - chi ha gia' fallito una volta passa dietro a chi non ha mai provato.
+        righe = [p for p in righe if servita(p)]
+        fuori_fila = [p for p in righe if _quante_bocciature(p) >= MAX_TENTATIVI]
+        for p in fuori_fila:
+            _chiedi_aiuto(p)
+        righe = [p for p in righe if _quante_bocciature(p) < MAX_TENTATIVI]
+        righe.sort(key=_quante_bocciature)
+        righe = righe[:QUANTI]
     if not righe:
         print("analisi: nessuno da servire"); return
     fatte = 0

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, AgendaItem } from '../lib/types'
-import { Card, Micro, Empty, fmtDateShort, fmtOra } from './ui'
+import { Card, Micro, Empty, Avviso, fmtDateShort, fmtOra } from './ui'
 import { giorno, creaTask } from '../lib/regole'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import CercaAzienda, { nomeAzienda, type Azienda } from './CercaAzienda'
@@ -89,6 +89,7 @@ function corto(titolo: string): string {
 
 export default function Calendario({ onOpen, pod = [] }: Props) {
   const [conPod, setConPod] = useState(() => leggiPref('calendario-pod', 'si') === 'si')
+  const [guaio, setGuaio] = useState('')
   // MESE O ELENCO (Dre, 16/9): chi non fa call in una griglia mensile vede
   // tre righe in mezzo a trenta caselle vuote. Se nel prossimo mese non hai
   // nessuna call, si apre l'elenco; la griglia resta a un clic di distanza.
@@ -170,18 +171,40 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
         .eq('fatta', false).not('scadenza', 'is', null).limit(300) : Promise.resolve({ data: [] }),
       pod.length ? supabase.from('progetti').select('id,nome,scadenza,chi_segue,stato,prospect_id').not('scadenza', 'is', null).neq('stato', 'consegnato').limit(300) : Promise.resolve({ data: [] }),
     ]).then(([ag, pa, fu, agPod, taskPod, progPod]) => {
+      // 27/9: quando la lettura falliva, il calendario scriveva «Niente in
+      // programma», che è una cosa falsa detta come fosse vera. Adesso il
+      // guasto si dice, perche' «non ho letto» e «non c'e' niente» portano a
+      // due azioni diverse: riprovare, oppure aggiungere qualcosa.
+      const rotto = [ag, pa, fu, agPod].map((x) => (x as { error?: { message?: string } })?.error?.message).filter(Boolean)[0]
+      setGuaio(rotto ? String(rotto) : '')
       const nome = (id: string | null) => pod.find((p) => p.id === id)?.nome?.split(' ')[0] ?? ''
       const out: Voce[] = ((ag.data as Array<AgendaItem & { owner?: string | null }>) ?? []).filter((a) => !a.owner).map((a) => ({
         at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
         id: a.id, sotto: sottoDi(a.tipo), link: a.link,
       }))
+      // UNA RIUNIONE, UNA RIGA (27/9). Ogni persona ha il suo evento nel suo
+      // calendario, quindi l'allineamento del venerdi' arrivava qui quattro
+      // volte, una per Carlo, Lorenzo, Alex e Salvatore: trenta righe doppie su
+      // centoquarantuno. Come dati e' giusto, a schermo no. Stesso titolo e
+      // stessa ora = una riga sola, con scritto chi c'e'. Se ci sono anch'io,
+      // l'evento resta mio e gli altri diventano la compagnia.
+      const insieme = new Map<string, Voce>()
       for (const a of (agPod.data as Array<AgendaItem & { owner: string }>) ?? []) {
-        // i miei senza etichetta, quelli del pod col nome davanti
-        out.push({
+        const chiave = `${a.at}|${(a.titolo ?? '').trim().toLowerCase()}`
+        const mio = a.owner === io
+        const suo = mio ? '' : nome(a.owner)
+        const gia = insieme.get(chiave)
+        if (gia) {
+          if (mio) gia.chi = undefined                       // se ci sono io, l'evento e' mio
+          else if (gia.chi !== undefined && suo && !gia.chi.split(', ').includes(suo)) gia.chi = `${gia.chi}, ${suo}`
+          continue
+        }
+        insieme.set(chiave, {
           at: a.at, titolo: a.titolo, tipo: tipoAgenda(a.tipo), prospect_id: a.prospect_id,
-          chi: a.owner === io ? undefined : nome(a.owner), id: a.id, sotto: sottoDi(a.tipo), link: a.link,
+          chi: mio ? undefined : suo, id: a.id, sotto: sottoDi(a.tipo), link: a.link,
         })
       }
+      out.push(...insieme.values())
       for (const t of (taskPod.data as Array<{ titolo: string; scadenza: string; owner: string }>) ?? []) {
         out.push({ at: t.scadenza + 'T09:00:00', titolo: t.titolo, tipo: 'task', prospect_id: null, chi: t.owner === io ? undefined : nome(t.owner) })
       }
@@ -266,7 +289,10 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   // la lista raggruppata (telefono)
   const domani = giorno(new Date(Date.now() + 86400e3))
   const settimanaFine = fraSette.slice(0, 10)
-  const futureVoci = visibili.filter((v) => v.at >= adesso)
+  // 26/9: un impegno di OGGI resta in lista tutto il giorno, anche se l'ora è
+  // passata. Prima sparivano alle 9:01 le cose delle 9:00, e da telefono (dove
+  // la vista mese non si apre) diventavano invisibili.
+  const futureVoci = visibili.filter((v) => v.at >= adesso || giorno(v.at) === oggiChiave)
   const gruppi: Array<[string, Voce[]]> = [
     ['Oggi', futureVoci.filter((v) => giorno(v.at) === oggiChiave)],
     ['Domani', futureVoci.filter((v) => giorno(v.at) === domani)],
@@ -324,20 +350,24 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
   }
 
   return (
-    <div className="pb-24 sm:pb-8">
+    <div className="pb-36 sm:pb-8">
 
-      {/* il commutatore, solo da computer: sul telefono l'elenco e' l'unica
-          forma possibile. Accanto, la porta per Google, che resta il
-          calendario vero */}
-      <div className="mb-4 hidden items-center gap-2 lg:flex">
-        {([['elenco', 'Elenco'], ['mese', 'Mese']] as const).map(([v, n]) => (
-          <button key={v} onClick={() => { setVistaCal(v); scriviPref('calendario-vista', v) }}
-                  className={`rounded-[6px] border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em] ${
-                    vistaCal === v ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue hover:border-navy'}`}>
-            {n}
-          </button>
-        ))}
+      {/* il commutatore elenco/mese e' solo da computer: sul telefono l'elenco
+          e' l'unica forma possibile. Il link a Google invece resta SEMPRE (26/9:
+          spariva anche lui, e da telefono Google Calendar e' il calendario vero) */}
+      <div className="mb-4 flex items-center gap-2">
+        <span className="hidden items-center gap-2 lg:flex">
+          {([['elenco', 'Elenco'], ['mese', 'Mese']] as const).map(([v, n]) => (
+            <button key={v} onClick={() => { setVistaCal(v); scriviPref('calendario-vista', v) }}
+                    data-tip={v === 'mese' ? 'Il mese intero, a griglia' : 'Gli impegni in fila, dal più vicino'}
+                    className={`rounded-[6px] border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em] ${
+                      vistaCal === v ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue hover:border-navy'}`}>
+              {n}
+            </button>
+          ))}
+        </span>
         <a href="https://calendar.google.com/calendar/r" target="_blank" rel="noreferrer"
+           data-tip="Apre Google Calendar: gli appuntamenti li metti lì"
            className="rounded-[6px] border border-bordo px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy hover:border-navy">
           Google Calendar
         </a>
@@ -374,7 +404,11 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
         <div className="px-1">
           <NuovaScadenza data={scelto} conGiorno io={io} onSalvata={salvata} />
         </div>
-        {futureVoci.length === 0 && <Card><Empty text="Niente in programma" /></Card>}
+        {futureVoci.length === 0 && (guaio
+          ? <Avviso tono="rosso" titolo="Non sono riuscito a leggere il calendario">
+              Potrebbe esserci qualcosa in programma: è la lettura che non è andata ({guaio}). Riprova fra poco.
+            </Avviso>
+          : <Card><Empty text="Niente in programma" /></Card>)}
         {gruppi.map(([nome, lista]) =>
           lista.length === 0 ? null : (
             <section key={nome}>

@@ -11,14 +11,14 @@ import {
 // il bordo sottile, il testo in maiuscoletto come su una targhetta, e il
 // colore ridotto a un punto: il colore dice lo stato, il testo lo nomina,
 // e la forma resta sempre la stessa in tutta l'app.
-function Eti({ testo, tono }: { testo: string; tono?: 'verde' | 'ambra' | 'rosso' }) {
+function Eti({ testo, tono, tip }: { testo: string; tono?: 'verde' | 'ambra' | 'rosso'; tip?: string }) {
   const punto =
     tono === 'verde' ? 'bg-green-600'
     : tono === 'ambra' ? 'bg-amber-500'
     : tono === 'rosso' ? 'bg-red-600'
     : 'bg-spento'
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[4px] border border-bordo bg-white px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-tenue">
+    <span data-tip={tip} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[4px] border border-bordo bg-white px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-tenue">
       <span className={`h-[5px] w-[5px] shrink-0 rounded-[1px] ${punto}`} />
       {testo}
     </span>
@@ -27,18 +27,18 @@ function Eti({ testo, tono }: { testo: string; tono?: 'verde' | 'ambra' | 'rosso
 
 export function StageBadge({ stage }: { stage: Stage }) {
   const tono = stage === 'cliente' ? 'verde' : stage === 'perso' ? 'rosso' : undefined
-  return <Eti testo={STAGE_LABEL[stage] ?? stage} tono={tono} />
+  return <Eti testo={STAGE_LABEL[stage] ?? stage} tono={tono} tip={`A che punto è il giro: ${STAGE_LABEL[stage] ?? stage}`} />
 }
 
 export function ClsBadge({ cls }: { cls: Classificazione }) {
   const tono = cls === 'positivo' ? 'verde' : cls === 'negativo' || cls === 'nervoso' || cls === 'soppresso' ? 'rosso'
     : cls === 'tiepido' || cls === 'rinvio' || cls === 'persona_sbagliata' ? 'ambra' : undefined
-  return <Eti testo={CLS_LABEL[cls] ?? cls} tono={tono} />
+  return <Eti testo={CLS_LABEL[cls] ?? cls} tono={tono} tip={`Come ha risposto: ${CLS_LABEL[cls] ?? cls}`} />
 }
 
 export function PipelineBadge({ stage }: { stage: PipelineStage }) {
   const tono = stage === 'cliente' ? 'verde' : stage === 'perso' ? 'rosso' : undefined
-  return <Eti testo={PIPELINE_LABEL[stage] ?? stage} tono={tono} />
+  return <Eti testo={PIPELINE_LABEL[stage] ?? stage} tono={tono} tip={`Dov'è nella trattativa: ${PIPELINE_LABEL[stage] ?? stage}`} />
 }
 
 export { Eti }
@@ -245,7 +245,7 @@ export function Scorri({ onDestra, onSinistra, destra = 'Fatta', sinistra = 'Dom
 // stesso colore ovunque (In arrivo, colonne, titoli delle card)
 export function Micro({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`shrink-0 text-[11px] font-bold uppercase tracking-[0.05em] text-spento ${className}`}>
+    <span className={`shrink-0 text-[11px] font-bold uppercase tracking-[0.05em] text-navy/70 ${className}`}>
       {children}
     </span>
   )
@@ -304,7 +304,7 @@ export function Avviso({ children, tono = 'ambra', titolo, className = '' }: {
 
 export function TitoloCard({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.05em] text-spento">
+    <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.05em] text-navy/70">
       {children}
     </h3>
   )
@@ -312,7 +312,7 @@ export function TitoloCard({ children }: { children: React.ReactNode }) {
 
 // Etichetta secca per i campi riempiti in automatico (niente emoji)
 export function Auto() {
-  return <span className="text-[10px] font-semibold uppercase text-spento" title="riempito in automatico">auto</span>
+  return <span className="text-[10px] font-semibold uppercase text-navy/70" title="riempito in automatico">auto</span>
 }
 
 // Zona che accoglie i file trascinati: avvolge qualunque area e quando

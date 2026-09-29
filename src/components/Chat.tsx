@@ -285,7 +285,7 @@ export default function Chat({ onOpen }: Props) {
   let ultimoGiorno = ''
 
   return (
-    <div className="pb-24 sm:pb-8">
+    <div className="pb-36 sm:pb-8">
       {problema && (
         <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>

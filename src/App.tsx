@@ -479,11 +479,11 @@ export default function App() {
               <span className="ml-1.5 font-bold">Workspace</span>
             </span>
             {/* beta: e' in mano alla squadra da oggi, e si vede (Dre, 16/9) */}
-            <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-spento">Beta</span>
+            <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-navy/70">Beta</span>
           </span>
         </button>
 
-        <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-spento">
+        <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-navy/70">
           Menu
         </p>
         <nav className="space-y-1">
@@ -513,7 +513,7 @@ export default function App() {
           })}
         </nav>
 
-        <p className="mb-2 mt-7 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-spento">
+        <p className="mb-2 mt-7 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-navy/70">
           Sistema
         </p>
         <nav className="space-y-1">

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
-import { Card, Spinner, Faccia, sgid, fmtDateShort, Empty } from './ui'
+import { Card, Spinner, Faccia, sgid, fmtDateShort, Empty, Avviso } from './ui'
 import Progetti, { STATI, TIPI, ordineProgetti, type Progetto } from './Progetti'
 import { euro, mensile, type Preventivo, type Incasso } from './TuttiFoglio'
 
@@ -51,11 +51,17 @@ function Elenco({ onOpen }: Props) {
   const [preventivi, setPreventivi] = useState<Preventivo[]>([])
   const [vedoSoldi, setVedoSoldi] = useState(false)
   const [incassi, setIncassi] = useState<Incasso[]>([])
+  const [guaio, setGuaio] = useState('')
   const [aperto, setAperto] = useState<string | null>(null)
 
   useEffect(() => {
+    // 27/9: se la lettura falliva, la pagina scriveva «Nessun cliente ancora»,
+    // cioe' diceva una cosa falsa con la stessa faccia con cui direbbe il vero.
+    // Chi la legge conclude che lo Studio non ha clienti. Adesso il guasto si
+    // dice: «non sono riuscito a leggere» porta a riprovare, «non c'e' niente»
+    // porta a creare, e sono due azioni diverse.
     supabase.from('prospects').select('*').eq('fuori', true).in('pipeline_stage', DENTRO).limit(500)
-      .then(({ data }) => setClienti((data as Riga[]) ?? []))
+      .then(({ data, error }) => { if (error) setGuaio(error.message); setClienti((data as Riga[]) ?? []) })
     supabase.from('progetti').select('*').limit(1000).then(({ data }) => setProgetti(((data as Progetto[]) ?? []).sort(ordineProgetti)))
     supabase.from('preventivi').select('*').limit(2000).then(({ data }) => setPreventivi((data as Preventivo[]) ?? []))
     void sonoCeo().then(setVedoSoldi)
@@ -71,17 +77,21 @@ function Elenco({ onOpen }: Props) {
   const retainer = lista.filter((c) => c.pipeline_stage === 'cliente').reduce((t, c) => t + (Number(c.canone) || 0), 0)
 
   return (
-    <div className="space-y-3 pb-24 sm:pb-8">
+    <div className="space-y-3 pb-36 sm:pb-8">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-bordo bg-white px-4 py-3">
         <span className="text-xl font-extrabold tabular-nums">{lista.length}</span>
         <span className="text-[11px] font-bold uppercase tracking-wide text-tenue">client{lista.length === 1 ? 'e' : 'i'} dentro</span>
         <span className="text-sm font-semibold text-tenue">
-          {lista.filter((c) => c.pipeline_stage === 'cliente').length} a retainer, {lista.filter((c) => c.pipeline_stage === 'prova').length} in prova, {lista.filter((c) => c.pipeline_stage === 'avvio').length} in avvio
+          {lista.filter((c) => c.pipeline_stage === 'cliente').length} a canone, {lista.filter((c) => c.pipeline_stage === 'prova').length} in prova, {lista.filter((c) => c.pipeline_stage === 'avvio').length} in avvio
         </span>
-        {vedoSoldi && retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese di retainer</span>}
+        {vedoSoldi && retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese</span>}
       </div>
 
-      {lista.length === 0 && <Card><Empty text="Nessun cliente ancora" cosa="Un'azienda diventa cliente quando la porti in avvio dalla sua scheda: da lì compaiono progetti, canone e pagamenti." /></Card>}
+      {lista.length === 0 && (guaio
+        ? <Avviso tono="rosso" titolo="Non sono riuscito a leggere i clienti">
+            La lista potrebbe non essere vuota: è la lettura che non è andata ({guaio}). Riprova fra poco, e se resta così dimmelo.
+          </Avviso>
+        : <Card><Empty text="Nessun cliente ancora" cosa="Un'azienda diventa cliente quando la porti in avvio dalla sua scheda: da lì compaiono progetti, canone e pagamenti." /></Card>)}
 
       {lista.map((c) => {
         const suoi = progetti.filter((g) => g.prospect_id === c.id)

@@ -175,7 +175,7 @@ export default function Editor({ id, modello = 'bianco', prospectId = null, onEs
     if (b.tipo === 'h2') return <Testo valore={b.testo} su={(v) => set({ ...b, testo: v })} classe={`text-[17px] font-extrabold text-navy ${sfondoBuco(b.testo)}`} />
     if (b.tipo === 'p') return <Testo valore={b.testo} su={(v) => set({ ...b, testo: v })} placeholder="Scrivi…" classe={`text-[14.5px] leading-relaxed ${b.piccolo ? 'text-tenue' : ''} ${sfondoBuco(b.testo)}`} />
     if (b.tipo === 'spazio') return <div className="h-4 rounded transition-colors group-hover:bg-velo/70" />
-    if (b.tipo === 'pagina') return <div className="flex items-center gap-2 py-1 text-[11px] font-bold uppercase tracking-wide text-spento"><span className="h-px flex-1 bg-bordo" />pagina nuova<span className="h-px flex-1 bg-bordo" /></div>
+    if (b.tipo === 'pagina') return <div className="flex items-center gap-2 py-1 text-[11px] font-bold uppercase tracking-wide text-navy/70"><span className="h-px flex-1 bg-bordo" />pagina nuova<span className="h-px flex-1 bg-bordo" /></div>
     if (b.tipo === 'elenco') return (
       <ul className="space-y-1">
         {b.voci.map((v, k) => (

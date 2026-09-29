@@ -135,7 +135,7 @@ export default function Plugin() {
   const fermoDa = ultimaQualsiasi ? Math.round((Date.now() - ultimaQualsiasi) / 60000) : null
 
   return (
-    <div className="space-y-4 pb-24 sm:pb-8">
+    <div className="space-y-4 pb-36 sm:pb-8">
       {fermoDa !== null && fermoDa > 75 && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           Il direttore non fa partire niente da {fermoDa >= 120 ? `${Math.round(fermoDa / 60)} ore` : `${fermoDa} minuti`}: le operazioni potrebbero essere ferme.
@@ -174,7 +174,7 @@ export default function Plugin() {
               )}
             </div>
             <label className="flex items-center gap-1.5 rounded-[6px] border border-bordo px-2 py-1 text-xs">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-spento">dopo</span>
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-navy/70">dopo</span>
               <input
                 type="number" min={1} max={365} value={a.giorni}
                 onChange={(e) => setAzioni((l) => (l ?? []).map((x) => (x.chiave === a.chiave ? { ...x, giorni: Number(e.target.value) || 1 } : x)))}

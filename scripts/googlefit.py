@@ -46,6 +46,82 @@ RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QUANTI = 20          # per giro: il resto al giro dopo (ogni 15 minuti)
 
 # ── i fogli ──────────────────────────────────────────────────────
+# LA RETE SULLA PROVINCIA (28/9). Le province vere, dal file dei codici Google
+# usato per misurare i volumi: se una parola del sito e' il nome di una di
+# queste, e' una provincia vera, non una parola inventata dal modello.
+def _province_note():
+    import pathlib
+    for cand in (pathlib.Path.home() / "Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/ODYN Cockpit/data/geo_province.json",):
+        try:
+            return set(json.load(open(cand)).keys())
+        except Exception:                                    # noqa: BLE001
+            continue
+    return set()
+
+
+_PROV = None
+
+
+def _provincia_dal_testo(testo):
+    """La provincia nominata nel sito, se ce n'e' una sola e chiara.
+
+    Non indovina: cerca i nomi veri delle province italiane dentro il testo e
+    accetta il piu' citato. Se ne trova due a pari merito non sceglie, perche'
+    una provincia sbagliata e' peggio di nessuna provincia.
+    """
+    global _PROV
+    if _PROV is None:
+        _PROV = _province_note()
+    if not _PROV or not testo:
+        return ""
+    t = testo.lower()
+    # SOLO DOVE UNA SEDE PUO' STARE (28/9). La prima versione ha dedotto «Latina»
+    # per Viaggi del Mappamondo, perche' nel sito c'era «America Latina»: una
+    # destinazione turistica, non la provincia. Una provincia sbagliata e' peggio
+    # di nessuna provincia, quindi il nome vale solo se sta accanto a qualcosa che
+    # indica davvero una sede: un indirizzo, una sigla fra parentesi, «provincia di».
+    conta = {}
+    for nome in _PROV:
+        n = nome.lower().split(" - ")[0]
+        if len(n) < 4:
+            continue
+        vicino = 0
+        for m in re.finditer(r"\b" + re.escape(n) + r"\b", t):
+            i, j = m.start(), m.end()
+            attorno = t[max(0, i - 120):min(len(t), j + 60)]
+            if re.search(r"provincia di|\(\s*[a-z]{2}\s*\)|\bvia\b|\bviale\b|\bpiazza\b|\bcorso\b|"
+                         r"\bsede\b|\bsedi\b|\bufficio\b|\bc\.?a\.?p\.?\b|\b\d{5}\b|"
+                         r"\bsiamo a\b|\bci trov\w+\b", attorno):
+                vicino += 1
+        if vicino:
+            conta[nome] = vicino
+    if not conta:
+        return ""
+    ordinate = sorted(conta.items(), key=lambda x: -x[1])
+    if len(ordinate) > 1 and ordinate[0][1] == ordinate[1][1]:
+        # PARI MERITO (28/9). «la nostra sede e' a Bergamo, in via Roma 12»: sia
+        # Bergamo sia Roma stanno accanto a un indirizzo, e a pari conteggio non
+        # si sceglieva nessuno dei due. Vince chi e' nominato come SEDE, non chi
+        # capita in una via: «sede a X», «provincia di X», «X (XX)», «CAP X».
+        forti = {}
+        for nome, _ in ordinate:
+            n = nome.lower().split(" - ")[0]
+            q = len(re.findall(# stretto apposta: «sede a X», «sede e' a X», «provincia di X». Non
+            # «sedi a Milano e a Roma», dove non si deve scegliere.
+            r"(?:sede|siamo|ci trov\w+|provincia)\W{0,3}(?:e'|è|a|in|di|si trova)?\W{0,3}(?:a|in|di)?\W{0,3}" + re.escape(n) + r"\b", t))
+            q += len(re.findall(re.escape(n) + r"\s*\(\s*[a-z]{2}\s*\)", t))
+            q += len(re.findall(r"\b\d{5}\s+" + re.escape(n) + r"\b", t))
+            if q:
+                forti[nome] = q
+        if len(forti) == 1:
+            return list(forti)[0]
+        if len(forti) > 1:
+            f = sorted(forti.items(), key=lambda x: -x[1])
+            return f[0][0] if f[0][1] > f[1][1] else ""
+        return ""                                            # niente lo distingue: non si sceglie
+    return ordinate[0][0]
+
+
 def carica_fogli():
     zone = {}
     for r in csv.DictReader(open(os.path.join(RADICE, "data", "foglio_zone.csv"), encoding="utf-8")):
@@ -331,7 +407,21 @@ def valuta(p, zone, settori):
         "zona": {"verdetto": zona["verdetto"], "domanda_mese": int(float(zona["domanda_mese"])), "cpc": float(zona["cpc"]),
                  "budget_giorno": float(zona["budget_giorno"]), "aziende_sostenibili": float(zona["aziende_sostenibili"])} if zona else None,
         "recensioni": rec, "sito_letto": bool(testo), "letto_il": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        # IL TESTO DEL SITO SI TIENE (28/9). Prima si leggeva, si chiedeva al
+        # modello, e poi si buttava: «sito_letto: true» ma niente testo, per tutte
+        # e 265 le aziende lette. Cosi' la provincia dipendeva da quanto era
+        # esplicito l'indirizzo in quel momento: 161 su 313 restavano senza, e
+        # senza provincia l'analisi non trova mai i volumi (caso Cristian, La
+        # Baita Case: sede a Berbenno di Valtellina, provincia vuota).
+        "sito_testo": (testo or "")[:4000],
     }
+    # LA RETE SULLA PROVINCIA: se il modello non l'ha trovata, la si cerca nel
+    # testo. Non si inventa: si accetta solo un nome di provincia vero, scritto
+    # nel sito. Meglio una provincia dedotta da una parola presente che nessuna.
+    if not (fit.get("provincia") or "").strip() and testo:
+        fit["provincia"] = _provincia_dal_testo(testo) or ""
+        if fit["provincia"]:
+            fit["provincia_da"] = "testo del sito"
     return fit
 
 
@@ -343,10 +433,22 @@ def main():
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched&email=eq.{urllib.parse.quote(email)}")
     else:
         righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched"
-                          "&fuori=eq.false&analysis_sent=eq.false&awaiting_us=eq.true&stage=neq.nuovo&passato_a=is.null"
+                          # anche chi e' in coda, non solo chi aspetta risposta (27/9): quattro aziende
+                          # in «RICONTATTO OOO» aspettavano un'analisi che vuole il sito letto, e il
+                          # fit non le guardava perche' guardava solo awaiting_us.
+                          "&fuori=eq.false&analysis_sent=eq.false&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=200") or []
-        righe = [p for p in righe if not (p.get("enriched") or {}).get("google_fit")]
+        # CHI NON HA IL SITO LETTO SI RIPROVA (27/9). Quattro aziende (Viaggi del
+        # Mappamondo, Telemar, Mare Karina, SMART Consulting) aspettavano l'analisi
+        # da giorni: il fit era gia' passato ma il sito non si era scaricato, e
+        # l'analisi vuole il sito letto. Con il vecchio criterio («salta chi ha gia'
+        # un google_fit») non le avrebbe riprovate mai piu'. Un fit senza il sito
+        # letto e' un fit incompleto, e si rifa'.
+        def _da_rifare(x):
+            f = (x.get("enriched") or {}).get("google_fit")
+            return (not f) or (not f.get("sito_letto"))
+        righe = [p for p in righe if _da_rifare(p)]
         # anche i negativi cortesi degli ultimi 45 giorni: il gigante buono (bozze.py)
         # lascia loro l'analisi, quindi l'analisi deve esistere
         da = (datetime.date.today() - datetime.timedelta(days=45)).isoformat()

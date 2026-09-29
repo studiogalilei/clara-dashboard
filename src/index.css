@@ -15,8 +15,25 @@
   --color-blu: #2979C4;
   --color-blu-scuro: #1f63a3;
   --color-inchiostro: #17191f;
+  /* LA REGOLA DEL GRIGIO (Dre, 26/9: «il grigio è l'unico colore che a volte
+     proprio non mi piace; falle nere, bianche, o di un altro colore»).
+     Il grigio NON scrive: separa. Tre usi soli, e nient'altro.
+       tenue   testo di servizio che si legge davvero (contrasto 6.2:1):
+               descrizioni, note sotto una riga, testo secondario
+       spento  SOLO quello che non è un'informazione: segnaposto dentro un
+               campo vuoto, icone decorative, «Annulla». Mai un titolo, mai
+               un'etichetta, mai un dato. Contrasto 3.1:1, sotto la soglia.
+       bordo/velo   linee e fondi, mai testo
+     Un titoletto, un'etichetta o un numero stanno in navy o in inchiostro.
+     Se una scritta conta, non è grigia. */
   --color-tenue: #5b6170;
-  --color-spento: #8d92a1;
+  /* 27/9: era #8d92a1, contrasto 3.1 su bianco e 2.7 sul fondo, cioe' sotto la
+     soglia di leggibilita' (misurato aprendo la pagina, non a occhio). Siccome
+     finiva anche sulle etichette del menu e sul codice azienda, e' salito a
+     5.6 su bianco e 4.9 sul fondo: resta il piu' chiaro dei due, ma si legge.
+     La regola: un grigio esiste solo se si legge. Se una scritta e' troppo
+     chiara per leggersi, o conta e va scritta scura, o non conta e va tolta. */
+  --color-spento: #626878;
   --color-bordo: #e5e7ec;
   --color-velo: #f1f2f6;
   /* 26/9, Dre guardando una console «aziendale»: «il gioco di ombre che mi da'

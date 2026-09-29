@@ -48,7 +48,7 @@ export default function PrezzoSuggerito({ p, onSalvato }: { p: Prospect; onSalva
     <Card className="p-4">
       <div className="flex items-baseline justify-between gap-2">
         <TitoloCard>Quanto chiedere</TitoloCard>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-spento">solo interno</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-navy/70">solo interno</span>
       </div>
       {prezzo ? (
         <>
@@ -72,14 +72,14 @@ export default function PrezzoSuggerito({ p, onSalvato }: { p: Prospect; onSalva
       <button onClick={() => setAperto(!aperto)} className="mt-2 text-xs font-bold text-blu hover:underline">{aperto ? 'Chiudi' : 'Bilancio e numeri della chiamata'}</button>
       {aperto && (
         <div className="mt-2 space-y-2 text-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-spento">Bilancio (da OpenAPI o dalla camera di commercio)</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-navy/70">Bilancio (da OpenAPI o dalla camera di commercio)</p>
           <div className="flex flex-wrap gap-2">
             {campo(bil.fatturato, (s) => setBil({ ...bil, fatturato: s }), 'fatturato €', 'w-32')}
             {campo(bil.utile, (s) => setBil({ ...bil, utile: s }), 'utile netto €', 'w-32')}
             {campo(bil.anno, (s) => setBil({ ...bil, anno: s }), 'anno', 'w-20')}
             {campo(bil.forma, (s) => setBil({ ...bil, forma: s }), 'srl / snc / ditta', 'w-28')}
           </div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-spento">Dalla chiamata: il valore che possiamo portare</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-navy/70">Dalla chiamata: il valore che possiamo portare</p>
           <div className="flex flex-wrap gap-2">
             {campo(val.clienti_extra_anno, (s) => setVal({ ...val, clienti_extra_anno: s }), 'clienti extra / anno')}
             {campo(val.valore_cliente, (s) => setVal({ ...val, valore_cliente: s }), 'valore di un cliente €')}

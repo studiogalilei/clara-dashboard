@@ -7,7 +7,7 @@ import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
 import ClaraPensa from './ClaraPensa'
 import Piano from './Piano'
-import { Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
+import { Avviso, Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
 import { useVivo } from '../lib/vivo'
 import { CLS_LABEL } from '../lib/types'
 import { pulisci, creaTask } from '../lib/regole'
@@ -32,7 +32,7 @@ export function LetturaBox({ l }: { l: Lettura }) {
   const ok = l.coerenza === 'COERENTE'
   return (
     <div className="mt-2 space-y-1 rounded-lg border border-velo bg-velo/30 px-3 py-2 text-[12px] leading-snug">
-      <p data-tip="Quello che Clara ha letto prima di scrivere: l'ultima mail loro, l'ultima nostra, i fatti verificati e il verdetto della seconda testa" className="text-[10px] font-bold uppercase tracking-[0.05em] text-spento">la lettura</p>
+      <p data-tip="Quello che Clara ha letto prima di scrivere: l'ultima mail loro, l'ultima nostra, i fatti verificati e il verdetto della seconda testa" className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">la lettura</p>
       {l.ultima_loro && <p><b>Loro</b>{l.ultima_loro_il ? `, ${l.ultima_loro_il}` : ''}: <span className="text-tenue">{l.ultima_loro.slice(0, 260)}{l.ultima_loro.length > 260 ? '…' : ''}</span></p>}
       {l.ultima_nostra && <p><b>Noi</b>{l.ultima_nostra_il ? `, ${l.ultima_nostra_il}` : ''}{l.scritto_dopo_di_lei ? ' (dopo la loro)' : ''}: <span className="text-tenue">{l.ultima_nostra.slice(0, 200)}{l.ultima_nostra.length > 200 ? '…' : ''}</span></p>}
       <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-tenue">
@@ -56,7 +56,7 @@ interface Proposta {
   azione: {
     prospects?: Record<string, unknown>
     task?: { titolo: string; scadenza?: string | null }
-    bozza?: string; bozza_originale?: string; intento?: string; template?: string
+    bozza?: string; bozza_originale?: string; intento?: string; template?: string; allega?: boolean
     // LA LETTURA (25/9): nessuna bozza senza lettura. Loro, noi, e il verdetto della seconda testa
     lettura?: Lettura
     // «non e' nel CRM, lo aggiungo?»: il prospect da creare e le call da attaccargli
@@ -339,6 +339,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // messaggi indirizzati a te, piu' quelli di tutti che non hanno un
   // destinatario. Quello che lei SA resta comune, quello che DICE e' tuo.
   const [proposte, setProposte] = useState<Proposta[]>([])
+  // L'INVIO È ACCESO? (Dre, 28/9: «ho inviato dal telefono e non è andato»).
+  // Qui si approva, ma a mandare è Clara in cloud. Se l'operazione «manda» è
+  // spenta, la mail resta ferma e prima nessuno lo diceva: il bottone prometteva
+  // un invio che non c'era. Lo stato vero si legge e si mostra sul bottone.
+  const [invioAcceso, setInvioAcceso] = useState<boolean | null>(null)
   const [rispondo, setRispondo] = useState<number | null>(null)
   // quello che non e' riuscito resta scritto, e la proposta resta nella Posta
   const [guaio, setGuaio] = useState<string | null>(null)
@@ -403,7 +408,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                               )}
                               {c.ultimo && (
                                 <blockquote className="border-l-2 border-bordo pl-3 text-[13px] leading-snug text-tenue">
-                                  <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                  <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">
                                     cosa ha scritto{c.quando ? `, ${fmtDateShort(c.quando)}` : ''}
                                   </span>
                                   <span className="line-clamp-5 whitespace-pre-wrap">{c.ultimo}</span>
@@ -413,7 +418,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                               {pr.azione?.lettura && <LetturaBox l={pr.azione.lettura} />}
                               {pr.azione?.bozza !== undefined && (
                                 <div className="mt-2">
-                                  <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                                  <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">
                                     la bozza{pr.azione.template ? `, ${pr.azione.template}` : ''}
                                     <button
                                       onClick={async () => {
@@ -441,7 +446,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                 copia e incolla in sei passaggi (QA Dre, 14/9) */}
                             {pr.azione?.bozza !== undefined && c?.p?.email && (
                               <a
-                                href={`mailto:${encodeURIComponent(c.p.email)}?subject=${encodeURIComponent(pr.titolo)}&body=${encodeURIComponent(bozze[pr.id] ?? pr.azione.bozza ?? '')}`}
+                                href={`mailto:${encodeURIComponent(c.p.email)}?subject=${encodeURIComponent('Re: ' + (c.p.company || c.p.name || ''))}&body=${encodeURIComponent(bozze[pr.id] ?? pr.azione.bozza ?? '')}`}
                                 className="rounded-full border border-navy px-4 py-1.5 text-xs font-bold text-navy hover:bg-velo"
                               >
                                 Aprila già scritta
@@ -451,9 +456,18 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                 blocca: la stessa proposta poteva partire due volte */}
                             <button onClick={() => { if (pr.azione?.intento === 'INT-GB' && chiedoConferma !== pr.id) { setChiedoConferma(pr.id); return } rispondi(pr, true) }}
                                     disabled={rispondo === pr.id || lavoro !== null}
-                                    className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
-                              {pr.azione?.bozza !== undefined ? 'Approva e manda' : 'Sì'}
+                                    data-tip={invioAcceso === false ? "L'invio automatico è spento: approvi, ma la mail resta ferma finché non lo riaccendi" : undefined}
+                                    className={`rounded-full px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40 ${invioAcceso === false ? 'bg-tenue' : 'bg-blu'}`}>
+                              {pr.azione?.bozza === undefined ? 'Sì' : invioAcceso === false ? 'Approva (non parte)' : 'Approva e manda'}
                             </button>
+                            {/* il giro a mano: copia, manda da Smartlead, torna e conferma */}
+                            {pr.azione?.bozza !== undefined && (
+                              <button onClick={() => void hoMandatoIo(pr)} disabled={rispondo === pr.id || lavoro !== null}
+                                      data-tip="L'hai già mandata da Smartlead: la scrivo nella storia, tolgo l'attesa e chiudo la bozza"
+                                      className={`rounded-full px-4 py-1.5 text-xs font-bold disabled:opacity-40 ${invioAcceso === false ? 'bg-blu text-white' : 'border border-blu text-blu hover:bg-blu/5'}`}>
+                                Fatto, l'ho mandata
+                              </button>
+                            )}
                             <button onClick={() => rispondi(pr, false)} disabled={rispondo === pr.id || lavoro !== null} className="rounded-full border border-bordo px-4 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">No</button>
                             {chiedoConferma === pr.id && (
                               <span className="w-full text-[11px] font-semibold text-amber-800">
@@ -461,7 +475,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                               </span>
                             )}
                             {pr.prospect_id && (
-                              <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Storia</button>
+                              <button onClick={() => vaiAllaStoria(pr)} data-tip="Apre la scheda dell'azienda, direttamente sul filo delle mail e delle call"
+                                        className="ml-auto text-xs font-bold text-blu hover:underline">Apri la scheda</button>
                             )}
                           </div>
                         </div>
@@ -508,6 +523,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
           (peso[a.tipo] ?? 9) - (peso[b.tipo] ?? 9) || a.tipo.localeCompare(b.tipo))
         setProposte(l)
       })
+    supabase.from('operazioni').select('attiva').eq('chiave', 'manda').maybeSingle()
+      .then(({ data }) => setInvioAcceso(data ? Boolean((data as { attiva: boolean }).attiva) : null))
     supabase
       .from('clara_messaggi')
       .select('*')
@@ -640,6 +657,31 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     const idx = proposte.findIndex((x) => x.id === p.id)
     const dopo = [...proposte.slice(idx + 1), ...proposte.slice(0, idx)].find((x) => x.id !== p.id && x.tipo === p.tipo)
     if (dopo) void apriProposta(dopo)
+  }
+
+  // L'HO MANDATA IO (Dre, 28/9: «d'ora in poi copio e incollo, imposta il sistema
+  // così»). Nella Posta mancava del tutto: si poteva copiare il testo, ma poi la
+  // bozza restava aperta e la scheda non sapeva che la mail era uscita. Qui si
+  // chiude il giro: la mail entra nella storia, l'attesa si toglie, la bozza si
+  // chiude. Nessuno spedisce al posto di Dre.
+  async function hoMandatoIo(p: Proposta) {
+    if (!p.prospect_id || rispondo === p.id) return
+    setRispondo(p.id); setGuaio(null)
+    const corpo = (bozze[p.id] ?? p.azione?.bozza ?? '').trim()
+    if (!corpo) { setGuaio('La bozza è vuota'); setRispondo(null); return }
+    const { error } = await supabase.from('interactions')
+      .insert({ prospect_id: p.prospect_id, at: new Date().toISOString(), kind: 'email_out', body: corpo })
+    if (error) { setGuaio(`Non sono riuscita a segnarla: ${error.message}`); setRispondo(null); return }
+    const agg: Record<string, unknown> = { awaiting_us: false }
+    if (p.azione?.allega) { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString() }
+    if (p.azione?.intento === 'INT-GB') { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString(); agg.no_followup = true }
+    await supabase.from('prospects').update(agg).eq('id', p.prospect_id)
+    // 29/9: la correzione di Dre resta scritta, cosi' `lezioni` la trova e la propone come regola
+    const azione = { ...(p.azione ?? {}), bozza_originale: p.azione?.bozza_originale ?? p.azione?.bozza, bozza: corpo }
+    await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', p.id)
+    setProposte((l) => l.filter((x) => x.id !== p.id))
+    await scriviMessaggio('controllo', `Mandata a mano da Dre: ${p.titolo}`, p.prospect_id)
+    setRispondo(null)
   }
 
   async function rispondi(p: Proposta, si: boolean, muto = false): Promise<boolean> {
@@ -993,7 +1035,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             <div key={pr.id} className={`border-b border-velo ${aperto ? 'bg-velo/40' : ''}`}>
               {nuovoGruppo && (
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 bg-fondo px-5 pb-1.5 pt-3">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-spento">{GRUPPO[pr.tipo] ?? pr.tipo}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">{GRUPPO[pr.tipo] ?? pr.tipo}</span>
                   <span className="text-[10px] font-bold tabular-nums text-tenue">{quanti}</span>
                   {staLavorando && lavoro ? (
                     <span className="ml-auto text-[11px] font-semibold tabular-nums text-tenue">
@@ -1041,7 +1083,14 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // la pagina della posta (voce di menu in basso): niente chat, solo le cose da decidere
   if (pagina) {
     return (
-      <div className="pb-24 sm:pb-8">
+      <div className="pb-36 sm:pb-8">
+        {invioAcceso === false && (
+          <Avviso tono="blu" titolo="Le mandi tu" className="mb-3">
+            Clara scrive, tu leggi e mandi da Smartlead. Copia il testo o aprila già scritta,
+            poi premi «Fatto, l'ho mandata»: la mail entra nella storia e la bozza si chiude.
+            Nessuna mail parte da sola, quindi non rischi di mandarla due volte.
+          </Avviso>
+        )}
         {proposte.length > 0 && (
           <div className="mb-3 flex items-baseline gap-3">
             <span className="ml-auto text-sm font-bold tabular-nums text-navy">{proposte.length}</span>
@@ -1183,6 +1232,11 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
               </div>
             </header>
 
+            {/* LE COSE DA DECIDERE (bug trovato il 26/9: il pannello diceva
+                «Clara chiede 5» e sotto era vuoto, perché il corpo esisteva
+                solo per la chat. Con la chat spenta non si vedeva niente). */}
+            {vista === 'posta' && listaPosta()}
+
             {/* la conversazione */}
             {vista === 'chat' && (
             <ZonaFile onFile={allega} messaggio="Lascia qui: lo passo ai Documenti" className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
@@ -1255,7 +1309,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
               <div className="salta-su space-y-2 border-t border-velo bg-velo/40 p-4">
                 {comando === 'task' ? (
                   <>
-                    <p className="text-xs font-bold uppercase tracking-wide text-spento">Nuova task</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-navy/70">Nuova task</p>
                     <input
                       autoFocus
                       value={pTitolo}
@@ -1292,7 +1346,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-bold uppercase tracking-wide text-spento">{CALL[comando]}</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-navy/70">{CALL[comando]}</p>
                     {pProspect ? (
                       <p className="flex items-center gap-2 text-[11px]">
                         <span className="rounded-full bg-blu/10 px-2 py-0.5 font-bold text-navy">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
+import { perUrgenza, urgenza } from '../lib/urgenza'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, ClsBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
 import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, eSettoreDelFoglio, SETTORI, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
@@ -226,9 +227,18 @@ export default function Lista({ onOpen, q }: Props) {
           out.push(r)
         }
       }
-      // in ordine di arrivo: l'ultima risposta piu' recente in cima
-      out.sort((a, b) => (b.last_reply_at ?? '').localeCompare(a.last_reply_at ?? ''))
-      setRows(out)
+      // L'ORDINE PER URGENZA (Dre, 29/9: «le cose importanti in alto, le meno
+      // importanti piu' in basso, cosi' faccio le cose in ordine guardando
+      // dall'alto»). Prima si ordinava per data dell'ultima loro mail: un «no»
+      // di ieri stava sopra a una bozza pronta da tre giorni. Misurato: 83
+      // aziende in pipeline, 72 ferme da oltre un mese, lavoro vero 11 righe.
+      const bozze = new Set(
+        ((await supabase.from('proposte').select('prospect_id').in('stato', ['aperta', 'approvata'])).data ?? [])
+          .map((x) => (x as { prospect_id: string | null }).prospect_id)
+          .filter((x): x is string => Boolean(x)),
+      )
+      if (!attivo) return
+      setRows(perUrgenza(out, bozze))
     }, 200)
     return () => { attivo = false; clearTimeout(t) }
   }, [q, giro])
@@ -465,6 +475,12 @@ export default function Lista({ onOpen, q }: Props) {
             {p.email}
             {p.last_reply_at && <>, ultima risposta {fmtDateShort(p.last_reply_at)}</>}
           </p>
+          {/* PERCHE' E' QUI (29/9). L'ordine per urgenza funziona solo se ogni
+              riga sa dire perche' sta dov'e': un ordine che non si spiega e' un
+              ordine di cui non ci si fida, e si torna a scorrere tutto. */}
+          <p className="truncate text-[11px] font-semibold text-blu">
+            {urgenza({ ...p, id: p.id }, new Set(Object.entries(aperte).filter(([, v]) => v.bozza || v.domanda).map(([k]) => k))).perche}
+          </p>
         </div>
         {eCliente(p) && vedoSoldi ? (
           <span className="hidden shrink-0 text-right text-xs sm:block">
@@ -541,7 +557,7 @@ export default function Lista({ onOpen, q }: Props) {
   }
 
   return (
-    <div className="pb-24 sm:pb-8">
+    <div className="pb-36 sm:pb-8">
       <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-1">
         {/* il selettore della vista */}
         <div className="mr-2 flex shrink-0 overflow-hidden rounded-full border border-bordo bg-white">
@@ -712,7 +728,7 @@ export default function Lista({ onOpen, q }: Props) {
                           if (suoi.length === 0) return null
                           return (
                             <div key={nome} className="space-y-1.5">
-                              <p className="flex items-baseline gap-1.5 px-1.5 pt-1.5 text-[10px] font-bold uppercase tracking-[0.05em] text-spento">
+                              <p className="flex items-baseline gap-1.5 px-1.5 pt-1.5 text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">
                                 {nome} <span className="tabular-nums text-tenue">{suoi.length}</span>
                               </p>
                               {suoi.map((p) => cartaBoard(p, chiave))}

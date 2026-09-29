@@ -89,7 +89,12 @@ export function Timeline({ timeline, agenda, onTutta }: {
   if (timeline === null) return <Spinner />
   const tutte = tappe(timeline, agenda)
   const poche = riassunto(tutte)
-  if (tutte.length === 0) return <p className="text-sm text-spento">Nessun evento ancora.</p>
+  if (tutte.length === 0) return (
+    <p className="text-[13px] leading-snug text-tenue">
+      Ancora nessun evento. Qui finiscono da sole le mail scambiate, le call e le note:
+      compaiono dopo la prima sincronizzazione con Smartlead.
+    </p>
+  )
   return (
     <div>
       <ol className="relative ml-1.5 border-l-2 border-velo">
@@ -171,14 +176,23 @@ export function StoriaCompleta({ prospectId, nome, timeline, agenda, prossimoPas
             </p>
           </Card>
         )}
-        {eventi.length === 0 && <p className="text-sm text-spento">Nessun evento ancora.</p>}
+        {eventi.length === 0 && (
+          <div className="py-10 text-center">
+            <p className="text-sm font-semibold text-tenue">Ancora nessun evento</p>
+            <p className="mx-auto mt-1 max-w-[420px] text-[13px] leading-snug text-tenue">
+              Il filo si riempie da solo: le mail scambiate su Smartlead, le call col loro riassunto,
+              le note che scrivete voi. Se l'azienda ha già scritto e qui non c'è niente,
+              premi «Sincronizza» in Pipeline.
+            </p>
+          </div>
+        )}
         <div className="space-y-2.5">
           {lista.map((e, i) => {
             const nuovoGiorno = i === 0 || giorno(lista[i - 1].at) !== giorno(e.at)
             return (
               <div key={e.chiave}>
                 {nuovoGiorno && (
-                  <p className="my-4 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.06em] text-spento">
+                  <p className="my-4 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">
                     <span className="h-px flex-1 bg-bordo" />{giorno(e.at)}<span className="h-px flex-1 bg-bordo" />
                   </p>
                 )}

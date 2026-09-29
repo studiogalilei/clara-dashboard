@@ -84,7 +84,7 @@ function Cantiere({ righe, nomi, diario }: {
         ] as Array<[string, number]>).map(([n, v]) => (
           <div key={n} className="px-4 py-3">
             <p className="text-[24px] font-extrabold leading-none tabular-nums">{v}</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-spento">{n}</p>
+            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">{n}</p>
           </div>
         ))}
       </div>

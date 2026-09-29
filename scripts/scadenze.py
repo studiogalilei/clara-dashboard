@@ -52,6 +52,7 @@ def main():
             fatte += 1
     print(f"scadenze: {fatte} proposte, {len(righe)} prove in scadenza")
     preventivi_scaduti(prova, oggi)
+    progetti_in_scadenza(prova, oggi)
 
 
 def preventivi_scaduti(prova, oggi):
@@ -91,6 +92,59 @@ def preventivi_scaduti(prova, oggi):
         if proponi("richiesta", titolo, prospect_id=q["prospect_id"], perche=perche, azione=azione):
             fatte += 1
     print(f"preventivi scaduti: {fatte} proposte, {len(righe)} scaduti")
+
+def progetti_in_scadenza(prova, oggi):
+    """LE SCADENZE DEL LAVORO CONSEGNATO (27/9). Qui si guardavano solo le prove e i
+    preventivi: le date sui progetti non le leggeva nessuno. Il sito vetrina di
+    Zafferano era scaduto il 2 settembre e per venticinque giorni non l'ha detto
+    nessuno. E' anche meta' di quello che ha chiesto Carlo il 23/9 («Clara che ci
+    dica: mancano tre giorni, bisognerebbe fare il check»).
+    Avvisa chi segue il progetto, una volta sola per scadenza."""
+    entro = (oggi + datetime.timedelta(days=PREAVVISO)).isoformat()
+    righe = sb("GET", "/rest/v1/progetti?select=id,nome,cliente,scadenza,stato,chi_segue,prospect_id"
+                      f"&scadenza=lte.{entro}&stato=neq.consegnato&order=scadenza.asc&limit=200") or []
+    gia = {((pr.get("azione") or {}).get("progetto_scadenza"), (pr.get("azione") or {}).get("progetto_id"))
+           for pr in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.umano&limit=5000") or [])}
+    chi = {(x.get("nome") or "").split(" ")[0].lower(): x["id"]
+           for x in (sb("GET", "/rest/v1/profili?select=id,nome") or []) if x.get("nome")}
+    fatte = 0
+    for g in righe:
+        if (g.get("scadenza"), g.get("id")) in gia:
+            continue
+        quando = datetime.date.fromisoformat(g["scadenza"])
+        giorni = (quando - oggi).days
+        nome = f"{g.get('cliente') or '?'}: {g.get('nome') or 'progetto'}"
+        if giorni < 0:
+            g_fa = abs(giorni)
+            titolo = f"{nome} è scaduto il {quando:%d/%m}, {g_fa} giorn{'o' if g_fa == 1 else 'i'} fa"
+        elif giorni == 0:
+            titolo = f"{nome} scade oggi"
+        else:
+            titolo = f"{nome} scade fra {giorni} giorn{'o' if giorni == 1 else 'i'}, il {quando:%d/%m}"
+        perche = f"Stato: {g.get('stato') or '?'}" + (f", lo segue {g['chi_segue']}" if g.get("chi_segue") else ", nessuno assegnato")
+        # IL SITO CHE BLOCCA LA CAMPAGNA (Carlo, 28/9): «il sistema si blocca nella
+        # maggior parte dei casi per il lato web... ad Alex tocca consegnare almeno
+        # tre giorni prima dell'onboarding, se no a noi tocca fare tutto di corsa».
+        # Quando il progetto in ritardo e' un sito e quel cliente ha anche una
+        # campagna, il ritardo non e' solo suo: si dice cosa trascina.
+        testo_web = f"{g.get('nome') or ''} {g.get('natura') or ''}".lower()
+        if any(k in testo_web for k in ("sito", "landing", "vetrina", "web")) and g.get("prospect_id"):
+            campagne = sb("GET", "/rest/v1/progetti?select=nome,tipo,chi_segue"
+                                 f"&prospect_id=eq.{g['prospect_id']}&stato=neq.consegnato&limit=10") or []
+            ads = [c for c in campagne if c.get("tipo") in ("onboarding", "trial")]
+            if ads:
+                titolo += " e tiene ferma la campagna"
+                perche += f". Blocca: {ads[0].get('nome')} ({ads[0].get('chi_segue') or '?'})"
+        # TUTTI GLI AVVISI VANNO ANCHE A SALVATORE (Carlo, 28/9)
+        owner = chi.get((g.get("chi_segue") or "").split(" ")[0].lower())
+        azione = {"progetto_scadenza": g.get("scadenza"), "progetto_id": g.get("id"),
+                  "task": {"titolo": f"Chiudere o rimandare: {nome}", "scadenza": max(oggi, quando).isoformat()}}
+        if prova:
+            print(f"  {titolo}  ({perche})")
+            continue
+        if proponi("umano", titolo, prospect_id=g.get("prospect_id"), perche=perche[:280], azione=azione, owner=owner):
+            fatte += 1
+    print(f"progetti: {fatte} avvisi, {len(righe)} scadenze viste")
 
 
 if __name__ == "__main__":

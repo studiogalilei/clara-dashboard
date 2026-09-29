@@ -391,6 +391,11 @@ const TABELLE: Record<string, Riga[]> = {
   prospects: prospects as unknown as Riga[],
   interactions: interactions as unknown as Riga[],
   agenda: agenda as unknown as Riga[],
+  // l'invio automatico, per provare la schermata «approvata ma non parte»
+  // (28/9: Dre ha approvato dal telefono e la mail non e' uscita, perche'
+  // questa operazione era spenta e nessuno glielo diceva). In demo e' accesa:
+  // per vedere l'altro caso si mette attiva: false.
+  operazioni: [{ chiave: 'manda', attiva: false, ultima_corsa: new Date(Date.now() - 3 * 60000).toISOString() }] as unknown as Riga[],
 }
 
 function dentroLista(spec: unknown): string[] {

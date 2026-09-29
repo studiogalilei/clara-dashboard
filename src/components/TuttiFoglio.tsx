@@ -254,7 +254,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
   )
 
   return (
-    <div className="space-y-3 pb-24 sm:pb-8">
+    <div className="space-y-3 pb-36 sm:pb-8">
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="flex-1">{problema}</span>
@@ -344,7 +344,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
 
       <Card>
         <div className="flex items-center gap-3 border-b border-velo px-3 py-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-spento">{mostrate.length} {mostrate.length === 1 ? 'riga' : 'righe'}</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">{mostrate.length} {mostrate.length === 1 ? 'riga' : 'righe'}</span>
           <button onClick={() => scarica(mostrate)} data-tip="Scarica queste righe in un foglio da aprire con Excel o Numbers"
                   className="ml-auto rounded-full border border-bordo px-3 py-1 text-[11px] font-bold text-tenue hover:border-navy hover:text-navy">
             Scarica in CSV
@@ -444,7 +444,7 @@ export default function TuttiFoglio({ onOpen }: Props) {
                           <div className="overflow-x-auto rounded-lg border border-velo bg-white">
                             <table className="w-full border-collapse">
                               <thead>
-                                <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-spento">
+                                <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-navy/70">
                                   <th className="border-r border-velo px-2 py-1">Cosa</th><th className="border-r border-velo px-2 py-1 text-right">Importo</th>
                                   <th className="border-r border-velo px-2 py-1">Inviato</th><th className="border-r border-velo px-2 py-1">Stato</th>
                                   <th className="border-r border-velo px-2 py-1">Pagamento</th><th className="px-2 py-1">Note</th><th></th>

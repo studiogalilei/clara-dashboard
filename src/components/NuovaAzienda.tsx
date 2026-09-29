@@ -142,7 +142,7 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {CAMPI.map(([k, etichetta, esempio]) => (
           <label key={k} className={k === 'company' ? 'sm:col-span-2' : ''}>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-spento">{etichetta}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">{etichetta}</span>
             <input
               autoFocus={k === 'company'}
               value={v[k] ?? ''}

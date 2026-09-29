@@ -172,7 +172,12 @@ export const FASCE = Object.keys(DOMANDE) as Fascia[]
 // chiede una colonna alla volta, cosi' quello che c'e' scritto in testa e
 // quello che si vede sotto sono la stessa cosa (QA Dre, 14/9)
 export function perFascia<T>(f: Fascia, q: T): T {
-  return DOMANDE[f](q as unknown as Filtro) as unknown as T
+  // GLI ARCHIVIATI NON STANNO IN PIPELINE (29/9). Chi ha detto no da oltre un
+  // mese esce di scena: la riga resta con tutta la sua storia, e se riscrive
+  // rientra da sola (trigger nel database, schema_v62). Misurato quel giorno:
+  // 83 righe in pipeline, 59 erano «no» vecchi di mesi.
+  const senzaArchiviati = (DOMANDE[f](q as unknown as Filtro) as unknown as Filtro).is('archiviato_il', null)
+  return senzaArchiviati as unknown as T
 }
 
 export async function contaFasi(): Promise<Record<Fascia, number>> {

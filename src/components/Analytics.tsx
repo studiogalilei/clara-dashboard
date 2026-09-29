@@ -184,7 +184,7 @@ export default function Analytics({ onOpen }: Props) {
   ]
 
   return (
-    <div className="space-y-4 pb-24 sm:pb-8">
+    <div className="space-y-4 pb-36 sm:pb-8">
 
       {/* la prima cosa che si legge: come stiamo andando */}
       <Card>
@@ -198,7 +198,7 @@ export default function Analytics({ onOpen }: Props) {
             return (
               <div key={nome} className="px-4 py-3">
                 <p className="text-[26px] font-extrabold leading-none tabular-nums">{fmtNum(ora)}</p>
-                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-spento">{nome}</p>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-navy/70">{nome}</p>
                 <p className={`mt-1 text-xs font-semibold ${delta > 0 ? 'text-green-800' : delta < 0 ? 'text-red-700' : 'text-spento'}`}>
                   {delta === 0 ? 'come il mese scorso' : `${delta > 0 ? '+' : ''}${delta} su ${fmtNum(prima)}`}
                 </p>
@@ -225,7 +225,7 @@ export default function Analytics({ onOpen }: Props) {
             <thead>
               <tr className="border-b border-velo text-left">
                 {['Canale', 'Lead', 'Risposte', '% reply', 'Call fissate', 'Call fatte'].map((h, i) => (
-                  <th key={h} className={`px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-spento ${i > 0 ? 'text-right' : ''}`}>
+                  <th key={h} className={`px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-navy/70 ${i > 0 ? 'text-right' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -361,7 +361,7 @@ export default function Analytics({ onOpen }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] font-bold uppercase tracking-wide text-spento">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wide text-navy/70">
                   <th className="pb-2 pr-3">Campagna</th>
                   <th className="pb-2 pr-3 text-right">Risposte</th>
                   <th className="pb-2 pr-3 text-right">Analisi</th>
@@ -396,7 +396,7 @@ function Foto({ etichetta, valore, confronto, allarme }: {
 }) {
   return (
     <div className="rounded-2xl border border-bordo bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_rgba(16,24,40,0.04)]">
-      <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-spento">{etichetta}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-navy/70">{etichetta}</p>
       <p className={`mt-0.5 text-xl font-extrabold ${allarme ? 'text-red-700' : ''}`}>{valore}</p>
       {confronto && <p className="mt-0.5 text-[11px] text-tenue">{confronto}</p>}
     </div>

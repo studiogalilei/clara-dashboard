@@ -81,6 +81,63 @@ def _smartlead(p):
     return out
 
 
+# QUELLO CHE HA SCRITTO LUI, SENZA LA NOSTRA MAIL SOTTO (Dre, 28/9). Una lead
+# immobiliare ha risposto «si grazie sono curiosa» e il sistema l'ha saltata dicendo
+# che aveva «chiesto di non essere contattata»: la parola «cancellarlo» stava
+# dentro la NOSTRA firma sul GDPR, citata sotto la sua risposta. Misurato su 300
+# risposte: 6 bloccate per sbaglio, fra cui un si' pieno. Da qui in poi le regole
+# che cercano un rifiuto guardano solo le righe che ha scritto la persona.
+CITAZIONE = re.compile(
+    r"\n\s*(?:>\s*)?(?:il giorno\s+\w|on\s+\w.{0,60}\bwrote:|-{2,}\s*original message|"
+    r"da:\s|from:\s|inviato:\s|sent:\s|a:\s.{0,60}\noggetto:|_{5,})", re.I)
+
+
+# La firma aziendale, che comincia dopo i saluti. Cristian Porta (La Baita Case)
+# ha scritto «sarei felice di ricevere la vostra analisi» ed e' stato bloccato
+# dalla parola «privacy» dentro la SUA firma («Informativa privacy disponibile
+# sul nostro sito»). Misurato su 300 risposte: 45 portano un disclaimer legale.
+SALUTI = re.compile(
+    r"\n\s*(?:cordiali saluti|distinti saluti|un cordiale saluto|cari saluti|"
+    r"in attesa di|best regards|kind regards|--\s*$|__+\s*$)", re.I | re.M)
+DISCLAIMER = re.compile(
+    r"informativa privacy|"
+    r"(?:le |l')informazioni (?:incluse|contenute|trasmesse|presenti)|"
+    r"questo (?:messaggio|documento|e-?mail) (?:e'|è) (?:riservat|confidenzial|destinat)|"
+    r"il (?:presente|contenuto del) messaggio (?:e'|è)|"
+    r"this (?:communication|message|e-?mail|document) is (?:confidential|intended|reserved)|"
+    r"reg\.? ?ue ?2016/679|regolamento \(?ue\)? ?2016/679|\bgdpr\b|privacy:\s|"
+    r"destinatario indicato|ai sensi dell|\*{6,}|"
+    r"se (?:avete|hai) ricevuto (?:questo|questa) (?:messaggio|documento|mail|comunicazione) per errore", re.I)
+
+
+def solo_suo(testo, con_firma=False):
+    """Quello che ha scritto la persona: senza la nostra mail citata sotto e,
+    se non si chiede il contrario, senza la sua firma e il disclaimer legale.
+
+    Serve alle regole che cercano un rifiuto: «privacy», «cancellar», «rimuov»
+    stanno quasi sempre nella firma o nel disclaimer, non in quello che dice.
+    Per leggere il messaggio intero (per esempio per scrivere la risposta) si
+    passa con_firma=True: li' la firma serve, perche' contiene il nome e il ruolo.
+    """
+    t = testo or ""
+    m = CITAZIONE.search(t)
+    if m:
+        t = t[:m.start()]
+    # via le righe citate con «>», che in ogni client sono testo di qualcun altro
+    t = "\n".join(r for r in t.split("\n") if not r.lstrip().startswith(">")).strip()
+    if con_firma:
+        return t
+    # il disclaimer legale: si taglia da dove comincia
+    d = DISCLAIMER.search(t)
+    if d:
+        t = t[:d.start()]
+    # la firma: si taglia dopo i saluti, ma solo se resta abbastanza messaggio
+    f = SALUTI.search(t)
+    if f and len(t[:f.start()].strip()) >= 25:
+        t = t[:f.start()]
+    return t.strip()
+
+
 def filo(p):
     """Il thread vero, in ordine di tempo. Riempie i segnaposto nel CRM strada facendo."""
     righe = sb("GET", f"/rest/v1/interactions?select=id,kind,at,body,ref&prospect_id=eq.{p['id']}"
@@ -134,7 +191,9 @@ def ha_gia(p, righe):
         "scritto_dopo_di_lei": len(dopo),
         "analisi_ricevuta": bool(p.get("analysis_sent")) or bool(GIA_LETTA.search(testo)) or ("analisi" in nostre_testo and bool(dopo)),
         "analisi_gia_letta": bool(GIA_LETTA.search(testo)),
-        "detto_no": bool(DETTO_NO.search(testo)),
+        # 28/9: solo le sue righe. La nostra mail citata sotto contiene le nostre
+        # frasi, e una di quelle poteva far sembrare che avesse detto di no.
+        "detto_no": bool(DETTO_NO.search(solo_suo(testo))),
         "autorisposta": bool(AUTORISPOSTA.search(testo[:1200])),
         "casella_di_servizio": bool(SERVIZIO.match(p.get("email") or "")),
         "destinatario": (alt[0] if alt and alt[0] else None),

@@ -94,7 +94,7 @@ function Anteprima({ f, url: grezzo }: { f: FileVault; url: string | null }) {
         <span className="h-1 w-full rounded-full bg-inchiostro/10" />
         <span className="h-1 w-full rounded-full bg-inchiostro/10" />
         <span className="h-1 w-5/6 rounded-full bg-inchiostro/10" />
-        {est && <span className="mt-auto self-end text-[10px] font-bold uppercase tracking-wide text-spento">{est}</span>}
+        {est && <span className="mt-auto self-end text-[10px] font-bold uppercase tracking-wide text-navy/70">{est}</span>}
       </div>
     </div>
   )
@@ -364,7 +364,7 @@ export default function Vault({ onOpen }: Props) {
   const recenti = (file ?? []).filter((f) => f.sezione === 'clienti' || f.sezione === 'azienda').slice(0, 5)
 
   return (
-    <ZonaFile onFile={accogli} messaggio="Lascia qui: va nei Documenti" className="space-y-5 pb-24 sm:pb-8">
+    <ZonaFile onFile={accogli} messaggio="Lascia qui: va nei Documenti" className="space-y-5 pb-36 sm:pb-8">
 
       {problema && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

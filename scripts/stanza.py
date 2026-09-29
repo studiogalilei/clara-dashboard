@@ -8,7 +8,9 @@ file e' solo la porta di servizio, e la usano sia la rilettura sia
 l'ascoltatore, cosi' la scrittura di una proposta e' una e non due.
 """
 
+import datetime
 import json
+import re
 import sys
 import os
 import urllib.error
@@ -16,6 +18,20 @@ import urllib.parse
 import urllib.request
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def quando(iso):
+    """La data come la scrive il database, con QUALUNQUE numero di decimali.
+
+    Postgres scrive i microsecondi senza zeri finali («...28.13447+00:00»), e
+    Python sotto la 3.11 accetta solo tre o sei cifre: chi legge quella data
+    finisce in ValueError. Il cloud gira su 3.12 e non se ne accorge, il Mac su
+    3.9 sì, quindi il guasto si vede solo qui e sembra un mistero. Trovato il
+    26/9 in salute.py, ritrovato il 28/9 nel direttore: sta qui perché lo usino
+    tutti invece di riscoprirlo ogni volta.
+    """
+    t = re.sub(r"\.(\d{1,6})\d*", lambda m: "." + m.group(1).ljust(6, "0"), (iso or "").replace("Z", "+00:00"))
+    return datetime.datetime.fromisoformat(t)
 
 
 def env(nome):
@@ -36,7 +52,30 @@ URL = env("VITE_SUPABASE_URL")
 CHIAVE = env("SUPABASE_SERVICE_KEY") or env("SUPABASE_SERVICE_ROLE_KEY")
 
 
-CHI_SCRIVE = os.path.basename(sys.argv[0]).replace(".py", "") if sys.argv and sys.argv[0] else "python"
+def _chi_scrive():
+    """Il nome di chi sta scrivendo, per il registro. Il modo ovvio (il nome del
+    file lanciato) fallisce quando il codice parte con «python3 -c» o dentro un
+    altro script: allora il nome diventa «-c» o vuoto, e nel registro resta una
+    riga anonima. Trovato il 26/9: 401 righe su 713 senza nome, cioe' dopo un
+    guaio non si risaliva a chi aveva cambiato cosa. Qui si guarda anche la pila
+    delle chiamate, che dice sempre da quale file arriva la scrittura."""
+    nome = os.path.basename(sys.argv[0] or "").replace(".py", "")
+    if nome and nome not in ("-c", "-", "python", "python3", "<stdin>"):
+        return nome
+    try:                      # il primo file nostro che ha chiamato, dal basso
+        import traceback
+        qui = os.path.dirname(os.path.abspath(__file__))
+        for f in reversed(traceback.extract_stack()[:-1]):
+            d = os.path.dirname(os.path.abspath(f.filename))
+            base = os.path.basename(f.filename).replace(".py", "")
+            if d.startswith(qui) and base not in ("stanza", "<stdin>") and not base.startswith("<"):
+                return base
+    except Exception:
+        pass
+    return "a-mano"           # scritto da una persona in una finestra, non da un'operazione
+
+
+CHI_SCRIVE = _chi_scrive()
 
 
 def sb(metodo, percorso, corpo=None, intestazioni=None):
@@ -72,6 +111,13 @@ def contattabile(p):
     return True
 
 
+def _a_secco():
+    """Siamo in una prova a secco? Si guarda la riga di comando e l'ambiente."""
+    return ("--prova" in sys.argv or "--dry-run" in sys.argv
+            or os.environ.get("PROVA") == "1" or os.environ.get("POLIZIA_PROVA") == "1"
+            or os.environ.get("REVISORE_PROVA") == "1")
+
+
 def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None, ref=None):
     """Una proposta nella stanza. Non scrive niente nella pipeline: solo la domanda.
 
@@ -79,7 +125,17 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
     doppie e smetterebbe di leggerle. Con `ref` (schema_v45) la stessa
     domanda non nasce mai due volte, nemmeno dopo che e' stata chiusa: e' il
     modo giusto per le cose che ripassano ogni quarto d'ora (posta, azioni).
+
+    LA PROVA A SECCO NON SCRIVE (28/9). Una prova di bozze.py lanciata con
+    --prova ha creato otto proposte vere nella Posta di Dre, perche' chi aveva
+    scritto quella parte (io) si era dimenticato il controllo. Il freno sta qui,
+    non nei singoli script: se il comando ha --prova o PROVA=1, si stampa quello
+    che si sarebbe chiesto e non si scrive niente. Cosi' vale per tutti, anche
+    per il prossimo pezzo di codice che qualcuno aggiunge distrattamente.
     """
+    if _a_secco():
+        print(f"    (prova) chiederei: [{tipo}] {str(titolo)[:70]}")
+        return None
     if ref:
         gia = sb("GET", f"/rest/v1/proposte?select=id&ref=eq.{urllib.parse.quote(ref, safe='')}&limit=1")
         if gia:

@@ -399,6 +399,21 @@ def manuale(*parti):
     return "\n\n".join(pezzi)
 
 
+def ruolo(nome):
+    """Il mansionario del ruolo (scripts/ruoli/<NOME>.md): il lavoro, cosa puo'
+    fare, cosa non puo' MAI fare, quando fermarsi e chiedere. Dal metodo dei
+    quattro ruoli (29/9): ogni agente sa dove finisce il suo mestiere.
+    Se il file manca si va avanti senza: e' una guida, non un requisito."""
+    import os
+    try:
+        qui = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(qui, "ruoli", f"{nome.upper()}.md"), encoding="utf-8") as f:
+            t = f.read().strip()
+        return t + "\n\n" if t else ""
+    except Exception:
+        return ""
+
+
 def istruzione(chiave):
     """Le istruzioni che Dre scrive nella sala di controllo (tabella istruzioni).
     Senza tabella o senza testo si va avanti senza: sono un di piu', non un requisito."""
