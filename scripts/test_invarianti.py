@@ -522,7 +522,7 @@ def _():
     # cancello deve restare chiusa quando deve.
     let = {"coerenza": "COERENTE", "scritto_dopo_di_lei": 0, "ultima_loro": "si' grazie, mandatemi l'analisi"}
     pr = {"id": 1, "tipo": "risposta", "titolo": "Bozza per Rossi, INT-01",
-          "azione": {"bozza": "Salve,\n\necco l'analisi.", "intento": "INT-01", "lettura": let}}
+          "azione": {"bozza": "Salve,\n\necco l'analisi.\nIl calendario: https://calendar.app.google/x", "intento": "INT-01", "lettura": let}}
     p = {"id": "x", "email": "a@b.it", "classificazione": "positivo", "stage": "risposto",
          "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf"}
     assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
@@ -551,6 +551,9 @@ def _():
         (con(p_mod={"no_followup": True}), "chi non va ricontattato"),
         (con(az_mod={"approvata_da": "qualcuno"}), "una gia' approvata"),
         (con(az_mod={"prima_risposta": {"esito": "resta a Dre"}}), "una gia' fermata dal Revisore"),
+        (con(az_mod={"bozza": "Salve,\nvolentieri la call: https://calendar.app.google/x"}), "una prima risposta senza l'analisi (Yachtspassion)"),
+        (con(az_mod={"bozza": "Salve,\necco l'analisi, resto a disposizione."}), "una prima risposta senza call (Optima, Mason)"),
+        (con(az_mod={"bozza": "Salve,\nin chiamata vediamo insieme l'analisi: https://calendar.app.google/x"}), "una mail che non dice che l'analisi e' allegata (Yachtspassion)"),
     ):
         assert caso, f"la prima risposta automatica farebbe partire {motivo}"
     # la finestra: lun-ven 9-17 a Roma

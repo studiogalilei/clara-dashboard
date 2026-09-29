@@ -54,6 +54,7 @@ USO
 
 import datetime
 import os
+import re
 import sys
 import zoneinfo
 
@@ -72,6 +73,8 @@ CLASSI_OK = ("positivo", "tiepido")
 # ma non la call. Il resto (rinvii, inoltri, obiezioni, prezzo, «come ci avete
 # trovato») e' una conversazione, non una prima risposta: resta a Dre.
 INTENTI_OK = ("INT-01", "INT-02", "INT-03", "INT-23")
+ALLEGA_ANALISI = re.compile(r"(?:inoltr|alleg|le lascio|ecco|trova qui|le mando|le invio)[^.\n]{0,60}\banalisi\b|"
+                            r"\banalisi\b[^.\n]{0,40}(?:in allegato|allegat|qui sotto)")
 CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,fuori,no_followup,"
          "analysis_sent,analysis_pdf,campaign,campaign_id,lead_id,last_reply_at")
 
@@ -101,6 +104,18 @@ def perche_no(pr, p):
         no.append("e' da guardare")
     if not (az.get("bozza") or "").strip():
         no.append("manca la bozza")
+    # DAL BANCO DI PROVA (29/9, 70 risposte vere di Dre): alla prima risposta Dre
+    # manda SEMPRE l'analisi, anche a chi chiede solo «una chiacchierata»
+    # (Yachtspassion), e propone SEMPRE la call col calendario, anche a chi dice
+    # «niente budget quest'anno» (Optima, Mason). Le bozze che non lo fanno non
+    # partono da sole: il PDF partirebbe allegato a una mail che non lo nomina.
+    # Non basta nominarla: «vediamo insieme l'analisi in call» (Yachtspassion,
+    # Abiovet) con il PDF attaccato e' una mail che non sa cosa porta.
+    testo = (az.get("bozza") or "").lower()
+    if not ALLEGA_ANALISI.search(testo):
+        no.append("la bozza non dice che l'analisi e' allegata")
+    if "calendar.app.google" not in testo:
+        no.append("la bozza non propone la call col calendario")
     if az.get("approvata_da") or az.get("prima_risposta"):
         no.append("gia' passata di qui")
     if let.get("gruppo"):

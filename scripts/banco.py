@@ -164,7 +164,65 @@ def prova_uno(p, c):
     return out
 
 
+def rigiudica(entra, esce):
+    """Il secondo giudizio (29/9). Il primo confondeva gli errori veri con il template
+    che e' cambiato: le risposte di Dre di luglio non avevano la proposta con garanzia
+    ne' la presentazione, quelle di oggi si'. Qui il giudice ha il template di oggi e
+    la data della risposta di Dre, e una categoria in piu': TEMPLATE."""
+    oggi = R._template_approvati()
+    casi = {}
+    for f in entra:
+        for x in json.load(open(f)):
+            if x and not x.get("saltato"):
+                casi[x["email"]] = x
+
+    def uno(x):
+        prompt = f"""Sei il GIUDICE di Studio Galilei. Confronti la risposta che Dre ha mandato il {x['loro_il'][:10]} con la
+bozza che il sistema scrive OGGI alla stessa mail. Dre nel frattempo ha aggiornato il suo template: quello di oggi e' qui
+sotto ed e' approvato da lui. Se la bozza e' diversa da Dre SOLO perche' segue il template di oggi (proposta con garanzia,
+presentazione allegata, frasi standard), quella non e' una differenza: e' TEMPLATE.
+Ignora date, orari, firma, saluti, link del calendario diversi.
+
+IL TEMPLATE DI OGGI (approvato):
+{oggi[:6000]}
+
+LA LORO MAIL:
+{x['loro'][:1200]}
+
+LA RISPOSTA DI DRE:
+{x['oro'][:1500]}
+
+LA BOZZA DI OGGI:
+{x['bozza'][:1500]}
+
+Verdetto, uno solo:
+- STESSA: fa la stessa cosa di Dre;
+- STILE: stessa cosa, forma da ritoccare;
+- TEMPLATE: diversa da Dre solo dove segue il template di oggi;
+- SOSTANZA: fa una cosa diversa che Dre non farebbe nemmeno oggi (manca l'analisi, manca la proposta di call, non risponde
+  alla domanda, promette cose, ignora un'informazione importante della loro mail);
+- GRAVE: non doveva partire (nome o azienda sbagliati, risponde a un no, tono sbagliato, dice il falso).
+Rispondi SOLO con una riga: «VERDETTO: motivo in venti parole»."""
+        r = " ".join((cervello._chiedi(prompt, GIUDICE) or "").split()).strip("«»\"' ")
+        r = re.sub(r"^VERDETTO\s*:\s*", "", r, flags=re.I)
+        v = re.split(r"[:\s]", r, 1)[0].strip("*.").upper()
+        t = x["bozza"].lower()
+        return {**x, "giudice2": v if v in ("STESSA", "STILE", "TEMPLATE", "SOSTANZA", "GRAVE") else "?",
+                "giudice2_motivo": (r.split(":", 1)[1].strip() if ":" in r else r)[:240],
+                "partirebbe_ora": bool(x.get("partirebbe")) and "analisi" in t and "calendar.app.google" in t}
+
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        tutti = list(ex.map(uno, casi.values()))
+    json.dump(tutti, open(esce, "w"), ensure_ascii=False, indent=1)
+    from collections import Counter
+    for nome, xs in (("tutti", tutti), ("partirebbero (cancello nuovo)", [x for x in tutti if x["partirebbe_ora"]])):
+        print(f"  {nome:30} {len(xs):3}  {dict(Counter(x['giudice2'] for x in xs))}")
+
+
 def main():
+    if "--rigiudica" in sys.argv:
+        i = sys.argv.index("--rigiudica")
+        return rigiudica(sys.argv[i + 1].split(","), ESCE)
     bozze.LEZIONI = bozze.come_corregge_dre()         # come in produzione
     lettura.filo = lambda p: CORRENTE.get(p["id"], [])  # il filo tagliato, mai quello di oggi
     campi = ("id,name,company,email,email_alt,classificazione,stage,analysis_sent,analysis_sent_at,analysis_pdf,"
