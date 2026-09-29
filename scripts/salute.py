@@ -271,9 +271,11 @@ def main():
     # controllo nel database (schema_v67) non c'e' piu': e' una fuga, si dice subito.
     try:
         fuga = (sb("GET", "/rest/v1/prospects?select=id&or=(canone.not.is.null,fatturazione.not.is.null,enriched->prezzo.not.is.null,enriched->bilancio.not.is.null)&limit=5") or []) \
-            + (sb("GET", "/rest/v1/progetti?select=id&valore=not.is.null&limit=5") or [])
+            + (sb("GET", "/rest/v1/progetti?select=id&valore=not.is.null&limit=5") or []) \
+            + (sb("GET", "/rest/v1/agenda?select=id&preparazione=not.is.null&limit=5") or []) \
+            + (sb("GET", "/rest/v1/soldi_clienti?select=prospect_id&or=(prezzo.not.is.null,bilancio.not.is.null)&limit=5") or [])
         if fuga:
-            problemi.append(f"soldi fuori dalla cassaforte su {len(fuga)} righe: la squadra li puo' leggere. Il controllo del database (schema v67) va rimesso")
+            problemi.append(f"soldi o preparazioni fuori dal loro posto su {len(fuga)} righe: qualcuno li puo' leggere. I controlli del database (schema v67 e v68) vanno rimessi")
     except Exception as e:                                   # noqa: BLE001
         problemi.append(f"non riesco a controllare la cassaforte dei soldi: {str(e)[:80]}")
 

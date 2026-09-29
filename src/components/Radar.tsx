@@ -4,6 +4,7 @@ import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
 import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
 import { VIVI, oggi, giorno, GIORNI_FOLLOWUP } from '../lib/regole'
 import SoldiDellaCall from './SoldiDellaCall'
+import { preparazioneDi } from '../lib/riservato'
 
 // Il radar della home: la riga dei 4 numeri (la scura e' «Da fare oggi»,
 // e le call di OGGI vivono li' dentro), la card «Prossima» con il primo
@@ -58,6 +59,8 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
   const [prossimo, setProssimo] = useState<AgendaItem | null>(null)
   // quello che Clara ha preparato per la prossima call: chiuso, si apre al clic
   const [preparata, setPreparata] = useState(false)
+  // la preparazione e' riservata a Dre (29/9): si legge dalla sua tabella, agli altri non arriva
+  const [prep, setPrep] = useState<string | null>(null)
   const [settimana, setSettimana] = useState(0)
   // le ultime corse di Clara, non solo l'ora dell'ultima: senza il loro esito
   // qui si leggeva «controllato tutto» anche quando il controllo era morto
@@ -70,6 +73,12 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
   // le prove che finiscono entro due settimane: e' il momento di riaccordarsi (Dre, 9/9)
   const [proveInScadenza, setProveInScadenza] = useState<Array<{ id: string; nome: string; fine: string }>>([])
   const [tuttiAvvisi, setTuttiAvvisi] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    setPrep(null)
+    if (prossimo) void preparazioneDi(prossimo.id).then((x) => { if (vivo) setPrep(x?.testo ?? null) })
+    return () => { vivo = false }
+  }, [prossimo])
 
   useEffect(() => {
     const today = oggi()
@@ -285,7 +294,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
 
           {/* CLARA HA PREPARATO (16/9): il punto della situazione arriva
               prima della call, dove la call si vede. Chiuso: si apre al clic */}
-          {prossimo.preparazione && (
+          {prep && (
             <div className="border-t border-velo px-5 py-2">
               <button onClick={() => setPreparata(!preparata)}
                       className="flex w-full items-center gap-2 text-left text-xs font-bold text-navy hover:underline">
@@ -295,7 +304,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
               {preparata && (
                 <>
                   <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-inchiostro">
-                    {prossimo.preparazione}
+                    {prep}
                   </p>
                   {/* i soldi di questa azienda: solo Dre e Giacomo (29/9) */}
                   <SoldiDellaCall prospectId={prossimo.prospect_id} className="mt-2" />

@@ -127,14 +127,19 @@ def soldi_clienti(ids=None):
     """LA CASSAFORTE (Dre, 29/9: «i soldi li vediamo solo io e Giacomo»). Canone,
     fatturazione, prezzo suggerito e numeri del cliente stanno in soldi_clienti
     (schema_v67); gli script li leggono con la chiave di servizio. {prospect_id: riga}."""
-    if ids is not None:
-        ids = [i for i in ids if i]
-        righe = []
-        for i in range(0, len(ids), 100):
-            righe += sb("GET", f"/rest/v1/soldi_clienti?select=*&prospect_id=in.({','.join(ids[i:i+100])})") or []
-    else:
-        righe = sb_tutte("/rest/v1/soldi_clienti?select=*")
-    return {r["prospect_id"]: r for r in righe}
+    # 29/9 (schema_v68): prezzo, bilancio e valore stanno nel riservato di Dre
+    out = {}
+    for tabella in ("soldi_clienti", "riservato_clienti"):
+        if ids is not None:
+            lista = [i for i in ids if i]
+            righe = []
+            for i in range(0, len(lista), 100):
+                righe += sb("GET", f"/rest/v1/{tabella}?select=*&prospect_id=in.({','.join(lista[i:i+100])})") or []
+        else:
+            righe = sb_tutte(f"/rest/v1/{tabella}?select=*")
+        for r in righe:
+            out.setdefault(r["prospect_id"], {}).update({k: v for k, v in r.items() if v is not None or k not in out.get(r["prospect_id"], {})})
+    return out
 
 
 def con_soldi(p, soldi):

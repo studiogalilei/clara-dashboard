@@ -32,6 +32,7 @@ import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import { mensile, type Incasso } from './TuttiFoglio'
 import { conSoldi, conValore, soldiClienti, soldiProgetti } from '../lib/soldi'
 import SoldiDellaCall from './SoldiDellaCall'
+import { preparazioneDi, ultimaPreparazione, vedoRiservato, type Preparazione } from '../lib/riservato'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
   fmtDate, fmtDateShort, fmtOra, daysAgo, giorni, fmtNum, sgid,
@@ -169,6 +170,19 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   const [notaEsito, setNotaEsito] = useState<string | null>(null)
   const docRef = useRef<HTMLInputElement>(null)
   const [prossimaCall, setProssimaCall] = useState<AgendaItem | null>(null)
+  // IL RISERVATO (29/9): preparazione e prezzo solo per Dre
+  const [riservato, setRiservato] = useState(false)
+  const [prepRiservata, setPrepRiservata] = useState<Preparazione | null>(null)
+  useEffect(() => { void vedoRiservato().then(setRiservato) }, [])
+  useEffect(() => {
+    let vivo = true
+    setPrepRiservata(null)
+    if (!riservato || !id) return
+    void (prossimaCall ? preparazioneDi(prossimaCall.id) : Promise.resolve(null))
+      .then(async (x) => x ?? (await ultimaPreparazione(id)))
+      .then((x) => { if (vivo) setPrepRiservata(x) })
+    return () => { vivo = false }
+  }, [riservato, id, prossimaCall])
   // la scheda e' IL posto: qui dentro deve esserci tutto quello che esiste
   // su di lui (Dre, 4/9)
   const [documenti, setDocumenti] = useState<Array<{ id: number; nome: string; path: string; at: string }>>([])
@@ -469,8 +483,9 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   const prepVecchia = [...(timeline ?? [])].reverse().find((t) => t.kind === 'prep')
   // quella che Clara scrive da sola prima della call vince: e' di stanotte,
   // non di tre settimane fa (16/9)
-  const prep = prossimaCall?.preparazione
-    ? { body: prossimaCall.preparazione, at: prossimaCall.preparata_il ?? prossimaCall.at }
+  // 29/9: la preparazione la vede solo Dre, e sta nella sua tabella riservata
+  const prep = !riservato ? null
+    : prepRiservata ? { body: prepRiservata.testo, at: prepRiservata.preparata_il }
     : prepVecchia
   const primaRisposta = (timeline ?? []).find((t) => t.kind === 'email_in')
   const mercato = p.market ?? mercatoDi(p.sector, p.city)
@@ -1085,6 +1100,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                     Apri l'evento ↗
                   </a>
                 )}
+                {riservato && (
                 <button
                   onClick={() => setPrepAperta(!prepAperta)}
                   className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${
@@ -1093,9 +1109,10 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                 >
                   Preparazione pre-call
                 </button>
+                )}
               </div>
             </div>
-            {prepAperta && (
+            {riservato && prepAperta && (
               <div className="salta-su border-t border-velo px-5 py-4">
                 {/* i soldi di questa azienda, prima della call: solo Dre e Giacomo (29/9) */}
                 <SoldiDellaCall prospectId={p.id} className="mb-3" />
@@ -1236,7 +1253,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
 
             {/* QUANTO CHIEDERE, per chi e' in pipeline (Dre, 26/9): la fascia suggerita, interna */}
             {/* 29/9: i soldi li vedono solo i ceo (Dre e Giacomo) */}
-            {ceo && p.fuori && !ePerso(p) && !soppresso && (
+            {riservato && p.fuori && !ePerso(p) && !soppresso && (
               <PrezzoSuggerito p={p} onSalvato={(enriched) => setP({ ...p, enriched } as Prospect)} />
             )}
             {eCliente(p) && (

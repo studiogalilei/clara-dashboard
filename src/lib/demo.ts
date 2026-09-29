@@ -397,8 +397,12 @@ const TABELLE: Record<string, Riga[]> = {
   // per vedere l'altro caso si mette attiva: false.
   // la cassaforte (29/9): i soldi che vedono solo i ceo, per provare «Solo per te» prima della call
   soldi_clienti: [
-    { prospect_id: 'p5', canone: null, prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [] },
-      bilancio: { fatturato: 1850000, utile: 94000, anno: 2025, dipendenti: 14 }, fatturazione: null, valore: null },
+  ] as unknown as Riga[],
+  preparazioni: agenda.filter((a) => a.preparazione).map((a) => ({ agenda_id: a.id, prospect_id: a.prospect_id, testo: a.preparazione, preparata_il: a.preparata_il ?? a.at })) as unknown as Riga[],
+  // il riservato di Dre (29/9): prezzo, bilancio e le preparazioni delle call
+  riservato_clienti: [
+    { prospect_id: 'p5', prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [] },
+      bilancio: { fatturato: 1850000, utile: 94000, anno: 2025, dipendenti: 14 }, valore: null },
   ] as unknown as Riga[],
   soldi_progetti: [] as unknown as Riga[],
   // il calendario dei follow-up (29/9): lo scrive followup.py, qui qualche riga per provarlo
@@ -575,6 +579,7 @@ export const demoClient = {
   // fatta per far vedere com'e' (QA Dre, 15/9)
   async rpc(nome: string) {
     if (nome === 'sono_ceo') return { data: true, error: null }
+    if (nome === 'vedo_riservato') return { data: true, error: null }    // in demo sei Dre (29/9)
     // in demo il sistema e' appena passato: la riga verde si vede com'e'
     if (nome === 'ultimo_giro') return { data: new Date(Date.now() - 4 * 60000).toISOString(), error: null }
     if (nome === 'chiama_direttore') return { data: null, error: null }

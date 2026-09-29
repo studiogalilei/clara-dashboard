@@ -755,7 +755,13 @@ def _():
     assert "PREZZO SUGGERITO" not in prep and "importo,mensile" not in prep and "stato,valore" not in prep, \
         "la preparazione della call (che la squadra vede nell'evento) contiene di nuovo soldi"
     sch = qui.parents[0].joinpath("src", "components", "Scheda.tsx").read_text(encoding="utf-8")
-    assert "{ceo && p.fuori && !ePerso(p) && !soppresso && (\n              <PrezzoSuggerito" in sch, "il prezzo suggerito si vede anche a chi non e' ceo"
+    assert "{riservato && p.fuori && !ePerso(p) && !soppresso && (\n              <PrezzoSuggerito" in sch, "il prezzo suggerito si vede anche a chi non e' Dre"
+    # 29/9, IL RISERVATO: la preparazione e il prezzo solo a Dre, mai nell'evento di Google
+    import re as _re
+    assert not _re.search(r"^\s+nell_evento\(", prep, _re.M) and "/rest/v1/preparazioni" in prep, "la preparazione esce dal riservato di Dre"
+    assert "{riservato && prepAperta && (" in sch and "{riservato && (\n                <button" in sch, "la preparazione si vede a chi non e' Dre"
+    pv = qui.parents[0].joinpath("src", "components", "Preventivi.tsx").read_text(encoding="utf-8")
+    assert "{riservato && <Prezzo />}" in pv, "il calcolatore dei prezzi si vede a chi non e' Dre"
     st = qui.parents[0].joinpath("src", "lib", "stato.ts").read_text(encoding="utf-8")
     assert "x.soldi === false" in st, "a chi non vede i soldi la pipeline direbbe «canone da mettere»"
     # con_soldi rimette i soldi solo se la cassaforte li ha dati

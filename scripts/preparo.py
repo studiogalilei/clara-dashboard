@@ -154,7 +154,7 @@ def main():
     # in una URL il «+» del fuso orario diventa uno spazio: si scrive alla Z
     zulu = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")
     fino = zulu(adesso + datetime.timedelta(hours=ore))
-    righe = sb("GET", "/rest/v1/agenda?select=id,at,titolo,tipo,prospect_id,preparazione,preparata_il"
+    righe = sb("GET", "/rest/v1/agenda?select=id,at,titolo,tipo,prospect_id,preparata_il"
                       f"&at=gte.{zulu(adesso)}&at=lte.{fino}&order=at&limit=50") or []
     call = [r for r in righe if r.get("prospect_id") and (r.get("tipo") or "") in CALL]
     print(f"{len(call)} call attaccate a un'azienda nelle prossime {ore} ore")
@@ -177,9 +177,13 @@ def main():
         if not testo:
             print("    non e' uscito niente di sensato, la lascio com'era")
             continue
-        sb("PATCH", f"/rest/v1/agenda?id=eq.{r['id']}",
-           {"preparazione": testo, "preparata_il": zulu(adesso)})
-        nell_evento(r, testo)
+        # 29/9, IL RISERVATO: la preparazione la vede solo Dre. Va nella sua tabella
+        # (schema_v68), e nell'evento di Google non va piu': la descrizione la vedono
+        # tutti gli invitati, colleghi compresi.
+        sb("POST", "/rest/v1/preparazioni?on_conflict=agenda_id",
+           {"agenda_id": r["id"], "prospect_id": r["prospect_id"], "testo": testo, "preparata_il": zulu(adesso)},
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+        sb("PATCH", f"/rest/v1/agenda?id=eq.{r['id']}", {"preparata_il": zulu(adesso)})
         fatte += 1
 
     print(f"{'(prova) ' if prova else ''}preparate {fatte}")

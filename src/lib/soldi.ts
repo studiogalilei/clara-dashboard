@@ -22,8 +22,18 @@ export function soldiClienti(forza = false): Promise<Map<string, Soldi>> {
   if (!clienti || forza) {
     clienti = (async () => {
       const m = new Map<string, Soldi>()
-      const { data } = await supabase.from('soldi_clienti').select('prospect_id,canone,fatturazione,prezzo,bilancio,valore').limit(1000)
-      for (const r of (data ?? []) as Array<Soldi & { prospect_id: string }>) m.set(r.prospect_id, r)
+      // canone e fatturazione: Dre e Giacomo. Prezzo, bilancio e valore: solo Dre (il riservato, schema_v68)
+      const [soldi, ris] = await Promise.all([
+        supabase.from('soldi_clienti').select('prospect_id,canone,fatturazione').limit(1000),
+        supabase.from('riservato_clienti').select('prospect_id,prezzo,bilancio,valore').limit(1000),
+      ])
+      const vuoto = { canone: null, fatturazione: null, prezzo: null, bilancio: null, valore: null }
+      for (const r of (soldi.data ?? []) as Array<{ prospect_id: string; canone: number | null; fatturazione: unknown }>) {
+        m.set(r.prospect_id, { ...vuoto, canone: r.canone, fatturazione: r.fatturazione })
+      }
+      for (const r of (ris.data ?? []) as Array<{ prospect_id: string; prezzo: unknown; bilancio: unknown; valore: unknown }>) {
+        m.set(r.prospect_id, { ...(m.get(r.prospect_id) ?? vuoto), prezzo: r.prezzo, bilancio: r.bilancio, valore: r.valore })
+      }
       return m
     })()
   }

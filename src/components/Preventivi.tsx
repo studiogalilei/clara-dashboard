@@ -11,6 +11,7 @@ import { apriFile } from '../lib/file'
 import { LINEA_NOME, controllaTono, ripulisciTono, testoDi } from '../lib/tono'
 import { cosaManca } from '../lib/condizioni'
 import { datiStudio, mancaStudio, scriviStudio, STUDIO_VUOTO, type DatiStudio } from '../lib/studio'
+import { vedoRiservato } from '../lib/riservato'
 import {
   alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
   type Preventivo, type Voce, type VoceListino, type Fatturazione,
@@ -71,6 +72,8 @@ interface DocRiga {
 
 export default function Preventivi({ onOpen }: Props) {
   const [righe, setRighe] = useState<Preventivo[] | null>(null)
+  const [riservato, setRiservato] = useState(false)
+  useEffect(() => { void vedoRiservato().then(setRiservato) }, [])
   const [documenti, setDocumenti] = useState<DocRiga[] | null>(null)
   const [apro, setApro] = useState<{ id: number | null; modello: string } | null>(null)
   const [scelgoModello, setScelgoModello] = useState(false)
@@ -636,7 +639,8 @@ export default function Preventivi({ onOpen }: Props) {
       </Card>
 
       {/* quanto chiedere: sta qui perche' e' il momento in cui lo decidi */}
-      <Prezzo />
+      {/* la formula dei prezzi e' riservata a Dre (29/9) */}
+      {riservato && <Prezzo />}
 
       {/* I NUMERI: uno grande, quello che aspetta una risposta. Gli altri
           sono di contorno: prima erano quattro riquadri uguali e uno diceva
