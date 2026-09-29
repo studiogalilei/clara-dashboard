@@ -50,8 +50,13 @@ QUANTI = 20          # per giro: il resto al giro dopo (ogni 15 minuti)
 # usato per misurare i volumi: se una parola del sito e' il nome di una di
 # queste, e' una provincia vera, non una parola inventata dal modello.
 def _province_note():
+    # 29/9: prima c'era solo la copia nel vault del Mac, e in cloud il file non
+    # esiste: la rete delle province non ha mai funzionato dove gira davvero, e
+    # nessuno lo vedeva perche' sul Mac passava. Il file sta nel repository
+    # (sono nomi pubblici), il vault resta come seconda strada.
     import pathlib
-    for cand in (pathlib.Path.home() / "Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/ODYN Cockpit/data/geo_province.json",):
+    for cand in (pathlib.Path(RADICE) / "data" / "geo_province.json",
+                 pathlib.Path.home() / "Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/ODYN Cockpit/data/geo_province.json"):
         try:
             return set(json.load(open(cand)).keys())
         except Exception:                                    # noqa: BLE001
