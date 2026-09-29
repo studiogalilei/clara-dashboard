@@ -619,6 +619,64 @@ def _():
     assert 'not op["attiva"] and not anche_spente' in d, "nella catena un'operazione spenta deve restare spenta"
 
 
+@prova("niente parte da solo a chi stiamo gia' sentendo fuori da Smartlead (Gmail, call, note, calendario, task)")
+def _():
+    import prima_risposta as R
+    # Dre 29/9: «molto importante non mandare follow-up a chi siamo in contatto».
+    # Ogni traccia che il sistema raccoglie deve bastare da sola a fermare l'invio.
+    vero = R.sb
+    def finto(tracce):
+        def sb(metodo, percorso, *a, **k):
+            for chiave, righe in tracce.items():
+                if percorso.startswith(chiave):
+                    return righe
+            return []
+        return sb
+    base = {"id": "x", "notes": None, "owner": None}
+    try:
+        R.sb = finto({})
+        assert R.contatti_fuori(base) == [], "senza tracce deve passare"
+        for tracce, p, cosa in (
+            ({}, {**base, "notes": "sentito al telefono"}, "una nota fuori binario"),
+            ({}, {**base, "owner": "uuid"}, "chi l'ha presa in carico"),
+            ({"/rest/v1/interactions": [{"kind": "email_out", "at": "2026-09-20", "ref": "gmail:1"}]}, base, "una mail da Gmail"),
+            ({"/rest/v1/interactions": [{"kind": "transcript", "at": "2026-09-20", "ref": "gemini:1"}]}, base, "una call registrata"),
+            ({"/rest/v1/agenda": [{"at": "2026-09-30", "titolo": "Conoscitiva"}]}, base, "una call in calendario"),
+            ({"/rest/v1/task": [{"id": 1}]}, base, "una task aperta"),
+        ):
+            R.sb = finto(tracce)
+            assert R.contatti_fuori(p), f"con {cosa} una mail partirebbe da sola"
+    finally:
+        R.sb = vero
+    import pathlib
+    src = pathlib.Path(R.__file__).read_text(encoding="utf-8")
+    assert "contatti_fuori(p)" in src.split("def main")[1], "il cancello non guarda piu' i contatti fuori da Smartlead"
+
+
+@prova("i follow-up li scrive il codice col testo di Dre: mai un segnaposto, mai un nome inventato")
+def _():
+    import pathlib
+    import seguiti as S
+    finto = ("## FOLLOW UP 1\n\n```\nSalve Stefania,\n\ntorno sull'analisi.\nUn saluto\n```\n"
+             "MINI FOLLOW UP (25/9/2026)\n```\nSalve [Nome],\n\ndue righe: {{CALENDARIO}}\n```\n")
+    t = S.testo("FOLLOW UP 1", {"name": "info"}, {"ultima_nostra": "Buongiorno, ecco l'analisi"}, "https://cal", finto)
+    assert t.startswith("Salve,\n"), f"un nome inventato nel saluto: {t[:30]}"
+    t = S.testo("FOLLOW UP 1", {}, {"ultima_nostra": "Salve Maura, le inoltro l'analisi"}, "https://cal", finto)
+    assert t.startswith("Salve Maura,"), "non usa il nome con cui Dre gli ha gia' scritto"
+    t = S.testo("MINI FOLLOW UP", {}, {}, "https://cal", finto)
+    assert "https://cal" in t and "[" not in t and "{{" not in t, "segnaposto rimasto nel testo"
+    assert S.testo("RICONTATTO OOO", {}, {}, "x", finto) is None, "senza template il codice non deve scrivere"
+    assert S.testo("RINVIO SCADUTO", {"analysis_sent": True}, {}, "x", finto) is None, "il rinvio a chi ha l'analisi va riscritto: non dal codice"
+    # una verita' sola: le date le scrive followup.py, lo schermo le legge soltanto
+    qui = pathlib.Path(__file__).resolve().parent
+    assert "seguiti_calendario" in qui.joinpath("followup.py").read_text(encoding="utf-8")
+    ui = qui.parents[0].joinpath("src", "components", "SeguitiInArrivo.tsx").read_text(encoding="utf-8")
+    assert "from('seguiti_calendario')" in ui and "analysis_sent_at" not in ui, "la sezione rifa' i conti invece di leggere il calendario"
+    # e il cancello dei seguiti non si fida del modello: riscrive e confronta
+    pr = qui.joinpath("prima_risposta.py").read_text(encoding="utf-8")
+    assert "rilettura_seguito" in pr and "testo_dal_codice" in pr
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -40,6 +40,7 @@ export const CHIAVI = [
   'pipeline-apertura',   // delle viste di sessione, e questo resta
   'novita-viste',        // le novita' gia' viste (e votate): non tornano
   'foglio-ordine',       // per quale colonna e' ordinata la lista, e in che verso
+  'seguiti-aperti',      // la sezione «Follow-up in arrivo» della Posta, aperta o chiusa (29/9)
 ] as const
 
 export type Chiave = (typeof CHIAVI)[number]

@@ -63,6 +63,13 @@ from stanza import sb, di_clara, contattabile, quando          # noqa: E402
 
 PROVA = "--prova" in sys.argv
 OMBRA = "--ombra" in sys.argv
+# I SEGUITI (Dre 29/9, strada A): con --seguiti la stessa porta vale per i follow-up
+# scritti dal codice col template di Dre. Interruttore suo («seguiti»), firma sua,
+# tetto suo; al posto del Revisore il codice riscrive il testo e lo confronta.
+SEGUITI = "--seguiti" in sys.argv
+CHIAVE = "seguiti" if SEGUITI else "prima_risposta"
+FIRMA_SEGUITI = "seguito-automatico (decisione Dre 29/9, strada A)"
+MAX_SEGUITI_AL_GIORNO = 15
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 FIRMA = "prima-risposta-automatica (decisione Dre 29/9)"
 MAX_PER_GIRO = 5
@@ -75,7 +82,7 @@ CLASSI_OK = ("positivo", "tiepido")
 INTENTI_OK = ("INT-01", "INT-02", "INT-03", "INT-23")
 ALLEGA_ANALISI = re.compile(r"(?:inoltr|alleg|le lascio|ecco|trova qui|le mando|le invio)[^.\n]{0,60}\banalisi\b|"
                             r"\banalisi\b[^.\n]{0,40}(?:in allegato|allegat|qui sotto)")
-CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,fuori,no_followup,"
+CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,fuori,no_followup,notes,owner,"
          "analysis_sent,analysis_pdf,campaign,campaign_id,lead_id,last_reply_at")
 
 
@@ -85,14 +92,76 @@ def finestra(ora):
     return ora.weekday() < 5 and ORE[0] <= ora.hour < ORE[1]
 
 
-def interruttori(ops, ombra=False):
+def interruttori(ops, ombra=False, chiave="prima_risposta"):
     """Tutti e due accesi, o niente. Torna il motivo se non si parte. In ombra
     non si approva niente, quindi basta il suo: manda puo' restare spento."""
     stato = {o["chiave"]: bool(o.get("attiva")) for o in ops}
-    if "prima_risposta" not in stato:
-        return "l'operazione prima_risposta non esiste in tabella"
-    spenti = [k for k in (("prima_risposta",) if ombra else ("prima_risposta", "manda")) if not stato.get(k)]
+    if chiave not in stato:
+        return f"l'operazione {chiave} non esiste in tabella"
+    spenti = [k for k in ((chiave,) if ombra else (chiave, "manda")) if not stato.get(k)]
     return f"interruttore spento: {', '.join(spenti)}" if spenti else None
+
+
+GIORNI_CONTATTO = 60
+
+
+def contatti_fuori(p, giorni=GIORNI_CONTATTO):
+    """SIAMO GIA' IN CONTATTO FUORI DA SMARTLEAD? (Dre, 29/9: «molto importante
+    non mandare follow-up a chi stiamo gia' sentendo: per questo tracciare le
+    attivita' e' importante, gmail, transcript, discorsi, calendario»).
+    Si guarda tutto quello che il sistema raccoglie, negli ultimi 60 giorni. Basta
+    una traccia e la mail non parte da sola: la decide una persona. Torna i motivi."""
+    pid = p["id"]
+    da = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=giorni)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    no = []
+    if (p.get("notes") or "").strip():
+        no.append(f"c'e' una nota fuori binario: «{' '.join(p['notes'].split())[:60]}»")
+    if p.get("owner"):
+        no.append("qualcuno l'ha presa in carico")
+    righe = sb("GET", f"/rest/v1/interactions?select=kind,at,ref&prospect_id=eq.{pid}&at=gte.{da}"
+                      f"&or=(kind.in.(call,transcript,nota,postit),ref.like.gmail:*)&order=at.desc&limit=5") or []
+    for r in righe[:1]:
+        cosa = "una mail da Gmail" if (r.get("ref") or "").startswith("gmail:") else {"call": "una call", "transcript": "una call registrata",
+                                                                                       "nota": "una nota", "postit": "un post-it"}.get(r["kind"], r["kind"])
+        no.append(f"{cosa} del {r['at'][:10]}, fuori da Smartlead")
+    ag = sb("GET", f"/rest/v1/agenda?select=at,titolo&prospect_id=eq.{pid}&at=gte.{da}&order=at.desc&limit=1") or []
+    if ag:
+        no.append(f"in calendario: «{ag[0]['titolo'][:40]}» il {ag[0]['at'][:10]}")
+    if sb("GET", f"/rest/v1/task?select=id&prospect_id=eq.{pid}&fatta=eq.false&limit=1"):
+        no.append("c'e' una task aperta su questa azienda")
+    return no
+
+
+def perche_no_seguito(pr, p):
+    """Il cancello dei follow-up scritti dal codice. Vuota = passa."""
+    import seguiti
+    az = pr.get("azione") or {}
+    let = az.get("lettura") or {}
+    gruppo = let.get("gruppo")
+    no = []
+    if pr.get("tipo") != "risposta" or str(pr.get("titolo") or "").startswith("Da guardare tu"):
+        no.append("e' da guardare")
+    if az.get("approvata_da") or az.get("prima_risposta"):
+        no.append("gia' passata di qui")
+    if gruppo not in seguiti.GRUPPI_DAL_CODICE:
+        no.append(f"non e' un follow-up col template ({gruppo or 'prima risposta'})")
+    if not az.get("testo_dal_codice"):
+        no.append("il testo l'ha scritto il modello, non il codice")
+    if let.get("coerenza") != "COERENTE":
+        no.append("la seconda testa non dice COERENTE")
+    if let.get("detto_no"):
+        no.append("ha detto no")
+    if let.get("girato_a") or let.get("destinatario") or (p or {}).get("email_alt"):
+        no.append("c'e' di mezzo un altro indirizzo")
+    if not p:
+        return no + ["manca la scheda"]
+    if not contattabile(p) or p.get("classificazione") in ("negativo",):
+        no.append("non e' piu' un lead")
+    if gruppo in ("RIPRESA", "RINVIO SCADUTO") and not p.get("analysis_pdf"):
+        no.append("l'analisi in PDF non c'e'")
+    if "usa" in (p.get("campaign") or "").lower():
+        no.append("campagna USA")
+    return no
 
 
 def perche_no(pr, p):
@@ -172,6 +241,22 @@ def _template_approvati():
         return "(template non caricati)"
 
 
+def rilettura_seguito(pr, p, letti):
+    """Per i seguiti il controllo non lo fa un modello: il codice riscrive il testo
+    adesso, col filo di adesso, e deve venire identico a quello in Posta. Se Dre
+    l'ha corretto, o il saluto o il template sono cambiati, resta a lui."""
+    import seguiti
+    import bozze
+    az = pr.get("azione") or {}
+    gruppo = (az.get("lettura") or {}).get("gruppo")
+    ora = seguiti.testo(gruppo, p, letti, bozze.CALENDARIO)
+    if not ora:
+        return "STOP", "il codice non sa piu' scriverlo da solo (template o regola cambiati)"
+    if ora.strip() != (az.get("bozza") or "").strip():
+        return "STOP", "il testo in Posta non e' piu' il template parola per parola"
+    return "OK", ""
+
+
 def revisore(pr, p, letti):
     """Il Revisore rilegge la mail sapendo che partira' davvero, senza nessuno dopo di lui."""
     try:
@@ -221,9 +306,9 @@ def segna(pr, az, patch_extra=None, solo_se_aperta=True):
 
 def main():
     adesso = datetime.datetime.now(datetime.timezone.utc)
-    print("LA PRIMA RISPOSTA AUTOMATICA" + (" (prova: non scrive niente)" if PROVA else "") + (" IN OMBRA: decide, non approva" if OMBRA else ""))
-    ops = sb("GET", "/rest/v1/operazioni?select=chiave,attiva&chiave=in.(prima_risposta,manda)") or []
-    fermo = interruttori(ops, OMBRA)
+    print(("I SEGUITI AUTOMATICI" if SEGUITI else "LA PRIMA RISPOSTA AUTOMATICA") + (" (prova: non scrive niente)" if PROVA else "") + (" IN OMBRA: decide, non approva" if OMBRA else ""))
+    ops = sb("GET", f"/rest/v1/operazioni?select=chiave,attiva&chiave=in.({CHIAVE},manda)") or []
+    fermo = interruttori(ops, OMBRA, CHIAVE)
     if fermo:
         print(f"  {fermo}" + (": in prova guardo lo stesso" if PROVA else ": non approvo niente"))
         if not PROVA:
@@ -237,13 +322,17 @@ def main():
             return
 
     # il tetto del giorno: si contano le approvate in automatico oggi, a Roma
-    auto = sb("GET", "/rest/v1/proposte?select=prospect_id,azione->>approvata_il&azione->>automatica=eq.true&order=id.desc&limit=500") or []
+    auto = sb("GET", "/rest/v1/proposte?select=prospect_id,azione->>approvata_il,azione->>approvata_da&azione->>automatica=eq.true&order=id.desc&limit=500") or []
+    firma_mia = FIRMA_SEGUITI if SEGUITI else FIRMA
+    tetto = MAX_SEGUITI_AL_GIORNO if SEGUITI else MAX_AL_GIORNO
     oggi = adesso.astimezone(ROMA).date()
-    fatte_oggi = sum(1 for x in auto if x.get("approvata_il") and quando(x["approvata_il"]).astimezone(ROMA).date() == oggi)
-    gia_auto = {x["prospect_id"] for x in auto}
-    posti = min(MAX_PER_GIRO, MAX_AL_GIORNO - fatte_oggi)
+    fatte_oggi = sum(1 for x in auto if x.get("approvata_il") and x.get("approvata_da") == firma_mia
+                     and quando(x["approvata_il"]).astimezone(ROMA).date() == oggi)
+    # mai due prime risposte alla stessa persona; i seguiti hanno gia' la loro regola (followup.py non mette in coda due volte)
+    gia_auto = set() if SEGUITI else {x["prospect_id"] for x in auto if x.get("approvata_da") == FIRMA}
+    posti = min(MAX_PER_GIRO, tetto - fatte_oggi)
     if posti <= 0 and not PROVA:
-        print(f"  gia' {fatte_oggi} oggi: il tetto e' {MAX_AL_GIORNO}, riprendo domani")
+        print(f"  gia' {fatte_oggi} oggi: il tetto e' {tetto}, riprendo domani")
         print("prima_risposta: 0 approvate")
         return
 
@@ -268,7 +357,7 @@ def main():
     for pr in aperte:
         p = schede.get(pr["prospect_id"])
         nome = ((p or {}).get("company") or (p or {}).get("name") or (p or {}).get("email") or pr["titolo"])[:34]
-        no = perche_no(pr, p)
+        no = perche_no_seguito(pr, p) if SEGUITI else perche_no(pr, p)
         if p and p["id"] in gia_auto:
             no.append("ha gia' avuto una risposta automatica")
         if OMBRA and (pr.get("azione") or {}).get("ombra"):
@@ -288,16 +377,26 @@ def main():
             print(f"  ?  {nome:34} filo non riletto ({str(e)[:60]}): resta a Dre"); continue
         vecchia = az.get("lettura") or {}
         cambiato = None
-        if letti.get("scritto_dopo_di_lei"):
+        if SEGUITI:
+            # per un follow-up noi abbiamo gia' scritto dopo di lei (l'analisi): conta
+            # solo se e' partito qualcosa DOPO che la bozza e' nata
+            if (letti.get("scritto_dopo_di_lei") or 0) > (vecchia.get("scritto_dopo_di_lei") or 0):
+                cambiato = "qualcuno di noi le ha gia' scritto dopo che la bozza era nata"
+        elif letti.get("scritto_dopo_di_lei"):
             cambiato = "qualcuno di noi le ha gia' scritto dopo la sua ultima mail"
         elif (letti.get("ultima_loro_il"), (letti.get("ultima_loro") or "")[:150]) != (vecchia.get("ultima_loro_il"), (vecchia.get("ultima_loro") or "")[:150]):
             cambiato = "ha riscritto dopo che la bozza era nata"
-        elif letti.get("detto_no") or letti.get("autorisposta") or letti.get("girato_a"):
+        elif letti.get("detto_no") or letti.get("girato_a") or (letti.get("autorisposta") and not SEGUITI):
             cambiato = "rileggendo il filo adesso, non e' piu' un caso semplice"
+        # «Via libera» dal calendario dei follow-up (29/9): Dre ha visto la traccia e sa che e' innocua
+        if not cambiato and not az.get("via_libera"):
+            fuori = contatti_fuori(p)
+            if fuori:
+                cambiato = "siamo gia' in contatto fuori da Smartlead: " + "; ".join(fuori)[:220]
         if cambiato:
             esito, motivo = "STOP", cambiato
         else:
-            esito, motivo = revisore(pr, p, letti)
+            esito, motivo = rilettura_seguito(pr, p, letti) if SEGUITI else revisore(pr, p, letti)
         il = datetime.datetime.now(datetime.timezone.utc).isoformat()
         if OMBRA:
             # la decisione si scrive, con la mail esatta che sarebbe partita: il
@@ -339,8 +438,10 @@ def main():
         print(f"  ✓  {nome:34} passa: parte al prossimo giro di manda, con analisi e presentazione")
         if PROVA:
             approvate += 1; continue
-        az.update({"approvata_da": FIRMA, "approvata_il": il, "automatica": True,
-                   "allega": True, "allega_presentazione": True,
+        gruppo = (az.get("lettura") or {}).get("gruppo")
+        az.update({"approvata_da": firma_mia, "approvata_il": il, "automatica": True,
+                   "allega": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO"),
+                   "allega_presentazione": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO", "FOLLOW UP 1"),
                    "prima_risposta": {"esito": "OK", "il": il}})
         if segna(pr, az, {"stato": "approvata"}):
             approvate += 1
@@ -349,7 +450,7 @@ def main():
         else:
             print(f"     {nome}: nel frattempo l'ha presa Dre, non tocco")
     print(f"prima_risposta: {approvate} {'partirebbero (ombra)' if OMBRA else 'passerebbero' if PROVA else 'approvate'}, {restano} restano a Dre, "
-          f"{len(aperte)} bozze guardate, {fatte_oggi}/{MAX_AL_GIORNO} oggi")
+          f"{len(aperte)} bozze guardate, {fatte_oggi}/{tetto} oggi")
 
 
 if __name__ == "__main__":

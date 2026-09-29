@@ -9,6 +9,7 @@ import Radar from './components/Radar'
 import Rete from './components/Rete'
 import Aziende from './components/Aziende'
 import ClaraVolante from './components/ClaraVolante'
+import SeguitiInArrivo from './components/SeguitiInArrivo'
 import ClaraLogo from './components/ClaraLogo'
 import Vault from './components/Vault'
 import Plugin from './components/Plugin'
@@ -723,7 +724,11 @@ export default function App() {
             ) : tab === 'chat' ? (
               <Chat onOpen={setOpenId} />
             ) : tab === 'clara' ? (
-              <ClaraVolante modo="posta" onOpen={setOpenId} />
+              <>
+                {/* i follow-up in arrivo, giorno per giorno (Dre, 29/9) */}
+                <SeguitiInArrivo onOpen={setOpenId} />
+                <ClaraVolante modo="posta" onOpen={setOpenId} />
+              </>
             ) : tab === 'impostazioni' ? (
               <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} ruoloVero={ruoloVero} onCambio={() => setVersione((v) => v + 1)}
                             onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />

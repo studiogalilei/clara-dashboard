@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""I SEGUITI SCRITTI DAL CODICE (Dre, 29/9/2026: «strada A»).
+
+PERCHE'
+In Posta c'erano 57 follow-up fermi, e il 25/9, l'unica volta che si e' provato
+ad approvarli in blocco, 4 mail su 10 erano sbagliate: il modello li scriveva
+«ispirandosi» al template, e sbagliava proprio le parti che cambiava. Per i
+follow-up il testo e' di Dre, parola per parola: qui lo compone il codice, e il
+modello non scrive niente.
+
+COSA FA
+Prende il template dal file di Dre («Risposte (template verbatim)», nel bucket),
+mette il saluto giusto e il calendario, e basta. Il saluto:
+  1. il nome con cui NOI gli abbiamo scritto l'ultima volta («Salve Maura,»):
+     l'ha scelto Dre, e' quello giusto;
+  2. altrimenti il nome della scheda, solo se e' un nome vero e compare nella
+     sua ultima mail (la firma);
+  3. altrimenti «Salve,» secco (regola del Preparatore: un nome inventato e'
+     peggio di nessun nome).
+Quando il template chiede una riscrittura che il codice non sa fare (il rinvio
+a chi l'analisi l'ha gia' letta) o il template non c'e' (RICONTATTO OOO), torna
+None: quella bozza la scrive il motore di sempre, e non parte mai da sola.
+"""
+
+import re
+
+GRUPPI_DAL_CODICE = ("FOLLOW UP 1", "MINI FOLLOW UP", "RIPRESA", "RINVIO SCADUTO")
+# come il titolo del template sta scritto nel file di Dre
+_TITOLI = {"FOLLOW UP 1": r"##\s*FOLLOW UP 1\s*\n", "MINI FOLLOW UP": r"MINI FOLLOW UP \(25/9",
+           "RIPRESA": r"RIPRESA \(25/9", "RINVIO SCADUTO": r"##\s*RINVIO SCADUTO"}
+_NON_NOMI = {"salve", "buongiorno", "gentile", "ciao", "info", "amministrazione", "ufficio", "segreteria",
+             "direzione", "marketing", "commerciale", "staff", "team", "admin", "contatti", "vendite"}
+
+
+def template(gruppo, testo_file=None):
+    """Il blocco ``` subito dopo il titolo del gruppo, com'e' nel file. None se non c'e'."""
+    if gruppo not in _TITOLI:
+        return None
+    if testo_file is None:
+        import bozze
+        testo_file = bozze.template_verbatim()
+    m = re.search(_TITOLI[gruppo], testo_file or "")
+    if not m:
+        return None
+    b = re.search(r"```\s*\n(.*?)```", testo_file[m.end():], re.S)
+    return b.group(1).strip() if b else None
+
+
+def _nome_vero(n):
+    n = (n or "").strip()
+    return bool(re.fullmatch(r"[A-ZÀ-Ý][a-zà-ÿ']{2,20}", n)) and n.lower() not in _NON_NOMI
+
+
+def saluto(p, letti):
+    """«Salve Nome,» o «Salve,». Mai un nome inventato."""
+    nostra = (letti or {}).get("ultima_nostra") or ""
+    m = re.match(r"\s*(?:Salve|Buongiorno|Gentile)\s+(?:Sig\.ra\s+|Sig\.\s+|Dott\.ssa\s+|Dott\.\s+)?([A-ZÀ-Ý][\wà-ÿ']+)\s*,", nostra)
+    if m and _nome_vero(m.group(1)):
+        return f"Salve {m.group(1)},"
+    nome = ((p or {}).get("name") or "").split()
+    primo = nome[0] if nome else ""
+    if _nome_vero(primo) and primo.lower() in ((letti or {}).get("ultima_loro") or "").lower():
+        return f"Salve {primo},"
+    return "Salve,"
+
+
+def testo(gruppo, p, letti, calendario, testo_file=None):
+    """Il follow-up pronto, parola per parola. None se il codice non puo' scriverlo da solo."""
+    if gruppo not in GRUPPI_DAL_CODICE:
+        return None
+    if gruppo == "RINVIO SCADUTO" and ((letti or {}).get("analisi_ricevuta") or (p or {}).get("analysis_sent")):
+        return None            # il template chiede di riscrivere la frase dell'analisi: non e' un lavoro da codice
+    t = template(gruppo, testo_file)
+    if not t:
+        return None
+    righe = t.splitlines()
+    if righe and re.match(r"\s*Salve\b", righe[0]):
+        righe[0] = saluto(p, letti)
+    t = "\n".join(righe)
+    t = t.replace("{{CALENDARIO}}", calendario).replace("{{ CALENDARIO }}", calendario)
+    if "[" in t or "{{" in t:
+        return None            # un segnaposto che il codice non conosce: meglio non scrivere
+    return t.strip()
+
+
+def converti(prova=True):
+    """Le bozze di follow-up gia' in Posta, scritte dal modello, passano al testo di
+    Dre parola per parola (29/9). Si tocca solo la proposta, mai la mail: la bozza del
+    modello resta salvata in azione.bozza_modello. Passa dal Revisore (azione di gruppo)."""
+    import os
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from stanza import sb
+    import bozze
+    import lettura
+    ap = sb("GET", "/rest/v1/proposte?select=id,titolo,prospect_id,azione&stato=eq.aperta&tipo=in.(risposta,umano)&prospect_id=not.is.null") or []
+    righe = []
+    for pr in ap:
+        az = pr.get("azione") or {}
+        gruppo = (az.get("lettura") or {}).get("gruppo")
+        if gruppo not in GRUPPI_DAL_CODICE or az.get("testo_dal_codice"):
+            continue
+        p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,analysis_sent,campaign_id,lead_id&id=eq.{pr['prospect_id']}") or [None])[0]
+        if not p:
+            continue
+        _, letti = lettura.leggi(p)
+        t = testo(gruppo, p, letti, bozze.CALENDARIO)
+        print(f"  {gruppo:15} {(p.get('company') or p['email'])[:32]:32} {'-> testo di Dre' if t else 'resta com e (il codice non sa scriverlo)'}")
+        if t:
+            righe.append({"id": pr["id"], "azienda": p.get("company") or p["email"], "email": p["email"], "t": t, "az": az})
+    if not righe:
+        print("niente da convertire"); return 0
+    import revisore
+    tenute = revisore.controlla("sostituisco il testo di bozze di follow-up NON mandate col template di Dre parola per parola",
+                                righe, irreversibile=False, dove="crm",
+                                motivo="strada A decisa da Dre il 29/9; la bozza del modello resta salvata accanto")
+    n = 0
+    for r in tenute:
+        if prova:
+            continue
+        az = {**r["az"], "bozza_modello": r["az"].get("bozza"), "bozza": r["t"], "testo_dal_codice": True}
+        if sb("PATCH", f"/rest/v1/proposte?id=eq.{r['id']}&stato=eq.aperta", {"azione": az}, {"Prefer": "return=representation"}):
+            n += 1
+    print(f"convertite {n} di {len(righe)}" + (" (prova: niente scritto)" if prova else ""))
+    return n
+
+
+if __name__ == "__main__":
+    import sys
+    if "--converti" in sys.argv:
+        converti(prova="--prova" in sys.argv)

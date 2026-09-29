@@ -16,7 +16,7 @@
 insert into operazioni (chiave, nome, cosa, comando, cadenza_minuti, ora_preferita, ordine, attiva) values
   ('prima_risposta', 'La prima risposta parte da sola',
    'Approva da sola le prime risposte semplici (positivi e tiepidi con l''analisi pronta), dopo il Revisore. Manda le spedisce con analisi e presentazione. I no, i rinvii e i casi strani restano a Dre.',
-   'python3 scripts/prima_risposta.py --ombra', 5, null, 2, false)
+   'python3 scripts/prima_risposta.py', 5, null, 2, false)
 on conflict (chiave) do update set nome = excluded.nome, cosa = excluded.cosa, comando = excluded.comando,
   cadenza_minuti = excluded.cadenza_minuti, ordine = excluded.ordine;
 

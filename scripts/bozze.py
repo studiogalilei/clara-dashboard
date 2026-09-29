@@ -47,6 +47,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
 from stanza import sb, proponi, quando, senza_trattini     # noqa: E402
 import lettura                                             # noqa: E402
+import seguiti                                             # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROVA = "--prova" in sys.argv
@@ -539,14 +540,21 @@ def main():
             return (p, gruppo, nome, None, [], letti, ("aspetta", "l'analisi non c'e' ancora (la fa l'operazione analisi)"))
         if not gruppo and len((letti.get("ultima_loro") or "").strip()) < 30:
             return (p, gruppo, nome, None, [], letti, ("salta", "l'ultima mail loro e' vuota o illeggibile"))
-        # 3. LA BOZZA
-        b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
+        # 3. LA BOZZA. I follow-up col template li scrive il codice, parola per parola
+        # (Dre 29/9, strada A): il modello qui non scrive niente. Se il codice non
+        # puo' (template assente, riscrittura richiesta) scrive il motore di sempre.
+        dal_codice = seguiti.testo(gruppo, p, letti, CALENDARIO) if gruppo else None
+        if dal_codice:
+            b = {"intento": gruppo, "template": gruppo, "fermati": "no", "nota": "il template di Dre, parola per parola (scritto dal codice)",
+                 "bozza": dal_codice, "dal_codice": True}
+        else:
+            b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
             return (p, gruppo, nome, None, [], letti, None)
         niente_analisi = (not p.get("analysis_pdf")
                           and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO")
         errori = cancello(b["bozza"], senza_analisi=niente_analisi)
-        if errori:
+        if errori and not b.get("dal_codice"):
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
             if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi):
                 b, errori = b2, []
@@ -591,6 +599,8 @@ def main():
             print(f"\n  [{b['intento']}] {titolo}\n      LORO ({letti['ultima_loro_il']}): {letti['ultima_loro'][:160]}\n      {perche}\n      NOI: " + b["bozza"][:220].replace("\n", " ") + "…")
         if not PROVA:
             azione = {"bozza": b["bozza"], "intento": b["intento"], "template": b["template"], "lettura": b["lettura"]}
+            if b.get("dal_codice"):
+                azione["testo_dal_codice"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"):
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):

@@ -395,6 +395,13 @@ const TABELLE: Record<string, Riga[]> = {
   // (28/9: Dre ha approvato dal telefono e la mail non e' uscita, perche'
   // questa operazione era spenta e nessuno glielo diceva). In demo e' accesa:
   // per vedere l'altro caso si mette attiva: false.
+  // il calendario dei follow-up (29/9): lo scrive followup.py, qui qualche riga per provarlo
+  seguiti_calendario: [
+    { prospect_id: 'p2', gruppo: 'FOLLOW UP 1', il: gg(0).slice(0, 10), perche: 'analisi mandata il 24/9, nessuna risposta' },
+    { prospect_id: 'p3', gruppo: 'RINVIO SCADUTO', il: gg(-1).slice(0, 10), perche: 'aveva detto di risentirci il 30/9' },
+    { prospect_id: 'p9', gruppo: 'FOLLOW UP 1', il: gg(-3).slice(0, 10), perche: 'analisi mandata il 27/9, nessuna risposta' },
+    { prospect_id: 'p10', gruppo: 'MINI FOLLOW UP', il: gg(-5).slice(0, 10), perche: 'ripresa mandata il 28/9' },
+  ] as unknown as Riga[],
   operazioni: [{ chiave: 'manda', attiva: false, ultima_corsa: new Date(Date.now() - 3 * 60000).toISOString() }] as unknown as Riga[],
 }
 

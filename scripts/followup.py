@@ -22,6 +22,7 @@ USO
 import datetime
 import os
 import sys
+import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb                                       # noqa: E402
@@ -71,8 +72,73 @@ def mini_followup(prova, oggi):
     print(f"mini follow-up: {n}")
 
 
+ORIZZONTE = 21          # giorni in avanti nel calendario dei follow-up
+
+
+def calendario(prova, oggi):
+    """I FOLLOW-UP IN ARRIVO, GIORNO PER GIORNO (Dre, 29/9). La regola e' quella
+    qui sotto (main e mini_followup): chi e' gia' dovuto, e chi lo sara' nei
+    prossimi 21 giorni, con la data. Lo schermo legge questa tabella e non
+    rifa' i conti: una verita' sola. Una riga per azienda, il prossimo che le spetta."""
+    righe = {}
+
+    def metti(pid, gruppo, il, perche):
+        if pid and (pid not in righe or il < righe[pid]["il"]):
+            righe[pid] = {"prospect_id": pid, "gruppo": gruppo, "il": il, "perche": perche[:200]}
+
+    fine = oggi + datetime.timedelta(days=ORIZZONTE)
+    # 1. gia' in coda: la bozza arriva al prossimo giro delle bozze
+    for p in sb("GET", "/rest/v1/prospects?select=id,coda&coda=not.is.null&fuori=eq.false&limit=1000") or []:
+        metti(p["id"], p["coda"], oggi, "in coda: la bozza arriva al prossimo giro")
+    # 2. FOLLOW UP 1: analisi mandata, silenzio, GIORNI dopo (stessa regola di main)
+    gia = gia_avute("FOLLOW%20UP%201")
+    da = (oggi - datetime.timedelta(days=30)).isoformat()
+    for p in sb("GET", "/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda"
+                       f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
+                       f"&classificazione=in.({CLASSI})&analysis_sent_at=gte.{da}&limit=500") or []:
+        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda"):
+            continue
+        if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
+            continue
+        inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
+        il = inviata + datetime.timedelta(days=GIORNI)
+        if il <= fine:
+            metti(p["id"], "FOLLOW UP 1", max(il, oggi), f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
+    # 3. MINI FOLLOW UP: sei giorni dopo la ripresa
+    gia_mini = gia_avute("MINI%20FOLLOW%20UP")
+    for m in sb("GET", "/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA"
+                       f"&risposta_il=gte.{da}&limit=2000") or []:
+        if not m.get("prospect_id") or m["prospect_id"] in gia_mini or not m.get("risposta_il"):
+            continue
+        il = datetime.date.fromisoformat(m["risposta_il"][:10]) + datetime.timedelta(days=6)
+        if il <= fine:
+            metti(m["prospect_id"], "MINI FOLLOW UP", max(il, oggi), f"ripresa mandata il {m['risposta_il'][8:10]}/{m['risposta_il'][5:7]}")
+    # 4. RINVIO: la data che ci hanno dato
+    for p in sb("GET", "/rest/v1/prospects?select=id,next_action_date,coda&classificazione=eq.rinvio&fuori=eq.false"
+                       f"&no_followup=eq.false&next_action_date=lte.{fine.isoformat()}&limit=1000") or []:
+        if p.get("next_action_date") and not p.get("coda"):
+            q = datetime.date.fromisoformat(p["next_action_date"][:10])
+            metti(p["id"], "RINVIO SCADUTO", max(q + datetime.timedelta(days=1), oggi), f"aveva detto di risentirci il {q:%d/%m}")
+    print(f"calendario dei follow-up: {len(righe)} nei prossimi {ORIZZONTE} giorni")
+    if prova:
+        for r in sorted(righe.values(), key=lambda r: r["il"])[:15]:
+            print(f"    {r['il']:%d/%m} {r['gruppo']:15} {r['perche']}")
+        return len(righe)
+    adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    corpo = [{**r, "il": r["il"].isoformat(), "aggiornato_il": adesso} for r in righe.values()]
+    for i in range(0, len(corpo), 200):
+        sb("POST", "/rest/v1/seguiti_calendario?on_conflict=prospect_id", corpo[i:i + 200],
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    # chi non c'e' piu' (ha risposto, e' uscito, il follow-up e' partito) esce dal calendario
+    sb("DELETE", f"/rest/v1/seguiti_calendario?aggiornato_il=lt.{urllib.parse.quote(adesso)}")
+    return len(righe)
+
+
 def main():
     prova = "--prova" in sys.argv
+    if "--calendario" in sys.argv:
+        calendario(prova, datetime.date.today())
+        return
     mini_followup(prova, datetime.date.today())
     oggi = datetime.date.today()
     righe = sb("GET", "/rest/v1/prospects?select=id,name,company,email,analysis_sent_at,last_reply_at,classificazione,analysis_pdf,coda"
@@ -102,6 +168,7 @@ def main():
         if fatti >= QUANTI:
             break
     print(f"followup: {fatti} messi in coda su {len(righe)} con l'analisi mandata")
+    calendario(prova, oggi)
 
 
 if __name__ == "__main__":
