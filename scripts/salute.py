@@ -202,7 +202,7 @@ def main():
     #     compilato su undici aziende in tutto. Nessuno se n'era accorto perche'
     #     chi guardava era CEO e vedeva tutto. Un Workspace vuoto per una persona
     #     e' un guasto, non una configurazione.
-    gente = sb("GET", "/rest/v1/profili?select=id,nome,ruolo&limit=50") or []
+    gente = sb("GET", "/rest/v1/profili?select=id,nome,ruolo,area&limit=50") or []
     seguono = collections.Counter()
     off = 0
     while True:
@@ -214,8 +214,10 @@ def main():
         off += 1000
         if off > 20000:
             break
+    # 29/9 (schema v66): chi ha un'area vede il lavoro della sua area. Al buio resta
+    # solo chi non e' ceo, non ha un'area e non segue quasi niente per nome.
     al_buio = [g for g in gente
-               if (g.get("ruolo") or "") not in ("ceo",)
+               if (g.get("ruolo") or "") not in ("ceo",) and not g.get("area")
                and seguono.get((g.get("nome") or "").split(" ")[0].lower(), 0) < 3]
     if al_buio:
         problemi.append("aprono il Workspace e non ci trovano niente: " + ", ".join(sorted((g.get("nome") or "?").split(" ")[0] for g in al_buio))
