@@ -157,6 +157,7 @@ export function haAccesso(w: Widget, ruolo: Ruolo, concessi: ReadonlySet<Chiave>
 // Condividi, Cosa cambieresti e Numeri spariscono dal menu (le pagine restano,
 // si riaccendono da Impostazioni). Acceso di default.
 const FUORI_DAL_MENU_CORTO: Chiave[] = ['pipeline', 'vault', 'chat', 'feedback', 'analytics']
+const RESTANO_A_CHI_CONSEGNA: Chiave[] = ['pipeline', 'vault', 'feedback']
 export function menuEssenziale(): boolean {
   return leggiPref('menu-essenziale', 'si') === 'si'
 }
@@ -165,6 +166,9 @@ export function menuDi(ruolo: Ruolo, zona: 'menu' | 'sistema', concessi: Readonl
   const corto = menuEssenziale()
   return inOrdine(WIDGET.filter((w) =>
     w.zona === zona && haAccesso(w, ruolo, concessi) && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave))
-    // Oggi sparisce dal menu corto solo per il ceo: per chi consegna e' la prima pagina (Dre, 24/9)
-    && !(corto && FUORI_DAL_MENU_CORTO.includes(w.chiave) && !(w.chiave === 'pipeline' && ruolo !== 'ceo'))))
+    // Oggi sparisce dal menu corto solo per il ceo: per chi consegna e' la prima pagina (Dre, 24/9).
+    // 29/9, studio d'uso: anche Documenti e «Cosa cambieresti» restano a chi non e' ceo.
+    // Lorenzo i documenti li usa ogni giorno (dal telefono non ci arrivava), e Salvatore
+    // non ha mai lasciato un feedback perche' non ha mai visto dove.
+    && !(corto && FUORI_DAL_MENU_CORTO.includes(w.chiave) && !(ruolo !== 'ceo' && RESTANO_A_CHI_CONSEGNA.includes(w.chiave)))))
 }

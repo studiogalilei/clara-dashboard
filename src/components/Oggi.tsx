@@ -8,6 +8,7 @@ import { useVivo } from '../lib/vivo'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 import { chiSono } from '../lib/accessi'
 import { COLORE_STATO, type Tono } from '../lib/stato'
+import { useSchermoLargo } from '../lib/schermo'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -184,7 +185,9 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [bozzePronte, setBozzePronte] = useState<string[]>([])
   useEffect(() => {
     let vivo = true
-    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta')
+    // 29/9: bozza e' solo quella che ha un testo da mandare. I promemoria interni
+    // (cliente che nessuno sente, progetto in scadenza) venivano contati come bozze
+    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta').not('azione->>bozza', 'is', null)
       .order('at', { ascending: true }).limit(100)
       .then(({ data }) => {
         if (!vivo) return
@@ -246,6 +249,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [ioVero, setIoVero] = useState<string | null>(null)
   const [scadenze, setScadenze] = useState<ScadenzaAccount[]>([])
 
+  const largo = useSchermoLargo()          // 29/9: sul computer la call sta in testata, qui non si carica due volte
   const [stretto, setStretto] = useState(false)
   useEffect(() => {
     try {
@@ -816,7 +820,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     <div className="space-y-4 pb-28 sm:pb-8">
       {/* la giornata (Dre, 9/9): la prossima call sta in testata (App), qui le task e in fondo gli avvisi;
           sul telefono la call resta qui sopra */}
-      <div className="lg:hidden"><Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" /></div>
+      {!largo && <Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" />}
 
       {/* LE BOZZE PRIMA DI TUTTO (Dre, 25/9): la mattina la prima cosa e' approvare quello che Clara ha pronto */}
       {bozzePronte.length > 0 && (
@@ -881,11 +885,10 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
           {gruppiVivi.map((g) => (
           <div key={g.chiave} className="mt-1">
             <div className="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-velo/50">
-              <Cerchio
-                fatta={false}
-                mezzo
-                onClick={() => spuntaCoda(g.sotto.map((s) => s.chiave))}
-              />
+              {/* 29/9: il cerchio del gruppo spuntava tutti i nomi con un tocco, senza
+                  chiedere, e il giorno dopo tornavano (studio d'uso di Dre e Lorenzo).
+                  Si spunta un nome alla volta; qui resta solo lo spazio */}
+              <span aria-hidden className="h-6 w-6 shrink-0" />
               <p className="flex-1 text-sm font-semibold">{g.titolo}</p>
               <span className="text-xs text-spento">{g.sotto.length}</span>
             </div>
@@ -1188,7 +1191,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       <button
         onClick={() => { setAggiungo(true); setTimeout(() => nuovoRef.current?.focus(), 50) }}
         aria-label="Aggiungi un'attività"
-        className="fixed bottom-20 left-1/2 z-30 flex -translate-x-1/2 items-center justify-center rounded-2xl bg-white p-3 text-blu shadow-[0_6px_20px_rgba(16,24,40,0.25)] sm:hidden"
+        className="fixed bottom-20 left-4 z-30 flex items-center justify-center rounded-2xl bg-blu p-3 text-white shadow-[0_6px_20px_rgba(16,24,40,0.25)] sm:hidden"
       >
         <svg viewBox="0 0 24 24" className="h-7 w-7"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
       </button>

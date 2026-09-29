@@ -56,7 +56,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
     let vivo = true
     supabase.from('proposte')
       .select('id,tipo,titolo,perche,azione,at,stato')
-      .eq('prospect_id', p.id).in('stato', ['aperta', 'approvata', 'in_invio']).in('tipo', ['risposta', 'umano'])
+      .eq('prospect_id', p.id).in('stato', ['aperta', 'approvata', 'in_invio']).in('tipo', ['risposta', 'umano']).not('azione->>bozza', 'is', null)
       .order('at', { ascending: false }).limit(1)
       .then(({ data }) => {
         if (!vivo) return
@@ -77,6 +77,11 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
   const fit = (p.enriched as Record<string, unknown> | null)?.google_fit as { verdetto?: string } | undefined
   const analisi = (p.enriched as Record<string, unknown> | null)?.analisi as { trattenuta?: string; il?: string } | undefined
   const trattenuta = !p.analysis_pdf && analisi?.trattenuta
+  // L'ATTESA HA UN LIMITE (regola del 28/9, studio d'uso del 29/9): la rotella
+  // «qualche minuto» girava da due giorni su chi aveva scritto il 27. Dopo un'ora
+  // senza bozza si dice che e' ferma, con il motivo se Clara l'ha scritto.
+  const oreFerma = p.last_reply_at ? Math.floor((Date.now() - new Date(p.last_reply_at).getTime()) / 3.6e6) : 0
+  const motivoSalto = ((p.enriched as Record<string, unknown> | null)?.lettura_esito as { motivo?: string } | undefined)?.motivo
   const destinatario = ((p as unknown as { email_alt?: string[] | null }).email_alt)?.[0] ?? p.email
 
   // niente da mandare: la persona non aspetta noi e non c'è una bozza
@@ -153,10 +158,18 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
       {!pr ? (
         // CLARA CI STA LAVORANDO: si vede cosa è già pronto, e ci si può aspettare
         <div className="flex items-start gap-4 px-4 py-4">
-          <Spinner />
+          {oreFerma < 1 && <Spinner />}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Clara sta preparando bozza e analisi</p>
-            <p className="mt-0.5 text-xs text-tenue">Di solito ci vuole qualche minuto dalla risposta. Questa pagina si aggiorna da sola.</p>
+            {oreFerma < 1 ? (
+              <>
+                <p className="text-sm font-semibold">Clara sta preparando bozza e analisi</p>
+                <p className="mt-0.5 text-xs text-tenue">Di solito ci vuole qualche minuto dalla risposta. Questa pagina si aggiorna da sola.</p>
+              </>
+            ) : (
+              <Avviso tono="ambra" titolo={`Ferma da ${oreFerma < 48 ? `${oreFerma} ore` : `${Math.floor(oreFerma / 24)} giorni`}: la bozza non è arrivata`}>
+                {motivoSalto ? `Clara l'ha saltata: ${motivoSalto}. ` : ''}Rispondi tu da Smartlead, poi segna la mail nella Storia.
+              </Avviso>
+            )}
             <ul className="mt-3 space-y-1">
               <Voce ok={Boolean(fit?.verdetto)} testo={fit?.verdetto ? `Sito letto, fit ${fit.verdetto}` : 'Legge il sito'} inCorso={!fit?.verdetto} />
               <Voce ok={Boolean(p.analysis_pdf)} testo={p.analysis_pdf ? 'Analisi pronta' : trattenuta ? 'Analisi trattenuta' : 'Scrive l\'analisi'} inCorso={Boolean(fit?.verdetto) && !p.analysis_pdf && !trattenuta} />

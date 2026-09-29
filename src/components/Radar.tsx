@@ -74,8 +74,14 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
     const today = oggi()
     const adesso = new Date().toISOString()
     const fraSette = new Date(Date.now() + 7 * 86400e3).toISOString()
+    // 29/9 (studio d'uso di Alex, «Oggi ci mette 15-20 secondi»): il radar sta
+    // in Oggi in due pezzi, e ogni pezzo caricava TUTTO, otto letture ciascuno,
+    // tre letture pesanti di aziende comprese. Ogni pezzo carica solo il suo.
+    const vuoleCall = parte !== 'avvisi'
+    const vuoleAvvisi = parte !== 'call'
+    const nulla = Promise.resolve({ data: [] as Prospect[] })
 
-    supabase
+    if (vuoleAvvisi) supabase
       .from('sync_runs')
       .select('*')
       .order('finished_at', { ascending: false })
@@ -93,18 +99,22 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
     // le cose che aspettano DRE oggi: le bozze da approvare nella posta di
     // Clara, e le sue task in scadenza. La coda delle risposte non sta piu'
     // qui: da oggi la gestisce Clara con le bozze (Dre, 7/9)
-    supabase.from('proposte').select('tipo').eq('stato', 'aperta').limit(200)
+    // 29/9: bozza = c'e' un testo da mandare; il resto (anche «umano» senza testo) e' una domanda
+    if (vuoleCall) supabase.from('proposte').select('tipo,bozza:azione->>bozza').eq('stato', 'aperta').limit(200)
       .then(({ data }) => {
-        const l = (data as Array<{ tipo: string }>) ?? []
-        setBozze(l.filter((p) => p.tipo === 'risposta' || p.tipo === 'umano').length)
-        setDomande(l.filter((p) => p.tipo !== 'risposta' && p.tipo !== 'umano').length)
+        // (la demo non conosce l'alias e da' la riga intera: si guarda anche azione.bozza)
+        type R = { tipo: string; bozza?: string | null; azione?: { bozza?: string } | null }
+        const l = (data as R[]) ?? []
+        const eBozza = (p: R) => (p.tipo === 'risposta' || p.tipo === 'umano') && Boolean(p.bozza ?? p.azione?.bozza)
+        setBozze(l.filter(eBozza).length)
+        setDomande(l.filter((p) => !eBozza(p)).length)
       })
-    supabase.from('prospects').select('id,company,name,email,prova_fine').eq('fuori', true).eq('pipeline_stage', 'prova')
+    if (vuoleCall) supabase.from('prospects').select('id,company,name,email,prova_fine').eq('fuori', true).eq('pipeline_stage', 'prova')
       .not('prova_fine', 'is', null).lte('prova_fine', new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10))
       .order('prova_fine', { ascending: true }).limit(20)
       .then(({ data }) => setProveInScadenza(((data as Array<{ id: string; company: string | null; name: string | null; email: string; prova_fine: string }>) ?? [])
         .map((p) => ({ id: p.id, nome: p.company || p.name || p.email, fine: p.prova_fine }))))
-    supabase.auth.getSession().then(({ data: sess }) => {
+    if (vuoleCall) supabase.auth.getSession().then(({ data: sess }) => {
       const io = sess.session?.user?.id
       const mie = io ? `owner.is.null,owner.eq.${io}` : 'owner.is.null'
       supabase.from('task').select('id,titolo,scadenza').eq('fatta', false).neq('stato', 'proposta')
@@ -120,7 +130,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
         .gte('at', new Date(Date.now() - 14 * 86400e3).toISOString())
         .order('at', { ascending: true })
         .limit(50),
-      supabase
+      !vuoleAvvisi ? nulla : supabase
         .from('prospects')
         .select('*')
         .in('stage', ['analisi_inviata', 'in_follow_up'])
@@ -130,12 +140,12 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
         .or(VIVI)
         .order('analysis_sent_at', { ascending: true, nullsFirst: false })
         .limit(1000),
-      supabase
+      !vuoleAvvisi ? nulla : supabase
         .from('prospects')
         .select('*')
         .eq('fuori', true)
         .in('pipeline_stage', ['conoscitiva', 'tecnica', 'avvio', 'prova']),
-      supabase
+      !vuoleAvvisi ? nulla : supabase
         .from('prospects')
         .select('*')
         .eq('fuori', false)
@@ -217,7 +227,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
         return true
       }))
     })
-  }, [])
+  }, [parte])
 
   // la giornata: prima le call di oggi, poi la coda. Due sorgenti, una
   // lista sola, e il numero in alto conta questa

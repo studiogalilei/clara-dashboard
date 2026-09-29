@@ -48,6 +48,7 @@ import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
+import { useSchermoLargo } from './lib/schermo'
 
 // La struttura sul riferimento scelto da Dre (31/8): sidebar bianca a
 // sinistra, testata con titolo grande e ricerca, contenuto in carte morbide.
@@ -114,6 +115,11 @@ export default function App() {
   // 26/9: l'indirizzo comanda dal primo disegno. Se il link dice #/preventivi
   // si apre lì, senza lampeggiare prima sulla Pipeline.
   const dIniziale = leggiIndirizzo()
+  // 29/9: l'indirizzo con cui si e' entrati, letto UNA volta. Al primo disegno
+  // l'app scrive #/pipeline, e da li' in poi «c'e' gia' un indirizzo» era sempre
+  // vero: Carlo, Alex e Salvatore non arrivavano mai su Oggi (studio d'uso di Alex).
+  const entrataSenzaIndirizzo = useRef(dIniziale === null)
+  const largo = useSchermoLargo()
   const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'prospect')   // 24/9 (Dre): senza indirizzo si entra sulla Pipeline
   const [openId, setOpenId] = useState<string | null>(dIniziale?.id ?? null)
   const [sezione, setSezione] = useState<string | null>(dIniziale?.sezione ?? null)
@@ -362,7 +368,7 @@ export default function App() {
       // 26/9: se l'indirizzo dice gia' dove andare (link condiviso, ricarica,
       // tasto indietro) comanda lui. La pagina d'ingresso vale solo quando si
       // entra senza indirizzo: se no un link mandato a Carlo lo porta altrove.
-      if (c.ruolo !== 'ceo' && !leggiIndirizzo()) setTab('pipeline')
+      if (c.ruolo !== 'ceo' && entrataSenzaIndirizzo.current) setTab('pipeline')
     })
   }, [session, versione])
 
@@ -617,7 +623,8 @@ export default function App() {
           </button>
         </header>
 
-        <main className={`${pieno ? 'px-4 py-4' : 'px-4 py-5 lg:px-8 lg:py-7'} ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
+        {/* pb-36 sul telefono: l'ultima riga non finisce sotto la barra e i bottoni che galleggiano (29/9) */}
+        <main className={`${pieno ? 'px-4 py-4' : 'px-4 pb-36 pt-5 lg:px-8 lg:py-7'} ${tab === 'impostazioni' ? 'mx-auto max-w-4xl' : ''}`}>
           {!pieno && (<>
           {/* le novita', una volta, a chi rientra (Dre, 17/9) */}
           {/* le novita' solo sulla prima pagina (Dre, 25/9): su ogni pagina erano la prima cosa che vedevi, sempre */}
@@ -644,8 +651,8 @@ export default function App() {
               {/* quanto e' fresco quello che stai guardando (Dre, 15/9) */}
               {(tab === 'pipeline' || tab === 'prospect') && <Aggiornato />}
             </div>
-            {tab === 'pipeline' && (
-              <div className="hidden w-[440px] shrink-0 lg:block">
+            {tab === 'pipeline' && largo && (
+              <div className="w-[440px] shrink-0">
                 <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
               </div>
             )}
@@ -690,8 +697,8 @@ export default function App() {
           )}
           {/* in schermo intero la testata non c'e': la prossima call resta
               comunque, e' l'unica cosa che non si puo' perdere (QA Dre, 14/9) */}
-          {pieno && tab === 'pipeline' && (
-            <div className="mb-4 hidden lg:block">
+          {pieno && tab === 'pipeline' && largo && (
+            <div className="mb-4">
               <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
             </div>
           )}
@@ -749,7 +756,7 @@ export default function App() {
       {openId && <Rete dove={openId}><Scheda key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
-      <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} />
+      <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} nascostaSuTelefono={tab === 'pipeline' || tab === 'oggi' || tab === 'clara'} />
 
       {giro && <Giro nome={utente} ruoloVero={ruoloVero} onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
     </div>

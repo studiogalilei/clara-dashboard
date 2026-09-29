@@ -144,7 +144,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // senza tornare in Pipeline. La fila e' la Posta: le bozze aperte, dalla piu' vecchia.
   useEffect(() => {
     let vivo = true
-    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta')
+    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta').not('azione->>bozza', 'is', null)
       .order('at', { ascending: true }).limit(60)
       .then(({ data }) => {
         if (!vivo) return

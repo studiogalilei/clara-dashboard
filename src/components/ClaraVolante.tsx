@@ -146,6 +146,9 @@ interface Props {
   // Dre, 12/9: la posta (bozze, richieste, domande) e' una sezione sua nel
   // menu in basso; la pallina e' solo la chat. Stesso componente, due modi.
   modo?: 'volante' | 'posta'
+  // 29/9, studio d'uso: sul telefono in Oggi e in Posta la pallina copriva i
+  // bottoni («Apri la prima», «Apri la scheda»). La Posta e' gia' nell'icona in alto.
+  nascostaSuTelefono?: boolean
   compatta?: boolean      // schermo intero: niente colonna fissa, resta la pallina
   // il riposo (Dre, 15/9): dopo un po' nella stessa pagina la pallina
   // svanisce, e torna quando ci passi sopra il mouse. Resta cliccabile:
@@ -287,7 +290,7 @@ function trovaMail(testo: string): string[] {
   return (testo.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []).map((m) => m.replace(/\.+$/, ''))
 }
 
-export default function ClaraVolante({ onOpen, modo = 'volante', compatta = false, attenuata = false }: Props) {
+export default function ClaraVolante({ onOpen, modo = 'volante', compatta = false, attenuata = false, nascostaSuTelefono = false }: Props) {
   const pagina = modo === 'posta'
   const [utenteId, setUtenteId] = useState<string | null>(null)
   const [ceo, setCeo] = useState(false)
@@ -407,11 +410,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                 </p>
                               )}
                               {c.ultimo && (
-                                <blockquote className="border-l-2 border-bordo pl-3 text-[13px] leading-snug text-tenue">
+                                <blockquote className="border-l-2 border-blu/40 pl-3 text-[13px] leading-snug text-inchiostro">
                                   <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">
                                     cosa ha scritto{c.quando ? `, ${fmtDateShort(c.quando)}` : ''}
                                   </span>
-                                  <span className="line-clamp-5 whitespace-pre-wrap">{c.ultimo}</span>
+                                  {/* 29/9, studio d'uso: grigia e tagliata a 5 righe non si capiva a cosa si rispondeva */}
+                                  <span className="block max-h-72 overflow-y-auto whitespace-pre-wrap">{c.ultimo}</span>
                                 </blockquote>
                               )}
                               {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
@@ -454,12 +458,16 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                             )}
                             {/* mentre la risposta di gruppo gira, la singola si
                                 blocca: la stessa proposta poteva partire due volte */}
+                            {/* 29/9: con l'invio spento «Approva» non c'e', come nella scheda: la bozza
+                                spariva dalla Posta e non partiva (studio d'uso di Dre e Lorenzo) */}
+                            {(pr.azione?.bozza === undefined || invioAcceso !== false) && (
                             <button onClick={() => { if (pr.azione?.intento === 'INT-GB' && chiedoConferma !== pr.id) { setChiedoConferma(pr.id); return } rispondi(pr, true) }}
                                     disabled={rispondo === pr.id || lavoro !== null}
                                     data-tip={invioAcceso === false ? "L'invio automatico è spento: approvi, ma la mail resta ferma finché non lo riaccendi" : undefined}
                                     className={`rounded-full px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40 ${invioAcceso === false ? 'bg-tenue' : 'bg-blu'}`}>
                               {pr.azione?.bozza === undefined ? 'Sì' : invioAcceso === false ? 'Approva (non parte)' : 'Approva e manda'}
                             </button>
+                            )}
                             {/* il giro a mano: copia, manda da Smartlead, torna e conferma */}
                             {pr.azione?.bozza !== undefined && (
                               <button onClick={() => void hoMandatoIo(pr)} disabled={rispondo === pr.id || lavoro !== null}
@@ -680,7 +688,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     const azione = { ...(p.azione ?? {}), bozza_originale: p.azione?.bozza_originale ?? p.azione?.bozza, bozza: corpo }
     await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', p.id)
     setProposte((l) => l.filter((x) => x.id !== p.id))
-    await scriviMessaggio('controllo', `Mandata a mano da Dre: ${p.titolo}`, p.prospect_id)
+    // 29/9: fatta una, si apre la prossima, come dopo «Approva» (la fila del 25/9)
+    inFila(p)
+    await scriviMessaggio('controllo', `Mandata a mano: ${p.titolo}`, p.prospect_id)
     setRispondo(null)
   }
 
@@ -1109,7 +1119,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         // la pallina (Dre, 9/9): un po' piu' grande, il nome sotto, e si sposta dove vuoi
         <div
           style={pallina ? { left: pallina.x, top: pallina.y, right: 'auto', bottom: 'auto' } : undefined}
-          className="fixed bottom-20 right-4 z-[70] flex flex-col items-center gap-1 sm:bottom-6 sm:right-6"
+          className={`fixed bottom-20 right-4 z-[70] flex-col items-center gap-1 sm:bottom-6 sm:right-6 ${nascostaSuTelefono ? 'hidden sm:flex' : 'flex'}`}
         >
           <button
             onPointerDown={(e) => {

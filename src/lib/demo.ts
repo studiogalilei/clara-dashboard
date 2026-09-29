@@ -398,6 +398,14 @@ const TABELLE: Record<string, Riga[]> = {
   operazioni: [{ chiave: 'manda', attiva: false, ultima_corsa: new Date(Date.now() - 3 * 60000).toISOString() }] as unknown as Riga[],
 }
 
+// «azione->>bozza»: il campo dentro un json, come lo legge il database vero (29/9)
+function campo(r: Riga, c: string): unknown {
+  const pezzi = c.split(/->>?/)
+  let v: unknown = r[pezzi[0]]
+  for (const k of pezzi.slice(1)) v = v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined
+  return v
+}
+
 function dentroLista(spec: unknown): string[] {
   if (Array.isArray(spec)) return spec.map(String)
   return String(spec).replace(/[()"]/g, '').split(',').map((s) => s.trim())
@@ -420,12 +428,12 @@ class Query {
   }
 
   select(_c?: string, o?: { count?: string; head?: boolean }) { this.conta = Boolean(o?.count); this.testa = Boolean(o?.head); return this }
-  eq(c: string, v: unknown) { this.filtri.push((r) => r[c] === v); return this }
+  eq(c: string, v: unknown) { this.filtri.push((r) => campo(r, c) === v); return this }
   neq(c: string, v: unknown) { this.filtri.push((r) => r[c] !== v); return this }
   is(c: string, v: unknown) { this.filtri.push((r) => (v === null ? r[c] == null : r[c] === v)); return this }
   in(c: string, v: unknown) { const l = dentroLista(v); this.filtri.push((r) => l.includes(String(r[c]))); return this }
   not(c: string, op: string, v: unknown) {
-    if (op === 'is' && v === null) this.filtri.push((r) => r[c] != null)
+    if (op === 'is' && v === null) this.filtri.push((r) => campo(r, c) != null)
     else if (op === 'in') { const l = dentroLista(v); this.filtri.push((r) => !l.includes(String(r[c]))) }
     return this
   }

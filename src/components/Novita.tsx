@@ -67,9 +67,10 @@ export default function Novita() {
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-blu">Novità</p>
               <p className="mt-0.5 text-[15px] font-extrabold text-navy">{nuova.titolo}</p>
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-inchiostro">{nuova.testo}</p>
+              {/* 29/9: sul telefono la striscia si mangiava mezzo schermo prima della giornata */}
+              <p className="mt-1 line-clamp-2 max-w-2xl text-sm leading-relaxed text-inchiostro sm:line-clamp-none">{nuova.testo}</p>
               {primaVolta && (
-                <p className="mt-1.5 text-xs text-tenue">
+                <p className="mt-1.5 hidden text-xs text-tenue sm:block">
                   Le novità arrivano qui: ogni volta che cambia qualcosa lo trovi in questa striscia, una volta sola. Le stelle ci dicono se serve davvero.
                 </p>
               )}
