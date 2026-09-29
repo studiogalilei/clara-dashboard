@@ -66,7 +66,7 @@ OMBRA = "--ombra" in sys.argv
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 FIRMA = "prima-risposta-automatica (decisione Dre 29/9)"
 MAX_PER_GIRO = 5
-MAX_AL_GIORNO = 15
+MAX_AL_GIORNO = 5          # Dre 29/9: 5 al giorno la prima settimana, poi si sale a 15 se va
 ORE = (9, 17)                              # dalle 9 alle 16:59, ora di Roma
 CLASSI_OK = ("positivo", "tiepido")
 # dal playbook: vuole l'analisi, vuole parlare, chi siete, vuole il materiale
@@ -256,6 +256,14 @@ def main():
             schede[p["id"]] = p
 
     import lettura
+    # IL PRIMO INVIO SI GUARDA INSIEME (regola del 28/9, Dre 29/9). Il 29/9 manda.py
+    # non aveva ancora mai spedito una mail vera: la prima risposta automatica sarebbe
+    # stata anche la prima volta del postino. Finche' Clara non ha mai mandato niente,
+    # la prima che passa tutto resta aperta in Posta con il via a Dre: la preme lui,
+    # la guarda uscire su Smartlead, e da li' in poi si va da soli.
+    mai_mandato = not sb("GET", "/rest/v1/proposte?select=id&risposta=like.Mandata%20da%20Clara*&limit=1")
+    in_attesa_del_via = bool(sb("GET", "/rest/v1/proposte?select=id&stato=in.(aperta,approvata,in_invio)"
+                                       "&azione->prima_risposta->>esito=eq.primo%20invio%20da%20guardare&limit=1"))
     approvate, restano = 0, 0
     for pr in aperte:
         p = schede.get(pr["prospect_id"])
@@ -312,6 +320,20 @@ def main():
             az["prima_risposta"] = {"esito": "resta a Dre", "motivo": motivo, "il": il}
             if segna(pr, az):
                 di_clara("controllo", f"Prima risposta a {nome}: non parte da sola, resta a te in Posta. Il Revisore: {motivo}",
+                         prospect_id=p["id"])
+            continue
+        if mai_mandato:
+            if in_attesa_del_via:
+                print(f"  ✓  {nome:34} passa, ma aspetta il primo invio guardato insieme"); continue
+            print(f"  ✓  {nome:34} passa: e' il PRIMO invio, il via lo da' Dre in Posta")
+            if PROVA:
+                approvate += 1; continue
+            az.update({"allega": True, "allega_presentazione": True,
+                       "prima_risposta": {"esito": "primo invio da guardare", "il": il}})
+            if segna(pr, az, {"titolo": f"Primo invio automatico, dai tu il via: {nome}"[:200]}):
+                in_attesa_del_via = True
+                di_clara("domanda", f"È pronta la prima risposta che partirebbe da sola: {nome}. Aprila in Posta e premi «Approva e manda»: "
+                                    f"la guardiamo uscire su Smartlead, con analisi e presentazione allegate. Dopo questa, le prossime partono da sole (massimo {MAX_AL_GIORNO} al giorno).",
                          prospect_id=p["id"])
             continue
         print(f"  ✓  {nome:34} passa: parte al prossimo giro di manda, con analisi e presentazione")

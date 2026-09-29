@@ -516,6 +516,7 @@ def _():
 @prova("la prima risposta automatica: passa solo il caso semplice, e solo a interruttori accesi")
 def _():
     import datetime
+    import pathlib
     import prima_risposta as R
     # 29/9: Dre vuole che la prima risposta parta da sola. E' il punto piu'
     # delicato del sistema: approva al posto di una persona. Ogni porta del
@@ -573,8 +574,9 @@ def _():
         assert R.verdetto_revisore(r)[0] == "STOP", f"il Revisore farebbe passare «{r}»"
     # i tetti, e la firma che manda.py pretende (approvata_da) con gli allegati
     assert R.MAX_PER_GIRO <= 5 and R.MAX_AL_GIORNO <= 15
+    # il primo invio in assoluto lo guarda Dre (28/9): finche' Clara non ha mai mandato niente, non si approva da sola
+    assert "mai_mandato" in pathlib.Path(R.__file__).read_text(encoding="utf-8") and "primo invio da guardare" in pathlib.Path(R.__file__).read_text(encoding="utf-8")
     assert "prima-risposta-automatica" in R.FIRMA
-    import pathlib
     src = pathlib.Path(R.__file__).read_text(encoding="utf-8")
     assert '"allega": True, "allega_presentazione": True' in src, "la prima risposta deve partire con analisi e presentazione"
     assert "stato=eq.aperta" in src, "se Dre ha gia' toccato la bozza, l'automatico non deve sovrascriverla"
