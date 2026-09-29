@@ -144,6 +144,19 @@ def verdetto_revisore(testo):
     return ("OK", "") if parola == "OK" else ("STOP", (t.split(":", 1)[1].strip() if ":" in t else t)[:200] or "nessuna risposta")
 
 
+def _template_approvati():
+    """Le prime risposte del file dei template di Dre (29/9, dal banco di prova: il
+    Revisore fermava La Baita Case per «una proposta con garanzia non verificata»,
+    che e' una frase del template di Dre. Chi giudica deve sapere cosa e' gia' approvato)."""
+    try:
+        import bozze
+        t = bozze.template_verbatim()
+        fine = t.find("RIPRESA (25/9")                     # dopo iniziano riprese e follow-up: non servono qui
+        return (t[:fine] if fine > 0 else t)[:9000]
+    except Exception:                                    # noqa: BLE001
+        return "(template non caricati)"
+
+
 def revisore(pr, p, letti):
     """Il Revisore rilegge la mail sapendo che partira' davvero, senza nessuno dopo di lui."""
     try:
@@ -152,6 +165,11 @@ def revisore(pr, p, letti):
         azienda = p.get("company") or p.get("name") or p["email"]
         prompt = f"""{cervello.ruolo("revisore")}Sei il REVISORE di Studio Galilei. Questa mail PARTIRA' DAVVERO, in automatico,
 senza che Dre la legga prima. Dopo di te non c'e' nessuno. Il tuo compito: dire se puo' partire cosi'.
+
+I TESTI APPROVATI DA DRE, parola per parola. Quello che la mail dice con queste frasi (la proposta con
+garanzia, il calendario, il doc di presentazione, «centrata principalmente sulla comunicazione su Google»)
+e' approvato da lui: non e' un impegno inventato e non e' un motivo per fermarla.
+{_template_approvati()}
 
 A CHI: {azienda} ({p['email']}), classificato {p.get('classificazione')}, intento {az.get('intento')}.
 IN ALLEGATO partiranno: l'analisi Google Ads in PDF fatta per loro e la presentazione dello Studio.

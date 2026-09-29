@@ -47,7 +47,7 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, proponi                        # noqa: E402
+from stanza import env, sb, proponi, senza_trattini        # noqa: E402
 import lettura                                            # noqa: E402
 import cervello                                            # noqa: E402
 import brand_assets                                        # noqa: E402
@@ -394,6 +394,15 @@ def carica_pdf(percorso, dom):
 
 
 # ── una persona ─────────────────────────────────────────────────────
+def _ripulisci(an):
+    """Quello che il codice sa correggere da solo non costa un giro (29/9): il trattino lungo."""
+    if an:
+        for k in ("intro", "body"):
+            if isinstance(an.get(k), str):
+                an[k] = senza_trattini(an[k])
+    return an
+
+
 def lavora(p):
     nome = (p.get("company") or p.get("email"))[:40]
     s = scheda(p)
@@ -404,12 +413,12 @@ def lavora(p):
     # NOSTRA firma sul GDPR bloccava chi aveva appena detto di si'.
     if s["ultime"] and NON_TOCCARE.search(lettura.solo_suo(s["ultime"][0].get("body") or "")):
         print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
-    an = chiedi(p, s)
+    an = _ripulisci(chiedi(p, s))
     fatti = fatti_in_testo(s, p)
     errori = cancello(an, fatti) if an else ["risposta non in JSON"]
     if errori:
         print(f"    bocciata una volta: {'; '.join(errori)[:160]}")
-        an = chiedi(p, s, errori)
+        an = _ripulisci(chiedi(p, s, errori))
         errori = cancello(an, fatti) if an else ["risposta non in JSON"]
     if errori:
         # TRATTENUTA CON MOTIVO (da Galileo): non si pubblica, e il motivo resta

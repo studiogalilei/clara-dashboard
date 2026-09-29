@@ -162,6 +162,18 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
         raise
 
 
+def senza_trattini(testo):
+    """Il trattino lungo lo toglie il codice, non un secondo giro del modello (29/9).
+    L'analisi di Naturalia e' stata bocciata cinque giri di fila, due ore, anche per
+    il trattino lungo: un difetto che si corregge con una sostituzione. Un inciso
+    fra due trattini diventa una parentesi, un trattino solo diventa due punti."""
+    def frase(f):
+        if f.count("—") == 2:
+            f = re.sub(r"\s*—\s*(.*?)\s*—\s*", r" (\1) ", f, count=1)
+        return re.sub(r"\s*—\s*", ": ", f)
+    return "".join(frase(f) for f in re.split(r"(?<=[.!?\n])", testo or "")).replace("–", "-")
+
+
 def di_clara(tipo, testo, prospect_id=None, owner=None, letto=False, diario=False):
     """Una riga nella chat, a nome di Clara. `diario` marca la domanda del diario."""
     import re

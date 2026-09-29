@@ -121,6 +121,13 @@ def main():
         # Smartlead chiede «sync,googlefit,bozze»: l'analisi si infila da sola.
         if "bozze" in catena and "analisi" not in catena:
             catena.insert(catena.index("bozze"), "analisi")
+        # 29/9: e dopo la bozza, nello stesso giro, la prima risposta e l'invio.
+        # Prima la bozza pronta aspettava il giro dopo (20 minuti) per essere
+        # approvata e un altro per partire. Se sono spente si saltano da sole qui sotto.
+        if "bozze" in catena:
+            for dopo in ("prima_risposta", "manda"):
+                if dopo not in catena:
+                    catena.append(dopo)
         for chiave in catena:
             op = per_chiave.get(chiave)
             if not op:

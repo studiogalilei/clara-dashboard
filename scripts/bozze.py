@@ -45,7 +45,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando                     # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini     # noqa: E402
 import lettura                                             # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -431,6 +431,7 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if campi.get("PREFLIGHT", "ok").lower().startswith("fallito") and fermati.lower().startswith("no"):
         fermati = "si': preflight " + campi["PREFLIGHT"]
     bozza = bozza.replace("{{CALENDARIO}}", CALENDARIO).replace("{{ CALENDARIO }}", CALENDARIO)
+    bozza = senza_trattini(bozza)          # 29/9: lo toglie il codice, non un secondo giro del modello
     return {"intento": campi.get("INTENTO", "?")[:7], "template": gruppo or campi.get("INTENTO", ""),
             "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza,
             "lettura_di_clara": campi.get("LETTURA", ""), "ha_gia_di_clara": campi.get("HA_GIA", "")}

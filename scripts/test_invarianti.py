@@ -599,6 +599,21 @@ def _():
     assert "fasi_dalle_call(prova)" in src, "il calendario non chiama piu' il passo delle fasi"
 
 
+@prova("il trattino lungo lo toglie il codice: non costa un giro di analisi o di bozze")
+def _():
+    import pathlib
+    from stanza import senza_trattini
+    # 29/9: l'analisi di Naturalia bocciata cinque giri di fila (due ore) anche per il trattino
+    assert "—" not in senza_trattini("a — b — c. d — e")
+    assert senza_trattini("La zona — verificata — regge.") == "La zona (verificata) regge."
+    qui = pathlib.Path(__file__).resolve().parent
+    assert "_ripulisci(chiedi(" in qui.joinpath("analisi_auto.py").read_text(encoding="utf-8"), "l'analisi non si ripulisce piu' prima del cancello"
+    assert "senza_trattini(bozza)" in qui.joinpath("bozze.py").read_text(encoding="utf-8"), "la bozza non si ripulisce piu' prima del cancello"
+    d = qui.joinpath("direttore.py").read_text(encoding="utf-8")
+    assert '("prima_risposta", "manda")' in d, "il campanello non porta piu' la bozza fino all'invio nello stesso giro"
+    assert 'not op["attiva"] and not anche_spente' in d, "nella catena un'operazione spenta deve restare spenta"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
