@@ -441,9 +441,46 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
 LEZIONI = ""
 
 
+CHIUDONO = ("non c'è nessuno a cui scrivere", "nessun ricontatto")
+
+
+def chiudi_attesa(p, motivo):
+    """NESSUNO A CUI RISPONDERE (29/9): l'attesa si chiude col motivo nella scheda.
+    Chi riscrive torna da solo (il sync rimette l'attesa). Prima restavano «in
+    attesa» per sempre: caselle ticket, no senza gigante buono, soppressi, fuori
+    target. Dre li vedeva fra i «da rispondere» e non c'era niente da rispondere."""
+    print(f"  attesa chiusa: {(p.get('company') or p.get('name') or p.get('email') or '')[:34]}: {motivo}")
+    if PROVA:
+        return
+    fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{p['id']}") or [{}])[0]
+    arr = dict(fresco.get("enriched") or {})
+    arr["lettura_esito"] = {"motivo": motivo, "il": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"awaiting_us": False, "enriched": arr})
+
+
+def chiudi_attese_senza_risposta():
+    """Chi aspetta ma a cui non si risponde mai: chi e' gia' stato letto con un motivo che chiude (le caselle di servizio lette col
+    codice di prima del 29/9, che l'attesa non la chiudeva)."""
+    n = 0
+    for p in sb("GET", "/rest/v1/prospects?select=id,company,name,email,classificazione,last_reply_at,enriched"
+                       "&awaiting_us=eq.true&limit=500") or []:
+        c = p.get("classificazione")
+        esito = (p.get("enriched") or {}).get("lettura_esito") or {}
+        # soppressi, fuori target e nervosi NO: il Revisore il 29/9 ha fermato anche la sola
+        # chiusura dell'attesa («mai toccare chi e' fuori o soppresso»). Decide Dre.
+        if c in ("soppresso", "fuori_target", "nervoso"):
+            continue
+        if isinstance(esito, dict) and any(k in (esito.get("motivo") or "") for k in CHIUDONO) \
+                and (esito.get("il") or "") >= (p.get("last_reply_at") or "")[:19]:
+            chiudi_attesa(p, esito["motivo"]); n += 1
+    return n
+
+
 def main():
     global LEZIONI
     print("LE BOZZE" + (" (prova: non scrive niente)" if PROVA else ""))
+    if not SOLO:
+        chiudi_attese_senza_risposta()
     LEZIONI = come_corregge_dre()
     if LEZIONI:
         print(f"  (Clara ha {LEZIONI.count('BOZZA DI CLARA') + LEZIONI.count('SCARTATA')} correzioni di Dre da cui partire)")
@@ -520,7 +557,7 @@ def main():
             # scheda, e si riapre da sola se quella persona riscrive davvero.
             arr["lettura_esito"] = {"motivo": motivo, "il": adesso}
             patch = {"enriched": arr}
-            if "non c'è nessuno a cui scrivere" in motivo or "nessun ricontatto" in motivo:
+            if any(k in motivo for k in CHIUDONO):
                 patch["awaiting_us"] = False
             sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
 
@@ -647,7 +684,7 @@ def main():
 
     # ── il gigante buono: i negativi cortesi, una volta sola ────────
     negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
-                         "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup"
+                         "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup,awaiting_us"
                          "&order=last_reply_at.desc&limit=200") or []
     soppresse = sb_tutte("/rest/v1/suppressions?select=email,domain&limit=5000") or []
     mail_no = {(x.get("email") or "").lower() for x in soppresse}
@@ -657,12 +694,19 @@ def main():
     # come risposta (prima tornava ogni giro, QA del 14/9)
     rifiutate = {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
                  if x.get("prospect_id")}
+    def mai_gb(p, motivo):
+        """Il gigante buono non arrivera' mai: se aspettava, l'attesa si chiude (29/9)."""
+        if p.get("awaiting_us"):
+            chiudi_attesa(p, f"ha detto no, niente gigante buono: {motivo}")
+
     for p in negativi:
-        if gb >= QUANTI_GB or p["id"] in aperte or p["id"] in rifiutate or p.get("stage") in INTOCCABILI:
+        if p["id"] in rifiutate:
+            mai_gb(p, "l'hai gia' scartato tu"); continue
+        if gb >= QUANTI_GB or p["id"] in aperte or p.get("stage") in INTOCCABILI:
             continue
         mail = (p.get("email") or "").lower()
         if mail in mail_no or mail.split("@")[-1] in dom_no:
-            continue
+            mai_gb(p, "e' nella lista di chi non va contattato"); continue
         # anche il gigante buono legge (25/9): il suo no vero, dal filo
         try:
             _, letti = lettura.leggi(p)
@@ -671,14 +715,16 @@ def main():
         testo = letti["ultima_loro"]
         # 28/9: NON_TOCCARE sulle sue righe soltanto (il caso dell'immobiliare del 28/9: «cancellarlo»
         # stava nella nostra firma GDPR citata sotto la sua risposta positiva)
-        if len(testo.strip()) < 20 or NON_TOCCARE.search(lettura.solo_suo(testo)) or letti["scritto_dopo_di_lei"]:
-            continue
+        if len(testo.strip()) < 20 or NON_TOCCARE.search(lettura.solo_suo(testo)):
+            mai_gb(p, "ha chiesto di non essere contattato o non ha scritto niente"); continue
+        if letti["scritto_dopo_di_lei"]:
+            mai_gb(p, "gli abbiamo gia' scritto dopo il suo no"); continue
         fit = (p.get("enriched") or {}).get("google_fit") or {}
         if fit.get("verdetto") == "NO" or not (fit.get("zona") or p.get("analysis_pdf")):
-            continue                       # senza un'analisi vera (PDF o zona misurata) non c'e' niente da lasciare
+            mai_gb(p, "non c'e' un'analisi vera da lasciargli"); continue   # senza PDF o zona misurata non c'e' niente da lasciare
         ultimo_no = (p.get("last_reply_at") or "")[:10]
         if ultimo_no and (datetime.date.today() - datetime.date.fromisoformat(ultimo_no)).days > GIORNI_GB:
-            continue
+            mai_gb(p, f"il suo no ha piu' di {GIORNI_GB} giorni"); continue
         nome = (p.get("company") or p.get("name") or mail)[:34]
         fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
                  "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}

@@ -771,6 +771,17 @@ def _():
     assert q["canone"] == 900 and q["enriched"]["prezzo"] == {"punto": 1500} and q["enriched"]["google_fit"] == 1
 
 
+@prova("l'attesa si chiude quando non c'e' nessuno a cui rispondere, ma mai toccando soppressi e fuori target")
+def _():
+    import pathlib
+    b = pathlib.Path(__file__).resolve().parent.joinpath("bozze.py").read_text(encoding="utf-8")
+    # 29/9: caselle ticket e no senza gigante buono restavano «in attesa» per sempre
+    assert "chiudi_attese_senza_risposta()" in b and "mai_gb(p," in b, "le attese senza risposta non si chiudono piu'"
+    # e il Revisore ha deciso: soppressi, fuori target e nervosi non si toccano nemmeno cosi'
+    blocco = b[b.index("def chiudi_attese_senza_risposta"):b.index("def main")]
+    assert 'if c in ("soppresso", "fuori_target", "nervoso"):\n            continue' in blocco, "l'attesa si chiude anche a soppressi e fuori target"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
