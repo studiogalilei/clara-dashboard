@@ -29,7 +29,7 @@ import urllib.parse
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, proponi                             # noqa: E402
+from stanza import sb, proponi, sb_tutte                             # noqa: E402
 import cervello                                            # noqa: E402
 from google_api import drive_cerca, drive_testo, drive_copia, cartella   # noqa: E402
 
@@ -133,9 +133,9 @@ def main():
     if not docs:
         print("appunti: niente di nuovo nel Drive")
         return
-    gia = {r["ref"] for r in (sb("GET", "/rest/v1/interactions?select=ref&ref=like.gemini:*&limit=5000") or [])}
-    chiesti = {(pr.get("azione") or {}).get("appunti_id") for pr in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.richiesta&limit=5000") or [])}
-    aziende = sb("GET", "/rest/v1/prospects?select=id,company,name,sg_id&stage=neq.nuovo&limit=2000") or []
+    gia = {r["ref"] for r in (sb_tutte("/rest/v1/interactions?select=ref&ref=like.gemini:*&limit=5000") or [])}
+    chiesti = {(pr.get("azione") or {}).get("appunti_id") for pr in (sb_tutte("/rest/v1/proposte?select=azione&tipo=eq.richiesta&limit=5000") or [])}
+    aziende = sb_tutte("/rest/v1/prospects?select=id,company,name,sg_id&stage=neq.nuovo&limit=2000") or []
     messi, domande, saltati = 0, 0, 0
     for doc in docs:
         ref = "gemini:" + doc["id"]

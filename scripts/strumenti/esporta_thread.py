@@ -24,7 +24,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
 import sync_v2 as sl                                       # noqa: E402  (gli aiutanti Smartlead)
-from stanza import sb                                      # noqa: E402
+from stanza import sb, sb_tutte                                      # noqa: E402
 
 VAULT = os.path.expanduser("~/Documents/Obsidian/studiogalilei/Sistema Operativo Studio Galilei/ODYN Cockpit/Thread Smartlead")
 RIEMPI = "--riempi-archivio" in sys.argv
@@ -46,7 +46,7 @@ def main():
     noti = sl.db_prospects()                      # email -> record, per l'id nel CRM
     vuoti = {}
     if RIEMPI:
-        for r in sb("GET", "/rest/v1/interactions?kind=eq.email_in&select=id,prospect_id,at,body&limit=3000") or []:
+        for r in sb_tutte("/rest/v1/interactions?kind=eq.email_in&select=id,prospect_id,at,body&limit=3000") or []:
             b = (r.get("body") or "").strip()
             if len(b) < 25 or "smartlead" in b.lower()[:200]:
                 vuoti.setdefault(r["prospect_id"], []).append(r)

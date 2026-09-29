@@ -25,7 +25,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                       # noqa: E402
+from stanza import sb, sb_tutte                                       # noqa: E402
 
 GIORNI = 5
 QUANTI = 50
@@ -35,7 +35,7 @@ CLASSI = "positivo,tiepido,da_classificare"
 def gia_avute(*template):
     """Chi ha gia' avuto quella proposta: aperta, mandata, o rifiutata da Dre («NO: ...»).
     Le proposte chiuse dagli script il 25/9 (scritte senza lettura) non contano: si rifanno."""
-    rs = sb("GET", f"/rest/v1/proposte?select=prospect_id,stato,risposta&azione->>template=in.({','.join(template)})&limit=5000") or []
+    rs = sb_tutte(f"/rest/v1/proposte?select=prospect_id,stato,risposta&azione->>template=in.({','.join(template)})&limit=5000") or []
     return {x["prospect_id"] for x in rs if x["stato"] != "no" or (x.get("risposta") or "").startswith("NO:")}
 
 
@@ -48,7 +48,7 @@ def mini_followup(prova, oggi):
     """IL MINI FOLLOW-UP (Dre, 25/9): a chi ha ricevuto la ripresa (analisi + call) e
     dopo sei giorni non ha risposto, due righe, una volta sola."""
     da = (oggi - datetime.timedelta(days=6)).isoformat()
-    mandate = sb("GET", f"/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA&risposta_il=lte.{da}T23:59:59&limit=2000") or []
+    mandate = sb_tutte(f"/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA&risposta_il=lte.{da}T23:59:59&limit=2000") or []
     gia = gia_avute("MINI%20FOLLOW%20UP")
     n = 0
     for m in mandate:
@@ -88,8 +88,13 @@ def calendario(prova, oggi):
 
     fine = oggi + datetime.timedelta(days=ORIZZONTE)
     # 1. gia' in coda: la bozza arriva al prossimo giro delle bozze
-    for p in sb("GET", "/rest/v1/prospects?select=id,coda&coda=not.is.null&fuori=eq.false&limit=1000") or []:
-        metti(p["id"], p["coda"], oggi, "in coda: la bozza arriva al prossimo giro")
+    for p in sb("GET", "/rest/v1/prospects?select=id,coda,coda_il,analysis_pdf&coda=not.is.null&fuori=eq.false"
+                       "&stage=not.in.(cliente,perso,call_fissata,rinviato)&limit=1000") or []:
+        # l'attesa si dice com'e': chi aspetta un'analisi da giorni non «arriva al prossimo giro»
+        ferma = p.get("coda_il") and (oggi - datetime.date.fromisoformat(p["coda_il"][:10])).days >= 2
+        perche = ("in coda da " + str((oggi - datetime.date.fromisoformat(p["coda_il"][:10])).days) + " giorni"
+                  + (": aspetta l'analisi" if not p.get("analysis_pdf") else "")) if ferma else "in coda: la bozza arriva al prossimo giro"
+        metti(p["id"], p["coda"], oggi, perche)
     # 2. FOLLOW UP 1: analisi mandata, silenzio, GIORNI dopo (stessa regola di main)
     gia = gia_avute("FOLLOW%20UP%201")
     da = (oggi - datetime.timedelta(days=30)).isoformat()
@@ -106,7 +111,7 @@ def calendario(prova, oggi):
             metti(p["id"], "FOLLOW UP 1", max(il, oggi), f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
     # 3. MINI FOLLOW UP: sei giorni dopo la ripresa
     gia_mini = gia_avute("MINI%20FOLLOW%20UP")
-    for m in sb("GET", "/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA"
+    for m in sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA"
                        f"&risposta_il=gte.{da}&limit=2000") or []:
         if not m.get("prospect_id") or m["prospect_id"] in gia_mini or not m.get("risposta_il"):
             continue

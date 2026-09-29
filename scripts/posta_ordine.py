@@ -28,7 +28,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara                            # noqa: E402
+from stanza import sb, di_clara, sb_tutte                            # noqa: E402
 
 # quanto puo' restare aperta una domanda, per tipo. Le bozze durano di piu':
 # una risposta scritta due settimane fa si puo' ancora mandare, una
@@ -49,7 +49,7 @@ def quando_di(iso):
 def main():
     prova = "--prova" in sys.argv
     adesso = datetime.datetime.now(datetime.timezone.utc)
-    aperte = sb("GET", "/rest/v1/proposte?select=id,tipo,at,titolo&stato=eq.aperta&limit=2000") or []
+    aperte = sb_tutte("/rest/v1/proposte?select=id,tipo,at,titolo&stato=eq.aperta&limit=2000") or []
     da_chiudere = {}
     for p in aperte:
         limite = GIORNI.get(p["tipo"])

@@ -103,6 +103,16 @@ def interruttori(ops, ombra=False, chiave="prima_risposta"):
 
 
 GIORNI_CONTATTO = 60
+# LE RIGHE DI SERVIZIO (29/9). Nelle note ci sono anche righe scritte dal sistema che
+# dicono solo «era in ferie»: sono il motivo del ricontatto, non un contatto con una
+# persona. Si riconoscono dal formato esatto; tutto il resto resta un motivo per fermarsi.
+_SERVIZIO = re.compile(r"^(?:OOO: rientra il \d{4}-\d{2}-\d{2}.*"
+                       r"|Pulizia del \d{1,2}/\d{1,2} \(Achille\): (?:risposta automatica o ferie ormai passate, nessuna risposta vera|ferie fino al .*))$")
+
+
+def note_vere(testo):
+    """La nota senza le righe di servizio: quello che ha scritto una persona."""
+    return "\n".join(r for r in (testo or "").splitlines() if r.strip() and not _SERVIZIO.match(r.strip())).strip()
 
 
 def contatti_fuori(p, giorni=GIORNI_CONTATTO):
@@ -114,8 +124,9 @@ def contatti_fuori(p, giorni=GIORNI_CONTATTO):
     pid = p["id"]
     da = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=giorni)).strftime("%Y-%m-%dT%H:%M:%SZ")
     no = []
-    if (p.get("notes") or "").strip():
-        no.append(f"c'e' una nota fuori binario: «{' '.join(p['notes'].split())[:60]}»")
+    nota = note_vere(p.get("notes"))
+    if nota:
+        no.append(f"c'e' una nota fuori binario: «{' '.join(nota.split())[:60]}»")
     if p.get("owner"):
         no.append("qualcuno l'ha presa in carico")
     righe = sb("GET", f"/rest/v1/interactions?select=kind,at,ref&prospect_id=eq.{pid}&at=gte.{da}"
@@ -157,7 +168,7 @@ def perche_no_seguito(pr, p):
         return no + ["manca la scheda"]
     if not contattabile(p) or p.get("classificazione") in ("negativo",):
         no.append("non e' piu' un lead")
-    if gruppo in ("RIPRESA", "RINVIO SCADUTO") and not p.get("analysis_pdf"):
+    if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO") and not p.get("analysis_pdf"):
         no.append("l'analisi in PDF non c'e'")
     if "usa" in (p.get("campaign") or "").lower():
         no.append("campagna USA")
@@ -249,7 +260,10 @@ def rilettura_seguito(pr, p, letti):
     import bozze
     az = pr.get("azione") or {}
     gruppo = (az.get("lettura") or {}).get("gruppo")
-    ora = seguiti.testo(gruppo, p, letti, bozze.CALENDARIO)
+    giorno = az.get("giorno_proposto")
+    if giorno and seguiti.giorno_passato(giorno):
+        return "STOP", f"propone {giorno}, che e' gia' passato: va rifatta"
+    ora = seguiti.testo(gruppo, p, letti, bozze.CALENDARIO, giorno=giorno)
     if not ora:
         return "STOP", "il codice non sa piu' scriverlo da solo (template o regola cambiati)"
     if ora.strip() != (az.get("bozza") or "").strip():
@@ -440,8 +454,8 @@ def main():
             approvate += 1; continue
         gruppo = (az.get("lettura") or {}).get("gruppo")
         az.update({"approvata_da": firma_mia, "approvata_il": il, "automatica": True,
-                   "allega": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO"),
-                   "allega_presentazione": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO", "FOLLOW UP 1"),
+                   "allega": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"),
+                   "allega_presentazione": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"),
                    "prima_risposta": {"esito": "OK", "il": il}})
         if segna(pr, az, {"stato": "approvata"}):
             approvate += 1

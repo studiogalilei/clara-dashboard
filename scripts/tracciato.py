@@ -28,7 +28,7 @@ import sys
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, proponi                             # noqa: E402
+from stanza import sb, proponi, sb_tutte                             # noqa: E402
 import calendario                                          # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -39,7 +39,7 @@ NOME = {"conoscitiva": "Conoscitiva", "tecnica": "Call tecnica", "avvio": "Avvio
 def main():
     prova = "--prova" in sys.argv
     adesso = datetime.datetime.now(datetime.timezone.utc)
-    agenda = sb("GET", f"/rest/v1/agenda?select=at,titolo,tipo,prospect_id&prospect_id=not.is.null"
+    agenda = sb_tutte(f"/rest/v1/agenda?select=at,titolo,tipo,prospect_id&prospect_id=not.is.null"
                        f"&at=lte.{adesso.strftime('%Y-%m-%dT%H:%M:%SZ')}&tipo=in.(conoscitiva,tecnica,avvio)&order=at.asc&limit=5000") or []
     per_prospect = {}
     for a in agenda:
@@ -51,7 +51,7 @@ def main():
     prospects = {p["id"]: p for p in (sb("GET", f"/rest/v1/prospects?select=id,name,company,fuori,pipeline_stage,stage&id=in.({ids})") or [])}
     # le proposte gia' fatte (aperte o chiuse): un no di Dre vale
     fatte = {(p["prospect_id"], (p.get("azione") or {}).get("prospects", {}).get("pipeline_stage"))
-             for p in (sb("GET", "/rest/v1/proposte?select=prospect_id,azione&tipo=eq.avanza&limit=5000") or [])}
+             for p in (sb_tutte("/rest/v1/proposte?select=prospect_id,azione&tipo=eq.avanza&limit=5000") or [])}
 
     proposte = 0
     for pid, calls in per_prospect.items():
@@ -112,7 +112,7 @@ def sconosciuti(prova, adesso):
     eventi = {e.get("meet") or e["link"]: e for e in calendario.eventi_correnti()[0]}
     prospects = calendario.carica_prospects()
     gia = {(p.get("azione") or {}).get("nuovo", {}).get("email")
-           for p in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.avanza&limit=5000") or [])}
+           for p in (sb_tutte("/rest/v1/proposte?select=azione&tipo=eq.avanza&limit=5000") or [])}
     gia_domini = {g.split("@")[-1] for g in gia if g and _azienda(g)}
     per_email = {}
     for r in righe:

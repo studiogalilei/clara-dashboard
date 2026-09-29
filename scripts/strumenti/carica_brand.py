@@ -2,7 +2,7 @@
    python3 scripts/carica_brand.py <cartella capsule v3> <cartella capsule v1>"""
 import mimetypes, os, re, sys, urllib.request, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
-from stanza import env, sb
+from stanza import env, sb, sb_tutte
 
 SB = env("VITE_SUPABASE_URL"); SK = env("SUPABASE_SERVICE_KEY")
 
@@ -44,7 +44,7 @@ def nome_bello(gruppo, f):
 
 def main():
     v3, v1 = sys.argv[1], sys.argv[2]
-    esistenti = {r["path"] for r in (sb("GET", "/rest/v1/vault_file?select=path&limit=2000") or [])}
+    esistenti = {r["path"] for r in (sb_tutte("/rest/v1/vault_file?select=path&limit=2000") or [])}
     piano = []   # (locale, remoto, sezione, gruppo, nome, nota)
     for gruppo in ("loghi", "copertine", "sfondi", "segni", "incisioni"):
         for f in sorted(os.listdir(os.path.join(v3, gruppo))):

@@ -40,7 +40,7 @@ import urllib.parse
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, proponi                             # noqa: E402
+from stanza import sb, proponi, sb_tutte                             # noqa: E402
 import cervello                                            # noqa: E402
 
 FASI = ("conoscitiva", "tecnica", "avvio", "prova", "cliente", "perso")
@@ -240,7 +240,7 @@ def main():
         blocco_dopo_call(p, "Azienda di prova", L, "prova", True)
         return
 
-    lette = {r["ref"][6:] for r in (sb("GET", "/rest/v1/interactions?select=ref&ref=like.letta:*&limit=5000") or []) if r.get("ref")}
+    lette = {r["ref"][6:] for r in (sb_tutte("/rest/v1/interactions?select=ref&ref=like.letta:*&limit=5000") or []) if r.get("ref")}
     # «at» e' l'ora della call, non quella in cui arrivano gli appunti (che
     # possono arrivare il giorno dopo): si guardano gli ultimi tre giorni. Quelli
     # piu' vecchi hanno gia' la nota di prima e non si rileggono.

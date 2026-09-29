@@ -35,7 +35,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
-from stanza import sb, proponi                             # noqa: E402
+from stanza import sb, proponi, sb_tutte                             # noqa: E402
 
 PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else None
@@ -50,7 +50,7 @@ ETICHETTA = {"positivo": "positivo", "tiepido": "parziale", "negativo": "negativ
 
 
 def ultima_risposta_per_persona():
-    righe = sb("GET", "/rest/v1/interactions?kind=eq.email_in"
+    righe = sb_tutte("/rest/v1/interactions?kind=eq.email_in"
                       "&select=prospect_id,body,at&order=at.desc&limit=3000") or []
     ultima = {}
     for r in righe:
@@ -71,7 +71,7 @@ def main():
     if not cervello.disponibile():
         sys.exit("il cervello non risponde: serve Claude Code sul Mac (prova: claude -p)")
 
-    persone = sb("GET", "/rest/v1/prospects?last_reply_at=not.is.null"
+    persone = sb_tutte("/rest/v1/prospects?last_reply_at=not.is.null"
                         "&select=id,email,company,name,classificazione,stage,fuori,"
                         "pipeline_stage,enriched,next_action_date,ooo_until"
                         "&order=last_reply_at.desc&limit=2000") or []

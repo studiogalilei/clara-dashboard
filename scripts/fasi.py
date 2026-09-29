@@ -31,7 +31,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                        # noqa: E402
+from stanza import sb, sb_tutte                                        # noqa: E402
 
 PROVA = "--prova" in sys.argv
 
@@ -216,7 +216,7 @@ def main():
     progetti = sb("GET", "/rest/v1/progetti?select=id,cliente,nome,natura,tipo,stato,scadenza,chi_segue,data_inizio,note,at"
                          "&stato=neq.consegnato&limit=200") or []
     gia = {}
-    for t in (sb("GET", "/rest/v1/tappe?select=progetto_id,titolo&limit=2000") or []):
+    for t in (sb_tutte("/rest/v1/tappe?select=progetto_id,titolo&limit=2000") or []):
         gia.setdefault(t["progetto_id"], set()).add(t["titolo"])
     nuove = 0
     senza_tipo = []

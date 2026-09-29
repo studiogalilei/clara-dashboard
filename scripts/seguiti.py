@@ -25,10 +25,14 @@ None: quella bozza la scrive il motore di sempre, e non parte mai da sola.
 
 import re
 
-GRUPPI_DAL_CODICE = ("FOLLOW UP 1", "MINI FOLLOW UP", "RIPRESA", "RINVIO SCADUTO")
+GRUPPI_DAL_CODICE = ("FOLLOW UP 1", "MINI FOLLOW UP", "RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO")
 # come il titolo del template sta scritto nel file di Dre
 _TITOLI = {"FOLLOW UP 1": r"##\s*FOLLOW UP 1\s*\n", "MINI FOLLOW UP": r"MINI FOLLOW UP \(25/9",
-           "RIPRESA": r"RIPRESA \(25/9", "RINVIO SCADUTO": r"##\s*RINVIO SCADUTO"}
+           "RIPRESA": r"RIPRESA \(25/9", "RINVIO SCADUTO": r"##\s*RINVIO SCADUTO",
+           # 29/9: il testo di Dre c'era dal 14/7 con questo nome, e il codice non lo trovava
+           "RICONTATTO OOO": r"##\s*RICONTATTO DOPO OUT OF OFFICE"}
+_MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
+         "settembre", "ottobre", "novembre", "dicembre"]
 _NON_NOMI = {"salve", "buongiorno", "gentile", "ciao", "info", "amministrazione", "ufficio", "segreteria",
              "direzione", "marketing", "commerciale", "staff", "team", "admin", "contatti", "vendite"}
 
@@ -65,7 +69,23 @@ def saluto(p, letti):
     return "Salve,"
 
 
-def testo(gruppo, p, letti, calendario, testo_file=None):
+def giorno_passato(frase, oggi=None):
+    """«giovedì 1 ottobre alle 14:30» e' gia' passato (o e' oggi)? Una mail che propone
+    un giorno passato non parte da sola."""
+    import datetime
+    m = re.search(r"(\d{1,2})\s+(" + "|".join(_MESI) + r")", (frase or "").lower())
+    if not m:
+        return True                 # non si capisce che giorno e': meglio fermarsi
+    oggi = oggi or datetime.date.today()
+    mese = _MESI.index(m.group(2)) + 1
+    anno = oggi.year + (1 if mese < oggi.month - 6 else 0)
+    try:
+        return datetime.date(anno, mese, int(m.group(1))) <= oggi
+    except ValueError:
+        return True
+
+
+def testo(gruppo, p, letti, calendario, testo_file=None, giorno=None):
     """Il follow-up pronto, parola per parola. None se il codice non puo' scriverlo da solo."""
     if gruppo not in GRUPPI_DAL_CODICE:
         return None
@@ -79,6 +99,10 @@ def testo(gruppo, p, letti, calendario, testo_file=None):
         righe[0] = saluto(p, letti)
     t = "\n".join(righe)
     t = t.replace("{{CALENDARIO}}", calendario).replace("{{ CALENDARIO }}", calendario)
+    if "{{GIORNO}}" in t:
+        if not giorno:
+            return None             # il giorno lo decide il calendario di Dre, non il codice a caso
+        t = t.replace("{{GIORNO}}", giorno)
     if "[" in t or "{{" in t:
         return None            # un segnaposto che il codice non conosce: meglio non scrivere
     return t.strip()
@@ -105,10 +129,11 @@ def converti(prova=True):
         if not p:
             continue
         _, letti = lettura.leggi(p)
-        t = testo(gruppo, p, letti, bozze.CALENDARIO)
+        giorno = bozze.proposta_giorno_ora() if gruppo == "RICONTATTO OOO" else None
+        t = testo(gruppo, p, letti, bozze.CALENDARIO, giorno=giorno)
         print(f"  {gruppo:15} {(p.get('company') or p['email'])[:32]:32} {'-> testo di Dre' if t else 'resta com e (il codice non sa scriverlo)'}")
         if t:
-            righe.append({"id": pr["id"], "azienda": p.get("company") or p["email"], "email": p["email"], "t": t, "az": az})
+            righe.append({"id": pr["id"], "azienda": p.get("company") or p["email"], "email": p["email"], "t": t, "az": az, "giorno": giorno})
     if not righe:
         print("niente da convertire"); return 0
     import revisore
@@ -120,6 +145,8 @@ def converti(prova=True):
         if prova:
             continue
         az = {**r["az"], "bozza_modello": r["az"].get("bozza"), "bozza": r["t"], "testo_dal_codice": True}
+        if r.get("giorno"):
+            az["giorno_proposto"] = r["giorno"]
         if sb("PATCH", f"/rest/v1/proposte?id=eq.{r['id']}&stato=eq.aperta", {"azione": az}, {"Prefer": "return=representation"}):
             n += 1
     print(f"convertite {n} di {len(righe)}" + (" (prova: niente scritto)" if prova else ""))

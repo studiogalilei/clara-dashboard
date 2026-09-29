@@ -41,7 +41,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, di_clara, quando                # noqa: E402
+from stanza import env, sb, di_clara, quando, sb_tutte                # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 INDIETRO = 400      # giorni di storia da tenere (il tracciato)
@@ -176,6 +176,14 @@ def _parole(testo):
     return {p for p in re.findall(r"[a-z0-9]{4,}", (testo or "").lower()) if p not in PAROLE_VUOTE}
 
 
+def _marchio(testo):
+    """La prima parola vera del nome dell'azienda: il marchio («Klavzar», «Energy4you»)."""
+    for p in re.findall(r"[a-z0-9]{4,}", (testo or "").lower()):
+        if p not in PAROLE_VUOTE:
+            return p
+    return None
+
+
 def riconosci(evento, prospects):
     """Il prospect dell'evento: email, poi dominio, poi azienda nel titolo."""
     per_email, per_dominio = prospects["email"], prospects["dominio"]
@@ -191,11 +199,15 @@ def riconosci(evento, prospects):
         # una parola basta solo se e' lunga, di UNA sola azienda e non e' un
         # nome di persona («klavzar» si, «diego» no). Altrimenti nel titolo ci
         # deve essere tutta l'azienda («bike tours» non e' «Buffalo Bike Tours»).
-        for pid, parole in prospects["aziende"]:
+        # 29/9: e la parola sola deve essere il MARCHIO, la prima parola del nome.
+        # Con tutte le 13.230 aziende caricate, «medica» portava a «Dental Medica»
+        # (una visita medica), «market» a «Loprin - Market Plans», «ottimizzazione»
+        # a un'azienda che si chiama «Local Strategy | Ottimizzazione Google...».
+        for pid, parole, marchio in prospects["aziende"]:
             comuni = parole & titolo
             if not comuni:
                 continue
-            if any(len(p) >= 6 and prospects["conta"][p] == 1 and p not in prospects["nomi"] for p in comuni):
+            if any(p == marchio and len(p) >= 6 and prospects["conta"][p] == 1 and p not in prospects["nomi"] for p in comuni):
                 return pid, "titolo"
             if len(comuni) >= 2 and comuni == parole:
                 return pid, "titolo"
@@ -214,7 +226,7 @@ def tipo_di(titolo):
 
 
 def carica_prospects():
-    righe = sb("GET", "/rest/v1/prospects?select=id,name,company,email,email_alt&limit=10000") or []
+    righe = sb_tutte("/rest/v1/prospects?select=id,name,company,email,email_alt&limit=10000") or []
     per_email, per_dominio, aziende = {}, {}, []
     for p in righe:
         mail = [p.get("email") or ""] + list(p.get("email_alt") or [])
@@ -227,10 +239,13 @@ def carica_prospects():
                     per_dominio.setdefault(d, p["id"])
         parole = _parole(p.get("company") or "")
         if parole:
-            aziende.append((p["id"], parole))
-    nomi = {(p.get("name") or "").split(" ")[0].lower() for p in righe}
+            aziende.append((p["id"], parole, _marchio(p.get("company") or "")))
+    # 29/9: anche i cognomi. «Filippini» nel titolo di un colloquio («Chiamata
+    # conoscitiva (Enrico Filippini)») agganciava «Filippini Business Consulting»,
+    # un'azienda soppressa, perche' come nome di persona si guardava solo il primo.
+    nomi = {w.lower() for p in righe for w in (p.get("name") or "").split() if len(w) > 1}
     conta = {}
-    for _, parole in aziende:
+    for _, parole, _m in aziende:
         for w in parole:
             conta[w] = conta.get(w, 0) + 1
     return {"email": per_email, "dominio": per_dominio, "aziende": aziende, "conta": conta, "nomi": nomi}
@@ -288,7 +303,7 @@ def calendari_persone(prova, prospects):
             continue
         # la chiave e' link+ora: una riunione che si ripete ha lo stesso Meet
         # su tutte le istanze, e prima si pestavano i piedi (QA 14/9)
-        esistenti = {(r["link"], r["at"]): r for r in (sb("GET", f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
+        esistenti = {(r["link"], r["at"]): r for r in (sb_tutte(f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
         nuovi = agg = saltati = 0
         for e in eventi:
             if not e["titolo"] or e["stato"] == "CANCELLED" or e.get("giornata"):
@@ -332,11 +347,12 @@ def fasi_dalle_call(prova):
         prima.setdefault(c["prospect_id"], c)              # la prossima, per ciascuno
     if not prima:
         return 0
-    schede = sb("GET", f"/rest/v1/prospects?select=id,company,name,stage,pipeline_stage,fuori"
+    schede = sb("GET", f"/rest/v1/prospects?select=id,company,name,stage,pipeline_stage,fuori,no_followup,classificazione"
                        f"&id=in.({','.join(prima)})") or []
     spostate = 0
     for p in schede:
-        if p.get("stage") not in PRIMA_DELLA_CALL or p.get("pipeline_stage") or p.get("fuori"):
+        if (p.get("stage") not in PRIMA_DELLA_CALL or p.get("pipeline_stage") or p.get("fuori")
+                or p.get("no_followup") or p.get("classificazione") in ("soppresso", "negativo", "nervoso")):
             continue
         c = prima[p["id"]]
         quando_roma = quando(c["at"]).astimezone(ROMA)
@@ -370,8 +386,8 @@ def main():
     adesso = datetime.datetime.now(datetime.timezone.utc)
     da, a = adesso - datetime.timedelta(days=INDIETRO), adesso + datetime.timedelta(days=AVANTI)
     prospects = carica_prospects()
-    nomi = {p["id"]: (p.get("company") or p.get("name") or "") for p in (sb("GET", "/rest/v1/prospects?select=id,name,company&limit=10000") or [])} if prova else {}
-    esistenti = {r["link"]: r for r in (sb("GET", "/rest/v1/agenda?select=id,link,at,titolo,prospect_id&fonte=eq.gcal&limit=5000") or []) if r.get("link")}
+    nomi = {p["id"]: (p.get("company") or p.get("name") or "") for p in (sb_tutte("/rest/v1/prospects?select=id,name,company&limit=10000") or [])} if prova else {}
+    esistenti = {r["link"]: r for r in (sb_tutte("/rest/v1/agenda?select=id,link,at,titolo,prospect_id&fonte=eq.gcal&limit=5000") or []) if r.get("link")}
 
     nuovi = aggiornati = saltati = 0
     for e in eventi:

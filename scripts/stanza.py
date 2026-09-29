@@ -92,9 +92,35 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
     try:
         with urllib.request.urlopen(req, timeout=40) as r:
             grezzo = r.read()
-            return json.loads(grezzo) if grezzo else None
+            dati = json.loads(grezzo) if grezzo else None
+            # 29/9: il database si ferma a mille righe qualunque «limit» si chieda.
+            # Se una lettura torna esattamente mille righe e ne voleva di piu', lo si dice.
+            m = re.search(r"[?&]limit=(\d+)", percorso)
+            if metodo == "GET" and isinstance(dati, list) and len(dati) == 1000 and m and int(m.group(1)) > 1000:
+                print(f"  (attenzione: la lettura si e' fermata al tetto di 1000 righe, usa sb_tutte: {percorso[:80]})", file=sys.stderr)
+            return dati
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"{e.code} {e.read()[:200].decode(errors='replace')}")
+
+
+def sb_tutte(percorso, passo=1000):
+    """TUTTE le righe, a pagine (29/9). Il database ne restituisce al massimo mille
+    per richiesta, qualunque «limit» si chieda: calendario e Stripe cercavano fra
+    mille aziende su 13.230, e nessuno se ne accorgeva perche' mille righe sembrano
+    tutte. Chi vuole tutto usa questa, non un limit grande."""
+    base = re.sub(r"([&?])limit=\d+&?", r"\1", percorso).rstrip("&?")
+    if "order=" not in base:
+        base += ("&" if "?" in base else "?") + "order=id"
+    elif not re.search(r"order=[^&]*\bid\b", base):
+        base = re.sub(r"(order=[^&]*)", r"\1,id.asc", base, count=1)   # a pagine serve un ordine senza pari
+    sep = "&" if "?" in base else "?"
+    righe, da = [], 0
+    while True:
+        pezzo = sb("GET", f"{base}{sep}limit={passo}&offset={da}") or []
+        righe += pezzo
+        if len(pezzo) < passo:
+            return righe
+        da += passo
 
 
 def contattabile(p):

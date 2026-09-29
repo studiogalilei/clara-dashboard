@@ -13,7 +13,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
-from stanza import sb                                      # noqa: E402
+from stanza import sb, sb_tutte                                      # noqa: E402
 
 csv.field_size_limit(sys.maxsize)
 
@@ -50,7 +50,7 @@ def main():
     dl = [{"dominio": d, "azienda": a} for d, a in domini.items()]
     for i in range(0, len(dl), 500):
         sb("POST", "/rest/v1/raccolta", dl[i:i + 500], {"Prefer": "resolution=ignore-duplicates"})
-    n = sb("GET", f"/rest/v1/lead_lista?select=id&lista=eq.{lista}&limit=100000")
+    n = sb_tutte(f"/rest/v1/lead_lista?select=id&lista=eq.{lista}&limit=100000")
     print(f"{lista}: nel CSV {len(rows)} | validi {len(righe)} | in tabella {len(n)} | domini unici {len(domini)}")
 
 

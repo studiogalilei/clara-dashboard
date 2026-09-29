@@ -21,7 +21,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, proponi        # noqa: E402
+from stanza import sb, di_clara, contattabile, proponi, sb_tutte        # noqa: E402
 
 
 # le operazioni che possono legittimamente non produrre niente per giorni:
@@ -69,7 +69,7 @@ def main():
     if vecchie:
         problemi.append(f"{len(vecchie)} bozze aperte da più di 21 giorni (es. {vecchie[0]['titolo'][:40]})")
     # 4. classificazioni ballerine
-    reg = sb("GET", f"/rest/v1/registro?select=riga&tabella=eq.prospects&campo=eq.classificazione&at=gte.{z(ora - datetime.timedelta(days=7))}&limit=5000") or []
+    reg = sb_tutte(f"/rest/v1/registro?select=riga&tabella=eq.prospects&campo=eq.classificazione&at=gte.{z(ora - datetime.timedelta(days=7))}&limit=5000") or []
     ball = [k for k, v in collections.Counter(r["riga"] for r in reg).items() if v > 2]
     if ball:
         problemi.append(f"{len(ball)} aziende con la classificazione cambiata più di 2 volte in 7 giorni")
@@ -115,7 +115,7 @@ def main():
         problemi.append(f"{len(coda)} aziende in coda da più di due giorni senza che nessuno abbia scritto la bozza")
 
     # 9. il registro che non sa chi ha scritto: senza nome non si ricostruisce niente
-    reg2 = sb("GET", f"/rest/v1/registro?select=chi&at=gte.{z(ora - datetime.timedelta(days=1))}&limit=2000") or []
+    reg2 = sb_tutte(f"/rest/v1/registro?select=chi&at=gte.{z(ora - datetime.timedelta(days=1))}&limit=2000") or []
     anonimi = [r for r in reg2 if (r.get("chi") or "").rstrip(":-c ") in ("clara", "")]
     if reg2 and len(anonimi) > len(reg2) / 3:
         problemi.append(f"il registro non sa chi ha scritto su {len(anonimi)} righe di {len(reg2)}: dopo un guaio non si risale")
@@ -124,7 +124,7 @@ def main():
     #     dice di no: e' cosi' che parte un follow-up che promette una cosa gia'
     #     data. Sei casi trovati a mano il 26/9. Avere il PDF pronto e non averlo
     #     ancora mandato invece e' normale, e non si segnala.
-    mandate = sb("GET", f"/rest/v1/interactions?select=prospect_id,body&kind=in.(email_out,analisi)&at=gte.{z(ora - datetime.timedelta(days=120))}&limit=4000") or []
+    mandate = sb_tutte(f"/rest/v1/interactions?select=prospect_id,body&kind=in.(email_out,analisi)&at=gte.{z(ora - datetime.timedelta(days=120))}&limit=4000") or []
     dice_analisi = re.compile(r"allego l.analisi|le lascio l.analisi|l.analisi che abbiamo preparato|attached the case study|eccola.{0,20}analisi", re.I)
     con_analisi = {m["prospect_id"] for m in mandate if dice_analisi.search(m.get("body") or "")}
     bugiarde = []
@@ -238,6 +238,31 @@ def main():
                 or (d.get("pipeline_stage") == "perso" and d.get("stage") in ("call_fissata", "rinviato"))]
     if discordi:
         problemi.append(f"{len(discordi)} aziende hanno due fasi diverse nei due campi (es. {discordi[0].get('company')}: «{discordi[0].get('stage')}» e «{discordi[0].get('pipeline_stage')}»)")
+
+    # 29/9: GLI AGGANCI SBAGLIATI DEL CALENDARIO. Una call di selezione («Chiamata
+    # conoscitiva (Enrico Filippini)») era finita su un'azienda soppressa per una
+    # parola del titolo. Una call attaccata a chi non va contattato e' quasi sempre
+    # un aggancio sbagliato: lo si dice invece di lasciarlo nella storia.
+    da14 = z(ora - datetime.timedelta(days=14))
+    call = sb_tutte(f"/rest/v1/agenda?select=id,at,titolo,prospect_id&prospect_id=not.is.null&at=gte.{da14}")
+    if call:
+        ids = list({c["prospect_id"] for c in call})
+        schede = {}
+        for i in range(0, len(ids), 100):
+            for p in sb("GET", f"/rest/v1/prospects?select=id,company,stage,pipeline_stage,fuori,no_followup,classificazione&id=in.({','.join(ids[i:i+100])})") or []:
+                schede[p["id"]] = p
+        strane = [c for c in call if schede.get(c["prospect_id"], {}).get("classificazione") in ("soppresso", "negativo", "nervoso")
+                  and not schede[c["prospect_id"]].get("pipeline_stage")]
+        if strane:
+            problemi.append(f"{len(strane)} call in agenda attaccate ad aziende da non contattare (es. «{strane[0]['titolo'][:40]}» su "
+                            f"{schede[strane[0]['prospect_id']].get('company')}): quasi certamente un aggancio sbagliato, staccale dalla scheda")
+        # la call prenotata con la scheda ferma: calendario.fasi_dalle_call doveva spostarla
+        adesso_iso = z(ora)
+        ferme_call = [c for c in call if c["at"] >= adesso_iso and schede.get(c["prospect_id"], {}).get("stage") in ("risposto", "analisi_inviata", "in_follow_up")
+                      and not schede[c["prospect_id"]].get("pipeline_stage") and schede[c["prospect_id"]].get("classificazione") not in ("soppresso", "negativo", "nervoso")]
+        if ferme_call:
+            problemi.append(f"{len(ferme_call)} call prenotate con la scheda ancora ferma (es. {schede[ferme_call[0]['prospect_id']].get('company')}): "
+                            "rischiano un follow-up il giorno prima della call")
 
     testo = "Tutto in ordine: nessun errore, operazioni regolari, Posta pulita." if not problemi else "Salute del sistema:\n- " + "\n- ".join(problemi)
     print(testo)

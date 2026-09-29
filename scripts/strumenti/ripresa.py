@@ -33,14 +33,14 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # i moduli comuni stanno in scripts/
-from stanza import sb                                       # noqa: E402
+from stanza import sb, sb_tutte                                       # noqa: E402
 
 GIORNI = 30
 
 def gia_avute(*template):
     """Chi ha gia' avuto quella proposta: aperta, mandata, o rifiutata da Dre («NO: ...»).
     Le proposte chiuse dagli script il 25/9 (scritte senza lettura) non contano: si rifanno."""
-    rs = sb("GET", f"/rest/v1/proposte?select=prospect_id,stato,risposta&azione->>template=in.({','.join(template)})&limit=5000") or []
+    rs = sb_tutte(f"/rest/v1/proposte?select=prospect_id,stato,risposta&azione->>template=in.({','.join(template)})&limit=5000") or []
     return {x["prospect_id"] for x in rs if x["stato"] != "no" or (x.get("risposta") or "").startswith("NO:")}
 
 
@@ -63,11 +63,11 @@ def gia_scritto_da_gmail(email):
 
 def candidati():
     oggi = datetime.date.today()
-    rs = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website,coda"
+    rs = sb_tutte("/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website,coda"
                    "&last_reply_at=not.is.null&fuori=eq.false&stage=not.in.(perso,cliente)&no_followup=eq.false"
                    "&classificazione=in.(positivo,tiepido,rinvio)&campaign=not.ilike.*USA*&limit=3000") or []      # da_classificare: prima la rilettura; USA: fuori dal giro
     outs = {}
-    for r in sb("GET", "/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup,analisi)&order=at.desc&limit=6000") or []:
+    for r in sb_tutte("/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup,analisi)&order=at.desc&limit=6000") or []:
         outs.setdefault(r["prospect_id"], r["at"])
     gia = gia_avute("RIPRESA", "RINVIO%20SCADUTO", "RICONTATTO%20OOO")
     out = []
@@ -76,7 +76,7 @@ def candidati():
         # quindi l'analisi puo' viaggiare in allegato. Solo chi e' in target: il fit si fa qui se manca.
         import googlefit
         zone, settori = googlefit.carica_fogli()
-        ooo = sb("GET", "/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website,coda"
+        ooo = sb_tutte("/rest/v1/prospects?select=id,name,company,email,classificazione,analysis_pdf,analysis_sent,last_reply_at,next_action_date,enriched,website,coda"
                         "&fuori=eq.false&stage=not.in.(perso,cliente)&no_followup=eq.false&analysis_sent=eq.false&classificazione=eq.ooo&campaign=not.ilike.*USA*&limit=3000") or []
         for p in ooo:
             if p["id"] in gia or p.get("coda"):

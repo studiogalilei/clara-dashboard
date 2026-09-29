@@ -37,7 +37,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb                                 # noqa: E402
+from stanza import env, sb, sb_tutte                                 # noqa: E402
 import calendario                                          # noqa: E402
 
 BASE = "https://public-api.granola.ai/v1"
@@ -137,7 +137,7 @@ def main():
     prova = "--prova" in sys.argv
     adesso = datetime.datetime.now(datetime.timezone.utc)
     gia = {}
-    for r in sb("GET", f"/rest/v1/interactions?select=id,at,body&kind=eq.transcript&body=like.{MARCA}*&limit=5000") or []:
+    for r in sb_tutte(f"/rest/v1/interactions?select=id,at,body&kind=eq.transcript&body=like.{MARCA}*&limit=5000") or []:
         gia[r["body"].split("]")[0][len(MARCA):]] = r
     if "--tutte" in sys.argv or not gia:
         da = adesso - datetime.timedelta(days=INDIETRO)
@@ -148,7 +148,7 @@ def main():
     note = note_da(da)
     prospects = calendario.carica_prospects()
     agenda = [{"prospect_id": a["prospect_id"], "at": datetime.datetime.fromisoformat(a["at"].replace("Z", "+00:00"))}
-              for a in (sb("GET", "/rest/v1/agenda?select=at,prospect_id&prospect_id=not.is.null&limit=5000") or [])]
+              for a in (sb_tutte("/rest/v1/agenda?select=at,prospect_id&prospect_id=not.is.null&limit=5000") or [])]
 
     nuove = senza = 0
     for n in note:

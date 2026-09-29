@@ -636,8 +636,12 @@ def _():
     try:
         R.sb = finto({})
         assert R.contatti_fuori(base) == [], "senza tracce deve passare"
+        # le righe di servizio («era in ferie») non sono un contatto con una persona
+        assert R.contatti_fuori({**base, "notes": "OOO: rientra il 2026-08-20 (dal loro messaggio: \"20 agosto\")\n"
+                                                    "Pulizia del 23/9 (Achille): risposta automatica o ferie ormai passate, nessuna risposta vera"}) == []
         for tracce, p, cosa in (
             ({}, {**base, "notes": "sentito al telefono"}, "una nota fuori binario"),
+            ({}, {**base, "notes": "OOO: rientra il 2026-08-20 (dal loro messaggio)\nindirizzo cambiato: riscrivere a x@y.it"}, "una nota vera sotto una di servizio"),
             ({}, {**base, "owner": "uuid"}, "chi l'ha presa in carico"),
             ({"/rest/v1/interactions": [{"kind": "email_out", "at": "2026-09-20", "ref": "gmail:1"}]}, base, "una mail da Gmail"),
             ({"/rest/v1/interactions": [{"kind": "transcript", "at": "2026-09-20", "ref": "gemini:1"}]}, base, "una call registrata"),
@@ -666,6 +670,13 @@ def _():
     t = S.testo("MINI FOLLOW UP", {}, {}, "https://cal", finto)
     assert "https://cal" in t and "[" not in t and "{{" not in t, "segnaposto rimasto nel testo"
     assert S.testo("RICONTATTO OOO", {}, {}, "x", finto) is None, "senza template il codice non deve scrivere"
+    ooo = finto + "## RICONTATTO DOPO OUT OF OFFICE (29/9)\n```\nSalve [Nome],\n\nera in ferie. Le propongo {{GIORNO}}: {{CALENDARIO}}\n```\n"
+    assert S.testo("RICONTATTO OOO", {}, {}, "https://cal", ooo) is None, "senza giorno dal calendario il codice non deve inventarlo"
+    t = S.testo("RICONTATTO OOO", {}, {}, "https://cal", ooo, giorno="giovedì 1 ottobre alle 14:30")
+    assert "giovedì 1 ottobre" in t and "{{" not in t
+    import datetime as _d
+    assert S.giorno_passato("giovedì 1 ottobre alle 14:30", _d.date(2026, 10, 2)), "un giorno passato deve fermare la mail"
+    assert not S.giorno_passato("giovedì 1 ottobre alle 14:30", _d.date(2026, 9, 29))
     assert S.testo("RINVIO SCADUTO", {"analysis_sent": True}, {}, "x", finto) is None, "il rinvio a chi ha l'analisi va riscritto: non dal codice"
     # una verita' sola: le date le scrive followup.py, lo schermo le legge soltanto
     qui = pathlib.Path(__file__).resolve().parent
@@ -675,6 +686,61 @@ def _():
     # e il cancello dei seguiti non si fida del modello: riscrive e confronta
     pr = qui.joinpath("prima_risposta.py").read_text(encoding="utf-8")
     assert "rilettura_seguito" in pr and "testo_dal_codice" in pr
+
+
+@prova("mai mille righe scambiate per tutte: chi vuole tutto usa sb_tutte, che legge a pagine")
+def _():
+    import glob
+    import re as _re
+    import stanza
+    # 29/9: il database restituisce al massimo mille righe per richiesta. Calendario e
+    # Stripe chiedevano «limit=10000» e cercavano fra mille aziende su 13.230.
+    colpevoli = []
+    qui = os.path.dirname(os.path.abspath(__file__))
+    for f in glob.glob(os.path.join(qui, "*.py")) + glob.glob(os.path.join(qui, "strumenti", "*.py")):
+        if f.endswith(("test_invarianti.py", "stanza.py")):
+            continue
+        testo = open(f, encoding="utf-8").read()
+        for m in _re.finditer(r'sb\("GET",[^\n]*?limit=(\d+)', testo):
+            if int(m.group(1)) > 1000:
+                colpevoli.append(f"{os.path.basename(f)}: limit={m.group(1)}")
+    assert not colpevoli, "letture oltre il tetto di mille righe senza sb_tutte: " + ", ".join(colpevoli[:5])
+    # e sb_tutte legge davvero tutto, a pagine
+    vero = stanza.sb
+    pagine = {0: [{"id": i} for i in range(1000)], 1000: [{"id": i} for i in range(1000, 1500)]}
+    visti = []
+    def finto(metodo, percorso, *a, **k):
+        visti.append(percorso)
+        return pagine.get(int(_re.search(r"offset=(\d+)", percorso).group(1)), [])
+    try:
+        stanza.sb = finto
+        assert len(stanza.sb_tutte("/rest/v1/prospects?select=id&limit=10000")) == 1500, "sb_tutte si ferma alla prima pagina"
+        assert all("order=" in v for v in visti), "a pagine serve un ordine, sennò righe doppie o perse"
+    finally:
+        stanza.sb = vero
+
+
+@prova("il calendario non aggancia un'azienda per una parola qualunque del titolo")
+def _():
+    import calendario as C
+    # 29/9: «visita medica» → Dental Medica, «market fit» → Loprin Market Plans,
+    # «(Enrico Filippini)», un colloquio, → Filippini Business Consulting, soppressa.
+    aziende = [("d", C._parole("Dental Medica"), C._marchio("Dental Medica")),
+               ("l", C._parole("Loprin - Market Plans"), C._marchio("Loprin - Market Plans")),
+               ("f", C._parole("Filippini Business Consulting"), C._marchio("Filippini Business Consulting")),
+               ("k", C._parole("Klavzar Fisioterapia"), C._marchio("Klavzar Fisioterapia"))]
+    conta = {}
+    for _, parole, _m in aziende:
+        for w in parole:
+            conta[w] = conta.get(w, 0) + 1
+    P = {"email": {}, "dominio": {}, "aziende": aziende, "conta": conta, "nomi": {"enrico", "filippini"}}
+    for titolo in ("Appuntamento alle 16 per visita medica", "Follow up lead in Google market fit",
+                   "StudioGalilei - Chiamata conoscitiva (Enrico Filippini)"):
+        assert C.riconosci({"titolo": titolo, "invitati": []}, P) == (None, None), f"aggancio sbagliato da «{titolo}»"
+    assert C.riconosci({"titolo": "Call tecnica StudioGalilei - Klavzar", "invitati": []}, P)[0] == "k", "il marchio nel titolo non basta piu'"
+    # e la coda non tiene per sempre chi non si ricontatta
+    b = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py"), encoding="utf-8").read()
+    assert "fuori_coda" in b and "esito_coda(p, motivo)" in b, "chi e' perso o cliente resta in coda per sempre"
 
 
 def main():

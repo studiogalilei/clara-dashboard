@@ -20,7 +20,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, proponi                             # noqa: E402
+from stanza import sb, proponi, sb_tutte                             # noqa: E402
 
 PREAVVISO = 14
 
@@ -32,7 +32,7 @@ def main():
     righe = sb("GET", f"/rest/v1/prospects?select=id,name,company,prova_inizio,prova_fine,canone"
                       f"&fuori=eq.true&pipeline_stage=eq.prova&prova_fine=lte.{entro}&order=prova_fine.asc&limit=200") or []
     gia = {((p.get("azione") or {}).get("prova_fine"), p.get("prospect_id"))
-           for p in (sb("GET", "/rest/v1/proposte?select=prospect_id,azione&tipo=eq.richiesta&limit=5000") or [])}
+           for p in (sb_tutte("/rest/v1/proposte?select=prospect_id,azione&tipo=eq.richiesta&limit=5000") or [])}
     fatte = 0
     for p in righe:
         if (p["prova_fine"], p["id"]) in gia:
@@ -69,7 +69,7 @@ def preventivi_scaduti(prova, oggi):
         print("preventivi scaduti: nessuno")
         return
     gia = {(p.get("azione") or {}).get("preventivo_id")
-           for p in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.richiesta&limit=5000") or [])}
+           for p in (sb_tutte("/rest/v1/proposte?select=azione&tipo=eq.richiesta&limit=5000") or [])}
     nomi = {}
     for q in righe:
         if q["prospect_id"] not in nomi:
@@ -104,7 +104,7 @@ def progetti_in_scadenza(prova, oggi):
     righe = sb("GET", "/rest/v1/progetti?select=id,nome,cliente,scadenza,stato,chi_segue,prospect_id"
                       f"&scadenza=lte.{entro}&stato=neq.consegnato&order=scadenza.asc&limit=200") or []
     gia = {((pr.get("azione") or {}).get("progetto_scadenza"), (pr.get("azione") or {}).get("progetto_id"))
-           for pr in (sb("GET", "/rest/v1/proposte?select=azione&tipo=eq.umano&limit=5000") or [])}
+           for pr in (sb_tutte("/rest/v1/proposte?select=azione&tipo=eq.umano&limit=5000") or [])}
     chi = {(x.get("nome") or "").split(" ")[0].lower(): x["id"]
            for x in (sb("GET", "/rest/v1/profili?select=id,nome") or []) if x.get("nome")}
     fatte = 0

@@ -27,7 +27,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, env, proponi                        # noqa: E402
+from stanza import sb, env, proponi, sb_tutte                        # noqa: E402
 
 STRIPE = "https://api.stripe.com/v1"
 GRATIS = {"gmail.com", "yahoo.com", "yahoo.it", "hotmail.com", "hotmail.it", "outlook.com", "outlook.it",
@@ -105,7 +105,7 @@ def righe_stripe():
 
 # ── di chi e' ──────────────────────────────────────────────────────
 def indice_aziende():
-    ps = sb("GET", "/rest/v1/prospects?select=id,email,company,name&limit=50000") or []
+    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,name&limit=50000") or []
     per_mail, per_dominio, per_nome = {}, {}, {}
     for p in ps:
         m = (p.get("email") or "").lower()
@@ -136,7 +136,7 @@ def main():
     prova = "--prova" in sys.argv
     righe = righe_stripe()
     idx = indice_aziende()
-    gia = {r["id"]: r for r in (sb("GET", "/rest/v1/incassi?select=id,prospect_id,preventivo_id&limit=50000") or [])}
+    gia = {r["id"]: r for r in (sb_tutte("/rest/v1/incassi?select=id,prospect_id,preventivo_id&limit=50000") or [])}
     nuovi, collegati, pagati, chiesti = 0, 0, 0, 0
     for r in righe:
         vecchio = gia.get(r["id"])

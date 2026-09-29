@@ -45,7 +45,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando, senza_trattini     # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini, sb_tutte     # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
 
@@ -473,8 +473,16 @@ def main():
         if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
             continue
         candidate.append((p, None))
+    # 29/9: chi e' in coda ma nel frattempo e' diventato perso, cliente o ha la call
+    # fissata non si ricontatta, e la coda si toglie col motivo. Prima veniva saltato
+    # in silenzio a ogni giro, per sempre: nove follow-up fermi dal 25/9 per aziende
+    # gia' nei Persi, e il calendario diceva «arriva al prossimo giro».
+    fuori_coda = []
     for p in in_coda:
-        if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") not in lettura.GRUPPI:
+        if p.get("stage") in INTOCCABILI:
+            fuori_coda.append((p, f"non si ricontatta: nel frattempo e' «{p.get('stage')}»"))
+            continue
+        if p["id"] in aperte or p.get("coda") not in lettura.GRUPPI:
             continue
         candidate.append((p, p["coda"]))
     # CHI E' PRONTO PASSA DAVANTI (27/9). Il giro ne serve venticinque, e il
@@ -516,6 +524,10 @@ def main():
                 patch["awaiting_us"] = False
             sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
 
+    for p, motivo in fuori_coda:
+        print(f"  {(p.get('coda') or ''):15} {(p.get('company') or p.get('email') or '')[:34]:34} esce dalla coda: {motivo}")
+        esito_coda(p, motivo)
+
     def lavora(coppia):
         p, gruppo = coppia
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
@@ -543,10 +555,11 @@ def main():
         # 3. LA BOZZA. I follow-up col template li scrive il codice, parola per parola
         # (Dre 29/9, strada A): il modello qui non scrive niente. Se il codice non
         # puo' (template assente, riscrittura richiesta) scrive il motore di sempre.
-        dal_codice = seguiti.testo(gruppo, p, letti, CALENDARIO) if gruppo else None
+        giorno = proposta_giorno_ora() if gruppo == "RICONTATTO OOO" else None
+        dal_codice = seguiti.testo(gruppo, p, letti, CALENDARIO, giorno=giorno) if gruppo else None
         if dal_codice:
             b = {"intento": gruppo, "template": gruppo, "fermati": "no", "nota": "il template di Dre, parola per parola (scritto dal codice)",
-                 "bozza": dal_codice, "dal_codice": True}
+                 "bozza": dal_codice, "dal_codice": True, "giorno": giorno}
         else:
             b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
@@ -601,6 +614,8 @@ def main():
             azione = {"bozza": b["bozza"], "intento": b["intento"], "template": b["template"], "lettura": b["lettura"]}
             if b.get("dal_codice"):
                 azione["testo_dal_codice"] = True
+                if b.get("giorno"):
+                    azione["giorno_proposto"] = b["giorno"]
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"):
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):
@@ -634,13 +649,13 @@ def main():
     negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
                          "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup"
                          "&order=last_reply_at.desc&limit=200") or []
-    soppresse = sb("GET", "/rest/v1/suppressions?select=email,domain&limit=5000") or []
+    soppresse = sb_tutte("/rest/v1/suppressions?select=email,domain&limit=5000") or []
     mail_no = {(x.get("email") or "").lower() for x in soppresse}
     dom_no = {(x.get("domain") or "").lower() for x in soppresse if x.get("domain")}
     gb = 0
     # a chi Dre ha gia' detto no, non si riscrive: la proposta rifiutata vale
     # come risposta (prima tornava ogni giro, QA del 14/9)
-    rifiutate = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
+    rifiutate = {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
                  if x.get("prospect_id")}
     for p in negativi:
         if gb >= QUANTI_GB or p["id"] in aperte or p["id"] in rifiutate or p.get("stage") in INTOCCABILI:
