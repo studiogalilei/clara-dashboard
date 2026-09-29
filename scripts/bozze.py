@@ -55,7 +55,7 @@ QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv
 SOLO = [e.strip().lower() for e in sys.argv[sys.argv.index("--email") + 1].split(",")] if "--email" in sys.argv else []   # solo queste (rifare una bozza, o provare)
 IN_PARALLELO = 5
 PRONTE = []        # (prospect_id, nome, con_analisi): per la notifica sul telefono
-CALENDARIO = "https://calendar.app.google/zNMQ2apeE5SGGwA86"   # confermato da Dre il 7/9
+CALENDARIO = "https://calendar.app.google/szPdtoZD8KqyxkmJ8"   # Dre 29/9: «questo e' il link corretto, dimentica tutto il resto»
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
 CLASSI = ("positivo", "tiepido", "rinvio", "da_classificare", "persona_sbagliata")   # persona sbagliata: solo se ci ha dato il contatto nuovo (email_alt), 25/9
