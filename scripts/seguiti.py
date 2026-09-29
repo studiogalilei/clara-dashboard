@@ -108,6 +108,80 @@ def testo(gruppo, p, letti, calendario, testo_file=None, giorno=None):
     return t.strip()
 
 
+# ── LE RISPOSTE COL TESTO DI DRE (29/9) ─────────────────────────────
+# Dre, 29/9: «le bozze fanno un po' cacare, basta seguire questo tutte le volte
+# possibili». Stessa strada dei follow-up: il testo lo compone il codice dal file dei
+# template, parola per parola. Il modello sceglie l'intento e riempie due pezzetti
+# controllati: l'attacco («Va bene perfetto» va adattato a cosa ha scritto, dice la
+# nota di Dre) e, nei rinvii, il periodo («a ottobre/novembre»). Nome, giorno e
+# calendario li mette il codice. Senza template (obiezioni, prezzo, inoltri) → None.
+
+RISPOSTE = {"INT-01": "INTERESSATO", "INT-02": "INTERESSATO", "INT-23": "INTERESSATO",
+            "INT-03": "CHI SEI", "INT-05": "SENTIAMOCI", "INT-06": "SENTIAMOCI"}
+_TITOLI_RISPOSTE = {"INTERESSATO": r"##\s*INTERESSATO", "CHI SEI": r"##\s*CHI SEI\?",
+                    "SENTIAMOCI": r"##\s*SENTIAMOCI PI", "QUAL E": r"##\s*QUAL'È LA VOSTRA SOCIET"}
+# «chi siete come azienda?» vuole il template della societa', «chi e' lei?» quello di chi siamo
+# (la mappa di Dre: «chi siete?» → CHI SEI?, «qual e' la vostra societa' / che agenzia siete?» → QUAL'E')
+CHIEDE_SOCIETA = re.compile(r"(?:che|quale|qual\s*[eè]'?\s*la\s+vostra|di che)\s+(?:societ|agenzi|aziend)|siete\s+un'?\s*agenzia", re.I)
+
+
+def _blocco(titolo_re, testo_file):
+    m = re.search(titolo_re, testo_file or "")
+    b = re.search(r"```\s*\n(.*?)```", testo_file[m.end():], re.S) if m else None
+    return b.group(1).strip() if b else None
+
+
+def _attacco(a):
+    """L'attacco del modello, solo se e' corto e innocuo: niente numeri, niente promesse."""
+    a = " ".join((a or "").split()).strip(" «»\"'")
+    if not a or len(a.split()) > 7 or re.search(r"\d|analisi|€|garanzi|allego|propongo", a, re.I):
+        return None
+    a = a.rstrip(".;:!") + ("" if a.endswith(",") else ",")
+    return a[0].upper() + a[1:]
+
+
+def _periodo(pr):
+    pr = " ".join((pr or "").split()).strip(" «»\"'.,")
+    if not pr or len(pr.split()) > 6 or "\n" in pr:
+        return None
+    return pr
+
+
+def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=None, testo_file=None, loro=""):
+    """La risposta col testo di Dre, o None se per quell'intento non c'e' un suo template."""
+    chiave = RISPOSTE.get((intento or "").strip())
+    if chiave == "CHI SEI" and CHIEDE_SOCIETA.search(loro or ""):
+        chiave = "QUAL E"
+    if not chiave:
+        return None
+    if testo_file is None:
+        import bozze
+        testo_file = bozze.template_verbatim()
+    t = _blocco(_TITOLI_RISPOSTE[chiave], testo_file)
+    if not t:
+        return None
+    righe = t.splitlines()
+    if righe and re.match(r"\s*Salve\b", righe[0]):
+        righe[0] = saluto(p, letti)
+    t = "\n".join(righe)
+    if chiave == "INTERESSATO":
+        t = re.sub(r"Va bene perfetto,\s*", (_attacco(attacco) or "Va bene perfetto,") + " ", t, count=1)
+    if chiave == "SENTIAMOCI":
+        per = _periodo(periodo)
+        if not per:
+            return None                  # senza sapere quando, il rinvio lo scrive una persona
+        t = t.replace("a ottobre/novembre", per, 1)
+    if re.search(r"Le propongo domani alle \d", t):
+        if not giorno:
+            return None                  # il giorno lo decide il calendario di Dre
+        t = re.sub(r"Le propongo domani alle \d{1,2}(?::\d{2})?", f"Le propongo {giorno}", t)
+        t = t.replace("nel caso domani non abbia disponibilità", "nel caso quel giorno non abbia disponibilità")
+    t = re.sub(r"https://calendar\.app\.google/[A-Za-z0-9]+", calendario, t).replace("{{CALENDARIO}}", calendario)
+    if "[" in t or "{{" in t:
+        return None
+    return t.strip()
+
+
 def converti(prova=True):
     """Le bozze di follow-up gia' in Posta, scritte dal modello, passano al testo di
     Dre parola per parola (29/9). Si tocca solo la proposta, mai la mail: la bozza del

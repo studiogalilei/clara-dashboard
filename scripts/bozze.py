@@ -262,6 +262,8 @@ INTENTO: INT-xx (il codice della tabella)
 PREFLIGHT: ok | fallito: quale controllo e perche'
 FERMATI: no | si': il motivo in 10 parole (i casi del capitolo 5, o preflight fallito)
 NOTA: una riga su cosa hai adattato e perche'
+ATTACCO: 3-6 parole per aprire la frase dell'analisi, adattate a cosa ha scritto (es. «Va bene perfetto,» «Grazie per la conferma,»)
+PERIODO: solo se rinvia, quando risentirsi con le sue parole (es. «a ottobre/novembre», «dopo le feste»); altrimenti -
 ---
 il testo della bozza, pronto da incollare, SENZA firma (la mette Smartlead),
 con {{CALENDARIO}} e {giorno data ora} gia' sostituiti coi valori che ti do.
@@ -435,10 +437,26 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     bozza = senza_trattini(bozza)          # 29/9: lo toglie il codice, non un secondo giro del modello
     return {"intento": campi.get("INTENTO", "?")[:7], "template": gruppo or campi.get("INTENTO", ""),
             "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza,
+            "attacco": campi.get("ATTACCO", ""), "periodo": "" if campi.get("PERIODO", "-").strip() in ("-", "") else campi.get("PERIODO", ""),
             "lettura_di_clara": campi.get("LETTURA", ""), "ha_gia_di_clara": campi.get("HA_GIA", "")}
 
 
 LEZIONI = ""
+
+
+def testo_di_dre(b, p, letti):
+    """La bozza del modello diventa il template di Dre composto dal codice, se per
+    quell'intento ce n'e' uno (seguiti.risposta). Una funzione sola: la usano il
+    motore e il banco di prova, cosi' si prova quello che gira davvero."""
+    if not b or b.get("dal_codice"):
+        return b
+    giorno = proposta_giorno_ora()
+    comp = seguiti.risposta(b.get("intento"), p, letti, CALENDARIO, giorno=giorno, attacco=b.get("attacco"),
+                            periodo=b.get("periodo"), loro=(letti or {}).get("ultima_loro") or "")
+    if comp:
+        b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": giorno,
+             "nota": f"il template di Dre parola per parola ({b.get('intento')}); " + (b.get("nota") or "")}
+    return b
 
 
 CHIUDONO = ("non c'è nessuno a cui scrivere", "nessun ricontatto")
@@ -603,6 +621,12 @@ def main():
             return (p, gruppo, nome, None, [], letti, None)
         niente_analisi = (not p.get("analysis_pdf")
                           and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO")
+        # IL TESTO DI DRE (29/9: «basta seguire questo tutte le volte possibili»): se per
+        # l'intento c'e' un suo template, la bozza e' quello, composto dal codice. Il testo
+        # del modello resta accanto (bozza_modello). Se l'analisi non puo' nascere, no:
+        # il template la promette.
+        if not gruppo and not niente_analisi:
+            b = testo_di_dre(b, p, letti)
         errori = cancello(b["bozza"], senza_analisi=niente_analisi)
         if errori and not b.get("dal_codice"):
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
@@ -653,6 +677,8 @@ def main():
                 azione["testo_dal_codice"] = True
                 if b.get("giorno"):
                     azione["giorno_proposto"] = b["giorno"]
+                if b.get("bozza_modello"):
+                    azione["bozza_modello"] = b["bozza_modello"]
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"):
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):

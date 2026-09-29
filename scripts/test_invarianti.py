@@ -782,6 +782,25 @@ def _():
     assert 'if c in ("soppresso", "fuori_target", "nervoso"):\n            continue' in blocco, "l'attesa si chiude anche a soppressi e fuori target"
 
 
+@prova("le risposte col template di Dre: parola per parola, solo attacco, periodo, nome e giorno cambiano")
+def _():
+    import seguiti as S
+    finto = ("## INTERESSATO (3/7)\n```\nSalve,\nVa bene perfetto, vi inoltro qui l'analisi.\nLe propongo domani alle 15:30, oppure un altro giorno nel caso domani non abbia disponibilità.\n"
+             "📅 Calendario: https://calendar.app.google/VECCHIO\nA presto,\n```\n"
+             "## SENTIAMOCI PIÙ AVANTI\n```\nSalve,\n\nper me va bene, ci possiamo risentire a ottobre/novembre.\n```\n")
+    t = S.risposta("INT-01", {}, {"ultima_nostra": "Buongiorno Maura, le avevo scritto"}, "https://cal/NUOVO",
+                   giorno="giovedì 1 ottobre alle 14:30", attacco="Grazie per la conferma", testo_file=finto)
+    assert t.startswith("Salve Maura,\nGrazie per la conferma, vi inoltro qui l'analisi."), t[:80]
+    assert "Le propongo giovedì 1 ottobre alle 14:30" in t and "nel caso quel giorno" in t and "https://cal/NUOVO" in t and "VECCHIO" not in t
+    # l'attacco del modello non puo' promettere niente: se ci prova, resta quello di Dre
+    t = S.risposta("INT-01", {}, {}, "x", giorno="g", attacco="Le allego l'analisi con 30% di sconto", testo_file=finto)
+    assert "Va bene perfetto, vi inoltro" in t
+    assert S.risposta("INT-01", {}, {}, "x", giorno=None, testo_file=finto) is None, "senza giorno dal calendario il codice non inventa"
+    assert S.risposta("INT-05", {}, {}, "x", periodo=None, testo_file=finto) is None, "un rinvio senza periodo lo scrive una persona"
+    assert "risentire a gennaio" in S.risposta("INT-05", {}, {}, "x", periodo="a gennaio", testo_file=finto)
+    assert S.risposta("INT-12", {}, {}, "x", testo_file=finto) is None, "un'obiezione non ha template: niente testo dal codice"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

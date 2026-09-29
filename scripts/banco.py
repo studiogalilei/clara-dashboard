@@ -149,6 +149,9 @@ def prova_uno(p, c):
     if not b:
         out["saltato"] = "il Preparatore non ha dato una bozza leggibile"; return out
     niente = not p.get("analysis_pdf") and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO"
+    if not niente:
+        b = bozze.testo_di_dre(b, ps, letti)             # 29/9: il testo di Dre, come in produzione
+    out["dal_codice"] = bool(b.get("dal_codice"))
     errori = bozze.cancello(b["bozza"], senza_analisi=niente)
     verdetto, motivo = lettura.coerenza(letti, b["bozza"], None)
     ferma = not b["fermati"].lower().startswith("no") or verdetto != "COERENTE"
