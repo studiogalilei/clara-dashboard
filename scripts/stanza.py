@@ -103,16 +103,17 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
         raise RuntimeError(f"{e.code} {e.read()[:200].decode(errors='replace')}")
 
 
-def sb_tutte(percorso, passo=1000):
+def sb_tutte(percorso, passo=1000, chiave="id"):
     """TUTTE le righe, a pagine (29/9). Il database ne restituisce al massimo mille
     per richiesta, qualunque «limit» si chieda: calendario e Stripe cercavano fra
     mille aziende su 13.230, e nessuno se ne accorgeva perche' mille righe sembrano
     tutte. Chi vuole tutto usa questa, non un limit grande."""
     base = re.sub(r"([&?])limit=\d+&?", r"\1", percorso).rstrip("&?")
+    # a pagine serve un ordine senza pari: la chiave della tabella (id, salvo dove si chiama altrimenti)
     if "order=" not in base:
-        base += ("&" if "?" in base else "?") + "order=id"
-    elif not re.search(r"order=[^&]*\bid\b", base):
-        base = re.sub(r"(order=[^&]*)", r"\1,id.asc", base, count=1)   # a pagine serve un ordine senza pari
+        base += ("&" if "?" in base else "?") + f"order={chiave}"
+    elif not re.search(rf"order=(?:[^&]*,)?{chiave}(?:\.|,|&|$)", base):
+        base = re.sub(r"(order=[^&]*)", rf"\1,{chiave}.asc", base, count=1)
     sep = "&" if "?" in base else "?"
     righe, da = [], 0
     while True:

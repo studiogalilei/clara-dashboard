@@ -50,6 +50,7 @@ import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
 import { useSchermoLargo } from './lib/schermo'
+import Metro from './components/Metro'
 
 // La struttura sul riferimento scelto da Dre (31/8): sidebar bianca a
 // sinistra, testata con titolo grande e ricerca, contenuto in carte morbide.
@@ -717,6 +718,8 @@ export default function App() {
               <Plugin />
             ) : tab === 'feedback' ? (
               <Feedback />
+            ) : tab === 'metro' ? (
+              <Metro />
             ) : tab === 'progetti' ? (
               <Clienti onOpen={setOpenId} />
             ) : tab === 'preventivi' ? (

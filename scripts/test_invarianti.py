@@ -801,6 +801,25 @@ def _():
     assert S.risposta("INT-12", {}, {}, "x", testo_file=finto) is None, "un'obiezione non ha template: niente testo dal codice"
 
 
+@prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
+def _():
+    import cervello as C
+    base = {"autorisposta": 0.0, "detto_no": 0.0, "non_contattare": 0.0, "vuole_analisi": 0.0, "vuole_call": 0.0, "rinvio": 0.0}
+    assert C.decisioni(None)["blocca"], "senza lettura non si procede"
+    d = C.decisioni({**base, "vuole_analisi": 1.0, "non_contattare": 0.2})
+    assert d["etichetta"] == "non_scrivere" and d["blocca"], "un 20% di «non scrivetemi» ferma anche un sì pieno"
+    d = C.decisioni({**base, "vuole_analisi": 0.9, "detto_no": 0.3})
+    assert d["etichetta"] == "si" and d["dubbio"], "un sì con un no in vista non decide da solo"
+    assert not C.decisioni({**base, "vuole_call": 0.95})["dubbio"]
+
+
+@prova("il metro: Dre etichetta senza vedere cosa ne pensa il modello")
+def _():
+    import pathlib
+    m = pathlib.Path(__file__).resolve().parent.parent.joinpath("src", "components", "Metro.tsx").read_text(encoding="utf-8")
+    assert "proposta" not in m, "la pagina del metro legge la proposta del modello: si misurerebbe il modello contro se stesso"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

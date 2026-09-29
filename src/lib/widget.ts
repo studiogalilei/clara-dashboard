@@ -15,7 +15,7 @@ export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
   | 'tutti' | 'clara'
-  | 'progetti' | 'preventivi' | 'chat' | 'feedback'
+  | 'progetti' | 'preventivi' | 'chat' | 'feedback' | 'metro'
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
@@ -89,6 +89,10 @@ export const WIDGET: Widget[] = [
   { chiave: 'feedback', nome: 'Cosa cambieresti', cosa: 'Quello che non va o che vorresti: lo leggo io', zona: 'sistema', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M12 3a9 9 0 0 1 9 9c0 4.5-4 8.2-9 8.2a10 10 0 0 1-2.6-.3L4 21.5l1.2-3.4A8.6 8.6 0 0 1 3 12a9 9 0 0 1 9-9zM12 8v5M12 16h.01' },
+  // IL METRO (29/9): Dre etichetta le risposte vere, una alla volta. Solo i ceo; si toglie quando e' finito
+  { chiave: 'metro', nome: 'Metro', cosa: 'Le risposte vere da etichettare, per misurare il lettore delle mail', zona: 'sistema', fisso: true,
+    ruoli: ['ceo'],
+    icona: 'M4 18h16M6 18V8M10 18v-6M14 18V6M18 18v-9M4 6l4-2 4 3 4-3 4 2' },
   { chiave: 'analytics', nome: 'Numeri', cosa: 'Risposte, conversioni e andamento dell\'outbound', zona: 'sistema', fisso: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 19h16M6 16V9M10 16V5M14 16v-6M18 16v-9' },

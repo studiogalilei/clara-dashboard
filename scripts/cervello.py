@@ -36,6 +36,7 @@ import json
 import os
 import re
 import subprocess
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -146,12 +147,23 @@ def _cache():
         return {}
 
 
+_BLOCCO = threading.Lock()
+
+
 def _salva_cache(d):
-    try:
-        with open(CACHE, "w", encoding="utf-8") as f:
-            json.dump(d, f, ensure_ascii=False)
-    except Exception:
-        pass          # la cache e' una comodita', non un dato: se salta, pazienza
+    """Unisce a quello che c'e' su disco e sostituisce il file in un colpo solo (29/9):
+    con piu' letture in parallelo, o due script insieme, nessuno cancella le letture
+    dell'altro e il file non resta mai scritto a meta'."""
+    with _BLOCCO:
+        try:
+            tutto = _cache()
+            tutto.update(d)
+            tmp = f"{CACHE}.{os.getpid()}.{threading.get_ident()}"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(tutto, f, ensure_ascii=False)
+            os.replace(tmp, CACHE)
+        except Exception:
+            pass      # la cache e' una comodita', non un dato: se salta, pazienza
 
 
 def _impronta(testo, modello=None):
@@ -166,14 +178,14 @@ def _chiedi(prompt, modello=None):
     return _chiedi_claude(prompt, modello or MODELLO_CLAUDE)
 
 
-def _chiedi_openai(prompt, modello):
+def _chiedi_openai(prompt, modello, formato=None):
     chiave = _env("OPENAI_API_KEY")
     if not chiave:
         raise RuntimeError("manca OPENAI_API_KEY in .env.local")
-    corpo = json.dumps({
-        "model": modello,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode()
+    richiesta = {"model": modello, "messages": [{"role": "user", "content": prompt}]}
+    if formato:
+        richiesta["response_format"] = formato      # 29/9: la risposta in una forma fissa (il lettore unico)
+    corpo = json.dumps(richiesta).encode()
     req = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions", data=corpo, method="POST",
         headers={"Authorization": "Bearer " + chiave, "Content-Type": "application/json"})
@@ -204,6 +216,92 @@ def _chiedi_openai(prompt, modello):
     uso = d.get("usage", {})
     _conta_uso(modello, uso.get("prompt_tokens", 0), uso.get("completion_tokens", 0))
     return d["choices"][0]["message"]["content"] or ""
+
+
+# ── IL LETTORE UNICO (Dre, 29/9: «a») ───────────────────────────────
+# Prima la stessa mail la leggevano quattro regole diverse (sync, analisi, lettura,
+# bozze), e ognuna sbagliava a modo suo: misurate il 29/9 sulle 435 risposte che Dre
+# ha classificato a mano, «ha detto no» ne prendeva 1 su 3 e «non scrivetemi piu'» 5 su
+# 45. Qui una lettura sola risponde a tutte le domande secche, ognuna con la sua
+# probabilita' (l'idea di Jev/TypeSafe, fatta col modello che abbiamo gia'). Chi usa
+# la risposta decide con soglie ASIMMETRICHE (decisioni()): un dubbio puo' fermare,
+# mai sbloccare. Non va in produzione prima di essere misurata sul metro di Dre.
+
+DOMANDE = {
+    "autorisposta": "e' una risposta automatica (fuori ufficio, ferie, ticket, casella non presidiata)?",
+    "detto_no": "la persona dice di no, che non le interessa, che ha gia' chi la segue?",
+    "non_contattare": "chiede di non essere piu' contattata, di essere cancellata, cita la privacy o minaccia?",
+    "vuole_analisi": "chiede o accetta di ricevere l'analisi o del materiale (anche solo «confermo la mail», «mandi pure»)?",
+    "vuole_call": "chiede o accetta di sentirsi, una chiamata, un incontro?",
+    "rinvio": "rimanda a piu' avanti (un mese, una data, «dopo l'estate»)?",
+}
+SCHEMA_LETTURA = {
+    "type": "json_schema",
+    "json_schema": {"name": "lettura", "strict": True, "schema": {
+        "type": "object", "additionalProperties": False,
+        "required": list(DOMANDE) + ["rinvio_quando", "girato_a", "domanda", "perche"],
+        "properties": {**{k: {"type": "number"} for k in DOMANDE},
+                       "rinvio_quando": {"type": "string"}, "girato_a": {"type": "array", "items": {"type": "string"}},
+                       "domanda": {"type": "string"}, "perche": {"type": "string"}}}},
+}
+
+
+def classifica_risposta(testo, modello=None):
+    """Legge UNA risposta (gia' senza firma e citazione: lettura.solo_suo) e torna le
+    probabilita' per ogni domanda secca, piu' quando rinvia, a chi ci gira e cosa chiede.
+    Mai un'eccezione: se non risponde torna None, e chi chiama tratta None come dubbio."""
+    t = " ".join((testo or "").split())[:2500]
+    if len(t) < 3:
+        return None
+    domande = "\n".join(f"- {k}: {v}" for k, v in DOMANDE.items())
+    prompt = (f"Sei il lettore delle risposte alle mail di Studio Galilei (agenzia di Treviso, marketing e Google Ads). "
+              f"Leggi SOLO quello che ha scritto la persona qui sotto e rispondi a ogni domanda con una probabilita' da 0 a 1. "
+              f"Se il testo non basta per capire, dai valori vicini a 0.5: meglio un dubbio dichiarato che una certezza falsa.\n\n"
+              f"LE DOMANDE:\n{domande}\n\nPoi: rinvio_quando (AAAA-MM-GG se dice una data o un mese, altrimenti vuoto), "
+              f"girato_a (indirizzi o nomi a cui ci rimanda, altrimenti lista vuota), domanda (la domanda che ci fa, altrimenti vuoto), "
+              f"perche (dieci parole).\n\nLA RISPOSTA:\n«{t}»")
+    chiave_cache = _impronta("lettore1|" + t, modello)
+    cache = _cache()
+    if chiave_cache in cache:
+        return dict(cache[chiave_cache])
+    try:
+        if FORNITORE == "openai":
+            grezzo = _chiedi_openai(prompt, modello or MODELLO_OPENAI, formato=SCHEMA_LETTURA)
+        else:
+            grezzo = _chiedi_claude(prompt + "\n\nRispondi SOLO con un oggetto JSON con esattamente quei campi.", modello or MODELLO_CLAUDE)
+        m = re.search(r"\{.*\}", grezzo, re.S)
+        r = json.loads(m.group(0)) if m else None
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (il lettore non ha risposto: {str(e)[:80]})")
+        return None
+    if not isinstance(r, dict) or any(not isinstance(r.get(k), (int, float)) for k in DOMANDE):
+        return None
+    for d in DOMANDE:
+        r[d] = max(0.0, min(1.0, float(r[d])))
+    cache[chiave_cache] = r
+    _salva_cache(cache)
+    return r
+
+
+def decisioni(r):
+    """Le soglie ASIMMETRICHE. Fermarsi costa poco, sbagliare verso il lead costa tanto:
+    un dubbio sul «non contattare» ferma gia' a 0.2; un «sì» vale solo sopra 0.8 e senza
+    nessun no in vista. Torna l'etichetta del metro e se c'e' un dubbio da far vedere a Dre."""
+    if not r:
+        return {"etichetta": "altro", "dubbio": True, "blocca": True}
+    if r["non_contattare"] >= 0.2:
+        return {"etichetta": "non_scrivere", "dubbio": r["non_contattare"] < 0.8, "blocca": True}
+    if r["autorisposta"] >= 0.7:
+        return {"etichetta": "fuori_ufficio", "dubbio": False, "blocca": False}
+    if r["detto_no"] >= 0.5:
+        return {"etichetta": "no", "dubbio": r["detto_no"] < 0.8, "blocca": True}
+    if r["rinvio"] >= 0.6:
+        return {"etichetta": "rinvio", "dubbio": r["rinvio"] < 0.8, "blocca": False}
+    if max(r["vuole_analisi"], r["vuole_call"]) >= 0.8 and r["detto_no"] < 0.2:
+        return {"etichetta": "si", "dubbio": False, "blocca": False}
+    if max(r["vuole_analisi"], r["vuole_call"]) >= 0.5:
+        return {"etichetta": "si", "dubbio": True, "blocca": False}
+    return {"etichetta": "altro", "dubbio": True, "blocca": False}
 
 
 def _chiedi_claude(prompt, modello):
