@@ -126,6 +126,14 @@ def nell_evento(r, testo):
         from google_api import g
         base = f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{_up.quote(eid)}"
         ev = g("GET", base, email=chi) or {}
+        # 29/9: la descrizione di un evento di Google la vedono TUTTI gli invitati. Con
+        # anche un solo invitato esterno (il cliente, il lead) le note interne restano
+        # nel Workspace: nell'evento andrebbero sotto gli occhi di chi stiamo preparando.
+        esterni = [a.get("email") for a in (ev.get("attendees") or [])
+                   if a.get("email") and not a["email"].lower().endswith("@studiogalilei.com")]
+        if esterni or not ev:
+            print("    nell'evento di Google no: ci sono invitati esterni, resta nel Workspace")
+            return
         vecchia = ev.get("description") or ""
         if MARCA in vecchia:
             vecchia = vecchia.split(MARCA)[-1].split("── fine ──")[-1].strip()

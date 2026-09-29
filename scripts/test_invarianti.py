@@ -751,6 +751,7 @@ def _():
     # in cassaforte (schema_v67); qui le regole del codice che non devono cedere.
     qui = pathlib.Path(__file__).resolve().parent
     prep = qui.joinpath("preparo.py").read_text(encoding="utf-8")
+    assert "esterni or not ev" in prep, "la preparazione puo' finire nell'evento di Google che vede anche il cliente"
     assert "PREZZO SUGGERITO" not in prep and "importo,mensile" not in prep and "stato,valore" not in prep, \
         "la preparazione della call (che la squadra vede nell'evento) contiene di nuovo soldi"
     sch = qui.parents[0].joinpath("src", "components", "Scheda.tsx").read_text(encoding="utf-8")

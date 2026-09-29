@@ -395,6 +395,12 @@ const TABELLE: Record<string, Riga[]> = {
   // (28/9: Dre ha approvato dal telefono e la mail non e' uscita, perche'
   // questa operazione era spenta e nessuno glielo diceva). In demo e' accesa:
   // per vedere l'altro caso si mette attiva: false.
+  // la cassaforte (29/9): i soldi che vedono solo i ceo, per provare «Solo per te» prima della call
+  soldi_clienti: [
+    { prospect_id: 'p5', canone: null, prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [] },
+      bilancio: { fatturato: 1850000, utile: 94000, anno: 2025, dipendenti: 14 }, fatturazione: null, valore: null },
+  ] as unknown as Riga[],
+  soldi_progetti: [] as unknown as Riga[],
   // il calendario dei follow-up (29/9): lo scrive followup.py, qui qualche riga per provarlo
   seguiti_calendario: [
     { prospect_id: 'p2', gruppo: 'FOLLOW UP 1', il: gg(0).slice(0, 10), perche: 'analisi mandata il 24/9, nessuna risposta' },

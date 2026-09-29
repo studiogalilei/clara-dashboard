@@ -31,6 +31,7 @@ import { Timeline, StoriaCompleta } from './Storia'
 import { STATI, ordineProgetti, type Progetto } from './Progetti'
 import { mensile, type Incasso } from './TuttiFoglio'
 import { conSoldi, conValore, soldiClienti, soldiProgetti } from '../lib/soldi'
+import SoldiDellaCall from './SoldiDellaCall'
 import {
   Card, TitoloCard, Auto, SeasonChart, Spinner, ZonaFile, Faccia,
   fmtDate, fmtDateShort, fmtOra, daysAgo, giorni, fmtNum, sgid,
@@ -1096,6 +1097,8 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
             </div>
             {prepAperta && (
               <div className="salta-su border-t border-velo px-5 py-4">
+                {/* i soldi di questa azienda, prima della call: solo Dre e Giacomo (29/9) */}
+                <SoldiDellaCall prospectId={p.id} className="mb-3" />
                 {prep ? (
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{prep.body}</p>
                 ) : prepChiesta ? (

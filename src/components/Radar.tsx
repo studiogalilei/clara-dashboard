@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
 import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
 import { VIVI, oggi, giorno, GIORNI_FOLLOWUP } from '../lib/regole'
+import SoldiDellaCall from './SoldiDellaCall'
 
 // Il radar della home: la riga dei 4 numeri (la scura e' «Da fare oggi»,
 // e le call di OGGI vivono li' dentro), la card «Prossima» con il primo
@@ -292,9 +293,13 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
                 Clara ti ha preparato la call
               </button>
               {preparata && (
-                <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-inchiostro">
-                  {prossimo.preparazione}
-                </p>
+                <>
+                  <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-inchiostro">
+                    {prossimo.preparazione}
+                  </p>
+                  {/* i soldi di questa azienda: solo Dre e Giacomo (29/9) */}
+                  <SoldiDellaCall prospectId={prossimo.prospect_id} className="mt-2" />
+                </>
               )}
             </div>
           )}
