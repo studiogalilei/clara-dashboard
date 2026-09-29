@@ -38,24 +38,31 @@ QUOTE = {"negativo": 35, "positivo": 25, "tiepido": 5, "ooo": 20, "rinvio": 20, 
 def prepara(n):
     import cervello
     import lettura
-    gia = {r["interaction_id"] for r in sb_tutte("/rest/v1/metro_risposte?select=interaction_id", chiave="interaction_id")}
+    ci_sono = sb_tutte("/rest/v1/metro_risposte?select=interaction_id,prospect_id", chiave="interaction_id")
+    gia = {r["interaction_id"] for r in ci_sono}
     classe = {p["id"]: p.get("classificazione") for p in sb_tutte("/rest/v1/prospects?select=id,classificazione&last_reply_at=not.is.null")}
     per_tipo = {}
     for r in sb_tutte("/rest/v1/interactions?select=id,prospect_id,at,body&kind=eq.email_in&order=at.desc"):
         if r["id"] in gia or r["prospect_id"] not in classe:
+            continue
+        # «Risposta ricevuta (Smartlead)» non e' una mail, e' l'import vecchio. Non lettura._segnaposto:
+        # quello scarta anche i «Non mi interessa, grazie», che nel metro servono
+        if (r.get("body") or "").strip().lower().startswith("risposta ricevuta"):
             continue
         t = " ".join(lettura.solo_suo(r.get("body") or "").split())
         if len(t) < 8:
             continue
         per_tipo.setdefault(classe[r["prospect_id"]] or "da_classificare", []).append({**r, "testo": t[:1500]})
     random.seed(29)
-    scelte, visti = [], set()
+    # si riempie quello che manca: le quote contano anche le righe gia' nel metro
+    gia_per_tipo = Counter(classe.get(r["prospect_id"]) or "da_classificare" for r in ci_sono)
+    scelte, visti = [], {r["prospect_id"] for r in ci_sono}
     for tipo, quota in QUOTE.items():
         candidati = [r for r in per_tipo.get(tipo, []) if r["prospect_id"] not in visti]
         random.shuffle(candidati)
-        for r in candidati[:quota]:
+        for r in candidati[:max(quota - gia_per_tipo[tipo], 0)]:
             scelte.append(r); visti.add(r["prospect_id"])
-    scelte = scelte[:n]
+    scelte = scelte[:max(n - len(ci_sono), 0)]
     print(f"il metro: {len(scelte)} risposte scelte ({dict(Counter(classe[r['prospect_id']] for r in scelte))})")
     # sei letture alla volta: una sola ci mette una ventina di secondi
     from concurrent.futures import ThreadPoolExecutor
