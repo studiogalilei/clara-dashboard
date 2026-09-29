@@ -399,6 +399,7 @@ const TABELLE: Record<string, Riga[]> = {
   soldi_clienti: [
   ] as unknown as Riga[],
   metro_risposte: [
+    { interaction_id: 'i9', prospect_id: 'p5', testo: 'Anna: «Facciamo una call»', etichetta: null, nota: null, creato_il: gg(0) },
     { interaction_id: 'm1', testo: 'Buongiorno Lorenzo, confermo la mail, mandi pure. Grazie', etichetta: null, creato_il: gg(0) },
     { interaction_id: 'm2', testo: 'Vi prego di non scrivermi più, grazie', etichetta: null, creato_il: gg(0) },
     { interaction_id: 'm3', testo: 'Sono fuori ufficio fino al 12 ottobre con accesso limitato alla posta', etichetta: null, creato_il: gg(0) },

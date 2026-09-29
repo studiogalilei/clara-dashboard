@@ -13,6 +13,7 @@ COSA FA
   --prepara N   sceglie N risposte vere (una per azienda, di ogni tipo, anche le rare)
                 e le mette in metro_risposte con la lettura del modello accanto;
                 Dre le etichetta nella pagina «Metro» del Workspace, senza vederla.
+  --rinfresca   rilegge i testi con la pulizia di adesso (la nostra mail citata fuori)
   --misura      confronta con le etichette di Dre: il lettore nuovo e le regole di oggi.
                 I numeri che contano (criterio del 28/9): quanti sì presi per no, quanti
                 no presi per sì, quanti «non scrivetemi» mancati; poi quanto decide da solo.
@@ -80,6 +81,40 @@ def prepara(n):
     print(f"messe nel metro: {fatte}")
 
 
+def rinfresca():
+    """Rilegge i testi del metro con lettura.solo_suo di adesso (29/9: la nostra mail
+    citata restava dentro a una risposta su sette). Dove il testo cambia si rilegge
+    anche col modello; dove non resta niente di suo (ci ha solo girato la nostra
+    mail) e non e' ancora etichettata, la riga esce: non e' una risposta."""
+    import cervello
+    import lettura
+    righe = sb_tutte("/rest/v1/metro_risposte?select=interaction_id,testo,etichetta", chiave="interaction_id")
+    corpi = {}
+    for k in range(0, len(righe), 100):
+        ids = ",".join(r["interaction_id"] for r in righe[k:k + 100])
+        corpi.update({x["id"]: x.get("body") or "" for x in sb("GET", f"/rest/v1/interactions?select=id,body&id=in.({ids})")})
+    cambiate, fuori = [], 0
+    for r in righe:
+        t = " ".join(lettura.solo_suo(corpi.get(r["interaction_id"], "")).split())[:1500]
+        if t == r["testo"]:
+            continue
+        if len(t) < 8 and not r.get("etichetta"):
+            if not PROVA:
+                sb("DELETE", f"/rest/v1/metro_risposte?interaction_id=eq.{r['interaction_id']}&etichetta=is.null", None, {"Prefer": "return=minimal"})
+            fuori += 1
+            continue
+        cambiate.append({**r, "nuovo": t})
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        letture = list(pool.map(lambda r: cervello.classifica_risposta(r["nuovo"]), cambiate))
+    for r, lett in zip(cambiate, letture):
+        if not PROVA:
+            sb("PATCH", f"/rest/v1/metro_risposte?interaction_id=eq.{r['interaction_id']}",
+               {"testo": r["nuovo"], "proposta": lett}, {"Prefer": "return=minimal"})
+    print(f"testi ripuliti: {len(cambiate)} (di cui gia' etichettati {sum(1 for r in cambiate if r.get('etichetta'))}), "
+          f"usciti perche' senza niente di suo: {fuori}")
+
+
 def regex_di_oggi(t):
     """Come le quattro regole di oggi etichetterebbero la mail."""
     import lettura
@@ -97,14 +132,15 @@ def regex_di_oggi(t):
 
 def misura():
     import cervello
-    righe = [r for r in sb_tutte("/rest/v1/metro_risposte?select=testo,proposta,etichetta", chiave="interaction_id") if r.get("etichetta")]
+    righe = [r for r in sb_tutte("/rest/v1/metro_risposte?select=testo,proposta,etichetta,nota", chiave="interaction_id") if r.get("etichetta")]
     if not righe:
         print("nessuna etichetta ancora: il metro si riempie dalla pagina «Metro» del Workspace"); return
     print(f"IL METRO: {len(righe)} risposte etichettate da Dre {dict(Counter(r['etichetta'] for r in righe))}\n")
     for r in righe:      # se il giorno della preparazione la rete era giu', la lettura si fa adesso
         r["proposta"] = r.get("proposta") or cervello.classifica_risposta(r["testo"])
     for nome, chi in (("lettore unico (GPT, soglie asimmetriche)", lambda r: cervello.decisioni(r.get("proposta"))),
-                      ("regole di oggi (regex)", lambda r: {"etichetta": regex_di_oggi(r["testo"]), "dubbio": False})):
+                      # quando nessuna regola scatta la mail va a una persona: e' un dubbio, non una decisione
+                      ("regole di oggi (regex)", lambda r: {"etichetta": regex_di_oggi(r["testo"]), "dubbio": regex_di_oggi(r["testo"]) == "altro"})):
         giusti = si_per_no = no_per_si = ns_mancati = decide = decide_giusti = 0
         for r in righe:
             d = chi(r); vero, dato = r["etichetta"], d["etichetta"]
@@ -120,6 +156,12 @@ def misura():
               f"  | sì presi per no {si_per_no}/{tot['si']}  | no presi per sì {no_per_si}/{tot['no'] + tot['non_scrivere']}"
               f"  | «non scrivetemi» mancati {ns_mancati}/{tot['non_scrivere']}"
               f"\n    decide da solo {decide}/{n}, e quando decide ha ragione {decide_giusti}/{decide or 1} ({decide_giusti/(decide or 1):.0%})\n")
+    # i commenti di Dre: il perche' che la mail non dice, il primo pezzo delle sue regole non scritte
+    note = [r for r in righe if r.get("nota")]
+    if note:
+        print(f"  I COMMENTI DI DRE ({len(note)})")
+        for r in note:
+            print(f"    [{r['etichetta']}] «{r['testo'][:70]}»\n        {r['nota']}")
 
 
 if __name__ == "__main__":
@@ -127,5 +169,7 @@ if __name__ == "__main__":
         prepara(int(sys.argv[sys.argv.index("--prepara") + 1]))
     elif "--misura" in sys.argv:
         misura()
+    elif "--rinfresca" in sys.argv:
+        rinfresca()
     else:
         print(__doc__)

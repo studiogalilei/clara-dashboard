@@ -801,6 +801,20 @@ def _():
     assert S.risposta("INT-12", {}, {}, "x", testo_file=finto) is None, "un'obiezione non ha template: niente testo dal codice"
 
 
+@prova("la nostra mail citata non e' mai testo suo, anche senza a capo e senza «il giorno»")
+def _():
+    import lettura as L
+    import analisi_auto as A
+    # 29/9: 95 risposte su 688 si portavano dietro la nostra mail («Il 16/07/2026 16:37, X ha scritto:»)
+    no = "Non siamo interessati, grazie Il 03/08/2026 10:12, Mario Bianchi ha scritto: le mando l'analisi della vostra zona?"
+    assert L.solo_suo(no) == "Non siamo interessati, grazie", L.solo_suo(no)
+    assert not A.CHIEDE_ANALISI.search(L.solo_suo(no)), "una nostra frase citata fa passare un no per un si'"
+    assert L.solo_suo("ok grazie On Wed, Jul 15, 2026 at 4:37 PM Mario <m@x.it> wrote: hello") == "ok grazie"
+    assert L.solo_suo("Il 2026-07-07 10:22 Mario Bianchi ha scritto: > abbiamo dato un'occhiata") == "", "chi non scrive niente non chiede niente"
+    # senza data non e' una citazione: e' lui che racconta
+    assert L.solo_suo("Va bene alle 16:30, il collega ha scritto: ok", con_firma=True).endswith("ha scritto: ok")
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

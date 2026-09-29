@@ -91,6 +91,30 @@ CITAZIONE = re.compile(
     r"\n\s*(?:>\s*)?(?:il giorno\s+\w|on\s+\w.{0,60}\bwrote:|-{2,}\s*original message|"
     r"da:\s|from:\s|inviato:\s|sent:\s|a:\s.{0,60}\noggetto:|_{5,})", re.I)
 
+# L'INTESTAZIONE DELLA CITAZIONE, ANCHE SENZA A CAPO (29/9). «Il 16/07/2026 16:37,
+# Lorenzo ha scritto:» o «On Jul 15, 2026 at 4:37 PM Lorenzo <...> wrote:»: la regola
+# sopra vuole un a capo davanti e «il giorno», e 95 risposte su 688 si portavano
+# dietro la nostra mail intera. Il lettore e le regole leggevano il nostro testo come
+# suo: una nostra frase con «analisi» sotto un «non siamo interessati». Si riconosce
+# da «ha scritto:»/«wrote:» con una data e un'ora poco prima; si taglia dall'«Il»/«On»
+# che apre. Senza data non si taglia: «va bene alle 16:30, il collega ha scritto:» e' suo.
+_SCRITTO = re.compile(r"\b(?:ha scritto|wrote)\s*:", re.I)
+_ORA = re.compile(r"\b\d{1,2}[:.]\d{2}\b")
+_DATA = re.compile(r"\b(?:19|20)\d{2}\b|\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b")
+_APERTURA = re.compile(r"(?<!\w)(?:il giorno|il|on|am|el|le)\s", re.I)
+
+
+def _intestazione(t):
+    """Dove comincia l'intestazione della mail citata, o None."""
+    for m in _SCRITTO.finditer(t):
+        da = max(0, m.start() - 200)
+        ore = list(_ORA.finditer(t, da, m.start()))
+        if not ore or not _DATA.search(t, da, m.start()):
+            continue           # «il mio collega ha scritto:» non e' una citazione
+        aperture = list(_APERTURA.finditer(t, da, ore[0].start()))
+        return aperture[-1].start() if aperture else ore[0].start()
+    return None
+
 
 # La firma aziendale, che comincia dopo i saluti. Cristian Porta (La Baita Case)
 # ha scritto «sarei felice di ricevere la vostra analisi» ed e' stato bloccato
@@ -123,6 +147,9 @@ def solo_suo(testo, con_firma=False):
     m = CITAZIONE.search(t)
     if m:
         t = t[:m.start()]
+    h = _intestazione(t)
+    if h is not None:
+        t = t[:h]
     # via le righe citate con «>», che in ogni client sono testo di qualcun altro
     t = "\n".join(r for r in t.split("\n") if not r.lstrip().startswith(">")).strip()
     if con_firma:
