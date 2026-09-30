@@ -196,6 +196,36 @@ def filo(p):
     return righe
 
 
+# IL SECONDO LETTORE (30/9, verdetto del metro su 150 mail etichettate da Dre).
+# Il modello (cervello.classifica_risposta) legge meglio delle regex dove conta:
+# sì presi per no 1/44 (ed era un dubbio) contro 3/44, «non scrivetemi» mancati
+# 0/3 contro 2/3. Da qui in poi leggono in DUE, con le regole scritte qui sotto
+# in due funzioni pure: un freno scatta se lo dice UNO dei due (un dubbio puo'
+# solo fermare); un sì si accende solo se il modello e' sicuro e nessuno frena.
+# Se il modello non risponde (rete), la sua opinione e' «nessuna»: mai sbloccare.
+
+def secondo_lettore(testo):
+    """La lettura del modello, con le soglie asimmetriche. None = nessuna opinione."""
+    try:
+        import cervello
+        r = cervello.classifica_risposta(solo_suo(testo))
+        return cervello.decisioni(r) if r else None
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def frena(regex_dice, lettore, etichette):
+    """Il freno: basta che UNO dei due lo dica, dubbio compreso."""
+    return bool(regex_dice) or bool(lettore and lettore.get("etichetta") in etichette)
+
+
+def si_acceso(regex_dice, lettore):
+    """Il via: la regex di sempre, oppure il modello SICURO. Mai un via da un dubbio."""
+    if lettore and lettore.get("etichetta") in ("no", "non_scrivere"):
+        return False
+    return bool(regex_dice) or bool(lettore and lettore.get("etichetta") == "si" and not lettore.get("dubbio"))
+
+
 def ha_gia(p, righe):
     """I fatti che si leggono dal filo senza chiedere a nessuno."""
     loro = [r for r in righe if r["kind"] == "email_in" and not _segnaposto(r.get("body"))]
@@ -209,6 +239,7 @@ def ha_gia(p, righe):
     alt = alt if isinstance(alt, list) else [alt]
     mie = {(p.get("email") or "").lower(), *[str(a).lower() for a in alt if a]}
     dom = (p.get("email") or "").split("@")[-1].lower()
+    lettore = secondo_lettore(testo)
     girato = sorted({e.lower() for e in EMAIL.findall(testo)
                      if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI) and e.lower().split("@")[-1] != dom} |
                     {e.lower() for e in EMAIL.findall(testo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
@@ -220,8 +251,9 @@ def ha_gia(p, righe):
         "analisi_gia_letta": bool(GIA_LETTA.search(testo)),
         # 28/9: solo le sue righe. La nostra mail citata sotto contiene le nostre
         # frasi, e una di quelle poteva far sembrare che avesse detto di no.
-        "detto_no": bool(DETTO_NO.search(solo_suo(testo))),
-        "autorisposta": bool(AUTORISPOSTA.search(testo[:1200])),
+        "detto_no": frena(DETTO_NO.search(solo_suo(testo)), lettore, ("no", "non_scrivere")),
+        "autorisposta": frena(AUTORISPOSTA.search(testo[:1200]), lettore, ("fuori_ufficio",)),
+        "non_scrivere": frena(False, lettore, ("non_scrivere",)),
         "casella_di_servizio": bool(SERVIZIO.match(p.get("email") or "")),
         "destinatario": (alt[0] if alt and alt[0] else None),
         "girato_a": girato[:3],

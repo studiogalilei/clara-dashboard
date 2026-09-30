@@ -869,6 +869,20 @@ def _():
     assert v == "NO", "senza recensioni che contraddicono, il rosso deve ancora fermare"
 
 
+@prova("leggono in due: un freno basta da solo, un via mai da un dubbio")
+def _():
+    import lettura as L
+    # 30/9, verdetto del metro: il modello entra ai quattro posti delle regex
+    assert L.frena(True, None, ("no",)), "la regex da sola non frena piu'"
+    assert L.frena(False, {"etichetta": "non_scrivere", "dubbio": True}, ("non_scrivere",)), "il modello in dubbio non frena: un dubbio deve poter fermare"
+    assert not L.frena(False, None, ("no",)), "senza nessuna opinione si frena a caso"
+    assert L.si_acceso(True, None), "la regex di sempre non accende piu' il si'"
+    assert L.si_acceso(False, {"etichetta": "si", "dubbio": False})
+    assert not L.si_acceso(False, {"etichetta": "si", "dubbio": True}), "un dubbio ha acceso un si'"
+    assert not L.si_acceso(False, None), "il si' si accende senza nessuno che lo dica"
+    assert not L.si_acceso(True, {"etichetta": "no", "dubbio": False}), "il modello dice no e il si' parte lo stesso"
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

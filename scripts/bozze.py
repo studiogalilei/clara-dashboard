@@ -741,7 +741,8 @@ def main():
         testo = letti["ultima_loro"]
         # 28/9: NON_TOCCARE sulle sue righe soltanto (il caso dell'immobiliare del 28/9: «cancellarlo»
         # stava nella nostra firma GDPR citata sotto la sua risposta positiva)
-        if len(testo.strip()) < 20 or NON_TOCCARE.search(lettura.solo_suo(testo)):
+        if len(testo.strip()) < 20 or lettura.frena(NON_TOCCARE.search(lettura.solo_suo(testo)),
+                                                    lettura.secondo_lettore(testo), ("non_scrivere",)):
             mai_gb(p, "ha chiesto di non essere contattato o non ha scritto niente"); continue
         if letti["scritto_dopo_di_lei"]:
             mai_gb(p, "gli abbiamo gia' scritto dopo il suo no"); continue

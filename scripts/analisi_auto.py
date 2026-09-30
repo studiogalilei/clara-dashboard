@@ -411,8 +411,11 @@ def lavora(p):
     # 28/9: si guarda SOLO quello che ha scritto lui. Prima si leggeva tutta la
     # mail, firma e disclaimer compresi, e la parola «cancellarlo» dentro la
     # NOSTRA firma sul GDPR bloccava chi aveva appena detto di si'.
-    if s["ultime"] and NON_TOCCARE.search(lettura.solo_suo(s["ultime"][0].get("body") or "")):
-        print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
+    # 30/9: leggono in due, e basta che uno dica fermo (il metro: le regex hanno mancato 2 «non scrivetemi» su 3)
+    if s["ultime"]:
+        corpo = s["ultime"][0].get("body") or ""
+        if lettura.frena(NON_TOCCARE.search(lettura.solo_suo(corpo)), lettura.secondo_lettore(corpo), ("non_scrivere",)):
+            print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
     an = _ripulisci(chiedi(p, s))
     fatti = fatti_in_testo(s, p)
     errori = cancello(an, fatti) if an else ["risposta non in JSON"]
@@ -482,7 +485,8 @@ def _l_ha_chiesta(p):
                        "&kind=eq.email_in&order=at.desc&limit=1") or [{}])[0].get("body") or ""
     except Exception:                                        # noqa: BLE001
         return False
-    return bool(CHIEDE_ANALISI.search(lettura.solo_suo(t)))
+    # 30/9: il sì si accende anche col modello sicuro (le regex mancavano tanti sì), mai da un dubbio
+    return lettura.si_acceso(CHIEDE_ANALISI.search(lettura.solo_suo(t)), lettura.secondo_lettore(t))
 
 
 def servita(p):
