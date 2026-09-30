@@ -354,10 +354,26 @@ export async function codaDiOggi(): Promise<{ voci: VoceCoda[]; problema: string
   // per ultime, cosi' chi ha gia' una ragione piu' urgente resta li' dov'e'.
   // Il tetto e' quello di tutti: `updated_at` e' l'ultima volta che si e'
   // mosso qualcosa, e oltre il mese finiscono nell'arretrato come le altre
-  for (const p of ((mi.data as Prospect[] | null) ?? [])) aggiungi(p, 'mio', p.updated_at, null)
+  for (const p of ((mi.data as Prospect[] | null) ?? [])) aggiungi(p, 'mio', p.mosso_il ?? p.updated_at, null)
 
   return { voci, problema }
 }
+
+// L'ULTIMO MOVIMENTO (Dre, 30/9: «mando avanti e c'e' ancora fermo da sei giorni»).
+// Una data sola per dire da quanto un'azienda e' ferma, in ogni schermata: la tiene il
+// database (schema_v71) e si muove con una mail loro o nostra, l'analisi, una call, un
+// cambio di fase. Prima la scheda contava dall'ultima risposta, Radar e Numeri
+// dall'analisi, l'arretrato da qualunque modifica: quattro orologi diversi.
+export function ultimoMovimento(p: Pick<Prospect, 'last_reply_at' | 'analysis_sent_at'> & { mosso_il?: string | null }): string | null {
+  return p.mosso_il ?? p.last_reply_at ?? p.analysis_sent_at ?? null
+}
+
+// ENTRARE IN PIPELINE: la stessa regola dalla bacheca e dalla scheda. Si entra solo
+// dalla Conoscitiva, e senza pedaggio: non c'e' ancora nessuna call da riassumere (2/9)
+export function entraInConoscitiva(): Partial<Prospect> {
+  return { fuori: true, fuori_at: new Date().toISOString(), pipeline_stage: 'conoscitiva', awaiting_us: false }
+}
+export const NOTA_ENTRA = 'Entra in Conoscitiva.'
 
 export function giorniDa(iso: string | null | undefined): number | null {
   if (!iso) return null

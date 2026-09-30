@@ -145,6 +145,7 @@ export interface Prospect {
   stage: Stage
   first_reply_at: string | null
   last_reply_at: string | null
+  mosso_il?: string | null       // l'ultimo movimento vero: mail, analisi, call, cambio di fase (schema_v71)
   analysis_sent: boolean
   analysis_sent_at: string | null
   analysis_pdf: string | null

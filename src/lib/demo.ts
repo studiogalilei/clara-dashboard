@@ -515,6 +515,10 @@ class Query {
       })
     }
     if (this.patch) righe.forEach((r) => Object.assign(r, this.patch))
+    // come il trigger di schema_v71: un cambio di fase e' un movimento
+    if (this.patch && this.tabella === 'prospects' && ['stage', 'pipeline_stage', 'fuori'].some((k) => k in this.patch!)) {
+      righe.forEach((r) => { r.mosso_il = new Date().toISOString() })
+    }
     if (this.ordina) {
       const { col, asc } = this.ordina
       // i numeri si ordinano da numeri: come stringhe 10 veniva prima di 2

@@ -815,6 +815,31 @@ def _():
     assert L.solo_suo("Va bene alle 16:30, il collega ha scritto: ok", con_firma=True).endswith("ha scritto: ok")
 
 
+@prova("il calendario riconosce chi prenota con la mail personale, ma solo nome e cognome in UNA azienda")
+def _():
+    import calendario as C
+    # 30/9: una conoscitiva prenotata con una Gmail non si agganciava a nessuno
+    P = {"email": {}, "dominio": {}, "aziende": [], "conta": {}, "nomi": set(),
+         "cerca_nome": lambda n: {"Mario Bianchi": {"az1"}, "Luca Verdi": {"az1", "az2"}}.get(n, set())}
+    e = {"titolo": "StudioGalilei - Chiamata conoscitiva (Mario Bianchi)", "invitati": ["mario.b1980@gmail.com"],
+         "descrizione": "<b>Prenotato da</b>\nMario Bianchi\nmario.b1980@gmail.com"}
+    assert C.prenotato_da(e) == "Mario Bianchi" and C.riconosci(e, P) == ("az1", "nome nelle mail")
+    assert C.riconosci({**e, "titolo": "Chiamata conoscitiva (Luca Verdi)", "descrizione": ""}, P) == (None, None), "due aziende: non si sceglie a caso"
+    assert C.riconosci({**e, "titolo": "Pranzo (Mario Bianchi)", "descrizione": ""}, P) == (None, None), "un impegno che non e' una call non si aggancia"
+    assert C.riconosci({**e, "titolo": "Chiamata conoscitiva (Mario)", "descrizione": ""}, P) == (None, None), "il solo nome non basta"
+
+
+@prova("fermo da e l'avanzamento: una regola sola, in regole.ts, per ogni schermata")
+def _():
+    import pathlib
+    src = pathlib.Path(__file__).resolve().parent.parent / "src"
+    # 30/9: quattro orologi diversi per «fermo da», e dalla scheda non si entrava in pipeline
+    for f in ("components/Scheda.tsx", "components/Radar.tsx", "components/Analytics.tsx"):
+        assert "ultimoMovimento(" in (src / f).read_text(encoding="utf-8"), f"{f} conta il fermo a modo suo"
+    for f in ("components/Scheda.tsx", "components/Lista.tsx"):
+        assert "entraInConoscitiva()" in (src / f).read_text(encoding="utf-8"), f"{f} fa entrare in pipeline con una regola sua"
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

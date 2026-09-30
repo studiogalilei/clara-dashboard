@@ -16,7 +16,7 @@ import {
   type AgendaItem,
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
-import { eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, MOTIVI_PERSO, type Appunto } from '../lib/regole'
+import { entraInConoscitiva, NOTA_ENTRA, ultimoMovimento, eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, MOTIVI_PERSO, type Appunto } from '../lib/regole'
 import { segnaRecente } from '../lib/recenti'
 const giornoOggi = () => new Date().toISOString().slice(0, 10)
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
@@ -384,6 +384,16 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     }
   }
 
+  // ENTRARE IN PIPELINE dalla scheda (Dre, 30/9: «non posso mandare avanti da la',
+  // devo uscire dalla scheda»). Stessa regola della bacheca, da regole.ts
+  async function entra() {
+    if (!p || p.fuori) return
+    if (await aggiorna(entraInConoscitiva())) {
+      await segna('nota', NOTA_ENTRA)
+      setGiro((n) => n + 1)
+    }
+  }
+
   // segna come perso: il motivo è obbligatorio e resta nella storia
   async function segnaPerso() {
     const perche = motivoPerso.trim()
@@ -473,7 +483,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     </div>
   )
 
-  const fermo = daysAgo(p.last_reply_at)
+  const fermo = daysAgo(ultimoMovimento(p))
   const next = p.pipeline_stage ? PIPELINE_NEXT[p.pipeline_stage] : undefined
   const transcriptCorrente = pagato
   // i post-it sono privati: si vedono i propri, e quelli vecchi senza
@@ -1037,10 +1047,20 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
               </div>
             ))}
           </div>
-            {fermo !== null && p.pipeline_stage !== 'cliente' && !soppresso && (
+            {fermo !== null && fermo >= 1 && p.pipeline_stage !== 'cliente' && !soppresso && (
               <span className={`shrink-0 text-xs font-bold ${tonoFermo}`}>
                 fermo da {giorni(fermo)}
               </span>
+            )}
+            {/* chi non e' ancora in pipeline entra dalla Conoscitiva, come nella bacheca (30/9) */}
+            {!p.fuori && !ePerso(p) && !soppresso && (
+              <button
+                onClick={() => void entra()}
+                title="Entra in Conoscitiva"
+                className="shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
+              >
+                Avanza
+              </button>
             )}
             {p.fuori && next && !soppresso && (
               <button

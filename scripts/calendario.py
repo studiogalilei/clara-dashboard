@@ -211,7 +211,34 @@ def riconosci(evento, prospects):
                 return pid, "titolo"
             if len(comuni) >= 2 and comuni == parole:
                 return pid, "titolo"
+    # 30/9: Marco Morselli ha prenotato la conoscitiva con la sua Gmail. Niente email,
+    # niente dominio, niente azienda nel titolo: nessuno sapeva che era Prima Classe
+    # Home Service, e la scheda non si e' mossa. Il suo nome pero' stava nella firma
+    # della mail con cui ci aveva chiesto l'analisi. Nome E cognome, in UNA sola azienda,
+    # e solo per le call: un colloquio o un impegno personale non si aggancia cosi'.
+    cerca = prospects.get("cerca_nome")
+    nome = prenotato_da(evento) if cerca else None
+    if nome and tipo_di(evento["titolo"]) != "altro":
+        trovati = cerca(nome)
+        if len(trovati) == 1:
+            return trovati.pop(), "nome nelle mail"
     return None, None
+
+
+def prenotato_da(evento):
+    """Nome e cognome di chi ha prenotato: dal «Prenotato da» di Google, o fra parentesi nel titolo."""
+    parola = r"[A-ZÀ-Ý][a-zà-ÿ'’-]+"
+    m = re.search(rf"(?i:prenotato da)(?:\s|<[^>]*>)*({parola}(?: {parola}){{1,3}})", evento.get("descrizione") or "")
+    if not m:
+        m = re.search(rf"\(({parola}(?: {parola}){{1,3}})\)\s*$", evento.get("titolo") or "")
+    return m.group(1) if m else None
+
+
+def _cerca_nome(nome):
+    """Le aziende che hanno quel nome e cognome in una mail che ci hanno scritto."""
+    righe = sb("GET", "/rest/v1/interactions?select=prospect_id&kind=eq.email_in&body=ilike."
+               + urllib.parse.quote(f"*{nome}*") + "&limit=50") or []
+    return {r["prospect_id"] for r in righe if r.get("prospect_id")}
 
 
 def tipo_di(titolo):
@@ -248,7 +275,8 @@ def carica_prospects():
     for _, parole, _m in aziende:
         for w in parole:
             conta[w] = conta.get(w, 0) + 1
-    return {"email": per_email, "dominio": per_dominio, "aziende": aziende, "conta": conta, "nomi": nomi}
+    return {"email": per_email, "dominio": per_dominio, "aziende": aziende, "conta": conta, "nomi": nomi,
+            "cerca_nome": _cerca_nome}
 
 
 # ---------- scrittura ----------

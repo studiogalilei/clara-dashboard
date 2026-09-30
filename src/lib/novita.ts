@@ -16,6 +16,12 @@ export interface Novita {
 
 export const NOVITA: Novita[] = [
   {
+    chiave: 'avanza-dalla-scheda-2026-09-30',
+    data: '2026-09-30',
+    titolo: 'Avanza anche dalla scheda',
+    testo: 'L\'ha chiesto Dre: un lead si manda avanti dalla sua scheda, senza tornare alla bacheca, con le stesse regole. «Fermo da» adesso conta dall\'ultima cosa successa davvero (una mail, l\'analisi, una call, un passo avanti), uguale in ogni schermata. E una call prenotata con la mail personale si aggancia da sola all\'azienda giusta.',
+  },
+  {
     chiave: 'scadenza-pod-2026-09-17',
     data: '2026-09-17',
     titolo: 'La task al pod ha la scadenza',

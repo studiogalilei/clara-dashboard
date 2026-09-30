@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
 import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
-import { VIVI, oggi, giorno, GIORNI_FOLLOWUP } from '../lib/regole'
+import { VIVI, oggi, giorno, GIORNI_FOLLOWUP, ultimoMovimento } from '../lib/regole'
 import SoldiDellaCall from './SoldiDellaCall'
 import { preparazioneDi } from '../lib/riservato'
 
@@ -203,7 +203,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
           })
         }
       }
-      const fermi = dovuti.filter((p) => (daysAgo(p.analysis_sent_at) ?? 0) >= FERMO_DAYS)
+      const fermi = dovuti.filter((p) => (daysAgo(ultimoMovimento(p)) ?? 0) >= FERMO_DAYS)
       if (fermi.length > 0) {
         nuovi.push({
           peso: 3, tono: 'fermo',

@@ -4,7 +4,7 @@ import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import { perUrgenza, urgenza } from '../lib/urgenza'
 import { PIPELINE_LABEL, type Prospect, type PipelineStage } from '../lib/types'
 import { StageBadge, PipelineBadge, ClsBadge, Card, Micro, Faccia, Spinner, Empty, sgid, daysAgo, giorni, fmtDateShort } from './ui'
-import { chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, eSettoreDelFoglio, SETTORI, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
+import { entraInConoscitiva, NOTA_ENTRA, chiuso, eCliente, ePerso, eScartato, eProspect, eInArrivo, passato, vivo, pedaggioPagato, appuntiRecenti, ricorrenteMensile, contaFasi, perFascia, settoriPiuUsati, nomeSettore, chiaveSettore, eSettoreDelFoglio, SETTORI, MOTIVI_PERSO, type Fascia, type Appunto } from '../lib/regole'
 import NuovoProgetto from './NuovoProgetto'
 import { statoVivo, COLORE_STATO } from '../lib/stato'
 import { sonoCeo } from '../lib/accessi'
@@ -352,12 +352,7 @@ export default function Lista({ onOpen, q }: Props) {
   }
 
   async function entra(p: Prospect): Promise<boolean> {
-    const patch: Record<string, unknown> = {
-      fuori: true,
-      fuori_at: new Date().toISOString(),
-      pipeline_stage: 'conoscitiva',
-      awaiting_us: false,
-    }
+    const patch = entraInConoscitiva()
     const nome = p.company || p.name || p.email
     const { data } = await supabase.from('prospects').update(patch).eq('id', p.id).select().single()
     if (!data) {
@@ -366,7 +361,7 @@ export default function Lista({ onOpen, q }: Props) {
     }
     await supabase.from('interactions').insert({
       prospect_id: p.id, at: new Date().toISOString(), kind: 'nota',
-      body: 'Entra in Conoscitiva.',
+      body: NOTA_ENTRA,
     }).select().single()
     setRows((rs) => rs!.map((x) => (x.id === p.id ? (data as Prospect) : x)))
     setGiro((g) => g + 1)

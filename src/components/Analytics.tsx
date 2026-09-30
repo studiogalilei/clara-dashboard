@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect, Interaction } from '../lib/types'
-import { vivo, eCliente, ricorrenteMensile } from '../lib/regole'
+import { vivo, eCliente, ricorrenteMensile, ultimoMovimento } from '../lib/regole'
 
 // giusto i pezzi di catena che servono qui
 interface Filtro {
@@ -94,7 +94,7 @@ export default function Analytics({ onOpen }: Props) {
   const entratiNuovi30 = vivi.filter((p) => p.fuori_at && new Date(p.fuori_at).getTime() >= t30).length
   const fermi = dentro
     .filter((p) => ['analisi_inviata', 'in_follow_up'].includes(p.stage) && !p.awaiting_us)
-    .map((p) => ({ p, gg: daysAgo(p.analysis_sent_at) ?? 0 }))
+    .map((p) => ({ p, gg: daysAgo(ultimoMovimento(p)) ?? 0 }))
     .filter((x) => x.gg >= 30)
     .sort((a, b) => b.gg - a.gg)
 
