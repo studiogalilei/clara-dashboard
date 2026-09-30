@@ -454,8 +454,16 @@ def main():
         from revisore import controlla
         tutte = sb_tutte("/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,fuori,classificazione"
                          "&enriched->google_fit->zona=not.is.null")
-        righe = [p for p in tutte if "settore_uguale" not in p["enriched"]["google_fit"]
-                 and float((p["enriched"]["google_fit"].get("zona") or {}).get("domanda_mese") or 0) < 100]
+        def _sospetto(p):
+            gf = p["enriched"]["google_fit"]
+            d = (gf.get("zona") or {}).get("domanda_mese")
+            # solo un volume MISURATO e basso e' sospetto: chi non ha volumi non ha niente da rifare.
+            # E il Revisore (30/9) ha fermato il giro coi fuori target dentro: il fit rifatto serve
+            # ai vivi e ai negativi cortesi (il gigante buono lascia loro l'analisi), non ai morti.
+            if p.get("classificazione") in ("fuori_target", "soppresso", "nervoso"):
+                return False
+            return "settore_uguale" not in gf and d is not None and float(d) < 100
+        righe = [p for p in tutte if _sospetto(p)]
         righe = controlla("rifaccio il google fit delle aziende con volumi sospetti", righe, irreversibile=False,
                           motivo="il settore era solo il piu' vicino: i volumi erano di un altro settore", dove="crm")
     elif "--uno" in sys.argv:
