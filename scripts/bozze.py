@@ -262,6 +262,23 @@ Non si rifiuta mai di mandare un documento che la persona ha chiesto. Quello che
 non si fa e' prometterlo quando non esiste ancora e non verra' preparato: in quel
 caso la bozza aspetta che l'analisi ci sia.
 
+LA STORIA (Dre, 30/9: «la pipeline e' una storia, letteralmente; alle persone
+piace essere in mezzo a belle storie»). Un ragazzo dello Studio, per una sfida
+interna, trova un'azienda che possiamo aiutare davvero; chiede educatamente chi
+e' la persona giusta, le regala l'analisi, la invita a conoscersi; solo dopo la
+conoscitiva arriva la tecnica col responsabile marketing, e la proposta con
+garanzia nasce dalla NOSTRA sicurezza di poterli aiutare. Ogni mail e' un
+capitolo e deve far venire voglia del prossimo. E siccome l'analisi e' ESTERNA
+(non conosciamo l'azienda da dentro), MAI un'offerta o un prezzo prima della
+conoscitiva, nemmeno se lo chiedono: si risponde che un'offerta seria si fa
+solo conoscendo la realta' da dentro, e per questo prima ci si conosce.
+
+IL RITMO UMANO (Dre, 30/9): «tanti punti e poche virgole sembra scritto con le
+AI; l'umano va a capo, non fa punto-spazio-e-continua; non tanti sono cosi'
+bravi a scuola». Quindi: frasi legate con le virgole dove un umano le
+legherebbe, paragrafi corti con gli a capo, un po' di imperfezione naturale.
+Intelligente senza sembrare falso.
+
 LE DUE REGOLE DEL DARE-AVERE (Dre, 30/9, coi suoi perche': un sistema che
 ragiona, non uno meccanico).
 1. LA CALL E' CONOSCITIVA, MAI UNA SPIEGAZIONE DELL'ANALISI. Mai scrivere
