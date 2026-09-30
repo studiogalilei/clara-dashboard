@@ -428,11 +428,13 @@ def _():
     # risposto «le inoltro qui l'analisi». Ma il fit diceva NO (50 ricerche al
     # mese a Trento), quindi quel documento non sarebbe mai nato. Stesso caso su
     # Studio Canova. Promettere una cosa che non arriva e' peggio di un no.
-    promette = "Salve, grazie. Le inoltro qui l'analisi che abbiamo fatto sulla vostra azienda."
+    promette = ("Salve, grazie. Le inoltro qui l'analisi che abbiamo fatto sulla vostra azienda. "
+                "Le propongo giovedì alle 15, qui il calendario: https://calendar.app.google/x")
     assert B.cancello(promette, senza_analisi=True), "una bozza promette ancora un'analisi impossibile"
     assert not B.cancello(promette, senza_analisi=False), "il cancello blocca anche quando l'analisi c'e'"
     onesta = ("Salve, grazie per il riscontro. Le dico subito una cosa: su Google la domanda "
-              "nel vostro settore e nella vostra zona e' troppo bassa perche' valga la spesa.")
+              "nel vostro settore e nella vostra zona e' troppo bassa perche' valga la spesa. "
+              "Le propongo comunque una chiacchierata: https://calendar.app.google/x")
     assert not B.cancello(onesta, senza_analisi=True), "una risposta onesta non deve essere bloccata"
 
 
@@ -896,6 +898,20 @@ def _():
     casi._biblioteca = None
     b = pathlib.Path(__file__).resolve().parent.joinpath("bozze.py").read_text(encoding="utf-8")
     assert b.count("casi.simili(") >= 2, "le bozze non pescano piu' i casi di Dre"
+
+
+@prova("le due regole del dare-avere: mai l'analisi «insieme» in call, mai chiudere a volo")
+def _():
+    import bozze as B
+    # 30/9, Dre coi perche': se promettiamo di spiegarla, in call si vende e la vendita
+    # si rovina; chi resta «a disposizione» non torna, e servono pipeline di recupero.
+    cal = " Le propongo giovedì alle 15: https://calendar.app.google/x"
+    assert any("conoscitiva" in e for e in B.cancello("Vediamo insieme l'analisi in call." + cal))
+    assert any("disposizione" in e for e in B.cancello("Le allego l'analisi. Resto a disposizione." + cal))
+    assert any("a volo" in e for e in B.cancello("Le allego l'analisi.\nBuona giornata."))
+    assert B.cancello("Le inoltro l'analisi." + cal) == []
+    assert B.cancello("Perfetto, confermo venerdì 2 ottobre alle 15:00.") == []
+    assert B.cancello("Le inoltro l'analisi. Le scrivo io martedì 13 ottobre per fissare.") == []
 
 
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")

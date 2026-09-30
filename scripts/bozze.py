@@ -110,7 +110,7 @@ APERTURE_SECCHE = ("si'.", "sì.", "no.", "volentieri.", "certo.", "ok.", "va be
 PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato", "senza impegno")
 
 
-def cancello(testo, senza_analisi=False):
+def cancello(testo, senza_analisi=False, seguito_programmato=False):
     """Torna la lista dei motivi per cui la bozza NON va bene (vuota = passa).
 
     `senza_analisi` e' vero quando l'analisi non esiste e non nascera' (fit NO):
@@ -131,6 +131,19 @@ def cancello(testo, senza_analisi=False):
         return ["un indirizzo email usato come nome (caso Kormed, 25/9)"]
     errori = []
     low = testo.lower()
+    # le due regole del dare-avere (Dre, 30/9), col perche' nel messaggio:
+    # chi corregge la bozza deve capire, non solo obbedire.
+    # La rifinitura di Dre (30/9 sera): «se metto una frase vaga vuol dire che SO che
+    # dopo gli scrivero' un'altra mail: sono leggero, faccio il gigante buono».
+    # Quindi il finale morbido e' legittimo quando il prossimo tocco e' gia' del
+    # segugio (seguito_programmato=True: i gruppi della coda, FU1, MINI, riprese).
+    # Il peccato non e' la frase vaga: e' la frase vaga quando NESSUNO riprendera' il filo.
+    if re.search(r"(?:vedi\w+|guard\w+|rived\w+|analizz\w+|spieg\w+|comment\w+|approfond\w+)[^.!?\n]{0,45}\binsieme\b|\binsieme\b[^.!?\n]{0,45}\b(?:l.)?analisi\b|(?:analisi|numeri)[^.!?\n]{0,30}\bin (?:call|chiamata)\b", low):
+        errori.append("promette di vedere l'analisi insieme: la call e' conoscitiva, l'analisi si legge prima da soli, se no in call si vende e la vendita si rovina (Dre 30/9)")
+    if not seguito_programmato and re.search(r"(?:rest\w+|rimang\w+|siamo|sono)\s+(?:sempre\s+)?a\s+(?:sua\s+|vostra\s+|loro\s+|completa\s+|piena\s+)?disposizione|non esiti a", low):
+        errori.append("chiude «a disposizione»: cosi' nessuno torna e poi servono pipeline di recupero; serve un prossimo punto di contatto (Dre 30/9)")
+    if not seguito_programmato and not re.search(r"calendar\.app\.google|\{\{calendario\}\}|le scrivo io|la ricontatto io|vi ricontatto io|la richiamo io|ci sentiamo (?:il|dopo|a |luned|marted|mercoled|gioved|venerd|sabato)|risentir\w+ (?:a |dopo|il |in )|le propongo|confermo[^.!?\n]{0,45}\balle\b|ci vediamo|trova il nostro calendario|sono disponibile (?:anche )?(?:domani|gi)", low):
+        errori.append("chiusa a volo: manca il prossimo punto di contatto (una data proposta, il calendario, o «le scrivo io il …»), se no la persona non torna (Dre 30/9)")
     if "—" in testo:
         errori.append("trattino lungo")
     tu, lei = TU.findall(testo), LEI.findall(testo)
@@ -248,6 +261,22 @@ Google e' piccolo per loro (il motivo sta in «perche_niente_analisi»). Allora:
 Non si rifiuta mai di mandare un documento che la persona ha chiesto. Quello che
 non si fa e' prometterlo quando non esiste ancora e non verra' preparato: in quel
 caso la bozza aspetta che l'analisi ci sia.
+
+LE DUE REGOLE DEL DARE-AVERE (Dre, 30/9, coi suoi perche': un sistema che
+ragiona, non uno meccanico).
+1. LA CALL E' CONOSCITIVA, MAI UNA SPIEGAZIONE DELL'ANALISI. Mai scrivere
+   «vediamo insieme l'analisi», «la guardiamo in call» o simili. Perche':
+   l'analisi e' un dono che si legge PRIMA, da soli; se promettiamo di
+   spiegarla, in call Dre diventa il venditore che presenta, la chiamata si
+   sente come vendita e la vendita si rovina. Non si dice niente nemmeno sul
+   leggerla: deve restare scontato, e' il galateo del dare-avere. Noi abbiamo
+   fatto un favore, loro ci danno una chiamata per conoscersi: se lo dici, non
+   siamo piu' i giganti buoni.
+2. MAI CHIUDERE «A VOLO». Mai «resto/restiamo a disposizione» o finali aperti.
+   Ogni mail chiude con un prossimo punto di contatto concreto: una data
+   proposta col calendario, oppure «le scrivo io il …». Perche': chi resta
+   «a disposizione» non viene ricercato da nessuno, e poi tocca costruire
+   pipeline di follow-up per riprendere chi si era perso per strada.
 
 LA SCRIVANIA. Nei fatti trovi «sequenza»: TUTTO lo scambio con questa persona in
 ordine di tempo, le nostre mail e le sue, piu' «quante_ne_abbiamo_mandate» e
@@ -632,10 +661,10 @@ def main():
         # il template la promette.
         if not gruppo and not niente_analisi:
             b = testo_di_dre(b, p, letti)
-        errori = cancello(b["bozza"], senza_analisi=niente_analisi)
+        errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo))
         if errori and not b.get("dal_codice"):
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
-            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi):
+            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo)):
                 b, errori = b2, []
         if dura and dura[0] == "fermati" and b["fermati"].lower().startswith("no"):
             b["fermati"] = "si': " + dura[1]
