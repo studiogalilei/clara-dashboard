@@ -883,6 +883,21 @@ def _():
     assert not L.si_acceso(True, {"etichetta": "no", "dubbio": False}), "il modello dice no e il si' parte lo stesso"
 
 
+@prova("la biblioteca dei casi: esempi di Dre nelle bozze, e senza rete non rompe niente")
+def _():
+    import casi
+    import pathlib
+    # 30/9, Dre: «ogni caso e' unico; un'intelligenza che migliora sui casi unici»
+    casi._biblioteca = [{"testo": "non siamo interessati, abbiamo gia' un'agenzia", "etichetta": "no",
+                         "nota": "analisi comunque e porta aperta", "parole": casi._parole("non siamo interessati, abbiamo gia' un'agenzia")}]
+    blocco = casi.simili("grazie ma non siamo interessati, ci segue gia' un'agenzia")
+    assert "porta aperta" in blocco and "GIUDICATI DA DRE" in blocco
+    assert casi.simili("tutt'altra cosa qui dentro oggi") == "", "un caso che non somiglia entra lo stesso nel prompt"
+    casi._biblioteca = None
+    b = pathlib.Path(__file__).resolve().parent.joinpath("bozze.py").read_text(encoding="utf-8")
+    assert b.count("casi.simili(") >= 2, "le bozze non pescano piu' i casi di Dre"
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

@@ -44,6 +44,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import casi
 import cervello                                            # noqa: E402
 from stanza import sb, proponi, quando, senza_trattini, sb_tutte     # noqa: E402
 import lettura                                             # noqa: E402
@@ -95,7 +96,11 @@ Il testo: registro «lei», 5-7 righe, mai il trattino lungo, niente firma.
 1) ringrazia della risposta e prendi atto del no senza discuterlo;
 2) di' che l'analisi della loro zona era gia' pronta e gliela lasciamo in
    allegato, con UN numero vero se c'e' (le ricerche al mese nella provincia);
-3) chiudi: se un giorno vorranno piu' clienti, noi siamo qui, con {{CALENDARIO}};
+3) chiudi con la porta aperta (Dre, 30/9: «teniamo la porta aperta per il futuro
+   e per altri servizi»): se un giorno vorranno piu' clienti, o migliorare i loro
+   processi con AI e software su misura (dove aiutiamo anche con la finanza
+   agevolata, che e' la leva per il software, mai un servizio a parte), noi siamo
+   qui, con {{CALENDARIO}};
 4) un saluto gentile. Nessun follow-up promesso, nessuna domanda."""
 
 # ── il cancello qualita' (da lint_risposta.py, 3/7) ─────────────────
@@ -414,7 +419,7 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if gruppo:
         fatti["gruppo"] = gruppo
         fatti["template_da_usare"] = gruppo
-    prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI +
+    prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI + casi.simili(ultimo) +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
@@ -756,7 +761,8 @@ def main():
         fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
                  "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
         prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa") + "\n\n" + ISTRUZIONE_GB + cervello.istruzione("chat") + cervello.istruzione("bozze") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
-                  f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
+                  + casi.simili(testo)
+                  + f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
         try:
             grezzo = cervello._chiedi(prompt) or ""
         except Exception as e:                      # noqa: BLE001
