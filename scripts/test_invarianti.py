@@ -854,6 +854,21 @@ def _():
     assert "create or replace function tappa_di" in sql and "trg_tappa" in sql, "la tappa unica non la tiene piu' il database"
 
 
+@prova("il fit non boccia con i volumi di un altro settore, e il rosso non vince su 30+ recensioni")
+def _():
+    import googlefit as G
+    # 30/9, Denis Tende: tende da sole lette come «verande», 10 ricerche/mese a Treviso, verdetto NO
+    # con 80 recensioni a 4,9. Il settore solo «vicino» non porta volumi; i dati che si
+    # contraddicono non bocciano, chiedono una verifica.
+    c = {"settore": "verande", "settore_uguale": False, "ticket_max": 9000, "cosa_fa": "tende da sole"}
+    assert G._zona_sul_raggio(c, {}) is None, "un settore solo somigliante porta ancora i volumi di altri"
+    rosso = {"verdetto": "ROSSO", "domanda_mese": 10, "cpc": 0.5}
+    v, motivo = G.verdetto({"settore": "verande", "ticket_max": 9000}, rosso, {"recensioni": 80, "voto": 4.9})
+    assert v != "NO", f"80 recensioni in provincia «rossa» bocciate: {motivo}"
+    v, _m = G.verdetto({"settore": "verande", "ticket_max": 9000}, rosso, {"recensioni": 8, "voto": 4.9})
+    assert v == "NO", "senza recensioni che contraddicono, il rosso deve ancora fermare"
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

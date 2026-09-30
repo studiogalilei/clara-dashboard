@@ -39,7 +39,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, env                                 # noqa: E402
+from stanza import sb, sb_tutte, env                       # noqa: E402
 import cervello                                            # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -197,6 +197,9 @@ REGOLE (non negoziabili)
 
 Rispondi SOLO con un JSON su una riga, con queste chiavi:
 {{"settore": una voce ESATTA fra quelle qui sotto, o "altro",
+ "settore_uguale": true se quel settore descrive DAVVERO quello che vendono (gli stessi prodotti, le stesse
+   parole che la gente cerca su Google), false se e' solo il piu' vicino fra quelli disponibili
+   (esempio: tende da sole e pergole non sono «verande»; una concessionaria non e' un'«officina»),
  "provincia": la provincia italiana della SEDE (nome del capoluogo, es. "Bergamo", "Milano"), o "" se non si capisce,
  "raggio": dove vendono DAVVERO, che spesso non e' dove hanno la sede. Una fra
    "citta'" (solo il comune e i paesi attorno), "provincia", "regione",
@@ -305,12 +308,20 @@ def verdetto(c, zona, rec):
         return "NO", f"{c['esclusione']}: non e' un cliente possibile"
     if not c.get("settore") or c.get("settore") == "altro":
         motivi.append("settore non fra quelli misurati")
+    elif c.get("settore_uguale") is False:
+        motivi.append(f"settore misurato solo per somiglianza («{c['settore']}»): i volumi non sono i loro")
     # la zona mancante NON e' un difetto del cliente: e' un dato che non abbiamo (Dre, 21/9).
     # Prima finivano PARZIALE aziende sane solo perche' la loro combinazione non era nel foglio.
     if zona is None:
         pass
     elif zona["verdetto"] == "ROSSO":
-        return "NO", f"provincia rossa: {zona['domanda_mese']} ricerche/mese, meno di 2 clic al giorno"
+        # quando i dati si contraddicono non si boccia (30/9): tante recensioni dove «nessuno
+        # cerca» vuol dire quasi sempre che i volumi misurati non sono quelli del loro settore
+        if rec is not None and rec["recensioni"] >= 30:
+            motivi.append(f"provincia rossa ({zona['domanda_mese']} ricerche/mese) ma {rec['recensioni']} recensioni: "
+                          "i volumi forse non sono del loro settore, da verificare")
+        else:
+            return "NO", f"provincia rossa: {zona['domanda_mese']} ricerche/mese, meno di 2 clic al giorno"
     elif zona["verdetto"] == "GIALLO":
         motivi.append(f"provincia gialla ({zona['domanda_mese']} ricerche/mese): si va se il ticket e' alto")
     # ── le red flag di Carlo (23/9/2026) ──────────────────────────
@@ -363,7 +374,9 @@ def _zona_sul_raggio(c, zone):
     o estero non si misura con un foglio provinciale: si dice e basta.
     """
     settore = c.get("settore")
-    if not settore or settore == "altro":
+    # 30/9: i volumi di un settore solo «vicino» non sono i loro (Denis Tende, tende da sole lette
+    # come «verande»: 10 ricerche al mese a Treviso). Meglio nessun numero che un numero di altri.
+    if not settore or settore == "altro" or c.get("settore_uguale") is False:
         return None
     raggio = (c.get("raggio") or "").strip()
     if raggio in ("italia", "estero"):
@@ -396,6 +409,7 @@ def valuta(p, zone, settori):
     v, motivo = verdetto(c, zona, rec)
     fit = {
         "verdetto": v, "motivo": motivo, "settore": c.get("settore"), "provincia": c.get("provincia"),
+        "settore_uguale": c.get("settore_uguale"),
         "tipo": c.get("tipo"), "cosa_fa": c.get("cosa_fa"), "esclusione": c.get("esclusione") or None,
         # il valore di un cliente e' un intervallo, e si sa da dove viene (Carlo, 21/9)
         "ticket": _ticket_scritto(c), "ticket_min": c.get("ticket_min"), "ticket_max": c.get("ticket_max"),
@@ -433,7 +447,18 @@ def valuta(p, zone, settori):
 def main():
     prova = "--prova" in sys.argv
     zone, settori = carica_fogli()
-    if "--uno" in sys.argv:
+    if "--sospetti" in sys.argv:
+        # 30/9: i fit con un volume «misurato» che non sta in piedi, fatti prima che il modello
+        # dicesse se il settore e' davvero il loro (concessionarie Ford con 10 ricerche al mese).
+        # Si rifanno passando dal Revisore: si riscrive solo enriched.google_fit, si puo' rifare.
+        from revisore import controlla
+        tutte = sb_tutte("/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,fuori,classificazione"
+                         "&enriched->google_fit->zona=not.is.null")
+        righe = [p for p in tutte if "settore_uguale" not in p["enriched"]["google_fit"]
+                 and float((p["enriched"]["google_fit"].get("zona") or {}).get("domanda_mese") or 0) < 100]
+        righe = controlla("rifaccio il google fit delle aziende con volumi sospetti", righe, irreversibile=False,
+                          motivo="il settore era solo il piu' vicino: i volumi erano di un altro settore", dove="crm")
+    elif "--uno" in sys.argv:
         email = sys.argv[sys.argv.index("--uno") + 1]
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched&email=eq.{urllib.parse.quote(email)}")
     else:
