@@ -51,6 +51,7 @@ import Analytics from './components/Analytics'
 import Scheda from './components/Scheda'
 import { useSchermoLargo } from './lib/schermo'
 import Metro from './components/Metro'
+import BachecaAziende from './components/aziende/Aziende'
 
 // La struttura sul riferimento scelto da Dre (31/8): sidebar bianca a
 // sinistra, testata con titolo grande e ricerca, contenuto in carte morbide.
@@ -720,6 +721,8 @@ export default function App() {
               <Feedback />
             ) : tab === 'metro' ? (
               <Metro />
+            ) : tab === 'aziende' ? (
+              <BachecaAziende onScheda={setOpenId} />
             ) : tab === 'progetti' ? (
               <Clienti onOpen={setOpenId} />
             ) : tab === 'preventivi' ? (

@@ -840,6 +840,20 @@ def _():
         assert "entraInConoscitiva()" in (src / f).read_text(encoding="utf-8"), f"{f} fa entrare in pipeline con una regola sua"
 
 
+@prova("le schermate nuove muovono le aziende solo con le regole del percorso")
+def _():
+    import pathlib, re
+    d = pathlib.Path(__file__).resolve().parent.parent / "src" / "components" / "aziende"
+    # 30/9: la regola per spostare un lead stava dentro la bacheca, e la scheda ne aveva mezza copia.
+    # Nelle schermate nuove nessuno scrive stage, pipeline_stage o fuori a mano: passa tutto da percorso.mossa()
+    for f in d.glob("*.tsx"):
+        t = f.read_text(encoding="utf-8")
+        assert not re.search(r"(stage|pipeline_stage|fuori)\s*:", t), f"{f.name} scrive la fase a mano"
+    assert "mossa(" in (d / "Aziende.tsx").read_text(encoding="utf-8")
+    sql = (pathlib.Path(__file__).resolve().parent.parent / "supabase" / "schema_v72.sql").read_text(encoding="utf-8")
+    assert "create or replace function tappa_di" in sql and "trg_tappa" in sql, "la tappa unica non la tiene piu' il database"
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

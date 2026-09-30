@@ -18,7 +18,7 @@ export const NOME_TAB: Record<string, Chiave> = {
   oggi: 'pipeline', pipeline: 'prospect', clienti: 'progetti', calendario: 'calendario',
   preventivi: 'preventivi', posta: 'clara', documenti: 'vault', chat: 'chat',
   numeri: 'analytics', impostazioni: 'impostazioni', widget: 'plugin', feedback: 'feedback',
-  aziende: 'prospect', task: 'oggi', tutti: 'tutti', metro: 'metro',
+  aziende: 'aziende', task: 'oggi', tutti: 'tutti', metro: 'metro',
 }
 const VERSO_URL = Object.fromEntries(Object.entries(NOME_TAB).map(([n, t]) => [t, n])) as Record<Chiave, string>
 // dove due nomi puntano alla stessa tab, vince quello giusto

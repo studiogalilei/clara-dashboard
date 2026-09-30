@@ -15,7 +15,7 @@ export type Chiave =
   | 'pipeline' | 'prospect' | 'calendario' | 'oggi'
   | 'analytics' | 'vault' | 'plugin' | 'impostazioni'
   | 'tutti' | 'clara'
-  | 'progetti' | 'preventivi' | 'chat' | 'feedback' | 'metro'
+  | 'progetti' | 'preventivi' | 'chat' | 'feedback' | 'metro' | 'aziende'
 
 export type Ruolo = 'ceo' | 'coordinamento'
 
@@ -60,6 +60,11 @@ export const WIDGET: Widget[] = [
     icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
   // Dre, 12/9: prima della vendita e dopo la vendita. Le chiavi restano
   // ('prospect', 'progetti'): ci sono appese le preferenze e gli accessi.
+  // AZIENDE, LA BACHECA NUOVA (Dre, 30/9: «va ricostruito da zero»). Vive accanto alla
+  // Pipeline finche' non la sostituisce: per ora la provano i ceo
+  { chiave: 'aziende', nome: 'Aziende', cosa: 'Ogni azienda con la sua tappa e di chi è la palla: da qui si fa tutto', zona: 'menu', fisso: true,
+    ruoli: ['ceo'],
+    icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
   { chiave: 'prospect', nome: 'Pipeline', cosa: 'Chi sta arrivando: dalla risposta alla firma', zona: 'menu', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M3 4h18l-7 8v6l-4 2v-8L3 4z' },
