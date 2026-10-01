@@ -142,8 +142,21 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False):
         errori.append("promette di vedere l'analisi insieme: la call e' conoscitiva, l'analisi si legge prima da soli, se no in call si vende e la vendita si rovina (Dre 30/9)")
     if not seguito_programmato and re.search(r"(?:rest\w+|rimang\w+|siamo|sono)\s+(?:sempre\s+)?a\s+(?:sua\s+|vostra\s+|loro\s+|completa\s+|piena\s+)?disposizione|non esiti a", low):
         errori.append("chiude «a disposizione»: cosi' nessuno torna e poi servono pipeline di recupero; serve un prossimo punto di contatto (Dre 30/9)")
-    if not seguito_programmato and not re.search(r"calendar\.app\.google|\{\{calendario\}\}|le scrivo io|la ricontatto io|vi ricontatto io|la richiamo io|ci sentiamo (?:il|dopo|a |luned|marted|mercoled|gioved|venerd|sabato)|risentir\w+ (?:a |dopo|il |in )|le propongo|confermo[^.!?\n]{0,45}\balle\b|ci vediamo|trova il nostro calendario|sono disponibile (?:anche )?(?:domani|gi)", low):
+    if not seguito_programmato and not re.search(r"calendar\.app\.google|\{\{calendario\}\}|le scrivo io|la ricontatto io|vi ricontatto io|la richiamo io|scrivo (?:direttamente )?a lui|scrivo (?:direttamente )?a lei|appena ho il contatto|appena mi gira|ci sentiamo (?:il|dopo|a |luned|marted|mercoled|gioved|venerd|sabato)|risentir\w+ (?:a |dopo|il |in )|le propongo|confermo[^.!?\n]{0,45}\balle\b|ci vediamo|trova il nostro calendario|sono disponibile (?:anche )?(?:domani|gi)", low):
         errori.append("chiusa a volo: manca il prossimo punto di contatto (una data proposta, il calendario, o «le scrivo io il …»), se no la persona non torna (Dre 30/9)")
+    # AL MESSAGGERO NON SI PROPONE LA CALL (Dre, 1/10, caso Daniel/EnergetiKa: «a noi
+    # interessa il meeting con la persona. Al messaggero si chiede al massimo un favore:
+    # l'email, o inoltrare la conversazione»). Se la bozza chiede il contatto di un altro,
+    # la call e il calendario aspettano di parlare con quello giusto.
+    if (re.search(r"(?:indirizzo|l.email|la mail|il contatto)\s[^.!?\n]{0,30}\bdi\b|pu[oò] inoltrar|mi gira (?:il contatto|la conversazione)", low)
+            and re.search(r"calendar\.app\.google|\{\{calendario\}\}|chiamata conoscitiva|breve call|videochiamata", low)):
+        errori.append("chiede il contatto di un altro E propone la call: il meeting si propone alla persona giusta, al messaggero si chiede solo il favore (Dre 1/10)")
+    # IL RITMO UMANO HA I DENTI (Dre, 1/10: «punto spazio e continua fa capire che e'
+    # una scrittura delle AI: tanti mettono la virgola, e si va a capo»). Tre o piu'
+    # frasi incollate sulla stessa riga col punto = si riscrive con virgole e a capo.
+    incollate = len(re.findall(r"[a-zà-ù\)]\.[ \t]+[A-ZÈÀ]", testo))
+    if incollate >= 3:
+        errori.append(f"punto-spazio-e-continua {incollate} volte: un umano lega con le virgole o va a capo (Dre 1/10)")
     if "—" in testo:
         errori.append("trattino lungo")
     tu, lei = TU.findall(testo), LEI.findall(testo)
@@ -272,12 +285,18 @@ capitolo e deve far venire voglia del prossimo. E siccome l'analisi e' ESTERNA
 (non conosciamo l'azienda da dentro), MAI un'offerta o un prezzo prima della
 conoscitiva, nemmeno se lo chiedono: si risponde che un'offerta seria si fa
 solo conoscendo la realta' da dentro, e per questo prima ci si conosce.
+E il meeting ci interessa CON LA PERSONA GIUSTA (Dre, 1/10): se chi scrive e'
+un tramite (lo sviluppatore del sito, un collega) e il contatto buono non lo
+abbiamo ancora, non gli si propone la call: gli si chiede il favore che puo'
+farci lui, cioe' l'email del titolare o di inoltrargli la conversazione, e la
+call si proporra' a quello giusto quando risponde.
 
-IL RITMO UMANO (Dre, 30/9): «tanti punti e poche virgole sembra scritto con le
-AI; l'umano va a capo, non fa punto-spazio-e-continua; non tanti sono cosi'
-bravi a scuola». Quindi: frasi legate con le virgole dove un umano le
-legherebbe, paragrafi corti con gli a capo, un po' di imperfezione naturale.
-Intelligente senza sembrare falso.
+IL RITMO UMANO (Dre, 30/9 e 1/10): «tanti punti e poche virgole sembra scritto
+con le AI; l'umano va a capo, non fa punto-spazio-e-continua». In meccanica:
+dopo un punto si VA A CAPO quasi sempre; se il pensiero continua sulla stessa
+riga, si lega con la virgola, non col punto; mai piu' di due frasi incollate
+sulla stessa riga (il cancello blocca alla terza). Paragrafi corti, un po'
+d'imperfezione naturale, intelligente senza sembrare falso.
 
 LA GARANZIA SOLO COL PUNTEGGIO (Dre, 1/10: «quella linea va usata in modo
 intelligente: uno score fatto bene. Se non siamo sicurissimi non la scriviamo,

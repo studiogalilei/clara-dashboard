@@ -896,6 +896,37 @@ def _():
     assert "allega_presentazione" in m and "sg-presentazione" in m, "la presentazione non viaggia piu' con la prima risposta"
 
 
+@prova("al messaggero non si propone la call: il meeting e' con la persona giusta")
+def _():
+    import bozze as B
+    # 1/10, Daniel/EnergetiKa: chiedevamo l'email di Manuel E proponevamo la call a Daniel.
+    # Dre: «a noi interessa il meeting con la persona; al messaggero si chiede il favore».
+    male = ("Mi lascia l'indirizzo email di Manuel? Intanto le lascio l'analisi. "
+            "Le propongo una breve chiamata conoscitiva martedì alle 14:30: https://calendar.app.google/x")
+    assert any("persona giusta" in e for e in B.cancello(male)), "la call al messaggero passa ancora"
+    bene = "Mi lascia l'indirizzo email di Manuel? Intanto le lascio l'analisi. Appena ho il contatto scrivo direttamente a lui."
+    assert B.cancello(bene) == [], B.cancello(bene)
+    # in copia la persona giusta c'e': la call si puo' proporre
+    cc = "Metto in copia manuel@azienda.it così proseguiamo lì. Le propongo martedì alle 14:30: https://calendar.app.google/x"
+    assert B.cancello(cc) == [], B.cancello(cc)
+
+
+@prova("il ritmo umano ha i denti: punto-spazio-e-continua tre volte blocca, l'a capo no")
+def _():
+    import bozze as B
+    import seguiti as S
+    # 1/10, Dre: «punto spazio e continua fa capire che e' una scrittura delle AI»
+    ai = ("Grazie mille. Le mando il documento. Allego anche la presentazione. "
+          "Le propongo martedì alle 14:30: https://calendar.app.google/x")
+    assert any("punto-spazio" in e for e in B.cancello(ai)), "lo stile AI passa ancora"
+    umano = ("Grazie mille, le mando il documento,\ne allego anche la presentazione.\n"
+             "Le propongo martedì alle 14:30: https://calendar.app.google/x")
+    assert B.cancello(umano) == [], B.cancello(umano)
+    # i template di Dre vanno a capo dopo il punto: devono passare cosi' come sono
+    t = S.risposta("INT-01", {}, {}, "https://calendar.app.google/x", giorno="martedì 6 ottobre alle 14:30", garanzia=True)
+    assert t and B.cancello(t) == [], "il template verbatim di Dre non passa il suo stesso ritmo"
+
+
 @prova("la sentinella vede e dice, non opera")
 def _():
     import pathlib
