@@ -923,8 +923,16 @@ def _():
              "Le propongo martedì alle 14:30: https://calendar.app.google/x")
     assert B.cancello(umano) == [], B.cancello(umano)
     # i template di Dre vanno a capo dopo il punto: devono passare cosi' come sono
-    t = S.risposta("INT-01", {}, {}, "https://calendar.app.google/x", giorno="martedì 6 ottobre alle 14:30", garanzia=True)
-    assert t and B.cancello(t) == [], "il template verbatim di Dre non passa il suo stesso ritmo"
+    # (template finto con la stessa struttura: gli invarianti non toccano la rete)
+    finto = ("## INTERESSATO (3/7)\n```\nSalve,\nVa bene perfetto, vi inoltro qui l'analisi che abbiamo fatto.\n"
+             "Questo è un modo per presentarci a voi portando già spunti concreti.\n"
+             "Ci occupiamo di marketing e intelligenza artificiale.\nAbbiamo un vasto range di servizi (le allego anche un doc di presentazione).\n\n"
+             "L'analisi però è centrata principalmente sulla comunicazione su Google.\n"
+             "Poi avremmo pronta anche una proposta con garanzia da farvi, ma intanto mi farebbe piacere confrontarmi con lei.\n"
+             "Le propongo domani alle 15:30, oppure un altro giorno nel caso domani non abbia disponibilità.\n"
+             "📅 Calendario: https://calendar.app.google/V\nA presto,\n```\n")
+    t = S.risposta("INT-01", {}, {}, "https://calendar.app.google/x", giorno="martedì 6 ottobre alle 14:30", testo_file=finto, garanzia=True)
+    assert t and B.cancello(t) == [], f"il template verbatim di Dre non passa il suo stesso ritmo: {t and B.cancello(t)}"
 
 
 @prova("la sentinella vede e dice, non opera")
