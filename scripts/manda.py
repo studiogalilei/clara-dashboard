@@ -281,7 +281,9 @@ def main():
         agg = {"awaiting_us": False}
         if az.get("intento") == "INT-GB":
             agg.update({"analysis_sent": True, "analysis_sent_at": ora.isoformat(), "no_followup": True})
-        elif az.get("allega") or (p.get("analysis_pdf") and p["analysis_pdf"] in bozza):
+        # 1/10: gli allegati partivano (prima_risposta) ma il segno «analisi mandata» no,
+        # e senza quel segno il segugio non programma i follow-up. Stessa condizione dell'allegato.
+        elif prima_risposta or az.get("allega") or (p.get("analysis_pdf") and p["analysis_pdf"] in bozza):
             agg.update({"analysis_sent": True, "analysis_sent_at": ora.isoformat()})
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", agg)
         sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "fatta", "risposta_il": ora.isoformat(),
