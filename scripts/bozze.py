@@ -107,7 +107,9 @@ Il testo: registro «lei», 5-7 righe, mai il trattino lungo, niente firma.
 TU = re.compile(r"\b(tu|ti|te|tuo|tua|tuoi|tue|puoi|hai|sei|vuoi|pensi|trovi|scegli)\b", re.I)
 LEI = re.compile(r"\b(lei|le|la ringrazio|suo|sua|suoi|sue|puo'|può|vorra'|vorrà|preferisce)\b", re.I)
 APERTURE_SECCHE = ("si'.", "sì.", "no.", "volentieri.", "certo.", "ok.", "va bene.")
-PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato", "senza impegno")
+# «senza impegno» era vietata dal lint del 3/7, ma Dre la usa nei SUOI template
+# (RIMBALZO INTERNO: «senza alcun impegno»): il template vince sul lint (1/10)
+PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato")
 
 
 def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=False):

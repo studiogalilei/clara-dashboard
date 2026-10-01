@@ -109,7 +109,6 @@ WEB = [
      "nota": "Carlo: almeno tre giorni prima che parta l'onboarding degli Ads"},
 ]
 
-MARGINE_WEB = 3        # giorni fra la consegna del sito e l'inizio degli Ads
 
 # I check dopo la partenza NON si contano dall'inizio del progetto, ma dal giorno
 # in cui la campagna va in aria: il giorno 14 dell'onboarding. Se no il «primo
@@ -131,7 +130,6 @@ PAROLE_WEB = ("sito", "landing", "vetrina", "web")
 # Carlo (28/9): «il problema col cliente diventa evidente quando le tempistiche
 # si allungano oltre i tre giorni, weekend esclusi». Sotto i tre giorni e' il
 # ritmo normale di un cliente che lavora; sopra, e' un ritardo da dire.
-PAZIENZA_CLIENTE = 3
 
 PREAVVISO = 3          # Clara avvisa tre giorni prima, come chiedeva Carlo
 

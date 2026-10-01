@@ -9,7 +9,7 @@ mette nella tabella `incassi` addebiti, fatture pagate e abbonamenti.
 Per ogni incasso prova a capire di che azienda e': la mail del cliente Stripe
 contro prospects.email, poi il dominio (se non e' gmail e simili), poi il
 nome. Se un addebito riuscito combacia con un preventivo accettato e non
-pagato della stessa azienda (stesso importo, ±1 €), lo segna pagato da sola
+pagato della stessa azienda (stesso importo, ±2 €), lo segna pagato da sola
 e scrive «Stripe» nelle note. Se l'azienda c'e' ma il preventivo non torna,
 lo chiede nella stanza (tipo richiesta). Non tocca mai Stripe.
 

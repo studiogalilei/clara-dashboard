@@ -548,8 +548,9 @@ def _chiedi_aiuto(p):
 
 def main():
     a = sys.argv[1:]
-    if "--email" in a:
-        email = a[a.index("--email") + 1]
+    if "--email" in a or "--uno" in a:                     # --uno e' un alias: il lampo lo passava e veniva ignorato (1/10)
+        bandiera = "--email" if "--email" in a else "--uno"
+        email = a[a.index(bandiera) + 1]
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione&email=eq.{urllib.parse.quote(email)}")
     else:
         righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione"

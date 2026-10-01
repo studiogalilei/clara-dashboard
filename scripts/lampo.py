@@ -77,7 +77,7 @@ def main():
         if not gf.get("sito_letto"):
             _corri("googlefit.py", ["--uno", p["email"]] + extra)
         if not p.get("analysis_pdf"):
-            _corri("analisi_auto.py", ["--uno", p["email"]] + extra, minuti=12)
+            _corri("analisi_auto.py", ["--email", p["email"]] + extra, minuti=12)
         _corri("bozze.py", ["--email", p["email"]] + extra)
     # i cancelli veri: approvazione (con tutti i freni) e postino, una volta per tutti
     _corri("prima_risposta.py", extra)
