@@ -72,7 +72,9 @@ NON_TOCCARE = re.compile(
     r"non (?:vogliamo|voglio|desider\w+)\s+(?:piu'|più|essere|ricevere|altre)|"
     r"non (?:ci|mi) contatt|non (?:ci|mi) (?:scriv|invi|mand)|"
     r"diffid\w*|denunc\w*|garante (?:della )?privacy|"
-    r"\bspam\b|molest\w*|"
+    # «spam» solo come accusa (1/10): «la mail era finita nello spam» e' un SI che ci
+    # avvisa del filtro, non una lamentela. Nigris e UG Rent bloccati per questo.
+    r"(?<!nello )(?<!in )(?<!nella cartella )\bspam\b(?! folder)|molest\w*|"
     r"smett\w*\s+(?:di |con )(?:scriver|mandar|inviar|contattar|disturbar)|"
     r"la smetta|smettila|"
     r"basta (?:mail|email|messaggi|con queste|cosi)|"
@@ -411,10 +413,15 @@ def lavora(p):
     # 28/9: si guarda SOLO quello che ha scritto lui. Prima si leggeva tutta la
     # mail, firma e disclaimer compresi, e la parola «cancellarlo» dentro la
     # NOSTRA firma sul GDPR bloccava chi aveva appena detto di si'.
-    # 30/9: leggono in due, e basta che uno dica fermo (il metro: le regex hanno mancato 2 «non scrivetemi» su 3)
+    # 30/9: leggono in due. Per PREPARARE l'analisi (che non contatta nessuno) il freno
+    # della regex cede solo davanti a un modello SICURO del si' (1/10, Nigris e UG Rent:
+    # «era finita nello spam» e' un si' che ci avvisa del filtro, e la regex lo bloccava).
+    # Per MANDARE, i freni restano duri: basta che uno dei due dica fermo.
     if s["ultime"]:
         corpo = s["ultime"][0].get("body") or ""
-        if lettura.frena(NON_TOCCARE.search(lettura.solo_suo(corpo)), lettura.secondo_lettore(corpo), ("non_scrivere",)):
+        d = lettura.secondo_lettore(corpo)
+        si_sicuro = bool(d and d.get("etichetta") == "si" and not d.get("dubbio"))
+        if lettura.frena(False, d, ("non_scrivere",)) or (NON_TOCCARE.search(lettura.solo_suo(corpo)) and not si_sicuro):
             print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
     an = _ripulisci(chiedi(p, s))
     fatti = fatti_in_testo(s, p)

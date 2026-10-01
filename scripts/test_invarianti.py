@@ -871,6 +871,31 @@ def _():
     assert v == "NO", "senza recensioni che contraddicono, il rosso deve ancora fermare"
 
 
+@prova("«finita nello spam» e' un si' che ci avvisa, non un'accusa")
+def _():
+    import analisi_auto as A
+    # 1/10: Nigris e UG Rent, analisi promesse e bloccate perche' «spam» stava nel racconto
+    for si in ("l'e-mail era finita nello spam, attendiamo le informazioni",
+               "la sua mail era finita nella cartella spam, attendiamo con piacere"):
+        assert not A.NON_TOCCARE.search(si), f"un si' col filtro spam viene ancora bloccato: {si[:40]}"
+    for no in ("smettetela con questo spam", "questo è spam, vi segnalo al garante"):
+        assert A.NON_TOCCARE.search(no), f"un'accusa di spam non frena piu': {no[:40]}"
+
+
+@prova("l'automatico e' solo la consegna della prima risposta con l'analisi, nient'altro")
+def _():
+    import pathlib
+    import prima_risposta as PR
+    # 1/10, Dre: «questo intero sistema e' solo per la consegna delle analisi: la prima
+    # risposta, con l'analisi e la presentazione. Le conversazioni me le gestisco io».
+    assert PR.INTENTI_OK == ("INT-01", "INT-02", "INT-03", "INT-23"), "la lista degli intenti automatici e' cambiata senza Dre"
+    t = pathlib.Path(PR.__file__).read_text(encoding="utf-8")
+    assert "ALLEGA_ANALISI.search(testo)" in t, "l'automatico puo' partire senza consegnare l'analisi"
+    assert "non e' una prima risposta" in t, "l'automatico non controlla piu' che sia la PRIMA risposta"
+    m = pathlib.Path(PR.__file__).parent.joinpath("manda.py").read_text(encoding="utf-8")
+    assert "allega_presentazione" in m and "sg-presentazione" in m, "la presentazione non viaggia piu' con la prima risposta"
+
+
 @prova("leggono in due: un freno basta da solo, un via mai da un dubbio")
 def _():
     import lettura as L
