@@ -944,7 +944,7 @@ def _():
     con_data = "Capisco, le lascio l'analisi.\nSe in futuro le va, le propongo martedì 6 ottobre alle 14:30: https://calendar.app.google/x"
     assert any("ha detto no" in e for e in B.cancello(con_data, detto_no=True)), "una data dopo un no passa ancora"
     assert B.cancello(con_data, detto_no=False) == [], "la stessa frase a chi NON ha detto no deve passare"
-    senza = "Capisco, grazie del riscontro,\ne le lascio l'analisi in allegato.\nSe in futuro vorrà più clienti, o AI e software su misura, noi ci siamo: qui sotto il calendario, senza impegno.\nhttps://calendar.app.google/x"
+    senza = "Capisco, grazie del riscontro,\ne le lascio l'analisi in allegato.\nSe in futuro vorrà più clienti, o AI e software su misura, noi ci siamo: qui sotto le lascio il calendario.\nhttps://calendar.app.google/x"
     assert B.cancello(senza, detto_no=True) == [], B.cancello(senza, detto_no=True)
 
 
