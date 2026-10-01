@@ -896,6 +896,18 @@ def _():
     assert "allega_presentazione" in m and "sg-presentazione" in m, "la presentazione non viaggia piu' con la prima risposta"
 
 
+@prova("il lampo accorcia il tempo, non le regole: orchestra e basta, non scrive mai")
+def _():
+    import pathlib
+    t = pathlib.Path(__file__).resolve().parent.joinpath("lampo.py").read_text(encoding="utf-8")
+    # 1/10: la catena veloce chiama i pezzi di sempre; se scrivesse in proprio,
+    # avremmo una seconda strada senza cancelli accanto a quella controllata
+    for vietato in ("proponi(", '"PATCH"', '"POST"', "sl(", "reply-email-thread"):
+        assert vietato not in t, f"lampo.py fa da solo ({vietato}): deve solo chiamare i pezzi coi loro cancelli"
+    for pezzo in ("googlefit.py", "analisi_auto.py", "bozze.py", "prima_risposta.py", "manda.py"):
+        assert pezzo in t, f"la catena ha perso un pezzo: {pezzo}"
+
+
 @prova("leggono in due: un freno basta da solo, un via mai da un dubbio")
 def _():
     import lettura as L

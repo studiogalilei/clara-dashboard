@@ -184,7 +184,7 @@ def bilancio_openapi(p):
         ultimo = (bil.get("last") if isinstance(bil, dict) else (bil[0] if bil else {})) or {}
         return {
             "fatturato": ultimo.get("turnover") or ultimo.get("revenue") or ultimo.get("fatturato") or adv.get("turnover") or adv.get("revenue"),
-            "utile": ultimo.get("netWorth") if False else (ultimo.get("profit") or ultimo.get("netProfit") or ultimo.get("utile")),
+            "utile": ultimo.get("profit") or ultimo.get("netProfit") or ultimo.get("utile"),
             "anno": ultimo.get("year") or ultimo.get("balanceSheetDate", "")[:4] or ultimo.get("anno"),
             "dipendenti": adv.get("employees") or ultimo.get("employees"),
             "forma": (adv.get("legalForm") or {}).get("description") if isinstance(adv.get("legalForm"), dict) else adv.get("legalForm"),

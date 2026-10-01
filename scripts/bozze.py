@@ -808,7 +808,7 @@ def main():
         try:
             _, letti = lettura.leggi(p)
         except Exception as e:                                # noqa: BLE001
-            print(f"  [GB] salto {nome if False else (p.get('company') or mail)[:34]}: lettura non riuscita ({str(e)[:60]})"); continue
+            print(f"  [GB] salto {(p.get('company') or mail)[:34]}: lettura non riuscita ({str(e)[:60]})"); continue
         testo = letti["ultima_loro"]
         # 28/9: NON_TOCCARE sulle sue righe soltanto (il caso dell'immobiliare del 28/9: «cancellarlo»
         # stava nella nostra firma GDPR citata sotto la sua risposta positiva)
