@@ -506,16 +506,13 @@ def servita(p):
         return False
     if fit.get("esclusione") in MAI:
         return False
-    if fit.get("verdetto") in ("SI", "SI'", "PARZIALE"):
-        return True
-    if (p.get("classificazione") or "") in ("positivo", "tiepido"):
-        return True
-    # SE L'HA CHIESTA, SI FA (Dre, 29/9: «inviamo comunque e chiediamo la call,
-    # seguiamo il playbook tutte le volte possibili»). Il playbook INT-01 non fa
-    # eccezioni: quando una persona chiede l'analisi, quella e' la risposta, e il
-    # verdetto del fit non conta. Studio Canova ha scritto ma e' rimasto
-    # «da_classificare», quindi la regola sulla classe non bastava.
-    return _l_ha_chiesta(p)
+    # SE HA RISPOSTO, SI GENERA (Dre, 1/10: «se rispondono generiamo bene questa
+    # analisi e inviamo; i dettagli me li dite a parte, magari nella preparazione
+    # call»). Il verdetto del fit non ferma piu' nessuno che ha risposto: quando
+    # il mercato e' piccolo l'analisi dice la verita' scomoda, e la vendita la
+    # gestisce Dre in call. Restano fuori solo le esclusioni sacre (sopra) e chi
+    # un sito leggibile non ce l'ha: senza dati non si genera «bene».
+    return True
 
 
 MAX_TENTATIVI = 2                    # due bocciature e poi si chiede a una persona
