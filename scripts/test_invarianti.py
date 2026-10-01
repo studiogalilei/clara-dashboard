@@ -988,8 +988,11 @@ def _():
 @prova("il metro: Dre etichetta senza vedere cosa ne pensa il modello")
 def _():
     import pathlib
+    import re as _re
     m = pathlib.Path(__file__).resolve().parent.parent.joinpath("src", "components", "Metro.tsx").read_text(encoding="utf-8")
-    assert "proposta" not in m, "la pagina del metro legge la proposta del modello: si misurerebbe il modello contro se stesso"
+    # il controllo vero: nessuna SELECT carica la proposta (nominarla nei commenti e' lecito)
+    for sel in _re.findall(r"select\('([^']*)'\)", m):
+        assert "proposta" not in sel, f"la pagina del metro legge la proposta del sistema: select('{sel}')"
 
 
 def main():

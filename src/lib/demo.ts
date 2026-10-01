@@ -398,6 +398,13 @@ const TABELLE: Record<string, Riga[]> = {
   // la cassaforte (29/9): i soldi che vedono solo i ceo, per provare «Solo per te» prima della call
   soldi_clienti: [
   ] as unknown as Riga[],
+  metro_casi: [
+    { id: 1, tema: 'seguiti', prospect_id: 'p1', domanda: 'Che mossa fai qui?',
+      mostra: [{ eti: 'Azienda', testo: 'Serenergy' }, { eti: 'Dove siamo', testo: 'tappa analisi, analisi mandata 49 giorni fa, silenzio da 53 giorni' },
+               { eti: "L'ultima cosa che ha scritto", testo: '«Sentiamo»: da qui diventa prospect' }],
+      scelte: [['seguito', 'Follow-up ora'], ['mini', 'Mini, due righe'], ['ripresa', 'Ripresa, scusa nuova'], ['aspetto', 'Aspetto ancora'], ['chiudo', 'Chiudo qui'], ['altro', 'Altro, lo scrivo']],
+      etichetta: null, nota: null, creato_il: gg(0) },
+  ] as unknown as Riga[],
   metro_risposte: [
     { interaction_id: 'i9', prospect_id: 'p5', testo: 'Anna: «Facciamo una call»', etichetta: null, nota: null, creato_il: gg(0) },
     { interaction_id: 'm1', testo: 'Buongiorno Lorenzo, confermo la mail, mandi pure. Grazie', etichetta: null, creato_il: gg(0) },
