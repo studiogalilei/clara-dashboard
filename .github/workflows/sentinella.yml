@@ -1,0 +1,37 @@
+# LA SENTINELLA (Dre, 1/10): sorveglia il direttore DA FUORI, perche' il 1/10 un
+# giro bloccato lo ha tenuto fermo due ore e nessuno urlava. Prima rianima
+# (cancella le corse del direttore ferme da 20+ minuti, cosi' la prossima parte),
+# poi guarda i dati e scrive gli avvisi in Posta (scripts/sentinella.py).
+name: sentinella
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: sentinella
+  cancel-in-progress: false
+jobs:
+  guarda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: rianima il direttore se e' bloccato
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          soglia=$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow direttore.yml --status in_progress \
+            --json databaseId,createdAt -q ".[] | select(.createdAt < \"$soglia\") | .databaseId" |
+          while read -r id; do
+            echo "corsa $id del direttore ferma da 20+ minuti: la cancello, la prossima riparte"
+            gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true
+          done
+      - name: la sentinella guarda i dati
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 scripts/sentinella.py

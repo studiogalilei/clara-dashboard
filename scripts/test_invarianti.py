@@ -896,6 +896,18 @@ def _():
     assert "allega_presentazione" in m and "sg-presentazione" in m, "la presentazione non viaggia piu' con la prima risposta"
 
 
+@prova("la sentinella vede e dice, non opera")
+def _():
+    import pathlib
+    t = pathlib.Path(__file__).resolve().parent.joinpath("sentinella.py").read_text(encoding="utf-8")
+    # 1/10: chi sorveglia non tocca i dati, se no un bug del guardiano diventa un guaio doppio
+    for vietato in ('"PATCH"', '"POST"', '"DELETE"', "proponi("):
+        assert vietato not in t, f"la sentinella opera ({vietato}): deve solo vedere e avvisare"
+    assert "di_clara(" in t, "la sentinella non avvisa piu' nessuno"
+    w = pathlib.Path(__file__).resolve().parent.parent.joinpath(".github", "workflows", "sentinella.yml").read_text(encoding="utf-8")
+    assert "direttore.yml" in w and "cancel" in w, "la sentinella non rianima piu' il direttore bloccato"
+
+
 @prova("il lampo accorcia il tempo, non le regole: orchestra e basta, non scrive mai")
 def _():
     import pathlib
