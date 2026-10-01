@@ -240,7 +240,15 @@ def ha_gia(p, righe):
     mie = {(p.get("email") or "").lower(), *[str(a).lower() for a in alt if a]}
     dom = (p.get("email") or "").split("@")[-1].lower()
     lettore = secondo_lettore(testo)
-    girato = sorted({e.lower() for e in EMAIL.findall(testo)
+    # una pec citata senza un verbo di rimando («scrivete a», «inviate a») e' quasi
+    # sempre la firma legale, non un passaggio di persona (Finotti, 1/10: la sua pec
+    # in firma bloccava un «sarei interessata a ricevere il documento»)
+    def _rimando_vero(e, t):
+        if "@pec." not in e and not e.endswith("@pec.it"):
+            return True
+        pos = t.lower().find(e)
+        return bool(re.search(r"(scriv|invi|mand|contatt|rivolg)\w*\s[^@]{0,40}$", t[:pos].lower()[-60:]))
+    girato = sorted({e.lower() for e in EMAIL.findall(testo) if _rimando_vero(e.lower(), testo)
                      if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI) and e.lower().split("@")[-1] != dom} |
                     {e.lower() for e in EMAIL.findall(testo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
     return {

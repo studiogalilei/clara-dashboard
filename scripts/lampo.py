@@ -61,11 +61,15 @@ def fresche():
 
 def main():
     care = fresche()
+    extra = ["--prova"] if PROVA else []
     if not care:
-        print("lampo: nessuna risposta fresca da servire")
+        # niente di fresco, ma gli approvati rimasti (1/10: UG col PDF arrivato dopo)
+        # non devono aspettare il giro di qualcun altro
+        print("lampo: nessuna risposta fresca; passo comunque il testimone a postino e approvazioni")
+        _corri("prima_risposta.py", extra)
+        _corri("manda.py", extra)
         return
     print(f"lampo: {len(care)} risposte fresche" + (" (prova)" if PROVA else ""))
-    extra = ["--prova"] if PROVA else []
     for p in care:
         nome = (p.get("company") or p.get("name") or p["email"])[:40]
         gf = (p.get("enriched") or {}).get("google_fit") or {}

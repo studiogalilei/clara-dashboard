@@ -594,6 +594,10 @@ def main():
         e = (p.get("enriched") or {}).get("lettura_esito") or {}
         return bool(e.get("il")) and e["il"] >= (p.get("last_reply_at") or "")[:19] and not SOLO
 
+    # IL TETTO PER GIRO (1/10): il giro delle bozze moriva a 2400 secondi col direttore
+    # fermo dietro (2 ore senza invii). Meglio un giro corto che finisce e riparte:
+    # si lavora in ordine di freschezza, il resto al giro dopo.
+    MAX_LAVORI = 10
     candidate = []
     for p in persone:
         if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
@@ -713,6 +717,9 @@ def main():
             b["fermati"] = "si': la seconda testa dice INCOERENTE: " + motivo
         return (p, gruppo, nome, b, errori, letti, None)
 
+    if len(candidate) > MAX_LAVORI and not SOLO:
+        print(f"  {len(candidate)} candidate: ne lavoro {MAX_LAVORI} (le risposte fresche prima), il resto al giro dopo")
+        candidate = candidate[:MAX_LAVORI]
     fatte, ferme, bocciate, saltate = 0, 0, 0, 0
     ferme_da_dire = []                  # chi aspetta da troppo: una domanda sola alla fine
     with ThreadPoolExecutor(max_workers=IN_PARALLELO) as pool:
