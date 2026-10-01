@@ -914,6 +914,28 @@ def _():
     assert B.cancello("Le inoltro l'analisi. Le scrivo io martedì 13 ottobre per fissare.") == []
 
 
+@prova("la garanzia solo col punteggio: mai promessa a chi non regge, aggiunta dove regge")
+def _():
+    import garanzia as G
+    import seguiti as S
+    # 1/10, Dre: «uno score fatto bene; se non siamo sicurissimi non la scriviamo, uno se lo ricorda»
+    forte = {"enriched": {"google_fit": {"verdetto": "SI", "zona": {"verdetto": "VERDE", "cpc": 0.5},
+                                          "recensioni": {"recensioni": 40}, "ticket_max": 5000}}}
+    debole = {"enriched": {"google_fit": {"verdetto": "PARZIALE", "zona": None, "recensioni": {"recensioni": 3}, "ticket_max": 200}}}
+    assert G.promettibile(forte)[0] and not G.promettibile(debole)[0]
+    assert not G.promettibile({"enriched": {"google_fit": {"verdetto": "SI", "settore_uguale": False, "zona": {"verdetto": "VERDE"}}}})[0], "volumi di un altro settore e promettiamo lo stesso"
+    assert not G.promettibile({})[0], "senza fit si promette a scatola chiusa"
+    finto = ("## INTERESSATO (3/7)\n```\nSalve,\nVa bene perfetto, vi inoltro qui l'analisi.\n"
+             "Poi avremmo pronta anche una proposta con garanzia da farvi, ma intanto mi farebbe piacere confrontarmi con lei.\n"
+             "Le propongo domani alle 15:30, oppure un altro giorno nel caso domani non abbia disponibilità.\n"
+             "📅 Calendario: https://calendar.app.google/V\nA presto,\n```\n"
+             "## CHI SEI? (3/7)\n```\nSalve,\nmolto piacere.\nMi farebbe piacere confrontarmi con lei.\n📅 https://calendar.app.google/V\n```\n")
+    senza = S.risposta("INT-01", {}, {}, "https://cal/N", giorno="g", testo_file=finto, garanzia=False)
+    assert "garanzia" not in senza and "Mi farebbe piacere confrontarmi" in senza, "la frase resta anche quando lo score dice no"
+    con = S.risposta("INT-03", {}, {}, "https://cal/N", giorno="g", testo_file=finto, garanzia=True)
+    assert "proposta con garanzia" in con, "dove lo score passa, la linea di Dre ci sta (1/10)"
+
+
 @prova("il lettore unico: un dubbio puo' solo fermare, mai sbloccare")
 def _():
     import cervello as C

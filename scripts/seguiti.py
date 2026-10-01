@@ -147,8 +147,18 @@ def _periodo(pr):
     return pr
 
 
-def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=None, testo_file=None, loro=""):
-    """La risposta col testo di Dre, o None se per quell'intento non c'e' un suo template."""
+FRASE_GARANZIA = "Poi avremmo pronta anche una proposta con garanzia da farvi, ma intanto mi"
+FRASE_GARANZIA_IN = "Avremmo pronta anche una proposta con garanzia da farvi, ma prima mi"
+
+
+def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=None, testo_file=None, loro="", garanzia=None):
+    """La risposta col testo di Dre, o None se per quell'intento non c'e' un suo template.
+
+    `garanzia` (1/10, lo score di Dre: «uno se lo ricorda»): la frase della proposta
+    con garanzia resta solo se lo score dice che possiamo permettercela. None = si
+    calcola qui da p; nei template che non la hanno (CHI SEI, SENTIAMOCI) la stessa
+    frase di Dre si AGGIUNGE quando lo score passa («quella linea ci sta in realta'»).
+    """
     chiave = RISPOSTE.get((intento or "").strip())
     if chiave == "CHI SEI" and CHIEDE_SOCIETA.search(loro or ""):
         chiave = "QUAL E"
@@ -177,6 +187,16 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
         t = re.sub(r"Le propongo domani alle \d{1,2}(?::\d{2})?", f"Le propongo {giorno}", t)
         t = t.replace("nel caso domani non abbia disponibilità", "nel caso quel giorno non abbia disponibilità")
     t = re.sub(r"https://calendar\.app\.google/[A-Za-z0-9]+", calendario, t).replace("{{CALENDARIO}}", calendario)
+    if garanzia is None:
+        try:
+            from garanzia import promettibile
+            garanzia = promettibile(p)[0]
+        except Exception:                                    # noqa: BLE001
+            garanzia = False                                 # nel dubbio non si promette
+    if not garanzia:
+        t = t.replace(FRASE_GARANZIA + " farebbe", "Mi farebbe", 1)
+    elif FRASE_GARANZIA not in t and "Mi farebbe piacere confrontarmi" in t:
+        t = t.replace("Mi farebbe piacere confrontarmi", FRASE_GARANZIA_IN + " farebbe piacere confrontarmi", 1)
     if "[" in t or "{{" in t:
         return None
     return t.strip()

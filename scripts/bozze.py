@@ -279,6 +279,20 @@ bravi a scuola». Quindi: frasi legate con le virgole dove un umano le
 legherebbe, paragrafi corti con gli a capo, un po' di imperfezione naturale.
 Intelligente senza sembrare falso.
 
+LA GARANZIA SOLO COL PUNTEGGIO (Dre, 1/10: «quella linea va usata in modo
+intelligente: uno score fatto bene. Se non siamo sicurissimi non la scriviamo,
+perche' uno se lo ricorda»). Nei fatti trovi «garanzia_promettibile» col motivo:
+la frase «avremmo pronta anche una proposta con garanzia» si scrive SOLO se e'
+true. Mai nell'analisi: e' un capitolo della mail. Se e' false e la persona
+chiede una proposta, la storia risponde: prima la conoscitiva, perche' da fuori
+non si fanno proposte serie.
+
+IL TEMPLATE E' UN BINARIO (Dre, 1/10: «non lasciamo troppa liberta', se no il
+modello fa quel che vuole. C'e' la storia, c'e' il template, e basta»). Non lo
+riscrivi e non lo arricchisci. L'unica liberta' concessa: una frase per
+rispettare quello che la persona ha scritto (la sua risposta non si ignora),
+e poi si torna in fila sul binario del template.
+
 LE DUE REGOLE DEL DARE-AVERE (Dre, 30/9, coi suoi perche': un sistema che
 ragiona, non uno meccanico).
 1. LA CALL E' CONOSCITIVA, MAI UNA SPIEGAZIONE DELL'ANALISI. Mai scrivere
@@ -459,6 +473,12 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
         fatti["destinatario_effettivo"] = alt[0]
         fatti["nome_del_nuovo_contatto"] = ""          # se non e' nella scheda non c'e': «Salve,»
     if letti:
+        try:
+            from garanzia import promettibile
+            g_si, g_mot, _g = promettibile(p)
+        except Exception:                                    # noqa: BLE001
+            g_si, g_mot = False, "score non calcolabile: nel dubbio non si promette"
+        fatti["garanzia_promettibile"] = {"si": g_si, "perche": g_mot}
         fatti["fatti_verificati_dal_codice"] = {k: letti[k] for k in ("scritto_dopo_di_lei", "analisi_ricevuta", "analisi_gia_letta", "detto_no", "autorisposta", "girato_a")}
         if letti.get("ultima_nostra"):
             fatti["ultima_mail_nostra"] = f"{letti['ultima_nostra_il']}: {letti['ultima_nostra'][:400]}"
