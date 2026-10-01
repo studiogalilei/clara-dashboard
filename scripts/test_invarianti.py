@@ -935,6 +935,19 @@ def _():
     assert t and B.cancello(t) == [], f"il template verbatim di Dre non passa il suo stesso ritmo: {t and B.cancello(t)}"
 
 
+@prova("a chi dice no, mai una data: porta aperta e' consegnare, non riproporre")
+def _():
+    import bozze as B
+    # 1/10, caso Matteo: «inviamo l'analisi ma non proponiamo l'appuntamento con una
+    # data. Al massimo lasciamo il calendario li' sotto». La seconda testa lo aveva
+    # gia' fiutato da sola; ora e' una regola col suo nome.
+    con_data = "Capisco, le lascio l'analisi.\nSe in futuro le va, le propongo martedì 6 ottobre alle 14:30: https://calendar.app.google/x"
+    assert any("ha detto no" in e for e in B.cancello(con_data, detto_no=True)), "una data dopo un no passa ancora"
+    assert B.cancello(con_data, detto_no=False) == [], "la stessa frase a chi NON ha detto no deve passare"
+    senza = "Capisco, grazie del riscontro,\ne le lascio l'analisi in allegato.\nSe in futuro vorrà più clienti, o AI e software su misura, noi ci siamo: qui sotto il calendario, senza impegno.\nhttps://calendar.app.google/x"
+    assert B.cancello(senza, detto_no=True) == [], B.cancello(senza, detto_no=True)
+
+
 @prova("la sentinella vede e dice, non opera")
 def _():
     import pathlib

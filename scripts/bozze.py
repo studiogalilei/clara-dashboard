@@ -96,11 +96,11 @@ Il testo: registro «lei», 5-7 righe, mai il trattino lungo, niente firma.
 1) ringrazia della risposta e prendi atto del no senza discuterlo;
 2) di' che l'analisi della loro zona era gia' pronta e gliela lasciamo in
    allegato, con UN numero vero se c'e' (le ricerche al mese nella provincia);
-3) chiudi con la porta aperta (Dre, 30/9: «teniamo la porta aperta per il futuro
-   e per altri servizi»): se un giorno vorranno piu' clienti, o migliorare i loro
-   processi con AI e software su misura (dove aiutiamo anche con la finanza
-   agevolata, che e' la leva per il software, mai un servizio a parte), noi siamo
-   qui, con {{CALENDARIO}};
+3) chiudi con la porta aperta (Dre, 30/9 e 1/10): se un giorno vorranno piu'
+   clienti, o migliorare i loro processi con AI e software su misura (la finanza
+   agevolata e' la leva del software, mai un servizio a parte), noi ci siamo.
+   MAI proporre una data o chiedere una call a chi ha detto no: sarebbe ignorare
+   il suo no. Al massimo il calendario li' sotto, {{CALENDARIO}}, senza domande;
 4) un saluto gentile. Nessun follow-up promesso, nessuna domanda."""
 
 # ── il cancello qualita' (da lint_risposta.py, 3/7) ─────────────────
@@ -110,7 +110,7 @@ APERTURE_SECCHE = ("si'.", "sì.", "no.", "volentieri.", "certo.", "ok.", "va be
 PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato", "senza impegno")
 
 
-def cancello(testo, senza_analisi=False, seguito_programmato=False):
+def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=False):
     """Torna la lista dei motivi per cui la bozza NON va bene (vuota = passa).
 
     `senza_analisi` e' vero quando l'analisi non esiste e non nascera' (fit NO):
@@ -151,6 +151,13 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False):
     if (re.search(r"(?:indirizzo|l.email|la mail|il contatto)\s[^.!?\n]{0,30}\bdi\b|pu[oò] inoltrar|mi gira (?:il contatto|la conversazione)", low)
             and re.search(r"calendar\.app\.google|\{\{calendario\}\}|chiamata conoscitiva|breve call|videochiamata", low)):
         errori.append("chiede il contatto di un altro E propone la call: il meeting si propone alla persona giusta, al messaggero si chiede solo il favore (Dre 1/10)")
+    # A CHI DICE NO, MAI UNA DATA (Dre, 1/10, sul caso Matteo: «inviamo l'analisi ma
+    # non proponiamo l'appuntamento con una data. Porta aperta vuol dire consegnare,
+    # salutare cordiali, dire che in futuro ci siamo, anche per altri servizi, e AL
+    # MASSIMO lasciare il calendario lì sotto»). Proporre una data a un no e' ignorare
+    # il no: lo aveva gia' fiutato la seconda testa, ora e' una regola col suo nome.
+    if detto_no and re.search(r"le propongo\s+(?:luned|marted|mercoled|gioved|venerd|sabato|domenica|domani|dopodomani|il \d)|propongo[^.\n]{0,25}\balle \d", low):
+        errori.append("ha detto no e la bozza propone una data: analisi, saluto cordiale, porta aperta e al massimo il calendario sotto (Dre 1/10)")
     # IL RITMO UMANO HA I DENTI (Dre, 1/10: «punto spazio e continua fa capire che e'
     # una scrittura delle AI: tanti mettono la virgola, e si va a capo»). Tre o piu'
     # frasi incollate sulla stessa riga col punto = si riscrive con virgole e a capo.
@@ -721,10 +728,10 @@ def main():
         # il template la promette.
         if not gruppo and not niente_analisi:
             b = testo_di_dre(b, p, letti)
-        errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo))
+        errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"))
         if errori and not b.get("dal_codice"):
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
-            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo)):
+            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no")):
                 b, errori = b2, []
         if dura and dura[0] == "fermati" and b["fermati"].lower().startswith("no"):
             b["fermati"] = "si': " + dura[1]
@@ -866,7 +873,7 @@ def main():
         testa, bozza = grezzo[:m.start()], grezzo[m.end():].strip().strip("`").strip()
         fermati = next((r.split(":", 1)[1].strip() for r in testa.splitlines() if r.upper().startswith("FERMATI")), "no")
         nota = next((r.split(":", 1)[1].strip() for r in testa.splitlines() if r.upper().startswith("NOTA")), "")
-        errori = cancello(bozza)
+        errori = cancello(bozza, detto_no=True)        # il gigante buono parla sempre con un no
         if errori or not fermati.lower().startswith("no"):
             print(f"  [GB] salto {nome}: {fermati if not fermati.lower().startswith('no') else '; '.join(errori)}")
             continue

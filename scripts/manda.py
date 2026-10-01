@@ -130,7 +130,7 @@ def link_fresco(url):
         return url
 
 
-def controlla(bozza, p=None, gruppo=None):
+def controlla(bozza, p=None, gruppo=None, detto_no=False):
     if "{{" in bozza or "}}" in bozza or "[[" in bozza:
         return ["segnaposto lasciato nel testo"]
     # IL PREZZO SUGGERITO E' INTERNO (Dre, 26/9): se il numero della scheda compare nel testo, non parte
@@ -141,7 +141,7 @@ def controlla(bozza, p=None, gruppo=None):
     try:
         import bozze
         # i gruppi del segugio hanno il prossimo tocco gia' programmato: il finale leggero e' voluto (Dre 30/9)
-        return bozze.cancello(bozza, seguito_programmato=bool(gruppo))
+        return bozze.cancello(bozza, seguito_programmato=bool(gruppo), detto_no=detto_no)
     except Exception as e:                                        # noqa: BLE001
         return [f"cancello non eseguibile: {str(e)[:60]}"]
 
@@ -207,7 +207,7 @@ def main():
             continue
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
-        errori = controlla(bozza, p, gruppo=az.get("gruppo"))
+        errori = controlla(bozza, p, gruppo=az.get("gruppo"), detto_no=bool((az.get("lettura") or {}).get("detto_no")))
         if errori:
             torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         cid, lid, ultima = thread(p)

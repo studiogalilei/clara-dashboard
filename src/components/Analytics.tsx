@@ -35,11 +35,18 @@ export default function Analytics({ onOpen }: Props) {
   const [prospects, setProspects] = useState<Prospect[] | null>(null)
   const [ricorrente, setRicorrente] = useState<{ mese: number; quanti: number } | null>(null)
   const [storia, setStoria] = useState<Interaction[] | null>(null)
+  const [conoscitive, setConoscitive] = useState<Array<{ prospect_id: string | null; at: string; creato_il: string | null }> | null>(null)
 
   // il sommario per canale: i numeri li conta il database, non una lista
   // troncata. Oggi il sistema conosce solo l'Email (Smartlead): le altre
   // righe restano da collegare invece di essere inventate (Dre, 3/9)
   useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
+
+  // le prenotazioni (Dre, 1/10): le conoscitive del calendario incrociate coi lead
+  useEffect(() => {
+    supabase.from('agenda').select('prospect_id,at,creato_il').eq('tipo', 'conoscitiva').eq('fonte', 'gcal').limit(1000)
+      .then(({ data }) => setConoscitive((data as Array<{ prospect_id: string | null; at: string; creato_il: string | null }>) ?? []))
+  }, [])
 
   useEffect(() => {
     const conta = (domanda: (f: Filtro) => Filtro) =>
@@ -125,6 +132,36 @@ export default function Analytics({ onOpen }: Props) {
   ]
   const peggiore = passi.slice(1).reduce((min, x) => (x[2] < min[2] ? x : min), passi[1])
   const maxFunnel = Math.max(vivi.length, 1)
+
+  // ── il tasso di prenotazione (Dre, 1/10: «incrociamo le prenotazioni coi lead») ──
+  // Chi ha ricevuto l'analisi negli ultimi 30 giorni, e fra questi chi ha POI
+  // prenotato una conoscitiva dal calendario. Le prenotazioni senza aggancio
+  // all'azienda si dicono: il tasso vero puo' essere piu' alto, non si inventa.
+  const pren = (() => {
+    const t30 = Date.now() - 30 * 86400e3
+    const prenotazioniDi = new Map<string, string[]>()
+    for (const a of conoscitive ?? []) {
+      if (a.prospect_id) {
+        const q = prenotazioniDi.get(a.prospect_id) ?? []
+        q.push(a.creato_il ?? a.at)
+        prenotazioniDi.set(a.prospect_id, q)
+      }
+    }
+    const coorte = (prospects ?? []).filter((p) => p.analysis_sent_at && new Date(p.analysis_sent_at).getTime() >= t30)
+    const giorni: number[] = []
+    let prenotate = 0
+    for (const p of coorte) {
+      const dopo = (prenotazioniDi.get(p.id) ?? []).filter((q) => q >= p.analysis_sent_at!)
+      if (dopo.length) {
+        prenotate += 1
+        const g = (new Date(dopo.sort()[0]).getTime() - new Date(p.analysis_sent_at!).getTime()) / 86400e3
+        if (g >= 0 && g < 60) giorni.push(Math.round(g))
+      }
+    }
+    const orfane = (conoscitive ?? []).filter((a) => !a.prospect_id && new Date(a.at).getTime() >= t30).length
+    giorni.sort((a, b) => a - b)
+    return { analisi: coorte.length, prenotate, orfane, mediana: giorni.length ? giorni[Math.floor(giorni.length / 2)] : null }
+  })()
 
   // ── blocco 3: la velocita' ────────────────────────────────────
   const medie: Array<[string, number | null]> = (() => {
@@ -266,6 +303,20 @@ export default function Analytics({ onOpen }: Props) {
       </div>
 
       {/* ── 1, il battito ──────────────────────────────────── */}
+      <Card className="p-5">
+        <TitoloCard>Prenotazioni, ultimi 30 giorni</TitoloCard>
+        <p className="text-sm font-semibold">
+          {pren.analisi} analisi mandate, {pren.prenotate} {pren.prenotate === 1 ? 'ha prenotato' : 'hanno prenotato'} la conoscitiva
+          <span className="ml-2 rounded-full bg-navy px-2.5 py-0.5 text-xs font-bold text-white tabular-nums">
+            {pren.analisi ? Math.round((pren.prenotate / pren.analisi) * 100) : 0}%
+          </span>
+        </p>
+        <p className="mt-1.5 text-[13px] text-tenue">
+          {pren.mediana != null && <>Dall'analisi alla prenotazione: {pren.mediana === 0 ? 'stesso giorno' : `${pren.mediana} giorni`} (mediana). </>}
+          {pren.orfane > 0 && <span className="text-amber-700">{pren.orfane} conoscitive non agganciate a un'azienda: il tasso vero può essere più alto.</span>}
+        </p>
+      </Card>
+
       <Card className="p-5">
         <TitoloCard>Battito, ultime {SETTIMANE} settimane</TitoloCard>
         <p className="mb-4 text-sm font-semibold">{verdettoBattito}</p>
