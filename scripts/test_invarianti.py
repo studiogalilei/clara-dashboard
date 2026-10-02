@@ -529,6 +529,8 @@ def _():
     p = {"id": "x", "email": "a@b.it", "classificazione": "positivo", "stage": "risposto",
          "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf"}
     assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
+    # 2/10: l'alias dello stesso dominio (info@ per commerciale@) non e' un rimbalzo
+    assert R.perche_no({**pr, "azione": {**pr["azione"], "lettura": {**let, "girato_a": ["c@b.it"]}}}, p) == []
     # il gigante buono passa dal 2/10 (Dre: «anche i negativi: analisi e calendario, mai una data»)
     gb_pr = {**pr, "titolo": "Gigante buono per Rossi, INT-GB",
              "azione": {**pr["azione"], "intento": "INT-GB", "lettura": {**let, "gruppo": "GIGANTE BUONO", "detto_no": True}}}
@@ -550,7 +552,7 @@ def _():
         (con(az_mod={"intento": "INT-GB"}, let_mod={"gruppo": "GIGANTE BUONO", "detto_no": True, "non_scrivere": True}), "un GB a chi chiede di non essere contattato"),
         (con(az_mod={"intento": "INT-GB"}, let_mod={"gruppo": "GIGANTE BUONO", "detto_no": True}, p_mod={"classificazione": "nervoso"}), "un GB a un nervoso"),
         (con(let_mod={"autorisposta": True}), "un'autorisposta"),
-        (con(let_mod={"girato_a": ["c@b.it"]}), "un inoltro a un collega"),
+        (con(let_mod={"girato_a": ["c@ALTRO-dominio.it"]}), "un inoltro a un collega di un'altra azienda"),
         (con(p_mod={"email_alt": ["c@b.it"]}), "un indirizzo diverso"),
         (con(let_mod={"analisi_ricevuta": True}), "chi ha gia' l'analisi"),
         (con(p_mod={"analysis_sent": True}), "chi risulta gia' averla ricevuta"),

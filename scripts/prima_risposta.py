@@ -168,7 +168,12 @@ def perche_no_seguito(pr, p):
         no.append("la seconda testa non dice COERENTE")
     if let.get("detto_no"):
         no.append("ha detto no")
-    if let.get("girato_a") or let.get("destinatario") or (p or {}).get("email_alt"):
+    # 2/10: un alias dello STESSO dominio (info@ che risponde per commerciale@) non e'
+    # un rimbalzo a terzi: si risponde nel thread come sempre. Il freno resta per i
+    # domini diversi (vero passaggio di persona) e per i cambi di indirizzo dichiarati.
+    _dom = ((p or {}).get("email") or "").split("@")[-1].lower()
+    _fuori = [g for g in (let.get("girato_a") or []) if g.split("@")[-1].lower() != _dom]
+    if _fuori or let.get("destinatario") or (p or {}).get("email_alt"):
         no.append("c'e' di mezzo un altro indirizzo")
     if not p:
         return no + ["manca la scheda"]
@@ -221,7 +226,12 @@ def perche_no(pr, p):
         no.append("autorisposta")
     if let.get("casella_di_servizio"):
         no.append("casella di servizio")
-    if let.get("girato_a") or let.get("destinatario") or (p or {}).get("email_alt"):
+    # 2/10: un alias dello STESSO dominio (info@ che risponde per commerciale@) non e'
+    # un rimbalzo a terzi: si risponde nel thread come sempre. Il freno resta per i
+    # domini diversi (vero passaggio di persona) e per i cambi di indirizzo dichiarati.
+    _dom = ((p or {}).get("email") or "").split("@")[-1].lower()
+    _fuori = [g for g in (let.get("girato_a") or []) if g.split("@")[-1].lower() != _dom]
+    if _fuori or let.get("destinatario") or (p or {}).get("email_alt"):
         no.append("c'e' di mezzo un altro indirizzo")
     if let.get("analisi_ricevuta") or let.get("analisi_gia_letta"):
         no.append("l'analisi l'ha gia' avuta")
@@ -415,7 +425,9 @@ def main():
         elif (letti.get("ultima_loro_il"), (letti.get("ultima_loro") or "")[:150]) != (vecchia.get("ultima_loro_il"), (vecchia.get("ultima_loro") or "")[:150]):
             cambiato = "ha riscritto dopo che la bozza era nata"
         elif (letti.get("detto_no") and (pr.get("azione") or {}).get("intento") != "INT-GB") \
-                or letti.get("non_scrivere") or letti.get("girato_a") or (letti.get("autorisposta") and not SEGUITI):
+                or letti.get("non_scrivere") \
+                or [g for g in (letti.get("girato_a") or []) if g.split("@")[-1].lower() != (p.get("email") or "").split("@")[-1].lower()] \
+                or (letti.get("autorisposta") and not SEGUITI):
             # per il gigante buono il no E' il caso (Dre, 2/10); «non scrivetemi» ferma sempre
             cambiato = "rileggendo il filo adesso, non e' piu' un caso semplice"
         # «Via libera» dal calendario dei follow-up (29/9): Dre ha visto la traccia e sa che e' innocua
