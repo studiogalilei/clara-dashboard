@@ -35,12 +35,36 @@ export default function Analytics({ onOpen }: Props) {
   const [prospects, setProspects] = useState<Prospect[] | null>(null)
   const [ricorrente, setRicorrente] = useState<{ mese: number; quanti: number } | null>(null)
   const [storia, setStoria] = useState<Interaction[] | null>(null)
+  const [attese, setAttese] = useState<Array<{ id: string; company: string | null; name: string | null; email: string; last_reply_at: string | null }> | null>(null)
+  const [lane, setLane] = useState<Map<string, string>>(new Map())
   const [conoscitive, setConoscitive] = useState<Array<{ prospect_id: string | null; at: string; creato_il: string | null }> | null>(null)
 
   // il sommario per canale: i numeri li conta il database, non una lista
   // troncata. Oggi il sistema conosce solo l'Email (Smartlead): le altre
   // righe restano da collegare invece di essere inventate (Dre, 3/9)
   useEffect(() => { ricorrenteMensile().then(setRicorrente) }, [])
+
+  // IL POLSO DELLE RISPOSTE (Dre, 2/10: «vorrei essere tranquillo che entro un certo
+  // orario riceveranno la risposta, e guardarlo io per capire quando ci sono problemi»).
+  // La promessa: nella finestra (lun-ven 9-17) una consegna semplice parte entro un'ora;
+  // fuori finestra, entro le 10 del giorno lavorativo dopo. Qui si vede chi aspetta ADESSO
+  // e da quanto, divisi fra corsia automatica e casi tuoi. Il rosso = promessa in ritardo.
+  useEffect(() => {
+    void (async () => {
+      const [att, pr] = await Promise.all([
+        supabase.from('prospects').select('id,company,name,email,last_reply_at').eq('awaiting_us', true).eq('fuori', false)
+          .or('classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso,nervoso)').limit(200),
+        supabase.from('proposte').select('prospect_id,stato,azione').in('stato', ['aperta', 'approvata', 'in_invio']).limit(500),
+      ])
+      setAttese((att.data as never) ?? [])
+      const m = new Map<string, string>()
+      const AUTOMATICI = ['INT-01', 'INT-02', 'INT-03', 'INT-23', 'INT-GB']
+      for (const x of (pr.data ?? []) as Array<{ prospect_id: string | null; azione: { intento?: string } | null }>) {
+        if (x.prospect_id) m.set(x.prospect_id, AUTOMATICI.includes(x.azione?.intento ?? '') ? 'corsia' : 'tua')
+      }
+      setLane(m)
+    })()
+  }, [])
 
   // le prenotazioni (Dre, 1/10): le conoscitive del calendario incrociate coi lead
   useEffect(() => {
@@ -303,6 +327,43 @@ export default function Analytics({ onOpen }: Props) {
       </div>
 
       {/* ── 1, il battito ──────────────────────────────────── */}
+      <Card className="p-5">
+        <TitoloCard>Il polso delle risposte, adesso</TitoloCard>
+        {(() => {
+          const ora = new Date()
+          const inFinestra = ora.getDay() >= 1 && ora.getDay() <= 5 && ora.getHours() >= 9 && ora.getHours() < 17
+          const righe = (attese ?? []).map((p) => {
+            const min = p.last_reply_at ? Math.round((Date.now() - new Date(p.last_reply_at).getTime()) / 60000) : null
+            const corsia = lane.get(p.id) ?? 'lavorazione'
+            const tardi = corsia === 'corsia' && inFinestra && (min ?? 0) > 60
+            return { nome: p.company || p.name || p.email, min, corsia, tardi }
+          })
+          const inCorsia = righe.filter((r) => r.corsia === 'corsia').length
+          const tue = righe.filter((r) => r.corsia === 'tua').length
+          const rosse = righe.filter((r) => r.tardi)
+          return (
+            <>
+              <p className="text-sm font-semibold">
+                {righe.length} in attesa adesso: {inCorsia} in corsia automatica, {tue} da te, {righe.length - inCorsia - tue} in lavorazione
+                {rosse.length > 0
+                  ? <span className="ml-2 rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold text-white tabular-nums">{rosse.length} oltre l'ora</span>
+                  : <span className="ml-2 rounded-full bg-green-600 px-2.5 py-0.5 text-xs font-bold text-white">promessa tenuta</span>}
+              </p>
+              <p className="mt-1.5 text-[13px] text-tenue">
+                La promessa: lun-ven 9-17 la consegna semplice parte entro un'ora; fuori orario, entro le 10 del giorno dopo. I casi da te non hanno orologio: sono conversazioni.
+              </p>
+              {rosse.length > 0 && (
+                <ul className="mt-2 space-y-0.5 text-[13px]">
+                  {rosse.slice(0, 5).map((r) => (
+                    <li key={r.nome as string} className="font-semibold text-red-700">{r.nome}: in corsia da {Math.round((r.min ?? 0) / 60)}h {(r.min ?? 0) % 60}m</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )
+        })()}
+      </Card>
+
       <Card className="p-5">
         <TitoloCard>Prenotazioni, ultimi 30 giorni</TitoloCard>
         <p className="text-sm font-semibold">
