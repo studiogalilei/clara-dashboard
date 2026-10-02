@@ -529,6 +529,11 @@ def _():
     p = {"id": "x", "email": "a@b.it", "classificazione": "positivo", "stage": "risposto",
          "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf"}
     assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
+    # il gigante buono passa dal 2/10 (Dre: «anche i negativi: analisi e calendario, mai una data»)
+    gb_pr = {**pr, "titolo": "Gigante buono per Rossi, INT-GB",
+             "azione": {**pr["azione"], "intento": "INT-GB", "lettura": {**let, "gruppo": "GIGANTE BUONO", "detto_no": True}}}
+    gb_p = {**p, "classificazione": "negativo"}
+    assert R.perche_no(gb_pr, gb_p) == [], R.perche_no(gb_pr, gb_p)
     def con(pr_mod=None, let_mod=None, p_mod=None, az_mod=None):
         az = {**pr["azione"], "lettura": {**let, **(let_mod or {})}, **(az_mod or {})}
         return R.perche_no({**pr, **(pr_mod or {}), "azione": az}, {**p, **(p_mod or {})})
@@ -536,12 +541,14 @@ def _():
         (con(pr_mod={"tipo": "umano"}), "una bozza «da guardare tu»"),
         (con(pr_mod={"titolo": "Da guardare tu: Rossi"}), "un titolo «da guardare tu»"),
         (con(let_mod={"gruppo": "FOLLOW UP 1"}), "un follow-up"),
-        (con(let_mod={"gruppo": "GIGANTE BUONO"}), "un gigante buono"),
+
         (con(az_mod={"intento": "INT-13"}), "una domanda sul prezzo"),
-        (con(az_mod={"intento": "INT-GB"}), "un intento del gigante buono"),
+
         (con(let_mod={"coerenza": "INCOERENTE"}), "una bozza incoerente"),
         (con(let_mod={"scritto_dopo_di_lei": 1}), "chi ha gia' avuto una nostra mail dopo la sua"),
         (con(let_mod={"detto_no": True}), "chi ha detto no"),
+        (con(az_mod={"intento": "INT-GB"}, let_mod={"gruppo": "GIGANTE BUONO", "detto_no": True, "non_scrivere": True}), "un GB a chi chiede di non essere contattato"),
+        (con(az_mod={"intento": "INT-GB"}, let_mod={"gruppo": "GIGANTE BUONO", "detto_no": True}, p_mod={"classificazione": "nervoso"}), "un GB a un nervoso"),
         (con(let_mod={"autorisposta": True}), "un'autorisposta"),
         (con(let_mod={"girato_a": ["c@b.it"]}), "un inoltro a un collega"),
         (con(p_mod={"email_alt": ["c@b.it"]}), "un indirizzo diverso"),
@@ -888,7 +895,8 @@ def _():
     import prima_risposta as PR
     # 1/10, Dre: «questo intero sistema e' solo per la consegna delle analisi: la prima
     # risposta, con l'analisi e la presentazione. Le conversazioni me le gestisco io».
-    assert PR.INTENTI_OK == ("INT-01", "INT-02", "INT-03", "INT-23"), "la lista degli intenti automatici e' cambiata senza Dre"
+    # INT-GB aggiunto il 2/10 su ordine di Dre («anche i negativi: analisi, calendario, mai una data»)
+    assert PR.INTENTI_OK == ("INT-01", "INT-02", "INT-03", "INT-23", "INT-GB"), "la lista degli intenti automatici e' cambiata senza Dre"
     t = pathlib.Path(PR.__file__).read_text(encoding="utf-8")
     assert "ALLEGA_ANALISI.search(testo)" in t, "l'automatico puo' partire senza consegnare l'analisi"
     assert "non e' una prima risposta" in t, "l'automatico non controlla piu' che sia la PRIMA risposta"

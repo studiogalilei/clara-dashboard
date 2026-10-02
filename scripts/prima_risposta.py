@@ -79,9 +79,15 @@ CLASSI_OK = ("positivo", "tiepido")
 # dal playbook: vuole l'analisi, vuole parlare, chi siete, vuole il materiale
 # ma non la call. Il resto (rinvii, inoltri, obiezioni, prezzo, «come ci avete
 # trovato») e' una conversazione, non una prima risposta: resta a Dre.
-INTENTI_OK = ("INT-01", "INT-02", "INT-03", "INT-23")
-ALLEGA_ANALISI = re.compile(r"(?:inoltr|alleg|le lascio|ecco|trova qui|le mando|le invio)[^.\n]{0,60}\banalisi\b|"
-                            r"\banalisi\b[^.\n]{0,40}(?:in allegato|allegat|qui sotto)")
+# INT-GB dal 2/10 (Dre: «anche i negativi, ricordati, comunque gli inviamo l'analisi
+# e lasciamo il calendario, senza proporre una data, porta aperta e basta»): anche il
+# gigante buono e' la consegna della prima risposta. I suoi freni restano tutti:
+# mai una data (cancello detto_no), mai a chi chiede di non essere contattato.
+INTENTI_OK = ("INT-01", "INT-02", "INT-03", "INT-23", "INT-GB")
+# 2/10: il gigante buono dice «gliela lasciamo in allegato», e «le lascio» non bastava
+ALLEGA_ANALISI = re.compile(r"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*[^.\n]{0,60}\banalisi\b|"
+                            r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"
+                            r"\banalisi\b[^.\n]{0,60}(?:in allegato|allegat|qui sotto)")
 CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,fuori,no_followup,notes,owner,"
          "analysis_sent,analysis_pdf,campaign,campaign_id,lead_id,last_reply_at")
 
@@ -179,6 +185,7 @@ def perche_no(pr, p):
     """Il cancello sui fatti gia' scritti. Torna i motivi: vuota vuol dire che passa."""
     az = pr.get("azione") or {}
     let = az.get("lettura") or {}
+    gb = az.get("intento") == "INT-GB"      # il gigante buono: il no E' il suo caso (Dre, 2/10)
     no = []
     if pr.get("tipo") != "risposta" or str(pr.get("titolo") or "").startswith("Da guardare tu"):
         no.append("e' da guardare")
@@ -195,10 +202,10 @@ def perche_no(pr, p):
     if not ALLEGA_ANALISI.search(testo):
         no.append("la bozza non dice che l'analisi e' allegata")
     if "calendar.app.google" not in testo:
-        no.append("la bozza non propone la call col calendario")
+        no.append("la bozza non lascia il calendario")
     if az.get("approvata_da") or az.get("prima_risposta"):
         no.append("gia' passata di qui")
-    if let.get("gruppo"):
+    if let.get("gruppo") and not (gb and let.get("gruppo") == "GIGANTE BUONO"):
         no.append(f"non e' una prima risposta ({let['gruppo']})")
     if az.get("intento") not in INTENTI_OK:
         no.append(f"intento {az.get('intento')} fuori dalla prima risposta")
@@ -206,7 +213,9 @@ def perche_no(pr, p):
         no.append("la seconda testa non dice COERENTE")
     if let.get("scritto_dopo_di_lei"):
         no.append("abbiamo gia' scritto dopo la sua ultima mail")
-    if let.get("detto_no"):
+    if let.get("non_scrivere"):
+        no.append("ha chiesto di non essere contattato")
+    if let.get("detto_no") and not gb:
         no.append("ha detto no")
     if let.get("autorisposta"):
         no.append("autorisposta")
@@ -219,7 +228,7 @@ def perche_no(pr, p):
     if not p:
         no.append("manca la scheda")
         return no
-    if p.get("classificazione") not in CLASSI_OK:
+    if p.get("classificazione") not in CLASSI_OK and not (az.get("intento") == "INT-GB" and p.get("classificazione") == "negativo"):
         no.append(f"e' {p.get('classificazione')}, non positivo o tiepido")
     if not contattabile(p):
         no.append("non e' piu' un lead")
@@ -283,6 +292,11 @@ senza che Dre la legga prima. Dopo di te non c'e' nessuno. Il tuo compito: dire 
 I TESTI APPROVATI DA DRE, parola per parola. Quello che la mail dice con queste frasi (la proposta con
 garanzia, il calendario, il doc di presentazione, «centrata principalmente sulla comunicazione su Google»)
 e' approvato da lui: non e' un impegno inventato e non e' un motivo per fermarla.
+NEL GIGANTE BUONO (la risposta a un no cortese) Dre ha deciso il 30/9 e l'1-2/10: si lascia l'analisi
+gia' pronta, un saluto cordiale, la porta aperta ANCHE su «AI e software su misura, con la finanza
+agevolata come leva» (parole sue: il «senza software» del 29/9 vale per le altre mail, NON per questo
+saluto ai no), e il link del calendario in fondo SENZA proporre una data. Tutto questo e' voluto.
+I numeri di zona (ricerche al mese, recensioni) vengono dal fit misurato dal codice: sono ammessi.
 {_template_approvati()}
 
 A CHI: {azienda} ({p['email']}), classificato {p.get('classificazione')}, intento {az.get('intento')}.
@@ -400,7 +414,9 @@ def main():
             cambiato = "qualcuno di noi le ha gia' scritto dopo la sua ultima mail"
         elif (letti.get("ultima_loro_il"), (letti.get("ultima_loro") or "")[:150]) != (vecchia.get("ultima_loro_il"), (vecchia.get("ultima_loro") or "")[:150]):
             cambiato = "ha riscritto dopo che la bozza era nata"
-        elif letti.get("detto_no") or letti.get("girato_a") or (letti.get("autorisposta") and not SEGUITI):
+        elif (letti.get("detto_no") and (pr.get("azione") or {}).get("intento") != "INT-GB") \
+                or letti.get("non_scrivere") or letti.get("girato_a") or (letti.get("autorisposta") and not SEGUITI):
+            # per il gigante buono il no E' il caso (Dre, 2/10); «non scrivetemi» ferma sempre
             cambiato = "rileggendo il filo adesso, non e' piu' un caso semplice"
         # «Via libera» dal calendario dei follow-up (29/9): Dre ha visto la traccia e sa che e' innocua
         if not cambiato and not az.get("via_libera"):

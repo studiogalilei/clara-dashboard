@@ -308,6 +308,7 @@ def coerenza(f, bozza, gruppo=None):
         prompt = f"""Sei la SECONDA TESTA di Studio Galilei. Un altro sistema ha scritto una mail a un'azienda.
 Il tuo lavoro e' UNO: dire se la bozza e' coerente con quello che l'azienda ci ha scritto per ultimo
 e con quello che noi le abbiamo gia' scritto. Non correggi, non riscrivi: giudichi.
+{"REGOLA DEL GIGANTE BUONO (decisa da Dre, 1-2/10): a chi ha detto no si lascia comunque l'analisi gia' pronta, un saluto cordiale, la porta aperta e il LINK del calendario in fondo, SENZA proporre una data ne' chiedere una call. Questo NON e' ignorare il no: e' la regola voluta. Boccia solo se la bozza propone una data, insiste, o ignora quello che hanno detto." if (gruppo or '').upper().startswith('GIGANTE') or gruppo == 'INT-GB' else ''}
 
 L'ULTIMA MAIL LORO ({f['ultima_loro_il'] or 'data ignota'}):
 {f['ultima_loro'] or '(nessuna)'}
