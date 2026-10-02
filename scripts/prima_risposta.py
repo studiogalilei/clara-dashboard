@@ -72,8 +72,8 @@ FIRMA_SEGUITI = "seguito-automatico (decisione Dre 29/9, strada A)"
 MAX_SEGUITI_AL_GIORNO = 15
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 FIRMA = "prima-risposta-automatica (decisione Dre 29/9)"
-MAX_PER_GIRO = 5
-MAX_AL_GIORNO = 5          # Dre 29/9: 5 al giorno la prima settimana, poi si sale a 15 se va
+MAX_PER_GIRO = 5                 # per giro: la fila resta umana
+MAX_AL_GIORNO = 15               # era 5 la prima settimana; alzato il 2/10 su ordine di Dre («tanti senza risposta»), dopo un 1/10 pulito          # Dre 29/9: 5 al giorno la prima settimana, poi si sale a 15 se va
 ORE = (9, 17)                              # dalle 9 alle 16:59, ora di Roma
 CLASSI_OK = ("positivo", "tiepido")
 # dal playbook: vuole l'analisi, vuole parlare, chi siete, vuole il materiale

@@ -148,22 +148,26 @@ def _cache():
 
 
 _BLOCCO = threading.Lock()
+_CACHE_VIVA = None      # 2/10: rileggere il file a OGNI salvataggio rendeva il giro O(n²)
 
 
 def _salva_cache(d):
-    """Unisce a quello che c'e' su disco e sostituisce il file in un colpo solo (29/9):
-    con piu' letture in parallelo, o due script insieme, nessuno cancella le letture
-    dell'altro e il file non resta mai scritto a meta'."""
+    """Unisce e sostituisce il file in un colpo solo (29/9). Il file si legge UNA volta
+    per processo (2/10: la sonda ha mostrato le bozze ferme a rileggere la cache per
+    ogni lettura del gigante buono); fra processi vince l'ultimo che scrive, e al
+    peggio si riperde qualche voce: la cache e' una comodita', non un dato."""
+    global _CACHE_VIVA
     with _BLOCCO:
         try:
-            tutto = _cache()
-            tutto.update(d)
+            if _CACHE_VIVA is None:
+                _CACHE_VIVA = _cache()
+            _CACHE_VIVA.update(d)
             tmp = f"{CACHE}.{os.getpid()}.{threading.get_ident()}"
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(tutto, f, ensure_ascii=False)
+                json.dump(_CACHE_VIVA, f, ensure_ascii=False)
             os.replace(tmp, CACHE)
         except Exception:
-            pass      # la cache e' una comodita', non un dato: se salta, pazienza
+            pass
 
 
 def _impronta(testo, modello=None):
@@ -260,8 +264,12 @@ def classifica_risposta(testo, modello=None):
               f"LE DOMANDE:\n{domande}\n\nPoi: rinvio_quando (AAAA-MM-GG se dice una data o un mese, altrimenti vuoto), "
               f"girato_a (indirizzi o nomi a cui ci rimanda, altrimenti lista vuota), domanda (la domanda che ci fa, altrimenti vuoto), "
               f"perche (dieci parole).\n\nLA RISPOSTA:\n«{t}»")
+    global _CACHE_VIVA
+    with _BLOCCO:
+        if _CACHE_VIVA is None:
+            _CACHE_VIVA = _cache()
     chiave_cache = _impronta("lettore1|" + t, modello)
-    cache = _cache()
+    cache = _CACHE_VIVA
     if chiave_cache in cache:
         return dict(cache[chiave_cache])
     try:

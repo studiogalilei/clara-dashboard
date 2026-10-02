@@ -831,11 +831,18 @@ def main():
         if p.get("awaiting_us"):
             chiudi_attesa(p, f"ha detto no, niente gigante buono: {motivo}")
 
+    esaminati = 0
     for p in negativi:
         if p["id"] in rifiutate:
             mai_gb(p, "l'hai gia' scartato tu"); continue
         if gb >= QUANTI_GB or p["id"] in aperte or p.get("stage") in INTOCCABILI:
             continue
+        # 2/10, la sonda: ogni candidato costa una lettura Smartlead + una del modello.
+        # Era questo (fino a 200 per giro) a uccidere le bozze a 40 minuti, non il tetto
+        # delle candidate. Quindici esaminati a giro bastano: il resto al prossimo.
+        esaminati += 1
+        if esaminati > 15:
+            print("  [GB] quindici esaminati: il resto al prossimo giro"); break
         mail = (p.get("email") or "").lower()
         if mail in mail_no or mail.split("@")[-1] in dom_no:
             mai_gb(p, "e' nella lista di chi non va contattato"); continue

@@ -70,7 +70,11 @@ def main():
         _corri("manda.py", extra)
         return
     print(f"lampo: {len(care)} risposte fresche" + (" (prova)" if PROVA else ""))
-    for p in care:
+
+    # IN PARALLELO (Dre, 2/10: «se scrivono piu' lead allo stesso tempo, li fa uno alla
+    # volta o insieme? Dobbiamo accorciare»). Ogni lead ha la sua catena in un processo
+    # suo: quattro insieme costano come uno. L'ordine dei pezzi dentro la catena resta.
+    def catena(p):
         nome = (p.get("company") or p.get("name") or p["email"])[:40]
         gf = (p.get("enriched") or {}).get("google_fit") or {}
         print(f"  ─ {nome} (risposta delle {str(p['last_reply_at'])[11:16]})")
@@ -79,6 +83,9 @@ def main():
         if not p.get("analysis_pdf"):
             _corri("analisi_auto.py", ["--email", p["email"]] + extra, minuti=12)
         _corri("bozze.py", ["--email", p["email"]] + extra)
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=LAMPO_MAX) as pool:
+        list(pool.map(catena, care))
     # i cancelli veri: approvazione (con tutti i freni) e postino, una volta per tutti
     _corri("prima_risposta.py", extra)
     _corri("manda.py", extra)
