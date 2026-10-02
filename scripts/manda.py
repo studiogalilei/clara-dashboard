@@ -182,9 +182,33 @@ def main():
     if len(approvate) > MAX_PER_GIRO:
         print(f"  {len(approvate)} approvate: ne mando {MAX_PER_GIRO} questo giro, le altre al prossimo")
         approvate = approvate[:MAX_PER_GIRO]
-    bloccate = sb("GET", "/rest/v1/proposte?select=id,titolo,at&stato=eq.in_invio") or []
+    # 2/10: una bozza «in invio» da piu' di 10 minuti e' un lucchetto appeso (rete caduta
+    # fra il lucchetto e Smartlead). Si guarda il thread vero: se la mail NON e' partita,
+    # torna «approvata» e riparte; se e' partita, si chiude. Niente resta appeso in silenzio.
+    bloccate = sb("GET", "/rest/v1/proposte?select=id,titolo,at,prospect_id,azione&stato=eq.in_invio") or []
     for b in bloccate:
-        print(f"  ferma in invio dal {b['at'][:16]}: {b['titolo'][:60]} (non riparte da sola)")
+        eta = (datetime.datetime.now(ROMA) - datetime.datetime.fromisoformat(b["at"])).total_seconds() / 60 if b.get("at") else 999
+        if eta < 10 or prova:
+            print(f"  in invio dal {b['at'][:16]}: {b['titolo'][:60]} (la lascio, e' appena partita)"); continue
+        pr = (sb("GET", f"/rest/v1/prospects?select=email,campaign_id,lead_id&id=eq.{b['prospect_id']}") or [None])[0] if b.get("prospect_id") else None
+        partita = False
+        if pr:
+            try:
+                cid, lid, _ = thread(pr)
+                h = sl("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
+                corpo = ((b.get("azione") or {}).get("bozza") or "")[:60].strip()
+                partita = any(m.get("type") != "REPLY" and corpo and corpo[:40] in (m.get("email_body") or "") for m in (h.get("history") or []))
+            except Exception:                                 # noqa: BLE001
+                partita = None
+        if partita:
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{b['id']}", {"stato": "fatta", "risposta": "era rimasta in invio: su Smartlead risulta mandata, chiusa"})
+            print(f"  recuperata (gia' partita): {b['titolo'][:50]}")
+        elif partita is False:
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{b['id']}", {"stato": "approvata"})
+            print(f"  recuperata (NON partita, la rimando): {b['titolo'][:50]}")
+        else:
+            print(f"  in invio dal {b['at'][:16]}: {b['titolo'][:50]} (non ho potuto verificare, la lascio)")
+    approvate = sb("GET", "/rest/v1/proposte?select=id,tipo,titolo,prospect_id,azione,at&stato=eq.approvata&tipo=in.(risposta,umano)&order=at") or [] if bloccate else approvate
     mandate = 0
     for pr in approvate:
         az = pr.get("azione") or {}
