@@ -45,6 +45,11 @@ const nomeDaDominio = (d: string) => aTitolo(d.replace(/^www\./i, '').split('.')
 export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
   const [v, setV] = useState<Record<string, string>>({})
   const [capito, setCapito] = useState<string | null>(null)
+  // LA TELEFONATA (Dre, 2/10, caso Mariotti: «mi ha chiamato un'azienda e nel sistema
+  // non c'era modo di metterla»). Chi arriva dal telefono entra con la chiamata
+  // scritta, il fuori binario acceso (Clara non gli scrive da sola) e va dritto
+  // in Conoscitiva: la conversazione ormai e' viva, ed e' di chi ha risposto.
+  const [telefonata, setTelefonata] = useState('')
 
   // quello che si capisce da un pezzo di testo incollato
   function incolla(grezzo: string): boolean {
@@ -79,7 +84,7 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
   // da dove entra: Dre (15/9) «se arriva qualcuno da fuori che vuole i
   // nostri servizi lo aggiungono nella sezione prospect: ci conosce gia',
   // c'e' solo da fare la call tecnica»
-  const [come, setCome] = useState<'parlo' | 'trovata' | 'conosce'>('parlo')
+  const [come, setCome] = useState<'parlo' | 'trovata' | 'conosce' | 'telefono'>('parlo')
   const [salvo, setSalvo] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
 
@@ -103,15 +108,16 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
       // «ci sto parlando» = ha risposto, il prossimo passo è l'analisi;
       // «l'ho solo trovata» resta fuori dalla bacheca finché non risponde;
       // «ci conosce già» entra dritto in Call Tecnica, cioè è un prospect
-      stage: dentro ? 'call_fissata' : come === 'parlo' ? 'risposto' : 'nuovo',
+      stage: dentro ? 'call_fissata' : come === 'trovata' ? 'nuovo' : 'risposto',
       last_reply_at: come === 'trovata' ? null : new Date().toISOString(),
       first_reply_at: come === 'trovata' ? null : new Date().toISOString(),
       awaiting_us: false,
       analysis_sent: dentro,
       analysis_sent_at: dentro ? new Date().toISOString() : null,
-      fuori: dentro,
-      fuori_at: dentro ? new Date().toISOString() : null,
-      pipeline_stage: dentro ? 'tecnica' : null,
+      fuori: dentro || come === 'telefono',
+      fuori_at: dentro || come === 'telefono' ? new Date().toISOString() : null,
+      pipeline_stage: dentro ? 'tecnica' : come === 'telefono' ? 'conoscitiva' : null,
+      ...(come === 'telefono' ? { fuori_binario: 'si' } : {}),
     }
     const { data, error } = await supabase.from('prospects').insert(riga).select('id').single()
     setSalvo(false)
@@ -120,6 +126,12 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
         ? 'Non hai il permesso di aggiungere aziende: chiedilo a Dre.'
         : `Non si è salvata: ${error?.message ?? 'riprova'}`)
       return
+    }
+    if (come === 'telefono') {
+      await supabase.from('interactions').insert({
+        prospect_id: (data as { id: string }).id, at: new Date().toISOString(), kind: 'call',
+        body: `Telefonata (aggiunta da ${nome}): ${telefonata.trim() || 'dettagli da aggiungere'}`,
+      })
     }
     await supabase.from('interactions').insert({
       prospect_id: (data as { id: string }).id, at: new Date().toISOString(), kind: 'nota',
@@ -160,13 +172,22 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
         ))}
       </div>
 
+      {come === 'telefono' && (
+        <label className="block">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-navy/70">Cosa vi siete detti</span>
+          <textarea value={telefonata} onChange={(e) => setTelefonata(e.target.value)} rows={2}
+                    placeholder="Chi ha chiamato chi, cosa vogliono, cosa hai promesso"
+                    className="mt-0.5 w-full resize-y rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
+        </label>
+      )}
+
       {capito && (
         <p className="-mt-1 text-[11px] text-spento">Ho riempito quello che ho capito {capito}, correggi pure</p>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-full border border-bordo text-xs font-semibold">
-          {([['parlo', 'Ci sto già parlando'], ['trovata', 'L\'ho solo trovata'], ['conosce', 'Ci conosce già']] as const).map(([val, testo]) => (
+          {([['parlo', 'Ci sto già parlando'], ['trovata', 'L\'ho solo trovata'], ['conosce', 'Ci conosce già'], ['telefono', '📞 Sentiti al telefono']] as const).map(([val, testo]) => (
             <button key={val} onClick={() => setCome(val)}
                     className={`px-3.5 py-1.5 ${come === val ? 'bg-blu text-white' : 'bg-white text-tenue hover:bg-velo'}`}>
               {testo}
@@ -175,6 +196,9 @@ export default function NuovaAzienda({ nome, onFatto, onChiudi }: Props) {
         </div>
         {come === 'conosce' && (
           <span className="text-xs text-spento">Entra in Call Tecnica, da lì è un prospect</span>
+        )}
+        {come === 'telefono' && (
+          <span className="text-xs text-spento">Entra in Conoscitiva, Clara non gli scrive da sola</span>
         )}
         <span className="text-xs text-spento">La segui tu, {nome.split(' ')[0] || 'tu'}</span>
         <button onClick={() => void salva()} disabled={salvo}
