@@ -76,7 +76,7 @@ interface Proposta {
 interface Messaggio {
   id: number
   at: string
-  tipo: 'brief' | 'saluto' | 'promemoria' | 'domanda' | 'controllo' | 'anomalia' | 'dre' | 'clara'
+  tipo: 'brief' | 'saluto' | 'promemoria' | 'domanda' | 'controllo' | 'anomalia' | 'dre' | 'clara' | 'battito'
   testo: string
   prospect_id: string | null
   letto: boolean
@@ -88,6 +88,7 @@ const CHIP: Record<string, [string, string]> = {
   domanda: ['Domanda', 'bg-red-700 text-white'],
   controllo: ['Fatto', 'bg-green-700 text-white'],
   anomalia: ['Anomalia', 'bg-red-600 text-white'],
+  battito: ['Outbound', 'bg-blu text-white'],
 }
 
 // le testate della Posta: un tipo, un gruppo

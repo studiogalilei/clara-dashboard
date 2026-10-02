@@ -223,6 +223,10 @@ export const clara_messaggi = [
     testo: 'Buongiorno Dre. Giornata leggera: una call domani, oggi si chiude la coda.',
   },
   {
+    id: 90, at: oreFa(1.5), tipo: 'battito', letto: false, prospect_id: null,
+    testo: 'Outbound, 02/10 16:22.\nOggi 6 consegne partite.\nIn attesa adesso: 16. 4 in corsia automatica, 8 da te, 5 no (gigante buono), 2 fuori ufficio.\nLa promessa dei tempi tiene: niente oltre l\'ora.\nTutti quelli che aspettano hanno la loro risposta in lavorazione.',
+  },
+  {
     id: 1, at: oreFa(6.1), tipo: 'brief', letto: true, prospect_id: null,
     testo: 'Buongiorno Dre. Il punto di oggi:\n15:00: Conoscitiva, Venice Design Week (domani, ti preparo il foglio)\nIn coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io, il resto sta in Oggi.',
   },
