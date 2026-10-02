@@ -24,8 +24,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           soglia=$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow direttore.yml --status in_progress \
-            --json databaseId,createdAt -q ".[] | select(.createdAt < \"$soglia\") | .databaseId" |
+          # anche i PENDING vecchi: un lucchetto fantasma li lascia li' per sempre (2/10)
+          for stato in in_progress queued pending; do
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow direttore.yml --status "$stato" \
+            --json databaseId,createdAt -q ".[] | select(.createdAt < \"$soglia\") | .databaseId"
+          done |
           while read -r id; do
             echo "corsa $id del direttore ferma da 20+ minuti: la cancello, la prossima riparte"
             gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true

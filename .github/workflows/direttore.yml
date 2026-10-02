@@ -23,7 +23,10 @@ on:
         default: ""
 
 concurrency:
-  group: direttore           # mai due direttori insieme: il sync non va doppiato
+  # 2/10: il gruppo «direttore» e' rimasto chiuso dal fantasma di una corsa cancellata
+  # (ogni nuova nasceva pending e moriva cancellata: 2 ore di filiera ferma). Nome nuovo
+  # per liberare il lucchetto; mai due direttori insieme resta vero.
+  group: direttore-v2
   cancel-in-progress: false
 
 jobs:
