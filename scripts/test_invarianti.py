@@ -152,8 +152,9 @@ def _():
     # 4. autorisposta: non e' una persona (salvo il gruppo dopo le ferie)
     assert L.regola_dura(None, {**base, "autorisposta": True}, "positivo")[0] == "fermati"
     assert L.regola_dura("RICONTATTO OOO", {**base, "autorisposta": True}, "ooo") is None
-    # senza l'ultima mail loro non si scrive niente
-    assert L.regola_dura(None, {**base, "ultima_loro": ""})[0] == "salta"
+    # senza l'ultima mail loro non si scrive alla cieca, ma non si salta in silenzio ogni
+    # giro: va UNA volta davanti a Dre (4/10, Salvatore: risposta con la sola firma)
+    assert L.regola_dura(None, {**base, "ultima_loro": ""})[0] == "fermati"
     # i fatti si leggono dal testo vero
     assert L.DETTO_NO.search("la ringrazio ma non è di nostro interesse")
     assert L.AUTORISPOSTA.search("CONFERMIAMO L'AVVENUTA RICEZIONE. PROVVEDEREMO AD EVADERLA")

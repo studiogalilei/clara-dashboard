@@ -278,7 +278,10 @@ def regola_dura(gruppo, f, classificazione=None):
     """Torna ('salta', motivo) se la bozza non va scritta, ('fermati', motivo) se va scritta
     ma la deve guardare Dre, None se si procede. Sono i quattro errori del 25/9, in codice."""
     if not f["ultima_loro"]:
-        return ("salta", "non ho l'ultima mail loro: senza lettura non si scrive")
+        # 4/10, Salvatore: ha risposto con la sola firma, niente testo leggibile (anche su
+        # Smartlead). Non si scrive alla cieca, ma non si resta appesi in silenzio ogni giro:
+        # va messo UNA volta davanti a Dre, che apre il thread e decide.
+        return ("fermati", "ha risposto senza testo leggibile (solo firma): guarda tu il thread e dimmi")
     if gruppo == "RIPRESA":
         if f["scritto_dopo_di_lei"]:
             return ("salta", f"gli abbiamo già scritto {f['scritto_dopo_di_lei']} volte dopo la sua mail: «la mail non era partita» sarebbe una bugia")
