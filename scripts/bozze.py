@@ -817,19 +817,25 @@ def main():
     # ── il gigante buono: i negativi cortesi, una volta sola ────────
     negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
                          "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup,awaiting_us"
-                         "&order=last_reply_at.desc&limit=200") or []
+                         "&order=last_reply_at.asc&limit=200") or []
     soppresse = sb_tutte("/rest/v1/suppressions?select=email,domain&limit=5000") or []
     mail_no = {(x.get("email") or "").lower() for x in soppresse}
     dom_no = {(x.get("domain") or "").lower() for x in soppresse if x.get("domain")}
     gb = 0
     # a chi Dre ha gia' detto no, non si riscrive: la proposta rifiutata vale
     # come risposta (prima tornava ogni giro, QA del 14/9)
-    rifiutate = {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
-                 if x.get("prospect_id")}
+    rifiutate = {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id,risposta&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
+                 if x.get("prospect_id") and not (x.get("risposta") or "").startswith("rigenerata")}
     def mai_gb(p, motivo):
-        """Il gigante buono non arrivera' mai: se aspettava, l'attesa si chiude (29/9)."""
+        """Il gigante buono non arrivera' mai: se aspettava, l'attesa si chiude (29/9).
+        E il motivo si scrive sul prospect (5/10): senza il marchio, lo stesso caso
+        veniva riesaminato ogni giro e consumava i 15 posti, e i vecchi in coda
+        (spaziocasa, 143 ore) non arrivavano mai al loro turno."""
         if p.get("awaiting_us"):
             chiudi_attesa(p, f"ha detto no, niente gigante buono: {motivo}")
+        enr = dict(p.get("enriched") or {})
+        enr["gb_escluso"] = motivo
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": enr}, {"Prefer": "return=minimal"})
 
     esaminati = 0
     for p in negativi:
@@ -837,6 +843,8 @@ def main():
             mai_gb(p, "l'hai gia' scartato tu"); continue
         if gb >= QUANTI_GB or p["id"] in aperte or p.get("stage") in INTOCCABILI:
             continue
+        if (p.get("enriched") or {}).get("gb_escluso"):
+            continue                                          # gia' giudicato: non consuma un posto
         # 2/10, la sonda: ogni candidato costa una lettura Smartlead + una del modello.
         # Era questo (fino a 200 per giro) a uccidere le bozze a 40 minuti, non il tetto
         # delle candidate. Quindici esaminati a giro bastano: il resto al prossimo.
