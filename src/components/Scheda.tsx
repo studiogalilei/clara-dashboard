@@ -767,7 +767,9 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
           ‹ Torna
         </button>
         {/* LE BRICIOLE (26/9): da dove vengo e dove sono, cliccabili */}
-        <nav aria-label="Dove sei" className="flex min-w-0 flex-1 items-center gap-1 truncate text-sm">
+        {/* gold (6/10): sul telefono le briciole uscivano tagliate («Pipeline / (»): li' basta Torna */}
+        <span className="flex-1 sm:hidden" />
+        <nav aria-label="Dove sei" className="hidden min-w-0 flex-1 items-center gap-1 truncate text-sm sm:flex">
           <button onClick={chiudi} className="shrink-0 text-tenue hover:text-navy hover:underline">{eCliente(p) ? 'Clienti' : 'Pipeline'}</button>
           <span className="text-spento">/</span>
           {p.fuori && !eCliente(p) && !ePerso(p) && p.pipeline_stage && (<>
@@ -1281,7 +1283,8 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
               </div>
             </div>
           )}
-          <CosaManca p={p} aggiorna={aggiorna} />
+          {/* gold: sul telefono «Cosa manca» non sta sopra la bozza: e' lavoro da computer */}
+          <div className="hidden sm:block"><CosaManca p={p} aggiorna={aggiorna} /></div>
         </Card>
 
         {/* LE TAB DELLA SCHEDA (26/9) */}
