@@ -11,6 +11,7 @@ import Aziende from './components/Aziende'
 import ClaraVolante from './components/ClaraVolante'
 import SeguitiInArrivo from './components/SeguitiInArrivo'
 import ClaraLogo from './components/ClaraLogo'
+import Aiuto from './components/Aiuto'
 import Vault from './components/Vault'
 import Plugin from './components/Plugin'
 import Feedback from './components/Feedback'
@@ -643,6 +644,10 @@ export default function App() {
                 {tab === 'pipeline' && <span className="text-navy"><ClaraLogo size={26} /></span>}
                 {tab === 'vault' && <Icona icona="" immagine="sg-intreccio.svg" className="h-8 w-8 shrink-0 text-navy" />}
                 {tab === 'pipeline' ? saluto(utente)[0] : titolo}
+                {/* il come-si-usa della schermata (Dre 5/10: «tutorial su TUTTE le funzioni») */}
+                {(tab === 'oggi' && <Aiuto di="oggi" />) || (tab === 'preventivi' && <Aiuto di="preventivi" />)
+                  || (tab === 'calendario' && <Aiuto di="calendario" />) || (tab === 'analytics' && <Aiuto di="numeri" />)
+                  || (tab === 'metro' && <Aiuto di="metro" />) || ((tab === 'tutti' || tab === 'aziende' || tab === 'prospect') && <Aiuto di="aziende" />)}
               </h1>
               {tab === 'pipeline' && (salutoClara ? (
                 <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">
