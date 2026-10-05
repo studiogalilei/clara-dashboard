@@ -80,7 +80,7 @@ export default function Adesso() {
   useEffect(() => {
     if (!ceo) return
     let vivo = true
-    const oggi = new Date().toISOString().slice(0, 10)
+    const oggi = new Date().toLocaleDateString('sv-SE')     // il giorno di qui, come il battito
     void Promise.all([
       supabase.from('prospects').select('id')
         .eq('fuori', false).eq('analysis_sent', false).in('classificazione', ['positivo', 'tiepido'])
