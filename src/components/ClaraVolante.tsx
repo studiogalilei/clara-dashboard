@@ -1009,7 +1009,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   async function confermaCall() {
     if (!pTitolo.trim() || !pQuando) return
     const url = linkCalendar(pTitolo.trim(), pQuando, pInvitati)
-    await supabase.from('agenda').insert({
+    // 5/10: la finestra si apre SUBITO, dentro il click: dopo un await il browser la blocca come popup
+    window.open(url, '_blank')
+    const { error } = await supabase.from('agenda').insert({
       at: new Date(pQuando).toISOString(),
       titolo: pTitolo.trim(),
       tipo: comando,
@@ -1017,10 +1019,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       fonte: 'clara',
     }).select().single()
     await scriviMessaggio('controllo',
-      `Preparata: ${pTitolo.trim()}, ${fmtDateShort(pQuando)} ${fmtOra(pQuando)}` +
-      `${pInvitati ? `, con ${pInvitati}` : ''}; confermala su Calendar`,
+      error ? `Calendar aperto, ma la call non è entrata nell'agenda del Workspace: ${error.message}`
+        : `Preparata: ${pTitolo.trim()}, ${fmtDateShort(pQuando)} ${fmtOra(pQuando)}` +
+          `${pInvitati ? `, con ${pInvitati}` : ''}; confermala su Calendar`,
       pProspect || null)
-    window.open(url, '_blank')
     setComando(null)
   }
 

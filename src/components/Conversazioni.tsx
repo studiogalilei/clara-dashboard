@@ -125,10 +125,12 @@ export default function Conversazioni({ proposte, rispondi, occupato }: {
     const p = { ...aperta.proposta, azione: { ...aperta.proposta.azione, bozza: aperta.proposta.azione?.bozza !== undefined ? testo : undefined } }
     // prima lo schermo, poi il database (regola 17): la riga scende subito
     const era = aperta
+    const primaRighe = righe
     setAperta(null)
     setRighe((l) => (l ?? []).map((r) => r.id === era.id ? { ...r, daTe: false, proposta: null, perche: si ? 'approvata, parte da Smartlead' : 'lasciata andare' } : r))
     const ok = await rispondi(p as PropostaMin, si)
-    if (!ok) setAperta(era)
+    // 5/10: se non riesce torna tutto com'era, anche la riga (restava fra «in corsa» come partita)
+    if (!ok) { setRighe(primaRighe); setAperta(era) }
   }
 
   if (righe === null) return <div className="flex justify-center py-10"><Spinner /></div>
