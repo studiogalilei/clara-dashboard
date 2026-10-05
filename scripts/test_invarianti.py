@@ -946,6 +946,20 @@ def _():
     assert t and B.cancello(t) == [], f"il template verbatim di Dre non passa il suo stesso ritmo: {t and B.cancello(t)}"
 
 
+@prova("i si' hanno la precedenza: il gigante buono non parte se restano si', e ha finestra larga")
+def _():
+    import prima_risposta as PR
+    import datetime
+    # 5/10, Dre: «i si' subito, i no solo se non ci sono si' non ancora inviati; e i no
+    # possono partire anche fuori orario, basta non dopo le 21:30»
+    lun = datetime.datetime(2026, 10, 6, tzinfo=PR.ROMA)
+    sab = datetime.datetime(2026, 10, 10, tzinfo=PR.ROMA)
+    assert PR.finestra(lun.replace(hour=10)) and not PR.finestra(lun.replace(hour=20)), "la finestra dei si' non e' piu' 9-17"
+    assert not PR.finestra(sab.replace(hour=10)), "i si' partono di sabato"
+    assert PR.finestra(lun.replace(hour=20), "INT-GB") and PR.finestra(sab.replace(hour=10), "INT-GB"), "i no non hanno la finestra larga"
+    assert not PR.finestra(lun.replace(hour=22), "INT-GB"), "un no parte dopo le 21:30"
+
+
 @prova("a chi dice no, mai una data: porta aperta e' consegnare, non riproporre")
 def _():
     import bozze as B

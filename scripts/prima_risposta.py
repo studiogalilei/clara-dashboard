@@ -92,9 +92,14 @@ CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,f
          "analysis_sent,analysis_pdf,campaign,campaign_id,lead_id,last_reply_at")
 
 
-def finestra(ora):
-    """Lun-ven, dalle 9 alle 17 a Roma. Una mail automatica alle 23 non sembra una persona."""
+def finestra(ora, intento=None):
+    """Quando puo' partire una risposta automatica, ora di Roma.
+    I SI' (interessati): lun-ven 9-17, cosi' sembrano una persona al lavoro.
+    I NO gentili (INT-GB): e' cortesia senza fretta, puo' partire anche fuori orario e
+    nel weekend, basta non troppo tardi la sera (fino alle 21:30, Dre 5/10)."""
     ora = ora.astimezone(ROMA)
+    if intento == "INT-GB":
+        return 7 <= ora.hour < 21 or (ora.hour == 21 and ora.minute <= 30)
     return ora.weekday() < 5 and ORE[0] <= ora.hour < ORE[1]
 
 
@@ -352,8 +357,10 @@ def main():
         if not PROVA:
             print("prima_risposta: 0 approvate")
             return
-    if not finestra(adesso):
-        print(f"  fuori finestra (lun-ven {ORE[0]}-{ORE[1]} a Roma, adesso {adesso.astimezone(ROMA):%a %H:%M})"
+    # fuori da OGNI finestra (anche quella larga dei no gentili): non si parte.
+    # Dentro il loop, i si' rispettano 9-17 lun-ven, i no la finestra larga.
+    if not finestra(adesso) and not finestra(adesso, "INT-GB"):
+        print(f"  fuori da ogni finestra (adesso {adesso.astimezone(ROMA):%a %H:%M})"
               + (": in prova guardo lo stesso" if PROVA else ""))
         if not PROVA:
             print("prima_risposta: 0 approvate")
@@ -391,11 +398,21 @@ def main():
     mai_mandato = not sb("GET", "/rest/v1/proposte?select=id&risposta=like.Mandata%20da%20Clara*&limit=1")
     in_attesa_del_via = bool(sb("GET", "/rest/v1/proposte?select=id&stato=in.(aperta,approvata,in_invio)"
                                        "&azione->prima_risposta->>esito=eq.primo%20invio%20da%20guardare&limit=1"))
+    # LA PRIORITA' (Dre, 5/10): prima i si' (gli interessati), i no gentili (INT-GB)
+    # solo DOPO, e solo se in questo giro non e' rimasto un si' da mandare: la cortesia
+    # non deve mai rallentare chi e' interessato. Ordine: prima le non-GB, poi le GB.
+    aperte = sorted(aperte, key=lambda x: (x.get("azione") or {}).get("intento") == "INT-GB")
+    si_in_attesa = any((x.get("azione") or {}).get("intento") != "INT-GB" for x in aperte)
     approvate, restano = 0, 0
     for pr in aperte:
         p = schede.get(pr["prospect_id"])
         nome = ((p or {}).get("company") or (p or {}).get("name") or (p or {}).get("email") or pr["titolo"])[:34]
+        gb = (pr.get("azione") or {}).get("intento") == "INT-GB"
+        if not PROVA and not finestra(adesso, "INT-GB" if gb else None):
+            print(f"  -  {nome:34} fuori dalla sua finestra oraria, al prossimo giro"); continue
         no = perche_no_seguito(pr, p) if SEGUITI else perche_no(pr, p)
+        if gb and si_in_attesa and not SEGUITI:
+            print(f"  -  {nome:34} e' una cortesia (no): aspetta che i si' siano partiti"); continue
         if p and p["id"] in gia_auto:
             no.append("ha gia' avuto una risposta automatica")
         if OMBRA and (pr.get("azione") or {}).get("ombra"):
