@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       // le notifiche le riceve public/push.js, importato dentro il service worker
-      workbox: { importScripts: ['push.js'], globIgnores: ['**/brand/**', '**/documento-*.js', '**/CompilaPdf-*.js', '**/pdf.worker*'] },   // i pezzi pesanti si scaricano quando servono, non all'installazione
+      workbox: { importScripts: ['push.js'], globIgnores: ['**/brand/**', '**/lab/**', '**/documento-*.js', '**/CompilaPdf-*.js', '**/pdf.worker*'], navigateFallbackDenylist: [/\/lab\//] },   // i pezzi pesanti si scaricano quando servono, non all'installazione
       manifest: {
         start_url: './',
         scope: './',
