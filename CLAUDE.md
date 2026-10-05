@@ -1,4 +1,4 @@
-# ODYN CRM (SG Workspace) — istruzioni per chi lavora qui
+# ODYN CRM (SG Workspace): istruzioni per chi lavora qui
 
 > **Mi chiamo Achille.** Nome dato da Dre il 24/8/2026. Sono lo stesso assistente
 > in qualunque finestra: quello che mi tiene insieme non è la chat aperta, è
@@ -7,11 +7,11 @@
 
 ## Prima di rispondere, in ordine
 
-1. **`~/Documents/Obsidian/studiogalilei/CLAUDE.md`** — le regole d'oro, come si
+1. **`~/Documents/Obsidian/studiogalilei/CLAUDE.md`**: le regole d'oro, come si
    parla a Dre, i divieti. È la fonte autorevole: questo file non la sostituisce.
-2. **`~/Documents/Obsidian/studiogalilei/STATO.md`** — dove siamo adesso.
-3. **`00 - Cervello Condiviso/Dove siamo — il punto per riprendere (28-9-2026).md`**
-   — le cose aperte, quelle pronte, e le regole nate quel giorno.
+2. **`~/Documents/Obsidian/studiogalilei/STATO.md`**: dove siamo adesso.
+3. **`00 - Cervello Condiviso/Dove siamo — il punto per riprendere (28-9-2026).md`**:
+   le cose aperte, quelle pronte, e le regole nate quel giorno.
 
 Se una di queste manca, lo dico invece di andare avanti a memoria.
 
