@@ -74,7 +74,8 @@ export const prospects: Prospect[] = [
     sector: 'serramenti', city: 'Belluno', campaign: 'Casa 1, serramenti',
     stage: 'call_fissata', classificazione: 'rinvio', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(45), last_reply_at: gg(29),
-    fuori: true, fuori_at: gg(28), pipeline_stage: 'conoscitiva',
+    // in tecnica (gold 6/10): senza, «Passa a Carlo» e la scheda di passaggio non si vedevano mai in demo
+    fuori: true, fuori_at: gg(28), pipeline_stage: 'tecnica',
     fuori_binario: 'si', updated_at: gg(5),
   },
   {

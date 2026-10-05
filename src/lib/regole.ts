@@ -221,6 +221,8 @@ export interface NuovaTask {
   // se la mandi a qualcun altro nasce «proposta»: entra nella sua lista solo
   // quando lui la accetta (Dre, 3/9)
   perChi?: string | null
+  // il testo lungo che viaggia con la task (gold 6/10: la scheda di passaggio a Carlo)
+  dettagli?: string | null
   // chi ha la lista sott'occhio sa gia' dove va in cima e non la richiede
   ordine?: number
 }
@@ -244,6 +246,7 @@ export async function creaTask(t: NuovaTask): Promise<{ task: TaskRiga | null; p
   const altrui = Boolean(t.perChi && t.perChi !== io)
   const { data, error } = await supabase.from('task').insert({
     titolo,
+    dettagli: t.dettagli || null,
     scadenza: t.scadenza || null,
     prospect_id: t.prospect_id || null,
     fatta: false,

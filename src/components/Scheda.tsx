@@ -418,17 +418,46 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // IL PASSAGGIO AL DIPARTIMENTO (Dre, 5/10): dopo la tecnica il lead e' di Carlo.
   // Un click: avanza ad Avvio, l'owner diventa Carlo, e a Carlo arriva la task
   // (le task proposte arrivano sul suo telefono con l'operazione avvisi).
-  async function passaACarlo() {
+  // LA SCHEDA DI PASSAGGIO (gold, 6/10, dalla ricerca: «chi consegna ricostruisce sempre cosa e'
+  // stato promesso»). «Passa a Carlo» apre cinque campi gia' riempiti con quello che il sistema sa;
+  // Dre corregge e manda. Il testo viaggia nella task di Carlo, che lo legge prima di accettare.
+  type Passaggio = { promesso: string; perche: string; decide: string; non: string; accessi: string }
+  const [passaggio, setPassaggio] = useState<Passaggio | null>(null)
+  function apriPassaggio() {
+    if (!p) return
+    setPassaggio({
+      promesso: '',
+      perche: '',
+      decide: p.name ?? '',
+      non: '',
+      accessi: 'Google Ads (dal nostro MCC), GA4, Tag Manager, Scheda Google, sito: da chiedere',
+    })
+  }
+  function testoPassaggio(x: Passaggio): string {
+    const righe = [
+      `Cosa abbiamo promesso: ${x.promesso.trim()}`,
+      x.perche.trim() && `Perché conta per lui: ${x.perche.trim()}`,
+      x.decide.trim() && `Chi decide: ${x.decide.trim()}`,
+      x.non.trim() && `Cosa NON abbiamo promesso: ${x.non.trim()}`,
+      x.accessi.trim() && `Accessi: ${x.accessi.trim()}`,
+      detto.length > 0 && `Cosa ci ha già detto:\n${detto.map((d) => `«${d.testo.slice(0, 200)}» (mail del ${fmtDateShort(d.at)})`).join('\n')}`,
+    ]
+    return righe.filter(Boolean).join('\n')
+  }
+
+  async function passaACarlo(dettagli?: string) {
     if (!p) return
     // il primo «Carlo» per nome (5/10: con maybeSingle due omonimi davano errore e l'owner diventava vuoto)
     const { data: carli } = await supabase.from('profili').select('id,nome').ilike('nome', 'carlo%').order('nome').limit(1)
     const idCarlo = ((carli ?? []) as Array<{ id: string }>)[0]?.id
     if (!idCarlo) { setErrore('Non trovo Carlo fra i profili della squadra: il passaggio non è partito.'); return }
     if (!(await aggiorna({ pipeline_stage: 'avvio', owner: idCarlo, next_action: null, next_action_date: null } as Partial<Prospect>))) return
-    await segna('nota', 'Tecnica fatta: il lead passa al dipartimento, responsabile Carlo.')
+    await segna('nota', `Tecnica fatta: il lead passa al dipartimento, responsabile Carlo.${dettagli ? `\n\nLa scheda di passaggio:\n${dettagli}` : ''}`)
     if (idCarlo) {
-      await creaTask({ titolo: `Prendi in carico ${p.company || p.name || p.email}: la tecnica è fatta, si parte`, prospect_id: p.id, perChi: idCarlo })
+      const { problema } = await creaTask({ titolo: `Prendi in carico ${p.company || p.name || p.email}: la tecnica è fatta, si parte`, prospect_id: p.id, perChi: idCarlo, dettagli: dettagli ?? null })
+      if (problema) { setErrore('Passato a Carlo, ma la sua task non è partita: ' + problema); return }
     }
+    setPassaggio(null)
   }
 
   // segna come perso: il motivo è obbligatorio e resta nella storia
@@ -1214,7 +1243,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                 dipartimento: la responsabilita' va a Carlo, con la sua notifica. */}
             {p.fuori && p.pipeline_stage === 'tecnica' && !soppresso && (
               <button
-                onClick={() => void passaACarlo()}
+                onClick={apriPassaggio}
                 title="La tecnica e' fatta: il lead passa al dipartimento"
                 className="shrink-0 rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
               >
@@ -1225,6 +1254,32 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
               <span className="shrink-0 rounded-full bg-velo px-3 py-1.5 text-[11px] font-bold text-navy">Dal dipartimento, con Carlo</span>
             )}
           </div>
+          )}
+          {passaggio && (
+            <div className="salta-su mt-3 rounded-xl border border-bordo bg-velo/40 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-navy">La scheda di passaggio a Carlo</p>
+              <p className="mt-0.5 text-[12px] text-tenue">La legge prima di accettare. Le sue parole ci vanno da sole.</p>
+              {([
+                ['promesso', 'Cosa abbiamo promesso', 'Numeri e tempi detti in call: budget, fee, risultati attesi e quando'],
+                ['perche', 'Perché conta per lui', 'Cosa gli cambia se funziona'],
+                ['decide', 'Chi decide', 'Nome e ruolo di chi firma e di chi segue'],
+                ['non', 'Cosa NON abbiamo promesso', 'Quello che Carlo non deve dare per scontato'],
+                ['accessi', 'Accessi', ''],
+              ] as Array<[keyof Passaggio, string, string]>).map(([k, nome, aiuto]) => (
+                <label key={k} className="mt-2.5 block">
+                  <span className="text-[12px] font-semibold text-inchiostro">{nome}{k === 'promesso' && <span className="text-red-600"> *</span>}</span>
+                  <textarea rows={k === 'promesso' ? 3 : 2} value={passaggio[k]} placeholder={aiuto} autoFocus={k === 'promesso'}
+                            onChange={(e) => setPassaggio({ ...passaggio, [k]: e.target.value })}
+                            className="mt-1 w-full resize-y rounded-lg border border-bordo bg-white px-3 py-2 text-[13px] outline-none focus:border-blu" />
+                </label>
+              ))}
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                {!passaggio.promesso.trim() && <span className="mr-auto text-[12px] text-tenue">Scrivi cosa abbiamo promesso: è la cosa che si perde di più.</span>}
+                <button onClick={() => setPassaggio(null)} className="min-h-[40px] rounded-full border border-bordo bg-white px-4 py-1.5 text-xs font-semibold text-tenue">Annulla</button>
+                <button onClick={() => void passaACarlo(testoPassaggio(passaggio))} disabled={!passaggio.promesso.trim()}
+                        className="min-h-[40px] rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Passa a Carlo</button>
+              </div>
+            </div>
           )}
           <CosaManca p={p} aggiorna={aggiorna} />
         </Card>

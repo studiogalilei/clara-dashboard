@@ -744,6 +744,12 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         {proposte.map((t) => (
           <div key={t.id} className="border-b border-velo px-3 py-2.5 last:border-0">
             <p className="text-sm font-semibold">{t.titolo}</p>
+            {t.dettagli && (
+              <details className="mt-1 text-[12px]">
+                <summary className="cursor-pointer font-semibold text-blu">Leggi prima di accettare</summary>
+                <p className="mt-1 whitespace-pre-wrap leading-snug text-inchiostro">{t.dettagli}</p>
+              </details>
+            )}
             <p className="text-[11px] text-tenue">
               da <button onClick={() => apriPersona(t.da)} className="font-semibold text-navy hover:underline">{nomeDi(t.da)}</button>
               {t.scadenza ? `, per il ${fmtDateShort(t.scadenza)}` : ''}
