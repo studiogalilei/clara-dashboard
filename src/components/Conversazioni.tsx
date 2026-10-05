@@ -45,6 +45,18 @@ interface Battuta {
 const MORTI = ['fuori_target', 'soppresso', 'nervoso']
 const AUTO = ['INT-01', 'INT-02', 'INT-03', 'INT-23', 'INT-GB']
 
+// «oggi alle 15:00», «domani alle 9:30», «giovedì alle 15:00»: come lo dice una persona
+function quandoCall(at: string): string {
+  const d = new Date(at)
+  const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+  const g = (x: Date) => x.toISOString().slice(0, 10)
+  const oggi = new Date()
+  const domani = new Date(Date.now() + 86400e3)
+  if (g(d) === g(oggi)) return `oggi alle ${ora}`
+  if (g(d) === g(domani)) return `domani alle ${ora}`
+  return `${d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} alle ${ora}`
+}
+
 function eta(ore: number): string {
   if (ore < 1) return 'da meno di un ora'
   if (ore < 48) return `da ${Math.round(ore)} ore`
@@ -69,11 +81,12 @@ function perRiga(p: { classificazione: string | null }, pr: PropostaMin | null):
 // appena arrivata, quindi non stanno fra chi aspetta. Prima non comparivano proprio (5/10).
 const SEGUITI = ['FOLLOW UP 1', 'MINI FOLLOW UP', 'RINVIO SCADUTO', 'RICONTATTO OOO', 'RIPRESA', 'FOLLOW UP SU MISURA']
 
-export default function Conversazioni({ proposte, rispondi, occupato, invioAcceso = true }: {
+export default function Conversazioni({ proposte, rispondi, occupato, invioAcceso = true, onOpen }: {
   proposte: PropostaMin[]
   rispondi: (p: PropostaMin, si: boolean, muto?: boolean) => Promise<boolean>
   occupato: number | null
   invioAcceso?: boolean
+  onOpen?: (id: string) => void
 }) {
   const [righe, setRighe] = useState<Riga[] | null>(null)
   const [aperta, setAperta] = useState<Riga | null>(null)
@@ -190,6 +203,19 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     const r = [...righe, ...seguiti].find((x) => x.proposta?.id === voglio)
     if (r) { setAperta(r); setVoglio(null) }
   }, [voglio, righe, seguiti])
+
+  // POSTA FINITA (gold, 6/10, dalla V1): a fila vuota la Posta non resta una lista vuota,
+  // dice cosa viene dopo: la prossima call, con «Prepara» che apre la scheda per la call
+  const [prossimaCall, setProssimaCall] = useState<{ at: string; tipo: string | null; titolo: string | null; prospect_id: string | null } | null>(null)
+  const vuota = righe !== null && !(righe ?? []).some((r) => r.daTe) && seguiti.length === 0
+  useEffect(() => {
+    if (!vuota) return
+    let vivo = true
+    supabase.from('agenda').select('at,tipo,titolo,prospect_id').gte('at', new Date().toISOString())
+      .not('prospect_id', 'is', null).order('at', { ascending: true }).limit(1)
+      .then(({ data }) => { if (vivo) setProssimaCall(((data ?? []) as Array<{ at: string; tipo: string | null; titolo: string | null; prospect_id: string | null }>)[0] ?? null) })
+    return () => { vivo = false }
+  }, [vuota])
 
   const daTe = useMemo(() => (righe ?? []).filter((r) => r.daTe), [righe])
   const inCorsa = useMemo(() => (righe ?? []).filter((r) => !r.daTe), [righe])
@@ -329,7 +355,22 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
           <p className="mt-1">Apri una conversazione, leggi il filo, e decidi lì: Approva e manda, oppure Lascia stare. Il resto corre da solo e lo conta il battito.</p>
         </div>
       )}
-      {daTe.length === 0 && <p className="px-5 py-3 text-sm text-tenue">Nessuna conversazione aspetta te.</p>}
+      {vuota ? (
+        <div className="mx-4 my-2 rounded-2xl border border-bordo bg-white px-4 py-3.5">
+          <p className="text-[15px] font-extrabold text-navy">Posta finita</p>
+          {prossimaCall ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="min-w-0 flex-1 text-[13px] text-inchiostro">
+                Poi: <span className="font-semibold">{prossimaCall.titolo || prossimaCall.tipo || 'una call'}</span>, {quandoCall(prossimaCall.at)}
+              </p>
+              {onOpen && prossimaCall.prospect_id && (
+                <button onClick={() => onOpen(prossimaCall.prospect_id as string)}
+                        className="min-h-[40px] rounded-full bg-blu px-4 py-1.5 text-[13px] font-bold text-white">Prepara</button>
+              )}
+            </div>
+          ) : <p className="mt-0.5 text-[13px] text-tenue">Niente aspetta te, e nessuna call in agenda.</p>}
+        </div>
+      ) : daTe.length === 0 && <p className="px-5 py-3 text-sm text-tenue">Nessuna conversazione aspetta te.</p>}
       {daTe.map((r) => (
         <button key={r.id} onClick={() => setAperta(r)}
                 className="flex w-full items-start gap-3 border-b border-velo px-5 py-3 text-left hover:bg-velo/40">

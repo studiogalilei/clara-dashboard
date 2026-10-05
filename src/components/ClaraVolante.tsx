@@ -1128,7 +1128,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         </div>
         <div className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-bordo bg-white">
           {posta === 'conversazioni'
-            ? <Conversazioni proposte={proposte} occupato={rispondo} invioAcceso={invioAcceso !== false}
+            ? <Conversazioni proposte={proposte} occupato={rispondo} invioAcceso={invioAcceso !== false} onOpen={onOpen}
                              rispondi={(p, si, muto) => rispondi(p as unknown as Proposta, si, muto)} />
             : listaPosta()}
         </div>
@@ -1279,7 +1279,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
               </div>
             )}
             {vista === 'posta' && posta === 'conversazioni' && (
-              <Conversazioni proposte={proposte} occupato={rispondo} invioAcceso={invioAcceso !== false}
+              <Conversazioni proposte={proposte} occupato={rispondo} invioAcceso={invioAcceso !== false} onOpen={onOpen}
                              rispondi={(p, si, muto) => rispondi(p as unknown as Proposta, si, muto)} />
             )}
             {vista === 'posta' && posta === 'decisioni' && listaPosta()}
