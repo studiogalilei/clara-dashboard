@@ -66,12 +66,12 @@ def _smartlead(p):
     except Exception:
         return []
     try:
-        cid, lid, _ = manda.thread(p)
+        cid, lid, _ = manda.thread(p)          # riprova da sola se Smartlead frena (5/10)
         if not cid:
             return []
-        h = manda.sl("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
+        h = manda._sl_riprova("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
     except Exception as e:                                   # noqa: BLE001
-        print(f"    (thread Smartlead non letto: {str(e)[:60]})")
+        print(f"    THREAD SMARTLEAD NON LETTO ({p.get('email')}): {str(e)[:80]}")
         return []
     out = []
     for m in h.get("history") or []:

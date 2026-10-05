@@ -39,6 +39,7 @@ import os
 import re
 import sys
 import urllib.parse
+import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -87,11 +88,23 @@ def in_html(testo):
     return "".join(f"<p>{riga(p)}</p>" for p in par)
 
 
+def _sl_riprova(metodo, percorso, volte=4):
+    """Smartlead frena quando le richieste sono tante (5/10: 73 fili su 277 letti monchi, in
+    silenzio). Si riprova con attesa crescente prima di arrendersi."""
+    for tentativo in range(volte):
+        try:
+            return sl(metodo, percorso)
+        except Exception:                                          # noqa: BLE001
+            if tentativo == volte - 1:
+                raise
+            time.sleep(2 * (tentativo + 1) ** 2)
+
+
 def thread(p):
     """La campagna dove ha risposto per ultimo, il lead e l'ultima sua risposta."""
     candidati = []
     try:
-        d = sl("GET", f"/leads/?email={urllib.parse.quote(p['email'])}")
+        d = _sl_riprova("GET", f"/leads/?email={urllib.parse.quote(p['email'])}")
         if isinstance(d, dict):
             for c in d.get("lead_campaign_data") or []:
                 if c.get("last_reply_at"):
@@ -103,7 +116,7 @@ def thread(p):
         candidati = [("", int(p["campaign_id"]), int(p["lead_id"]))]
     for _, cid, lid in candidati:
         try:
-            h = sl("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
+            h = _sl_riprova("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
         except Exception as e:                                    # noqa: BLE001
             print(f"    storico illeggibile in {cid} ({str(e)[:60]})"); continue
         risposte = [m for m in (h.get("history") or []) if m.get("type") == "REPLY"]
