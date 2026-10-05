@@ -71,14 +71,32 @@ export default function Adesso() {
     return () => { vivo = false }
   }, [giro])
 
-  // la prima meta' della regola del 5/10: chi ha detto si' e non ha ancora l'analisi
+  // la regola del 5/10, contata come la conta il battito (scripts/battito.py, giornata):
+  // 1) chi ha detto si' e non ha ancora l'analisi;
+  // 2) i follow-up dovuti: in Posta, approvati ma non ancora partiti, o arrivati al loro
+  //    giorno nel calendario senza ancora una bozza. Prima contavo solo quelli in Posta, e la
+  //    carta poteva dire «giornata chiusa» mentre il battito diceva APERTA.
+  const [dovuti, setDovuti] = useState<number | null>(null)
   useEffect(() => {
     if (!ceo) return
     let vivo = true
-    supabase.from('prospects').select('id')
-      .eq('fuori', false).eq('analysis_sent', false).in('classificazione', ['positivo', 'tiepido'])
-      .eq('no_followup', false).not('stage', 'in', '(perso,cliente)').is('pipeline_stage', null).limit(1000)
-      .then(({ data }) => { if (vivo) setSiSenza((data ?? []).length) })
+    const oggi = new Date().toISOString().slice(0, 10)
+    void Promise.all([
+      supabase.from('prospects').select('id')
+        .eq('fuori', false).eq('analysis_sent', false).in('classificazione', ['positivo', 'tiepido'])
+        .eq('no_followup', false).not('stage', 'in', '(perso,cliente)').is('pipeline_stage', null).limit(1000),
+      supabase.from('seguiti_calendario').select('prospect_id').lte('il', oggi).limit(1000),
+      supabase.from('proposte').select('prospect_id,azione').in('stato', ['aperta', 'approvata', 'in_invio']).eq('tipo', 'risposta').limit(1000),
+    ]).then(([si, cal, pr]) => {
+      if (!vivo) return
+      setSiSenza((si.data ?? []).length)
+      const ids = new Set<string>()
+      for (const c of (cal.data ?? []) as Array<{ prospect_id: string | null }>) if (c.prospect_id) ids.add(c.prospect_id)
+      for (const x of (pr.data ?? []) as Array<{ prospect_id: string | null; azione: Record<string, unknown> | null }>) {
+        if (x.prospect_id && SEGUITI.includes(String(x.azione?.template ?? ''))) ids.add(x.prospect_id)
+      }
+      setDovuti(ids.size)
+    })
     return () => { vivo = false }
   }, [ceo, giro])
 
@@ -131,11 +149,17 @@ export default function Adesso() {
         <Traguardo righe={[
           { fatto: siSenza === 0, testo: 'Tutti i sì hanno l’analisi', conto: siSenza === 0 ? '' : `${siSenza} senza` },
           { fatto: risposte === 0, testo: 'Le risposte che aspettano te', conto: risposte === 0 ? '' : `${risposte} da decidere` },
-          { fatto: seguiti === 0, testo: 'I follow-up partiti', conto: seguiti === 0 ? '' : `${seguiti} in Posta` },
+          { fatto: (dovuti ?? seguiti) === 0, testo: 'I follow-up partiti', conto: contoSeguiti(dovuti ?? seguiti, seguiti) },
         ]} />
       )}
     </div>
   )
+}
+
+function contoSeguiti(dovuti: number, inPosta: number): string {
+  if (dovuti === 0) return ''
+  if (dovuti === inPosta) return `${inPosta} in Posta`
+  return inPosta ? `${dovuti} da mandare, di cui ${inPosta} in Posta` : `${dovuti} da mandare`
 }
 
 function Traguardo({ righe }: { righe: Array<{ fatto: boolean; testo: string; conto: string }> }) {
