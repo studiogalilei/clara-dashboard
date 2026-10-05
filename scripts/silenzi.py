@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""I SILENZI — dopo l'analisi, 10 giorni senza risposta e si esce dai prospect (9/9/2026).
+"""I SILENZI: dopo il follow-up, 10 giorni senza risposta e si esce dai prospect (9/9/2026, corretto 5/10).
 
 Dre: «se dopo il follow-up non li sentiamo entro 10 giorni, li togliamo dalla
 lista prospect». Regola secca, senza domanda: chi ha ricevuto l'analisi, non
@@ -25,6 +25,26 @@ from stanza import sb                                      # noqa: E402
 GIORNI = 10
 
 
+def ultimo_seguito(p):
+    """La data dell'ultimo follow-up PARTITO dopo l'analisi, o None.
+
+    5/10, Dre: «la giornata non e' finita se chi deve avere un follow-up non l'ha
+    avuto». I 10 giorni contavano dall'analisi, non dal follow-up: se la bozza
+    restava in Posta, al decimo giorno il lead finiva nei Persi senza aver mai
+    ricevuto il seguito. Cosi' ne sono spariti 103, quasi tutti sì con l'analisi
+    in mano. Conta solo cio' che e' partito davvero: una mail nostra nel filo
+    dopo il giorno dell'analisi, o una bozza di risposta segnata «fatta»."""
+    dopo = (datetime.date.fromisoformat(p["analysis_sent_at"][:10]) + datetime.timedelta(days=1)).isoformat()
+    date = []
+    for r in sb("GET", f"/rest/v1/interactions?select=at&prospect_id=eq.{p['id']}&kind=in.(email_out,followup)"
+                       f"&at=gte.{dopo}&order=at.desc&limit=1") or []:
+        date.append(r["at"][:10])
+    for r in sb("GET", f"/rest/v1/proposte?select=risposta_il&prospect_id=eq.{p['id']}&tipo=eq.risposta&stato=eq.fatta"
+                       f"&risposta_il=gte.{dopo}&order=risposta_il.desc&limit=1") or []:
+        date.append(r["risposta_il"][:10])
+    return max(date) if date else None
+
+
 def main():
     prova = "--prova" in sys.argv
     oggi = datetime.date.today()
@@ -41,6 +61,10 @@ def main():
         # una data futura (rinvio, ferie): si aspetta quella
         futura = max([d for d in (p.get("next_action_date"), p.get("ooo_until")) if d] or [""])
         if futura and futura > oggi.isoformat():
+            continue
+        # il silenzio si conta dal follow-up partito: senza follow-up non e' un silenzio, e' un debito nostro
+        seguito = ultimo_seguito(p)
+        if not seguito or seguito > soglia:
             continue
         nome = p.get("company") or p.get("name") or "?"
         if prova:

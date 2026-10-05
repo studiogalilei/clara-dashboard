@@ -1099,6 +1099,33 @@ def _():
         assert "proposta" not in sel, f"la pagina del metro legge la proposta del sistema: select('{sel}')"
 
 
+@prova("i silenzi: senza un follow-up partito nessuno finisce nei Persi")
+def _():
+    import silenzi as S
+    import datetime as _dt
+    oggi = _dt.date.today()
+    vecchia = (oggi - _dt.timedelta(days=40)).isoformat()
+    p = {"id": "x", "company": "Prova", "analysis_sent_at": vecchia, "last_reply_at": None,
+         "next_action_date": None, "ooo_until": None}
+    scritti = []
+    vero_sb = S.sb
+    try:
+        # analisi di 40 giorni fa, nessun follow-up partito: resta viva
+        S.sb = lambda m, path, corpo=None, h=None: ([p] if path.startswith("/rest/v1/prospects?select") else
+                                                      (scritti.append(corpo) if m == "PATCH" else []))
+        S.main()
+        assert not scritti, "un lead senza follow-up partito e' finito nei Persi"
+        # follow-up partito 20 giorni fa, silenzio da allora: esce
+        fu = (oggi - _dt.timedelta(days=20)).isoformat()
+        S.sb = lambda m, path, corpo=None, h=None: ([p] if path.startswith("/rest/v1/prospects?select") else
+                                                      [{"at": fu + "T10:00:00"}] if "interactions" in path else
+                                                      (scritti.append(corpo) if m == "PATCH" else []))
+        S.main()
+        assert scritti and scritti[0]["stage"] == "perso", "dopo il follow-up e 10 giorni di silenzio deve uscire"
+    finally:
+        S.sb = vero_sb
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
