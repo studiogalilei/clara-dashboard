@@ -1,0 +1,1384 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>V5, la squadra: Workspace di Studio Galilei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1C2E6E;--blu:#2979C4;--avorio:#FAF8F4;
+  --ink:#121729;--testo:#2A2F45;--tenue:#5C6277;--spento:#868B9C;
+  --bordo:#E6E1D7;--velo:#F3F0E9;--bianco:#fff;
+  --ambra:#9A4A08;--ambra-bg:#FCEFD8;--ambra-dot:#E08A1E;
+  --bluS:#1E5F9F;--blu-bg:#E6F0FA;--blu-dot:#2979C4;
+  --verde:#166B37;--verde-bg:#E1F3E6;--verde-dot:#22A05A;
+  --rosso:#AD2117;--rosso-bg:#FCE7E5;--rosso-dot:#E0453A;
+  --neutro:#4D5368;--neutro-bg:#EFEDE7;
+  --top:34px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;background:var(--avorio);color:var(--testo);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body.senza-striscia{--top:0px}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--blu);outline-offset:2px;border-radius:8px}
+h1,h2,h3{margin:0;color:var(--navy)}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* striscia */
+#striscia{height:var(--top);background:var(--navy);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 44px;position:relative;letter-spacing:.01em}
+body.senza-striscia #striscia{display:none}
+#striscia button{position:absolute;right:4px;top:0;height:var(--top);width:40px;display:grid;place-items:center;color:#fff;opacity:.8}
+#striscia button:hover{opacity:1}
+
+/* impalcatura */
+#app{display:grid;grid-template-columns:216px minmax(0,1fr) 320px;height:calc(100dvh - var(--top))}
+#app.senza-clara{grid-template-columns:216px minmax(0,1fr)}
+#app.senza-clara .clara-p{display:none}
+.side{background:#fff;border-right:1px solid var(--bordo);display:flex;flex-direction:column;overflow-y:auto;padding:18px 14px 14px}
+.main{overflow-y:auto;min-width:0;position:relative;container-type:inline-size}
+.main-in{padding:24px 32px 72px;max-width:1240px}
+@container (max-width:820px){.riga .da .nm{display:none}}
+.clara-p{background:#fff;border-left:1px solid var(--bordo);display:flex;flex-direction:column;min-height:0;position:relative}
+.topbar,.tabbar,.pollice,.fab-clara{display:none}
+
+/* lato */
+.marchio{display:flex;align-items:center;gap:10px;padding:2px 8px 18px}
+.marchio-m{width:30px;height:30px;border-radius:9px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;letter-spacing:.02em}
+.marchio b{display:block;color:var(--navy);font-size:14px;font-weight:800;line-height:1.1}
+.marchio span{font-size:11.5px;color:var(--tenue)}
+.eti{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--spento)}
+.vedi{padding:0 4px 14px;border-bottom:1px solid var(--bordo);margin-bottom:12px}
+.vedi .eti{padding:0 4px 8px;display:block}
+.vedi-g{display:flex;flex-direction:column;gap:2px}
+.vedi-b{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:10px;min-height:38px;position:relative;text-align:left;font-weight:600;font-size:13px;color:var(--testo)}
+.vedi-b:hover{background:var(--velo)}
+.vedi-b.on{background:var(--navy);color:#fff}
+.vedi-b .bdg{margin-left:auto}
+.vedi-b.on .bdg{background:#fff;color:var(--navy)}
+.nav a,.nav button{display:flex;align-items:center;gap:11px;padding:0 10px;height:40px;border-radius:10px;color:var(--testo);text-decoration:none;font-weight:600;width:100%;font-size:14px}
+.nav a:hover{background:var(--velo)}
+.nav a.on{background:var(--blu-bg);color:var(--navy)}
+.nav a .bdg{margin-left:auto}
+.nav svg{width:19px;height:19px;flex:none;color:var(--blu)}
+.side-piede{margin-top:auto;padding:14px 8px 0;font-size:12px;color:var(--tenue);border-top:1px solid var(--bordo)}
+.side-piede b{color:var(--navy);display:block;font-size:13px}
+.bdg{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--ambra-bg);color:var(--ambra);font-size:11.5px;font-weight:700;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
+.bdg.rosso{background:var(--rosso-bg);color:var(--rosso)}
+
+/* avatar */
+.av{border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-weight:700;flex:none;line-height:1}
+.av.clara{background:#fff;color:var(--navy);box-shadow:inset 0 0 0 2px var(--navy);position:relative}
+.av.clara::after{content:"";position:absolute;right:-1px;bottom:-1px;width:30%;height:30%;border-radius:50%;background:var(--blu);box-shadow:0 0 0 2px #fff}
+
+/* testata pagina */
+.testa{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.testa .k{font-size:13px;color:var(--tenue);font-weight:600;margin-bottom:2px}
+.titolo{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.torna{display:inline-flex;align-items:center;gap:6px;color:var(--blu);font-weight:700;font-size:13px;min-height:32px;margin-bottom:6px}
+.torna:hover{text-decoration:underline}
+
+/* pillole e stati */
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--neutro-bg);color:var(--neutro)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.9}
+.pill.nodot::before{display:none}
+.ambra{--c:var(--ambra);--bg:var(--ambra-bg);--dot:var(--ambra-dot)}
+.blu{--c:var(--bluS);--bg:var(--blu-bg);--dot:var(--blu-dot)}
+.verde{--c:var(--verde);--bg:var(--verde-bg);--dot:var(--verde-dot)}
+.rosso{--c:var(--rosso);--bg:var(--rosso-bg);--dot:var(--rosso-dot)}
+.neutro{--c:var(--neutro);--bg:var(--neutro-bg);--dot:#9AA0B0}
+.pill.ambra,.pill.blu,.pill.verde,.pill.rosso,.pill.neutro{background:var(--bg);color:var(--c)}
+.pill.ambra::before,.pill.blu::before,.pill.verde::before,.pill.rosso::before,.pill.neutro::before{background:var(--dot)}
+
+/* bottoni */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:10px;font-weight:700;font-size:14px;border:1px solid var(--bordo);background:#fff;color:var(--navy);white-space:nowrap;transition:background-color .12s ease-out,border-color .12s ease-out,transform .08s ease-out}
+.btn:hover{background:var(--velo)}
+.btn:active{transform:scale(.98)}
+.btn.pieno{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.pieno:hover{background:#15235A}
+.btn.verdeb{background:var(--verde);border-color:var(--verde);color:#fff}
+.btn.vuoto{border-color:transparent;background:transparent;color:var(--blu)}
+.btn.vuoto:hover{background:var(--blu-bg)}
+.btn.piccolo{height:34px;padding:0 12px;font-size:13px;border-radius:9px}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn svg{width:17px;height:17px}
+.azioni{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* carte */
+.card{background:#fff;border:1px solid var(--bordo);border-radius:16px}
+.card-p{padding:18px 20px}
+.card h3{font-size:15px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px}
+.card h3 .n{color:var(--spento);font-weight:600}
+.sez{margin-top:26px}
+.sez-t{display:flex;align-items:center;gap:10px;margin:0 2px 10px}
+.sez-t h2{font-size:17px;font-weight:800}
+.sez-t .n{color:var(--spento);font-weight:700;font-size:15px}
+.sez-t .dx{margin-left:auto}
+
+/* home */
+.home{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:22px;align-items:start}
+.home .col-b{display:flex;flex-direction:column;gap:14px}
+.hero{background:#fff;border:1px solid var(--bordo);border-radius:18px;padding:22px 24px 22px}
+.hero-k{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.hero h1{font-size:24px;font-weight:800;letter-spacing:-.015em;line-height:1.2;max-width:34ch}
+.hero p{color:var(--tenue);margin-top:6px;font-size:15px;max-width:60ch}
+.hero .azioni{margin-top:18px}
+.hero .da{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--tenue);font-weight:600;margin-left:6px}
+
+/* liste */
+.lista{background:#fff;border:1px solid var(--bordo);border-radius:16px;overflow:hidden}
+.riga{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:10px 16px;text-align:left;border-bottom:1px solid var(--bordo);background:#fff;transition:background-color .12s ease-out}
+.riga:last-child{border-bottom:0}
+button.riga:hover,a.riga:hover{background:#FCFBF8}
+.riga .st{width:9px;height:9px;border-radius:50%;background:var(--dot);flex:none}
+.riga-c{flex:1;min-width:0;display:flex;flex-direction:column}
+.riga-t{font-weight:700;color:var(--ink);font-size:14.5px;line-height:1.3}
+.riga-s{color:var(--tenue);font-size:13px;line-height:1.4;margin-top:2px}
+.riga .da{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tenue);font-weight:600;flex:none}
+.riga .fr{color:var(--spento);flex:none;width:16px;height:16px}
+.vuoto-r{padding:16px;color:var(--tenue);font-size:14px}
+.mini{font-size:12.5px;color:var(--tenue)}
+.mini b{color:var(--testo)}
+
+/* lato destro home */
+.call-c .q{font-size:13px;color:var(--tenue);font-weight:600}
+.call-c .n{font-size:18px;font-weight:800;color:var(--navy);margin:2px 0 2px}
+.passato{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--bordo);align-items:flex-start}
+.passato:first-of-type{border-top:0}
+.passato .t{font-weight:700;font-size:13.5px;color:var(--ink);line-height:1.3}
+.passato .s{font-size:12.5px;color:var(--tenue);margin-top:3px}
+.passato .pill{margin-top:6px}
+.giornata{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;padding:14px 16px;border-radius:14px;background:var(--velo);font-size:13px;color:var(--tenue)}
+.giornata b{color:var(--ink)}
+.giornata .ok{color:var(--verde);font-weight:700}
+.giornata .no{color:var(--ambra);font-weight:700}
+
+/* numeri lorenzo */
+.numeri{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.numero{background:#fff;border:1px solid var(--bordo);border-radius:14px;padding:12px 14px}
+.numero b{display:block;font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;line-height:1.1}
+.numero span{font-size:12.5px;color:var(--tenue);font-weight:600}
+
+/* posta */
+.posta{display:grid;grid-template-columns:290px minmax(0,1fr);gap:18px;align-items:start}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--velo);border-radius:12px;margin-bottom:12px}
+.tabs button{flex:1;height:36px;border-radius:9px;font-weight:700;font-size:13px;color:var(--tenue);display:flex;align-items:center;justify-content:center;gap:6px}
+.tabs button.on{background:#fff;color:var(--navy);box-shadow:0 1px 2px rgba(18,23,41,.08)}
+.riga.sel{background:var(--blu-bg)}
+.pane{background:#fff;border:1px solid var(--bordo);border-radius:18px;padding:22px 24px}
+.pane-t{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pane-t h2{font-size:21px;font-weight:800}
+.pane-t .s{color:var(--tenue);font-size:13.5px;margin-top:2px}
+.filo{margin:18px 0 6px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:82%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.5}
+.msg .q{display:block;font-size:11.5px;color:var(--spento);font-weight:600;margin-bottom:3px}
+.msg.noi{align-self:flex-end;background:var(--blu-bg);color:var(--ink);border-bottom-right-radius:4px}
+.msg.loro{align-self:flex-start;background:var(--velo);color:var(--ink);border-bottom-left-radius:4px}
+.bozza-t{display:flex;align-items:center;gap:10px;margin:18px 0 8px}
+.bozza-t b{color:var(--navy);font-size:14px}
+.nota-clara{display:flex;gap:10px;align-items:flex-start;background:var(--velo);border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--testo);margin-bottom:10px}
+textarea.campo,input.campo{width:100%;border:1px solid var(--bordo);border-radius:12px;padding:12px 14px;background:#fff;line-height:1.55;font-size:14.5px;resize:vertical;color:var(--ink)}
+textarea.campo{field-sizing:content;min-height:96px}
+textarea.campo:focus,input.campo:focus{outline:2px solid var(--blu);outline-offset:-1px;border-color:transparent}
+.fatto-b{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:var(--verde-bg);color:var(--verde);font-weight:700;margin-top:14px}
+.fila-n{font-size:12.5px;font-weight:700;color:var(--tenue)}
+
+/* trattativa */
+.colonne{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+.colonna{background:var(--velo);border-radius:16px;padding:10px}
+.colonna-t{display:flex;align-items:center;gap:8px;padding:4px 6px 10px;font-weight:800;color:var(--navy);font-size:14px}
+.colonna-t .n{color:var(--spento);font-weight:700}
+.tess{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--bordo);border-radius:13px;padding:12px 13px;margin-bottom:8px;transition:border-color .12s ease-out}
+.tess:hover{border-color:#CFC8BA}
+.tess .n{font-weight:800;color:var(--ink);font-size:14px;line-height:1.3;display:flex;gap:6px;align-items:flex-start}
+.tess .c{font-size:12.5px;color:var(--tenue)}
+.tess .m{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;color:var(--testo);font-weight:600;line-height:1.3}
+.tess .pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.tess .pill,.passato .pill{white-space:normal;height:auto;min-height:24px;padding:3px 10px;line-height:1.3}
+.tri{color:#C98A00;flex:none;width:16px;height:16px;margin-top:1px}
+
+/* scheda */
+.detto{background:var(--navy);color:#fff;border-radius:18px;padding:20px 22px}
+.detto .eti{color:#AFC0EC}
+.detto ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.detto li{font-size:16px;font-weight:600;line-height:1.45}
+.detto li small{display:block;font-size:12px;font-weight:500;color:#B9C6EA;margin-top:2px}
+.scheda{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;margin-top:20px;align-items:start}
+.blocco{background:#fff;border:1px solid var(--bordo);border-radius:16px;padding:18px 20px;margin-bottom:14px}
+.blocco h3{font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--spento);margin-bottom:8px}
+.blocco p{font-size:15px;color:var(--ink)}
+.mercato{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mercato div{background:var(--velo);border-radius:12px;padding:10px 12px}
+.mercato b{display:block;font-size:19px;font-weight:800;color:var(--navy)}
+.mercato span{font-size:12px;color:var(--tenue);font-weight:600}
+.scomode{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.scomode li{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--ink);font-weight:600}
+.scomode li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ambra-dot);margin-top:8px;flex:none}
+.catena{list-style:none;margin:0;padding:0}
+.catena li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;position:relative}
+.catena li:not(:last-child)::after{content:"";position:absolute;left:11px;top:31px;bottom:-5px;width:2px;background:var(--bordo)}
+.catena .t{font-size:13.5px;color:var(--ink);font-weight:600;line-height:1.3}
+.catena .q{font-size:12px;color:var(--tenue)}
+.gia{margin:0;padding-left:18px;color:var(--testo);font-size:13.5px}
+.gia li{margin:3px 0}
+
+/* accessi */
+.acc{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--bordo);flex-wrap:wrap}
+.acc:first-child{border-top:0}
+.acc .c{flex:1;min-width:150px}
+.acc .t{font-weight:700;color:var(--ink);font-size:14px}
+.acc .s{font-size:12.5px;color:var(--tenue)}
+.acc .chi{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tenue);font-weight:600}
+
+/* passaggio */
+.stepper{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 18px}
+.step{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:20px;background:#fff;border:1px solid var(--bordo);font-size:12.5px;font-weight:700;color:var(--tenue)}
+.step .o{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--velo);color:var(--tenue);font-size:11px}
+.step.ok{color:var(--verde)}
+.step.ok .o{background:var(--verde-bg);color:var(--verde)}
+.step.ora{color:var(--ambra);border-color:#F1D3A6}
+.step.ora .o{background:var(--ambra-bg);color:var(--ambra)}
+.campo5{background:#fff;border:1px solid var(--bordo);border-radius:16px;padding:16px 18px;margin-bottom:12px}
+.campo5.manca{border-color:#EBC27F;background:#FFFCF6}
+.campo5-t{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.campo5-t .i{width:24px;height:24px;border-radius:7px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.campo5-t b{color:var(--navy);font-size:15px}
+.campo5-t .fonte{margin-left:auto;font-size:12px;color:var(--tenue);font-weight:600}
+.campo5 p{font-size:15px;color:var(--ink)}
+.campo5 textarea.campo{min-height:64px}
+.pass-g{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.pass-dx{position:sticky;top:12px}
+@container (max-width:760px){.pass-g{grid-template-columns:minmax(0,1fr)}.pass-dx{position:static}}
+.domande{background:var(--blu-bg);border-radius:16px;padding:18px}
+.domande .btn{white-space:normal;height:auto;min-height:40px;padding:8px 14px;text-align:center}
+.domande h3{font-size:16px;margin-bottom:4px}
+.domande label{display:block;font-weight:700;color:var(--navy);font-size:14px;margin:12px 0 6px}
+.risposta{background:var(--velo);border-radius:12px;padding:10px 14px;font-size:14px;margin-top:6px}
+.risposta b{color:var(--navy)}
+.aspettarsi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.aspettarsi div{background:var(--velo);border-radius:12px;padding:10px 12px;font-size:13px}
+.aspettarsi b{display:block;color:var(--navy);font-size:13px}
+
+/* report */
+.report-r{display:grid;grid-template-columns:170px minmax(0,1fr);gap:14px;padding:14px 0;border-top:1px solid var(--bordo);align-items:start}
+.report-r:first-child{border-top:0}
+.report-r b{color:var(--navy);font-size:14px;padding-top:12px}
+.report-r textarea.campo{min-height:52px}
+.firma{display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--bordo)}
+
+/* tabella giacomo */
+.filtri{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.chip{height:34px;padding:0 13px;border-radius:17px;border:1px solid var(--bordo);background:#fff;font-weight:700;font-size:13px;color:var(--testo);display:inline-flex;align-items:center;gap:7px}
+.chip .n{color:var(--spento);font-variant-numeric:tabular-nums}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.chip.on .n{color:#C9D3F2}
+.tab-wrap{background:#fff;border:1px solid var(--bordo);border-radius:16px;overflow:auto}
+table.densa{width:100%;border-collapse:collapse;font-size:13.5px}
+.densa th{position:sticky;top:0;background:#fff;text-align:left;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--spento);padding:12px 12px;border-bottom:1px solid var(--bordo);white-space:nowrap;z-index:1}
+.densa th button{display:inline-flex;align-items:center;gap:4px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+.densa th button:hover{color:var(--navy)}
+.densa th.on{color:var(--navy)}
+.densa td{padding:11px 12px;border-bottom:1px solid var(--bordo);vertical-align:middle;color:var(--ink)}
+.densa tr:last-child td{border-bottom:0}
+.densa tbody tr{cursor:pointer}
+.densa tbody tr:hover td{background:#FCFBF8}
+.densa .tn{font-weight:700}
+.densa .sm{font-size:12px;color:var(--tenue)}
+.densa .r{text-align:right;font-variant-numeric:tabular-nums}
+.chi-c{display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap}
+.rossotxt{color:var(--rosso);font-weight:700}
+.ambratxt{color:var(--ambra);font-weight:700}
+.piede-t{display:flex;gap:28px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--bordo);background:#FCFBF8;font-size:13px;color:var(--tenue)}
+.piede-t b{color:var(--navy);font-size:15px;font-variant-numeric:tabular-nums}
+.guardare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.guardare .riga{border:1px solid var(--bordo);border-radius:14px}
+.righe-m{display:none}
+
+/* clara */
+.chat-testa{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--bordo)}
+.chat-testa b{color:var(--navy);font-size:15px;display:block;line-height:1.2}
+.chat-testa .on{font-size:12px;color:var(--verde);font-weight:600}
+.chat-msg{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:8px;background:#F7F5F0}
+.giorno{align-self:center;font-size:11.5px;font-weight:700;color:var(--tenue);background:#fff;border:1px solid var(--bordo);border-radius:10px;padding:2px 10px;margin:4px 0}
+.bolla{max-width:min(88%,560px);padding:9px 12px 6px;border-radius:16px;font-size:14px;line-height:1.45;color:var(--ink);position:relative}
+.bolla.sua{align-self:flex-start;background:#fff;border:1px solid var(--bordo);border-top-left-radius:5px}
+.bolla.mia{align-self:flex-end;background:var(--navy);color:#fff;border-top-right-radius:5px}
+.bolla .ora{display:block;text-align:right;font-size:10.5px;color:var(--spento);margin-top:2px}
+.bolla.mia .ora{color:#AFC0EC}
+.bolla-az{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.bolla-az .btn{height:34px;font-size:13px;padding:0 12px;border-radius:17px}
+.bolla.scrive{display:flex;gap:4px;padding:12px 14px}
+.bolla.scrive span{width:7px;height:7px;border-radius:50%;background:var(--spento);animation:pal 1s infinite ease-in-out}
+.bolla.scrive span:nth-child(2){animation-delay:.15s}.bolla.scrive span:nth-child(3){animation-delay:.3s}
+@keyframes pal{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}}
+.chips-c{display:flex;gap:6px;overflow-x:auto;padding:8px 12px 0;background:#fff;scrollbar-width:none}
+.chips-c button{flex:none;height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--bordo);font-size:12.5px;font-weight:600;color:var(--navy);background:#fff}
+.chips-c button:hover{background:var(--velo)}
+.chat-scrivi{display:flex;gap:8px;padding:10px 12px 12px;background:#fff}
+.chat-scrivi input{flex:1;height:44px;border:1px solid var(--bordo);border-radius:22px;padding:0 16px;background:var(--avorio);font-size:14.5px;min-width:0}
+.chat-scrivi input:focus{outline:2px solid var(--blu);outline-offset:-1px;border-color:transparent}
+.chat-scrivi button{width:44px;height:44px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;flex:none}
+.chat-scrivi button svg{width:18px;height:18px}
+.clara-pagina{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+.clara-box{background:#fff;border:1px solid var(--bordo);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;height:calc(100dvh - var(--top) - 150px);min-height:460px}
+.inmano li{padding:10px 0;border-top:1px solid var(--bordo);font-size:13.5px;color:var(--ink);display:flex;gap:10px;align-items:flex-start}
+.inmano li:first-child{border-top:0}
+.inmano ul{list-style:none;margin:8px 0 0;padding:0}
+
+/* passaggi */
+.corsia{margin-bottom:14px}
+.corsia-t{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--bordo);font-weight:800;color:var(--navy)}
+.corsia-t .fr{color:var(--spento)}
+.corsia-t .n{margin-left:auto;font-size:12.5px;color:var(--tenue);font-weight:600}
+
+/* checkin */
+.blocca{color:var(--rosso);font-weight:600}
+
+/* toast e foglio */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--ink);color:#fff;border-radius:14px;padding:10px 10px 10px 16px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:14px;z-index:90;transition:opacity .18s ease-out,transform .18s ease-out;max-width:calc(100vw - 24px)}
+#toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
+#toast button{height:36px;padding:0 12px;border-radius:9px;background:#fff;color:var(--navy);font-weight:700;font-size:13px;white-space:nowrap}
+#velo{position:fixed;inset:0;background:rgba(18,23,41,.36);z-index:80;display:none}
+#velo.on{display:block}
+#foglio{position:fixed;z-index:85;left:50%;top:50%;transform:translate(-50%,-50%);width:min(460px,calc(100vw - 24px));background:#fff;border-radius:20px;padding:22px;display:none;max-height:calc(100dvh - 40px);overflow:auto}
+#foglio.on{display:block}
+#foglio h2{font-size:19px;font-weight:800;margin-bottom:4px}
+.opz{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.opz button{display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:0 14px;border:1px solid var(--bordo);border-radius:12px;font-weight:700;color:var(--ink);text-align:left}
+.opz button span{color:var(--tenue);font-weight:600;font-size:13px}
+.opz button.on{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy);background:var(--blu-bg)}
+.fab-clara.vis{display:flex}
+.clara-chiudi{margin-left:auto;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--tenue)}
+.clara-chiudi:hover{background:var(--velo)}
+.clara-chiudi svg{width:18px;height:18px}
+.torna svg{width:16px;height:16px}
+.topbar .tt small{display:block;font-size:11.5px;font-weight:600;color:var(--tenue);line-height:1.1}
+.fab-clara{position:fixed;right:20px;bottom:20px;z-index:50;height:52px;padding:0 18px 0 8px;border-radius:26px;background:#fff;border:1px solid var(--bordo);box-shadow:0 4px 16px rgba(18,23,41,.12);align-items:center;gap:10px;font-weight:800;color:var(--navy)}
+
+/* medio: clara a cassetto */
+@media (max-width:1199px){
+  #app,#app.senza-clara{grid-template-columns:216px minmax(0,1fr)}
+  .clara-p{position:fixed;right:0;top:var(--top);bottom:0;width:min(380px,100vw);z-index:60;transform:translateX(105%);transition:transform .2s ease-out;box-shadow:-8px 0 30px rgba(18,23,41,.12)}
+  body.clara-aperta .clara-p{transform:none}
+  #app.senza-clara .clara-p{display:flex}
+  .fab-clara{display:flex}
+  body.clara-aperta .fab-clara{display:none}
+  .home{grid-template-columns:minmax(0,1fr) 270px}
+  .colonne{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .clara-pagina{grid-template-columns:1fr}
+}
+
+/* telefono */
+@media (max-width:839px){
+  body{font-size:15px}
+  #app,#app.senza-clara{display:block;height:auto}
+  .side,.clara-p,.fab-clara{display:none!important}
+  .main{overflow:visible}
+  .main-in{padding:14px 16px calc(150px + env(safe-area-inset-bottom))}
+  .topbar{display:flex;position:sticky;top:0;z-index:30;background:rgba(250,248,244,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);height:58px;align-items:center;gap:10px;padding:0 12px 0 16px;border-bottom:1px solid var(--bordo)}
+  .topbar .tt{font-weight:800;color:var(--navy);font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vedi-m{display:flex;align-items:center;gap:8px;height:44px;padding:0 10px 0 4px;border-radius:22px;border:1px solid var(--bordo);background:#fff;font-weight:700;color:var(--navy);font-size:14px}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--bordo);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .tabbar a{flex:1;min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;font-weight:700;color:var(--tenue);text-decoration:none;position:relative;border-radius:10px}
+  .tabbar a svg{width:22px;height:22px}
+  .tabbar a.on{color:var(--navy)}
+  .tabbar a.on svg{color:var(--blu)}
+  .tabbar .bdg{position:absolute;top:4px;left:calc(50% + 6px);height:18px;min-width:18px;font-size:10.5px;padding:0 5px}
+  .pollice{display:block;position:fixed;left:0;right:0;bottom:calc(63px + env(safe-area-inset-bottom));z-index:35;padding:10px 16px}
+  .pollice .btn{width:100%;height:52px;font-size:16px;border-radius:14px;box-shadow:0 6px 18px rgba(28,46,110,.22)}
+  .solo-desk{display:none!important}
+  .testa{margin-bottom:14px}
+  .titolo{font-size:24px}
+  .testa-desk,.testa.top{display:none}
+  .pass-g{grid-template-columns:minmax(0,1fr)}
+  .home,.scheda,.posta,.clara-pagina{grid-template-columns:minmax(0,1fr);gap:16px}
+  .hero{padding:18px}
+  .hero h1{font-size:21px}
+  .hero p{font-size:14.5px}
+  .riga{min-height:64px;padding:12px 14px}
+  .riga .da .nm{display:none}
+  .colonne{grid-template-columns:minmax(0,1fr)}
+  .numeri{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mercato{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mercato b{font-size:16px}
+  .aspettarsi{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .report-r{grid-template-columns:1fr;gap:6px}
+  .report-r b{padding-top:0}
+  .btn{height:44px}
+  .btn.piccolo{height:44px}
+  .chip{height:40px}
+  .tab-wrap.desk-t{display:none}
+  .righe-m{display:block}
+  .guardare{grid-template-columns:1fr}
+  .pane{padding:18px 16px}
+  .msg{max-width:92%}
+  .detto li{font-size:15px}
+  .clara-box{height:calc(100dvh - var(--top) - 58px - 66px - 16px);border-radius:16px;min-height:0}
+  .posta.con-dettaglio .posta-lista{display:none}
+  .posta:not(.con-dettaglio) .posta-pane{display:none}
+  #toast{bottom:calc(140px + env(safe-area-inset-bottom))}
+  #foglio{top:auto;bottom:0;transform:translateX(-50%);border-radius:20px 20px 0 0;width:100vw;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+  .campo5-t .fonte{margin-left:0;width:100%}
+  .bolla-az .btn{height:40px}
+  .acc .btn{width:100%}
+}
+@media (min-width:840px){.solo-tel{display:none!important}}
+</style>
+</head>
+<body>
+<div id="striscia" role="note">V5, la squadra: prototipo con dati finti<button data-a="chiudiStriscia" aria-label="Chiudi la striscia"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="velo" data-a="chiudiFoglio"></div>
+<div id="foglio" role="dialog" aria-modal="true"></div>
+<script src="dati.js"></script>
+<script>
+(function(){
+'use strict';
+const L = window.LAB;
+
+/* ---------- persone ---------- */
+const P = {};
+L.squadra.forEach(p => P[p.id] = p);
+P.clara = { id:'clara', nome:'Clara', ruolo:'Assistente', colore:'#fff' };
+const ORDINE = ['dre','carlo','giacomo','lorenzo','salvatore','alex'];
+const MESTIERE = {
+  dre:'CEO, vende e decide', carlo:'Delivery, Google Ads', giacomo:'Coordinamento',
+  lorenzo:'Outbound', salvatore:'Progetti e clienti', alex:'Supporto operativo'
+};
+
+/* ---------- tempo finto: martedì 6/10/2026, 12:10 ---------- */
+const OGGI = new Date(2026,9,6);
+let minuti = 12*60+10;
+const ora = () => Math.floor(minuti/60)+':'+String(minuti%60).padStart(2,'0');
+const tic = (n=1) => { minuti += n; };
+const GS = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+const GSB = ['dom','lun','mar','mer','gio','ven','sab'];
+const MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const dt = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y,m-1,d); };
+const gg = iso => Math.round((dt(iso)-OGGI)/864e5);
+const isoPiu = n => { const d = new Date(OGGI); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+function quando(iso){
+  if(!iso) return '';
+  const g = gg(iso), d = dt(iso);
+  if(g===0) return 'oggi'; if(g===-1) return 'ieri'; if(g===1) return 'domani';
+  if(g<0) return (-g)+' giorni fa';
+  if(g<7) return GS[d.getDay()]+' '+d.getDate();
+  return d.getDate()+' '+MESI[d.getMonth()]+(d.getFullYear()!==2026?' '+d.getFullYear():'');
+}
+const dataLunga = iso => { const d = dt(iso); return GS[d.getDay()]+' '+d.getDate()+' '+MESI[d.getMonth()]+(d.getFullYear()!==2026?' '+d.getFullYear():''); };
+
+/* ---------- utilità ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nl = s => esc(s).replace(/\n/g,'<br>');
+const euro = n => n ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' €' : '-';
+
+const IC = {
+  casa:'<path d="M3.5 10.2 12 3.5l8.5 6.7V20a1 1 0 0 1-1 1h-4.8v-6.2H9.3V21H4.5a1 1 0 0 1-1-1z"/>',
+  posta:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.8 7.2 8.2 5.8 8.2-5.8"/>',
+  colonne:'<rect x="3.5" y="4" width="4.6" height="16" rx="1.4"/><rect x="9.7" y="4" width="4.6" height="11" rx="1.4"/><rect x="15.9" y="4" width="4.6" height="7" rx="1.4"/>',
+  frecce:'<path d="M4 8h14m-3.5-3.5L18 8l-3.5 3.5M20 16H6m3.5-3.5L6 16l3.5 3.5"/>',
+  chat:'<path d="M4.5 5.5h15a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1H10l-4.5 3.5V17h-1a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1z"/>',
+  cartella:'<path d="M3.5 7a1.5 1.5 0 0 1 1.5-1.5h4.3l2 2.2H19a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z"/>',
+  tabella:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>',
+  spunta:'<path d="m5 12.5 4.2 4.2L19 7"/>',
+  orologio:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  tri:'<path d="M12 3.8 21.2 19.5H2.8z" fill="currentColor" stroke="none"/><path d="M12 10v4.2M12 16.6v.4" stroke="#fff" stroke-width="2"/>',
+  freccia:'<path d="m9 5.5 6.5 6.5L9 18.5"/>',
+  indietro:'<path d="M15 5.5 8.5 12l6.5 6.5"/>',
+  manda:'<path d="M5 12h13.5M13 6.5 18.5 12 13 17.5"/>',
+  copia:'<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
+  giu:'<path d="m6 9.5 6 6 6-6"/>',
+  scarica:'<path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19.5h14"/>',
+  allerta:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v5M12 15.8v.4"/>'
+};
+const ic = (n, cls='') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+function av(id, s=26){
+  const p = P[id];
+  const fs = Math.round(s*0.42);
+  if(id==='clara') return `<span class="av clara" style="width:${s}px;height:${s}px;font-size:${fs}px" aria-hidden="true">C</span>`;
+  return `<span class="av" style="width:${s}px;height:${s}px;font-size:${fs}px;background:${p.colore}" aria-hidden="true">${p.nome[0]}</span>`;
+}
+const nome = id => P[id] ? P[id].nome : id;
+
+/* ---------- dati aggiunti in questo file (finti) ---------- */
+const EXTRA = {
+  a1:{ resp:'dre', mossa:{chi:'dre',cosa:'Conoscitiva alle 15',quando:'2026-10-06'},
+    detto:[{t:'Il sito l’ha fatto mio cugino, ma da lì non chiama nessuno.',f:'risposta a Lorenzo, 29/9'},{t:'Lavoriamo tanto con le imprese edili. I privati vengono per la minuteria.',f:'risposta a Lorenzo, 29/9'},{t:'Prima dell’inventario di novembre voglio capire se ha senso.',f:'mail a Dre, 2/10'}],
+    gia:['Se hanno un sito: sì, l’ha fatto il cugino','Se hanno mai fatto pubblicità: no, mai'],
+    storia:[['lorenzo','22/9','Prima mail a freddo'],['lorenzo','29/9','Ha detto sì'],['clara','30/9','Analisi mandata'],['dre','oggi 15:00','Conoscitiva']] },
+  a2:{ resp:'dre', mossa:{chi:'dre',cosa:'Tecnica con Carlo, giovedì 15:30',quando:'2026-10-08'},
+    detto:[{t:'Le implantologie sono il 60% del fatturato: voglio più prime visite su quelle.',f:'conoscitiva con Dre, 1/10'},{t:'Con un’agenzia nel 2024 tanti clic e zero pazienti.',f:'conoscitiva, 1/10'},{t:'Il budget lo decido io, ma ne parlo con mia moglie che fa l’amministrazione.',f:'conoscitiva, 1/10'}],
+    gia:['Quanti pazienti nuovi al mese: circa 15','Che agenzia avevano: una di Milano, ferma dal 2024'],
+    storia:[['lorenzo','16/9','Prima mail a freddo'],['lorenzo','22/9','Ha detto sì'],['clara','24/9','Analisi mandata'],['dre','1/10','Conoscitiva'],['carlo','gio 8, 15:30','Tecnica con Dre']] },
+  a3:{ resp:'dre', mossa:{chi:'dre',cosa:'Approva il follow-up',quando:'2026-10-06'},
+    detto:[{t:'Interessante, ne parlo col mio socio e vi faccio sapere.',f:'risposta a Lorenzo, 10/9'}], gia:[],
+    storia:[['lorenzo','3/9','Prima mail a freddo'],['lorenzo','10/9','Ha detto sì'],['clara','12/9','Analisi mandata'],['clara','oggi','Follow-up pronto']] },
+  a4:{ resp:'dre', mossa:null,
+    detto:[{t:'Sì, mandatela. Però gli ospiti ci arrivano quasi tutti da Booking.',f:'risposta a Lorenzo, 3/10'}], gia:[],
+    storia:[['lorenzo','28/9','Prima mail a freddo'],['lorenzo','3/10','Ha detto sì'],['clara','4/10','Analisi partita da sola']] },
+  a5:{ resp:'dre', mossa:{chi:'dre',cosa:'Approva la risposta col prezzo',quando:'2026-10-06'},
+    detto:[{t:'Sì mandatela pure. Ma quanto costa poi il vostro servizio?',f:'risposta di oggi, 9:12'}], gia:[],
+    storia:[['lorenzo','30/9','Prima mail a freddo'],['lorenzo','oggi 9:12','Ha risposto'],['clara','oggi 9:14','Bozza pronta']] },
+  a6:{ resp:'dre', mossa:{chi:'dre',cosa:'Approva la ripresa',quando:'2026-10-06'},
+    detto:[{t:'Adesso chiudiamo per ferie, ne riparliamo a settembre.',f:'risposta a Lorenzo, 22/7'}], gia:[],
+    storia:[['lorenzo','15/7','Prima mail a freddo'],['clara','22/7','Analisi mandata'],['clara','oggi','Ripresa pronta']] },
+  a7:{ resp:'dre', mossa:{chi:'carlo',cosa:'Accetta il passaggio',quando:'2026-10-06'},
+    detto:[{t:'Ci serve lavoro in Lombardia, non in tutta Italia.',f:'conoscitiva, 28/9'},{t:'Il Tag Manager ce l’ha ancora la vecchia agenzia, non so se ce lo ridanno.',f:'tecnica, 3/10'},{t:'Ad aprile partono gli incentivi nuovi: per allora deve girare tutto.',f:'tecnica, 3/10'}],
+    gia:['Zona: Bergamo, Brescia, Milano','Budget pubblicitario: 1.500 € al mese, da confermare'],
+    storia:[['lorenzo','15/9','Prima mail a freddo'],['clara','18/9','Analisi mandata'],['dre','28/9','Conoscitiva'],['carlo','3/10','Tecnica con Dre'],['dre','5/10','Passato a Carlo']] },
+  a8:{ resp:'carlo', mossa:{chi:'alex',cosa:'Accessi GA4 e Tag Manager',quando:'2026-10-05'},
+    detto:[{t:'Settembre e gennaio sono i mesi delle iscrizioni.',f:'conoscitiva, 2/9'},{t:'Vorrei almeno 40 prove gratuite al mese.',f:'tecnica, 9/9'}], gia:[],
+    storia:[['dre','2/9','Conoscitiva'],['carlo','9/9','Tecnica'],['carlo','15/9','Prova iniziata'],['alex','30/9','Accessi chiesti']] },
+  a9:{ resp:'salvatore', mossa:{chi:'salvatore',cosa:'Report di settembre',quando:'2026-10-07'},
+    detto:[{t:'Online vendiamo soprattutto a Natale, il resto è cantina.',f:'tecnica, luglio'}], gia:[],
+    storia:[['dre','luglio','Firmato'],['salvatore','agosto','Cliente, retainer'],['giacomo','1/10','Report passato a Salvatore']] },
+  a10:{ resp:'dre', mossa:{chi:'dre',cosa:'Chiamalo: vuole il telefono',quando:'2026-10-04'},
+    detto:[{t:'Mi chiami pure, preferisco il telefono.',f:'mail, 4/10'},{t:'Decido io con il mio socio, Mario.',f:'mail, 30/9'}], gia:['Se ha visto l’analisi: sì'],
+    storia:[['lorenzo','19/9','Prima mail a freddo'],['clara','26/9','Analisi mandata'],['lorenzo','30/9','Ha accettato la call'],['dre','4/10','Vuole il telefono']] }
+};
+const AZ = {};
+L.aziende.forEach(a => AZ[a.id] = Object.assign({}, a, EXTRA[a.id] || {}));
+const TAPPA = {risposta:'Risposta',analisi:'Analisi',follow_up:'Follow-up',conoscitiva:'Conoscitiva',tecnica:'Tecnica',avvio:'Avvio',prova:'Prova 2 mesi',cliente:'Cliente'};
+const SCAD = {oggi:'2026-10-06',domani:'2026-10-07',ieri:'2026-10-05','venerdì':'2026-10-09','giovedì':'2026-10-08'};
+
+/* ---------- lo stato ---------- */
+const S = {
+  io:'dre', vista:'oggi', arg:null,
+  passaggi: [],
+  conv: {}, fila: [], fatti: [],
+  accessi: {
+    a7:[{cosa:'Google Ads, via MCC',stato:'chiesto',dal:'2026-10-05',chi:'alex'},{cosa:'Google Analytics 4',stato:'ok',chi:'alex'},{cosa:'Tag Manager',stato:'chiesto',dal:'2026-10-05',chi:'dre',nota:'ce l’ha la vecchia agenzia'},{cosa:'Scheda Google',stato:'chiesto',dal:'2026-10-05',chi:'alex'},{cosa:'Sito, WordPress',stato:'ok',chi:'alex'}],
+    a8:[{cosa:'Google Ads, via MCC',stato:'ok',chi:'alex'},{cosa:'Google Analytics 4',stato:'sbagliato',dal:'2026-09-30',chi:'alex',nota:'dato come lettore, serve editor'},{cosa:'Tag Manager',stato:'chiesto',dal:'2026-10-01',chi:'alex'},{cosa:'Scheda Google',stato:'ok',chi:'alex'},{cosa:'Sito',stato:'ok',chi:'alex'}],
+    a9:[{cosa:'Google Ads, via MCC',stato:'ok',chi:'salvatore'},{cosa:'Google Analytics 4',stato:'ok',chi:'salvatore'},{cosa:'Tag Manager',stato:'ok',chi:'salvatore'},{cosa:'Merchant Center',stato:'ok',chi:'salvatore'},{cosa:'Sito, Shopify',stato:'ok',chi:'salvatore'}]
+  },
+  allarme: { a8:true },
+  registro: { a8:[['2/10','carlo','Budget spostato da Città Studi a Isola, +20%'],['28/9','carlo','Aggiunte le ricerche “prova gratuita palestra”'],['15/9','carlo','Campagna avviata, 900 € al mese']], a9:[['1/10','salvatore','Campagna “bottiglie regalo” anticipata al 10/9'],['20/8','salvatore','Shopping: esclusi i formati sotto i 10 €']] },
+  nonOra: [
+    {id:'n1',nome:'Trattoria Il Portico',citta:'Lucca',frase:'Adesso siamo nella stagione dei funghi, ci sentiamo dopo metà novembre.',q:'2/10',proposta:'2026-11-16',perche:'«dopo metà novembre»',stato:'da confermare'},
+    {id:'n2',nome:'Autoscuola Rapida',citta:'Monza',frase:'Riparliamone a gennaio, quando apriamo la sede nuova.',q:'2/10',proposta:'2027-01-11',perche:'«a gennaio», primo lunedì utile',stato:'da confermare'},
+    {id:'n3',nome:'Ottica Lenti Chiare',citta:'Parma',frase:'Fino a fine mese siamo pieni, riscrivetemi dopo.',q:'4/10',proposta:'2026-11-02',perche:'«dopo fine mese»',stato:'da confermare'},
+    {id:'n4',nome:'Vivaio Il Germoglio',citta:'Pistoia',frase:'In primavera sì, adesso no.',q:'5/10',proposta:'2027-03-01',perche:'«in primavera»',stato:'da confermare'},
+    {id:'n0',nome:'Lavanderia Bolle',citta:'Rimini',frase:'Ci risentiamo a ottobre, dopo la stagione.',q:'3/9',proposta:'2026-10-06',stato:'torna oggi',
+      riassunto:['Due negozi a Rimini, d’estate lavora con gli hotel.','Il 3/9 ha scritto «ci risentiamo a ottobre».','L’analisi non l’ha mai chiesta: ha detto sì solo a risentirci.'],
+      bozza:'Salve Mirko,\n\na settembre mi aveva detto di risentirci a ottobre, a stagione finita: eccomi.\n\nNel frattempo abbiamo guardato come Lavanderia Bolle appare su Google a Rimini. C’è un’analisi pronta, gratuita: gliela mando?\n\nUn saluto'}
+  ],
+  prezzo: [{id:'z1',nome:'Idraulica Ferri',citta:'Ferrara',frase:'Quanto costa al mese?',q:'1/10',stato:'zitto',
+    bozza:'Salve Ivo,\n\nle avevo scritto la forchetta, ma capisco che un numero da solo dice poco.\nSe le va, in venti minuti le faccio vedere cosa cercano a Ferrara quelli che hanno un tubo rotto, e quanto costa farsi trovare.\n\nGiovedì alle 11 le va bene?\n\nUn saluto'}],
+  checkin: { giorno:'lunedì 5/10', domanda:'Cosa muovi questa settimana, cosa ti blocca?', r:{
+    giacomo:{muovo:'Fattura della prova di Forma, ordine nei preventivi.',blocca:'',ora:'lun 9:00'},
+    lorenzo:{muovo:'Due campagne nuove: officine e dentisti del Veneto.',blocca:'3 caselle ancora in riscaldamento.',ora:'lun 9:12'},
+    carlo:{muovo:'Avvio di Impianti Solari, ottimizzo Palestra Forma.',blocca:'Accessi GA4 di Forma: senza non vedo le iscrizioni.',ora:'lun 9:40'},
+    salvatore:{muovo:'Report di settembre di Le Vigne, campagna di Natale da impostare.',blocca:'',ora:'lun 10:05'},
+    alex:{muovo:'Accessi di Forma e di Impianti Solari.',blocca:'In palestra non rispondono al telefono.',ora:'lun 11:30'},
+    dre:null }, ricordato:{} },
+  report: {
+    a8:{owner:'carlo', mese:'settembre', stato:'bozza', righe:[
+      ['Cosa è cambiato','46 richieste di prova gratuita a settembre, 18,20 € l’una. L’obiettivo era 40.'],
+      ['Perché','Settembre è il mese delle iscrizioni, e le ricerche “palestra vicino a me” hanno portato 7 richieste su 10.'],
+      ['Cosa non va','Da ieri le conversioni risultano a zero ma i clic no: sembra il tracciamento, lo sto sistemando.'],
+      ['Cosa facciamo adesso','Spostiamo budget su Isola e Porta Romana, che costano meno, e prepariamo gennaio.'],
+      ['Rispetto a un anno fa','Settembre 2025: nessuna campagna Google. Agosto 2026: 31 richieste.']]},
+    a9:{owner:'salvatore', mese:'settembre', stato:'bozza', righe:[
+      ['Cosa è cambiato','38 ordini online arrivati da Google, 22% in più di settembre 2025.'],
+      ['Perché','La campagna “bottiglie regalo” è partita il 10/9, tre settimane prima dell’anno scorso.'],
+      ['Cosa non va','Lo Shopping costa il 15% in più a clic: c’è più concorrenza sulle bottiglie sotto i 20 €.'],
+      ['Cosa facciamo adesso','Prepariamo Natale dal 1/11. Proposta: budget più 30% a dicembre, da decidere insieme.'],
+      ['Rispetto a un anno fa','Settembre 2025: 31 ordini. Il confronto lo teniamo in ogni report.']]}
+  },
+  aspettarsi: { a7:[['Settimana 1','Le campagne imparano: pochi contatti, è normale.'],['Settimane 2 e 3','Prime richieste di preventivo, costo ancora alto.'],['Mese 1','Si tagliano le zone che non rendono.'],['Mese 2','25 richieste al mese: è la metrica della garanzia.']] },
+  chat: {}, nonLetti: {}, scrive:null,
+  filtroG:'tutte', ordG:{col:'quando',dir:1}, tabG:'aziende', soloMiei:true,
+  foglio:null, claraChiusa:{giacomo:true}
+};
+
+/* passaggi: i task di dati.js più le schede */
+const CAMPI = [['promesso','Cosa abbiamo promesso','con i numeri e i tempi detti in call'],['perche','Perché conta per lui'],['decide','Chi decide'],['nonPromesso','Cosa NON abbiamo promesso'],['accessi','Accessi']];
+L.task.forEach(t => {
+  const base = { id:t.id, tipo:'task', da:t.da, a:t.a, az:t.azienda, titolo:t.titolo, scadIso:SCAD[t.scadenza], stato: t.stato==='da accettare' ? 'da accettare' : 'accettato', mandato:'', accettatoIl:'' };
+  if(t.id==='t1') Object.assign(base, { tipo:'cliente', titolo:'Impianti Solari Nord', mandato:'ieri alle 18:04', scade:'oggi alle 18:04',
+    campi:{
+      promesso:'Campagne Google Ads su Bergamo, Brescia e Milano per impianti a casa. Budget pubblicitario 1.500 € al mese, fee 2.400 €. Prime richieste di preventivo entro 3 settimane dall’avvio, 25 al mese entro il secondo mese.',
+      perche:'Ad aprile partono gli incentivi nuovi: per allora le campagne devono essere rodate. Oggi i contatti arrivano solo da passaparola e fiere.',
+      decide:'Davide Conti, il titolare. Il budget lo conferma la moglie, Laura, che tiene i conti.',
+      nonPromesso:'Niente social, niente sito nuovo. Nessun numero di contratti firmati: solo richieste di preventivo.',
+      accessi:'Google Ads e Scheda Google chiesti il 5/10. Il Tag Manager ce l’ha la vecchia agenzia: lo chiede Dre a Davide.'},
+    fonti:{promesso:'call tecnica 3/10, minuto 22',perche:'call tecnica 3/10, minuto 8',decide:'conoscitiva 28/9',nonPromesso:'call tecnica 3/10, minuto 31',accessi:'lista accessi'},
+    domande:{manca:'',mantenere:''}, scambi:[],
+    storia:[['clara','5/10 17:40','Ha preparato la scheda dalla call tecnica'],['dre','5/10 18:04','L’ha mandata a Carlo'],['clara','oggi 9:00','L’ha ricordata a Carlo']] });
+  if(t.id==='t2') Object.assign(base,{ mandato:'1/10', accettatoIl:'1/10', route:'report/a9' });
+  if(t.id==='t3') Object.assign(base,{ mandato:'30/9', accettatoIl:'30/9', nota:'GA4 da lettore a editor, e il Tag Manager', route:'oggi' });
+  if(t.id==='t4') Object.assign(base,{ mandato:'2/10', accettatoIl:'2/10', route:'scheda/a8' });
+  if(t.id==='t5') Object.assign(base,{ titolo:'Preventivo per Studio Dentistico Riva', mandato:'2/10', accettatoIl:'2/10', nota:'la bozza nasce dalla tecnica di giovedì', route:'scheda/a2' });
+  S.passaggi.push(base);
+});
+S.passaggi.push({ id:'p2', tipo:'cliente', da:'dre', a:'carlo', az:'a2', titolo:'Studio Dentistico Riva', stato:'bozza', scadIso:'2026-10-08',
+  campi:{ promesso:'Campagne sulle implantologie a Verona e provincia. Fee 1.800 € al mese, budget pubblicitario da fissare in tecnica.', perche:'Le implantologie sono il 60% del fatturato: vuole più prime visite proprio lì. Nel 2024 ha già buttato soldi in clic senza pazienti.', decide:'', nonPromesso:'', accessi:'Da prendere in diretta nella tecnica di giovedì: Google Ads, GA4, Scheda Google.' },
+  fonti:{promesso:'conoscitiva 1/10, minuto 18',perche:'conoscitiva 1/10, minuto 6',decide:'',nonPromesso:'',accessi:'regola: accessi in call'},
+  domande:{manca:'',mantenere:''}, scambi:[], storia:[['clara','oggi 11:52','Ha preparato la scheda dalla conoscitiva']] });
+
+L.conversazioni.forEach(c => S.conv[c.id] = Object.assign({}, c, { fatto:false }));
+S.conv.c1.bozza = 'Salve Luca,\n\nle lascio qui l’analisi su Officina Moretti, la trova in allegato.\n\nSul costo le rispondo subito: per un’officina come la sua di solito siamo fra 600 e 900 € al mese, più quello che si decide di spendere su Google (si parte da 300 o 400 €).\nIl numero giusto dipende da quanti clienti nuovi le servono, ed è quello che vorrei capire con lei in venti minuti.\n\nLe va bene giovedì 8 ottobre alle 15? Se preferisce un altro momento, qui trova il calendario.\n\nUn saluto';
+S.conv.c1.nota = 'Ha chiesto il prezzo: prima gli do la forchetta, poi la call. La forchetta (600-900 €) l’ho scritta io: controllala.';
+S.conv.c1.ore = 3;
+S.conv.c2.nota = 'Vuole il telefono, il numero è nel filo. Decide col socio Mario: chiedi se può esserci anche lui.';
+S.conv.c2.ore = 48;
+L.seguiti.forEach(s => S.fila.push({ id:s.id, az:s.azienda, nome:AZ[s.azienda].nome, giorno:s.giorno, perche:s.perche, bozza:s.bozza, da:'clara', fatto:false }));
+
+/* ---------- Clara: i primi messaggi della giornata ---------- */
+const M = (t, testo, bottoni) => ({ da:'clara', t, testo, bottoni });
+S.chat = {
+  dre:[ M('9:02','Buongiorno Dre. Oggi alle 15 hai Ferramenta Bassi: la scheda è pronta, si legge in due minuti.',[{l:'Apri la scheda',a:'go',x:'scheda/a1'}]),
+        M('9:14','Officina Moretti ha risposto e chiede il prezzo. Ho rifatto la bozza: prima la forchetta, poi la call. La forchetta guardala tu.',[{l:'Apri la bozza',a:'go',x:'posta/c1'}]),
+        M('11:30','Carlo non ha ancora preso Impianti Solari. Gliel’ho ricordato stamattina alle 9. Se alle 18 è ancora lì, ti scrivo.'),
+        M('11:52','Ho preparato il passaggio di Studio Dentistico Riva dagli appunti della conoscitiva. Mi mancano due cose che sai solo tu: chi decide e cosa non abbiamo promesso.',[{l:'Completalo',a:'go',x:'passaggio/p2'}]) ],
+  carlo:[ M('9:00','Ciao Carlo. Dre ti ha passato Impianti Solari Nord ieri alle 18:04. Ho messo tutto in una scheda: cinque punti, due minuti.',[{l:'Leggi e accetta',a:'go',x:'passaggio/t1'}]),
+          M('9:05','Palestra Forma: da ieri conversioni a zero, ma i clic sono quelli di sempre. Sembra il tag, non la campagna.',[{l:'Apri Forma',a:'go',x:'scheda/a8'}]),
+          M('10:40','Ho scritto la bozza del report di settembre di Forma. Sono cinque righe, la storia mettila tu.',[{l:'Apri il report',a:'go',x:'report/a8'}]) ],
+  giacomo:[ M('9:00','Check-in di lunedì: hanno risposto in cinque, manca Dre.',[{l:'Ricordaglielo tu',a:'ricordaCheckin',x:'dre',eco:true}]),
+            M('9:30','Gli accessi di Palestra Forma sono fermi da 6 giorni. Li insegue Alex, e a Carlo servono per il report.',[{l:'Ricordalo ad Alex',a:'ricordaAlex',eco:true},{l:'Lo chiamo io',a:'chiamoIo',eco:true}]) ],
+  lorenzo:[ M('9:10','Buongiorno! Lavanderia Bolle torna oggi: a settembre aveva scritto «ci risentiamo a ottobre». Ho preparato la ripresa.',[{l:'Guardala',a:'go',x:'oggi'}]),
+            M('9:11','Ho letto 4 «non ora» nuovi e ho messo una data a ognuno, presa dalle loro parole. Me le confermi?',[{l:'Vedi le date',a:'go',x:'nonora'}]) ],
+  salvatore:[ M('9:20','Il report di Le Vigne scade domani. La bozza c’è, il confronto con settembre 2025 l’ho già messo.',[{l:'Apri il report',a:'go',x:'report/a9'}]) ],
+  alex:[ M('9:00','Alex, gli accessi di Palestra Forma dovevano chiudersi ieri. Carlo li aspetta per il report.'),
+         M('9:01','Ti ho scritto il messaggio per Elena con i passi giusti: su GA4 serve editor, non lettore.',[{l:'Aprilo',a:'go',x:'oggi'}]) ]
+};
+S.nonLetti = { dre:2, carlo:2, giacomo:2, lorenzo:2, salvatore:1, alex:2 };
+const MSG_ELENA = 'Ciao Elena, sono Alex di Studio Galilei. Per finire la configurazione ci servono due cose, cinque minuti in tutto:\n\n1. Google Analytics: Amministrazione, Gestione accessi, cambi il nostro indirizzo da Lettore a Editor.\n2. Tag Manager: Amministrazione, Gestione utenti, aggiunga lo stesso indirizzo con il permesso Pubblica.\n\nSe preferisce la chiamo io e lo facciamo insieme. Grazie!';
+
+/* ---------- regole che si leggono da sole ---------- */
+const pass = id => S.passaggi.find(p => p.id===id);
+function resp(az){
+  const pc = S.passaggi.find(p => p.tipo==='cliente' && p.az===az && p.stato==='accettato');
+  return pc ? pc.a : AZ[az].resp;
+}
+function accFermi(az){
+  return (S.accessi[az]||[]).filter(r => r.stato!=='ok' && r.dal && -gg(r.dal) > 3);
+}
+function accTxt(az){ const l = S.accessi[az]; if(!l) return ''; const ok = l.filter(r=>r.stato==='ok').length; return ok+' di '+l.length; }
+function ritardo(p){ return p.stato==='accettato' && p.scadIso && gg(p.scadIso) < 0; }
+function etScad(iso){ const g = gg(iso); if(g<0) return g===-1 ? 'in ritardo da ieri' : 'in ritardo da '+(-g)+' giorni'; if(g===0) return 'scade oggi'; if(g===1) return 'domani'; return quando(iso); }
+function colScad(iso){ const g = gg(iso); return g<0 ? 'rosso' : g<=1 ? 'ambra' : 'neutro'; }
+function fermoDa(a){ const g = -gg(a.ultima); const soglia = {risposta:1,analisi:7,follow_up:14,conoscitiva:7,tecnica:7,avvio:5,prova:10,cliente:30}[a.tappa]||7; return g>soglia ? g : 0; }
+function bloccato(id){
+  const a = AZ[id];
+  const pc = S.passaggi.find(p => p.tipo==='cliente' && p.az===id && p.stato==='da accettare');
+  if(pc) return {chi:pc.a, t:'accettare il passaggio'};
+  const pi = S.passaggi.find(p => p.tipo==='cliente' && p.az===id && p.stato==='indietro');
+  if(pi) return {chi:pi.da, t:'rispondere a '+nome(pi.a)};
+  const f = accFermi(id); if(f.length) return {chi:f[0].chi, t:'accessi, '+(-gg(f[0].dal))+' giorni', rosso:true};
+  const c = Object.values(S.conv).find(c => c.azienda===id && !c.fatto); if(c) return {chi:'dre', t: c.bozza ? 'approvare la risposta' : 'telefonata', rosso: c.ore>2};
+  const fl = S.fila.find(x => x.az===id && !x.fatto); if(fl) return {chi:'dre', t:'approvare il follow-up'};
+  if(!a.mossa) return {chi:null, t:'nessuna mossa'};
+  return null;
+}
+
+/* ---------- la coda «prossima mossa» per persona ---------- */
+function coda(p){
+  const it = [];
+  const add = o => it.push(o);
+  S.passaggi.forEach(x => {
+    const az = AZ[x.az];
+    if(x.a===p && x.stato==='da accettare'){
+      add({ k:x.id, peso:1, col:'ambra', titolo: x.tipo==='cliente' ? 'Accetta il passaggio: '+x.titolo : 'Accetta: '+x.titolo,
+        sotto: 'Te l’ha passato '+nome(x.da)+' '+x.mandato+'. '+(x.tipo==='cliente' ? 'Finché non lo accetti resta di '+nome(x.da)+'.' : ''),
+        et: x.scade ? 'scade '+x.scade.replace('oggi alle ','alle ') : etScad(x.scadIso), da:x.da, a:'go', x:'passaggio/'+x.id, btn: x.tipo==='cliente' ? 'Leggi e accetta' : 'Apri' });
+    }
+    if(x.a===p && x.stato==='accettato' && x.tipo==='task'){
+      if(p==='alex' && x.id==='t3') return; // Alex lo vede negli accessi
+      add({ k:x.id, peso: ritardo(x)?0.5:3, col: colScad(x.scadIso), titolo:x.titolo, sotto:'Da '+nome(x.da)+(x.nota?': '+x.nota:''), et:etScad(x.scadIso), da:x.da, a:'go', x:x.route||('scheda/'+x.az), btn:'Apri' });
+    }
+    if(x.da===p && x.stato==='bozza'){
+      const manca = CAMPI.filter(c => !x.campi[c[0]].trim()).length;
+      add({ k:x.id, peso:4, col:'ambra', titolo:'Completa il passaggio di '+x.titolo, sotto:'Clara l’ha preparato'+(manca?'. Mancano '+manca+' campi che sai solo tu.':'. È completo, puoi mandarlo a '+nome(x.a)+'.'), et:'per '+nome(x.a), da:'clara', a:'go', x:'passaggio/'+x.id, btn:'Completalo' });
+    }
+    if(x.da===p && x.stato==='indietro'){
+      add({ k:x.id, peso:0.8, col:'ambra', titolo:nome(x.a)+' ti chiede su '+x.titolo, sotto:'«'+x.scambi[x.scambi.length-1].t+'»', et:'aspetta te', da:x.a, a:'go', x:'passaggio/'+x.id, btn:'Rispondi' });
+    }
+    if(x.da===p && x.stato==='bloccato'){
+      add({ k:x.id, peso:0.4, col:'rosso', titolo:nome(x.a)+' è bloccato: '+x.titolo, sotto:'«'+x.blocco+'»', et:'fermo', da:x.a, a:'go', x:x.route||('scheda/'+x.az), btn:'Sbloccalo' });
+    }
+  });
+  if(p==='dre'){
+    Object.values(S.conv).filter(c=>!c.fatto).forEach(c => {
+      const a = AZ[c.azienda];
+      add({ k:c.id, peso: c.ore>2 ? 0.2 : 1, col: c.ore>2 ? 'rosso' : 'ambra', titolo: c.bozza ? 'Approva la risposta a '+a.nome : 'Chiama '+a.persona+', '+a.nome, sotto: c.perche[0].toUpperCase()+c.perche.slice(1)+'.', et:'aspetta '+c.aspetta, a:'go', x:'posta/'+c.id, btn: c.bozza ? 'Apri la bozza' : 'Apri il filo' });
+    });
+    const f = S.fila.filter(x=>!x.fatto);
+    if(f.length) add({ k:'fila', peso:2, col:'ambra', titolo: f.length===1 ? 'Un follow-up pronto nella fila' : f.length+' follow-up pronti nella fila', sotto: f.map(x=>x.nome).join(', '), et:'oggi', da: f.some(x=>x.da==='lorenzo') ? 'lorenzo' : 'clara', a:'go', x:'posta/fila', btn:'Apri la fila' });
+    add({ k:'call', peso:2.5, col:'ambra', titolo:'Prepara la conoscitiva con Ferramenta Bassi', sotto:'Alle 15 con Giulia Bassi. La scheda è pronta.', et:'alle 15', a:'go', x:'scheda/a1', btn:'Apri la scheda' });
+    if(!S.checkin.r.dre) add({ k:'ci', peso: S.checkin.ricordato.dre ? 2.6 : 6, col: S.checkin.ricordato.dre ? 'ambra' : 'neutro', titolo:'Check-in del lunedì: manca il tuo', sotto:'Una domanda di Giacomo: '+S.checkin.domanda.toLowerCase(), et: S.checkin.ricordato.dre ? 'te lo chiede Giacomo' : 'da ieri', da:'giacomo', a:'checkinFoglio', x:'dre', btn:'Rispondi' });
+  }
+  if(p==='carlo'){
+    if(S.allarme.a8) add({ k:'all', peso:0, col:'rosso', titolo:'Palestra Forma: conversioni a zero da ieri', sotto:'I clic sono quelli di sempre, quindi è il tracciamento, non la campagna. Il cliente non se n’è ancora accorto.', et:'allarme', da:'clara', a:'go', x:'scheda/a8', btn:'Controlla il tag' });
+    const r = S.report.a8; if(r.stato!=='mandato') add({ k:'rep', peso:3, col: r.stato==='firmato' ? 'ambra' : 'ambra', titolo: r.stato==='firmato' ? 'Manda il report di Forma: è firmato' : 'Firma il report di settembre di Forma', sotto:'Cinque righe. Clara ha scritto la bozza, la storia la metti tu.', et:'domani', da:'clara', a:'go', x:'report/a8', btn:'Apri il report' });
+    add({ k:'tec', peso:5, col:'neutro', titolo:'Tecnica con Dre: Studio Dentistico Riva', sotto:'Giovedì 8 alle 15:30. Prendi gli accessi in diretta.', et:'giovedì', da:'dre', a:'go', x:'scheda/a2', btn:'Apri la scheda' });
+    if(resp('a7')==='carlo') add({ k:'avv', peso:4, col:'neutro', titolo:'Avvio di Impianti Solari Nord', sotto:'Lunedì 12 alle 10. Accessi: '+accTxt('a7')+'.', et:'lunedì 12', a:'go', x:'scheda/a7', btn:'Apri' });
+  }
+  if(p==='giacomo'){
+    ['a7','a8'].forEach(az => { const f = accFermi(az); if(f.length) add({ k:'acc'+az, peso:0.5, col:'rosso', titolo:'Accessi di '+AZ[az].nome+' fermi da '+(-gg(f[0].dal))+' giorni', sotto: f.map(r=>r.cosa).join(' e ')+'. Li insegue '+nome(f[0].chi)+'.', et:'fermo', da:f[0].chi, a:'go', x:'scheda/'+az, btn:'Apri' }); });
+    const manc = ORDINE.filter(x => !S.checkin.r[x]);
+    if(manc.length) add({ k:'ci', peso:2, col:'ambra', titolo:'Check-in: '+(manc.length===1 ? 'manca '+nome(manc[0]) : 'mancano '+manc.length), sotto: S.checkin.ricordato[manc[0]] ? 'Clara gliel’ha ricordato alle '+S.checkin.ricordato[manc[0]]+'.' : 'Hanno risposto in '+(6-manc.length)+' su 6.', et:'da lunedì', a:'go', x:'checkin', btn:'Apri il check-in' });
+    S.passaggi.filter(x => x.a!=='giacomo' && (ritardo(x) || x.stato==='bloccato')).forEach(x => add({ k:'pr'+x.id, peso:1, col:'rosso', titolo:nome(x.da)+' → '+nome(x.a)+': '+x.titolo, sotto: x.stato==='bloccato' ? 'Bloccato: «'+x.blocco+'»' : 'Doveva chiudersi '+quando(x.scadIso)+'.', et: x.stato==='bloccato' ? 'bloccato' : etScad(x.scadIso), da:x.a, a:'go', x:'passaggi', btn:'Apri' }));
+  }
+  if(p==='lorenzo'){
+    const b = S.nonOra.find(n => n.id==='n0');
+    if(b.stato==='torna oggi') add({ k:'n0', peso:1, col:'ambra', titolo:'Lavanderia Bolle torna oggi', sotto:b.riassunto.join(' ')+' La ripresa è pronta: va nella fila di Dre.', et:'oggi', da:'clara', a:'mandaFila', x:'n0', btn:'Metti nella fila di Dre' });
+    const dc = S.nonOra.filter(n => n.stato==='da confermare').length;
+    if(dc) add({ k:'nc', peso:2, col:'ambra', titolo: dc+' «non ora» da datare', sotto:'Clara ha letto la data nelle loro parole. Tu confermi o cambi.', et:'da confermare', da:'clara', a:'go', x:'nonora', btn:'Conferma le date' });
+    S.prezzo.filter(z=>z.stato==='zitto').forEach(z => add({ k:z.id, peso:2.5, col:'ambra', titolo:z.nome+': ha chiesto il prezzo e poi zitto', sotto:'«'+z.frase+'» il '+z.q+'. Forchetta data, silenzio da 5 giorni.', et:'coda veloce', a:'mandaFila', x:z.id, btn:'Metti nella fila di Dre' }));
+  }
+  if(p==='salvatore'){
+    const r = S.report.a9;
+    if(r.stato==='firmato') add({ k:'rep9', peso:2, col:'ambra', titolo:'Manda il report di Le Vigne: è firmato', sotto:'Copialo nella mail a Giovanni Sala.', et:'domani', a:'go', x:'report/a9', btn:'Apri' });
+  }
+  if(p==='alex'){
+    const t3 = pass('t3');
+    if(t3 && t3.stato==='accettato') add({ k:'t3', peso:0, col: ritardo(t3)?'rosso':'ambra', titolo:'Accessi di Palestra Forma', sotto:'Te li ha passati Carlo il 30/9. GA4 da lettore a editor, e il Tag Manager. Il messaggio per Elena è pronto.', et:etScad(t3.scadIso), da:'carlo', a:'scrolla', x:'acc-a8', btn:'Vai agli accessi' });
+    const a7 = S.accessi.a7.filter(r => r.chi==='alex' && r.stato!=='ok');
+    if(a7.length) add({ k:'a7', peso:3, col:'neutro', titolo:'Accessi di Impianti Solari Nord: '+a7.length+' chiesti', sotto: a7.map(r=>r.cosa).join(', ')+'. Chiesti ieri.', et:'giovedì', da:'dre', a:'scrolla', x:'acc-a7', btn:'Vai agli accessi' });
+  }
+  const ord = {rosso:0, ambra:1, blu:2, neutro:3, verde:4};
+  return it.sort((a,b) => (a.peso-b.peso) || (ord[a.col]-ord[b.col]));
+}
+const urgenti = p => coda(p).filter(i => i.col==='rosso' || i.col==='ambra').length;
+
+/* ---------- router ---------- */
+const NAV = {
+  dre:[['oggi','Oggi','casa'],['posta','Posta','posta'],['trattativa','Trattativa','colonne'],['passaggi','Passaggi','frecce'],['clara','Clara','chat']],
+  carlo:[['oggi','Oggi','casa'],['clienti','Clienti','cartella'],['passaggi','Passaggi','frecce'],['clara','Clara','chat']],
+  giacomo:[['oggi','Tabella','tabella'],['checkin','Check-in','spunta'],['passaggi','Passaggi','frecce'],['clara','Clara','chat']],
+  lorenzo:[['oggi','Oggi','casa'],['nonora','Non ora','orologio'],['passaggi','Passaggi','frecce'],['clara','Clara','chat']],
+  salvatore:[['oggi','Oggi','casa'],['passaggi','Passaggi','frecce'],['clara','Clara','chat']],
+  alex:[['oggi','Oggi','casa'],['passaggi','Passaggi','frecce'],['clara','Clara','chat']]
+};
+function go(route){ const h = '#'+S.io+'/'+route; if(location.hash===h){ leggiHash(); render(); } else location.hash = h; }
+function leggiHash(){
+  const h = location.hash.replace(/^#\/?/,'').split('/');
+  if(h[0] && P[h[0]] && h[0]!=='clara') S.io = h[0];
+  S.vista = h[1] || 'oggi';
+  S.arg = h[2] || null;
+}
+const isTel = () => matchMedia('(max-width:839px)').matches;
+const isLargo = () => matchMedia('(min-width:1200px)').matches;
+
+/* ---------- pezzi riusati ---------- */
+function riga(i){
+  return `<button class="riga ${i.col}" data-a="${i.a}" data-x="${esc(i.x||'')}">
+    <span class="st" aria-hidden="true"></span>
+    <span class="riga-c"><span class="riga-t">${esc(i.titolo)}</span><span class="riga-s">${esc(i.sotto)}</span></span>
+    ${i.da ? `<span class="da">${av(i.da,22)}<span class="nm">${nome(i.da)}</span></span>` : ''}
+    <span class="pill ${i.col} solo-desk">${esc(i.et)}</span>
+    ${ic('freccia','fr')}
+  </button>`;
+}
+function hero(i, vuoto){
+  if(!i) return `<section class="hero"><div class="hero-k"><span class="pill verde">fatto</span></div><h1>${vuoto||'Niente che aspetti te. La giornata è chiusa.'}</h1></section>`;
+  return `<section class="hero">
+    <div class="hero-k"><span class="pill ${i.col}">${esc(i.et)}</span></div>
+    <h1>${esc(i.titolo)}</h1>
+    <p>${esc(i.sotto)}</p>
+    <div class="azioni solo-desk"><button class="btn pieno" data-a="${i.a}" data-x="${esc(i.x||'')}">${esc(i.btn)} ${ic('manda')}</button>${i.da ? `<span class="da">${av(i.da,22)} ${i.da==='clara' ? 'preparato da Clara' : 'da '+nome(i.da)}</span>` : ''}</div>
+  </section>`;
+}
+function statoPass(x){
+  if(x.stato==='bozza') return {col:'neutro', t:'bozza, non ancora mandato'};
+  if(x.stato==='da accettare') return {col:'ambra', t:nome(x.a)+' non l’ha ancora accettato'};
+  if(x.stato==='indietro') return {col:'ambra', t:nome(x.a)+' ha una domanda'};
+  if(x.stato==='bloccato') return {col:'rosso', t:nome(x.a)+' è bloccato'};
+  if(x.stato==='fatto') return {col:'verde', t:'fatto'+(x.fattoIl?' alle '+x.fattoIl:'')};
+  if(ritardo(x)) return {col:'rosso', t:'in ritardo da '+(gg(x.scadIso)===-1?'ieri':(-gg(x.scadIso))+' giorni')};
+  return {col:'verde', t:'accettato da '+nome(x.a)+(x.accettatoIl?' '+(x.accettatoIl.includes(':')?'alle ':'il ')+x.accettatoIl:'')};
+}
+function haiPassato(p){
+  const l = S.passaggi.filter(x => x.da===p && x.stato!=='bozza');
+  const extra = [];
+  if(p==='lorenzo'){
+    Object.values(S.conv).forEach(c => extra.push({t:AZ[c.azienda].nome, s: c.fatto ? 'Dre l’ha chiusa alle '+c.fattoIl : 'Risposta arrivata, aspetta Dre '+c.aspetta, col: c.fatto ? 'verde' : c.ore>2 ? 'rosso' : 'ambra', et: c.fatto ? 'partita' : 'Dre non l’ha ancora fatta', go:'scheda/'+c.azienda}));
+  }
+  const righe = l.map(x => { const s = statoPass(x); return `<button class="passato" style="width:100%;text-align:left" data-a="go" data-x="${x.tipo==='cliente'?'passaggio/'+x.id:(x.route&&x.route!=='oggi'?x.route:'passaggi')}">${av(x.a,26)}<div><div class="t">${esc(x.titolo)}</div><div class="s">a ${nome(x.a)}, ${x.mandato ? 'mandato '+x.mandato : ''}</div><span class="pill ${s.col}">${esc(s.t)}</span></div></button>`; })
+    .concat(extra.map(e => `<button class="passato" style="width:100%;text-align:left" data-a="go" data-x="${e.go}">${av('dre',26)}<div><div class="t">${esc(e.t)}</div><div class="s">${esc(e.s)}</div><span class="pill ${e.col}">${esc(e.et)}</span></div></button>`));
+  return `<section class="card card-p"><h3>Hai passato <span class="n">${righe.length}</span></h3><div style="margin-top:6px">${righe.join('') || '<div class="mini" style="padding:8px 0">Niente in giro.</div>'}</div></section>`;
+}
+function testa(k, t, dx=''){
+  return `<div class="testa top"><div><div class="k">${k}</div><h1 class="titolo">${t}</h1></div>${dx}</div>`;
+}
+function tornaLink(){ return `<button class="torna solo-desk" data-a="indietro">${ic('indietro')}<span>Torna</span></button>`; }
+function listaAccessi(az, io){
+  return (S.accessi[az]||[]).map((r,i) => {
+    const g = r.dal ? -gg(r.dal) : 0;
+    const fermo = r.stato!=='ok' && g>3;
+    const col = r.stato==='ok' ? 'verde' : (fermo || r.stato==='sbagliato') ? 'rosso' : 'blu';
+    const et = r.stato==='ok' ? 'ok' : r.stato==='sbagliato' ? 'sbagliato' : 'chiesto';
+    const s = r.stato==='ok' ? 'a posto' : (r.nota ? r.nota+', ' : '')+'chiesto '+quando(r.dal)+(fermo ? ', fermo da '+g+' giorni: Giacomo avvisato' : '');
+    return `<div class="acc"><span class="pill ${col}">${et}</span><div class="c"><div class="t">${esc(r.cosa)}</div><div class="s">${esc(s)}</div></div><span class="chi">${av(r.chi,20)} ${r.stato==='ok' ? nome(r.chi) : 'insegue '+nome(r.chi)}</span>${r.stato!=='ok' && io===r.chi ? `<button class="btn piccolo" data-a="accOk" data-x="${az}:${i}">${ic('spunta')} È a posto</button>` : ''}</div>`;
+  }).join('');
+}
+
+/* ---------- viste ---------- */
+const V = {};
+
+V.oggi = () => ({ dre:homeDre, carlo:homeCarlo, giacomo:homeGiacomo, lorenzo:homeLorenzo, salvatore:homeSalvatore, alex:homeAlex })[S.io]();
+
+function dataTesta(){ return 'martedì 6 ottobre, '+ora(); }
+function homeBase(extraA, extraB, vuoto){
+  const c = coda(S.io);
+  const h = c[0];
+  pollice(h ? {l:h.btn, a:h.a, x:h.x} : null);
+  return testa(dataTesta(), 'Oggi') + `<div class="home"><div class="col-a">${hero(h, vuoto)}
+    ${c.length>1 ? `<div class="sez"><div class="sez-t"><h2>Poi</h2><span class="n">${c.length-1}</span></div><div class="lista">${c.slice(1).map(riga).join('')}</div></div>` : ''}
+    ${extraA||''}</div><aside class="col-b">${extraB||''}</aside></div>`;
+}
+function homeDre(){
+  const fila = S.fila.filter(x=>!x.fatto).length + Object.values(S.conv).filter(c=>!c.fatto).length;
+  const giornata = `<div class="giornata"><span>Giornata chiusa quando:</span><span><b>sì senza analisi</b> <span class="ok">0 ${'✓'}</span></span><span><b>follow-up e risposte dovuti</b> <span class="${fila?'no':'ok'}">${fila ? fila+' da fare' : 'tutti partiti ✓'}</span></span></div>`;
+  const tiHanno = S.passaggi.filter(x => x.a==='dre' && x.stato!=='fatto');
+  const b = `<section class="card card-p call-c"><div class="eti">Prossima call</div><div class="n" style="margin-top:6px">Ferramenta Bassi</div><div class="q">oggi alle 15, conoscitiva con Giulia Bassi</div><div class="azioni" style="margin-top:12px"><button class="btn piccolo pieno" data-a="go" data-x="scheda/a1">Prepara</button><button class="btn piccolo vuoto" data-a="go" data-x="trattativa">Trattativa</button></div></section>`
+    + haiPassato('dre')
+    + `<section class="card card-p"><h3>In corsa da sole</h3><div class="mini" style="margin-top:6px">6 risposte oggi, 4 analisi partite da sole. Colle Verde ha aperto l’analisi 2 volte.</div><button class="btn piccolo vuoto" style="margin-top:8px;padding:0" data-a="go" data-x="posta/corsa">Vedi tutto</button></section>`;
+  return homeBase(giornata, b);
+}
+function homeCarlo(){
+  const clienti = ['a8','a7','a9'].map(id => { const a = AZ[id]; const r = resp(id);
+    const s = id==='a8' ? 'Prova, giorno 21 di 60' : id==='a7' ? (r==='carlo' ? 'Avvio lunedì 12' : 'Ancora di Dre: devi accettarlo') : 'Lo segue Salvatore';
+    return `<button class="passato" style="width:100%;text-align:left" data-a="go" data-x="scheda/${id}">${av(r,26)}<div style="flex:1"><div class="t">${a.nome}</div><div class="s">${s}. Accessi ${accTxt(id)}</div>${id==='a8'?`<div style="height:6px;border-radius:3px;background:var(--velo);margin-top:8px;overflow:hidden"><div style="width:35%;height:100%;background:var(--blu)"></div></div>`:''}</div></button>`; }).join('');
+  const b = `<section class="card card-p"><h3>Clienti</h3><div style="margin-top:6px">${clienti}</div></section>` + haiPassato('carlo');
+  return homeBase('', b);
+}
+function homeLorenzo(){
+  const o = L.outbound;
+  const num = `<div class="numeri"><div class="numero"><b>${o.risposteOggi}</b><span>risposte oggi</span></div><div class="numero"><b>${o.consegneOggi}</b><span>analisi partite</span></div><div class="numero"><b>${o.caselleSane}%</b><span>caselle sane</span></div><div class="numero"><b>${S.nonOra.filter(n=>n.stato==='datato').length}</b><span>«non ora» con data</span></div></div>`;
+  const b0 = S.nonOra.find(n=>n.id==='n0');
+  const bolle = false ? `<div class="sez"><div class="sez-t"><h2>Torna oggi</h2></div><div class="card card-p"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="color:var(--navy);font-size:16px">Lavanderia Bolle</b><span class="mini">Rimini, «non ora» del 3/9</span></div><ul class="gia" style="margin-top:8px">${b0.riassunto.map(r=>`<li>${esc(r)}</li>`).join('')}</ul><div class="azioni" style="margin-top:12px"><button class="btn pieno piccolo" data-a="mandaFila" data-x="n0">Metti nella fila di Dre</button><button class="btn piccolo" data-a="nonOraFoglio" data-x="no:n0">Ancora non ora</button></div></div></div>` : '';
+  return homeBase(bolle, `<div>${num.replace('class="numeri"','class="numeri" style="grid-template-columns:1fr 1fr;margin-top:0"')}</div>` + haiPassato('lorenzo'));
+}
+function homeSalvatore(){
+  const a = AZ.a9;
+  const prog = `<section class="card card-p"><h3>Progetti</h3><button class="passato" style="width:100%;text-align:left" data-a="go" data-x="scheda/a9">${av('salvatore',26)}<div><div class="t">${a.nome}</div><div class="s">Cliente da agosto, ${euro(a.valore)} al mese. Accessi ${accTxt('a9')}</div><span class="pill neutro">report ${S.report.a9.stato==='bozza'?'in bozza':S.report.a9.stato}</span></div></button></section>`;
+  const reg = `<section class="card card-p"><h3>Se Carlo è fuori</h3><div class="mini" style="margin-top:4px">Registro di Palestra Forma: l’ultima modifica è del 2/10, ${esc(S.registro.a8[0][2].toLowerCase())}.</div><button class="btn piccolo vuoto" style="padding:0;margin-top:6px" data-a="go" data-x="scheda/a8">Apri il registro</button></section>`;
+  const ci = S.checkin.r.salvatore;
+  const cic = `<section class="card card-p"><h3>Check-in di lunedì</h3><div class="mini" style="margin-top:4px"><b>Muovi:</b> ${esc(ci.muovo)}<br><b>Ti blocca:</b> ${esc(ci.blocca||'niente')}</div></section>`;
+  return homeBase('', prog + reg + cic + haiPassato('salvatore'));
+}
+function homeAlex(){
+  const t3 = pass('t3');
+  const acc = id => `<div class="sez" id="acc-${id}"><div class="sez-t"><h2>Accessi di ${AZ[id].nome}</h2><span class="n">${accTxt(id)}</span></div><div class="card card-p">${listaAccessi(id,'alex')}</div></div>`;
+  const msg = `<div class="sez"><div class="sez-t"><h2>Il messaggio per Elena</h2><span class="dx">${av('clara',22)}</span></div><div class="card card-p"><div class="nota-clara">${av('clara',22)}<span>L’ho scritto con i passi giusti. Lo copi, lo mandi tu su WhatsApp, e mi dici com’è andata.</span></div><p style="white-space:pre-line;font-size:14.5px;color:var(--ink)">${esc(MSG_ELENA)}</p><div class="azioni" style="margin-top:12px"><button class="btn piccolo" data-a="copia" data-x="elena">${ic('copia')} Copia</button>${t3.stato!=='bloccato' && t3.stato!=='fatto' ? `<button class="btn piccolo" data-a="bloccoFoglio" data-x="t3">Sono bloccato</button>`:''}</div></div></div>`;
+  const b = `<section class="card card-p"><h3>Te le ha passate</h3>${['t3'].map(id=>{const x=pass(id);const s=statoPass(x);return `<div class="passato">${av(x.da,26)}<div><div class="t">${esc(x.titolo)}</div><div class="s">da ${nome(x.da)} il ${x.mandato}</div><span class="pill ${s.col}">${s.t.replace('accettato da Alex','in mano tua')}</span></div></div>`;}).join('')}</section>` + haiPassato('alex');
+  return homeBase(acc('a8') + msg + acc('a7'), b);
+}
+
+/* Giacomo: la tabella */
+function righeG(){
+  return L.aziende.map(a0 => { const a = AZ[a0.id]; const b = bloccato(a.id); const r = resp(a.id);
+    return { id:a.id, nome:a.nome, citta:a.citta, tappa:a.tappa, chi:r, mossa:a.mossa, quando:a.mossa?a.mossa.quando:'9999', ultima:a.ultima, fermo:fermoDa(a), b, valore:a.valore }; });
+}
+function homeGiacomo(){
+  const c = coda('giacomo');
+  pollice(c[0] ? {l:c[0].btn, a:c[0].a, x:c[0].x} : null);
+  let rows = righeG();
+  const n = { tutte:rows.length, ferme:rows.filter(r=>r.fermo||(r.b&&r.b.rosso)).length, senza:rows.filter(r=>!r.mossa).length, clienti:rows.filter(r=>['avvio','prova','cliente'].includes(r.tappa)).length };
+  if(S.filtroG==='ferme') rows = rows.filter(r=>r.fermo||(r.b&&r.b.rosso));
+  if(S.filtroG==='senza') rows = rows.filter(r=>!r.mossa);
+  if(S.filtroG==='clienti') rows = rows.filter(r=>['avvio','prova','cliente'].includes(r.tappa));
+  const o = S.ordG; const key = {nome:r=>r.nome, tappa:r=>Object.keys(TAPPA).indexOf(r.tappa), chi:r=>r.chi, quando:r=>r.quando, ultima:r=>r.ultima, valore:r=>r.valore}[o.col];
+  rows.sort((x,y)=> (key(x)>key(y)?1:key(x)<key(y)?-1:0)*o.dir);
+  const th = (col,t,cl='') => `<th class="${cl} ${o.col===col?'on':''}" aria-sort="${o.col===col?(o.dir>0?'ascending':'descending'):'none'}"><button data-a="ordG" data-x="${col}">${t}${o.col===col?(o.dir>0?' ↑':' ↓'):''}</button></th>`;
+  const tc = {risposta:'ambra',analisi:'blu',follow_up:'ambra',conoscitiva:'blu',tecnica:'blu',avvio:'blu',prova:'ambra',cliente:'verde'};
+  const tabella = `<div class="tab-wrap desk-t"><table class="densa"><thead><tr>${th('nome','Azienda')}${th('tappa','Fase')}${th('chi','Chi')}<th>Prossima mossa</th>${th('quando','Quando')}${th('ultima','Ultimo tocco')}<th>Bloccato da</th>${th('valore','€ al mese','r')}</tr></thead><tbody>
+    ${rows.map(r => `<tr data-a="go" data-x="scheda/${r.id}" tabindex="0"><td><div class="tn">${esc(r.nome)}</div><div class="sm">${esc(r.citta)}</div></td><td><span class="pill ${tc[r.tappa]} nodot">${TAPPA[r.tappa]}</span></td><td><span class="chi-c">${av(r.chi,20)} ${nome(r.chi)}</span></td>
+      <td>${r.mossa ? `<span class="chi-c" style="white-space:normal">${r.mossa.chi!==r.chi?av(r.mossa.chi,18):''}${esc(r.mossa.cosa)}</span>` : `<span class="chi-c ambratxt">${ic('tri','tri')} senza mossa</span>`}</td>
+      <td class="${r.mossa && gg(r.mossa.quando)<0?'rossotxt':''}">${r.mossa?quando(r.mossa.quando):'-'}</td>
+      <td class="${r.fermo?'rossotxt':''}">${r.fermo ? 'fermo da '+r.fermo+' g' : quando(r.ultima)}</td>
+      <td>${r.b ? `<span class="${r.b.rosso?'rossotxt':''}">${r.b.chi?nome(r.b.chi)+': ':''}${esc(r.b.t)}</span>` : '<span class="sm">-</span>'}</td>
+      <td class="r">${euro(r.valore)}</td></tr>`).join('')}
+    </tbody></table>${piedeSoldi()}</div>`;
+  const mob = `<div class="righe-m"><div class="lista">${rows.map(r=>`<button class="riga ${r.b&&r.b.rosso||r.fermo?'rosso':!r.mossa?'ambra':'neutro'}" data-a="go" data-x="scheda/${r.id}"><span class="st"></span><span class="riga-c"><span class="riga-t">${esc(r.nome)}</span><span class="riga-s">${TAPPA[r.tappa]}, ${nome(r.chi)}. ${r.mossa?esc(r.mossa.cosa)+', '+quando(r.mossa.quando):'Senza mossa'}${r.b?'. Bloccato da '+(r.b.chi?nome(r.b.chi)+': ':'')+esc(r.b.t):''}</span></span>${ic('freccia','fr')}</button>`).join('')}</div>${piedeSoldi(true)}</div>`;
+  const ch = (k,t) => `<button class="chip ${S.filtroG===k?'on':''}" data-a="filtroG" data-x="${k}">${t} <span class="n">${n[k]}</span></button>`;
+  const dx = `<div class="azioni solo-desk"><button class="btn piccolo" data-a="esporta">${ic('scarica')} Esporta per Excel</button></div>`;
+  return testa(dataTesta(),'Tabella',dx)
+    + (c.length ? `<div class="sez" style="margin-top:0;margin-bottom:22px"><div class="sez-t"><h2>Da guardare</h2><span class="n">${c.length}</span></div><div class="lista">${c.map(riga).join('')}</div></div>` : '')
+    + `<div class="filtri">${ch('tutte','Tutte')}${ch('ferme','Ferme')}${ch('senza','Senza mossa')}${ch('clienti','Clienti')}</div>` + tabella + mob
+    + `<div class="sez"><div class="sez-t"><h2>Accessi</h2></div><div class="tab-wrap"><table class="densa"><thead><tr><th>Cliente</th><th>Accesso</th><th>Stato</th><th>Chi insegue</th></tr></thead><tbody>${['a7','a8'].flatMap(az=>S.accessi[az].filter(r=>r.stato!=='ok').map(r=>{const g=-gg(r.dal);return `<tr data-a="go" data-x="scheda/${az}"><td class="tn">${AZ[az].nome}</td><td>${esc(r.cosa)}</td><td class="${g>3?'rossotxt':''}">${r.stato==='sbagliato'?'sbagliato, ':'chiesto, '}${g>3?'fermo da '+g+' g':quando(r.dal)}</td><td><span class="chi-c">${av(r.chi,20)} ${nome(r.chi)}</span></td></tr>`;})).join('') || '<tr><td colspan="4" class="sm">Tutti gli accessi sono a posto.</td></tr>'}</tbody></table></div></div>`;
+}
+function piedeSoldi(m){
+  const s = L.soldi;
+  return `<div class="piede-t" ${m?'style="border:1px solid var(--bordo);border-radius:14px;margin-top:10px;background:#fff"':''}><span><b>${euro(s.canoneMese)}</b> canone al mese</span><span><b>${s.prove}</b> in prova</span><span><b>${s.inTrattativa}</b> in trattativa</span><span><b>${s.preventiviInGiro}</b> preventivo in giro</span></div>`;
+}
+
+V.checkin = () => {
+  pollice(null);
+  const ci = S.checkin;
+  const righe = ORDINE.map(p => { const r = ci.r[p];
+    if(!r) return `<tr><td><span class="chi-c">${av(p,24)} ${nome(p)}</span></td><td colspan="2"><span class="ambratxt">Non ha risposto</span>${ci.ricordato[p]?` <span class="sm">Clara gliel’ha ricordato alle ${ci.ricordato[p]}</span>`:''}</td><td>${ci.ricordato[p]?'':`<button class="btn piccolo" data-a="ricordaCheckin" data-x="${p}">Ricordaglielo</button>`}</td></tr>`;
+    return `<tr><td><span class="chi-c">${av(p,24)} ${nome(p)}</span></td><td>${esc(r.muovo)}</td><td class="${r.blocca?'blocca':'sm'}">${esc(r.blocca||'niente')}</td><td class="sm">${r.ora}</td></tr>`; }).join('');
+  const mob = `<div class="righe-m"><div class="lista">${ORDINE.map(p=>{const r=ci.r[p];return `<div class="riga ${!r?'ambra':r.blocca?'rosso':'verde'}" style="align-items:flex-start"><span class="st" style="margin-top:7px"></span><span class="riga-c"><span class="riga-t">${nome(p)}</span><span class="riga-s">${r?'<b>Muove:</b> '+esc(r.muovo)+'<br><b>Blocca:</b> '+esc(r.blocca||'niente'):'Non ha risposto'+(ci.ricordato[p]?', Clara gliel’ha ricordato':'')}</span>${!r&&!ci.ricordato[p]?`<button class="btn piccolo" style="margin-top:8px;align-self:flex-start" data-a="ricordaCheckin" data-x="${p}">Ricordaglielo</button>`:''}</span></div>`;}).join('')}</div></div>`;
+  const blocchi = ORDINE.filter(p=>ci.r[p]&&ci.r[p].blocca);
+  return testa(ci.giorno, 'Check-in') + `<div class="card card-p" style="margin-bottom:16px"><div class="eti">La domanda della settimana</div><p style="font-size:18px;font-weight:700;color:var(--navy);margin-top:4px">${ci.domanda}</p><p class="mini" style="margin-top:6px">${6-ORDINE.filter(p=>!ci.r[p]).length} risposte su 6. ${blocchi.length} blocchi: ${blocchi.map(nome).join(', ')}.</p></div>`
+    + `<div class="tab-wrap desk-t"><table class="densa"><thead><tr><th>Chi</th><th>Cosa muove</th><th>Cosa lo blocca</th><th>Quando</th></tr></thead><tbody>${righe}</tbody></table></div>` + mob;
+};
+
+/* La Posta di Dre */
+V.posta = () => {
+  const conv = Object.values(S.conv);
+  const fila = S.fila.filter(x=>!x.fatto);
+  let arg = S.arg;
+  if(!arg){ const f0 = conv.find(c=>!c.fatto); if(f0) arg = f0.id; }
+  const tab = !arg ? 'conv' : arg==='fila' ? 'fila' : arg==='corsa' ? 'corsa' : 'conv';
+  const aperte = conv.filter(c=>!c.fatto);
+  const lista = tab==='conv' ? (conv.map(c => { const a = AZ[c.azienda];
+        return `<button class="riga ${c.fatto?'verde':c.ore>2?'rosso':'ambra'} ${arg===c.id?'sel':''}" data-a="go" data-x="posta/${c.id}"><span class="st"></span><span class="riga-c"><span class="riga-t">${a.nome}</span><span class="riga-s">${c.fatto?'Fatto alle '+c.fattoIl:esc(c.perche)}</span></span><span class="pill ${c.fatto?'verde':c.ore>2?'rosso':'ambra'}">${c.fatto?'fatto':c.aspetta}</span></button>`; }).join(''))
+    : tab==='fila' ? (fila.map((f,i) => `<button class="riga ambra ${i===0?'sel':''}" data-a="go" data-x="posta/fila"><span class="st"></span><span class="riga-c"><span class="riga-t">${esc(f.nome)}</span><span class="riga-s">${esc(f.perche)}</span></span>${f.da!=='clara'?`<span class="da">${av(f.da,20)}</span>`:''}</button>`).join('') || '<div class="vuoto-r">La fila è vuota. Tutti i follow-up dovuti sono partiti.</div>')
+    : corsaRighe();
+  const tabs = `<div class="tabs" role="tablist"><button class="${tab==='conv'?'on':''}" data-a="go" data-x="posta">Per te <span class="bdg ${aperte.some(c=>c.ore>2)?'rosso':''}">${aperte.length}</span></button><button class="${tab==='fila'?'on':''}" data-a="go" data-x="posta/fila">La fila <span class="bdg">${fila.length}</span></button><button class="${tab==='corsa'?'on':''}" data-a="go" data-x="posta/corsa">In corsa</button></div>`;
+  let pane = '';
+  if(tab==='conv'){ const c = S.conv[arg] || aperte[0] || conv[0]; if(!arg && c) arg = c.id; pane = paneConv(c); }
+  if(tab==='fila') pane = paneFila(fila);
+  if(!S.arg){ const c0 = aperte[0]; pollice(c0 ? {l:'Apri '+AZ[c0.azienda].nome, a:'go', x:'posta/'+c0.id} : fila.length ? {l:'Apri la fila', a:'go', x:'posta/fila'} : null); }
+  if(tab==='corsa') { pane = `<div class="pane"><div class="pane-t"><div><h2>In corsa da sole</h2><div class="s">Non serve niente da te. Se una si ferma, te lo dico.</div></div></div><div class="lista" style="margin-top:14px">${corsaRighe()}</div></div>`; pollice(null); }
+  const dett = !!S.arg;
+  return `<div class="${dett?'solo-desk':''}">${testa(dataTesta(),'Posta')}</div>${dett?`<button class="torna solo-tel" data-a="go" data-x="posta" style="margin-bottom:8px">${ic('indietro')} Posta</button>`:''}
+    <div class="posta ${dett && tab!=='corsa' ?'con-dettaglio':''}"><div class="posta-lista">${tabs}<div class="lista">${lista}</div></div><div class="posta-pane">${pane}</div></div>`;
+};
+function corsaRighe(){
+  const pc = S.passaggi.filter(x=>x.tipo==='cliente' && x.stato==='da accettare');
+  return [
+    ['blu','Agriturismo Colle Verde','Analisi partita da sola il 4/10. L’ha aperta 2 volte.','scheda/a4'],
+    ['blu','6 risposte oggi','Clara le ha smistate: 4 sì con l’analisi già partita, 1 «non ora», 1 da te.','posta'],
+    ['blu','38 follow-up in sequenza','Su Smartlead, nessuno ha risposto: si spengono da soli alla prima risposta.','posta/corsa'],
+    ...pc.map(x=>['ambra',x.titolo,'Passato a '+nome(x.a)+' '+x.mandato+': non l’ha ancora accettato.','passaggio/'+x.id])
+  ].map(r=>`<button class="riga ${r[0]}" data-a="go" data-x="${r[3]}"><span class="st"></span><span class="riga-c"><span class="riga-t">${esc(r[1])}</span><span class="riga-s">${esc(r[2])}</span></span><span class="pill ${r[0]} solo-desk">${r[0]==='blu'?'corre da solo':'aspetta '+nome('carlo')}</span></button>`).join('');
+}
+function paneConv(c){
+  if(!c){ pollice(null); return `<div class="pane"><h2>Nessuna conversazione aspetta te.</h2></div>`; }
+  const a = AZ[c.azienda];
+  if(c.fatto){ const nx = Object.values(S.conv).find(x=>!x.fatto); pollice(nx?{l:'Prossima: '+AZ[nx.azienda].nome,a:'go',x:'posta/'+nx.id}:(S.fila.some(f=>!f.fatto)?{l:'Apri la fila',a:'go',x:'posta/fila'}:null));
+    return `<div class="pane"><div class="pane-t"><div><h2>${a.nome}</h2><div class="s">${a.persona}</div></div></div><div class="fatto-b">${ic('spunta')} Fatto alle ${c.fattoIl}. ${c.esito?esc(c.esito):''}</div>${nx?`<button class="btn pieno solo-desk" style="margin-top:14px" data-a="go" data-x="posta/${nx.id}">Prossima: ${AZ[nx.azienda].nome}</button>`:''}</div>`; }
+  pollice(c.bozza ? {l:'Fatto, l’ho mandata', a:'convFatta', x:c.id} : {l:'L’ho chiamato', a:'chiamato', x:c.id});
+  return `<div class="pane"><div class="pane-t"><div><h2>${a.nome}</h2><div class="s">${a.persona}, ${a.citta}. ${TAPPA[a.tappa]}</div></div><span class="pill ${c.ore>2?'rosso':'ambra'}">aspetta ${c.aspetta}</span></div>
+    <div class="filo">${c.filo.map(m=>`<div class="msg ${m.chi}"><span class="q">${m.chi==='noi'?'Noi':a.persona.split(' ')[0]}, ${m.quando}</span>${esc(m.testo)}</div>`).join('')}</div>
+    ${c.bozza ? `<div class="bozza-t">${av('clara',24)}<b>Bozza di Clara</b></div><div class="nota-clara">${esc(c.nota)}</div><textarea class="campo" data-bind="conv.${c.id}.bozza" aria-label="Bozza della risposta" style="min-height:240px">${esc(c.bozza)}</textarea>
+      <div class="azioni" style="margin-top:12px"><button class="btn" data-a="copia" data-x="conv:${c.id}">${ic('copia')} Copia per Smartlead</button><button class="btn pieno solo-desk" data-a="convFatta" data-x="${c.id}">${ic('spunta')} Fatto, l’ho mandata</button><button class="btn vuoto" data-a="nonOraFoglio" data-x="conv:${c.id}">Non ora</button></div>`
+      : `<div class="nota-clara" style="margin-top:14px">${av('clara',22)}<span>${esc(c.nota)}</span></div><div class="azioni"><a class="btn" href="tel:3470000000">Chiama</a><button class="btn pieno solo-desk" data-a="chiamato" data-x="${c.id}">${ic('spunta')} L’ho chiamato</button><button class="btn vuoto" data-a="nonOraFoglio" data-x="conv:${c.id}">Non ora</button></div>`}
+  </div>`;
+}
+function paneFila(fila){
+  const f = fila[0];
+  if(!f){ pollice(null); return `<div class="pane"><div class="fatto-b">${ic('spunta')} La fila è vuota: tutti i follow-up dovuti sono partiti.</div></div>`; }
+  pollice({l:'Fatto, l’ho mandata', a:'filaFatta', x:f.id});
+  const tot = S.fila.length, n = S.fila.filter(x=>x.fatto).length + 1;
+  return `<div class="pane"><div class="pane-t"><div><div class="fila-n">${n} di ${tot}</div><h2>${esc(f.nome)}</h2><div class="s">${esc(f.perche)}. Propone ${esc(f.giorno)}.</div></div>${f.da!=='clara'?`<span class="da" style="display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--tenue);font-weight:600">${av(f.da,22)} passato da ${nome(f.da)}</span>`:''}</div>
+    <div class="bozza-t">${av('clara',24)}<b>Bozza di Clara</b></div>
+    <textarea class="campo" data-bind="fila.${f.id}.bozza" aria-label="Bozza del follow-up" style="min-height:250px">${esc(f.bozza)}</textarea>
+    <div class="azioni" style="margin-top:12px"><button class="btn" data-a="copia" data-x="fila:${f.id}">${ic('copia')} Copia per Smartlead</button><button class="btn pieno solo-desk" data-a="filaFatta" data-x="${f.id}">${ic('spunta')} Fatto, l’ho mandata</button><button class="btn vuoto" data-a="filaSalta" data-x="${f.id}">Salta</button><button class="btn vuoto" data-a="nonOraFoglio" data-x="fila:${f.id}">Non ora</button></div>
+    ${fila[1]?`<p class="mini" style="margin-top:14px">Dopo: <b>${esc(fila[1].nome)}</b></p>`:''}</div>`;
+}
+
+/* In trattativa */
+V.trattativa = () => {
+  pollice(null);
+  const cols = [['Ha detto sì',['risposta','analisi','follow_up']],['Conoscitiva',['conoscitiva']],['Tecnica',['tecnica']],['Passati a Carlo',['avvio']]];
+  const tess = a => { const f = fermoDa(a); const m = a.mossa; const sc = m && gg(m.quando)<0; const pc = S.passaggi.find(x=>x.tipo==='cliente'&&x.az===a.id);
+    return `<button class="tess" data-a="go" data-x="scheda/${a.id}"><span class="n">${!m?ic('tri','tri'):''}${a.nome}</span><span class="c">${a.persona}, ${a.citta}</span>
+      <span class="m">${m ? av(m.chi,20)+' '+esc(m.cosa) : '<span class="ambratxt">Nessuna prossima mossa</span>'}</span>
+      <span class="pills">${m?`<span class="pill ${sc?'rosso':gg(m.quando)===0?'ambra':'neutro'}">${sc?'scaduta '+quando(m.quando):quando(m.quando)}</span>`:''}${f?`<span class="pill rosso">fermo da ${f} giorni</span>`:''}${pc&&a.tappa==='avvio'?`<span class="pill ${statoPass(pc).col}">${esc(statoPass(pc).t)}</span>`:''}${a.valore?`<span class="pill neutro nodot num">${euro(a.valore)}</span>`:''}</span></button>`; };
+  return testa(dataTesta(),'Trattativa') + `<div class="colonne">${cols.map(c=>{const l=L.aziende.filter(a=>c[1].includes(a.tappa)).map(a=>AZ[a.id]);return `<section class="colonna"><div class="colonna-t">${c[0]} <span class="n">${l.length}</span></div>${l.map(tess).join('')}</section>`;}).join('')}</div>`;
+};
+
+/* La scheda di un’azienda, anche per la call */
+V.scheda = () => {
+  const a = AZ[S.arg]; if(!a) return '<p>Non trovata.</p>';
+  const r = resp(a.id); const m = a.mossa;
+  const pc = S.passaggi.find(x=>x.tipo==='cliente'&&x.az===a.id);
+  let az = null;
+  if(a.tappa==='conoscitiva' && a.id==='a1') az = {l:'Dopo la call: fissa la tecnica con Carlo', a:'fissaTecnica', x:a.id};
+  else if(a.tappa==='tecnica') az = {l: (pc.stato!=='bozza' || S.io!==pc.da) ? 'Apri il passaggio' : 'Passa a Carlo', a:'go', x:'passaggio/'+pc.id};
+  else if(a.tappa==='avvio' && pc) az = {l:'Apri il passaggio', a:'go', x:'passaggio/'+pc.id};
+  else if(a.id==='a8') az = S.allarme.a8 && S.io==='carlo' ? {l:'Controllato: era il tag', a:'allarmeOk', x:'a8'} : {l:'Report di settembre', a:'go', x:'report/a8'};
+  else if(a.id==='a9') az = {l:'Report di settembre', a:'go', x:'report/a9'};
+  else if(a.id==='a4' && !m) az = {l:'Dai una prossima mossa', a:'mossaClara', x:'a4'};
+  else { const c = Object.values(S.conv).find(c=>c.azienda===a.id&&!c.fatto); const f = S.fila.find(x=>x.az===a.id&&!x.fatto); if(c) az={l:'Apri nella Posta',a:'go',x:'posta/'+c.id}; else if(f) az={l:'Apri la fila',a:'go',x:'posta/fila'}; }
+  pollice(az);
+  const call = L.call.find(c=>c.azienda===a.id);
+  return `${tornaLink()}<div class="testa"><div><div class="k">${a.settore}, ${a.citta}. ${a.persona}</div><h1 class="titolo">${a.nome}</h1></div><div class="azioni solo-desk"><span class="pill ${a.tappa==='cliente'?'verde':'blu'} nodot">${TAPPA[a.tappa]}</span>${call?`<span class="pill ambra">${call.tipo.toLowerCase()} ${call.quando}</span>`:''}</div></div>
+    ${a.detto&&a.detto.length?`<section class="detto"><div class="eti">Cosa ci ha già detto</div><ul>${a.detto.map(d=>`<li>«${esc(d.t)}»<small>${esc(d.f)}</small></li>`).join('')}</ul></section>`:''}
+    ${S.allarme[a.id]?`<div class="nota-clara" style="margin-top:14px;background:var(--rosso-bg);color:var(--rosso)">${ic('allerta')} <span><b>Allarme tracciamento.</b> Clic stabili, conversioni a zero da ieri: è il tag, non la campagna.</span></div>`:''}
+    <div class="scheda"><div>
+      <div class="blocco"><h3>Dove eravamo</h3><p>${esc(a.dove)}</p></div>
+      <div class="blocco"><h3>Cosa ha in mano</h3><p>${esc(a.cosaHa)}</p></div>
+      <div class="blocco"><h3>Il suo mercato</h3><div class="mercato"><div><b class="num">${String(a.domanda).replace(/\B(?=(\d{3})+(?!\d))/g,'.')}</b><span>ricerche al mese</span></div><div><b class="num">${a.cpc.toFixed(2).replace('.',',')} €</b><span>costo a clic</span></div><div><b class="num" style="font-size:15px">${a.ticket}</b><span>scontrino</span></div></div></div>
+      ${a.scomode.length?`<div class="blocco"><h3>${a.scomode.length===2?'Le due cose scomode':'Le cose scomode'}</h3><ul class="scomode">${a.scomode.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div>`:''}
+      ${S.accessi[a.id]?`<div class="blocco" id="acc-${a.id}"><h3>Accessi, ${accTxt(a.id)}</h3>${listaAccessi(a.id,S.io)}</div>`:''}
+      ${S.registro[a.id]?`<div class="blocco"><h3>Registro modifiche</h3><ul class="catena">${S.registro[a.id].map(r=>`<li>${av(r[1],24)}<div><div class="t">${esc(r[2])}</div><div class="q">${nome(r[1])}, ${r[0]}</div></div></li>`).join('')}</ul></div>`:''}
+    </div><aside>
+      <div class="blocco"><h3>Prossima mossa</h3>${m?`<div style="display:flex;gap:10px;align-items:center">${av(m.chi,30)}<div><div style="font-weight:700;color:var(--ink)">${esc(m.cosa)}</div><div class="mini ${gg(m.quando)<0?'rossotxt':''}">${nome(m.chi)}, ${gg(m.quando)<0?'scaduta '+quando(m.quando):quando(m.quando)}</div></div></div>`:`<div class="ambratxt" style="display:flex;gap:8px;align-items:center">${ic('tri','tri')} Nessuna prossima mossa</div>`}
+        <div class="mini" style="margin-top:10px">Responsabile: <b>${nome(r)}</b>${pc&&pc.stato==='da accettare'?', finché '+nome(pc.a)+' non accetta':''}</div>
+        <div class="azioni" style="margin-top:12px">${az?`<button class="btn pieno piccolo solo-desk" data-a="${az.a}" data-x="${az.x}">${esc(az.l)}</button>`:''}${['conoscitiva','follow_up','analisi','risposta','tecnica'].includes(a.tappa)?`<button class="btn piccolo" data-a="nonOraFoglio" data-x="az:${a.id}">Non ora</button>`:''}</div></div>
+      <div class="blocco"><h3>Chi l’ha toccato</h3><ul class="catena">${(a.storia||[]).map(s=>`<li>${av(s[0],24)}<div><div class="t">${esc(s[2])}</div><div class="q">${nome(s[0])}, ${s[1]}</div></div></li>`).join('')}</ul></div>
+      ${a.gia&&a.gia.length?`<div class="blocco"><h3>Già chiesto, non rifarlo</h3><ul class="gia">${a.gia.map(g=>`<li>${esc(g)}</li>`).join('')}</ul></div>`:''}
+      ${S.aspettarsi[a.id]?`<div class="blocco"><h3>Cosa aspettarsi</h3><div class="mini">Approvato da Dre, mandato al cliente il 5/10.</div><div class="aspettarsi" style="grid-template-columns:1fr 1fr">${S.aspettarsi[a.id].map(x=>`<div><b>${x[0]}</b>${esc(x[1])}</div>`).join('')}</div></div>`:''}
+    </aside></div>`;
+};
+
+/* La scheda di passaggio */
+V.passaggio = () => {
+  const x = pass(S.arg); if(!x || x.tipo!=='cliente') return '<p>Passaggio non trovato.</p>';
+  const a = AZ[x.az];
+  const ioMando = S.io===x.da, ioRicevo = S.io===x.a;
+  const edit = ioMando && (x.stato==='bozza');
+  const manca = CAMPI.filter(c=>!x.campi[c[0]].trim());
+  const st = [
+    {t:'Clara l’ha preparata', ok:true},
+    {t: x.stato==='bozza' ? nome(x.da)+' la completa' : nome(x.da)+' l’ha mandata '+(x.mandato||''), ok:x.stato!=='bozza', ora:x.stato==='bozza'},
+    {t: x.stato==='accettato' ? nome(x.a)+' l’ha accettata '+(x.accettatoIl?'alle '+x.accettatoIl:'') : x.stato==='indietro' ? nome(x.a)+' ha una domanda' : nome(x.a)+' la accetta'+(x.scade?', entro '+x.scade.replace('oggi alle','le').replace('domani alle','domani alle'):''), ok:x.stato==='accettato', ora:x.stato==='da accettare'||x.stato==='indietro'}
+  ];
+  if(edit) pollice({l: manca.length ? 'Mancano '+manca.length+' campi' : 'Manda a '+nome(x.a), a:'mandaPass', x:x.id, dis:!!manca.length});
+  else if(ioRicevo && x.stato==='da accettare') pollice({l:'Accetta, è mio', a:'accettaPass', x:x.id});
+  else if(ioMando && x.stato==='indietro') pollice({l:'Rispondi e rimanda a '+nome(x.a), a:'rispondiPass', x:x.id});
+  else pollice(null);
+  const campi = CAMPI.map((c,i) => { const v = x.campi[c[0]]; const vuoto = !v.trim();
+    return `<div class="campo5 ${edit&&vuoto?'manca':''}" data-campo="${c[0]}"><div class="campo5-t"><span class="i">${i+1}</span><b>${c[1]}</b>${edit&&vuoto?'<span class="pill ambra">manca: lo sai solo tu</span>':''}<span class="fonte">${x.fonti[c[0]]?av('clara',16)+' dalla '+esc(x.fonti[c[0]]):''}</span></div>
+      ${edit ? `<textarea class="campo" data-bind="pass.${x.id}.campi.${c[0]}" aria-label="${c[1]}">${esc(v)}</textarea>` : `<p>${esc(v)}</p>`}</div>`; }).join('');
+  const scambi = x.scambi.map(s=>`<div class="risposta"><b>${nome(s.chi)}:</b> ${esc(s.t)}</div>`).join('');
+  let fondo = '';
+  if(ioRicevo && x.stato==='da accettare') fondo = `<div class="domande"><h3>Prima di accettare, due domande</h3><p class="mini">Le risposte arrivano a ${nome(x.da)}. Finché non accetti, ${a.nome} resta di ${nome(x.da)}.</p>
+      <label for="q1">Cosa ti manca?</label><textarea class="campo" id="q1" data-bind="pass.${x.id}.domande.manca" style="min-height:60px">${esc(x.domande.manca)}</textarea>
+      <label for="q2">C’è qualcosa che non possiamo mantenere?</label><textarea class="campo" id="q2" data-bind="pass.${x.id}.domande.mantenere" style="min-height:60px">${esc(x.domande.mantenere)}</textarea>
+      <div class="azioni" style="margin-top:14px"><button class="btn pieno solo-desk" data-a="accettaPass" data-x="${x.id}">${ic('spunta')} Accetta, è mio</button><button class="btn" data-a="indietroPass" data-x="${x.id}">Rimanda a ${nome(x.da)} con una domanda</button></div></div>`;
+  else if(ioMando && x.stato==='indietro') fondo = `<div class="domande"><h3>${nome(x.a)} ti chiede</h3>${scambi}<label for="qr">La tua risposta</label><textarea class="campo" id="qr" data-bind="pass.${x.id}.risposta" style="min-height:60px">${esc(x.risposta||'')}</textarea><div class="azioni solo-desk" style="margin-top:12px"><button class="btn pieno" data-a="rispondiPass" data-x="${x.id}">Rispondi e rimanda a ${nome(x.a)}</button></div></div>`;
+  else if(x.stato==='accettato') fondo = `<div class="fatto-b">${ic('spunta')} Accettato da ${nome(x.a)}${x.accettatoIl?' alle '+x.accettatoIl:''}. Adesso ${a.nome} è suo.</div>${x.domande.manca||x.domande.mantenere?`<div class="risposta" style="margin-top:10px">${x.domande.manca?`<b>Gli manca:</b> ${esc(x.domande.manca)}<br>`:''}${x.domande.mantenere?`<b>Da non promettere:</b> ${esc(x.domande.mantenere)}`:''}</div>`:''}`;
+  else if(x.stato==='da accettare') fondo = `<div class="nota-clara">${av('clara',22)}<span>${nome(x.a)} non l’ha ancora accettato. Se ${x.scade?'entro '+x.scade.replace('oggi alle','le'):'entro 24 ore'} è ancora qui, avviso ${nome(x.da)} e Giacomo.</span></div>${scambi}`;
+  else if(edit) fondo = `<div class="domande"><h3>Manda a ${nome(x.a)}</h3><p class="mini" style="margin-top:4px">Clara ha riempito quello che c’era nella call. Senza i cinque campi non parte. Dopo, ${nome(x.a)} la accetta o ti fa una domanda; finché non accetta, ${a.nome} resta tuo.</p><div class="azioni solo-desk" style="margin-top:14px"><button class="btn pieno" data-a="mandaPass" data-x="${x.id}" ${manca.length?'disabled':''} id="btnManda">${manca.length?'Mancano '+manca.length+' campi':'Manda a '+nome(x.a)}</button></div></div>`;
+  const aspett = S.aspettarsi[x.az] ? `<div class="campo5"><div class="campo5-t"><span class="i" style="background:var(--blu)">+</span><b>Cosa aspettarsi nei 2 mesi</b><span class="fonte">approvato da Dre, mandato al cliente</span></div><div class="aspettarsi">${S.aspettarsi[x.az].map(z=>`<div><b>${z[0]}</b>${esc(z[1])}</div>`).join('')}</div></div>` : '';
+  return `${tornaLink()}<div class="testa"><div><div class="k">Passaggio ${nome(x.da)} → ${nome(x.a)}</div><h1 class="titolo">${a.nome}</h1></div><div class="solo-desk" style="display:flex;align-items:center;gap:6px">${av(x.da,32)}<span style="color:var(--spento)">${ic('manda').replace('<svg','<svg style="width:18px;height:18px"')}</span>${av(x.a,32)}</div></div>
+    <div class="stepper">${st.map((s,i)=>`<span class="step ${s.ok?'ok':s.ora?'ora':''}"><span class="o">${s.ok?'✓':i+1}</span>${esc(s.t)}</span>`).join('')}</div>
+    ${a.detto?`<section class="detto" style="margin-bottom:14px"><div class="eti">Cosa ci ha già detto</div><ul>${a.detto.map(d=>`<li>«${esc(d.t)}»<small>${esc(d.f)}</small></li>`).join('')}</ul></section>`:''}
+    <div class="pass-g"><div>${campi}${aspett}${S.accessi[x.az]?`<div class="campo5"><div class="campo5-t"><span class="i" style="background:var(--blu)">+</span><b>Lista accessi, ${accTxt(x.az)}</b></div>${listaAccessi(x.az,S.io)}</div>`:''}</div>
+    <aside class="pass-dx">${fondo}</aside></div>`;
+};
+
+/* Il report in 5 righe */
+V.report = () => {
+  const id = S.arg; const r = S.report[id]; const a = AZ[id]; if(!r) return '<p>Report non trovato.</p>';
+  const mio = S.io===r.owner;
+  const edit = mio && r.stato==='bozza';
+  if(edit) pollice({l:'Firma come '+nome(r.owner), a:'firma', x:id});
+  else if(mio && r.stato==='firmato') pollice({l:'Fatto, l’ho mandato', a:'reportMandato', x:id});
+  else pollice(null);
+  return `${tornaLink()}${testa('Report di '+r.mese+', '+a.persona, a.nome, `<span class="pill ${r.stato==='mandato'?'verde':r.stato==='firmato'?'blu':'ambra'} solo-desk">${r.stato==='bozza'?'bozza di Clara':r.stato==='firmato'?'firmato da '+nome(r.owner):'mandato'}</span>`)}
+    ${edit?`<div class="nota-clara">${av('clara',22)}<span>I numeri li ho messi io, il confronto con un anno fa c’è sempre. La storia è tua: riscrivi quello che non suona come te.</span></div>`:''}
+    <div class="card card-p">${r.righe.map((rr,i)=>`<div class="report-r"><b>${rr[0]}</b>${edit?`<textarea class="campo" data-bind="rep.${id}.${i}" aria-label="${rr[0]}">${esc(rr[1])}</textarea>`:`<p style="font-size:15px;color:var(--ink);padding-top:2px">${esc(rr[1])}</p>`}</div>`).join('')}
+      <div class="firma">${av(r.owner,34)}<div><b style="color:var(--navy)">${nome(r.owner)}</b><div class="mini">Studio Galilei${r.firmatoIl?', firmato alle '+r.firmatoIl:''}</div></div></div>
+      <div class="azioni solo-desk" style="margin-top:16px">${edit?`<button class="btn pieno" data-a="firma" data-x="${id}">Firma come ${nome(r.owner)}</button>`:''}${mio&&r.stato==='firmato'?`<button class="btn" data-a="copia" data-x="rep:${id}">${ic('copia')} Copia la mail</button><button class="btn pieno" data-a="reportMandato" data-x="${id}">${ic('spunta')} Fatto, l’ho mandato</button>`:''}${!mio?`<span class="mini">Lo firma ${nome(r.owner)}: è lui che lo racconta al cliente.</span>`:''}${r.stato==='mandato'?`<span class="pill verde">mandato alle ${r.mandatoIl}</span>`:''}</div>
+      ${mio&&r.stato==='firmato'?`<div class="solo-tel" style="margin-top:12px"><button class="btn" style="width:100%" data-a="copia" data-x="rep:${id}">${ic('copia')} Copia la mail</button></div>`:''}</div>`;
+};
+
+/* I clienti di Carlo */
+V.clienti = () => {
+  pollice(null);
+  return testa(dataTesta(),'Clienti') + ['a8','a7','a9'].map(id => { const a = AZ[id];
+    return `<div class="sez"><div class="sez-t"><h2>${a.nome}</h2><span class="pill ${a.tappa==='cliente'?'verde':'blu'} nodot">${TAPPA[a.tappa]}</span><span class="mini">${av(resp(id),20)} ${nome(resp(id))}</span><button class="btn piccolo vuoto dx" data-a="go" data-x="scheda/${id}">Apri ${ic('freccia')}</button></div><div class="card card-p">${listaAccessi(id,S.io)}</div></div>`; }).join('');
+};
+
+/* I «non ora» di Lorenzo */
+V.nonora = () => {
+  const da = S.nonOra.filter(n=>n.stato==='da confermare');
+  const dat = S.nonOra.filter(n=>n.stato==='datato');
+  pollice(da.length ? {l:'Conferma tutte le date ('+da.length+')', a:'confermaTutte'} : null);
+  const r = n => `<div class="riga ambra" style="align-items:flex-start;flex-wrap:wrap"><span class="st" style="margin-top:7px"></span><span class="riga-c" style="min-width:220px"><span class="riga-t">${esc(n.nome)} <span class="mini">${esc(n.citta)}</span></span><span class="riga-s">«${esc(n.frase)}» il ${n.q}</span><span class="mini" style="margin-top:6px;display:flex;align-items:center;gap:6px">${av('clara',18)} Clara legge ${esc(n.perche)}: torna <b>${dataLunga(n.proposta)}</b></span></span>
+    <span class="azioni" style="margin-left:auto"><input type="date" class="campo" style="width:auto;height:40px;padding:0 10px" value="${n.proposta}" data-bind="no.${n.id}" aria-label="Data di ripresa per ${esc(n.nome)}"><button class="btn piccolo pieno" data-a="confermaNo" data-x="${n.id}">Conferma</button></span></div>`;
+  return testa(dataTesta(),'Non ora') + `<div class="nota-clara">${av('clara',22)}<span>Ogni «non ora» diventa una data, letta dalle loro parole. Quel giorno il lead torna da te con un riassunto di tre righe. Se risponde prima, torna subito.</span></div>`
+    + `<div class="sez"><div class="sez-t"><h2>Da confermare</h2><span class="n">${da.length}</span></div><div class="lista">${da.map(r).join('') || '<div class="vuoto-r">Tutte le date sono confermate.</div>'}</div></div>`
+    + `<div class="sez"><div class="sez-t"><h2>Con una data</h2><span class="n">${dat.length}</span></div><div class="lista">${dat.map(n=>`<div class="riga blu"><span class="st"></span><span class="riga-c"><span class="riga-t">${esc(n.nome)}</span><span class="riga-s">Torna ${dataLunga(n.proposta)} con un riassunto</span></span><span class="pill blu solo-desk">corre da solo</span></div>`).join('') || '<div class="vuoto-r">Ancora nessuna.</div>'}</div></div>`;
+};
+
+/* Passaggi della squadra */
+V.passaggi = () => {
+  pollice(null);
+  const tutti = S.io==='giacomo' ? true : !S.soloMiei;
+  const l = S.passaggi.filter(x => x.stato!=='bozza' || x.da===S.io).filter(x => tutti || x.da===S.io || x.a===S.io);
+  const gruppi = {};
+  l.forEach(x => { const k = x.da+'>'+x.a; (gruppi[k] = gruppi[k] || []).push(x); });
+  const fermi = S.passaggi.filter(x => ritardo(x) || ['bloccato','da accettare','indietro'].includes(x.stato)).length;
+  const corsie = Object.entries(gruppi).map(([k, xs]) => { const [d,a] = k.split('>');
+    return `<section class="card corsia"><div class="corsia-t">${av(d,26)} ${nome(d)} <span class="fr">→</span> ${av(a,26)} ${nome(a)}<span class="n">${xs.length}</span></div>
+      <div>${xs.map(x => { const s = statoPass(x); return `<button class="riga ${s.col}" style="border-radius:0" data-a="go" data-x="${x.tipo==='cliente'?'passaggio/'+x.id:(x.route&&x.route!=='oggi'?x.route:'scheda/'+x.az)}"><span class="st"></span><span class="riga-c"><span class="riga-t">${esc(x.tipo==='cliente'?'Passaggio cliente: '+x.titolo:x.titolo)}</span><span class="riga-s">${x.mandato?'Mandato '+x.mandato:''}${x.scadIso&&x.stato!=='fatto'&&!(x.tipo==='cliente'&&x.stato==='accettato')?', scade '+quando(x.scadIso):''}</span></span><span class="pill ${s.col}">${esc(s.t)}</span></button>`; }).join('')}</div></section>`; }).join('');
+  const sw = S.io==='giacomo' ? '' : `<div class="filtri"><button class="chip ${S.soloMiei?'on':''}" data-a="soloMiei" data-x="1">I miei</button><button class="chip ${!S.soloMiei?'on':''}" data-a="soloMiei" data-x="0">Tutta la squadra</button></div>`;
+  return testa(dataTesta(),'Passaggi', `<span class="pill ${fermi?'ambra':'verde'} solo-desk">${fermi} aperti o fermi</span>`) + sw + (corsie || '<div class="card card-p">Niente passato, niente ricevuto.</div>');
+};
+
+/* Clara, a pagina intera */
+V.clara = () => {
+  pollice(null);
+  const p = S.io;
+  const inMano = {
+    dre:['Prepara il passaggio di Riva: mancano 2 campi tuoi','Alle 18 controlla se Carlo ha preso Impianti Solari','La forchetta di Moretti aspetta il tuo sì','Domani alle 9 ti rimetto in cima Edilnova se non l’hai chiamato'],
+    carlo:['Controlla ogni mattina clic e conversioni dei tuoi account','Ha scritto la bozza del report di Forma','Ricorda ad Alex gli accessi di Forma'],
+    giacomo:['Riempie la tabella da sola, ogni 5 minuti','Raccoglie il check-in del lunedì','Ti avvisa se un accesso è fermo da più di 3 giorni'],
+    lorenzo:['Legge i «non ora» e propone la data','Ti avvisa quando un lead torna','Spegne i follow-up quando qualcuno risponde'],
+    salvatore:['Prepara le bozze dei report','Tiene il registro modifiche dei clienti'],
+    alex:['Ti scrive i messaggi per i clienti con i passi giusti','Ti ricorda le cose passate da Carlo']
+  }[p];
+  return testa('Con '+nome(p),'Clara') + `<div class="clara-pagina"><div class="clara-box">${chatHTML(p)}</div><aside class="solo-desk"><div class="card card-p inmano"><h3>In mano a Clara per ${nome(p)}</h3><ul>${inMano.map(t=>`<li>${av('clara',20)}<span>${esc(t)}</span></li>`).join('')}</ul><p class="mini" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bordo)">Clara prepara e ricorda. Mandare resta vostro.</p></div></aside></div>`;
+};
+
+/* ---------- la chat ---------- */
+function chatHTML(p, pannello){
+  const msgs = S.chat[p] || [];
+  const chips = ['Cosa mi manca oggi?','A che punto sono i passaggi?','Ricordamelo domani'];
+  return `<div class="chat-testa">${av('clara',38)}<div><b>Clara</b><span class="on">in linea</span></div>${pannello?`<button class="clara-chiudi" data-a="chiudiClara" aria-label="Riduci Clara" title="Riduci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`:''}</div>
+    <div class="chat-msg" data-chat>${'<div class="giorno">Oggi</div>'}${msgs.map((m,i)=> m.da==='io'
+      ? `<div class="bolla mia">${esc(m.testo)}<span class="ora">${m.t}</span></div>`
+      : `<div class="bolla sua">${m.testo}${m.bottoni&&!m.usato?`<div class="bolla-az">${m.bottoni.map((b,j)=>`<button class="btn ${j?'':'pieno'}" data-a="${b.a}" data-x="${esc(b.x||'')}" data-m="${i}" data-eco="${b.eco?1:''}" data-l="${esc(b.l)}">${esc(b.l)}</button>`).join('')}</div>`:''}<span class="ora">${m.t}</span></div>`).join('')}
+      ${S.scrive===p?'<div class="bolla sua scrive" aria-label="Clara sta scrivendo"><span></span><span></span><span></span></div>':''}</div>
+    <div class="chips-c">${chips.map(c=>`<button data-a="chiedi" data-x="${c}">${c}</button>`).join('')}</div>
+    <form class="chat-scrivi" data-f="chat"><input name="t" autocomplete="off" placeholder="Scrivi a Clara" aria-label="Scrivi a Clara"><button aria-label="Manda">${ic('manda')}</button></form>`;
+}
+function claraA(p, testo, bottoni){
+  S.chat[p].push(M(ora(), testo, bottoni));
+  if(!(p===S.io && claraVisibile())) S.nonLetti[p] = (S.nonLetti[p]||0)+1;
+}
+function claraVisibile(){ return (S.vista==='clara') || (isLargo() && !S.claraChiusa[S.io]) || (!isTel() && document.body.classList.contains('clara-aperta')); }
+function claraRisponde(p, testo){
+  const t = testo.toLowerCase();
+  S.chat[p].push({da:'io', t:ora(), testo});
+  S.scrive = p; render();
+  setTimeout(() => {
+    S.scrive = null; tic();
+    let r, b;
+    const c = coda(p);
+    if(/passagg|accett|carlo|alex|giacomo|salvatore|lorenzo|punto/.test(t)){
+      const l = S.passaggi.filter(x => (x.da===p||x.a===p) && x.stato!=='fatto');
+      r = l.length ? l.map(x => (x.da===p ? 'A '+nome(x.a) : 'Da '+nome(x.da))+', '+esc(x.titolo)+': '+esc(statoPass(x).t)+'.').join('<br>') : 'Nessun passaggio aperto. Tutto in mano a qualcuno.';
+      b = [{l:'Apri i passaggi',a:'go',x:'passaggi'}];
+    } else if(/ricord|domani/.test(t)){
+      r = c[0] ? 'Va bene. Domani alle 9 ti rimetto in cima «'+esc(c[0].titolo)+'». Se succede qualcosa prima, ti scrivo subito.' : 'Va bene, domani alle 9 ti scrivo.';
+    } else if(/grazie|ok|perfetto/.test(t)){
+      r = 'Figurati.';
+    } else if(/oggi|manca|fare|adesso|cosa/.test(t)){
+      r = c.length ? 'Per te adesso:<br>'+c.slice(0,3).map((i,k)=>(k+1)+'. '+esc(i.titolo)+' <span style="color:var(--tenue)">('+esc(i.et)+')</span>').join('<br>') : 'Niente. La giornata per te è chiusa.';
+      if(c[0]) b = [{l:c[0].btn, a:c[0].a, x:c[0].x}];
+    } else {
+      r = 'Questo non lo so ancora fare. Ti so dire cosa ti aspetta, a che punto sono i passaggi, e ricordarti una cosa alla persona giusta.';
+    }
+    S.chat[p].push(M(ora(), r, b));
+    render();
+  }, 650);
+}
+
+/* ---------- azioni ---------- */
+function toast(testo, az){
+  const t = document.getElementById('toast');
+  t.innerHTML = `<span>${testo}</span>${az?`<button data-a="${az.a}" data-x="${az.x||''}">${az.l}</button>`:''}`;
+  t.classList.add('on');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('on'), 6000);
+}
+let POL = null;
+function pollice(x){ POL = x; }
+function foglio(html){ const f = document.getElementById('foglio'); f.innerHTML = html; f.classList.add('on'); document.getElementById('velo').classList.add('on'); const b = f.querySelector('button,input,textarea'); if(b) b.focus(); }
+function chiudiFoglio(){ document.getElementById('foglio').classList.remove('on'); document.getElementById('velo').classList.remove('on'); S.foglio = null; }
+
+const A = {
+  go: x => go(x),
+  indietro: () => { if(history.length>1) history.back(); else go('oggi'); },
+  vediCome: x => { S.io = x; document.body.classList.remove('clara-aperta'); chiudiFoglio(); go('oggi'); window.scrollTo(0,0); const m = document.getElementById('main'); if(m) m.scrollTop = 0; },
+  vediFoglio: () => foglio(`<h2>Vedi come</h2><p class="mini">Ogni persona ha la sua giornata.</p><div class="opz">${ORDINE.map(p=>`<button class="${S.io===p?'on':''}" data-a="vediCome" data-x="${p}"><span style="display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:700">${av(p,30)} ${nome(p)}</span><span>${MESTIERE[p]} ${urgenti(p)?`<span class="bdg">${urgenti(p)}</span>`:''}</span></button>`).join('')}</div>`),
+  chiudiFoglio,
+  chiudiStriscia: () => { document.body.classList.add('senza-striscia'); },
+  apriClara: () => { if(isLargo()) S.claraChiusa[S.io] = false; else document.body.classList.add('clara-aperta'); S.nonLetti[S.io] = 0; render(); },
+  chiudiClara: () => { if(isLargo()) S.claraChiusa[S.io] = true; else document.body.classList.remove('clara-aperta'); render(); },
+  scrolla: x => { const e = document.getElementById(x); if(e) e.scrollIntoView({behavior:'smooth', block:'start'}); },
+  copia: x => {
+    let t = '';
+    const [k,id] = x.split(':');
+    if(x==='elena') t = MSG_ELENA;
+    if(k==='conv') t = S.conv[id].bozza;
+    if(k==='fila') t = S.fila.find(f=>f.id===id).bozza;
+    if(k==='rep') t = S.report[id].righe.map(r=>r[1]).join('\n\n')+'\n\n'+nome(S.report[id].owner)+', Studio Galilei';
+    try { navigator.clipboard.writeText(t).catch(()=>{}); } catch(e){}
+    toast(k==='rep' ? 'Copiato. Incollalo nella mail e premi «Fatto».' : 'Copiato. Incollalo in Smartlead e premi «Fatto, l’ho mandata».');
+  },
+  convFatta: id => { const c = S.conv[id]; tic(2); c.fatto = true; c.fattoIl = ora(); c.esito = 'Clara spegne il promemoria e lo dice a Lorenzo.';
+    const a = AZ[c.azienda]; a.mossa = {chi:'clara', cosa:'Se tace, follow-up', quando:isoPiu(3)};
+    claraA('lorenzo', 'Dre ha risposto a '+a.nome+' alle '+ora()+'. Ti avviso se rispondono.');
+    const nx = Object.values(S.conv).find(x=>!x.fatto);
+    toast('Fatto. '+(nx ? 'La prossima è pronta: '+AZ[nx.azienda].nome+'.' : 'Le conversazioni sono chiuse.'), nx ? {l:'Apri', a:'go', x:'posta/'+nx.id} : null);
+    if(nx) go('posta/'+nx.id); else render(); },
+  chiamato: id => foglio(`<h2>Com’è andata con ${AZ[S.conv[id].azienda].persona}?</h2><p class="mini">Una riga basta: Clara la mette nella scheda e decide la prossima mossa con te.</p><textarea class="campo" id="esito" style="margin-top:12px;min-height:80px"></textarea><div class="opz"><button data-a="esitoChiamata" data-x="${id}:call">Fissata la conoscitiva <span>giovedì 8</span></button><button data-a="esitoChiamata" data-x="${id}:no">Non risponde <span>riprovo domani</span></button></div>`),
+  esitoChiamata: x => { const [id,k] = x.split(':'); const c = S.conv[id]; const e = (document.getElementById('esito')||{}).value||''; tic(4); c.fatto = true; c.fattoIl = ora(); const a = AZ[c.azienda];
+    if(k==='call'){ a.mossa = {chi:'dre',cosa:'Conoscitiva giovedì 8',quando:'2026-10-08'}; c.esito = 'Conoscitiva fissata per giovedì 8.'+(e?' '+e:''); }
+    else { a.mossa = {chi:'dre',cosa:'Richiamalo',quando:'2026-10-07'}; c.esito = 'Non ha risposto. Torna domani in cima.'; c.fatto = true; }
+    chiudiFoglio(); toast(c.esito); const nx = S.fila.some(f=>!f.fatto); if(nx) go('posta/fila'); else render(); },
+  filaFatta: id => { const f = S.fila.find(x=>x.id===id); tic(2); f.fatto = true; f.fattoIl = ora();
+    if(f.da==='lorenzo'){ const n = S.nonOra.find(z=>z.id===f.ref) || S.prezzo.find(z=>z.id===f.ref); if(n) n.stato='partito'; const p = S.passaggi.find(p=>p.ref===f.ref); if(p){ p.stato='fatto'; p.fattoIl=ora(); } claraA('lorenzo', 'Dre ha mandato la ripresa di '+f.nome+' alle '+ora()+'.'); }
+    if(f.az) AZ[f.az].mossa = {chi:'clara',cosa:'Se tace, ultimo follow-up',quando:isoPiu(7)};
+    const rest = S.fila.filter(x=>!x.fatto);
+    toast(rest.length ? 'Partita. Ecco la prossima: '+rest[0].nome+'.' : 'La fila è vuota. Follow-up dovuti: tutti partiti.');
+    render(); },
+  filaSalta: id => { const i = S.fila.findIndex(x=>x.id===id); const [f] = S.fila.splice(i,1); S.fila.push(f); render(); },
+  nonOraFoglio: x => { S.foglio = {x, scelta:null};
+    const [k,id] = x.split(':');
+    const n = k==='conv' ? AZ[S.conv[id].azienda].nome : k==='fila' ? S.fila.find(f=>f.id===id).nome : k==='az' ? AZ[id].nome : S.nonOra.find(z=>z.id===id).nome;
+    const opz = [['Fra una settimana',isoPiu(7)],['Fra un mese',isoPiu(31)],['Dopo le feste','2027-01-11']];
+    foglio(`<h2>Quando riprendiamo ${esc(n)}?</h2><p class="mini">Quel giorno torna da chi lo segue, con un riassunto di tre righe. Se risponde prima, torna subito.</p><div class="opz">${opz.map(o=>`<button data-a="sceltaData" data-x="${o[1]}">${o[0]} <span>${dataLunga(o[1])}</span></button>`).join('')}</div><label class="mini" for="dataL">Oppure un giorno preciso</label><input type="date" id="dataL" class="campo" style="margin-top:6px;height:48px" value="${isoPiu(14)}"><div class="azioni" style="margin-top:14px"><button class="btn pieno" data-a="confermaNonOra">Metti la data</button><button class="btn vuoto" data-a="chiudiFoglio">Annulla</button></div>`); },
+  sceltaData: d => { document.getElementById('dataL').value = d; document.querySelectorAll('#foglio .opz button').forEach(b=>b.classList.toggle('on', b.dataset.x===d)); },
+  confermaNonOra: () => { const d = document.getElementById('dataL').value; const [k,id] = S.foglio.x.split(':'); tic();
+    let n;
+    if(k==='conv'){ const c = S.conv[id]; c.fatto = true; c.fattoIl = ora(); c.esito = 'Non ora: torna '+dataLunga(d)+'.'; AZ[c.azienda].mossa = {chi:'dre',cosa:'Riprendi, con riassunto',quando:d}; n = AZ[c.azienda].nome; }
+    if(k==='fila'){ const f = S.fila.find(z=>z.id===id); f.fatto = true; if(f.az) AZ[f.az].mossa = {chi:'dre',cosa:'Riprendi, con riassunto',quando:d}; n = f.nome; }
+    if(k==='az'){ AZ[id].mossa = {chi:'dre',cosa:'Riprendi, con riassunto',quando:d}; n = AZ[id].nome; }
+    if(k==='no'){ const z = S.nonOra.find(z=>z.id===id); z.stato='datato'; z.proposta=d; n = z.nome; }
+    chiudiFoglio(); toast(n+' torna '+dataLunga(d)+', con un riassunto di tre righe.'); render(); },
+  confermaNo: id => { const z = S.nonOra.find(n=>n.id===id); z.stato = 'datato'; render(); toast(z.nome+' torna '+dataLunga(z.proposta)+'.'); },
+  confermaTutte: () => { const l = S.nonOra.filter(n=>n.stato==='da confermare'); l.forEach(n=>n.stato='datato'); render(); toast(l.length+' date confermate. Tornano da sole, con un riassunto.'); },
+  mandaFila: id => { const z = S.nonOra.find(n=>n.id===id) || S.prezzo.find(n=>n.id===id); tic(); z.stato = 'in fila';
+    S.fila.push({ id:'f'+id, ref:id, az:null, nome:z.nome, giorno: id==='n0' ? 'una risposta, niente call' : 'giovedì alle 11', perche: id==='n0' ? 'Aveva detto «ci risentiamo a ottobre»' : 'Ha chiesto il prezzo e poi zitto', bozza:z.bozza, da:'lorenzo', fatto:false });
+    S.passaggi.push({ id:'pl'+id, ref:id, tipo:'task', da:'lorenzo', a:'dre', az:null, titolo:'Ripresa di '+z.nome, stato:'accettato', mandato:'oggi alle '+ora(), accettatoIl:'', scadIso:'2026-10-06', route:'posta/fila' });
+    claraA('dre', 'Lorenzo ti ha messo nella fila la ripresa di '+z.nome+'. La bozza l’ho scritta io, partendo da quello che aveva detto.', [{l:'Apri la fila',a:'go',x:'posta/fila'}]);
+    toast('Nella fila di Dre.', {l:'Guarda come Dre', a:'vediCome', x:'dre'}); render(); },
+  mandaPass: id => { const x = pass(id); if(CAMPI.some(c=>!x.campi[c[0]].trim())) { toast('Mancano dei campi: senza i cinque non parte.'); return; }
+    tic(); x.stato = 'da accettare'; x.mandato = 'oggi alle '+ora(); x.scade = 'domani alle '+ora(); x.storia.push(['dre','oggi '+ora(),'L’ha mandata a '+nome(x.a)]);
+    claraA(x.a, nome(x.da)+' ti ha passato '+x.titolo+'. La scheda è pronta: cinque punti. Se ti manca qualcosa, chiedilo lì e glielo giro.', [{l:'Leggi e accetta',a:'go',x:'passaggio/'+x.id}]);
+    toast('Mandato a '+nome(x.a)+'. Resta tuo finché non accetta.', {l:'Guarda come '+nome(x.a), a:'vediCome', x:x.a}); render(); },
+  accettaPass: id => { const x = pass(id); tic(); x.stato = 'accettato'; x.accettatoIl = ora(); x.storia && x.storia.push([x.a,'oggi '+ora(),'L’ha accettata']);
+    const a = AZ[x.az];
+    if(x.az==='a7'){ a.mossa = {chi:'carlo',cosa:'Avvio progetto, lunedì 10:00',quando:'2026-10-12'}; }
+    else { a.mossa = {chi:'carlo',cosa:'Tecnica con Dre, giovedì 15:30',quando:'2026-10-08'}; }
+    const d = x.domande;
+    claraA(x.da, nome(x.a)+' ha preso '+x.titolo+' alle '+ora()+'.'+(d.manca?' Gli manca: «'+esc(d.manca)+'».':' Non gli manca niente.')+(d.mantenere?' Attento: «'+esc(d.mantenere)+'».':''), d.manca ? [{l:'Apri il passaggio',a:'go',x:'passaggio/'+x.id}] : null);
+    claraA('giacomo', nome(x.a)+' ha accettato il passaggio di '+x.titolo+'. In tabella adesso è suo.');
+    toast('Accettato. Adesso '+x.titolo+' è tuo.', {l:'Guarda come '+nome(x.da), a:'vediCome', x:x.da}); render(); },
+  indietroPass: id => foglio(`<h2>Cosa chiedi a ${nome(pass(id).da)}?</h2><p class="mini">Il passaggio resta suo finché non rispondi di sì.</p><textarea class="campo" id="dom" style="margin-top:12px;min-height:90px">${esc(pass(id).domande.manca||'')}</textarea><div class="azioni" style="margin-top:14px"><button class="btn pieno" data-a="indietroOk" data-x="${id}">Rimanda con la domanda</button><button class="btn vuoto" data-a="chiudiFoglio">Annulla</button></div>`),
+  indietroOk: id => { const t = document.getElementById('dom').value.trim(); if(!t){ document.getElementById('dom').focus(); return; } const x = pass(id); tic(); x.stato = 'indietro'; x.scambi.push({chi:x.a, t});
+    claraA(x.da, nome(x.a)+' non ha ancora preso '+x.titolo+': ha una domanda. «'+esc(t)+'»', [{l:'Rispondi',a:'go',x:'passaggio/'+x.id}]);
+    chiudiFoglio(); toast('Rimandato a '+nome(x.da)+' con la domanda.', {l:'Guarda come '+nome(x.da), a:'vediCome', x:x.da}); render(); },
+  rispondiPass: id => { const x = pass(id); const t = (x.risposta||'').trim(); if(!t){ const e = document.getElementById('qr'); if(e) e.focus(); toast('Scrivi la risposta.'); return; } tic(); x.scambi.push({chi:x.da, t}); x.risposta=''; x.stato='da accettare';
+    claraA(x.a, nome(x.da)+' ti ha risposto su '+x.titolo+': «'+esc(t)+'»', [{l:'Leggi e accetta',a:'go',x:'passaggio/'+x.id}]);
+    toast('Risposta mandata a '+nome(x.a)+'.', {l:'Guarda come '+nome(x.a), a:'vediCome', x:x.a}); render(); },
+  accOk: x => { const [az,i] = x.split(':'); const r = S.accessi[az][+i]; tic(); r.stato='ok';
+    S.registro[az] && S.registro[az].unshift(['oggi '+ora(), S.io, 'Accesso a posto: '+r.cosa]);
+    const rest = S.accessi[az].filter(z=>z.chi==='alex'&&z.stato!=='ok');
+    if(az==='a8' && !rest.length){ const t3 = pass('t3'); t3.stato='fatto'; t3.fattoIl=ora(); AZ.a8.mossa = {chi:'carlo',cosa:'Report di settembre',quando:'2026-10-07'}; claraA('carlo','Alex ha chiuso gli accessi di Palestra Forma alle '+ora()+'. Adesso vedi anche le iscrizioni.'); claraA('giacomo','Accessi di Forma a posto: li ha chiusi Alex.'); toast('Accessi di Forma completi. Carlo lo sa.', {l:'Guarda come Carlo',a:'vediCome',x:'carlo'}); }
+    else toast(r.cosa+': a posto.');
+    render(); },
+  bloccoFoglio: id => foglio(`<h2>Cosa ti blocca?</h2><p class="mini">Lo dico a ${nome(pass(id).da)}, che ti ha passato il lavoro.</p><textarea class="campo" id="blocco" style="margin-top:12px;min-height:80px">In palestra non rispondono al telefono e Elena non legge le mail.</textarea><div class="azioni" style="margin-top:14px"><button class="btn pieno" data-a="bloccoOk" data-x="${id}">Dillo a ${nome(pass(id).da)}</button><button class="btn vuoto" data-a="chiudiFoglio">Annulla</button></div>`),
+  bloccoOk: id => { const x = pass(id); x.stato = 'bloccato'; x.blocco = document.getElementById('blocco').value.trim()||'bloccato'; tic();
+    claraA(x.da, 'Alex è bloccato sugli accessi di Forma: «'+esc(x.blocco)+'». Vuoi che lo chieda Dre a Elena, che la conosce?', [{l:'Chiedilo a Dre',a:'chiediDre',x:id,eco:true},{l:'Ci penso io',a:'ciPensoIo',eco:true}]);
+    claraA('giacomo', 'Carlo → Alex, accessi di Forma: Alex è bloccato. Gliel’ho detto a Carlo.');
+    chiudiFoglio(); toast('Detto a '+nome(x.da)+'.', {l:'Guarda come '+nome(x.da),a:'vediCome',x:x.da}); render(); },
+  chiediDre: id => { claraA('dre','Carlo ti chiede una mano: Elena di Palestra Forma non risponde ad Alex per gli accessi. Tu la conosci, le scrivi due righe?',[{l:'Apri Forma',a:'go',x:'scheda/a8'}]); claraRispostaBreve('Fatto, l’ho chiesto a Dre.'); },
+  ciPensoIo: () => claraRispostaBreve('Va bene. Se domani è ancora fermo, te lo rimetto in cima.'),
+  ricordaCheckin: p => { S.checkin.ricordato[p] = ora(); claraA(p, 'Giacomo mi chiede il tuo check-in della settimana. Una domanda sola: '+S.checkin.domanda.toLowerCase(), [{l:'Rispondi',a:'checkinFoglio',x:p}]); if(S.io==='giacomo') claraRispostaBreve('Fatto, l’ho chiesto a '+nome(p)+'.'); toast('Clara l’ha chiesto a '+nome(p)+'.', {l:'Guarda come '+nome(p),a:'vediCome',x:p}); render(); },
+  ricordaAlex: () => { claraA('alex','Alex, Giacomo mi chiede degli accessi di Forma: sono fermi da 6 giorni. Il messaggio per Elena è pronto, se sei bloccato dimmelo e lo giro a Carlo.',[{l:'Vai agli accessi',a:'go',x:'oggi'}]); claraRispostaBreve('Gliel’ho scritto. Se entro domani non si muove, te lo rimetto in tabella in rosso.'); toast('Clara l’ha ricordato ad Alex.', {l:'Guarda come Alex',a:'vediCome',x:'alex'}); },
+  chiamoIo: () => claraRispostaBreve('Ok. Lo segno: «Giacomo chiama Alex». Domani ti chiedo com’è andata.'),
+  checkinFoglio: p => foglio(`<h2>Check-in della settimana</h2><p class="mini">${S.checkin.domanda} Lo legge Giacomo.</p><label class="mini" for="ci1" style="display:block;margin-top:12px">Cosa muovi</label><textarea class="campo" id="ci1" style="margin-top:4px;min-height:60px">Conoscitiva con Ferramenta Bassi, tecnica con Riva giovedì.</textarea><label class="mini" for="ci2" style="display:block;margin-top:10px">Cosa ti blocca</label><textarea class="campo" id="ci2" style="margin-top:4px;min-height:60px">I preventivi: li faccio tardi.</textarea><div class="azioni" style="margin-top:14px"><button class="btn pieno" data-a="checkinOk" data-x="${p}">Manda a Giacomo</button><button class="btn vuoto" data-a="chiudiFoglio">Dopo</button></div>`),
+  checkinOk: p => { S.checkin.r[p] = {muovo:document.getElementById('ci1').value, blocca:document.getElementById('ci2').value, ora:'mar '+ora()}; claraA('giacomo', nome(p)+' ha risposto al check-in. Adesso ci siete tutti.', [{l:'Apri il check-in',a:'go',x:'checkin'}]); chiudiFoglio(); toast('Arrivato a Giacomo.', {l:'Guarda come Giacomo',a:'vediCome',x:'giacomo'}); render(); },
+  firma: id => { const r = S.report[id]; tic(); r.stato='firmato'; r.firmatoIl=ora(); claraA('giacomo','Report di settembre di '+AZ[id].nome+' firmato da '+nome(r.owner)+'.'); toast('Firmato. Copialo nella mail e premi «Fatto».'); render(); },
+  reportMandato: id => { const r = S.report[id]; tic(); r.stato='mandato'; r.mandatoIl=ora(); if(id==='a9'){ const t = pass('t2'); t.stato='fatto'; t.fattoIl=ora(); claraA('giacomo','Salvatore ha mandato il report di Le Vigne alle '+ora()+'. Il passaggio è chiuso.'); } toast('Mandato. '+(id==='a9'?'Giacomo lo vede chiuso.':'Clara lo segna nel registro.'), id==='a9'?{l:'Guarda come Giacomo',a:'vediCome',x:'giacomo'}:null); render(); },
+  allarmeOk: id => { S.allarme[id] = false; tic(3); S.registro[id].unshift(['oggi '+ora(),'carlo','Tag delle conversioni ripristinato']); claraA('carlo','Bene. Domattina ricontrollo che le conversioni tornino a salire.'); toast('Allarme chiuso, scritto nel registro.'); render(); },
+  fissaTecnica: id => { tic(); AZ[id].mossa = {chi:'dre',cosa:'Tecnica con Carlo, venerdì 9 alle 11',quando:'2026-10-09'}; claraA('carlo','Dre ha fissato la tecnica con Ferramenta Bassi, venerdì 9 alle 11. La scheda è pronta, e la lista accessi da prendere in diretta pure.',[{l:'Apri la scheda',a:'go',x:'scheda/a1'}]); toast('Tecnica fissata. Carlo lo sa, con la scheda.', {l:'Guarda come Carlo',a:'vediCome',x:'carlo'}); render(); },
+  mossaClara: id => { AZ[id].mossa = {chi:'clara',cosa:'Follow-up se tace',quando:'2026-10-09'}; toast('Prossima mossa: follow-up venerdì 9, se tace. Lo prepara Clara.'); render(); },
+  filtroG: x => { S.filtroG = x; render(); },
+  ordG: c => { S.ordG = { col:c, dir: S.ordG.col===c ? -S.ordG.dir : 1 }; render(); },
+  soloMiei: x => { S.soloMiei = x==='1'; render(); },
+  esporta: () => {
+    const rows = righeG();
+    const csv = [['Azienda','Città','Fase','Chi','Prossima mossa','Quando','Ultimo tocco','Bloccato da','Euro al mese']].concat(rows.map(r=>[r.nome,r.citta,TAPPA[r.tappa],nome(r.chi),r.mossa?r.mossa.cosa:'',r.mossa?r.mossa.quando:'',r.ultima,r.b?(r.b.chi?nome(r.b.chi)+': ':'')+r.b.t:'',r.valore||''])).map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download = 'squadra-6-ottobre.csv'; a.click();
+    toast('Scaricato: si apre in Excel.'); },
+  chiedi: t => claraRisponde(S.io, t)
+};
+function claraRispostaBreve(t){ S.scrive = S.io; render(); setTimeout(()=>{ S.scrive=null; S.chat[S.io].push(M(ora(), t)); render(); }, 500); }
+
+/* ---------- disegno ---------- */
+function render(){
+  const app = document.getElementById('app');
+  POL = null;
+  const main = V[S.vista] ? V[S.vista]() : V.oggi();
+  const nav = NAV[S.io];
+  const largo = isLargo();
+  if(claraVisibile()) S.nonLetti[S.io] = 0;
+  const chiusa = S.vista==='clara' || (largo && S.claraChiusa[S.io]);
+  const bdgNav = k => {
+    if(k==='posta' && S.io==='dre'){ const n = Object.values(S.conv).filter(c=>!c.fatto).length + S.fila.filter(f=>!f.fatto).length; return n?`<span class="bdg">${n}</span>`:''; }
+    if(k==='clara'){ const n = S.nonLetti[S.io]; return n?`<span class="bdg">${n}</span>`:''; }
+    if(k==='oggi'){ const n = urgenti(S.io); return n?`<span class="bdg">${n}</span>`:''; }
+    if(k==='nonora'){ const n = S.nonOra.filter(z=>z.stato==='da confermare').length; return n?`<span class="bdg">${n}</span>`:''; }
+    if(k==='checkin'){ const n = ORDINE.filter(p=>!S.checkin.r[p]).length; return n?`<span class="bdg">${n}</span>`:''; }
+    return '';
+  };
+  const titoloV = (nav.find(n=>n[0]===S.vista)||[])[1] || {scheda:'Scheda',passaggio:'Passaggio',report:'Report'}[S.vista] || 'Oggi';
+  const sub = ['scheda','passaggio','report'].includes(S.vista);
+  app.className = chiusa ? 'senza-clara' : '';
+  app.innerHTML = `
+    <aside class="side" aria-label="Menu">
+      <div class="marchio"><span class="marchio-m">SG</span><div><b>Studio Galilei</b><span>Workspace</span></div></div>
+      <div class="vedi"><span class="eti">Vedi come</span><div class="vedi-g">${ORDINE.map(p=>{const u=urgenti(p);return `<button class="vedi-b ${S.io===p?'on':''}" data-a="vediCome" data-x="${p}" aria-pressed="${S.io===p}" title="${MESTIERE[p]}">${av(p,24)}<span>${nome(p)}</span>${u?`<span class="bdg">${u}</span>`:''}</button>`;}).join('')}</div></div>
+      <nav class="nav">${nav.map(n=>`<a href="#${S.io}/${n[0]}" class="${S.vista===n[0]?'on':''}">${ic(n[2])}<span>${n[1]}</span>${bdgNav(n[0])}</a>`).join('')}</nav>
+      <div class="side-piede"><b>${nome(S.io)}</b>${MESTIERE[S.io]}</div>
+    </aside>
+    <main class="main" id="main">
+      <div class="topbar">${sub?`<button class="torna" style="margin:0;min-height:44px;min-width:44px" data-a="indietro" aria-label="Torna">${ic('indietro').replace('<svg','<svg style="width:22px;height:22px"')}</button>`:''}<span class="tt">${esc(titoloV)}${sub?'':'<small>'+dataTesta()+'</small>'}</span><button class="vedi-m" data-a="vediFoglio" aria-label="Vedi come: ${nome(S.io)}">${av(S.io,30)}${nome(S.io)}${ic('giu').replace('<svg','<svg style="width:16px;height:16px"')}</button></div>
+      <div class="main-in">${main}</div>
+    </main>
+    <aside class="clara-p" aria-label="Clara">${S.vista==='clara'?'':chatHTML(S.io, true)}</aside>
+    <button class="fab-clara ${largo && chiusa && S.vista!=='clara' ? 'vis' : ''}" data-a="apriClara">${av('clara',36)} Clara ${S.nonLetti[S.io]?`<span class="bdg">${S.nonLetti[S.io]}</span>`:''}</button>
+    ${POL?`<div class="pollice"><button class="btn pieno" data-a="${POL.a}" data-x="${esc(POL.x||'')}" ${POL.dis?'disabled':''}>${esc(POL.l)}</button></div>`:''}
+    <nav class="tabbar" aria-label="Sezioni">${nav.map(n=>`<a href="#${S.io}/${n[0]}" class="${S.vista===n[0]?'on':''}">${ic(n[2])}<span>${n[1]}</span>${bdgNav(n[0])}</a>`).join('')}</nav>`;
+  const cm = app.querySelectorAll('[data-chat]'); cm.forEach(c => c.scrollTop = c.scrollHeight);
+  document.title = titoloV+', '+nome(S.io)+': V5 la squadra';
+}
+
+/* ---------- eventi ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if(!el) return;
+  if(el.tagName==='A') return;
+  if(el.disabled) return;
+  const a = el.dataset.a, x = el.dataset.x;
+  if(el.dataset.m !== undefined && el.dataset.m !== ''){
+    const msg = S.chat[S.io][+el.dataset.m];
+    if(el.dataset.eco){ msg.usato = true; S.chat[S.io].push({da:'io', t:ora(), testo:el.dataset.l}); }
+  }
+  if(A[a]){ e.preventDefault(); A[a](x, el); }
+});
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape'){ chiudiFoglio(); if(document.body.classList.contains('clara-aperta')) A.chiudiClara(); }
+  if(e.key==='Enter' && e.target.matches('tr[data-a]')) e.target.click();
+});
+document.addEventListener('submit', e => {
+  if(e.target.dataset.f==='chat'){ e.preventDefault(); const v = e.target.t.value.trim(); if(!v) return; claraRisponde(S.io, v); }
+});
+document.addEventListener('input', e => {
+  const b = e.target.dataset.bind; if(!b) return;
+  const [k, ...r] = b.split('.'); const v = e.target.value;
+  if(k==='conv') S.conv[r[0]].bozza = v;
+  if(k==='fila') S.fila.find(f=>f.id===r[0]).bozza = v;
+  if(k==='rep') S.report[r[0]].righe[+r[1]][1] = v;
+  if(k==='no') S.nonOra.find(n=>n.id===r[0]).proposta = v || S.nonOra.find(n=>n.id===r[0]).proposta;
+  if(k==='pass'){ const x = pass(r[0]);
+    if(r[1]==='campi'){ x.campi[r[2]] = v; aggiornaManda(x, e.target); }
+    if(r[1]==='domande') x.domande[r[2]] = v;
+    if(r[1]==='risposta') x.risposta = v; }
+});
+function aggiornaManda(x, ta){
+  const manca = CAMPI.filter(c=>!x.campi[c[0]].trim()).length;
+  const l = manca ? 'Mancano '+manca+' campi' : 'Manda a '+nome(x.a);
+  document.querySelectorAll('#btnManda, .pollice .btn').forEach(b => { b.textContent = l; b.disabled = !!manca; });
+  const box = ta.closest('.campo5'); if(box){ const vuoto = !ta.value.trim(); box.classList.toggle('manca', vuoto); const p = box.querySelector('.pill.ambra'); if(p && !vuoto) p.remove(); }
+}
+window.addEventListener('hashchange', () => { leggiHash(); chiudiFoglio(); if(isTel()) document.body.classList.remove('clara-aperta'); render(); const m = document.getElementById('main'); if(m) m.scrollTop = 0; window.scrollTo(0,0); });
+let lastW = innerWidth;
+window.addEventListener('resize', () => { if(Math.abs(innerWidth-lastW) > 40){ lastW = innerWidth; render(); } });
+
+leggiHash();
+render();
+})();
+</script>
+</body>
+</html>

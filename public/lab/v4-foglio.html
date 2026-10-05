@@ -1,0 +1,1606 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>V4, il foglio | Studio Galilei</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231C2E6E'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1C2E6E; --blu:#2979C4; --avorio:#FAF8F4; --ink:#16203A; --mut:#667085;
+  --line:#EEEAE2; --line2:#E2DCD0; --ambra:#F5B200; --verde:#15803D; --rosso:#DC2626;
+  --selbg:#EDF4FC; --hover:#FBFAF6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;font-size:13px;color:var(--ink);background:var(--avorio);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blu);outline-offset:2px}
+.mut{color:var(--mut)}
+.ph{color:#B8BDC7;font-weight:500}
+[hidden]{display:none!important}
+kbd{font:700 10px/1 'Plus Jakarta Sans',sans-serif;padding:3px 5px;border:1px solid #D9D3C7;border-bottom-width:2px;border-radius:4px;background:#fff;color:#4B5563}
+
+#app{display:flex;flex-direction:column;height:100dvh}
+
+/* striscia */
+.banner{display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 20px;background:var(--navy);color:#E6ECF8;font-size:11.5px;font-weight:600;flex:none}
+.banner .sp{flex:1}
+.banner button{color:#C3CFEA;font-size:11.5px;font-weight:600;height:22px;padding:0 8px;border-radius:6px}
+.banner button:hover{background:rgba(255,255,255,.12);color:#fff}
+
+/* barra in alto */
+.top{display:flex;align-items:center;gap:14px;height:52px;padding:0 16px 0 20px;background:#fff;border-bottom:1px solid var(--line2);flex:none}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--navy);font-size:14px;letter-spacing:-.01em;white-space:nowrap}
+.logo i{width:26px;height:26px;border-radius:7px;background:var(--navy);color:#fff;display:grid;place-items:center;font-style:normal;font-size:10.5px;letter-spacing:.03em}
+.tabs{display:flex;align-items:stretch;height:100%;margin-left:10px}
+.tab{display:flex;align-items:center;gap:7px;padding:0 13px;font-weight:650;color:#5B6475;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--navy)}
+.tab.on{color:var(--navy);border-color:var(--navy)}
+.bd{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ambra);color:#2A1F00;font-size:10.5px;font-weight:800;display:inline-grid;place-items:center}
+.bd.z{background:#EEEAE2;color:#8A8F99}
+.top .sp{flex:1}
+.search{display:flex;align-items:center;gap:7px;height:32px;width:220px;padding:0 10px;border:1px solid var(--line2);border-radius:8px;background:var(--avorio);color:var(--mut)}
+.search:focus-within{border-color:var(--blu);background:#fff}
+.search input{border:0;outline:0;background:none;width:100%;font-size:12.5px;color:var(--ink)}
+.comeb{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border:1px solid var(--line2);border-radius:9px;background:#fff;font-size:12.5px;white-space:nowrap}
+.comeb:hover{border-color:#CFC7B8}
+.comeb .lab{color:var(--mut)}
+
+/* titolo della vista */
+.head{display:flex;align-items:center;gap:20px;padding:14px 20px 12px;flex:none}
+.hl{flex:1;min-width:0}
+.hl-k{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#946800;display:flex;align-items:center;gap:6px}
+.hl-k.blu{color:var(--blu)} .hl-k.verde{color:var(--verde)}
+.hl-k i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.hl-row{display:flex;align-items:center;gap:12px;margin-top:3px;min-width:0}
+.hl-t{font-size:19px;font-weight:800;color:var(--navy);letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hl-s{font-size:12.5px;color:#5B6475;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 14px;border-radius:9px;border:1px solid var(--line2);background:#fff;font-weight:700;font-size:12.5px;white-space:nowrap}
+.btn:hover{border-color:#CFC7B8}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.pri:hover{background:#25398A}
+.btn.ok{background:var(--verde);border-color:var(--verde);color:#fff}
+.btn kbd{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.25);color:#fff}
+.kpis{display:flex;gap:6px;flex:none}
+.kpi{display:flex;flex-direction:column;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 12px;min-width:92px;text-align:left}
+button.kpi:hover{border-color:#CFC7B8}
+button.kpi.on{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+.kpi b{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.2}
+.kpi span{font-size:10.5px;color:var(--mut);font-weight:650;white-space:nowrap}
+.kpi.ambra b{color:#A87400} .kpi.verde b{color:var(--verde)} .kpi.rosso b{color:var(--rosso)} .kpi.blu b{color:var(--blu)}
+
+/* il foglio */
+.main{flex:1;display:flex;min-height:0;padding:0 20px;gap:12px}
+.sheetw{flex:1;min-width:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line2);border-bottom:0;border-radius:12px 12px 0 0;overflow:hidden}
+.fx{display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;border-bottom:1px solid var(--line);font-size:12.5px;background:#FDFCF9;flex:none}
+.fx-ref{font-size:11px;font-weight:800;color:var(--navy);background:#EEF2FA;border-radius:6px;padding:4px 8px;white-space:nowrap}
+.fx-v{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#374151}
+.fx-h{font-size:11px;color:var(--mut);white-space:nowrap}
+.fx.bulk{background:#F2F7FD}
+.fx.bulk b{color:var(--navy)}
+.mini{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:7px;border:1px solid var(--line2);background:#fff;font-size:12px;font-weight:700;white-space:nowrap}
+.mini:hover{border-color:#C9C1B2}
+.mini.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.mini.ghost{border-color:transparent;background:none;color:var(--mut)}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);flex:none}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 4px 0 10px;border-radius:999px;background:#EEF2FA;color:var(--navy);font-size:11.5px;font-weight:700}
+.fchip button{width:18px;height:18px;border-radius:50%;display:grid;place-items:center}
+.fchip button:hover{background:#DCE4F4}
+.scroll{flex:1;overflow:auto;position:relative;outline:none}
+
+table.grid{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;min-width:900px}
+.grid th{position:sticky;top:0;z-index:2;background:#F7F5F0;height:32px;text-align:left;font-size:11.5px;font-weight:700;color:#5B6475;padding:0 6px 0 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+.grid th .thb{display:flex;align-items:center;gap:4px;width:100%;height:32px;text-align:left;font-weight:700;color:inherit}
+.grid th .thb span{overflow:hidden;text-overflow:ellipsis}
+.grid th .thm{margin-left:auto;width:20px;height:20px;border-radius:5px;display:grid;place-items:center;color:#9AA1AE;opacity:0}
+.grid th:hover .thm,.grid th .thm.on{opacity:1}
+.grid th .thm.on{color:var(--blu);background:#E3EEFA}
+.grid th .thm:hover{background:#ECE8DF}
+.grid th.num .thb{justify-content:flex-end}
+.grid th.num .thm{margin-left:0}
+.grid th.rn,.grid td.rn{width:44px;padding:0;text-align:center}
+.grid td{height:38px;padding:0 10px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;scroll-margin-top:34px;scroll-margin-left:44px}
+.grid td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.grid tr.row:hover td{background:var(--hover)}
+.grid tr.row.sel td{background:var(--selbg)}
+.grid td.ed{cursor:cell}
+.grid td.c.act{box-shadow:inset 0 0 0 2px var(--blu);background:#fff}
+.grid tr.row.sel td.c.act{background:#F7FAFE}
+.grid td.rn{color:#A3A9B5;font-size:11px;font-variant-numeric:tabular-nums;box-shadow:inset 3px 0 0 var(--sem,transparent);position:relative}
+.rn .nn{display:inline}
+.rn input{display:none;width:15px;height:15px;margin:0;accent-color:var(--blu);cursor:pointer}
+tr.row:hover .rn .nn,tr.row.sel .rn .nn{display:none}
+tr.row:hover .rn input,tr.row.sel .rn input{display:inline-block}
+.grid th.rn input{width:15px;height:15px;margin:0;accent-color:var(--blu);cursor:pointer}
+.grid tr.grp td{height:34px;padding:12px 12px 0 14px;background:#fff;font-size:11.5px;font-weight:800;color:#3B4252;letter-spacing:.01em;border-bottom:1px solid var(--line2)}
+.gdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.gn{color:#9AA1AE;font-weight:700;margin-left:6px}
+.gnota{color:var(--mut);font-weight:500;margin-left:12px}
+.grid tr.vuota td{color:#9AA1AE;font-style:normal;height:34px;padding-left:58px}
+.grid tfoot td{position:sticky;bottom:0;background:#F7F5F0;border-top:1px solid var(--line2);border-bottom:0;font-weight:800;height:34px}
+.grid td.editing{padding:0;box-shadow:inset 0 0 0 2px var(--blu)}
+.cin{width:100%;height:100%;border:0;outline:0;padding:0 10px;background:#fff;font-size:13px}
+.cin.num{text-align:right}
+.nuova{width:100%;height:36px;border:0;outline:0;background:none;padding:0 10px;font-size:13px}
+.nuova::placeholder{color:#A3A9B5}
+
+.azl{font-weight:700;color:var(--ink);text-align:left;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.azl:hover{color:var(--blu);text-decoration:underline;text-underline-offset:3px}
+
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;border:1px solid var(--cb);font-size:12px;font-weight:650;color:#1F2937;background:#fff;white-space:nowrap;vertical-align:middle}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.pers{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:12.5px;vertical-align:middle}
+.av{width:20px;height:20px;border-radius:50%;background:var(--c);color:#fff;font-size:10px;font-weight:800;display:inline-grid;place-items:center;flex:none}
+.caret{color:#B5BBC6;margin-left:4px;display:none;vertical-align:middle}
+td.ed:hover .caret,td.act .caret{display:inline-block}
+.prog{display:flex;align-items:center;gap:8px}
+.prog .bar{flex:1;height:6px;border-radius:3px;background:#EEEAE2;overflow:hidden;max-width:70px}
+.prog .bar i{display:block;height:100%;background:#0D9488;border-radius:3px}
+.prog span{font-size:12px;font-weight:650;color:#374151}
+
+/* Clara nella cella */
+.cl{display:flex;align-items:center;gap:8px;min-width:0;width:100%}
+.cl-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.spark{color:var(--blu);display:flex;flex:none}
+.cl-b{display:flex;gap:4px;flex:none}
+.cbtn{height:26px;min-width:26px;border-radius:7px;display:inline-grid;place-items:center;border:1px solid var(--line2);background:#fff;color:#4B5563;font-size:12px;font-weight:700}
+.cbtn.si:hover{background:var(--verde);border-color:var(--verde);color:#fff}
+.cbtn.no:hover{background:#F2F0EB;color:var(--rosso)}
+.cbtn.pri{padding:0 10px;background:var(--navy);border-color:var(--navy);color:#fff;white-space:nowrap}
+.cbtn.pri:hover{background:#25398A}
+.cl.ok{color:var(--verde);font-weight:650}
+.cl.ok .cl-t{color:#166534}
+.cl.no .cl-t{color:#9AA1AE}
+.cl.zz .cl-t{color:var(--mut)}
+.lnk{color:var(--blu);font-weight:700;font-size:12px}
+.perche{flex:1;min-width:0;height:26px;border:1px solid var(--blu);border-radius:6px;padding:0 8px;outline:0;font-size:12px}
+
+/* scheda di lato */
+.drawer{width:460px;flex:none;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line2);border-bottom:0;border-radius:12px 12px 0 0;overflow:hidden}
+.drawer.wide{width:560px}
+.dw-h{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.dw-hl{flex:1;min-width:0}
+.kick{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blu)}
+.dw-h h2{margin:3px 0 2px;font-size:19px;font-weight:800;color:var(--navy);letter-spacing:-.015em}
+.dw-sub{font-size:12.5px;color:var(--mut)}
+.x{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:#6B7280;flex:none}
+.x:hover{background:#F2F0EB}
+.dw-b{flex:1;overflow:auto;padding:4px 18px 18px}
+.props{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line);margin:0 -18px;padding:6px 18px 10px;gap:2px 16px}
+.pr{display:flex;flex-direction:column;gap:3px;padding:6px 0}
+.pr>span{font-size:10.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.pv{display:flex;align-items:center;min-height:28px;text-align:left;border-radius:6px}
+button.pv{padding:0 4px;margin-left:-4px}
+button.pv:hover{background:#F4F7FC}
+.pv-in{height:28px;border:1px solid transparent;border-radius:6px;padding:0 6px;margin-left:-6px;font-weight:700;width:120px;outline:0;background:none}
+.pv-in:hover{border-color:var(--line2)} .pv-in:focus{border-color:var(--blu);background:#fff}
+.callbox{display:flex;align-items:center;gap:12px;margin:14px 0 4px;padding:10px 12px;border-radius:10px;background:#FFF8E1;border:1px solid #F6DE8D;color:#5C4300}
+.callbox b{display:block;font-size:13px;color:#3D2C00}
+.callbox span{font-size:12px}
+.clbox{margin:12px 0 4px;padding:10px 12px;border-radius:10px;background:#F3F7FC;border:1px solid #DCE7F5}
+.clbox .lbl{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blu);margin-bottom:6px}
+.clbox .cl-t{white-space:normal}
+.dw-b section{padding:14px 0 2px}
+.dw-b h3{margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#4B5563}
+.dw-b p{margin:0;font-size:13.5px;line-height:1.55;color:#1F2937}
+.mkt{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mkt div{padding:8px 10px;border-right:1px solid var(--line)}
+.mkt div:last-child{border-right:0}
+.mkt b{display:block;font-size:13.5px;font-weight:800;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkt span{font-size:10.5px;color:var(--mut);font-weight:600}
+.scom{margin:0;padding:0;list-style:none;counter-reset:s}
+.scom li{counter-increment:s;display:flex;gap:10px;align-items:flex-start;padding:8px 10px;margin-bottom:6px;border-radius:8px;background:#FFFBEB;border-left:3px solid var(--ambra);font-size:13.5px;line-height:1.45}
+.scom li::before{content:counter(s);font-weight:800;color:#946800}
+.lista{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.lista>div{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12.5px}
+.lista>div:last-child{border-bottom:0}
+.lista .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note{width:100%;min-height:72px;border:1px solid var(--line2);border-radius:10px;padding:9px 11px;outline:0;resize:vertical;font-size:13px;line-height:1.5;background:#FDFCF9}
+.note:focus{border-color:var(--blu);background:#fff}
+.dw-f{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:#FDFCF9;flex-wrap:wrap}
+.dw-f .sp{flex:1}
+.dw-f .info{font-size:12px;color:var(--mut);flex:1;min-width:0}
+.perchebox{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:#FFF8E1;border:1px solid #F6DE8D;font-size:13px;color:#4A3600}
+.filo{display:flex;flex-direction:column;gap:10px;padding:14px 0 4px}
+.msg{max-width:86%}
+.msg .mb{padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap}
+.msg.loro .mb{background:#F2F0EB;border-top-left-radius:4px}
+.msg.noi{align-self:flex-end}
+.msg.noi .mb{background:#E8F0FB;border-top-right-radius:4px}
+.msg .mt{font-size:10.5px;color:var(--mut);margin-top:3px;padding:0 4px}
+.msg.noi .mt{text-align:right}
+.bz{margin-top:14px;border:1px solid #CFE0F5;border-radius:12px;overflow:hidden}
+.bz-h{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F3F7FC;font-size:12px;font-weight:700;color:var(--navy);border-bottom:1px solid #DCE7F5}
+.bz-h span{margin-left:auto;font-weight:500;color:var(--mut)}
+.bz textarea{display:block;width:100%;min-height:230px;border:0;outline:0;padding:12px 14px;font-size:13.5px;line-height:1.6;resize:vertical;background:#fff}
+.decidi{margin-top:14px;padding:12px;border:1px dashed var(--line2);border-radius:12px;display:flex;flex-direction:column;gap:8px}
+.decidi p{font-size:13px}
+.pin{flex:1;min-width:160px;height:34px;border:1px solid var(--blu);border-radius:9px;padding:0 10px;outline:0}
+
+/* Clara in basso */
+.clara{position:relative;display:flex;flex-direction:column;padding:8px 20px;flex:none;background:var(--avorio);border-top:1px solid var(--line2)}
+.cbar{display:flex;align-items:center;gap:10px;height:42px;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:0 6px 0 7px}
+.cbar:focus-within{border-color:var(--blu);box-shadow:0 0 0 3px rgba(41,121,196,.14)}
+.cav{width:28px;height:28px;border-radius:50%;background:var(--blu);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none;position:relative}
+.cav.s{width:22px;height:22px;font-size:10px}
+.cav .dotn{position:absolute;right:-1px;top:-1px;width:9px;height:9px;border-radius:50%;background:var(--ambra);border:2px solid #fff}
+.cbar input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:13.5px;height:100%}
+.cbar input::placeholder{color:#9AA1AE}
+.csend{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--navy);color:#fff;flex:none}
+.cbar .hint{font-size:11px;color:#A3A9B5;white-space:nowrap}
+.sugg{display:flex;gap:6px;flex-wrap:wrap;padding:0 0 8px}
+.sugg button{height:28px;padding:0 11px;border-radius:999px;border:1px solid #D5E3F5;background:#F3F7FC;color:var(--navy);font-size:12px;font-weight:650}
+.sugg button:hover{background:#E6EFFA}
+.bolla{position:absolute;left:20px;bottom:calc(100% + 8px);width:min(500px,calc(100% - 40px));z-index:30}
+.bl{background:#fff;border:1px solid var(--line2);border-radius:16px 16px 16px 4px;box-shadow:0 10px 30px rgba(20,30,60,.13);padding:10px 12px 12px}
+.bl-h{display:flex;align-items:center;gap:8px;font-size:12px}
+.bl-h b{color:var(--navy)}
+.bl-h .x{width:26px;height:26px;margin-left:auto}
+.bl-t{margin-top:6px;font-size:13.5px;line-height:1.5;color:#1F2937}
+.bl-a{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.storia{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.storia .m{max-width:88%;padding:7px 10px;border-radius:12px;font-size:12.5px;line-height:1.45;background:#F3F7FC}
+.storia .m.io{align-self:flex-end;background:#EEF2FA;color:var(--navy);font-weight:600}
+.storia .m small{display:block;color:var(--mut);font-size:10px;margin-top:2px}
+
+/* barra di stato */
+.status{display:flex;align-items:center;gap:16px;height:28px;padding:0 20px;font-size:11.5px;color:#6B7280;background:#F3F0E9;border-top:1px solid var(--line2);flex:none;white-space:nowrap;overflow:hidden}
+.status .sv{display:flex;align-items:center;gap:5px;color:var(--verde);font-weight:650}
+.status .sp{flex:1}
+.status .k{display:flex;align-items:center;gap:5px}
+.status b{color:var(--ink)}
+
+/* popover, toast */
+.pop{position:fixed;z-index:75;min-width:210px;max-width:320px;background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 14px 40px rgba(20,30,60,.18);padding:6px}
+.pop-t{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);padding:6px 8px 6px}
+.pop-q{width:100%;height:32px;border:1px solid var(--line2);border-radius:8px;padding:0 9px;outline:0;margin-bottom:4px}
+.pop-q:focus{border-color:var(--blu)}
+.pop-l{max-height:320px;overflow:auto}
+.opt{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:0 8px;border-radius:8px;text-align:left;font-size:13px}
+.opt:hover,.opt.hi{background:var(--selbg)}
+.opt svg{margin-left:auto;color:var(--blu)}
+.opt svg:first-child{margin-left:0}
+.opt .rl{color:var(--mut);font-size:11.5px;margin-left:auto}
+.pop hr{border:0;border-top:1px solid var(--line);margin:5px 2px}
+.pop label.opt{cursor:pointer}
+.pop label.opt input{accent-color:var(--blu);width:15px;height:15px;margin:0}
+.velo{position:fixed;inset:0;background:rgba(15,20,40,.32);z-index:74}
+.toast{position:fixed;right:24px;bottom:110px;z-index:70;display:flex;align-items:center;gap:14px;background:var(--navy);color:#fff;padding:10px 12px 10px 14px;border-radius:10px;font-size:12.5px;font-weight:600;box-shadow:0 10px 30px rgba(20,30,60,.25);max-width:460px}
+.toast button{color:var(--ambra);font-weight:800}
+
+.mtabs{display:none}
+.cards{display:none}
+
+/* ---------- telefono ---------- */
+@media (max-width:760px){
+  body{overflow-x:hidden;overflow-y:auto;font-size:14px}
+  #app{height:auto;min-height:100dvh;padding-bottom:calc(132px + env(safe-area-inset-bottom))}
+  .banner{padding-left:14px;font-size:11px}
+  .banner .rip{display:none}
+  .top{height:54px;padding:0 12px 0 14px;position:sticky;top:0;z-index:20}
+  .tabs,.search{display:none}
+  .logo .nm{font-size:16px}
+  .comeb{height:40px}
+  .comeb .lab{display:none}
+  .head{flex-direction:column;align-items:stretch;gap:12px;padding:14px 14px 10px}
+  .hl-t{font-size:18px;white-space:normal}
+  .hl-s{white-space:normal}
+  .hl-row{flex-direction:column;align-items:stretch;gap:10px}
+  .hl-row .btn{height:48px;font-size:14.5px;border-radius:12px}
+  .hl-row .btn kbd{display:none}
+  .kpis{display:flex;gap:6px;overflow-x:auto;margin:0 -14px;padding:0 14px;scrollbar-width:none}
+  .kpis::-webkit-scrollbar{display:none}
+  .kpi{min-width:104px;flex:none;padding:7px 10px}
+  .kpi span{white-space:normal;line-height:1.2}
+  .main{display:block;padding:0}
+  .sheetw{border:0;background:none;border-radius:0;overflow:visible}
+  .fx{display:none}
+  .fchips{border:0;padding:4px 14px 2px}
+  .scroll{overflow:visible}
+  table.grid{display:none}
+  .cards{display:block;padding:0 0 8px}
+  .cg{display:flex;align-items:center;padding:16px 16px 6px;font-size:12px;font-weight:800;color:#3B4252;text-transform:uppercase;letter-spacing:.05em}
+  .cg .gnota{display:none}
+  .cvuota{margin:0 12px;padding:12px 14px;border:1px dashed var(--line2);border-radius:12px;color:#8A909C;font-size:13px}
+  .card{position:relative;margin:0 12px 8px;padding:12px 14px 12px 16px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:inset 4px 0 0 var(--sem,transparent);cursor:pointer}
+  .card:active{background:#FBFAF6}
+  .cd-1{display:flex;align-items:flex-start;gap:10px}
+  .cd-1 b{flex:1;min-width:0;font-size:15px;font-weight:800;color:var(--navy);line-height:1.3}
+  .cd-2{margin-top:4px;font-size:13.5px;color:#374151;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .cd-m{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12.5px;color:var(--mut)}
+  .cd-m button{min-height:44px;display:inline-flex;align-items:center;margin:-6px 0}
+  .cd-1 button{min-height:44px;margin:-11px 0;display:inline-flex;align-items:center}
+  .cbar .cav{width:36px;height:36px}
+  .cd-c{margin-top:10px;padding:8px 8px 8px 10px;border-radius:12px;background:#F3F7FC}
+  .cd-c .cl-t{white-space:normal;font-size:13px;line-height:1.4}
+  .cd-c .cbtn{height:44px;min-width:44px;border-radius:11px;font-size:13.5px}
+  .cd-c .cbtn.pri{padding:0 14px}
+  .drawer,.drawer.wide{position:fixed;inset:0;width:auto;z-index:50;border:0;border-radius:0}
+  .dw-h{padding:12px 12px 10px 16px}
+  .dw-h .mini{height:44px;margin-top:0!important;padding:0 14px;border-radius:10px}
+  .bz-h span{display:none}
+  .x{width:44px;height:44px}
+  .dw-b{padding:4px 16px 16px}
+  .mkt{grid-template-columns:1fr 1fr}
+  .mkt div:nth-child(2){border-right:0}
+  .mkt div:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .dw-f{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .dw-f .btn{height:48px;flex:1;font-size:14px;border-radius:12px}
+  .dw-f .btn kbd{display:none}
+  .dw-f .info{flex-basis:100%}
+  .clara{position:fixed;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));z-index:40;padding:8px 12px}
+  .cbar{height:46px}
+  .cbar .hint{display:none}
+  .csend{width:36px;height:36px}
+  .bolla{left:12px;width:calc(100% - 24px)}
+  .status{display:none}
+  .mtabs{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;height:calc(60px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid var(--line2);z-index:41}
+  .mt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;font-weight:700;color:#6B7280;position:relative}
+  .mt.on{color:var(--navy)}
+  .mt .bd{position:absolute;top:5px;left:calc(50% + 6px);height:16px;min-width:16px;font-size:10px}
+  .pop{left:0!important;right:0;top:auto!important;bottom:0;max-width:none;border-radius:18px 18px 0 0;padding:8px 10px calc(12px + env(safe-area-inset-bottom))}
+  .opt{min-height:48px;font-size:14.5px}
+  .toast{left:12px;right:12px;bottom:calc(128px + env(safe-area-inset-bottom));max-width:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="banner"></div>
+  <header class="top">
+    <div class="logo"><i>SG</i><span class="nm">Workspace</span></div>
+    <nav id="tabs" class="tabs" aria-label="Fogli"></nav>
+    <div class="sp"></div>
+    <label class="search"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="cerca" placeholder="Cerca nel foglio" aria-label="Cerca nel foglio" autocomplete="off"></label>
+    <div id="come"></div>
+  </header>
+  <section id="head" class="head"></section>
+  <main class="main">
+    <div class="sheetw">
+      <div id="fx" class="fx"></div>
+      <div id="fchips" class="fchips" hidden></div>
+      <div id="scroll" class="scroll" tabindex="-1"><div id="grid"></div></div>
+    </div>
+    <aside id="drawer" class="drawer" hidden></aside>
+  </main>
+  <div id="clara" class="clara">
+    <div id="bolla" class="bolla"></div>
+    <div id="sugg" class="sugg" hidden></div>
+    <form id="cform" class="cbar" autocomplete="off">
+      <button type="button" id="cav" class="cav" aria-label="Conversazione con Clara">C</button>
+      <input id="cmd" placeholder="Scrivi a Clara: «sposta Riva a tecnica giovedì»" aria-label="Scrivi a Clara">
+      <span class="hint"><kbd>/</kbd> per scrivere</span>
+      <button class="csend" aria-label="Manda a Clara"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10M8.5 3.5L13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </form>
+  </div>
+  <footer id="status" class="status"></footer>
+  <nav id="mtabs" class="mtabs" aria-label="Fogli"></nav>
+</div>
+<div id="velo" class="velo" hidden></div>
+<div id="pop" class="pop" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="dati.js"></script>
+<script>
+(function () {
+'use strict';
+const L = window.LAB;
+const KEY = 'lab-v4-foglio';
+const OGGI = new Date(L.oggi + 'T09:00:00');
+const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+
+const TAPPE = [
+  ['risposta', 'Risposta', '#94A3B8'], ['analisi', 'Analisi', '#60A5FA'], ['follow_up', 'Follow-up', '#2979C4'],
+  ['conoscitiva', 'Conoscitiva', '#4F46E5'], ['tecnica', 'Tecnica', '#1C2E6E'], ['avvio', 'Avvio', '#0F766E'],
+  ['prova', 'Prova', '#0D9488'], ['cliente', 'Cliente', '#15803D'],
+];
+const TAPPA = {}; TAPPE.forEach(([k, l, c], i) => { TAPPA[k] = { k, l, c, i }; });
+const SEM = { ambra: ['#F5B200', '#2A1F00'], rosso: ['#DC2626', '#fff'], blu: ['#2979C4', '#fff'], verde: ['#15803D', '#fff'], grigio: ['#E8E4DB', '#4B5563'] };
+const RANGO = { rosso: 0, ambra: 1, blu: 2, verde: 3, grigio: 4 };
+const STATI_TASK = [['da accettare', 'Da accettare', 'ambra'], ['da fare', 'Da fare', 'ambra'], ['in corso', 'In corso', 'blu'], ['in ritardo', 'In ritardo', 'rosso'], ['fatto', 'Fatto', 'verde']];
+const FIT = [['SI', 'Sì', '#15803D'], ['FORSE', 'Forse', '#B45309'], ['NO', 'No', '#9CA3AF']];
+const PERS = {}; L.squadra.forEach(p => { PERS[p.id] = p; });
+PERS.clara = { id: 'clara', nome: 'Clara', ruolo: 'Assistente', colore: '#2979C4' };
+const VISTE = [['oggi', 'Oggi'], ['posta', 'Posta'], ['trattativa', 'Trattativa'], ['clienti', 'Clienti'], ['task', 'Task']];
+
+const ic = {
+  check: '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  x: '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  spark: '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5c.5 3.2 1.8 4.6 5 5.2v.6c-3.2.6-4.5 2-5 5.2h-.5c-.5-3.2-1.8-4.6-5-5.2v-.6c3.2-.6 4.5-2 5-5.2z" fill="currentColor"/></svg>',
+  chev: '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  up: '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  down: '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M4 9l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  filt: '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11l-4.2 5v4l-2.6 1.2V8.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  cal: '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 8.5h14M7 2.8v3M13 2.8v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  arrow: '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10M8.5 3.5L13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  t_oggi: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  t_posta: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  t_trattativa: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h13M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="6" r="2" fill="currentColor"/></svg>',
+  t_clienti: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
+  t_task: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.5l2.7 2.7L16.5 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
+// ---------- stato salvato ----------
+function iniziale() {
+  const D = JSON.parse(JSON.stringify(L));
+  D.aziende.forEach(a => { a.chi = { avvio: 'carlo', prova: 'carlo', cliente: 'salvatore' }[a.tappa] || 'dre'; a.note = ''; });
+  const primo = {
+    a3: { quando: '12/9', testo: 'Buongiorno Paolo, le lascio l’analisi su come Serramenti Vetta appare su Google. Se le va, ne parliamo in una chiamata di venti minuti.' },
+    a6: { quando: '22/7', testo: 'Buongiorno Sara, ecco l’analisi su Pasticceria Dolce Vita che le avevo promesso. Quando rientra dalle ferie ne parliamo volentieri.' },
+  };
+  const posta = [];
+  D.conversazioni.forEach(c => posta.push({ id: c.id, tipo: c.bozza ? 'Risposta' : 'Da decidere', azienda: c.azienda, aspetta: c.aspetta, perche: c.perche, filo: c.filo, bozza: c.bozza, stato: 'da approvare' }));
+  D.seguiti.forEach(s => posta.push({ id: s.id, tipo: 'Follow-up', azienda: s.azienda, aspetta: 'pronto oggi', perche: s.perche, giorno: s.giorno, filo: [Object.assign({ chi: 'noi' }, primo[s.azienda])], bozza: s.bozza, stato: 'da approvare' }));
+  posta.push({ id: 'p9', tipo: 'Analisi', azienda: 'a4', aspetta: 'partita il 4/10', perche: 'Ha detto sì il 3/10: analisi e proposta di call partite da sole', filo: [
+    { chi: 'loro', quando: '3/10', testo: 'Sì, mi interessa: mandatemi pure l’analisi.' },
+    { chi: 'noi', quando: '4/10', testo: 'Buongiorno Anna, ecco l’analisi su Agriturismo Colle Verde. Le propongo una chiamata di venti minuti: dal calendario sceglie lei il momento.' }], bozza: null, stato: 'corre' });
+  return { v: 3, vista: 'oggi', come: 'dre', aziende: D.aziende, task: D.task, posta, call: D.call, clara: {}, log: [], banner: true, sort: {}, filtri: {} };
+}
+let S = null;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || S.v !== 3) S = iniziale();
+
+const U = { cur: null, edit: null, sel: new Set(), drawer: null, pop: null, undo: [], chat: [], bolla: null, storia: false, cerca: '', mobile: false, saved: null, props: {}, chiedi: null, scarta: false };
+let NAV = [], COLS = [], F = null;
+
+// ---------- piccoli aiuti ----------
+const $ = s => document.querySelector(s);
+const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const az = id => S.aziende.find(a => a.id === id);
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+const nome = id => PERS[id] ? PERS[id].nome : id;
+const ad = id => (/^[aeiou]/i.test(nome(id)) ? 'ad ' : 'a ') + nome(id);
+function gg(d) { return Math.round((OGGI - new Date(d + 'T09:00:00')) / 864e5); }
+function quandoBreve(d) { const n = gg(d); if (n <= 0) return 'oggi'; if (n === 1) return 'ieri'; const x = new Date(d + 'T09:00:00'); return x.getDate() + '/' + (x.getMonth() + 1); }
+function mille(n) { return String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function euro(n) { return n ? mille(n) + ' €' : ''; }
+function ora() { const d = new Date(); return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’']/g, ' ').replace(/[«»"?!,]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function salva() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* niente */ } U.saved = ora(); }
+function log(testo, azienda, per, chi) { S.log.unshift({ id: 'l' + Date.now() + Math.random().toString(36).slice(2, 5), ora: ora(), chi: chi || S.come, testo, azienda: azienda || null, per: per || [] }); }
+
+// ---------- pezzi visivi ----------
+function pill(st) { const c = SEM[st[0]] || SEM.grigio; return `<span class="pill" style="background:${c[0]};color:${c[1]}">${h(st[1])}</span>`; }
+function chipC(l, c) { return `<span class="chip" style="--c:${c};--cb:${c}55"><i></i>${h(l)}</span>`; }
+function chip(t) { return t ? chipC(t.l, t.c) : ''; }
+function pers(id) { const p = PERS[id]; if (!p) return id === 'loro' ? '<span class="mut">loro</span>' : ''; return `<span class="pers"><span class="av" style="--c:${p.colore}">${h(p.nome[0])}</span>${h(p.nome)}</span>`; }
+function fitChip(v) { const f = FIT.find(x => x[0] === v) || FIT[2]; return chipC(f[1], f[2]); }
+const caret = `<span class="caret">${ic.chev}</span>`;
+
+// ---------- lo stato di un'azienda, visto da chi guarda ----------
+function chiDeve(a) {
+  if (S.posta.some(p => p.azienda === a.id && (p.stato === 'da approvare' || p.stato === 'approvata'))) return 'dre';
+  const t = S.task.find(t => t.azienda === a.id && t.stato !== 'fatto' && t.stato !== 'in corso');
+  if (t) return t.a;
+  const c = S.call.find(c => c.azienda === a.id && c.quando.startsWith('oggi'));
+  if (c) return c.chi[0];
+  if (a.palla === 'noi') return a.chi;
+  if (a.palla === 'loro') return 'loro';
+  return a.palla;
+}
+function statoAz(a) {
+  const rit = S.task.find(t => t.azienda === a.id && t.stato === 'in ritardo');
+  if (rit) return ['rosso', rit.a === S.come ? 'In ritardo, tua' : 'In ritardo: ' + nome(rit.a)];
+  const w = chiDeve(a), n = gg(a.ultima);
+  const p = S.posta.find(p => p.azienda === a.id && p.stato === 'da approvare');
+  const m = p && /(\d+) giorn/.exec(p.aspetta);
+  if (m) return ['rosso', (w === S.come ? 'Aspetta te' : 'Aspetta ' + nome(w)) + ' da ' + m[1] + ' g'];
+  if (w === 'loro') return n >= 14 ? ['rosso', 'Ferma da ' + n + ' g'] : ['blu', 'Tocca a loro'];
+  if (w === S.come) return ['ambra', 'Aspetta te'];
+  if (p || S.task.some(t => t.azienda === a.id && t.stato === 'da accettare' && t.a === w)) return ['blu', 'Aspetta ' + nome(w)];
+  if (a.tappa === 'cliente' && !S.task.some(t => t.azienda === a.id && t.stato !== 'fatto')) return ['verde', 'A posto'];
+  return ['blu', 'Con ' + nome(w)];
+}
+function semTask(t) {
+  const s = STATI_TASK.find(x => x[0] === t.stato) || STATI_TASK[1];
+  let sem = s[2];
+  if (sem === 'ambra' && t.a !== S.come) sem = 'blu';
+  return [sem, s[1]];
+}
+function semPosta(p) {
+  const dre = S.come === 'dre';
+  if (p.stato === 'da approvare') { const m = /(\d+) giorn/.exec(p.aspetta); if (m) return ['rosso', (dre ? 'Aspetta te' : 'Aspetta Dre') + ' da ' + m[1] + ' g']; return dre ? ['ambra', 'Aspetta te'] : ['blu', 'Aspetta Dre']; }
+  if (p.stato === 'approvata') return dre ? ['ambra', 'Da mandare'] : ['blu', 'Approvata'];
+  if (p.stato === 'corre') return ['blu', 'Partita da sola'];
+  if (p.stato === 'mandata') return ['verde', 'Mandata'];
+  if (p.stato === 'gestita') return ['verde', 'Gestita'];
+  return ['grigio', 'Scartata'];
+}
+
+// ---------- Clara: la prossima mossa per ogni riga ----------
+function propPosta(p) {
+  const a = az(p.azienda);
+  if (p.stato === 'da approvare') {
+    if (!p.bozza) return { id: 'l-' + p.id, tipo: 'leggi', posta: p.id, testo: 'Vuole una telefonata: leggi e decidi', perche: p.perche };
+    return { id: 'l-' + p.id, tipo: 'leggi', posta: p.id, testo: p.tipo === 'Follow-up' ? 'Follow-up pronto per ' + a.persona.split(' ')[0] + ': leggilo e approva' : 'Risposta pronta: leggila e approva', perche: 'La bozza nasce dal filo: ' + p.perche };
+  }
+  if (p.stato === 'approvata') return { id: 'm-' + p.id, tipo: 'manda', posta: p.id, testo: 'Copiata: mandala da Smartlead', perche: 'Clara non manda niente da sola: la copi su Smartlead e poi segni che è partita.' };
+  if (p.stato === 'corre') return propAz(a);
+  return null;
+}
+function propTask(t) {
+  const n = nome(t.a);
+  if (t.stato === 'fatto') return null;
+  if (t.stato === 'da accettare') {
+    if (t.a === S.come) return { id: t.id + ':accetta', tipo: 'accetta', task: t.id, testo: 'Accettala: te l’ha passata ' + nome(t.da), perche: t.titolo };
+    return { id: t.id + ':ricorda', tipo: 'ok', testo: 'Ricordo ' + ad(t.a) + ' di accettarla', esito: 'Scritto ' + ad(t.a) + ': la task aspetta che la prenda.', perche: 'Una task passata e non accettata non deve restare ferma senza che nessuno se ne accorga.' };
+  }
+  if (t.stato === 'in ritardo') {
+    if (t.a === S.come) return { id: t.id + ':oggi', tipo: 'scad', task: t.id, testo: 'Spostala a oggi e avviso ' + nome(t.da), esito: 'Scadenza a oggi, ' + nome(t.da) + ' lo sa.', perche: 'Scadeva ' + t.scadenza + '.' };
+    return { id: t.id + ':soll', tipo: 'ok', testo: 'Sollecito ' + n + ': scadeva ' + t.scadenza, esito: 'Sollecito mandato ' + ad(t.a) + '.', perche: 'La task «' + t.titolo + '» è ferma.' };
+  }
+  if (t.da === 'clara' && t.a === S.come && t.azienda) return { id: t.id + ':apri', tipo: 'scheda', az: t.azienda, testo: 'La bozza del preventivo c’è già: te la apro', perche: 'Nasce dalla conoscitiva, non da pagina vuota.' };
+  if (t.a === S.come) return { id: t.id + ':fatta', tipo: 'fatta', task: t.id, testo: 'Quando hai finito, segnala fatta', perche: t.titolo };
+  return { id: t.id + ':zz', tipo: 'nulla', testo: 'In corso con ' + n };
+}
+function propAz(a) {
+  const p = S.posta.find(p => p.azienda === a.id && (p.stato === 'da approvare' || p.stato === 'approvata'));
+  if (p) return propPosta(p);
+  const tr = S.task.find(t => t.azienda === a.id && t.stato === 'in ritardo') || S.task.find(t => t.azienda === a.id && t.stato === 'da accettare');
+  if (tr) return propTask(tr);
+  const c = S.call.find(c => c.azienda === a.id);
+  switch (a.tappa) {
+    case 'risposta': return { id: a.id + ':an', tipo: 'ok', testo: 'Preparo l’analisi e la faccio partire', esito: 'Analisi in preparazione: la trovi in Posta da approvare.' };
+    case 'analisi': return { id: a.id + ':attendi', tipo: 'ok', testo: 'Se tace fino a venerdì preparo il follow-up', esito: 'Venerdì 9 il follow-up di ' + a.nome + ' è in fila.', perche: a.dove };
+    case 'follow_up': return { id: a.id + ':fu', tipo: 'ok', testo: 'Preparo un nuovo follow-up dal filo', esito: 'Follow-up in preparazione: lo trovi in Posta.' };
+    case 'conoscitiva':
+      if (c && c.quando.startsWith('oggi')) return { id: a.id + ':scheda', tipo: 'scheda', az: a.id, testo: 'Leggi la scheda prima delle ' + c.quando.slice(5) + ': ' + a.scomode.length + ' cose scomode', perche: a.dove };
+      return { id: a.id + ':fissa', tipo: 'ok', testo: 'Gli riscrivo per fissare giovedì 8', esito: 'Bozza pronta in Posta per fissare giovedì 8.', perche: a.dove };
+    case 'tecnica':
+      if (c && !c.quando.startsWith('oggi')) return { id: a.id + ':dopo', tipo: 'ok', testo: 'Finita la tecnica di ' + c.quando.split(',')[0] + ', ti chiedo se passarlo a Carlo', esito: c.quando.split(',')[0] + ', a fine call, ti chiedo se passare ' + a.nome + ' a Carlo.', perche: a.dove };
+      return { id: a.id + ':passa', tipo: 'passa', az: a.id, testo: 'Passalo a Carlo: la tecnica è fatta', perche: a.dove };
+    case 'avvio': return { id: a.id + ':kick', tipo: 'ok', testo: 'Preparo la scaletta per l’avvio di lunedì', esito: 'Scaletta dell’avvio pronta nella scheda di ' + a.nome + '.', perche: a.dove };
+    case 'prova': return { id: a.id + ':meta', tipo: 'task', testo: 'Giorno ' + gg('2026-09-15') + ' di 60: metto il punto di metà prova', esito: 'Task a Carlo: punto di metà prova con ' + a.persona + ', lunedì.', nuova: { titolo: 'Punto di metà prova con ' + a.persona, a: 'carlo', scadenza: 'lunedì', azienda: a.id }, perche: a.dove };
+    case 'cliente': return { id: a.id + ':report', tipo: 'ok', testo: 'Bozza del report di settembre per Salvatore', esito: 'Bozza del report allegata alla task di Salvatore.', perche: a.dove };
+  }
+  return null;
+}
+function regProp(pr) { if (pr) U.props[pr.id] = pr; return pr; }
+function cellaClara(pr) {
+  if (!pr) return '';
+  regProp(pr);
+  const st = S.clara[pr.id];
+  if (st && st.si) return `<span class="cl ok">${ic.check}<span class="cl-t">${h(st.esito || 'Fatto')}</span><button class="lnk" data-ripristina="${pr.id}">annulla</button></span>`;
+  if (st && st.no) {
+    if (U.chiedi === pr.id) return `<span class="cl no"><input class="perche" data-perche="${pr.id}" placeholder="Perché no? Invio per salvare" aria-label="Perché no"></span>`;
+    return `<span class="cl no"><span class="cl-t">No${st.perche ? ': ' + h(st.perche) : ''}</span><button class="lnk" data-ripristina="${pr.id}">ripristina</button></span>`;
+  }
+  if (pr.tipo === 'nulla') return `<span class="cl zz"><span class="cl-t">${h(pr.testo)}</span></span>`;
+  const uno = { leggi: 'Leggi', scheda: 'Apri', manda: 'Fatto, l’ho mandata', passa: 'Passa a Carlo', accetta: 'Accetta', fatta: 'Fatta' }[pr.tipo];
+  const no = ['passa', 'accetta'].includes(pr.tipo) || !uno;
+  const btn = uno ? `<button class="cbtn pri" data-si="${pr.id}">${h(uno)}</button>` : `<button class="cbtn si" data-si="${pr.id}" title="Sì (Invio)" aria-label="Sì">${ic.check}</button>`;
+  return `<span class="cl"><i class="spark">${ic.spark}</i><span class="cl-t">${h(pr.testo)}</span><span class="cl-b">${btn}${no ? `<button class="cbtn no" data-no="${pr.id}" title="No (Canc)" aria-label="No">${ic.x}</button>` : ''}</span></span>`;
+}
+
+function siClara(pr) {
+  if (!pr) return;
+  switch (pr.tipo) {
+    case 'leggi': return apriPosta(pr.posta);
+    case 'scheda': return apriAz(pr.az);
+    case 'manda': return mandata(pr.posta);
+    case 'passa': return passaACarlo(pr.az);
+    case 'accetta': { const t = S.task.find(x => x.id === pr.task); return muta('Presa in carico', () => statoTask(t, 'in corso')), dici('Fatta: ' + nome(t.da) + ' vede che l’hai presa. ' + (az(t.azienda) ? 'La scheda di ' + az(t.azienda).nome + ' è qui accanto.' : ''), az(t.azienda) ? [{ t: 'Apri la scheda', f: () => apriAz(t.azienda) }] : null); }
+    case 'fatta': { const t = S.task.find(x => x.id === pr.task); muta('Task fatta', () => statoTask(t, 'fatto')); return dici('Segnata fatta. ' + (t.da !== S.come && t.da !== 'clara' ? nome(t.da) + ' lo vede nella sua Oggi.' : '')); }
+    case 'nulla': return;
+  }
+  muta('Clara: ' + pr.testo, () => {
+    S.clara[pr.id] = { si: true, esito: pr.esito || 'Fatto' };
+    if (pr.tipo === 'task') S.task.unshift(Object.assign({ id: 't' + Date.now(), da: 'clara', stato: 'da accettare' }, pr.nuova));
+    if (pr.tipo === 'scad') { const t = S.task.find(x => x.id === pr.task); t.scadenza = 'oggi'; t.stato = 'da fare'; }
+    log('Clara: ' + (pr.esito || pr.testo), null, [], 'clara');
+  }, { zitto: true });
+  dici(pr.esito || 'Fatto.');
+}
+function noClara(pr) {
+  if (!pr || ['leggi', 'scheda', 'manda', 'nulla', 'fatta'].includes(pr.tipo)) return;
+  muta('Proposta scartata', () => { S.clara[pr.id] = { no: true, perche: '' }; }, { zitto: true });
+  U.chiedi = pr.id; render();
+  const i = document.querySelector(`[data-perche="${pr.id}"]`); if (i) i.focus();
+  dici('Ok, lascio stare. Se mi scrivi perché, la prossima volta propongo meglio.');
+}
+
+// ---------- le azioni vere ----------
+function muta(desc, fn, opt) {
+  U.undo.push(JSON.stringify(S)); if (U.undo.length > 60) U.undo.shift();
+  fn(); salva(); render();
+  if (!(opt && opt.zitto)) toast(desc, true);
+}
+function annulla() {
+  const s = U.undo.pop(); if (!s) { toast('Niente da annullare'); return; }
+  S = JSON.parse(s); salva(); render(); toast('Annullato');
+}
+function statoTask(t, v) {
+  const prima = t.stato; t.stato = v;
+  if (prima === 'da accettare' && v !== 'da accettare') log(nome(t.a) + ' ha preso in carico ' + (/^Prendi in carico/.test(t.titolo) && az(t.azienda) ? az(t.azienda).nome : '«' + t.titolo + '»'), t.azienda, [t.da], t.a);
+  if (v === 'fatto' && prima !== 'fatto') log('Fatta: ' + t.titolo, t.azienda, [t.da, t.a]);
+  if (t.azienda && v === 'in corso' && /Prendi in carico/.test(t.titolo)) { const a = az(t.azienda); if (a) a.palla = t.a; }
+}
+function riassegna(t, v) {
+  if (t.a === v) return;
+  t.a = v; if (t.stato !== 'fatto') t.stato = v === S.come ? 'da fare' : 'da accettare';
+  log('Task passata ' + ad(v) + ': ' + t.titolo, t.azienda, [v]);
+}
+function passaACarlo(id) { passaA(id, 'carlo'); }
+function passaA(id, chi) {
+  const a = az(id); if (!a) return;
+  if (a.chi === chi && a.palla === chi) { dici(a.nome + ' è già di ' + nome(chi) + '.'); return; }
+  muta(a.nome + ' passato ' + ad(chi), () => {
+    if (chi === 'carlo' && !['prova', 'cliente'].includes(a.tappa)) a.tappa = 'avvio';
+    a.chi = chi; a.palla = chi;
+    S.task.unshift({ id: 't' + Date.now(), titolo: 'Prendi in carico ' + a.nome + ': ' + a.dove.split(/[.,:]/)[0].toLowerCase(), da: S.come, a: chi, azienda: id, scadenza: 'oggi', stato: 'da accettare' });
+    log(a.nome + ' passato ' + ad(chi), id, [chi]);
+  });
+  dici(`Fatto. ${a.nome} adesso è di ${nome(chi)}: lo trova in cima alla sua Oggi, da accettare. Ti avviso quando lo prende; se stasera è ancora lì, te lo dico.`, [{ t: 'Vedi come ' + nome(chi), f: () => setCome(chi) }]);
+}
+function mandata(pid) {
+  const p = S.posta.find(x => x.id === pid); const a = az(p.azienda);
+  muta('Segnata mandata', () => {
+    p.stato = 'mandata'; p.ora = ora();
+    a.ultima = L.oggi; a.palla = 'loro'; if (a.tappa === 'risposta') a.tappa = 'analisi';
+    log((p.tipo === 'Follow-up' ? 'Follow-up' : 'Risposta') + ' mandata a ' + a.nome, a.id, ['lorenzo']);
+  });
+  const resta = S.posta.filter(x => x.stato === 'approvata').length;
+  dici(resta ? 'Segnata. Ne restano ' + resta + ' da mandare da Smartlead.' : giornata());
+}
+function copia(testo) {
+  try { navigator.clipboard.writeText(testo).catch(() => vecchiaCopia(testo)); } catch (e) { vecchiaCopia(testo); }
+}
+function vecchiaCopia(t) { const x = document.createElement('textarea'); x.value = t; document.body.appendChild(x); x.select(); try { document.execCommand('copy'); } catch (e) { /* pazienza */ } x.remove(); }
+function prossima(dopo) {
+  const coda = S.posta.filter(x => x.stato === 'da approvare');
+  const i = coda.findIndex(x => x.id === dopo);
+  return coda.find(x => x.bozza && x.id !== dopo) || coda.find(x => x.id !== dopo) || null;
+}
+function approva(pid) {
+  const p = S.posta.find(x => x.id === pid);
+  if (!p || p.stato !== 'da approvare' || !p.bozza) return;
+  if (S.come !== 'dre') { toast('Le bozze le approva Dre'); return; }
+  const ta = document.querySelector('[data-bozza]'); if (ta) p.bozza = ta.value;
+  const nx = prossima(pid);
+  muta('Approvata e copiata', () => { p.stato = 'approvata'; p.ora = ora(); }, { zitto: true });
+  copia(p.bozza);
+  if (nx) { U.drawer = { tipo: 'posta', id: nx.id }; U.scarta = false; render(); toast('Approvata e copiata. Ecco la prossima: ' + az(nx.azienda).nome, true); }
+  else { U.drawer = null; render(); dici('Fila finita. Le approvate sono copiate: mandale da Smartlead e premi «Fatto, l’ho mandata» su ognuna.', [{ t: 'Vai alla Posta', f: () => vai('posta') }]); }
+}
+function scarta(pid, perche) {
+  const p = S.posta.find(x => x.id === pid); const nx = prossima(pid);
+  muta('Bozza scartata', () => { p.stato = 'scartata'; p.perche = perche || ''; log('Bozza scartata: ' + az(p.azienda).nome + (perche ? ' (' + perche + ')' : ''), p.azienda); });
+  U.scarta = false; U.drawer = nx ? { tipo: 'posta', id: nx.id } : null; render();
+  dici('Scartata. ' + (perche ? 'Me lo segno: «' + perche + '».' : 'Se mi dici perché, la prossima la scrivo meglio.'));
+}
+function giornata() {
+  const si = S.posta.filter(p => p.tipo === 'Risposta' && ['da approvare', 'approvata'].includes(p.stato)).length;
+  const fu = S.posta.filter(p => p.tipo === 'Follow-up' && ['da approvare', 'approvata'].includes(p.stato)).length;
+  if (!si && !fu) return 'La giornata è chiusa: tutti i sì hanno l’analisi e i follow-up dovuti sono partiti.';
+  return 'Per chiudere la giornata mancano ' + [si ? si + ' risposte' : '', fu ? fu + ' follow-up' : ''].filter(Boolean).join(' e ') + '.';
+}
+
+// ---------- i fogli ----------
+function righeOggi() {
+  const p = S.come, R = [], tutti = p === 'giacomo';
+  const vedePosta = p === 'dre' || p === 'lorenzo' || tutti;
+  if (vedePosta) S.posta.forEach(x => {
+    const a = az(x.azienda), mio = p === 'dre';
+    if (x.stato === 'da approvare' || x.stato === 'approvata') {
+      const cosa = x.stato === 'approvata' ? 'Approvata alle ' + x.ora + ': copiala su Smartlead e mandala'
+        : x.tipo === 'Follow-up' ? 'Follow-up pronto: ' + x.perche.toLowerCase() : cap(x.perche);
+      const adesso = x.stato === 'approvata' ? 'manda da Smartlead la mail a ' + a.nome : x.tipo === 'Follow-up' ? 'approva il follow-up a ' + a.nome : x.bozza ? 'approva la risposta a ' + a.nome : 'decidi su ' + a.nome + ': vuole una telefonata';
+      R.push({ id: 'op' + x.id, gruppo: mio ? 'te' : 'altri', quando: x.stato === 'approvata' ? 'adesso' : x.aspetta, az: a, cosa, chi: 'dre', stato: semPosta(x), prop: propPosta(x), apri: () => apriPosta(x.id), adesso });
+    }
+    if (x.stato === 'corre') R.push({ id: 'op' + x.id, gruppo: 'corre', quando: x.aspetta, az: a, cosa: x.perche, chi: 'clara', stato: semPosta(x), prop: propPosta(x), apri: () => apriPosta(x.id) });
+  });
+  S.call.forEach(c => {
+    if (!(tutti || c.chi.includes(p))) return;
+    const a = az(c.azienda), oggi = c.quando.startsWith('oggi'), mia = c.chi[0] === p;
+    const prop = oggi && a.tappa === 'conoscitiva' ? propAz(a) : { id: 'call:' + a.id + ':' + c.tipo, tipo: 'ok', testo: 'Ti preparo la scheda la mattina della call', esito: 'La mattina della call trovi la scheda di ' + a.nome + ' in cima.', perche: a.dove };
+    R.push({ id: 'oc' + a.id + c.tipo, gruppo: oggi && mia ? 'te' : 'corre', quando: c.quando, az: a, cosa: 'Call ' + c.tipo.toLowerCase() + (c.chi.length > 1 ? ' con ' + c.chi.filter(x => x !== p).map(nome).join(' e ') : ''), chi: c.chi[0], stato: oggi ? [mia ? 'ambra' : 'blu', 'Oggi ' + c.quando.slice(5)] : ['blu', 'In agenda'], prop, apri: () => apriAz(a.id), adesso: 'preparati alla call con ' + a.nome + ' delle ' + c.quando.slice(5) });
+  });
+  S.task.forEach(t => {
+    if (t.stato === 'fatto') return;
+    const mia = t.a === p, data = t.da === p;
+    if (!(mia || data || tutti || (p === 'dre' && t.stato === 'in ritardo'))) return;
+    const a = t.azienda ? az(t.azienda) : null;
+    R.push({ id: 'ot' + t.id, gruppo: mia ? 'te' : 'altri', quando: t.scadenza, az: a, cosa: t.titolo, chi: t.a, task: t, stato: semTask(t), prop: propTask(t), apri: () => a ? apriAz(a.id) : null, adesso: t.stato === 'da accettare' ? 'accetta ' + (a ? a.nome : '«' + t.titolo + '»') + ', te l’ha passata ' + nome(t.da) : t.titolo.charAt(0).toLowerCase() + t.titolo.slice(1) });
+  });
+  S.aziende.forEach(a => {
+    if (R.some(r => r.az === a)) return;
+    const st = statoAz(a);
+    if ((a.chi === p && ['avvio', 'prova', 'cliente'].includes(a.tappa)) || (tutti && st[0] === 'rosso')) {
+      R.push({ id: 'oa' + a.id, gruppo: st[0] === 'ambra' ? 'te' : 'corre', quando: a.tappa === 'prova' ? 'giorno ' + gg('2026-09-15') + '/60' : quandoBreve(a.ultima), az: a, cosa: a.dove, chi: a.chi, stato: st, prop: propAz(a), apri: () => apriAz(a.id) });
+    }
+  });
+  S.log.filter(l => tutti || l.chi === p || (l.per || []).includes(p)).forEach(l => {
+    R.push({ id: 'ol' + l.id, gruppo: 'fatto', quando: l.ora, az: l.azienda ? az(l.azienda) : null, cosa: l.testo, chi: l.chi, stato: ['verde', 'Fatto'], prop: null });
+  });
+  return R;
+}
+function colAz(w) { return { k: 'az', t: 'Azienda', w: w || 200, get: r => r.az ? r.az.nome : '', html: r => r.az ? `<button class="azl" data-apri="${r.az.id}">${h(r.az.nome)}</button>` : '<span class="ph">nessuna</span>' }; }
+function colClara(w) { return { k: 'clara', t: 'Clara propone', w: w || 0, clara: true, get: r => r.prop ? r.prop.testo : '', html: r => cellaClara(r.prop), full: r => r.prop ? r.prop.testo + (r.prop.perche ? '  |  perché: ' + r.prop.perche : '') : '' }; }
+function colChi(k, t, w, get, ed) { return { k, t, w, get, lab: v => nome(v), html: r => pers(get(r)) + (ed && ed(r) ? caret : ''), filtro: 'vals', ed }; }
+function colStato(w, ed) { return { k: 'stato', t: 'Stato', w: w || 140, get: r => r.stato[1], sortv: r => RANGO[r.stato[0]] * 100 + (r.az ? TAPPE.length - TAPPA[r.az.tappa].i : 0), html: r => pill(r.stato) + (ed && ed(r) ? caret : ''), filtro: 'vals', ed }; }
+const OPZ_TAPPE = () => TAPPE.map(([k, l, c]) => [k, l, c]);
+const OPZ_TASK = () => STATI_TASK.map(([k, l, s]) => [k, l, s]);
+const OPZ_PERS = () => L.squadra.map(p => [p.id, p.nome, p.colore, p.ruolo]);
+const OPZ_AZ = () => S.aziende.map(a => [a.id, a.nome, TAPPA[a.tappa].c, TAPPA[a.tappa].l]);
+const edTaskStato = r => r.task ? { kind: 'enum', vis: 'pill', val: r.task.stato, opz: OPZ_TASK(), set: v => statoTask(r.task, v), desc: 'Stato della task' } : null;
+const edTaskA = r => r.task ? { kind: 'enum', vis: 'pers', val: r.task.a, opz: OPZ_PERS(), set: v => riassegna(r.task, v), desc: 'A chi' } : null;
+
+function foglioOggi() {
+  return {
+    rows: righeOggi(),
+    gruppi: [
+      { id: 'te', t: 'Tocca a te', sem: 'ambra', vuoto: S.come === 'lorenzo' ? 'Niente aspetta te: le risposte le approva Dre.' : 'Niente aspetta te adesso.' },
+      { id: 'altri', t: S.come === 'giacomo' ? 'Il resto della squadra' : 'In mano ad altri', sem: 'blu', nota: S.come === 'giacomo' ? 'chi fa cosa, con la scadenza' : S.come === 'lorenzo' ? 'le risposte che aspettano Dre' : 'quello che hai passato tu, finché non è fatto', vuoto: 'Niente in mano ad altri.' },
+      { id: 'corre', t: 'Corre da solo', sem: 'blu', vuoto: 'Niente in corsa.' },
+      { id: 'fatto', t: 'Fatto oggi', sem: 'verde', vuoto: 'Ancora niente: quello che chiudi finisce qui, anche quello che chiudono gli altri per te.' },
+    ],
+    cols: [
+      { k: 'quando', t: 'Quando', w: 112, get: r => r.quando, ed: r => r.task ? { kind: 'testo', val: r.task.scadenza, set: v => { r.task.scadenza = v; }, desc: 'Scadenza' } : null },
+      colAz(196),
+      { k: 'cosa', t: 'Cosa', w: 0, get: r => r.cosa, ed: r => r.task ? { kind: 'testo', val: r.task.titolo, set: v => { r.task.titolo = v; }, desc: 'Task' } : null },
+      colChi('chi', 'Chi', 118, r => r.chi, edTaskA),
+      colStato(150, edTaskStato),
+      colClara(390),
+    ],
+  };
+}
+function foglioPosta() {
+  const rows = S.posta.map(p => {
+    const a = az(p.azienda);
+    const g = p.stato === 'da approvare' ? 'te' : p.stato === 'approvata' ? 'mandare' : p.stato === 'corre' ? 'corre' : 'fatto';
+    return { id: 'p' + p.id, gruppo: g, az: a, posta: p, stato: semPosta(p), prop: propPosta(p), apri: () => apriPosta(p.id), cosa: p.perche };
+  });
+  const dre = S.come === 'dre';
+  return {
+    rows,
+    gruppi: [
+      { id: 'te', t: dre ? 'Aspettano te' : 'Aspettano Dre', sem: 'ambra', nota: 'una alla volta: approvata una, si apre la prossima', vuoto: 'Fila vuota. ' + giornata() },
+      { id: 'mandare', t: 'Approvate, da mandare da Smartlead', sem: 'ambra', vuoto: 'Niente da mandare.' },
+      { id: 'corre', t: 'Corrono da sole', sem: 'blu', vuoto: 'Niente in corsa.' },
+      { id: 'fatto', t: 'Fatte', sem: 'verde', vuoto: 'Ancora niente.' },
+    ],
+    cols: [
+      colStato(150),
+      colAz(196),
+      { k: 'persona', t: 'Persona', w: 122, get: r => r.az.persona },
+      { k: 'tipo', t: 'Tipo', w: 104, get: r => r.posta.tipo, filtro: 'vals' },
+      { k: 'aspetta', t: 'Da quando', w: 118, get: r => r.posta.stato === 'approvata' ? 'alle ' + r.posta.ora : r.posta.stato === 'mandata' ? 'alle ' + r.posta.ora : r.posta.aspetta },
+      { k: 'cosa', t: 'Perché', w: 0, get: r => r.posta.perche },
+      colClara(270),
+    ],
+  };
+}
+function foglioAziende(tappe, quale) {
+  const rows = S.aziende.filter(a => tappe.includes(a.tappa)).map(a => ({ id: 'z' + a.id, az: a, stato: statoAz(a), prop: propAz(a), apri: () => apriAz(a.id), cosa: a.dove }));
+  const tappaCol = { k: 'tappa', t: 'Tappa', w: 124, get: r => r.az.tappa, sortv: r => TAPPA[r.az.tappa].i, lab: v => TAPPA[v] ? TAPPA[v].l : v, filtro: 'vals', html: r => chip(TAPPA[r.az.tappa]) + caret, ed: r => ({ kind: 'enum', vis: 'tappa', val: r.az.tappa, opz: OPZ_TAPPE(), set: v => { r.az.tappa = v; }, desc: 'Tappa' }) };
+  const chiCol = colChi('chi', 'Chi segue', 116, r => r.az.chi, r => ({ kind: 'enum', vis: 'pers', val: r.az.chi, opz: OPZ_PERS(), set: v => { r.az.chi = v; }, desc: 'Chi segue' }));
+  const valCol = { k: 'valore', t: quale === 'clienti' ? 'Canone' : '€/mese', w: 96, num: true, somma: true, get: r => r.az.valore || 0, html: r => r.az.valore ? euro(r.az.valore) : '<span class="ph">vuoto</span>', ed: r => ({ kind: 'num', val: r.az.valore || '', set: v => { r.az.valore = v; }, desc: 'Valore al mese' }) };
+  const ordineBase = (x, y) => (RANGO[x.stato[0]] - RANGO[y.stato[0]]) || (TAPPA[y.az.tappa].i - TAPPA[x.az.tappa].i);
+  if (quale === 'trattativa') return {
+    rows: rows.sort(ordineBase), totale: 'In trattativa',
+    cols: [
+      colAz(196),
+      tappaCol, colStato(148), chiCol,
+      { k: 'ultima', t: 'Ultima', w: 70, get: r => quandoBreve(r.az.ultima), sortv: r => gg(r.az.ultima) },
+      valCol,
+      { k: 'fit', t: 'Fit', w: 92, get: r => r.az.fit, lab: v => (FIT.find(f => f[0] === v) || FIT[2])[1], filtro: 'vals', html: r => fitChip(r.az.fit) + caret, ed: r => ({ kind: 'enum', vis: 'tappa', val: r.az.fit, opz: FIT.map(f => [f[0], f[1], f[2]]), set: v => { r.az.fit = v; }, desc: 'Fit' }) },
+      colClara(0),
+      { k: 'passa', t: 'Passaggio', w: 116, get: r => '', html: r => ['conoscitiva', 'tecnica'].includes(r.az.tappa) ? `<button class="mini" data-passa="${r.az.id}">A Carlo ${ic.arrow}</button>` : '' },
+    ],
+  };
+  return {
+    rows: rows.sort(ordineBase), totale: 'Canone al mese',
+    cols: [
+      colAz(200), tappaCol, chiCol, valCol,
+      { k: 'giro', t: 'A che punto', w: 150, get: r => giro(r.az), html: r => r.az.tappa === 'prova' ? `<span class="prog"><span class="bar"><i style="width:${Math.round(gg('2026-09-15') / 60 * 100)}%"></i></span><span>${h(giro(r.az))}</span></span>` : h(giro(r.az)) },
+      colStato(150),
+      { k: 'note', t: 'Note', w: 0, min: 160, get: r => r.az.note, html: r => r.az.note ? h(r.az.note) : '<span class="ph">scrivi una nota</span>', ed: r => ({ kind: 'testo', val: r.az.note, set: v => { r.az.note = v; }, desc: 'Nota' }) },
+      colClara(270),
+    ],
+  };
+}
+function giro(a) {
+  if (a.tappa === 'prova') return 'giorno ' + gg('2026-09-15') + ' di 60';
+  const c = S.call.find(c => c.azienda === a.id);
+  if (a.tappa === 'avvio') return c ? 'parte ' + c.quando.split(',')[0] : 'da avviare';
+  if (a.tappa === 'cliente') return 'retainer da agosto';
+  return '';
+}
+function foglioTask() {
+  const rows = S.task.map(t => ({ id: 'k' + t.id, task: t, az: t.azienda ? az(t.azienda) : null, stato: semTask(t), prop: propTask(t), cosa: t.titolo, apri: () => t.azienda ? apriAz(t.azienda) : null }));
+  rows.sort((x, y) => (x.task.stato === 'fatto') - (y.task.stato === 'fatto') || RANGO[x.stato[0]] - RANGO[y.stato[0]]);
+  return {
+    rows, nuova: true,
+    cols: [
+      colStato(136, edTaskStato),
+      { k: 'cosa', t: 'Task', w: 0, get: r => r.task.titolo, ed: r => ({ kind: 'testo', val: r.task.titolo, set: v => { r.task.titolo = v; }, desc: 'Task' }) },
+      Object.assign(colAz(186), { ed: r => ({ kind: 'enum', vis: 'az', val: r.task.azienda, opz: OPZ_AZ(), set: v => { r.task.azienda = v; }, desc: 'Azienda' }), html: r => (r.az ? `<button class="azl" data-apri="${r.az.id}">${h(r.az.nome)}</button>` : '<span class="ph">nessuna</span>') + caret }),
+      colChi('da', 'Da', 104, r => r.task.da),
+      colChi('a', 'A', 116, r => r.task.a, edTaskA),
+      { k: 'scadenza', t: 'Scadenza', w: 96, get: r => r.task.scadenza, ed: r => ({ kind: 'testo', val: r.task.scadenza, set: v => { r.task.scadenza = v; }, desc: 'Scadenza' }) },
+      colClara(300),
+    ],
+  };
+}
+function foglio() {
+  switch (S.vista) {
+    case 'posta': return foglioPosta();
+    case 'trattativa': return foglioAziende(['risposta', 'analisi', 'follow_up', 'conoscitiva', 'tecnica'], 'trattativa');
+    case 'clienti': return foglioAziende(['avvio', 'prova', 'cliente'], 'clienti');
+    case 'task': return foglioTask();
+    default: return foglioOggi();
+  }
+}
+
+// ---------- filtri e ordine ----------
+function visibili(f) {
+  const fl = S.filtri[S.vista] || {}, q = norm(U.cerca);
+  let rows = f.rows.filter(r => {
+    for (const k in fl) {
+      if (k === '_sem') { if (!r.stato || r.stato[0] !== fl._sem) return false; continue; }
+      const col = f.cols.find(c => c.k === k); if (!col) continue;
+      const v = String(col.get(r) == null ? '' : col.get(r)), x = fl[k];
+      if (x.vals && !x.vals.includes(v)) return false;
+      if (x.txt && !norm(v).includes(norm(x.txt))) return false;
+    }
+    if (q) { const all = f.cols.map(c => c.lab ? c.lab(c.get(r)) : c.get(r)).join(' ') + (r.az ? ' ' + r.az.persona + ' ' + r.az.citta + ' ' + r.az.settore : ''); if (!norm(all).includes(q)) return false; }
+    return true;
+  });
+  const so = S.sort[S.vista];
+  if (so) {
+    const col = f.cols.find(c => c.k === so.k);
+    if (col) {
+      const key = col.sortv || col.get;
+      rows = rows.map((r, i) => [r, i]).sort((x, y) => {
+        const a = key(x[0]), b = key(y[0]);
+        const d = (typeof a === 'number' && typeof b === 'number') ? a - b : String(a == null ? '' : a).localeCompare(String(b == null ? '' : b), 'it', { numeric: true });
+        return d ? d * so.dir : x[1] - y[1];
+      }).map(x => x[0]);
+    }
+  }
+  return rows;
+}
+function nFiltri() { const fl = S.filtri[S.vista] || {}; return Object.keys(fl).length; }
+
+// ---------- disegno ----------
+const mq = matchMedia('(max-width: 760px)');
+function render() {
+  U.mobile = mq.matches; U.props = {};
+  F = foglio(); COLS = F.cols;
+  const rows = visibili(F);
+  renderBanner(); renderTabs(); renderCome(); renderHead(rows); renderSheet(rows); renderChips(); renderDrawer(); renderStatus(); renderBolla();
+}
+function conta(v) {
+  const c = S.come;
+  if (v === 'oggi') return righeOggi().filter(r => r.gruppo === 'te').length;
+  if (v === 'posta') return c === 'dre' ? S.posta.filter(p => p.stato === 'da approvare' || p.stato === 'approvata').length : 0;
+  if (v === 'trattativa') return S.aziende.filter(a => ['risposta', 'analisi', 'follow_up', 'conoscitiva', 'tecnica'].includes(a.tappa) && statoAz(a)[0] === 'ambra').length;
+  if (v === 'clienti') return S.aziende.filter(a => ['avvio', 'prova', 'cliente'].includes(a.tappa) && statoAz(a)[0] === 'ambra').length;
+  if (v === 'task') return S.task.filter(t => t.a === c && ['da accettare', 'da fare', 'in ritardo'].includes(t.stato)).length;
+  return 0;
+}
+function renderBanner() {
+  $('#banner').innerHTML = S.banner ? `<div class="banner"><span>V4, il foglio: prototipo con dati finti</span><span class="sp"></span><button class="rip" data-reset>Ripristina i dati</button><button data-chiudibanner aria-label="Chiudi la striscia">${ic.x}</button></div>` : '';
+}
+function renderTabs() {
+  const t = VISTE.map(([k, l]) => { const n = conta(k); return `<button class="tab ${S.vista === k ? 'on' : ''}" data-vista="${k}">${l}${n ? `<span class="bd">${n}</span>` : ''}</button>`; }).join('');
+  $('#tabs').innerHTML = t;
+  $('#mtabs').innerHTML = VISTE.map(([k, l]) => { const n = conta(k); return `<button class="mt ${S.vista === k ? 'on' : ''}" data-vista="${k}">${ic['t_' + k]}<span>${l}</span>${n ? `<span class="bd">${n}</span>` : ''}</button>`; }).join('');
+}
+function renderCome() {
+  const p = PERS[S.come];
+  $('#come').innerHTML = `<button class="comeb" data-come aria-label="Vedi come"><span class="av" style="--c:${p.colore};width:24px;height:24px;font-size:11px">${p.nome[0]}</span><span class="lab">Vedi come</span><b>${h(p.nome)}</b>${ic.chev}</button>`;
+}
+function kpi(v, l, sem, attr) { return `<${attr ? 'button' : 'div'} class="kpi ${sem || ''}" ${attr || ''}><b>${v}</b><span>${h(l)}</span></${attr ? 'button' : 'div'}>`; }
+function renderHead(rows) {
+  const c = S.come, v = S.vista;
+  let k = '', t = '', s = '', go = '', kp = '', ks = '';
+  const canone = S.aziende.filter(a => ['prova', 'cliente', 'avvio'].includes(a.tappa)).reduce((x, a) => x + (a.valore || 0), 0);
+  if (v === 'oggi') {
+    const tutte = righeOggi();
+    const te = tutte.filter(r => r.gruppo === 'te'), altri = tutte.filter(r => r.gruppo === 'altri');
+    if (te.length) { k = 'Adesso'; t = cap(te[0].adesso || te[0].cosa); s = te[1] ? 'Poi: ' + (te[1].adesso || te[1].cosa) + (te.length > 2 ? '. E altre ' + (te.length - 2) + ' sotto.' : '.') : 'Poi niente: il resto corre da solo.'; go = `<button class="btn pri" data-adesso>Apri <kbd>Invio</kbd></button>`; }
+    else { k = 'Adesso'; ks = 'verde'; t = 'Niente aspetta te adesso'; s = altri.length ? 'In mano ad altri: ' + (altri[0].cosa) : 'Il resto corre da solo.'; }
+    const si = S.posta.filter(p => p.tipo === 'Risposta' && ['da approvare', 'approvata'].includes(p.stato)).length;
+    const fu = S.posta.filter(p => p.tipo === 'Follow-up' && ['da approvare', 'approvata'].includes(p.stato)).length;
+    const rit = S.task.filter(t => t.stato === 'in ritardo').length;
+    if (c === 'dre') kp = kpi(si, 'sì senza analisi', si ? 'ambra' : 'verde') + kpi(fu, 'follow-up dovuti', fu ? 'ambra' : 'verde') + kpi(S.call.filter(x => x.quando.startsWith('oggi')).length, 'call oggi', 'blu') + kpi(euro(canone), 'canone al mese');
+    else if (c === 'carlo') kp = kpi(S.task.filter(t => t.a === 'carlo' && t.stato === 'da accettare').length, 'da accettare', 'ambra') + kpi(S.aziende.filter(a => a.tappa === 'avvio').length, 'in avvio', 'blu') + kpi(S.aziende.filter(a => a.tappa === 'prova').length, 'in prova', 'blu') + kpi(S.task.filter(t => t.da === 'carlo' && t.stato === 'in ritardo').length, 'in ritardo da altri', 'rosso');
+    else if (c === 'giacomo') kp = kpi(euro(canone), 'canone al mese') + kpi(S.aziende.filter(a => a.tappa === 'prova').length, 'in prova', 'blu') + kpi(S.aziende.filter(a => ['conoscitiva', 'tecnica'].includes(a.tappa)).length, 'in trattativa', 'blu') + kpi(L.soldi.preventiviInGiro, 'preventivi in giro') + kpi(rit, 'task in ritardo', rit ? 'rosso' : 'verde');
+    else if (c === 'lorenzo') kp = kpi(L.outbound.risposteOggi, 'risposte oggi', 'blu') + kpi(L.outbound.consegneOggi, 'consegne oggi') + kpi(L.outbound.caselleSane + '%', 'caselle sane', 'verde') + kpi(si, 'sì senza analisi', si ? 'ambra' : 'verde') + kpi(fu, 'follow-up dovuti', fu ? 'ambra' : 'verde');
+    else { const mie = S.task.filter(t => t.a === c && t.stato !== 'fatto'); kp = kpi(mie.length, 'task aperte', mie.length ? 'ambra' : 'verde') + kpi(mie.filter(t => t.stato === 'in ritardo').length, 'in ritardo', 'rosso') + kpi(S.log.filter(l => l.chi === c).length, 'fatte oggi', 'verde'); }
+  } else if (v === 'posta') {
+    const da = S.posta.filter(p => p.stato === 'da approvare').length, man = S.posta.filter(p => p.stato === 'approvata').length;
+    k = c === 'dre' ? 'La fila' : 'La fila di Dre';
+    t = da ? da + (da === 1 ? ' mail aspetta ' : ' mail aspettano ') + (c === 'dre' ? 'te' : 'Dre') : man ? man + ' da mandare da Smartlead' : 'Fila vuota';
+    s = da ? 'Si approvano una alla volta: approvata una, si apre la prossima. Clara non manda niente da sola.' : giornata();
+    if (da && c === 'dre') go = `<button class="btn pri" data-adesso>Inizia la fila <kbd>Invio</kbd></button>`;
+    if (!da) ks = 'verde';
+    kp = kpi(da, 'da approvare', da ? 'ambra' : 'verde') + kpi(man, 'da mandare', man ? 'ambra' : 'verde') + kpi(S.posta.filter(p => p.stato === 'corre').length, 'corrono da sole', 'blu') + kpi(S.posta.filter(p => ['mandata', 'gestita'].includes(p.stato)).length, 'fatte oggi', 'verde');
+  } else if (v === 'trattativa') {
+    const tr = S.aziende.filter(a => TAPPA[a.tappa].i <= 4), amb = tr.filter(a => statoAz(a)[0] !== 'blu' && statoAz(a)[0] !== 'verde');
+    const prox = S.call.filter(x => TAPPA[az(x.azienda).tappa].i <= 4)[0];
+    k = 'Chi ha detto sì'; ks = 'blu';
+    t = tr.length + ' aziende in trattativa, ' + amb.length + ' aspettano una mossa';
+    s = prox ? 'Prossima call: ' + az(prox.azienda).nome + ', ' + prox.tipo.toLowerCase() + ' ' + prox.quando : 'Nessuna call in agenda.';
+    const fl = (S.filtri.trattativa || {}).tappa;
+    kp = ['risposta', 'analisi', 'follow_up', 'conoscitiva', 'tecnica'].map(tp => kpi(tr.filter(a => a.tappa === tp).length, TAPPA[tp].l, '', `data-ftappa="${tp}" class="kpi ${fl && fl.vals.length === 1 && fl.vals[0] === tp ? 'on' : ''}"`)).join('');
+  } else if (v === 'clienti') {
+    const rit = S.task.filter(t => t.stato === 'in ritardo' && t.azienda && TAPPA[az(t.azienda).tappa].i >= 5);
+    k = rit.length ? 'Fermo' : 'Clienti e prove'; ks = rit.length ? '' : 'verde';
+    t = rit.length ? rit[0].titolo + ': ' + nome(rit[0].a) + ', scadeva ' + rit[0].scadenza : 'Tutto in corsa';
+    s = 'Canone al mese ' + euro(canone) + '. Le celle si modificano: clic, scrivi, Invio.';
+    kp = kpi(euro(canone), 'canone al mese') + kpi(S.aziende.filter(a => a.tappa === 'avvio').length, 'in avvio', 'blu') + kpi(S.aziende.filter(a => a.tappa === 'prova').length, 'in prova', 'blu') + kpi(S.aziende.filter(a => a.tappa === 'cliente').length, 'clienti', 'verde');
+  } else {
+    const aperte = S.task.filter(t => t.stato !== 'fatto'), dac = aperte.filter(t => t.stato === 'da accettare'), rit = aperte.filter(t => t.stato === 'in ritardo');
+    k = 'Fra persone'; ks = 'blu';
+    t = aperte.length + ' task aperte, ' + rit.length + ' in ritardo';
+    s = 'Una task passata resta da accettare finché chi la riceve non la prende: chi l’ha passata lo vede.';
+    kp = kpi(dac.length, 'da accettare', dac.length ? 'ambra' : 'verde') + kpi(rit.length, 'in ritardo', rit.length ? 'rosso' : 'verde') + kpi(aperte.filter(t => t.stato === 'in corso').length, 'in corso', 'blu') + kpi(S.task.filter(t => t.stato === 'fatto').length, 'fatte', 'verde');
+  }
+  if (k === 'Fermo') ks = '';
+  const kcls = k === 'Fermo' ? 'style="color:var(--rosso)"' : '';
+  $('#head').innerHTML = `<div class="hl"><div class="hl-k ${ks}" ${kcls}><i></i>${h(k)}</div><div class="hl-row"><div class="hl-t" title="${h(t)}">${h(t)}</div>${go}</div><div class="hl-s">${h(s)}</div></div><div class="kpis">${kp}</div>`;
+}
+function th(c, ci) {
+  const so = S.sort[S.vista], fl = (S.filtri[S.vista] || {})[c.k];
+  const dir = so && so.k === c.k ? (so.dir > 0 ? ic.up : ic.down) : '';
+  if (c.k === 'passa') return `<th>${h(c.t)}</th>`;
+  return `<th class="${c.num ? 'num' : ''}"><div class="thb"><button class="thb" data-sort="${c.k}" title="Ordina per ${h(c.t)}"><span>${h(c.t)}</span>${dir}</button><button class="thm ${fl ? 'on' : ''}" data-menu="${c.k}" aria-label="Filtra ${h(c.t)}">${fl ? ic.filt : ic.chev}</button></div></th>`;
+}
+function renderSheet(rows) {
+  const f = F, cols = f.cols;
+  NAV = [];
+  const blocchi = f.gruppi ? f.gruppi.map(g => ({ g, rows: rows.filter(r => r.gruppo === g.id) })) : [{ g: null, rows }];
+  const filtrato = nFiltri() || U.cerca;
+  // tabella
+  const minW = 44 + cols.reduce((x, c) => x + (c.w || c.min || 250), 0);
+  let t = `<table class="grid" role="grid" style="min-width:${minW}px"><colgroup><col style="width:44px">${cols.map(c => `<col${c.w ? ` style="width:${c.w}px"` : ''}>`).join('')}</colgroup>`;
+  const tutte = rows.length && rows.every(r => U.sel.has(r.id));
+  t += `<thead><tr><th class="rn"><input type="checkbox" data-tutte ${tutte ? 'checked' : ''} aria-label="Seleziona tutte le righe"></th>${cols.map(th).join('')}</tr></thead><tbody>`;
+  let cards = '';
+  for (const b of blocchi) {
+    if (b.g) {
+      if (!b.rows.length && filtrato) continue;
+      const col = SEM[b.g.sem][0];
+      t += `<tr class="grp"><td colspan="${cols.length + 1}"><span class="gdot" style="background:${col}"></span>${h(b.g.t)}<span class="gn">${b.rows.length}</span>${b.g.nota ? `<span class="gnota">${h(b.g.nota)}</span>` : ''}</td></tr>`;
+      cards += `<div class="cg"><span class="gdot" style="background:${col}"></span>${h(b.g.t)}<span class="gn">${b.rows.length}</span></div>`;
+      if (!b.rows.length) { t += `<tr class="vuota"><td colspan="${cols.length + 1}">${h(b.g.vuoto)}</td></tr>`; cards += `<div class="cvuota">${h(b.g.vuoto)}</div>`; continue; }
+    }
+    for (const r of b.rows) {
+      const i = NAV.length; NAV.push(r);
+      const sem = r.stato ? SEM[r.stato[0]][0] : 'transparent';
+      t += `<tr class="row ${U.sel.has(r.id) ? 'sel' : ''}" data-i="${i}" style="--sem:${sem}"><td class="rn"><span class="nn">${i + 1}</span><input type="checkbox" data-riga="${i}" ${U.sel.has(r.id) ? 'checked' : ''} aria-label="Seleziona riga ${i + 1}"></td>`;
+      cols.forEach((c, ci) => {
+        const ed = c.ed && c.ed(r);
+        const act = U.cur && U.cur.id === r.id && U.cur.k === c.k;
+        const tit = c.clara ? '' : ` title="${h(c.lab ? c.lab(c.get(r)) : c.get(r))}"`;
+        t += `<td class="c${c.num ? ' num' : ''}${ed ? ' ed' : ''}${act ? ' act' : ''}" data-i="${i}" data-c="${ci}"${tit}>${c.html ? c.html(r) : h(c.get(r))}</td>`;
+      });
+      t += '</tr>';
+      cards += carta(r, i, cols);
+    }
+  }
+  if (!NAV.length && !f.gruppi) { t += `<tr class="vuota"><td colspan="${cols.length + 1}">${filtrato ? 'Nessuna riga con questi filtri.' : 'Vuoto.'}</td></tr>`; cards += `<div class="cvuota">${filtrato ? 'Nessuna riga con questi filtri.' : 'Vuoto.'}</div>`; }
+  t += '</tbody>';
+  if (f.nuova) t += `<tfoot><tr><td class="rn" style="color:#9AA1AE">+</td><td colspan="${cols.length}" style="padding:0"><input class="nuova" id="nuova" placeholder="Nuova task: scrivi il titolo e premi Invio (la ricevi tu, poi la passi)" aria-label="Nuova task"></td></tr></tfoot>`;
+  else if (cols.some(c => c.somma)) {
+    const somma = NAV.reduce((x, r) => x + (r.az && r.az.valore || 0), 0);
+    t += `<tfoot><tr><td class="rn"></td>${cols.map((c, ci) => `<td class="${c.num ? 'num' : ''}">${ci === 0 ? h(f.totale) + ` <span class="mut" style="font-weight:600">(${NAV.length} righe)</span>` : c.somma ? euro(somma) : ''}</td>`).join('')}</tr></tfoot>`;
+  }
+  t += '</table>';
+  $('#grid').innerHTML = t + `<div class="cards">${cards}${f.nuova ? `<div style="padding:4px 12px 0"><input class="nuova" id="nuovaM" style="background:#fff;border:1px dashed var(--line2);border-radius:12px;height:48px" placeholder="+ Nuova task: scrivi e premi Invio" aria-label="Nuova task"></div>` : ''}</div>`;
+  renderFx();
+}
+function carta(r, i, cols) {
+  const v = S.vista; let tit, sub, meta = [];
+  const cidx = k => cols.findIndex(c => c.k === k);
+  const edb = (k, html) => { const ci = cidx(k); const c = cols[ci]; return c && c.ed && c.ed(r) ? `<button data-edc="${i}:${ci}">${html}</button>` : html; };
+  if (v === 'task') { tit = r.task.titolo; sub = r.az ? r.az.nome : ''; meta = [edb('a', 'a ' + pers(r.task.a)), 'da ' + h(nome(r.task.da)), h(r.task.scadenza)]; }
+  else if (v === 'trattativa' || v === 'clienti') { tit = r.az.nome; sub = v === 'clienti' ? giro(r.az) + (r.az.note ? '. ' + r.az.note : '') : r.az.dove; meta = [edb('tappa', chip(TAPPA[r.az.tappa])), edb('chi', pers(r.az.chi)), r.az.valore ? euro(r.az.valore) + '/mese' : '']; }
+  else if (v === 'posta') { tit = r.az.nome; sub = r.posta.perche; meta = [h(r.posta.tipo), h(r.az.persona), h(r.posta.aspetta)]; }
+  else { tit = r.az ? r.az.nome : (r.task ? r.task.titolo : 'Studio'); sub = r.cosa; meta = [h(r.quando), r.chi && r.chi !== S.come ? edb('chi', pers(r.chi)) : '']; }
+  const stato = r.stato ? edb('stato', pill(r.stato)) : '';
+  const sem = r.stato ? SEM[r.stato[0]][0] : 'transparent';
+  return `<article class="card" data-card="${i}" style="--sem:${sem}"><div class="cd-1"><b>${h(tit)}</b>${stato}</div>${sub ? `<div class="cd-2">${h(sub)}</div>` : ''}<div class="cd-m">${meta.filter(Boolean).join('')}</div>${r.prop ? `<div class="cd-c">${cellaClara(r.prop)}</div>` : ''}</article>`;
+}
+function posCur() {
+  if (!U.cur) return null;
+  const i = NAV.findIndex(r => r.id === U.cur.id), c = COLS.findIndex(x => x.k === U.cur.k);
+  if (i < 0 || c < 0) return null;
+  return { i, c };
+}
+function cellEl(i, c) { return document.querySelector(`#grid td.c[data-i="${i}"][data-c="${c}"]`); }
+function renderFx() {
+  const el = $('#fx');
+  const sel = NAV.filter(r => U.sel.has(r.id));
+  if (sel.length) {
+    el.className = 'fx bulk';
+    const v = S.vista;
+    let b = `<b>${sel.length} ${sel.length === 1 ? 'riga selezionata' : 'righe selezionate'}</b>`;
+    if (v === 'posta') b += `<span class="mut">Le bozze si approvano una alla volta, mai in blocco.</span><button class="mini pri" data-bulk="prima">Apri la prima</button>`;
+    if (v === 'trattativa' || v === 'clienti') b += `<button class="mini" data-bulk="chi">Chi segue ${ic.chev}</button><button class="mini" data-bulk="tappa">Tappa ${ic.chev}</button>`;
+    if (v === 'task' || v === 'oggi') { const tk = sel.filter(r => r.task && r.task.stato !== 'fatto'); if (tk.length) b += `<button class="mini" data-bulk="fatte">Segna fatte (${tk.length})</button><button class="mini" data-bulk="assegna">Passa a ${ic.chev}</button>`; }
+    b += `<button class="mini" data-bulk="csv">Scarica per Excel</button><span style="flex:1"></span><button class="mini ghost" data-bulk="via">Togli selezione <kbd>Esc</kbd></button>`;
+    el.innerHTML = b; return;
+  }
+  el.className = 'fx';
+  const p = posCur();
+  if (!p) { el.innerHTML = `<span class="fx-ref">${VISTE.find(x => x[0] === S.vista)[1]}</span><span class="fx-v mut">Clic su una cella per sceglierla, frecce per muoverti, Invio per modificare o aprire. Spazio seleziona la riga.</span>`; return; }
+  const r = NAV[p.i], c = COLS[p.c], ed = c.ed && c.ed(r);
+  const val = c.full ? c.full(r) : c.lab ? c.lab(c.get(r)) : c.get(r);
+  const ref = (r.az ? r.az.nome : r.task ? 'Task' : 'Riga ' + (p.i + 1)) + ', ' + (c.t || 'azione');
+  const hint = c.clara ? 'Invio sì, Canc no' : ed ? (ed.kind === 'enum' ? 'Invio per scegliere' : 'Invio o scrivi per modificare') : r.apri ? 'Invio apre' : 'sola lettura';
+  el.innerHTML = `<span class="fx-ref">${h(ref)}</span><span class="fx-v">${h(c.num ? euro(val) : val) || '<span class="ph">vuota</span>'}</span><span class="fx-h">${h(hint)}</span>`;
+}
+function renderChips() {
+  const fl = S.filtri[S.vista] || {}, el = $('#fchips');
+  const parti = Object.keys(fl).map(k => {
+    if (k === '_sem') return `<span class="fchip">Solo: ${{ rosso: 'fermi da troppo', ambra: 'aspettano te', blu: 'in corsa', verde: 'fatti' }[fl._sem]}<button data-fx="_sem" aria-label="Togli filtro">${ic.x}</button></span>`;
+    const c = F.cols.find(x => x.k === k); if (!c) return '';
+    const x = fl[k];
+    const desc = x.vals ? x.vals.map(v => c.lab ? c.lab(v) : v).join(', ') : 'contiene «' + x.txt + '»';
+    return `<span class="fchip">${h(c.t)}: ${h(desc)}<button data-fx="${k}" aria-label="Togli filtro">${ic.x}</button></span>`;
+  }).filter(Boolean);
+  if (U.cerca) parti.push(`<span class="fchip">Cerca: «${h(U.cerca)}»<button data-fx="_cerca" aria-label="Togli ricerca">${ic.x}</button></span>`);
+  el.hidden = !parti.length;
+  el.innerHTML = parti.join('') + (parti.length > 1 ? `<button class="mini ghost" data-fx="_tutti">Togli tutti</button>` : '');
+}
+function renderStatus() {
+  const sel = NAV.filter(r => U.sel.has(r.id));
+  const somma = ['trattativa', 'clienti'].includes(S.vista) ? sel.reduce((x, r) => x + (r.az && r.az.valore || 0), 0) : 0;
+  const tot = F.rows.length;
+  $('#status').innerHTML = `<span class="sv">${ic.check}${U.saved ? 'Salvato alle ' + U.saved : 'Tutto salvato'}</span><span><b>${NAV.length}</b> righe${NAV.length < tot ? ' di ' + tot + ' (filtrate)' : ''}</span>${sel.length ? `<span><b>${sel.length}</b> selezionate${somma ? ', somma <b>' + euro(somma) + '</b> al mese' : ''}</span>` : ''}<span class="sp"></span><span class="k"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> muovi</span><span class="k"><kbd>Invio</kbd> modifica</span><span class="k"><kbd>Esc</kbd> esci</span><span class="k"><kbd>Spazio</kbd> seleziona</span><span class="k"><kbd>/</kbd> Clara</span><span class="k"><kbd>⌘Z</kbd> annulla</span>`;
+}
+
+// ---------- la scheda di lato ----------
+function renderDrawer() {
+  const el = $('#drawer');
+  if (!U.drawer) { el.hidden = true; el.innerHTML = ''; return; }
+  const sc = el.querySelector('.dw-b'); const top = sc ? sc.scrollTop : 0;
+  const same = el.dataset.k === U.drawer.tipo + U.drawer.id;
+  el.hidden = false;
+  if (U.drawer.tipo === 'az') { el.className = 'drawer'; el.innerHTML = htmlAz(az(U.drawer.id)); }
+  else { el.className = 'drawer wide'; el.innerHTML = htmlPosta(S.posta.find(p => p.id === U.drawer.id)); }
+  el.dataset.k = U.drawer.tipo + U.drawer.id;
+  const sc2 = el.querySelector('.dw-b'); if (sc2 && same) sc2.scrollTop = top;
+}
+function htmlAz(a) {
+  const st = statoAz(a), pr = propAz(a), call = S.call.find(c => c.azienda === a.id);
+  const tasks = S.task.filter(t => t.azienda === a.id), posta = S.posta.filter(p => p.azienda === a.id);
+  const fit = (FIT.find(f => f[0] === a.fit) || FIT[2])[1];
+  const pAp = posta.find(p => p.stato === 'da approvare' || p.stato === 'approvata');
+  return `
+  <div class="dw-h"><div class="dw-hl"><div class="kick">${call ? 'Scheda per la call' : 'Scheda azienda'}</div><h2>${h(a.nome)}</h2><div class="dw-sub">${h(a.settore)} | ${h(a.citta)} | ${h(a.persona)}</div></div><button class="x" data-chiudi aria-label="Chiudi la scheda (Esc)">${ic.x}</button></div>
+  <div class="dw-b">
+    <div class="props">
+      <div class="pr"><span>Tappa</span><button class="pv" data-dsel="tappa">${chip(TAPPA[a.tappa])}${caret.replace('caret', 'caret" style="display:inline-block')}</button></div>
+      <div class="pr"><span>Stato</span><div class="pv">${pill(st)}</div></div>
+      <div class="pr"><span>Chi segue</span><button class="pv" data-dsel="chi">${pers(a.chi)}${caret.replace('caret', 'caret" style="display:inline-block')}</button></div>
+      <div class="pr"><span>Valore al mese</span><input class="pv-in" data-dnum="${a.id}" inputmode="numeric" value="${a.valore ? mille(a.valore) : ''}" placeholder="vuoto" aria-label="Valore al mese"></div>
+    </div>
+    ${call ? `<div class="callbox">${ic.cal}<div><b>Call ${h(call.tipo.toLowerCase())}, ${h(call.quando)}</b><span>con ${call.chi.map(nome).join(' e ')}. Qui sotto: dove eravamo, cosa ha in mano, il suo mercato, le cose scomode.</span></div></div>` : ''}
+    ${pr && !(pr.tipo === 'scheda' && pr.az === a.id) ? `<div class="clbox"><div class="lbl">Clara propone</div>${cellaClara(pr)}</div>` : ''}
+    <section><h3>Dove eravamo</h3><p>${h(a.dove)}</p></section>
+    <section><h3>Cosa ha in mano</h3><p>${h(a.cosaHa)}</p></section>
+    <section><h3>Il suo mercato</h3><div class="mkt"><div><b>${mille(a.domanda)}</b><span>ricerche al mese</span></div><div><b>${a.cpc.toFixed(2).replace('.', ',')} €</b><span>costo per clic</span></div><div><b title="${h(a.ticket)}">${h(a.ticket)}</b><span>scontrino</span></div><div><b>${fit}</b><span>adatto a noi</span></div></div></section>
+    <section><h3>Le cose scomode</h3>${a.scomode.length ? `<ol class="scom">${a.scomode.map(s => `<li>${h(s)}</li>`).join('')}</ol>` : '<p class="mut">Nessuna segnata.</p>'}</section>
+    ${tasks.length ? `<section><h3>Task</h3><div class="lista">${tasks.map(t => `<div>${pill(semTask(t))}<span class="t" title="${h(t.titolo)}">${h(t.titolo)}</span>${pers(t.a)}</div>`).join('')}</div></section>` : ''}
+    ${posta.length ? `<section><h3>Posta</h3><div class="lista">${posta.map(p => `<div>${pill(semPosta(p))}<span class="t">${h(p.tipo)}: ${h(p.perche)}</span><button class="mini" data-apripost="${p.id}">Apri</button></div>`).join('')}</div></section>` : ''}
+    <section><h3>Note</h3><textarea class="note" data-nota="${a.id}" placeholder="Scrivi qui: si salva da solo" aria-label="Note">${h(a.note)}</textarea></section>
+  </div>
+  <div class="dw-f">${pAp ? `<button class="btn pri" data-apripost="${pAp.id}">Apri la mail</button>` : ''}${a.chi !== 'carlo' && a.tappa !== 'cliente' ? `<button class="btn ${pAp ? '' : 'pri'}" data-passa="${a.id}">Passa a Carlo ${ic.arrow}</button>` : ''}<span class="sp"></span><button class="btn" data-chiudi>Chiudi <kbd style="background:#fff;border-color:#D9D3C7;color:#4B5563">Esc</kbd></button></div>`;
+}
+function htmlPosta(p) {
+  const a = az(p.azienda), coda = S.posta.filter(x => x.stato === 'da approvare'), idx = coda.indexOf(p), dre = S.come === 'dre';
+  const filo = p.filo.map(m => `<div class="msg ${m.chi}"><div class="mb">${h(m.testo)}</div><div class="mt">${m.chi === 'noi' ? 'Noi' : h(a.persona)}, ${h(m.quando)}</div></div>`).join('');
+  let corpo = '';
+  if (p.bozza != null) corpo = `<div class="bz"><div class="bz-h">${ic.spark} La bozza di Clara, nata da questo filo<span>${p.stato === 'da approvare' && dre ? 'la puoi correggere qui' : ''}</span></div><textarea data-bozza="${p.id}" ${p.stato !== 'da approvare' || !dre ? 'readonly' : ''} aria-label="Bozza">${h(p.bozza)}</textarea></div>`;
+  else if (p.stato === 'da approvare') corpo = `<div class="decidi"><p><b>Non serve una mail:</b> vuole essere chiamato. Cosa facciamo?</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-chiamo="${p.id}">Lo chiamo io oggi</button><button class="btn" data-scrivi="${p.id}">Clara, scrivigli due righe</button></div></div>`;
+  let pie = '';
+  if (p.stato === 'da approvare' && p.bozza != null) {
+    if (!dre) pie = `<span class="info">Le bozze le approva Dre. Le vede in cima alla sua Oggi.</span>`;
+    else if (U.scarta) pie = `<input class="pin" id="perchescarto" placeholder="Perché la scarti? (facoltativo, Invio)"><button class="btn" data-annscarta>Indietro</button><button class="btn pri" data-scartaok="${p.id}">Scarta</button>`;
+    else pie = `<span class="info">Approvi, si copia, la mandi tu da Smartlead.</span><button class="btn" data-scarta>Scarta</button><button class="btn pri" data-approva="${p.id}">Approva e copia <kbd>⌘ Invio</kbd></button>`;
+  } else if (p.stato === 'approvata') pie = `<span class="info">Approvata e copiata alle ${h(p.ora)}. Incollala su Smartlead, mandala, poi:</span><button class="btn" data-copia="${p.id}">Copia di nuovo</button>${dre ? `<button class="btn ok" data-manda="${p.id}">Fatto, l’ho mandata</button>` : ''}`;
+  else if (p.stato === 'mandata') pie = `<span class="info" style="color:var(--verde);font-weight:700">Mandata alle ${h(p.ora)}.</span>`;
+  else if (p.stato === 'corre') pie = `<span class="info">Partita da sola: era un sì chiaro. Se tace fino a venerdì, Clara prepara il follow-up e te lo mette in fila.</span>`;
+  else pie = `<span class="info">${p.stato === 'gestita' ? 'Gestita.' : 'Scartata' + (p.perche ? ': ' + h(p.perche) : '.')}</span>`;
+  return `
+  <div class="dw-h"><div class="dw-hl"><div class="kick">${p.stato === 'da approvare' ? 'Posta, ' + (coda.length === 1 ? 'l’ultima in fila' : 'ancora ' + coda.length + ' in fila') : 'Posta'}</div><h2>${h(a.nome)}</h2><div class="dw-sub">${h(a.persona)} | ${h(p.tipo)} | ${h(p.aspetta)}</div></div><button class="mini" data-apri="${a.id}" style="margin-top:4px">Scheda</button><button class="x" data-chiudi aria-label="Chiudi (Esc)">${ic.x}</button></div>
+  <div class="dw-b">
+    <div class="perchebox"><b>Perché è qui:</b> ${h(p.perche)}. <span class="mut">Cosa ha in mano: ${h(a.cosaHa)}.</span></div>
+    <div class="filo">${filo}</div>
+    ${corpo}
+  </div>
+  <div class="dw-f">${pie}</div>`;
+}
+
+// ---------- Clara parla ----------
+let tB = null;
+function dici(testo, azioni) {
+  U.chat.push({ da: 'clara', testo, ora: ora(), azioni }); U.bolla = U.chat.length - 1; U.storia = false; renderBolla();
+  clearTimeout(tB); tB = setTimeout(() => { if (!U.storia && !$('#bolla').matches(':hover')) { U.bolla = null; renderBolla(); } }, 14000);
+}
+function renderBolla() {
+  const el = $('#bolla');
+  if (U.storia) {
+    const ms = U.chat.slice(-12);
+    el.innerHTML = `<div class="bl"><div class="bl-h"><span class="cav s">C</span><b>Clara</b><span class="mut">la conversazione di oggi</span><button class="x" data-bx aria-label="Chiudi">${ic.x}</button></div><div class="storia">${ms.length ? ms.map(m => `<div class="m ${m.da === 'io' ? 'io' : ''}">${h(m.testo)}<small>${m.ora}</small></div>`).join('') : '<div class="m">Ancora niente.</div>'}</div></div>`;
+    return;
+  }
+  if (U.bolla == null) { el.innerHTML = ''; return; }
+  const m = U.chat[U.bolla];
+  el.innerHTML = `<div class="bl" role="status"><div class="bl-h"><span class="cav s">C</span><b>Clara</b><span class="mut">${m.ora}</span><button class="x" data-bx aria-label="Chiudi">${ic.x}</button></div><div class="bl-t">${h(m.testo)}</div>${m.azioni ? `<div class="bl-a">${m.azioni.map((x, i) => `<button class="mini ${i === 0 ? 'pri' : ''}" data-ba="${i}">${h(x.t)}</button>`).join('')}<button class="mini ghost" data-bx>Dopo</button></div>` : ''}</div>`;
+}
+function saluta() {
+  const c = S.come, n = nome(c);
+  const te = righeOggi().filter(r => r.gruppo === 'te');
+  if (c === 'dre') {
+    if (!te.length) return dici('Ciao Dre. Niente aspetta te adesso. ' + giornata());
+    return dici(`Buongiorno Dre. ${te.length} cose aspettano te. Parto dalla prima: ${te[0].adesso}?`, [{ t: 'Sì, aprila', f: () => te[0].apri && te[0].apri() }]);
+  }
+  if (c === 'carlo') {
+    const t = S.task.find(t => t.a === 'carlo' && t.stato === 'da accettare');
+    if (t) return dici(`Ciao Carlo. ${nome(t.da)} ti ha passato ${az(t.azienda) ? az(t.azienda).nome : 'una task'}: ${az(t.azienda) ? az(t.azienda).dove : t.titolo} La prendi?`, [{ t: 'Accetta', f: () => siClara(propTask(t)) }, { t: 'Apri la scheda', f: () => t.azienda && apriAz(t.azienda) }]);
+    return dici('Ciao Carlo. Niente da accettare. Palestra Forma è al giorno ' + gg('2026-09-15') + ' di 60.');
+  }
+  if (c === 'giacomo') {
+    const r = S.task.find(t => t.stato === 'in ritardo');
+    return dici(r ? `Ciao Giacomo. Una cosa ferma: «${r.titolo}», di ${nome(r.a)}, scadeva ${r.scadenza}. Il resto è nella tabella.` : 'Ciao Giacomo. Niente in ritardo.', r ? [{ t: 'Mostra le ferme', f: () => filtraSem('rosso') }] : null);
+  }
+  if (c === 'lorenzo') return dici(`Ciao Lorenzo. Oggi ${L.outbound.risposteOggi} risposte e ${L.outbound.consegneOggi} consegne, caselle sane al ${L.outbound.caselleSane}%. ${S.posta.filter(p => p.stato === 'da approvare').length} mail aspettano Dre.`);
+  if (te.length) return dici(`Ciao ${n}. Prima cosa: ${te[0].adesso}.`, te[0].prop && te[0].prop.tipo !== 'nulla' ? [{ t: 'Apri', f: () => te[0].apri && te[0].apri() }] : null);
+  return dici(`Ciao ${n}. Niente aspetta te adesso.`);
+}
+
+// ---------- capire l'italiano ----------
+const STOP = new Set(['studio', 'impianti', 'nord', 'della', 'delle', 'costruzioni', 'dentistico']);
+function trovaAz(t) {
+  let best = null, bs = 0;
+  for (const a of S.aziende) {
+    let s = 0;
+    norm(a.nome).split(' ').filter(w => w.length >= 3 && !STOP.has(w)).forEach(w => { if (new RegExp('\\b' + w + '\\b').test(t)) s += 2; });
+    norm(a.persona).split(' ').forEach(w => { if (w.length >= 4 && new RegExp('\\b' + w + '\\b').test(t)) s += 1; });
+    if (s > bs) { bs = s; best = a; }
+  }
+  return best;
+}
+function trovaPers(t) { const x = L.squadra.find(p => new RegExp('\\b' + norm(p.nome) + '\\b').test(t)); return x ? x.id : null; }
+function trovaTappa(t) {
+  const m = [['risposta', /rispost/], ['analisi', /analisi/], ['follow_up', /follow|ripres/], ['conoscitiva', /conoscit/], ['tecnica', /tecnic/], ['avvio', /avvio/], ['prova', /\bprov[ae]\b/], ['cliente', /client/]];
+  const x = m.find(([, re]) => re.test(t)); return x ? x[0] : null;
+}
+function trovaGiorno(t) {
+  const m = /\b(oggi|domani|lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica)\b/.exec(t); if (!m) return null;
+  const hh = /\balle (\d{1,2})(?:[:.](\d{2}))?/.exec(t);
+  const ore = hh ? hh[1] + ':' + (hh[2] || '00') : '';
+  let label, breve;
+  if (m[1] === 'oggi' || m[1] === 'domani') { label = m[1]; breve = m[1]; }
+  else {
+    const idx = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'].indexOf(m[1]);
+    const d = new Date(OGGI); d.setDate(d.getDate() + ((idx - d.getDay() + 7) % 7 || 7));
+    label = GIORNI[idx] + ' ' + d.getDate(); breve = GIORNI[idx];
+  }
+  return { label, breve, ore };
+}
+function capisci(testo) {
+  const t = norm(testo);
+  U.chat.push({ da: 'io', testo, ora: ora() });
+  const a = trovaAz(t), p = trovaPers(t), tp = trovaTappa(t), g = trovaGiorno(t);
+  if (/^(annulla|torna indietro|undo)/.test(t)) return annulla();
+  if (/approva/.test(t) && /(tutt|blocco|insieme)/.test(t)) {
+    const nx = prossima(null);
+    return dici('In blocco no: ogni bozza si legge e si approva da sola. Te le apro una dopo l’altra, approvata una arriva la prossima.', nx ? [{ t: 'Apri la prima', f: () => apriPosta(nx.id) }] : null);
+  }
+  if (/^(cosa devo fare|che faccio|adesso|chi aspetta)/.test(t)) { vai('oggi'); return saluta(); }
+  if (/vedi come|guarda come|^come /.test(t) && p) return setCome(p);
+  if (/^(sposta|metti|porta|avanza)/.test(t) && a) {
+    if (tp === 'avvio' && p) return passaA(a.id, p);
+    const prima = a.tappa;
+    if (!tp && !g) return dici('Dove lo sposto? Per esempio: «sposta ' + a.nome.split(' ').pop() + ' a tecnica giovedì».');
+    const c = S.call.find(c => c.azienda === a.id);
+    const tipoCall = tp === 'tecnica' ? 'Tecnica' : tp === 'conoscitiva' ? 'Conoscitiva' : c ? c.tipo : null;
+    let quando = null, tenuta = false;
+    if (g && tipoCall) {
+      if (c && c.quando.startsWith(g.label) && !g.ore) { quando = c.quando; tenuta = true; }
+      else quando = g.label + (g.ore ? ', ' + g.ore : '');
+    }
+    muta(a.nome + ': ' + (tp ? TAPPA[tp].l : 'call') + (quando ? ', ' + quando : ''), () => {
+      if (tp) a.tappa = tp;
+      if (quando) {
+        const chi = tipoCall === 'Tecnica' ? ['dre', 'carlo'] : ['dre'];
+        S.call = S.call.filter(x => x.azienda !== a.id); S.call.push({ quando, azienda: a.id, tipo: tipoCall, chi });
+      }
+      log(a.nome + ' in ' + TAPPA[a.tappa].l + (quando ? ', call ' + quando : ''), a.id, tipoCall === 'Tecnica' ? ['carlo'] : []);
+    });
+    let msg = prima === tp ? `${a.nome} era già in ${TAPPA[tp].l}` : `Fatto: ${a.nome} adesso è in ${TAPPA[a.tappa].l}`;
+    if (quando) msg += tenuta ? `. Confermo la call di ${quando}, l’orario resta quello.` : `, call ${quando}.`;
+    else msg += '.';
+    if (tipoCall === 'Tecnica' && quando) msg += ' Carlo la trova nella sua agenda.';
+    return dici(msg, [{ t: 'Apri la scheda', f: () => apriAz(a.id) }]);
+  }
+  if (/^(passa|dai|affida|gira)/.test(t) && a && p) return passaA(a.id, p);
+  if (/^(chiedi|assegna|ricorda|di a|task)/.test(t) && p) {
+    let tit = testo.replace(/^\s*(chiedi|assegna|ricorda|d[iì]|task)\s+(?:(?:ad|al|a)\s+)?/i, '').replace(new RegExp('^' + nome(p) + '\\s*(di|che)?\\s*', 'i'), '');
+    tit = tit.replace(/\s*(per|entro|da)?\s*(oggi|domani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica)(\s+alle\s+\d{1,2}([:.]\d{2})?)?\s*[.!]?\s*$/i, '');
+    tit = cap(tit.replace(/^(gli|i|il|la|le|lo|l’|l')\s*/i, '').trim()) || 'Da definire';
+    const scad = g ? g.breve : 'oggi';
+    muta('Task ' + ad(p), () => {
+      S.task.unshift({ id: 't' + Date.now(), titolo: tit, da: S.come, a: p, azienda: a ? a.id : null, scadenza: scad, stato: p === S.come ? 'da fare' : 'da accettare' });
+      log('Task ' + ad(p) + ': ' + tit, a ? a.id : null, [p]);
+    });
+    return dici(p === S.come ? `Segnata per te: «${tit}», ${scad}.` : `Fatto: «${tit}» ${ad(p)} per ${scad}${a ? ', su ' + a.nome : ''}. La trova in cima alla sua Oggi da accettare; se stasera è ancora lì, te lo dico.`, [{ t: 'Vedi le task', f: () => vai('task') }]);
+  }
+  if (/(canone|valore|vale)/.test(t) && a) {
+    const m = /(\d[\d.]*)/.exec(t); if (!m) return dici('Quanto? Per esempio: «canone ' + a.nome.split(' ').pop() + ' 1500».');
+    const n = parseInt(m[1].replace(/\./g, ''), 10);
+    muta(a.nome + ': ' + euro(n) + ' al mese', () => { a.valore = n; });
+    return dici('Fatto: ' + a.nome + ' vale ' + euro(n) + ' al mese.');
+  }
+  if (/^(mostra|filtra|solo|fammi vedere|vedi)/.test(t)) {
+    if (/(tutt|togli|pulisci)/.test(t) && !tp && !p) { S.filtri[S.vista] = {}; U.cerca = ''; $('#cerca').value = ''; salva(); render(); return dici('Filtri tolti: vedi tutto.'); }
+    if (/(ferm|ritard|ross)/.test(t)) { filtraSem('rosso'); return dici('Ecco solo quelle ferme da troppo.'); }
+    if (/(aspett|mie|tocca a me)/.test(t) && !p) { filtraSem('ambra'); return dici('Ecco solo quelle che aspettano te.'); }
+    if (tp) { const v = TAPPA[tp].i <= 4 ? 'trattativa' : 'clienti'; S.vista = v; S.filtri[v] = { tappa: { vals: [tp] } }; U.cur = null; salva(); render(); return dici('Ecco ' + TAPPA[tp].l.toLowerCase() + ': ' + NAV.length + (NAV.length === 1 ? ' riga.' : ' righe.')); }
+    if (p) { const k = S.vista === 'task' ? 'a' : S.vista === 'posta' ? null : 'chi'; if (!k) { vai('task'); } const kk = S.vista === 'task' ? 'a' : 'chi'; S.filtri[S.vista] = Object.assign({}, S.filtri[S.vista], { [kk]: { vals: [p] } }); salva(); render(); return dici('Ecco quelle di ' + nome(p) + ': ' + NAV.length + '.'); }
+    if (a) { apriAz(a.id); return dici('Ecco ' + a.nome + '.'); }
+  }
+  if (/^(apri|scheda|prepara|fammi vedere)/.test(t) && a) { apriAz(a.id); const c = S.call.find(c => c.azienda === a.id); return dici(c ? `Ecco ${a.nome}: call ${c.tipo.toLowerCase()} ${c.quando}. Le cose scomode sono in fondo.` : 'Ecco ' + a.nome + '.'); }
+  if (/(fatt|chiudi|complet)/.test(t)) {
+    const tk = S.task.find(x => x.stato !== 'fatto' && ((a && x.azienda === a.id) || norm(x.titolo).split(' ').some(w => w.length > 4 && t.includes(w))));
+    if (tk) { muta('Task fatta', () => statoTask(tk, 'fatto')); return dici('Segnata fatta: «' + tk.titolo + '».'); }
+  }
+  if (a) { apriAz(a.id); return dici('Ti ho aperto ' + a.nome + '. Cosa ci faccio? Per esempio: «passa ' + a.nome.split(' ').pop() + ' a Carlo».'); }
+  return dici('Non ho capito. Prova così: «sposta Riva a tecnica giovedì», «passa Bassi a Carlo», «chiedi ad Alex gli accessi di Forma per domani», «mostra le ferme».');
+}
+const SUGG = ['sposta Riva a tecnica giovedì', 'passa Bassi a Carlo', 'chiedi ad Alex gli accessi di Forma per domani', 'mostra le ferme', 'approva tutte', 'cosa devo fare adesso'];
+
+// ---------- navigazione ----------
+function vai(v) { if (S.vista === v) return; S.vista = v; U.cur = null; U.sel.clear(); U.chiedi = null; salva(); render(); window.scrollTo(0, 0); }
+function setCome(p) { S.come = p; U.cur = null; U.sel.clear(); U.drawer = null; chiudiPop(); salva(); render(); saluta(); }
+function zittaBolla() { if (U.bolla != null && U.bolla === U.chat.length - 1 && U.chat[U.bolla].azioni) { U.bolla = null; renderBolla(); } }
+function apriAz(id) { if (!id) return; zittaBolla(); U.drawer = { tipo: 'az', id }; U.scarta = false; renderDrawer(); }
+function apriPosta(id) { zittaBolla(); U.drawer = { tipo: 'posta', id }; U.scarta = false; renderDrawer(); const t = document.querySelector('[data-bozza]'); if (t && !U.mobile) { /* il cursore resta sul foglio: Invio non deve finire nella bozza */ } }
+function chiudiDrawer() { U.drawer = null; U.scarta = false; renderDrawer(); focusGrid(); }
+function filtraSem(sem) { S.filtri[S.vista] = Object.assign({}, S.filtri[S.vista], { _sem: sem }); salva(); render(); }
+function focusGrid() { if (!U.mobile) $('#scroll').focus({ preventScroll: true }); }
+
+// ---------- cella attiva e tastiera ----------
+function aggiornaAct(scroll) {
+  document.querySelectorAll('#grid td.act').forEach(x => x.classList.remove('act'));
+  const p = posCur(); if (p) { const td = cellEl(p.i, p.c); if (td) { td.classList.add('act'); if (scroll !== false) td.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } }
+  renderFx();
+}
+function muovi(di, dc) {
+  if (!NAV.length) return;
+  let p = posCur();
+  if (!p) { U.cur = { id: NAV[0].id, k: COLS[Math.min(1, COLS.length - 1)].k }; return aggiornaAct(); }
+  const i = Math.max(0, Math.min(NAV.length - 1, p.i + di)), c = Math.max(0, Math.min(COLS.length - 1, p.c + dc));
+  U.cur = { id: NAV[i].id, k: COLS[c].k }; aggiornaAct();
+}
+function modifica(i, c, iniziale) {
+  const r = NAV[i], col = COLS[c], ed = col.ed && col.ed(r);
+  if (!ed) return false;
+  const td = cellEl(i, c);
+  if (ed.kind === 'enum') { selettore(td, ed); return true; }
+  U.edit = { i, c, id: r.id };
+  td.classList.add('editing');
+  td.innerHTML = `<input class="cin ${ed.kind === 'num' ? 'num' : ''}" value="${h(iniziale != null ? iniziale : ed.val == null ? '' : ed.val)}" aria-label="${h(col.t)}">`;
+  const inp = td.firstChild; inp.focus();
+  if (iniziale == null) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); salvaEdit(inp.value, 1, 0); }
+    else if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); salvaEdit(inp.value, 0, e.shiftKey ? -1 : 1); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); U.edit = null; render(); focusGrid(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); salvaEdit(inp.value, e.key === 'ArrowUp' ? -1 : 1, 0); }
+  });
+  inp.addEventListener('blur', () => { if (U.edit && U.edit.id === r.id) salvaEdit(inp.value, 0, 0, true); });
+  return true;
+}
+function salvaEdit(v, di, dc, daBlur) {
+  const { i, c } = U.edit; U.edit = null;
+  const r = NAV[i], col = COLS[c], ed = col.ed(r);
+  let val = ed.kind === 'num' ? (parseInt(String(v).replace(/[^\d]/g, ''), 10) || 0) : String(v).trim();
+  if (String(val) !== String(ed.val == null ? '' : ed.val) && !(ed.kind === 'num' && !val && !ed.val)) muta(col.t + ' salvato: ' + (ed.kind === 'num' ? euro(val) || 'vuoto' : val || 'vuoto'), () => ed.set(val));
+  else render();
+  if (di || dc) muovi(di, dc);
+  if (!daBlur) focusGrid();
+}
+function invio() {
+  if (!U.cur) {
+    const b = document.querySelector('[data-adesso]'); if (b) b.click(); else muovi(0, 0);
+    return;
+  }
+  const p = posCur(); if (!p) return;
+  const r = NAV[p.i], c = COLS[p.c];
+  if (modifica(p.i, p.c)) return;
+  if (c.clara) return siClara(regProp(r.prop));
+  if (c.k === 'passa' && r.az && ['conoscitiva', 'tecnica'].includes(r.az.tappa)) return passaACarlo(r.az.id);
+  if (r.apri) r.apri();
+}
+function toggleSel(id, on) { if (on === undefined) on = !U.sel.has(id); if (on) U.sel.add(id); else U.sel.delete(id); render(); }
+
+document.addEventListener('keydown', e => {
+  const tg = e.target, inField = tg.matches && tg.matches('input,textarea,select');
+  if (U.pop) {
+    if (U.pop.tipo === 'sel') return keySel(e);
+    if (e.key === 'Escape') { e.preventDefault(); chiudiPop(); focusGrid(); }
+    return;
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && U.drawer && U.drawer.tipo === 'posta') { e.preventDefault(); approva(U.drawer.id); return; }
+  if (inField) {
+    if (e.key === 'Escape') {
+      if (tg.dataset.perche) { U.chiedi = null; render(); focusGrid(); return; }
+      tg.blur(); if (tg.id === 'cmd') { $('#sugg').hidden = true; } focusGrid();
+    }
+    return;
+  }
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); annulla(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === '/') { e.preventDefault(); $('#cmd').focus(); return; }
+  if (e.key === 'Escape') {
+    if (U.storia || U.bolla != null) { if (U.drawer == null && !U.sel.size && !U.cur) { U.storia = false; U.bolla = null; renderBolla(); return; } }
+    if (U.drawer) { chiudiDrawer(); return; }
+    if (U.sel.size) { U.sel.clear(); render(); return; }
+    if (U.cur) { U.cur = null; aggiornaAct(); return; }
+    U.bolla = null; U.storia = false; renderBolla(); return;
+  }
+  if (U.mobile) return;
+  if (tg.closest && tg.closest('.drawer,.top,.clara,.pop,.head')) { if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return; if (tg.closest('.drawer,.clara')) return; }
+  switch (e.key) {
+    case 'ArrowDown': e.preventDefault(); if (e.shiftKey && posCur()) U.sel.add(NAV[posCur().i].id); muovi(1, 0); if (e.shiftKey) { U.sel.add(NAV[posCur().i].id); render(); } break;
+    case 'ArrowUp': e.preventDefault(); if (e.shiftKey && posCur()) U.sel.add(NAV[posCur().i].id); muovi(-1, 0); if (e.shiftKey) { U.sel.add(NAV[posCur().i].id); render(); } break;
+    case 'ArrowLeft': e.preventDefault(); muovi(0, -1); break;
+    case 'ArrowRight': e.preventDefault(); muovi(0, 1); break;
+    case 'Tab': if (!posCur()) return; e.preventDefault(); muovi(0, e.shiftKey ? -1 : 1); break;
+    case 'Home': e.preventDefault(); if (posCur()) { U.cur.k = COLS[0].k; aggiornaAct(); } break;
+    case 'End': e.preventDefault(); if (posCur()) { U.cur.k = COLS[COLS.length - 1].k; aggiornaAct(); } break;
+    case 'Enter': case 'F2': e.preventDefault(); invio(); break;
+    case ' ': { const p = posCur(); if (p) { e.preventDefault(); toggleSel(NAV[p.i].id); } break; }
+    case 'Delete': case 'Backspace': { const p = posCur(); if (p && COLS[p.c].clara) { e.preventDefault(); noClara(regProp(NAV[p.i].prop)); } else if (p) { const ed = COLS[p.c].ed && COLS[p.c].ed(NAV[p.i]); if (ed && ed.kind !== 'enum') { e.preventDefault(); modifica(p.i, p.c, ''); } } break; }
+    default:
+      if (e.key.length === 1 && U.cur) {
+        const p = posCur(); if (!p) return;
+        const ed = COLS[p.c].ed && COLS[p.c].ed(NAV[p.i]);
+        if (ed && ed.kind !== 'enum') { e.preventDefault(); modifica(p.i, p.c, e.key); }
+      }
+  }
+});
+
+// ---------- selettori colorati e menu ----------
+function optHtml(o, vis) {
+  if (vis === 'pill') return pill([o[2], o[1]]);
+  if (vis === 'pers') return pers(o[0]) + (o[3] ? `<span class="rl">${h(o[3])}</span>` : '');
+  if (vis === 'tappa') return chipC(o[1], o[2]);
+  if (vis === 'az') return `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(o[1])}</span>${chipC(o[3], o[2])}`;
+  return h(o[1]);
+}
+function selettore(anchor, ed, dopo) {
+  U.pop = { tipo: 'sel', ed, hi: Math.max(0, ed.opz.findIndex(o => o[0] === ed.val)), q: '', anchor, dopo };
+  disegnaSel(true);
+}
+function disegnaSel(prima) {
+  const P = U.pop;
+  const opz = P.ed.opz.filter(o => !P.q || norm(o[1]).includes(norm(P.q)));
+  P.vis = opz; P.hi = Math.max(0, Math.min(P.hi, opz.length - 1));
+  const lista = `<div class="pop-l" role="listbox">${opz.map((o, i) => `<button class="opt ${i === P.hi ? 'hi' : ''}" data-opt="${i}" role="option" aria-selected="${o[0] === P.ed.val}">${optHtml(o, P.ed.vis)}${o[0] === P.ed.val && P.ed.vis !== 'az' ? ic.check : ''}</button>`).join('') || '<div class="opt mut">Niente</div>'}</div>`;
+  if (prima) {
+    const cerca = P.ed.opz.length > 8 ? `<input class="pop-q" id="popq" placeholder="Cerca" aria-label="Cerca">` : '';
+    apriPop(`<div class="pop-t">${h(P.ed.desc || 'Scegli')}</div>${cerca}<div id="popl">${lista}</div>`, P.anchor);
+    const q = $('#popq'); if (q && !U.mobile) q.focus();
+  } else { $('#popl').innerHTML = lista; const hi = document.querySelector('#pop .opt.hi'); if (hi) hi.scrollIntoView({ block: 'nearest' }); }
+}
+function scegli(i) {
+  const P = U.pop, o = P.vis[i]; if (!o) return;
+  chiudiPop();
+  if (P.dopo) P.dopo(o[0]);
+  else if (o[0] !== P.ed.val) muta((P.ed.desc || 'Valore') + ': ' + o[1], () => P.ed.set(o[0]));
+  focusGrid();
+}
+function keySel(e) {
+  const P = U.pop;
+  if (e.key === 'ArrowDown') { e.preventDefault(); P.hi = Math.min(P.vis.length - 1, P.hi + 1); disegnaSel(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); P.hi = Math.max(0, P.hi - 1); disegnaSel(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); scegli(P.hi); }
+  else if (e.key === 'Escape') { e.preventDefault(); chiudiPop(); focusGrid(); }
+  else if (e.key.length === 1 && !$('#popq')) { const i = P.vis.findIndex(o => norm(o[1]).startsWith(norm(e.key))); if (i >= 0) { P.hi = i; disegnaSel(); } }
+}
+function apriPop(html, anchor) {
+  const p = $('#pop'); p.innerHTML = html; p.hidden = false; $('#velo').hidden = !U.mobile;
+  if (U.mobile || !anchor) { p.style.left = ''; p.style.top = ''; return; }
+  const r = anchor.getBoundingClientRect();
+  p.style.left = '0px'; p.style.top = '0px';
+  const W = p.offsetWidth, H = p.offsetHeight;
+  let x = r.left, y = r.bottom + 4;
+  if (y + H > innerHeight - 8) y = Math.max(8, r.top - H - 4);
+  if (x + W > innerWidth - 8) x = innerWidth - W - 8;
+  p.style.left = x + 'px'; p.style.top = y + 'px';
+}
+function chiudiPop() { $('#pop').hidden = true; $('#velo').hidden = true; U.pop = null; }
+function menuColonna(k, anchor) {
+  const col = F.cols.find(c => c.k === k); if (!col) return;
+  const fl = (S.filtri[S.vista] || {})[k];
+  let html = `<div class="pop-t">${h(col.t)}</div><button class="opt" data-m="asc">${ic.up} ${col.num ? 'Dal più basso' : 'Ordina dalla A alla Z'}</button><button class="opt" data-m="desc">${ic.down} ${col.num ? 'Dal più alto' : 'Dalla Z alla A'}</button><hr>`;
+  if (col.filtro === 'vals') {
+    const vals = [...new Set(F.rows.map(r => String(col.get(r))))];
+    html += `<div class="pop-t">Mostra solo</div>` + vals.map(v => `<label class="opt"><input type="checkbox" data-mv="${h(v)}" ${!fl || (fl.vals && fl.vals.includes(v)) ? 'checked' : ''}> ${h(col.lab ? col.lab(v) : v)}</label>`).join('');
+  } else if (!col.clara) {
+    html += `<div class="pop-t">Contiene</div><input class="pop-q" data-mt placeholder="Scrivi e premi Invio" value="${h(fl && fl.txt || '')}">`;
+  }
+  if (fl) html += `<hr><button class="opt" data-m="clear">${ic.x} Togli il filtro</button>`;
+  U.pop = { tipo: 'menu', k };
+  apriPop(html, anchor);
+}
+
+// ---------- clic ----------
+document.addEventListener('mousedown', e => {
+  if (U.pop && !e.target.closest('#pop')) { if (e.target.closest('#velo')) { e.preventDefault(); } chiudiPop(); }
+});
+document.addEventListener('click', e => {
+  const t = e.target; let x;
+  if (t.closest('#velo')) { chiudiPop(); return; }
+  if ((x = t.closest('[data-vista]'))) { vai(x.dataset.vista); return; }
+  if (t.closest('[data-chiudibanner]')) { S.banner = false; salva(); render(); return; }
+  if (t.closest('[data-reset]')) { localStorage.removeItem(KEY); S = iniziale(); U.undo = []; U.sel.clear(); U.cur = null; U.drawer = null; salva(); render(); saluta(); return; }
+  if ((x = t.closest('[data-come]'))) {
+    const ed = { kind: 'enum', vis: 'pers', val: S.come, opz: OPZ_PERS(), desc: 'Vedi il Workspace come' };
+    selettore(x, ed, v => setCome(v)); return;
+  }
+  // menu colonna
+  if (U.pop && U.pop.tipo === 'menu' && (x = t.closest('[data-m]'))) {
+    const k = U.pop.k, m = x.dataset.m;
+    if (m === 'asc' || m === 'desc') S.sort[S.vista] = { k, dir: m === 'asc' ? 1 : -1 };
+    if (m === 'clear') { const fl = Object.assign({}, S.filtri[S.vista]); delete fl[k]; S.filtri[S.vista] = fl; }
+    chiudiPop(); salva(); render(); return;
+  }
+  if (U.pop && U.pop.tipo === 'menu' && (x = t.closest('[data-mv]'))) {
+    const k = U.pop.k; const vals = [...document.querySelectorAll('#pop [data-mv]')].filter(i => i.checked).map(i => i.dataset.mv);
+    const all = document.querySelectorAll('#pop [data-mv]').length;
+    const fl = Object.assign({}, S.filtri[S.vista]);
+    if (vals.length === all) delete fl[k]; else fl[k] = { vals };
+    S.filtri[S.vista] = fl; salva(); const keep = U.pop; render(); U.pop = keep; return;
+  }
+  if ((x = t.closest('[data-opt]'))) { scegli(+x.dataset.opt); return; }
+  // bolla di Clara
+  if (t.closest('[data-bx]')) { U.bolla = null; U.storia = false; renderBolla(); return; }
+  if ((x = t.closest('[data-ba]'))) { const m = U.chat[U.bolla]; const a = m && m.azioni && m.azioni[+x.dataset.ba]; U.bolla = null; renderBolla(); if (a) a.f(); return; }
+  if (t.closest('#cav')) { U.storia = !U.storia; renderBolla(); return; }
+  if ((x = t.closest('#sugg button'))) { $('#cmd').value = ''; $('#sugg').hidden = true; capisci(x.textContent); return; }
+  // intestazioni
+  if ((x = t.closest('[data-sort]'))) { const k = x.dataset.sort; const so = S.sort[S.vista]; S.sort[S.vista] = so && so.k === k ? (so.dir > 0 ? { k, dir: -1 } : null) : { k, dir: 1 }; if (!S.sort[S.vista]) delete S.sort[S.vista]; salva(); render(); return; }
+  if ((x = t.closest('[data-menu]'))) { menuColonna(x.dataset.menu, x); return; }
+  if ((x = t.closest('[data-fx]'))) { const k = x.dataset.fx; if (k === '_cerca') { U.cerca = ''; $('#cerca').value = ''; } else if (k === '_tutti') { S.filtri[S.vista] = {}; U.cerca = ''; $('#cerca').value = ''; } else { const fl = Object.assign({}, S.filtri[S.vista]); delete fl[k]; S.filtri[S.vista] = fl; } salva(); render(); return; }
+  if ((x = t.closest('[data-ftappa]'))) { const tp = x.dataset.ftappa; const cur = (S.filtri.trattativa || {}).tappa; const fl = Object.assign({}, S.filtri.trattativa); if (cur && cur.vals.length === 1 && cur.vals[0] === tp) delete fl.tappa; else fl.tappa = { vals: [tp] }; S.filtri.trattativa = fl; salva(); render(); return; }
+  if (t.closest('[data-adesso]')) {
+    if (S.vista === 'posta') { const nx = prossima(null); if (nx) apriPosta(nx.id); return; }
+    const te = righeOggi().filter(r => r.gruppo === 'te'); const r = te[0];
+    if (r) { if (r.prop && ['leggi', 'scheda', 'manda', 'accetta'].includes(r.prop.tipo)) siClara(r.prop); else if (r.apri) r.apri(); }
+    return;
+  }
+  // selezione righe
+  if ((x = t.closest('[data-tutte]'))) { const all = NAV.every(r => U.sel.has(r.id)); NAV.forEach(r => all ? U.sel.delete(r.id) : U.sel.add(r.id)); render(); return; }
+  if ((x = t.closest('[data-riga]'))) { const r = NAV[+x.dataset.riga]; if (e.shiftKey && U.ultimaSel != null) { const a = Math.min(U.ultimaSel, +x.dataset.riga), b = Math.max(U.ultimaSel, +x.dataset.riga); for (let i = a; i <= b; i++) U.sel.add(NAV[i].id); render(); } else toggleSel(r.id, x.checked); U.ultimaSel = +x.dataset.riga; return; }
+  if ((x = t.closest('[data-bulk]'))) { bulk(x.dataset.bulk, x); return; }
+  // Clara nella cella
+  if ((x = t.closest('[data-si]'))) { e.stopPropagation(); siClara(U.props[x.dataset.si]); return; }
+  if ((x = t.closest('[data-no]'))) { e.stopPropagation(); noClara(U.props[x.dataset.no]); return; }
+  if ((x = t.closest('[data-ripristina]'))) { const id = x.dataset.ripristina; muta('Ripristinata', () => { delete S.clara[id]; }); return; }
+  // azioni
+  if ((x = t.closest('[data-passa]'))) { passaACarlo(x.dataset.passa); return; }
+  if ((x = t.closest('[data-apri]'))) { apriAz(x.dataset.apri); return; }
+  if ((x = t.closest('[data-apripost]'))) { apriPosta(x.dataset.apripost); return; }
+  if (t.closest('[data-chiudi]')) { chiudiDrawer(); return; }
+  if ((x = t.closest('[data-approva]'))) { approva(x.dataset.approva); return; }
+  if (t.closest('[data-scarta]')) { U.scarta = true; renderDrawer(); const i = $('#perchescarto'); if (i) i.focus(); return; }
+  if (t.closest('[data-annscarta]')) { U.scarta = false; renderDrawer(); return; }
+  if ((x = t.closest('[data-scartaok]'))) { scarta(x.dataset.scartaok, ($('#perchescarto') || {}).value || ''); return; }
+  if ((x = t.closest('[data-copia]'))) { const p = S.posta.find(q => q.id === x.dataset.copia); copia(p.bozza); toast('Copiata di nuovo'); return; }
+  if ((x = t.closest('[data-manda]'))) { const id = x.dataset.manda; mandata(id); U.drawer = null; renderDrawer(); return; }
+  if ((x = t.closest('[data-chiamo]'))) {
+    const p = S.posta.find(q => q.id === x.dataset.chiamo), a = az(p.azienda); const nx = prossima(p.id);
+    muta('Segnato: lo chiami tu', () => { p.stato = 'gestita'; a.palla = 'noi'; S.task.unshift({ id: 't' + Date.now(), titolo: 'Chiamare ' + a.persona + ' al 347 000 0000', da: 'clara', a: 'dre', azienda: a.id, scadenza: 'oggi', stato: 'da fare' }); log('Edilnova: lo chiami tu oggi', a.id); });
+    U.drawer = nx ? { tipo: 'posta', id: nx.id } : null; render();
+    dici('Te l’ho messa in Oggi: chiamare ' + a.persona + ', numero nella task. Dopo la telefonata dimmi com’è andata e sposto la tappa.');
+    return;
+  }
+  if ((x = t.closest('[data-scrivi]'))) {
+    const p = S.posta.find(q => q.id === x.dataset.scrivi), a = az(p.azienda);
+    muta('Bozza pronta', () => { p.tipo = 'Risposta'; p.bozza = 'Salve ' + a.persona.split(' ')[0] + ',\n\nvolentieri: la chiamo oggi pomeriggio al numero che mi ha lasciato.\nCosì ci conosciamo e capisco meglio cosa serve a ' + a.nome + '.\n\nA dopo'; }, { zitto: true });
+    dici('Due righe pronte, nate dal suo «mi chiami». Leggile e approva.');
+    return;
+  }
+  if ((x = t.closest('[data-dsel]'))) {
+    const a = az(U.drawer.id), k = x.dataset.dsel;
+    const ed = k === 'tappa' ? { kind: 'enum', vis: 'tappa', val: a.tappa, opz: OPZ_TAPPE(), set: v => { a.tappa = v; }, desc: 'Tappa' } : { kind: 'enum', vis: 'pers', val: a.chi, opz: OPZ_PERS(), set: v => { a.chi = v; }, desc: 'Chi segue' };
+    selettore(x, ed); return;
+  }
+  // carte (telefono)
+  if ((x = t.closest('[data-edc]'))) { const [i, c] = x.dataset.edc.split(':').map(Number); const ed = COLS[c].ed(NAV[i]); selettore(x, ed); return; }
+  if ((x = t.closest('[data-card]'))) { if (t.closest('button,input,a')) return; const r = NAV[+x.dataset.card]; if (r && r.apri) r.apri(); return; }
+  // celle
+  if ((x = t.closest('#grid td.c'))) {
+    const i = +x.dataset.i, c = +x.dataset.c, r = NAV[i], col = COLS[c];
+    if (t.closest('input')) return;
+    const gia = U.cur && U.cur.id === r.id && U.cur.k === col.k;
+    U.cur = { id: r.id, k: col.k }; aggiornaAct(false); focusGrid();
+    const ed = col.ed && col.ed(r);
+    if (ed && (ed.kind === 'enum' || gia)) modifica(i, c);
+    return;
+  }
+});
+document.addEventListener('dblclick', e => {
+  const x = e.target.closest('#grid td.c'); if (!x) return;
+  const i = +x.dataset.i, c = +x.dataset.c; const col = COLS[c], r = NAV[i];
+  if (!(col.ed && col.ed(r)) && r.apri && !e.target.closest('button')) r.apri();
+});
+function bulk(k, anchor) {
+  const sel = NAV.filter(r => U.sel.has(r.id));
+  if (k === 'via') { U.sel.clear(); render(); return; }
+  if (k === 'prima') { const nx = prossima(null); if (nx) apriPosta(nx.id); return; }
+  if (k === 'csv') return scarica(sel);
+  if (k === 'fatte') { const tk = sel.filter(r => r.task && r.task.stato !== 'fatto'); muta(tk.length + ' task segnate fatte', () => tk.forEach(r => statoTask(r.task, 'fatto'))); U.sel.clear(); render(); return; }
+  if (k === 'assegna') { const tk = sel.filter(r => r.task); selettore(anchor, { kind: 'enum', vis: 'pers', val: null, opz: OPZ_PERS(), desc: 'Passa ' + tk.length + ' task a' }, v => { muta(tk.length + ' task passate ' + ad(v), () => tk.forEach(r => riassegna(r.task, v))); U.sel.clear(); render(); }); return; }
+  if (k === 'chi') { selettore(anchor, { kind: 'enum', vis: 'pers', val: null, opz: OPZ_PERS(), desc: 'Chi segue ' + sel.length + ' aziende' }, v => { muta(sel.length + ' aziende ' + ad(v), () => sel.forEach(r => { r.az.chi = v; })); }); return; }
+  if (k === 'tappa') { selettore(anchor, { kind: 'enum', vis: 'tappa', val: null, opz: OPZ_TAPPE(), desc: 'Tappa di ' + sel.length + ' aziende' }, v => { muta(sel.length + ' aziende in ' + TAPPA[v].l, () => sel.forEach(r => { r.az.tappa = v; })); }); return; }
+}
+function scarica(sel) {
+  const rows = sel.length ? sel : NAV, cols = COLS.filter(c => c.k !== 'passa');
+  const campo = v => '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
+  const testo = '﻿' + [cols.map(c => campo(c.t)).join(';'), ...rows.map(r => cols.map(c => campo(c.lab ? c.lab(c.get(r)) : c.get(r))).join(';'))].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([testo], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'studio-galilei-' + S.vista + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(rows.length + ' righe scaricate per Excel');
+}
+
+// ---------- campi che salvano da soli ----------
+let tNota = null;
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'cerca') { U.cerca = t.value; U.cur = null; const f = foglio(); F = f; COLS = f.cols; renderSheet(visibili(f)); renderChips(); renderStatus(); return; }
+  if (t.dataset.nota) { const a = az(t.dataset.nota); a.note = t.value; clearTimeout(tNota); tNota = setTimeout(() => { salva(); renderStatus(); }, 400); return; }
+  if (t.dataset.bozza) { const p = S.posta.find(x => x.id === t.dataset.bozza); p.bozza = t.value; clearTimeout(tNota); tNota = setTimeout(() => { salva(); renderStatus(); }, 400); return; }
+  if (t.id === 'cmd') { $('#sugg').hidden = !!t.value; return; }
+  if (t.dataset.mt !== undefined && U.pop) { /* si applica con Invio */ }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.dnum) { const a = az(t.dataset.dnum); const v = parseInt(t.value.replace(/[^\d]/g, ''), 10) || 0; if (v !== (a.valore || 0)) muta(a.nome + ': ' + (euro(v) || 'vuoto') + ' al mese', () => { a.valore = v; }); }
+});
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (e.key === 'Enter' && t.dataset && t.dataset.perche) { e.preventDefault(); e.stopPropagation(); const id = t.dataset.perche; const v = t.value.trim(); U.chiedi = null; muta('Motivo salvato', () => { S.clara[id].perche = v || 'senza motivo'; }, { zitto: true }); if (v) dici('Segnato: «' + v + '». Ne tengo conto.'); focusGrid(); }
+  if (e.key === 'Enter' && t.dataset && t.dataset.mt !== undefined && U.pop) { e.preventDefault(); const k = U.pop.k, v = t.value.trim(); const fl = Object.assign({}, S.filtri[S.vista]); if (v) fl[k] = { txt: v }; else delete fl[k]; S.filtri[S.vista] = fl; chiudiPop(); salva(); render(); }
+  if (e.key === 'Enter' && (t.id === 'nuova' || t.id === 'nuovaM')) { e.preventDefault(); const v = t.value.trim(); if (!v) return; muta('Task aggiunta', () => { S.task.unshift({ id: 't' + Date.now(), titolo: v, da: S.come, a: S.come, azienda: null, scadenza: 'oggi', stato: 'da fare' }); }); dici('Aggiunta e tua. Per passarla: clic sulla colonna «A» e scegli la persona.'); const n = $('#' + t.id); if (n) n.focus(); }
+  if (e.key === 'Enter' && t.id === 'perchescarto') { e.preventDefault(); scarta(U.drawer.id, t.value.trim()); }
+  if (e.key === 'Enter' && t.id === 'popq' && U.pop) { e.preventDefault(); e.stopPropagation(); scegli(U.pop.hi); }
+}, true);
+document.addEventListener('input', e => { if (e.target.id === 'popq' && U.pop) { U.pop.q = e.target.value; U.pop.hi = 0; disegnaSel(); } });
+
+// Clara: la riga di comando
+$('#cform').addEventListener('submit', e => { e.preventDefault(); const i = $('#cmd'); const v = i.value.trim(); if (!v) return; i.value = ''; $('#sugg').hidden = true; capisci(v); });
+$('#cmd').addEventListener('focus', () => { if (!$('#cmd').value) { $('#sugg').innerHTML = SUGG.map(s => `<button type="button">${h(s)}</button>`).join(''); $('#sugg').hidden = false; } });
+$('#cmd').addEventListener('blur', () => { setTimeout(() => { if (document.activeElement !== $('#cmd')) $('#sugg').hidden = true; }, 150); });
+$('#sugg').addEventListener('mousedown', e => e.preventDefault());
+
+// toast
+let tT = null;
+function toast(msg, undo) {
+  const el = $('#toast'); el.innerHTML = `<span>${h(msg)}</span>${undo ? '<button data-undo>Annulla</button>' : ''}`; el.hidden = false;
+  clearTimeout(tT); tT = setTimeout(() => { el.hidden = true; }, 5000);
+}
+$('#toast').addEventListener('click', e => { if (e.target.closest('[data-undo]')) { $('#toast').hidden = true; annulla(); } });
+
+mq.addEventListener('change', () => { chiudiPop(); render(); });
+render();
+saluta();
+})();
+</script>
+</body>
+</html>

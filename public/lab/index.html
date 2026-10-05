@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratorio Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --fondo:#FAF8F4; --carta:#fff; --bordo:#E8E4DC; --testo:#141414; --tenue:#6B6B6B; --navy:#1C2E6E; --blu:#2979C4; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --fondo:#111318; --carta:#1A1D24; --bordo:#2A2E38; --testo:#F2F2F2; --tenue:#9AA0AA; --navy:#9DB4FF; --blu:#6FB0F0; }
+  }
+  :root[data-theme="dark"] { --fondo:#111318; --carta:#1A1D24; --bordo:#2A2E38; --testo:#F2F2F2; --tenue:#9AA0AA; --navy:#9DB4FF; --blu:#6FB0F0; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--testo); font:15px/1.5 'Plus Jakarta Sans', system-ui, sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:48px 16px 64px; }
+  h1 { font-size:28px; font-weight:800; color:var(--navy); margin:0 0 6px; letter-spacing:-.01em; }
+  p.sotto { color:var(--tenue); margin:0 0 32px; }
+  a.v { display:flex; gap:16px; align-items:flex-start; background:var(--carta); border:1px solid var(--bordo); border-radius:14px; padding:18px 20px; margin-bottom:12px; text-decoration:none; color:inherit; min-height:44px; transition:border-color .15s ease-out; }
+  a.v:hover, a.v:focus-visible { border-color:var(--blu); outline:none; }
+  .n { flex:none; width:36px; height:36px; border-radius:10px; background:var(--navy); color:var(--fondo); display:grid; place-items:center; font-weight:800; font-size:14px; }
+  .t { font-weight:700; color:var(--navy); font-size:16px; }
+  .d { color:var(--tenue); font-size:14px; margin-top:2px; }
+  .gold .n { background:#B8860B; color:#fff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Laboratorio</h1>
+  <p class="sotto">Cinque modi diversi di fare il Workspace, con dati finti. Ognuno si prova da computer e da telefono, e con «Vedi come» lo guardi dal posto di ognuno.</p>
+  <a class="v" href="v1-ideale.html"><span class="n">1</span><span><span class="t">Come dovrebbe essere</span><span class="d">Una cosa sola in alto, la fila della Posta che non si ferma, il traguardo della giornata.</span></span></a>
+  <a class="v" href="v2-piattaforme.html"><span class="n">2</span><span><span class="t">Il meglio delle piattaforme</span><span class="d">Superhuman per la Posta, Linear per i tasti, Pipedrive per la Trattativa, Basecamp per i passaggi.</span></span></a>
+  <a class="v" href="v3-minimal.html"><span class="n">3</span><span><span class="t">Super minimal</span><span class="d">Niente menu: una frase di Clara, una carta alla volta, una barra per tutto.</span></span></a>
+  <a class="v" href="v4-foglio.html"><span class="n">4</span><span><span class="t">Il foglio</span><span class="d">Tutto in celle selezionabili, come Excel, con le scorciatoie di Sheets.</span></span></a>
+  <a class="v" href="v5-squadra.html"><span class="n">5</span><span><span class="t">La squadra</span><span class="d">Costruita sulle difficoltà vere dei sei ruoli: passaggi con accettazione, chi fa cosa, niente da ricordare.</span></span></a>
+</main>
+</body>
+</html>

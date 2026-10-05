@@ -1,0 +1,1413 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>V2, il meglio delle piattaforme: Workspace Studio Galilei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { navy: '#1C2E6E', blu: '#2979C4', avorio: '#FAF8F4', inchiostro: '#1A1F2E', tenue: '#6B6F7B', velo: '#F1EEE8', bordo: '#E6E1D8', spento: '#A8A39A' },
+    fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'] },
+  } } }
+</script>
+<style>
+  html, body { height: 100%; }
+  body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; color: #1A1F2E; background: #FAF8F4; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  .num { font-variant-numeric: tabular-nums; }
+  .kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; font: 600 11px/1 'Plus Jakarta Sans', sans-serif; border: 1px solid #E6E1D8; border-bottom-width: 2px; border-radius: 6px; padding: 3px 5px; color: #6B6F7B; background: #fff; }
+  .kbd-scuro { border-color: rgba(255,255,255,.35); color: rgba(255,255,255,.85); background: transparent; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 999px; flex: none; display: inline-block; }
+  .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 12px; font-weight: 700; font-size: 14px; padding: 0 16px; transition: background-color .15s ease-out, border-color .15s ease-out, color .15s ease-out; white-space: nowrap; }
+  .btn-p { background: #2979C4; color: #fff; }
+  .btn-p:hover { background: #1C2E6E; }
+  .btn-p:disabled { opacity: .4; pointer-events: none; }
+  .btn-s { background: #fff; color: #1C2E6E; border: 1px solid #E6E1D8; font-weight: 600; }
+  .btn-s:hover { border-color: #A8A39A; }
+  .btn-g { color: #6B6F7B; font-weight: 600; }
+  .btn-g:hover { background: #F1EEE8; color: #1A1F2E; }
+  @media (min-width: 768px) { .btn { min-height: 38px; } }
+  .chip { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #E6E1D8; background: #fff; border-radius: 999px; padding: 0 12px; font-size: 13px; font-weight: 600; color: #1C2E6E; transition: border-color .15s ease-out, background-color .15s ease-out; }
+  .chip:hover { border-color: #2979C4; }
+  .chip.on { background: #1C2E6E; color: #fff; border-color: #1C2E6E; }
+  @media (max-width: 767px) { .chip { min-height: 44px; } }
+  .riga { transition: background-color .12s ease-out; }
+  .riga:hover { background: #F6F3EE; }
+  .sel { background: #EEF4FB !important; box-shadow: inset 3px 0 0 #2979C4; }
+  *:focus-visible { outline: 2px solid #2979C4; outline-offset: 2px; border-radius: 8px; }
+  .scivola { animation: scivola .2s ease-out; }
+  @keyframes scivola { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sale { animation: sale .2s ease-out; }
+  @keyframes sale { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .appare { animation: appare .16s ease-out; }
+  @keyframes appare { from { opacity: 0; } to { opacity: 1; } }
+  .scrive span { width: 6px; height: 6px; border-radius: 99px; background: #A8A39A; display: inline-block; animation: salta 1s infinite ease-in-out; }
+  .scrive span:nth-child(2) { animation-delay: .15s; } .scrive span:nth-child(3) { animation-delay: .3s; }
+  @keyframes salta { 0%, 80%, 100% { opacity: .3; } 40% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .scivola, .sale, .appare, .scrive span { animation: none; } }
+  textarea { resize: none; }
+  .no-bar { scrollbar-width: none; } .no-bar::-webkit-scrollbar { display: none; }
+  .scroll-sottile::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-sottile::-webkit-scrollbar-thumb { background: #E6E1D8; border-radius: 8px; }
+  .pb-tab { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  @media (min-width: 768px) { .pb-tab { padding-bottom: 32px; } }
+  .sopra-tab { bottom: calc(72px + env(safe-area-inset-bottom)); }
+  [contenteditable]:focus { outline: 2px solid #2979C4; outline-offset: -2px; background: #fff; }
+  .card-drag { cursor: grab; }
+  .card-drag.trascina { opacity: .5; }
+  .col-sopra { background: #E8F1FA !important; box-shadow: inset 0 0 0 2px rgba(41,121,196,.35); }
+</style>
+</head>
+<body>
+<!-- V2, il meglio delle piattaforme. Ogni pattern preso da fuori ha un commento «da: piattaforma, perché». -->
+<div id="radice" class="flex h-[100dvh] flex-col">
+  <div id="striscia"></div>
+  <div class="flex min-h-0 flex-1">
+    <!-- da: Linear, perché una barra a sinistra stretta e fissa dice sempre dove sei, con i numeri solo dove c'è da fare -->
+    <aside id="lato" class="hidden w-[236px] shrink-0 flex-col border-r border-bordo bg-[#F6F3EE] md:flex"></aside>
+    <main class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header id="testa" class="md:hidden"></header>
+      <div id="vista" class="min-h-0 flex-1"></div>
+    </main>
+  </div>
+  <!-- da: Apple iOS, perché sul telefono le sezioni stanno sotto il pollice, cinque al massimo -->
+  <nav id="barra" class="md:hidden"></nav>
+</div>
+<div id="strato"></div>
+<div id="avviso" aria-live="polite"></div>
+
+<script src="dati.js"></script>
+<script>
+(() => {
+'use strict'
+const L = window.LAB
+const clone = (o) => JSON.parse(JSON.stringify(o))
+const OGGI = new Date(L.oggi + 'T12:00:00')
+const giorniDa = (iso) => Math.round((OGGI - new Date(iso + 'T12:00:00')) / 864e5)
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const $ = (sel, el = document) => el.querySelector(sel)
+const mobile = () => window.innerWidth < 768
+
+// ─ i colori che ritornano: ambra aspetta te, blu corre da solo, verde fatto, rosso fermo da troppo ─
+const TONO = {
+  ambra: { dot: '#F59E0B', bg: '#FEF3C7', fg: '#92400E' },
+  blu: { dot: '#2979C4', bg: '#E8F1FA', fg: '#1E5A96' },
+  verde: { dot: '#16A34A', bg: '#DCFCE7', fg: '#166534' },
+  rosso: { dot: '#DC2626', bg: '#FEE2E2', fg: '#991B1B' },
+  grigio: { dot: '#A8A39A', bg: '#F1EEE8', fg: '#57534E' },
+}
+const dot = (t) => `<span class="dot" style="background:${TONO[t].dot}"></span>`
+const pill = (t, testo) => `<span class="pill" style="background:${TONO[t].bg};color:${TONO[t].fg}">${dot(t)}${esc(testo)}</span>`
+
+const ICONE = {
+  oggi: '<path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/>',
+  posta: '<path d="M3 13h5l2 3h4l2-3h5"/><path d="M5.5 5h13l2.5 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z"/>',
+  trattativa: '<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/>',
+  clienti: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  clara: '<path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>',
+  hey: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  cerca: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  indietro: '<path d="M15 5l-7 7 7 7"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  freccia: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  orologio: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  cestino: '<path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/>',
+  tel: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/>',
+  invia: '<path d="M4 12 20 4l-6 16-3-7z"/>',
+  tastiera: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+}
+const ico = (n, cls = 'h-5 w-5') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[n]}</svg>`
+
+const persona = (id) => L.squadra.find((p) => p.id === id) || { id: 'clara', nome: 'Clara', colore: '#2979C4', ruolo: 'Assistente' }
+const avatar = (id, size = 28) => {
+  const p = persona(id)
+  if (id === 'clara') return `<span class="inline-flex shrink-0 items-center justify-center rounded-full font-extrabold text-white" style="width:${size}px;height:${size}px;background:#2979C4;font-size:${Math.round(size * .42)}px" aria-label="Clara">C</span>`
+  return `<span class="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white" style="width:${size}px;height:${size}px;background:${p.colore};font-size:${Math.round(size * .4)}px" aria-label="${esc(p.nome)}">${esc(p.nome[0])}</span>`
+}
+
+const TAPPA = { risposta: 'Risposta', analisi: 'Analisi mandata', follow_up: 'Follow-up', conoscitiva: 'Conoscitiva', tecnica: 'Tecnica', avvio: 'Avvio', prova: 'Prova 2 mesi', cliente: 'Cliente' }
+const COLONNE = [
+  { k: 'si', nome: 'Hanno detto sì', tappe: ['risposta', 'analisi', 'follow_up'] },
+  { k: 'conoscitiva', nome: 'Call conoscitiva', tappe: ['conoscitiva'] },
+  { k: 'tecnica', nome: 'Call tecnica', tappe: ['tecnica'] },
+]
+const VOCI = { oggi: 'Oggi', posta: 'Posta', trattativa: 'Trattativa', clienti: 'Clienti', clara: 'Clara' }
+const NAV = {
+  dre: ['oggi', 'posta', 'trattativa', 'clienti', 'clara'],
+  carlo: ['oggi', 'clienti', 'trattativa', 'clara'],
+  giacomo: ['oggi', 'trattativa', 'clienti', 'clara'],
+  lorenzo: ['oggi', 'posta', 'clara'],
+  salvatore: ['oggi', 'clienti', 'clara'],
+  alex: ['oggi', 'clara'],
+}
+const COSA_VEDE = {
+  dre: 'chi aspetta una sua decisione e la prossima call',
+  carlo: 'i clienti appena passati, cosa parte, cosa è in ritardo',
+  giacomo: 'tutto in una tabella: chi fa cosa, scadenze, soldi',
+  lorenzo: 'risposte, consegne, caselle',
+  salvatore: 'i suoi progetti e cosa gli è stato passato',
+  alex: 'le task che gli arrivano',
+}
+
+// ─ lo stato del prototipo ─
+const PROSSIMO = {
+  a1: { cosa: 'Call conoscitiva', quando: 'oggi 15:00' },
+  a2: { cosa: 'Call tecnica con Carlo', quando: 'gio 8, 15:30' },
+  a3: { cosa: 'Follow-up pronto, da approvare', quando: 'oggi' },
+  a4: { cosa: 'Aspettare che la legga, poi follow-up', quando: 'lun 12' },
+  a5: { cosa: 'Approvare la risposta pronta', quando: 'oggi' },
+  a6: { cosa: 'Ripresa pronta, da approvare', quando: 'oggi' },
+  a7: { cosa: 'Avvio progetto', quando: 'lun 12, 10:00' },
+  a8: { cosa: 'Accessi Google Ads (Alex)', quando: 'ieri' },
+  a9: { cosa: 'Report di settembre (Salvatore)', quando: 'domani' },
+  a10: { cosa: 'Chiamarlo al telefono', quando: 'oggi' },
+}
+const S = {
+  who: 'dre', view: 'oggi', banner: true,
+  az: clone(L.aziende).map((a) => ({ ...a, prossimo: { ...PROSSIMO[a.id] } })),
+  task: clone(L.task).map((t) => ({ ...t, nota: t.id === 't1' ? 'Tecnica fatta il 3/10. Preventivo accettato, si parte lunedì 12. Budget pubblicitario ancora da definire con Davide.' : '' })),
+  dec: {}, esito: {},
+  posta: { split: 'te', sel: null, open: false, edit: {}, prima: {}, perche: {}, chiama: false },
+  tratt: { vista: 'bacheca', col: 'si', focus: null, sort: 'stato' },
+  scheda: null, layer: null, lascia: false,
+  handoff: null, passo: null, pal: { q: '', i: 0 },
+  hey: [
+    { id: 'h1', a: 'carlo', da: 'dre', testo: 'Ti ho passato Impianti Solari Nord: la tecnica è fatta, si parte', quando: 'ieri 18:40', az: 'a7', task: 't1' },
+    { id: 'h2', a: 'salvatore', da: 'giacomo', testo: 'Report di settembre per Cantina Le Vigne, entro domani', quando: 'ieri', az: 'a9', task: 't2' },
+    { id: 'h3', a: 'alex', da: 'carlo', testo: 'Accessi Google Ads di Palestra Forma: servivano ieri', quando: 'lun 5', az: 'a8', task: 't3' },
+    { id: 'h4', a: 'giacomo', da: 'dre', testo: 'Fattura della prova di Palestra Forma, entro venerdì', quando: 'lun 5', az: 'a8', task: 't4' },
+    { id: 'h5', a: 'dre', da: 'lorenzo', testo: 'Officina Moretti ha risposto alla mia mail: chiede il prezzo', quando: '9:14', az: 'a5' },
+    { id: 'h6', a: 'dre', da: 'clara', testo: 'Il preventivo di Riva lo preparo dalla tecnica di giovedì, non da una pagina vuota', quando: '8:02', az: 'a2' },
+    { id: 'h7', a: 'lorenzo', da: 'clara', testo: '6 risposte stamattina, 4 consegne: nessun sì senza analisi', quando: '9:30' },
+  ],
+  letti: {},
+  clara: {},
+  claraNuovi: { dre: 1, carlo: 1, alex: 1 },
+  undo: null,
+}
+const az = (id) => S.az.find((a) => a.id === id)
+const cn = (id) => L.conversazioni.find((c) => c.id === id)
+const fu = (id) => L.seguiti.find((s) => s.id === id)
+
+// ─ Clara: un filo solo per persona, come una chat di WhatsApp ─
+const CLARA_INIZIO = {
+  dre: [
+    { da: 'clara', ora: '8:00', t: 'Buongiorno Dre. Stanotte ho letto 14 fili: ti servono 4 decisioni, il resto corre da solo.', btn: [{ l: 'Inizia dalla prima', a: 'inizia' }] },
+    { da: 'clara', ora: '8:01', t: 'Alle 15 c’è Ferramenta Bassi. Nella scheda ti ho messo dove eravate e le due cose scomode.', btn: [{ l: 'Apri la scheda', a: 'scheda:a1' }] },
+    { da: 'clara', ora: '9:40', t: 'Edilnova vuole essere chiamato, non scritto. Lo chiami tu o glielo fisso giovedì alle 11?', btn: [{ l: 'Lo chiamo io', a: 'posta:c2' }, { l: 'Fissa giovedì alle 11', a: 'fissaEdilnova' }], chiede: true },
+  ],
+  carlo: [
+    { da: 'clara', ora: '8:00', t: 'Ciao Carlo. Dre ti ha passato Impianti Solari Nord ieri sera: si parte lunedì. Nella nota c’è cosa gli abbiamo promesso.', btn: [{ l: 'Accetta', a: 'accetta:t1' }, { l: 'Apri la scheda', a: 'scheda:a7' }], chiede: true },
+    { da: 'clara', ora: '8:05', t: 'Gli accessi di Palestra Forma aspettano Alex da ieri. Glielo ricordo io?', btn: [{ l: 'Sì, ricordaglielo', a: 'sollecita:t3' }] },
+  ],
+  giacomo: [
+    { da: 'clara', ora: '8:00', t: 'Ciao Giacomo. Canone attivo 4.200 € al mese, una prova in corso. Una cosa in ritardo: gli accessi di Palestra Forma, li ha Alex.', btn: [{ l: 'Apri la tabella', a: 'vai:oggi' }] },
+  ],
+  lorenzo: [
+    { da: 'clara', ora: '9:30', t: 'Ciao Lorenzo. Stamattina 6 risposte e 4 consegne, caselle sane al 91%. Nessun sì è rimasto senza analisi.', btn: [] },
+  ],
+  salvatore: [
+    { da: 'clara', ora: '8:00', t: 'Ciao Salvatore. Il report di settembre di Cantina Le Vigne è per domani: i numeri del mese sono già nel foglio.', btn: [{ l: 'Apri la scheda', a: 'scheda:a9' }] },
+  ],
+  alex: [
+    { da: 'clara', ora: '8:00', t: 'Ciao Alex. Gli accessi Google Ads di Palestra Forma servivano ieri a Carlo. Se ti blocca qualcosa dimmelo e glielo giro.', btn: [{ l: 'Fatto', a: 'fatto:t3' }, { l: 'Mi blocca qualcosa', a: 'blocco:t3' }], chiede: true },
+  ],
+}
+const filoClara = () => (S.clara[S.who] ||= clone(CLARA_INIZIO[S.who] || []))
+const ORA = () => { const d = new Date(); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}` }
+
+// ─ la posta ─
+const FILO_FU = {
+  s1: [{ chi: 'noi', quando: '12/9', testo: 'Le lascio l’analisi su Serramenti Vetta: come vi trovano su Google, chi vi passa davanti, dove si perdono richieste.' }],
+  s2: [{ chi: 'noi', quando: '22/7', testo: 'Le lascio l’analisi su Pasticceria Dolce Vita prima delle ferie: la guardi con calma.' }],
+  auto1: [
+    { chi: 'noi', quando: '30/9', testo: 'Buongiorno, sono Lorenzo di Studio Galilei. Abbiamo preparato un’analisi gratuita su come l’Agriturismo appare su Google: le interessa?' },
+    { chi: 'loro', quando: '3/10', testo: 'Sì, mandatela pure, grazie.' },
+    { chi: 'noi', quando: '4/10', testo: 'Ecco l’analisi su Colle Verde, in allegato. Se le va ne parliamo in venti minuti.', clara: true },
+  ],
+}
+const PERCHE = {
+  c1: 'Ha chiesto il prezzo. Per mail non lo diamo, perché dipende dal lavoro: analisi in allegato e una call di venti minuti. Giovedì alle 15 è il primo buco libero nel tuo calendario.',
+  s1: 'Silenzio da 24 giorni dopo l’analisi. Un richiamo leggero, una domanda facile (due righe) e la call: niente pressione.',
+  s2: 'In mezzo ci sono state le ferie. Riparto dal Natale, che per una pasticceria è il periodo che pesa di più.',
+}
+function postaListe() {
+  const te = L.conversazioni.filter((c) => !S.dec[c.id]).map((c) => ({ id: c.id, k: 'conv', az: c.azienda, perche: c.perche, meta: c.aspetta, tono: 'ambra' }))
+  const fila = L.seguiti.filter((s) => !S.dec[s.id]).map((s) => ({ id: s.id, k: 'fu', az: s.azienda, perche: s.perche, meta: s.giorno.replace(/ ottobre.*/, '').replace('giovedì', 'gio').replace('venerdì', 'ven'), tono: 'ambra' }))
+  const fatte = [...L.conversazioni.map((c) => ({ ...c, k: 'conv' })), ...L.seguiti.map((s) => ({ ...s, k: 'fu' }))].filter((x) => S.dec[x.id])
+  const STATO = {
+    approvata: ['ambra', 'approvata, da incollare su Smartlead'], mandata: ['verde', 'mandata da Smartlead'],
+    rimandata: ['blu', 'torna domani alle 9'], chiamato: ['verde', 'chiamato'], lasciata: ['grigio', 'lasciata stare'],
+  }
+  const corsa = [
+    ...fatte.filter((x) => S.dec[x.id] !== 'lasciata').map((x) => ({ id: x.id, k: x.k, az: x.azienda, tono: STATO[S.dec[x.id]][0], perche: S.dec[x.id] === 'chiamato' ? `chiamato: ${S.esito[x.id] || ''}` : STATO[S.dec[x.id]][1], meta: 'oggi' })),
+    { id: 'auto1', k: 'auto', az: 'a4', tono: 'blu', perche: 'analisi partita da sola il 4/10, ora tocca a lei', meta: '4/10' },
+    ...fatte.filter((x) => S.dec[x.id] === 'lasciata').map((x) => ({ id: x.id, k: x.k, az: x.azienda, tono: 'grigio', perche: 'lasciata stare', meta: 'oggi' })),
+  ]
+  return { te, fila, corsa }
+}
+const SPLIT = [{ k: 'te', nome: 'Aspettano te' }, { k: 'fila', nome: 'Follow-up' }, { k: 'corsa', nome: 'In corsa' }]
+const filoDi = (id) => cn(id)?.filo || FILO_FU[id] || []
+const bozzaDi = (id) => S.posta.edit[id] ?? (cn(id)?.bozza ?? fu(id)?.bozza ?? null)
+const decisi = () => [...L.conversazioni, ...L.seguiti].filter((x) => S.dec[x.id] && S.dec[x.id] !== 'rimandata').length
+const daDecidere = () => { const p = postaListe(); return p.te.length + p.fila.length }
+
+// ─ stato di un'azienda, in parole e a colori ─
+function statoAz(a) {
+  const g = giorniDa(a.ultima)
+  if (S.task.some((t) => t.azienda === a.id && t.stato === 'in ritardo')) return { t: 'task in ritardo', c: 'rosso' }
+  if (a.tappa === 'cliente') return { t: 'cliente, retainer', c: 'verde' }
+  if (a.palla === 'carlo' || a.palla === 'salvatore') {
+    const att = S.task.find((t) => t.azienda === a.id && t.stato === 'da accettare')
+    return att ? { t: `aspetta che ${persona(att.a).nome} la prenda`, c: 'ambra' } : { t: `la segue ${persona(a.palla).nome}`, c: 'blu' }
+  }
+  if (a.palla === 'loro' && g > 14) return { t: `fermo da ${g} giorni`, c: 'rosso' }
+  if (a.palla === 'noi') return { t: S.who === 'dre' ? 'aspetta te' : 'aspetta Dre', c: 'ambra' }
+  return { t: 'la palla è a loro', c: 'blu' }
+}
+
+// ─ avvisi con «Annulla» ─
+// da: Superhuman, perché ogni azione è subito fatta e si può disfare: niente «sei sicuro?»
+let timerAvviso
+function avviso(testo, annulla) {
+  S.undo = annulla || null
+  const el = $('#avviso')
+  el.innerHTML = `<div class="appare fixed inset-x-4 z-[80] flex items-center gap-3 md:inset-x-auto md:left-[256px] md:max-w-[520px] rounded-2xl bg-inchiostro px-4 py-3 text-[14px] text-white shadow-lg ${mobile() ? (S.view === 'posta' && S.posta.open ? 'bottom-28' : 'sopra-tab') : S.view === 'clara' ? 'bottom-40' : 'bottom-5'}" role="status">
+    <span class="flex-1">${esc(testo)}</span>
+    ${annulla ? `<button data-a="annulla" class="btn shrink-0 rounded-lg px-2 text-[13px] font-bold text-[#9CC5EE] hover:bg-white/10">Annulla <span class="kbd kbd-scuro ml-1 hidden md:inline-flex">Z</span></button>` : ''}
+  </div>`
+  clearTimeout(timerAvviso)
+  timerAvviso = setTimeout(() => { el.innerHTML = ''; S.undo = null }, 5200)
+}
+
+// ─ navigazione ─
+function vai(v) {
+  if (!NAV[S.who].includes(v)) return
+  S.view = v; S.scheda = null; S.layer = null; S.posta.open = false
+  if (v === 'clara') S.claraNuovi[S.who] = 0
+  if (v === 'posta') primoInPosta()
+  history.replaceState(null, '', '#' + v)
+  render()
+}
+function primoInPosta() {
+  const p = postaListe()
+  if (!S.posta.sel || ![...p.te, ...p.fila, ...p.corsa].some((x) => x.id === S.posta.sel)) {
+    const split = p.te.length ? 'te' : p.fila.length ? 'fila' : 'corsa'
+    S.posta.split = split
+    S.posta.sel = p[split][0]?.id || null
+  }
+}
+function apriInPosta(id) {
+  const p = postaListe()
+  const split = p.te.some((x) => x.id === id) ? 'te' : p.fila.some((x) => x.id === id) ? 'fila' : 'corsa'
+  S.view = 'posta'; S.scheda = null; S.layer = null
+  S.posta.split = split; S.posta.sel = id; S.posta.open = true; S.posta.chiama = false
+  history.replaceState(null, '', '#posta')
+  render()
+}
+
+// ═══════════════════════ RENDER ═══════════════════════
+function render() {
+  renderStriscia(); renderLato(); renderTesta(); renderVista(); renderBarra(); renderStrato()
+  if (S.tratt.focus && S.view === 'trattativa' && !S.scheda && !S.layer) $(`[data-card="${S.tratt.focus}"]`)?.focus({ preventScroll: false })
+  document.querySelectorAll('textarea[data-auto]').forEach(autoAlto)
+}
+function autoAlto(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px' }
+
+function renderStriscia() {
+  $('#striscia').innerHTML = S.banner ? `<div class="flex items-center justify-center gap-3 bg-navy px-4 py-1.5 text-[12px] font-semibold text-white">
+    <span class="text-center leading-tight">V2, il meglio delle piattaforme: prototipo con dati finti</span>
+    <button data-a="chiudiStriscia" class="-my-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-white/70 md:h-8 md:w-8 hover:bg-white/10 hover:text-white" aria-label="Chiudi la striscia">${ico('x', 'h-4 w-4')}</button></div>` : ''
+}
+
+function conteggio(v) {
+  if (v === 'posta' && S.who === 'dre') return daDecidere()
+  if (v === 'clara') return S.claraNuovi[S.who] || 0
+  return 0
+}
+function heyMiei() { return S.hey.filter((h) => h.a === S.who) }
+function heyNuovi() { return heyMiei().filter((h) => !S.letti[h.id]).length }
+
+function renderLato() {
+  const io = persona(S.who)
+  $('#lato').innerHTML = `
+    <div class="flex items-center gap-2.5 px-5 pb-3 pt-5">
+      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-navy text-[13px] font-extrabold text-white">SG</span>
+      <div class="leading-tight"><p class="text-[14px] font-extrabold text-navy">Studio Galilei</p><p class="text-[11px] font-semibold text-tenue">Workspace</p></div>
+    </div>
+    <!-- da: Linear e Superhuman, perché ⌘K trova tutto e fa tutto senza mouse -->
+    <button data-a="palette" class="mx-3 mb-3 flex items-center gap-2 rounded-xl border border-bordo bg-white px-3 py-2 text-left text-[13px] text-tenue hover:border-spento">
+      ${ico('cerca', 'h-4 w-4')}<span class="flex-1">Cerca o fai</span><span class="kbd">⌘K</span>
+    </button>
+    <nav class="flex flex-col gap-0.5 px-3" aria-label="Sezioni">
+      ${NAV[S.who].map((v, i) => {
+        const n = conteggio(v), on = S.view === v
+        return `<button data-a="vai:${v}" class="riga group flex h-10 items-center gap-3 rounded-xl px-3 text-[14px] ${on ? 'bg-white font-bold text-navy shadow-[0_0_0_1px_#E6E1D8]' : 'font-semibold text-inchiostro/80'}" ${on ? 'aria-current="page"' : ''}>
+          <span class="${on ? 'text-blu' : 'text-tenue'}">${ico(v)}</span><span class="flex-1 text-left">${VOCI[v]}</span>
+          ${n ? `<span class="num rounded-full px-2 py-0.5 text-[11px] font-bold" style="background:${TONO.ambra.bg};color:${TONO.ambra.fg}">${n}</span>` : `<span class="kbd opacity-0 group-hover:opacity-100">${i + 1}</span>`}
+        </button>`
+      }).join('')}
+    </nav>
+    <!-- da: Basecamp, perché «Hey!» raccoglie in un posto solo quello che gli altri ti hanno passato -->
+    <button data-a="hey" class="riga mx-3 mt-4 flex h-10 items-center gap-3 rounded-xl px-3 text-[14px] font-semibold text-inchiostro/80">
+      <span class="text-tenue">${ico('hey')}</span><span class="flex-1 text-left">Hey!</span>
+      ${heyNuovi() ? `<span class="num rounded-full bg-blu px-2 py-0.5 text-[11px] font-bold text-white">${heyNuovi()}</span>` : ''}
+    </button>
+    <div class="mt-auto border-t border-bordo p-3">
+      <button data-a="come" class="riga flex w-full items-center gap-3 rounded-xl p-2 text-left" title="Vedi come (V)">
+        ${avatar(S.who, 32)}
+        <span class="min-w-0 flex-1 leading-tight"><span class="block text-[11px] font-semibold text-tenue">Vedi come</span><span class="block truncate text-[14px] font-bold text-navy">${io.nome}</span></span>
+        <span class="kbd">V</span>
+      </button>
+      <button data-a="aiuto" class="riga mt-1 flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[13px] font-semibold text-tenue">${ico('tastiera', 'h-4 w-4')}<span class="flex-1">Scorciatoie</span><span class="kbd">?</span></button>
+    </div>`
+}
+
+function renderTesta() {
+  const nascondi = S.scheda || (S.view === 'posta' && S.posta.open)
+  $('#testa').innerHTML = nascondi ? '' : `<div class="flex h-14 items-center gap-1 border-b border-bordo bg-avorio px-4">
+    <h1 class="flex-1 truncate text-[17px] font-extrabold text-navy">${VOCI[S.view]}</h1>
+    <button data-a="palette" class="flex h-11 w-11 items-center justify-center rounded-xl text-navy hover:bg-velo" aria-label="Cerca">${ico('cerca')}</button>
+    <button data-a="hey" class="relative flex h-11 w-11 items-center justify-center rounded-xl text-navy hover:bg-velo" aria-label="Hey!">${ico('hey')}${heyNuovi() ? `<span class="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-avorio bg-blu"></span>` : ''}</button>
+    <button data-a="come" class="flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Vedi come">${avatar(S.who, 30)}</button>
+  </div>`
+}
+
+function renderBarra() {
+  const nascondi = S.scheda || (S.view === 'posta' && S.posta.open)
+  $('#barra').innerHTML = nascondi ? '' : `<div class="fixed inset-x-0 bottom-0 z-30 flex border-t border-bordo bg-white/95 backdrop-blur" style="padding-bottom:env(safe-area-inset-bottom)">
+    ${NAV[S.who].map((v) => {
+      const n = conteggio(v), on = S.view === v
+      return `<button data-a="vai:${v}" class="relative flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] ${on ? 'font-bold text-navy' : 'font-semibold text-tenue'}" ${on ? 'aria-current="page"' : ''}>
+        <span class="${on ? 'text-blu' : ''}">${ico(v, 'h-6 w-6')}</span>${VOCI[v]}
+        ${n ? `<span class="num absolute left-1/2 top-1.5 ml-2 rounded-full px-1.5 text-[10px] font-bold" style="background:${TONO.ambra.dot};color:#fff">${n}</span>` : ''}
+      </button>`
+    }).join('')}
+  </div>`
+}
+
+function renderVista() {
+  const v = $('#vista')
+  const f = { oggi: vistaOggi, posta: vistaPosta, trattativa: vistaTrattativa, clienti: vistaClienti, clara: vistaClara }[S.view]
+  v.innerHTML = f()
+  if (S.view === 'clara') { const m = $('#chat-scorre'); if (m) m.scrollTop = m.scrollHeight }
+}
+
+// ─ pezzi comuni ─
+const sezione = (titolo, n, extra = '') => `<div class="mb-2 mt-7 flex items-baseline gap-2 first:mt-0"><h2 class="text-[12px] font-bold uppercase tracking-[0.06em] text-navy/70">${titolo}</h2>${n != null ? `<span class="num text-[12px] font-bold text-tenue">${n}</span>` : ''}${extra}</div>`
+const contenitore = (inner, larga = false) => `<div class="h-full overflow-y-auto scroll-sottile"><div class="mx-auto w-full ${larga ? 'max-w-[1240px]' : 'max-w-[1120px]'} px-4 pb-tab pt-5 md:px-10 md:pt-10">${inner}</div></div>`
+
+function rigaAzione(r) {
+  return `<button data-a="${r.act}" class="riga group flex w-full items-center gap-3 border-b border-bordo/70 px-2 py-3.5 text-left last:border-0 md:px-3">
+    ${dot(r.tono)}
+    <span class="min-w-0 flex-1">
+      <span class="flex items-baseline gap-2"><span class="truncate text-[15px] font-bold text-navy">${esc(r.nome)}</span>${r.meta ? `<span class="num ml-auto shrink-0 text-[12px] font-semibold text-tenue">${esc(r.meta)}</span>` : ''}</span>
+      <span class="mt-0.5 block truncate text-[13px] text-tenue">${esc(r.sotto)}</span>
+    </span>
+    ${r.cta ? `<span class="hidden shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[13px] font-bold text-blu group-hover:bg-[#E8F1FA] md:inline-flex">${esc(r.cta)} ${ico('freccia', 'h-4 w-4')}</span>` : `<span class="text-spento md:hidden">${ico('freccia', 'h-4 w-4')}</span>`}
+  </button>`
+}
+const carta = (inner, cls = '') => `<div class="rounded-2xl border border-bordo bg-white ${cls}">${inner}</div>`
+
+// ═══════════════════════ OGGI ═══════════════════════
+function vistaOggi() {
+  return { dre: oggiDre, carlo: oggiCarlo, giacomo: oggiGiacomo, lorenzo: oggiLorenzo, salvatore: oggiSalvatore, alex: oggiAlex }[S.who]()
+}
+const dataOggi = 'Martedì 6 ottobre'
+
+function oggiDre() {
+  const p = postaListe()
+  const incollare = [...L.conversazioni, ...L.seguiti].filter((x) => S.dec[x.id] === 'approvata')
+  const righe = []
+  p.te.forEach((x) => righe.push({ tono: 'ambra', nome: az(x.az).nome, sotto: x.perche, meta: x.meta, act: `posta:${x.id}`, cta: cn(x.id).bozza ? 'Leggi e approva' : 'Decidi' }))
+  if (p.fila.length) righe.push({ tono: 'ambra', nome: `${p.fila.length} follow-up in fila`, sotto: p.fila.map((x) => az(x.az).nome).join(', '), meta: 'pronti', act: `posta:${p.fila[0].id}`, cta: 'Apri la fila' })
+  if (incollare.length) righe.push({ tono: 'ambra', nome: `${incollare.length} ${incollare.length > 1 ? 'approvate' : 'approvata'} da incollare su Smartlead`, sotto: 'poi segna «Fatto, l’ho mandata»', act: `posta:${incollare[0].id}`, cta: 'Vai' })
+  L.call.filter((c) => c.quando.startsWith('oggi')).forEach((c) => righe.push({ tono: 'ambra', nome: `Call con ${az(c.azienda).nome}`, sotto: `${c.tipo.toLowerCase()} alle ${c.quando.slice(5)}: la scheda è pronta`, meta: c.quando.slice(5), act: `scheda:${c.azienda}`, cta: 'Prepara la call' }))
+  S.task.filter((t) => t.a === 'dre' && t.stato !== 'fatto').forEach((t) => righe.push({ tono: 'blu', nome: t.titolo, sotto: `entro ${t.scadenza}, nasce dalla tecnica`, meta: t.scadenza, act: `scheda:${t.azienda}`, cta: 'Apri' }))
+
+  const n = p.te.length + p.fila.length
+  const primo = p.te[0] || p.fila[0]
+  const fuDovuti = L.seguiti.filter((s) => S.dec[s.id] !== 'lasciata').length
+  const fuPartiti = L.seguiti.filter((s) => S.dec[s.id] === 'mandata').length
+  const convFatte = L.conversazioni.filter((c) => S.dec[c.id] && S.dec[c.id] !== 'rimandata').length
+  const chiusa = n === 0 && !incollare.length && fuPartiti >= fuDovuti
+  let titolo, sotto, bottone
+  if (n) { titolo = `${n} ${n === 1 ? 'decisione ti aspetta' : 'decisioni ti aspettano'}`; sotto = `Comincia da ${az(primo.az).nome}: ${p.te[0] ? 'aspetta ' + primo.meta : 'il follow-up è pronto'}. Il resto corre da solo.`; bottone = `<button data-a="inizia" class="btn btn-p">Inizia ${ico('freccia', 'h-4 w-4')} <span class="kbd kbd-scuro hidden md:inline-flex">↵</span></button>` }
+  else if (incollare.length) { titolo = 'Manca un passo'; sotto = `${incollare.length} ${incollare.length > 1 ? 'approvate aspettano' : 'approvata aspetta'} di essere incollate su Smartlead.`; bottone = `<button data-a="posta:${incollare[0].id}" class="btn btn-p">Vai alla prima ${ico('freccia', 'h-4 w-4')}</button>` }
+  else { titolo = chiusa ? 'Giornata chiusa' : 'Decisioni finite'; sotto = 'Tutti i sì hanno l’analisi, i follow-up dovuti sono partiti. Alle 15 c’è Bassi: la scheda è pronta.'; bottone = `<button data-a="scheda:a1" class="btn btn-s">Prepara la call delle 15</button>` }
+
+  const giornata = [
+    { ok: L.outbound.siSenzaAnalisi === 0, t: 'Sì con l’analisi', v: 'tutti' },
+    { ok: convFatte === L.conversazioni.length, t: 'Risposte decise', v: `${convFatte} di ${L.conversazioni.length}` },
+    { ok: fuPartiti >= fuDovuti, t: 'Follow-up partiti', v: `${fuPartiti} di ${fuDovuti}` },
+  ]
+  const t1 = S.task.find((t) => t.id === 't1')
+  const corre = [
+    { tono: 'blu', t: 'Agriturismo Colle Verde', s: 'analisi partita da sola il 4/10' },
+    t1.stato === 'da accettare' ? { tono: 'ambra', t: 'Impianti Solari Nord', s: 'passata a Carlo ieri, non l’ha ancora presa' } : { tono: 'verde', t: 'Impianti Solari Nord', s: 'Carlo l’ha presa, si parte lunedì' },
+    { tono: 'blu', t: 'Palestra Forma', s: 'prova, giorno 21 di 60' },
+    { tono: 'rosso', t: 'Accessi di Palestra Forma', s: 'Alex, in ritardo da ieri' },
+    ...S.task.filter((t) => t.id.startsWith('n')).map((t) => ({ tono: t.stato === 'da accettare' ? 'ambra' : 'verde', t: az(t.azienda).nome, s: t.stato === 'da accettare' ? 'passata a Carlo, non l’ha ancora presa' : 'Carlo l’ha presa' })),
+  ]
+
+  return contenitore(`
+    <!-- da: Things 3, perché «Oggi» è una pagina calma: la data piccola, una frase grande, un solo bottone -->
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div class="min-w-0">
+        <p class="text-[13px] font-semibold text-tenue">${dataOggi}</p>
+        <h1 class="mt-1 text-[28px] font-extrabold leading-tight text-navy md:text-[32px]">${titolo}</h1>
+        <p class="mt-2 max-w-[56ch] text-[15px] leading-relaxed text-inchiostro/80">${esc(sotto)}</p>
+        <div class="mt-5 hidden md:block">${bottone}</div>
+        <div class="mt-8">
+          ${sezione('Adesso', righe.length)}
+          ${carta(righe.length ? `<div class="px-2">${righe.map(rigaAzione).join('')}</div>` : `<p class="p-5 text-[14px] text-tenue">Niente che aspetti te.</p>`)}
+        </div>
+      </div>
+      <div class="min-w-0">
+        <!-- da: Apple Fitness, perché la regola della giornata si chiude come un anello: tre righe, verde quando è fatta -->
+        ${sezione('La giornata', null)}
+        ${carta(`<div class="divide-y divide-bordo/70">${giornata.map((g) => `<div class="flex items-center gap-3 px-4 py-3">
+          <span class="flex h-6 w-6 items-center justify-center rounded-full ${g.ok ? 'bg-[#DCFCE7] text-[#166534]' : 'border-2 border-[#F59E0B]'}">${g.ok ? ico('check', 'h-4 w-4') : ''}</span>
+          <span class="flex-1 text-[14px] font-semibold">${g.t}</span><span class="num text-[13px] font-bold ${g.ok ? 'text-[#166534]' : 'text-[#92400E]'}">${g.v}</span></div>`).join('')}</div>`)}
+        ${sezione('Agenda', null)}
+        ${carta(`<div class="divide-y divide-bordo/70">${L.call.map((c) => `<button data-a="scheda:${c.azienda}" class="riga flex w-full items-center gap-3 px-4 py-3 text-left">
+          <span class="num w-[96px] shrink-0 text-[13px] font-bold text-navy">${esc(c.quando.replace('giovedì', 'gio').replace('lunedì', 'lun'))}</span>
+          <span class="min-w-0 flex-1"><span class="block truncate text-[14px] font-semibold">${esc(az(c.azienda).nome)}</span><span class="block text-[12px] text-tenue">${c.tipo}</span></span>
+          <span class="flex -space-x-1.5">${c.chi.map((x) => avatar(x, 22)).join('')}</span></button>`).join('')}</div>`)}
+        ${sezione('Corre da solo', corre.length)}
+        ${carta(`<div class="divide-y divide-bordo/70">${corre.map((c) => `<div class="flex items-start gap-3 px-4 py-3">${`<span class="mt-1.5">${dot(c.tono)}</span>`}<span class="min-w-0"><span class="block truncate text-[14px] font-semibold">${esc(c.t)}</span><span class="block text-[12px] text-tenue">${esc(c.s)}</span></span></div>`).join('')}</div>`)}
+      </div>
+    </div>
+    <!-- da: Superhuman mobile, perché sul telefono l'azione che conta sta sotto il pollice, sopra la barra -->
+    <div class="h-16 md:hidden"></div><div class="fixed inset-x-4 z-20 md:hidden sopra-tab">${bottone.replace('class="btn', 'class="w-full shadow-lg btn')}</div>
+  `)
+}
+
+function cartaTask(t, azioni) {
+  const ton = t.stato === 'in ritardo' ? 'rosso' : t.stato === 'da accettare' ? 'ambra' : t.stato === 'fatto' ? 'verde' : 'blu'
+  return carta(`<div class="p-4">
+    <div class="flex items-start gap-3">${avatar(t.da, 32)}
+      <div class="min-w-0 flex-1">
+        <p class="text-[12px] font-semibold text-tenue">${esc(persona(t.da).nome)} ti ha passato, scade ${esc(t.scadenza)}</p>
+        <p class="mt-0.5 text-[16px] font-bold leading-snug text-navy">${esc(t.titolo)}</p>
+        ${t.nota ? `<p class="mt-2 rounded-xl bg-velo/70 px-3 py-2 text-[13px] leading-relaxed">${esc(t.nota)}</p>` : ''}
+        <div class="mt-3 flex flex-wrap items-center gap-2">${pill(ton, t.stato)}<button data-a="scheda:${t.azienda}" class="btn btn-g min-h-[36px] px-2 text-[13px]">${esc(az(t.azienda).nome)} ${ico('freccia', 'h-4 w-4')}</button></div>
+      </div>
+    </div>
+    ${azioni ? `<div class="mt-3 flex flex-wrap gap-2 border-t border-bordo/70 pt-3">${azioni}</div>` : ''}
+  </div>`)
+}
+
+function oggiCarlo() {
+  const daPrendere = S.task.filter((t) => t.a === 'carlo' && t.stato === 'da accettare')
+  const presi = S.task.filter((t) => t.a === 'carlo' && t.stato !== 'da accettare' && t.stato !== 'fatto')
+  const ritardo = S.task.filter((t) => t.da === 'carlo' && t.stato === 'in ritardo')
+  const n = daPrendere.length + ritardo.length
+  const mie = L.call.filter((c) => c.chi.includes('carlo'))
+  const prova = az('a8')
+  const bott = daPrendere[0] ? `<button data-a="accetta:${daPrendere[0].id}" class="btn btn-p">Prendi ${esc(az(daPrendere[0].azienda).nome)} <span class="kbd kbd-scuro hidden md:inline-flex">↵</span></button>` : ''
+  return contenitore(`
+    <p class="text-[13px] font-semibold text-tenue">${dataOggi}</p>
+    <h1 class="mt-1 text-[28px] font-extrabold leading-tight text-navy md:text-[32px]">${n ? `${n} ${n === 1 ? 'cosa ti aspetta' : 'cose ti aspettano'}` : 'Tutto preso in carico'}</h1>
+    <p class="mt-2 text-[15px] text-inchiostro/80">${daPrendere.length ? `${daPrendere.length === 1 ? 'Un cliente appena passato' : daPrendere.length + ' clienti appena passati'} da prendere, ${ritardo.length} in ritardo che aspetta Alex.` : 'I clienti passati sono tuoi. Lunedì parte Impianti Solari Nord.'}</p>
+    <div class="mt-5 hidden md:block">${bott}</div>
+    <div class="mt-8 grid gap-8 lg:grid-cols-2">
+      <div>
+        <!-- da: Basecamp, perché il passaggio ha chi passa, chi riceve, la nota e un «Prendi» che avvisa chi ha passato -->
+        ${sezione('Appena passati a te', daPrendere.length)}
+        <div class="space-y-3">${daPrendere.length ? daPrendere.map((t) => cartaTask(t, `<button data-a="accetta:${t.id}" class="btn btn-p">Prendi in carico</button><button data-a="blocco:${t.id}" class="btn btn-s">Mi manca qualcosa</button>`)).join('') : carta('<p class="p-4 text-[14px] text-tenue">Niente da prendere.</p>')}</div>
+        ${presi.length ? sezione('Presi da te', presi.length) + `<div class="space-y-3">${presi.map((t) => cartaTask(t)).join('')}</div>` : ''}
+        ${sezione('In ritardo', ritardo.length)}
+        <div class="space-y-3">${ritardo.map((t) => carta(`<div class="flex flex-wrap items-center gap-3 p-4">${avatar('alex', 32)}<div class="min-w-0 flex-1"><p class="text-[15px] font-bold text-navy">${esc(t.titolo)}</p><p class="mt-1">${pill('rosso', `Alex, scadeva ${t.scadenza}`)}</p></div><button data-a="sollecita:${t.id}" class="btn btn-s">Ricordalo ad Alex</button></div>`)).join('') || carta('<p class="p-4 text-[14px] text-tenue">Niente in ritardo.</p>')}</div>
+      </div>
+      <div>
+        ${sezione('Deve partire', mie.length)}
+        ${carta(`<div class="divide-y divide-bordo/70">${mie.map((c) => `<button data-a="scheda:${c.azienda}" class="riga flex w-full items-center gap-3 px-4 py-3.5 text-left"><span class="num w-[92px] shrink-0 text-[13px] font-bold text-navy">${esc(c.quando)}</span><span class="min-w-0 flex-1"><span class="block truncate text-[14px] font-semibold">${esc(az(c.azienda).nome)}</span><span class="block text-[12px] text-tenue">${c.tipo}${c.chi.length > 1 ? ', con Dre' : ''}</span></span>${ico('freccia', 'h-4 w-4 text-spento')}</button>`).join('')}</div>`)}
+        ${sezione('In prova', 1)}
+        ${carta(`<button data-a="scheda:a8" class="riga block w-full rounded-2xl p-4 text-left"><div class="flex items-baseline justify-between"><span class="text-[15px] font-bold text-navy">${prova.nome}</span><span class="num text-[13px] font-bold text-tenue">giorno 21 di 60</span></div><div class="mt-3 h-2 overflow-hidden rounded-full bg-velo"><div class="h-full rounded-full bg-blu" style="width:35%"></div></div><p class="mt-2 text-[12px] text-tenue">A metà prova si manda il primo report: il 15/10.</p></button>`)}
+      </div>
+    </div>
+    ${bott ? `<div class="h-16 md:hidden"></div><div class="fixed inset-x-4 z-20 md:hidden sopra-tab">${bott.replace('class="btn', 'class="w-full shadow-lg btn')}</div>` : ''}
+  `)
+}
+
+function oggiGiacomo() {
+  const ritardo = S.task.filter((t) => t.stato === 'in ritardo').length
+  const aperte = S.task.filter((t) => t.stato !== 'fatto').length
+  const ord = { 'in ritardo': 0, 'da accettare': 1, 'da fare': 2, 'in corso': 3, fatto: 4 }
+  const task = [...S.task].sort((a, b) => ord[a.stato] - ord[b.stato])
+  const tonoT = (s) => (s === 'in ritardo' ? 'rosso' : s === 'da accettare' ? 'ambra' : s === 'fatto' ? 'verde' : 'blu')
+  const th = 'whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.05em] text-tenue'
+  return contenitore(`
+    <p class="text-[13px] font-semibold text-tenue">${dataOggi}</p>
+    <h1 class="mt-1 text-[28px] font-extrabold leading-tight text-navy md:text-[32px]">${ritardo ? `${ritardo} in ritardo, ${aperte - ritardo} in corso` : `${aperte} in corso, niente in ritardo`}</h1>
+    <!-- da: Attio, perché la stessa verità sta in una tabella densa per chi ragiona in Excel: una riga, tutto il contesto -->
+    <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      ${[['Canone attivo', '4.200 €', 'al mese'], ['In prova', String(L.soldi.prove), 'Palestra Forma'], ['In trattativa', String(L.soldi.inTrattativa), 'dopo il sì'], ['Preventivi in giro', String(L.soldi.preventiviInGiro), 'Riva']].map(([a, b, c]) => carta(`<div class="p-4"><p class="text-[12px] font-semibold text-tenue">${a}</p><p class="num mt-1 text-[24px] font-extrabold text-navy">${b}</p><p class="text-[12px] text-tenue">${c}</p></div>`)).join('')}
+    </div>
+    ${sezione('Chi fa cosa', task.length)}
+    ${carta(`<div class="overflow-x-auto scroll-sottile"><table class="w-full min-w-[720px] text-[14px]"><thead class="border-b border-bordo"><tr><th class="${th}">Chi</th><th class="${th}">Cosa</th><th class="${th}">Azienda</th><th class="${th}">Da</th><th class="${th}">Scade</th><th class="${th}">Stato</th></tr></thead>
+      <tbody>${task.map((t) => `<tr class="riga border-b border-bordo/60 last:border-0"><td class="px-3 py-2.5"><span class="flex items-center gap-2">${avatar(t.a, 22)}<span class="font-semibold">${esc(persona(t.a).nome)}</span></span></td><td class="px-3 py-2.5">${esc(t.titolo)}</td><td class="px-3 py-2.5"><button data-a="scheda:${t.azienda}" class="font-semibold text-blu hover:underline">${esc(az(t.azienda).nome)}</button></td><td class="px-3 py-2.5 text-tenue">${esc(persona(t.da).nome)}</td><td class="num px-3 py-2.5 font-semibold">${esc(t.scadenza)}</td><td class="px-3 py-2.5">${pill(tonoT(t.stato), t.stato)}</td></tr>`).join('')}</tbody></table></div>`)}
+    ${sezione('Aziende', S.az.length, '<span class="ml-auto text-[12px] text-tenue">Prossimo: clicca e scrivi</span>')}
+    ${tabellaAziende(S.az, true)}
+  `, true)
+}
+
+function tabellaAziende(lista, modificabile) {
+  const th = 'whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.05em] text-tenue'
+  return carta(`<div class="overflow-x-auto scroll-sottile"><table class="w-full min-w-[860px] text-[14px]"><thead class="border-b border-bordo"><tr>
+    <th class="${th}"><button class="uppercase tracking-[0.05em] hover:text-navy" data-a="ordina:nome">Azienda</button></th><th class="${th}"><button class="uppercase tracking-[0.05em] hover:text-navy" data-a="ordina:tappa">Tappa</button></th><th class="${th}"><button class="uppercase tracking-[0.05em] hover:text-navy" data-a="ordina:stato">Stato</button></th><th class="${th}">Prossimo</th><th class="${th}">Quando</th><th class="${th} text-right"><button class="uppercase tracking-[0.05em] hover:text-navy" data-a="ordina:valore">€ al mese</button></th><th class="${th}">Fit</th></tr></thead>
+    <tbody>${lista.map((a) => { const s = statoAz(a); return `<tr class="riga border-b border-bordo/60 last:border-0">
+      <td class="px-3 py-2.5"><button data-a="scheda:${a.id}" class="text-left font-bold text-navy hover:underline">${esc(a.nome)}</button><span class="block text-[12px] text-tenue">${esc(a.citta)}</span></td>
+      <td class="px-3 py-2.5 text-[13px] font-semibold">${TAPPA[a.tappa]}</td><td class="px-3 py-2.5">${pill(s.c, s.t)}</td>
+      <td class="px-3 py-2.5"><span ${modificabile ? `contenteditable="true" data-modifica="${a.id}" class="block rounded-md px-1.5 py-1 hover:bg-velo"` : ''}>${esc(a.prossimo.cosa)}</span></td>
+      <td class="num px-3 py-2.5 text-[13px] font-semibold">${esc(a.prossimo.quando)}</td>
+      <td class="num px-3 py-2.5 text-right font-semibold">${a.valore ? a.valore.toLocaleString('it-IT', { useGrouping: 'always' }) : '<span class="text-spento">0</span>'}</td>
+      <td class="px-3 py-2.5">${pill(a.fit === 'SI' ? 'verde' : 'ambra', a.fit === 'SI' ? 'sì' : 'forse')}</td></tr>` }).join('')}</tbody></table></div>`)
+}
+
+function oggiLorenzo() {
+  const o = L.outbound
+  const conv = L.conversazioni
+  return contenitore(`
+    <p class="text-[13px] font-semibold text-tenue">${dataOggi}</p>
+    <h1 class="mt-1 text-[28px] font-extrabold leading-tight text-navy md:text-[32px]">${o.risposteOggi} risposte, ${o.consegneOggi} consegne</h1>
+    <p class="mt-2 text-[15px] text-inchiostro/80">Le mail partono a nome tuo. Nessun sì è rimasto senza analisi.</p>
+    <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+      ${[['Risposte oggi', o.risposteOggi, 'blu'], ['Consegne oggi', o.consegneOggi, 'blu'], ['Sì senza analisi', o.siSenzaAnalisi, 'verde'], ['Follow-up dovuti', o.followupDovuti, 'ambra'], ['Caselle sane', o.caselleSane + '%', 'verde']].map(([t, v, c]) => carta(`<div class="p-4"><p class="flex items-center gap-2 text-[12px] font-semibold text-tenue">${dot(c)}${t}</p><p class="num mt-1 text-[26px] font-extrabold text-navy">${v}</p></div>`)).join('')}
+    </div>
+    ${sezione('Risposte alle tue mail', conv.length)}
+    ${carta(`<div class="px-2">${conv.map((c) => rigaAzione({ tono: S.dec[c.id] ? 'verde' : 'ambra', nome: az(c.azienda).nome, sotto: S.dec[c.id] ? 'Dre ha deciso' : 'aspetta Dre: ' + c.perche, meta: c.aspetta, act: `posta:${c.id}`, cta: 'Leggi' })).join('')}</div>`)}
+    ${sezione('Le caselle', null)}
+    ${carta(`<div class="p-4"><div class="flex items-baseline justify-between"><span class="text-[14px] font-semibold">Sane</span><span class="num text-[14px] font-bold">${o.caselleSane}%</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-velo"><div class="h-full rounded-full" style="width:${o.caselleSane}%;background:${TONO.verde.dot}"></div></div><p class="mt-2 text-[12px] text-tenue">Sotto l’85% Clara ti avvisa e rallenta gli invii.</p></div>`)}
+  `)
+}
+
+function oggiSalvatore() {
+  const mie = S.task.filter((t) => t.a === 'salvatore')
+  const aperte = mie.filter((t) => t.stato !== 'fatto')
+  const bott = aperte[0] ? `<button data-a="fatto:${aperte[0].id}" class="btn btn-p">Segna fatto</button>` : ''
+  return contenitore(`
+    <p class="text-[13px] font-semibold text-tenue">${dataOggi}</p>
+    <h1 class="mt-1 text-[28px] font-extrabold leading-tight text-navy md:text-[32px]">${aperte[0] ? esc(aperte[0].titolo) : 'Niente in scadenza'}</h1>
+    <p class="mt-2 text-[15px] text-inchiostro/80">${aperte[0] ? `Entro ${aperte[0].scadenza}. Te l’ha passato ${persona(aperte[0].da).nome}.` : 'Il report è partito: Giacomo lo sa.'}</p>
+    <div class="mt-5 hidden md:block">${bott}</div>
+    ${sezione('Passati a te', mie.length)}
+    <div class="space-y-3">${mie.map((t) => cartaTask(t, t.stato !== 'fatto' ? `<button data-a="fatto:${t.id}" class="btn btn-p">Segna fatto</button><button data-a="blocco:${t.id}" class="btn btn-s">Mi manca qualcosa</button>` : '')).join('')}</div>
+    ${sezione('Progetti', 1)}
+    ${carta(`<button data-a="scheda:a9" class="riga flex w-full items-center gap-3 rounded-2xl p-4 text-left"><span class="min-w-0 flex-1"><span class="block text-[15px] font-bold text-navy">Cantina Le Vigne</span><span class="block text-[13px] text-tenue">cliente da agosto, retainer 1.400 € al mese</span></span>${pill('verde', 'cliente')}</button>`)}
+    ${bott ? `<div class="h-16 md:hidden"></div><div class="fixed inset-x-4 z-20 md:hidden sopra-tab">${bott.replace('class="btn', 'class="w-full shadow-lg btn')}</div>` : ''}
+  `)
+}
+
+function oggiAlex() {
+  const mie = S.task.filter((t) => t.a === 'alex')
+  const ritardo = mie.filter((t) => t.stato === 'in ritardo')
+  const bott = ritardo[0] ? `<button data-a="fatto:${ritardo[0].id}" class="btn btn-p">Segna fatto</button>` : ''
+  return contenitore(`
+    <p class="text-[13px] font-semibold text-tenue">${dataOggi}</p>
+    <h1 class="mt-1 text-[28px] font-extrabold leading-tight text-navy md:text-[32px]">${ritardo.length ? '1 cosa in ritardo' : 'Sei in pari'}</h1>
+    <p class="mt-2 text-[15px] text-inchiostro/80">${ritardo.length ? 'Carlo aspetta gli accessi di Palestra Forma da ieri.' : 'Carlo sa che gli accessi sono pronti.'}</p>
+    <div class="mt-5 hidden md:block">${bott}</div>
+    ${sezione('Passate a te', mie.length)}
+    <div class="space-y-3">${mie.map((t) => cartaTask(t, t.stato !== 'fatto' ? `<button data-a="fatto:${t.id}" class="btn btn-p">Segna fatto</button><button data-a="blocco:${t.id}" class="btn btn-s">Mi blocca qualcosa</button>` : '')).join('')}</div>
+    ${bott ? `<div class="h-16 md:hidden"></div><div class="fixed inset-x-4 z-20 md:hidden sopra-tab">${bott.replace('class="btn', 'class="w-full shadow-lg btn')}</div>` : ''}
+  `)
+}
+
+// ═══════════════════════ POSTA ═══════════════════════
+function vistaPosta() {
+  const p = postaListe()
+  const lista = p[S.posta.split]
+  const sel = S.posta.sel
+  const aperta = S.posta.open
+  const decide = S.who === 'dre'
+  return `<div class="flex h-full min-h-0">
+    <!-- da: Superhuman, perché la posta è divisa in split (te, follow-up, in corsa) e si svuota uno dopo l'altro -->
+    <section class="${aperta ? 'hidden md:flex' : 'flex'} min-h-0 w-full flex-col border-r border-bordo bg-avorio md:w-[380px] md:shrink-0">
+      <div class="hidden px-5 pb-2 pt-6 md:block"><h1 class="text-[24px] font-extrabold text-navy">Posta</h1></div>
+      <div class="flex gap-1.5 px-3 pb-3 pt-3 md:px-4 md:pt-1" role="tablist">
+        ${SPLIT.map((s) => { const on = S.posta.split === s.k; return `<button role="tab" aria-selected="${on}" data-a="split:${s.k}" class="flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-[13px] ${on ? 'bg-navy font-bold text-white' : 'font-semibold text-tenue hover:bg-velo'}">${s.nome}<span class="num text-[12px] ${on ? 'text-white/70' : ''}">${p[s.k].length}</span></button>` }).join('')}
+      </div>
+      <div class="min-h-0 flex-1 overflow-y-auto scroll-sottile pb-tab md:pb-4">
+        ${lista.length ? lista.map((x) => { const a = az(x.az); const ul = filoDi(x.id).slice(-1)[0]; return `
+          <button data-a="apri:${x.id}" class="riga flex w-full items-start gap-3 border-b border-bordo/60 px-5 py-3.5 text-left ${x.id === sel && !mobile() ? 'sel' : ''}">
+            <span class="mt-2">${dot(x.tono)}</span>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-baseline gap-2"><span class="truncate text-[15px] ${x.tono === 'grigio' ? 'font-semibold text-tenue' : 'font-bold text-navy'}">${esc(a.nome)}</span><span class="num ml-auto shrink-0 text-[12px] font-semibold text-tenue">${esc(x.meta)}</span></span>
+              <span class="mt-0.5 block truncate text-[13px] font-semibold text-inchiostro/80">${esc(x.perche)}</span>
+              ${ul ? `<span class="mt-0.5 block truncate text-[13px] text-tenue">${ul.chi === 'loro' ? esc(a.persona.split(' ')[0]) + ': ' : 'Noi: '}${esc(ul.testo)}</span>` : ''}
+            </span>
+          </button>` }).join('') : vuotoSplit(p)}
+      </div>
+    </section>
+    <section class="${aperta ? 'flex' : 'hidden md:flex'} min-h-0 min-w-0 flex-1 flex-col bg-white">
+      ${sel && itemPosta(sel) ? lettore(sel, decide) : postaZero(p)}
+    </section>
+  </div>`
+}
+function vuotoSplit(p) {
+  const k = SPLIT.find((x) => x.k !== S.posta.split && p[x.k].length)
+  const altro = k ? `<button data-a="split:${k.k}" class="btn btn-s mt-4">Vai a ${k.nome.toLowerCase()} (${p[k.k].length})</button>` : ''
+  return `<div class="px-6 py-12 text-center"><span class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#DCFCE7] text-[#166534]">${ico('check', 'h-6 w-6')}</span><p class="mt-3 text-[15px] font-bold text-navy">Vuoto</p>${altro}</div>`
+}
+function postaZero(p) {
+  const incollare = p.corsa.filter((x) => S.dec[x.id] === 'approvata')
+  // da: Superhuman, perché la posta a zero è un premio: si dice, e si dice cosa manca ancora
+  return `<div class="m-auto max-w-[420px] px-8 py-16 text-center">
+    <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#DCFCE7] text-[#166534]">${ico('check', 'h-7 w-7')}</span>
+    <h2 class="mt-4 text-[22px] font-extrabold text-navy">Posta a zero</h2>
+    <p class="mt-2 text-[14px] leading-relaxed text-tenue">${incollare.length ? `Manca un passo: ${incollare.length} ${incollare.length > 1 ? 'approvate da incollare' : 'approvata da incollare'} su Smartlead, poi «Fatto, l’ho mandata».` : 'Ogni risposta ha la sua decisione e i follow-up sono partiti.'}</p>
+    ${incollare.length ? `<button data-a="apri:${incollare[0].id}" class="btn btn-p mt-5">Vai alla prima</button>` : `<button data-a="vai:oggi" class="btn btn-s mt-5">Torna a Oggi</button>`}
+  </div>`
+}
+function itemPosta(id) { const p = postaListe(); return [...p.te, ...p.fila, ...p.corsa].find((x) => x.id === id) }
+
+function lettore(id, decide) {
+  const x = itemPosta(id)
+  const a = az(x.az)
+  const c = cn(id), s = fu(id)
+  const bozza = bozzaDi(id)
+  const d = S.dec[id]
+  const filo = filoDi(id)
+  const attiva = !d && x.k !== 'auto'
+  const sintesi = c ? c.perche : s ? s.perche + ': ripresa pronta, propone ' + s.giorno : x.perche
+  return `
+    <div class="flex items-center gap-2 border-b border-bordo px-2 py-2 md:px-6 md:py-3">
+      <button data-a="chiudiPosta" class="flex h-11 w-11 items-center justify-center rounded-xl text-navy hover:bg-velo md:hidden" aria-label="Torna alla lista">${ico('indietro')}</button>
+      <button data-a="scheda:${a.id}" class="min-w-0 flex-1 text-left">
+        <span class="block truncate text-[17px] font-extrabold text-navy md:text-[20px]">${esc(a.nome)}</span>
+        <span class="block truncate text-[12px] text-tenue">${esc(a.persona)}, ${esc(a.citta)}, ${TAPPA[a.tappa].toLowerCase()}</span>
+      </button>
+      <button data-a="scheda:${a.id}" class="btn btn-g hidden md:inline-flex">Scheda <span class="kbd">S</span></button>
+      <button data-a="chiedi" class="btn btn-g hidden md:inline-flex">Chiedi a Clara <span class="kbd">⌘J</span></button>
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto scroll-sottile">
+      <div class="mx-auto max-w-[720px] px-4 py-5 ${attiva && decide ? 'pb-36 md:pb-8' : 'pb-24 md:pb-8'} md:px-8">
+        <!-- da: Superhuman AI, perché in cima al filo c'è il riassunto in una riga: si capisce prima di leggere -->
+        <div class="mb-5 flex items-start gap-2.5 rounded-2xl bg-[#E8F1FA]/70 px-3.5 py-2.5">${avatar('clara', 22)}<p class="text-[13px] leading-relaxed text-[#1E5A96]"><span class="font-bold">Clara:</span> ${esc(sintesi)}${c ? `, aspetta ${esc(c.aspetta)}` : ''}.</p></div>
+        ${filo.map((m) => `<div class="mb-3 flex ${m.chi === 'noi' ? 'justify-end' : 'justify-start'}">
+          <div class="max-w-[86%] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed ${m.chi === 'noi' ? 'rounded-br-md bg-navy text-white' : 'rounded-bl-md border border-bordo bg-avorio'}">
+            <p class="whitespace-pre-wrap">${esc(m.testo)}</p>
+            <p class="mt-1 text-right text-[11px] ${m.chi === 'noi' ? 'text-white/60' : 'text-tenue'}">${m.chi === 'noi' ? (m.clara ? 'partita da sola, ' : 'Lorenzo, ') : esc(a.persona.split(' ')[0]) + ', '}${esc(m.quando)}</p>
+          </div></div>`).join('')}
+        ${bozza !== null && !d ? bloccoBozza(id, bozza, decide) : ''}
+        ${c && !c.bozza && !d ? bloccoChiamata(id, a, decide) : ''}
+        ${d || x.k === 'auto' ? bloccoStato(id, x) : ''}
+        ${!decide && attiva ? `<p class="mt-4 rounded-xl bg-velo px-4 py-3 text-[13px] text-tenue">La decisione è di Dre: qui vedi le risposte alle tue mail.</p>` : ''}
+      </div>
+    </div>
+    ${attiva && decide && bozza !== null ? barraDecisione(id) : ''}`
+}
+
+function bloccoBozza(id, bozza, decide) {
+  const prima = S.posta.prima[id]
+  return `<div class="mt-5 rounded-2xl border-2 border-dashed border-blu/40 bg-[#F4F8FD] p-3 md:p-4">
+    <div class="mb-2 flex flex-wrap items-center gap-2">
+      ${avatar('clara', 20)}<p class="text-[12px] font-bold text-blu">${fu(id) ? 'Follow-up pronto' : 'Risposta pronta'}, scritta da Clara leggendo il filo</p>
+      <!-- da: Notion AI, perché ogni cosa scritta dall'AI dice da dove viene e perché, a richiesta -->
+      <button data-a="perche:${id}" class="ml-auto text-[12px] font-semibold text-tenue underline-offset-2 hover:text-navy hover:underline" aria-expanded="${!!S.posta.perche[id]}">Perché così?</button>
+    </div>
+    ${S.posta.perche[id] ? `<p class="mb-2 rounded-xl bg-white px-3 py-2 text-[13px] leading-relaxed text-inchiostro/80">${esc(PERCHE[id] || '')}</p>` : ''}
+    <textarea data-auto data-bozza="${id}" ${decide ? '' : 'readonly'} aria-label="Testo della bozza" class="w-full rounded-xl border border-bordo bg-white p-3 text-[14px] leading-relaxed text-inchiostro focus:border-blu focus:outline-none">${esc(bozza)}</textarea>
+    ${decide ? `<!-- da: Superhuman Instant Reply, perché si corregge con un tocco invece di riscrivere -->
+    <div class="mt-2 flex flex-wrap gap-1.5">
+      <button data-a="riscrivi:${id}:corta" class="chip">Più corta</button>
+      <button data-a="riscrivi:${id}:cordiale" class="chip">Più cordiale</button>
+      <button data-a="riscrivi:${id}:giorno" class="chip">Lascia a lui il giorno</button>
+      ${prima != null ? `<button data-a="riscrivi:${id}:prima" class="chip">Torna a prima</button>` : ''}
+    </div>` : ''}
+  </div>`
+}
+
+function bloccoChiamata(id, a, decide) {
+  if (!decide) return ''
+  return `<div class="mt-5 rounded-2xl border border-bordo bg-avorio p-4">
+    <p class="text-[15px] font-bold text-navy">Vuole il telefono, non la mail</p>
+    <p class="mt-1 text-[13px] text-tenue">Niente bozza: qui decidi tu se chiamarlo o fissare.</p>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <a href="tel:3470000000" class="btn btn-p">${ico('tel', 'h-4 w-4')} Chiama 347 000 0000</a>
+      <button data-a="rimanda:${id}" class="btn btn-s">Domani <span class="kbd hidden md:inline-flex">H</span></button>
+    </div>
+    <p class="mt-4 text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Com’è andata?</p>
+    <div class="mt-2 flex flex-wrap gap-1.5">
+      ${['Fissata la conoscitiva giovedì 8', 'Da richiamare', 'Non interessato'].map((e) => `<button data-a="esito:${id}:${e}" class="chip">${e}</button>`).join('')}
+    </div>
+  </div>`
+}
+
+function bloccoStato(id, x) {
+  const d = S.dec[id]
+  const t = d === 'approvata' ? `<p class="text-[15px] font-bold text-navy">Approvata, da incollare su Smartlead</p><p class="mt-1 text-[13px] text-tenue">Il testo è già copiato. Quando l’hai mandata, segnalo qui: il follow-up entra nella giornata.</p>
+      <div class="mt-3 flex flex-wrap gap-2"><button data-a="mandata:${id}" class="btn btn-p">${ico('check', 'h-4 w-4')} Fatto, l’ho mandata</button><button data-a="copia:${id}" class="btn btn-s">Copia di nuovo</button></div>`
+    : d === 'mandata' ? `<p class="flex items-center gap-2 text-[15px] font-bold text-[#166534]">${ico('check', 'h-5 w-5')} Mandata</p><p class="mt-1 text-[13px] text-tenue">Se tace, Clara prepara il prossimo passo tra 5 giorni lavorativi.</p>`
+    : d === 'rimandata' ? `<p class="text-[15px] font-bold text-navy">Torna domani alle 9</p><button data-a="riapri:${id}" class="btn btn-s mt-3">Rimettila adesso</button>`
+    : d === 'lasciata' ? `<p class="text-[15px] font-bold text-tenue">Lasciata stare</p><button data-a="riapri:${id}" class="btn btn-s mt-3">Riapri</button>`
+    : d === 'chiamato' ? `<p class="flex items-center gap-2 text-[15px] font-bold text-[#166534]">${ico('check', 'h-5 w-5')} Chiamato: ${esc(S.esito[id])}</p><p class="mt-1 text-[13px] text-tenue">Il prossimo passo è nella scheda.</p>`
+    : `<p class="text-[15px] font-bold text-navy">Corre da solo</p><p class="mt-1 text-[13px] text-tenue">${esc(x.perche)}. Se tace fino a lunedì 12, Clara prepara il follow-up e te lo mette in fila.</p>`
+  return `<div class="mt-5 rounded-2xl border border-bordo bg-avorio p-4">${t}</div>`
+}
+
+function barraDecisione(id) {
+  // da: Superhuman, perché E fa l'azione principale e la prossima si apre da sola
+  return `<div class="fixed inset-x-0 bottom-0 z-30 border-t border-bordo bg-white/95 px-3 pt-3 backdrop-blur md:static md:bg-white md:px-6 md:py-3" style="padding-bottom:max(12px, env(safe-area-inset-bottom))">
+    <div class="mx-auto flex max-w-[720px] items-center gap-2">
+      <button data-a="lascia:${id}" class="btn btn-g flex-col gap-0.5 px-3 text-[11px] md:flex-row md:gap-2 md:text-[14px]" aria-label="Lascia stare">${ico('cestino', 'h-5 w-5 md:h-4 md:w-4')}<span>Lascia stare</span><span class="kbd hidden md:inline-flex">#</span></button>
+      <button data-a="rimanda:${id}" class="btn btn-g flex-col gap-0.5 px-3 text-[11px] md:flex-row md:gap-2 md:text-[14px]" aria-label="Rimanda a domani">${ico('orologio', 'h-5 w-5 md:h-4 md:w-4')}<span>Domani</span><span class="kbd hidden md:inline-flex">H</span></button>
+      <button data-a="approva:${id}" class="btn btn-p ml-auto min-h-[52px] flex-1 text-[15px] md:min-h-[40px] md:flex-none">${ico('check', 'h-5 w-5')} Approva e copia <span class="kbd kbd-scuro hidden md:inline-flex">E</span></button>
+    </div>
+  </div>`
+}
+
+// ═══════════════════════ TRATTATIVA ═══════════════════════
+function inTratt() { return S.az.filter((a) => COLONNE.some((c) => c.tappe.includes(a.tappa))) }
+function colDi(a) { return COLONNE.find((c) => c.tappe.includes(a.tappa))?.k }
+function vistaTrattativa() {
+  const tutte = inTratt()
+  const gr = Object.fromEntries(COLONNE.map((c) => [c.k, tutte.filter((a) => colDi(a) === c.k).sort((x, y) => ordStato(x) - ordStato(y))]))
+  const dopo = S.az.filter((a) => ['avvio', 'prova', 'cliente'].includes(a.tappa))
+  const tabella = S.tratt.vista === 'tabella' && !mobile()
+  return contenitore(`
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="min-w-0 flex-1"><h1 class="hidden text-[28px] font-extrabold text-navy md:block">Trattativa</h1><p class="text-[15px] text-inchiostro/80 md:mt-1">${frase(tutte)}</p></div>
+      <!-- da: Attio e Folk, perché gli stessi dati si guardano come bacheca o come tabella, senza due verità -->
+      <div class="hidden rounded-xl bg-velo p-1 md:flex" role="tablist">
+        ${['bacheca', 'tabella'].map((v) => `<button data-a="tvista:${v}" role="tab" aria-selected="${S.tratt.vista === v}" class="rounded-lg px-3 py-1.5 text-[13px] ${S.tratt.vista === v ? 'bg-white font-bold text-navy shadow-sm' : 'font-semibold text-tenue'}">${v === 'bacheca' ? 'Bacheca' : 'Tabella'}</button>`).join('')}
+        <span class="kbd ml-1 self-center">B</span>
+      </div>
+    </div>
+    ${tabella ? `<div class="mt-6">${tabellaAziende(ordina(tutte), false)}</div>` : `
+    <div class="mt-4 flex gap-1 rounded-xl bg-velo p-1 md:hidden" role="tablist">
+      ${COLONNE.map((c) => `<button data-a="tcol:${c.k}" role="tab" aria-selected="${S.tratt.col === c.k}" class="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-lg text-[13px] ${S.tratt.col === c.k ? 'bg-white font-bold text-navy shadow-sm' : 'font-semibold text-tenue'}">${c.k === 'si' ? 'Sì' : c.k === 'conoscitiva' ? 'Conoscitiva' : 'Tecnica'} <span class="num">${gr[c.k].length}</span></button>`).join('')}
+    </div>
+    <!-- da: Pipedrive, perché ogni carta porta la prossima attività: senza, non si sposta -->
+    <div class="mt-4 grid gap-4 md:mt-6 md:grid-cols-3">
+      ${COLONNE.map((c) => `<div data-col="${c.k}" class="${S.tratt.col === c.k ? '' : 'hidden md:block'} rounded-2xl bg-velo/60 p-2.5 transition-colors">
+        <div class="mb-2 hidden items-baseline gap-2 px-1.5 pt-1 md:flex"><h2 class="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">${c.nome}</h2><span class="num text-[12px] font-bold text-tenue">${gr[c.k].length}</span></div>
+        <div class="space-y-2">${gr[c.k].map((a) => cartaTratt(a, c.k)).join('') || '<p class="px-2 py-6 text-[13px] text-tenue">Nessuno qui.</p>'}</div>
+      </div>`).join('')}
+    </div>`}
+    <button data-a="vai:clienti" class="mt-6 flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-bordo bg-white px-4 py-3 text-left text-[14px] hover:border-spento">
+      <span class="font-bold text-navy">Dopo la trattativa</span>
+      <span class="text-tenue">${dopo.filter((a) => a.tappa === 'avvio').length} in avvio, ${dopo.filter((a) => a.tappa === 'prova').length} in prova, ${dopo.filter((a) => a.tappa === 'cliente').length} cliente</span>
+      <span class="ml-auto text-blu">${ico('freccia', 'h-4 w-4')}</span>
+    </button>
+  `, true)
+}
+function frase(tutte) {
+  const amb = tutte.filter((a) => statoAz(a).c === 'ambra').length, ros = tutte.filter((a) => statoAz(a).c === 'rosso').length
+  const pz = [`${tutte.length} ${tutte.length === 1 ? 'ha' : 'hanno'} detto sì.`]
+  if (amb) pz.push(`${amb} ${amb === 1 ? 'aspetta' : 'aspettano'} te`)
+  if (ros) pz.push(`${ros} ${ros === 1 ? 'fermo' : 'fermi'} da troppo`)
+  return pz.length > 1 ? pz[0] + ' ' + pz.slice(1).join(', ') + '.' : pz[0]
+}
+function ordStato(a) { return { ambra: 0, rosso: 1, blu: 2, verde: 3 }[statoAz(a).c] }
+function ordina(l) {
+  const k = S.tratt.sort
+  return [...l].sort((a, b) => k === 'nome' ? a.nome.localeCompare(b.nome) : k === 'valore' ? b.valore - a.valore : k === 'tappa' ? Object.keys(TAPPA).indexOf(a.tappa) - Object.keys(TAPPA).indexOf(b.tappa) : ordStato(a) - ordStato(b))
+}
+function cartaTratt(a, col) {
+  const s = statoAz(a)
+  const ultima = col === 'tecnica'
+  return `<div tabindex="0" draggable="true" data-card="${a.id}" data-a="scheda:${a.id}" class="card-drag group rounded-2xl border border-bordo bg-white p-3.5 transition-shadow hover:shadow-md ${S.tratt.focus === a.id ? 'ring-2 ring-blu/50' : ''}">
+    <div class="flex items-start gap-2"><p class="min-w-0 flex-1 truncate text-[15px] font-extrabold text-navy">${esc(a.nome)}</p>${a.valore ? `<span class="num shrink-0 text-[12px] font-bold text-tenue">${a.valore.toLocaleString('it-IT', { useGrouping: 'always' })} €</span>` : ''}</div>
+    <p class="mt-0.5 truncate text-[12px] text-tenue">${esc(a.persona)}, ${esc(a.citta)}</p>
+    <div class="mt-2">${pill(s.c, s.t)}</div>
+    <p class="mt-2.5 flex items-start gap-1.5 text-[13px] leading-snug"><span class="mt-0.5 text-tenue">${ico('orologio', 'h-4 w-4')}</span><span><span class="font-semibold">${esc(a.prossimo.cosa)}</span>, <span class="num text-tenue">${esc(a.prossimo.quando)}</span></span></p>
+    <div class="mt-3 flex gap-1.5">
+      ${ultima ? `<button data-a="passa:${a.id}" class="btn btn-p min-h-[40px] flex-1 px-3 text-[13px] md:min-h-[34px]">Passa a Carlo</button>` : `<button data-a="avanti:${a.id}" class="btn btn-s min-h-[40px] flex-1 px-3 text-[13px] md:min-h-[34px]">Avanti ${ico('freccia', 'h-4 w-4')}</button>`}
+    </div>
+  </div>`
+}
+
+// ═══════════════════════ CLIENTI ═══════════════════════
+function vistaClienti() {
+  const lista = S.az.filter((a) => ['avvio', 'prova', 'cliente'].includes(a.tappa))
+  const daPrendere = S.task.filter((t) => t.stato === 'da accettare')
+  return contenitore(`
+    <h1 class="hidden text-[28px] font-extrabold text-navy md:block">Clienti</h1>
+    <p class="text-[15px] text-inchiostro/80 md:mt-1">Canone attivo 4.200 € al mese. ${daPrendere.length ? `${daPrendere.length} ${daPrendere.length > 1 ? 'passati' : 'passato'} a Carlo, da prendere.` : 'Tutti i passaggi sono stati presi.'}</p>
+    ${daPrendere.length ? sezione('Passati, da prendere', daPrendere.length) + `<div class="space-y-3">${daPrendere.map((t) => cartaTask(t, S.who === t.a ? `<button data-a="accetta:${t.id}" class="btn btn-p">Prendi in carico</button>` : `<span class="text-[13px] text-tenue">Lo vede in Hey!. Se non la prende entro domani alle 12, Clara te lo dice.</span>`)).join('')}</div>` : ''}
+    ${sezione('In corso', lista.length)}
+    <div class="grid gap-3 md:grid-cols-2">${lista.map((a) => { const s = statoAz(a); return carta(`<button data-a="scheda:${a.id}" class="riga block w-full rounded-2xl p-4 text-left">
+      <div class="flex items-start gap-3"><div class="min-w-0 flex-1"><p class="truncate text-[16px] font-extrabold text-navy">${esc(a.nome)}</p><p class="text-[12px] text-tenue">${TAPPA[a.tappa]}, ${esc(a.citta)}</p></div>${avatar(a.palla === 'salvatore' ? 'salvatore' : 'carlo', 28)}</div>
+      <div class="mt-2.5">${pill(s.c, s.t)}</div>
+      ${a.tappa === 'prova' ? `<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-velo"><div class="h-full rounded-full bg-blu" style="width:35%"></div></div><p class="num mt-1 text-[12px] text-tenue">giorno 21 di 60</p>` : ''}
+      <p class="mt-2.5 text-[13px]"><span class="font-semibold">${esc(a.prossimo.cosa)}</span>, <span class="num text-tenue">${esc(a.prossimo.quando)}</span></p>
+    </button>`) }).join('')}</div>
+  `)
+}
+
+// ═══════════════════════ CLARA ═══════════════════════
+function bolla(m, i) {
+  if (m.scrive) return `<div class="flex items-end gap-2">${avatar('clara', 26)}<div class="scrive flex gap-1 rounded-2xl rounded-bl-md border border-bordo bg-white px-4 py-3.5"><span></span><span></span><span></span></div></div>`
+  if (m.da === 'io') return `<div class="flex justify-end"><div class="max-w-[82%] rounded-2xl rounded-br-md bg-navy px-4 py-2.5 text-[15px] leading-relaxed text-white">${esc(m.t)}<span class="ml-2 text-[11px] text-white/55">${m.ora}</span></div></div>`
+  return `<div class="flex items-start gap-2"><span class="mt-1.5">${avatar('clara', 26)}</span><div class="max-w-[86%]">
+    <div class="rounded-2xl rounded-bl-md border border-bordo bg-white px-4 py-2.5 text-[15px] leading-relaxed">${esc(m.t)}<span class="ml-2 text-[11px] text-tenue">${m.ora}</span></div>
+    ${m.btn?.length && !m.fatto ? `<div class="mt-1.5 flex flex-wrap gap-1.5">${m.btn.map((b) => `<button data-a="cb:${i}:${b.a}" class="chip">${esc(b.l)}</button>`).join('')}</div>` : ''}
+    ${m.fatto ? `<p class="mt-1 text-[12px] font-semibold text-tenue">${esc(m.fatto)}</p>` : ''}
+  </div></div>`
+}
+const ORME = {
+  dre: ['Lette 14 conversazioni, 6 nuove risposte', 'Analisi a Colle Verde partita da sola (era un sì chiaro)', 'Scritti 2 follow-up e la risposta a Officina Moretti: aspettano te', 'Messa in scheda la preparazione per Bassi'],
+  carlo: ['Preparata la nota di passaggio di Impianti Solari Nord', 'Controllato lo stato della prova di Palestra Forma'],
+  giacomo: ['Aggiornata la tabella con 2 task nuove', 'Ricalcolato il canone attivo'],
+  lorenzo: ['Lette 6 risposte, consegnate 4 analisi', 'Controllate le caselle: 91% sane'],
+  salvatore: ['Preparati i numeri di settembre di Cantina Le Vigne'],
+  alex: ['Ricordato a te e a Carlo la scadenza degli accessi'],
+}
+function vistaClara() {
+  const filo = filoClara()
+  // da: WhatsApp e Superhuman AI, perché Clara è una persona in un filo solo: poche frasi, i bottoni sotto, niente tab
+  return `<div class="flex h-full min-h-0 flex-col">
+    <div class="hidden items-center gap-3 border-b border-bordo bg-white px-6 py-3.5 md:flex">${avatar('clara', 38)}<div><p class="text-[16px] font-extrabold text-navy">Clara</p><p class="text-[12px] text-tenue">prepara, ti chiede, non manda niente da sola</p></div><span class="kbd ml-auto">⌘J da ovunque</span></div>
+    <div id="chat-scorre" class="min-h-0 flex-1 overflow-y-auto scroll-sottile bg-avorio">
+      <div class="mx-auto flex max-w-[720px] flex-col gap-3 px-4 pb-6 pt-4 md:px-6">
+        <!-- da: le «orme» dei buoni assistenti, perché quello che ha fatto da sola si vede, ma chiuso -->
+        <details class="rounded-2xl border border-bordo bg-white px-4 py-3 text-[13px]"><summary class="cursor-pointer font-semibold text-navy">Fatto da sola stanotte (${(ORME[S.who] || []).length})</summary><ul class="mt-2 space-y-1.5 text-tenue">${(ORME[S.who] || []).map((o) => `<li class="flex gap-2"><span class="mt-1.5">${dot('verde')}</span>${esc(o)}</li>`).join('')}</ul></details>
+        <p class="my-1 text-center text-[12px] font-semibold text-tenue">Oggi</p>
+        ${filo.map(bolla).join('')}
+      </div>
+    </div>
+    ${compositore('chat')}
+  </div>`
+}
+function suggerimenti() {
+  const ctx = contesto()
+  if (S.who !== 'dre') return { carlo: ['Cosa ho da prendere?', 'Come va la prova di Palestra Forma?'], giacomo: ['Quanto fatturiamo?', 'Cosa è in ritardo?'], lorenzo: ['Come stanno le caselle?', 'Chi ha risposto oggi?'], salvatore: ['Cosa devo mandare a Cantina Le Vigne?'], alex: ['Cosa mi serve per gli accessi?'] }[S.who] || []
+  if (ctx && S.view === 'posta' && bozzaDi(S.posta.sel) !== null && !S.dec[S.posta.sel]) return ['Rendila più corta', 'Perché proponi quel giorno?', `Cosa sappiamo di ${ctx.persona.split(' ')[0]}?`]
+  if (ctx?.tappa === 'tecnica') return ['Passala a Carlo', 'Prepara il preventivo dalla tecnica', 'Cosa ha in mano?']
+  if (ctx) return ['Preparami la call', 'Come rispondo sulle cose scomode?', 'Cosa ha in mano?']
+  return ['Cosa devo fare adesso?', 'Come sta Carlo?', 'Quanto fatturiamo?']
+}
+function compositore(dove) {
+  const ctx = contesto()
+  return `<div class="${dove === 'chat' ? 'border-t border-bordo bg-white pb-tab md:pb-4' : ''} px-3 pt-3 md:px-6">
+    <div class="mx-auto max-w-[720px]">
+      <div class="no-bar mb-2 flex gap-1.5 overflow-x-auto pb-1">${suggerimenti().map((s) => `<button data-a="suggerisci:${dove}:${esc(s)}" class="chip shrink-0">${esc(s)}</button>`).join('')}</div>
+      <form data-form="${dove}" class="flex items-end gap-2">
+        <textarea data-auto data-input="${dove}" rows="1" aria-label="Scrivi a Clara" placeholder="${ctx ? `Chiedi su ${esc(ctx.nome)}` : 'Scrivi a Clara'}" class="max-h-40 min-h-[48px] flex-1 rounded-2xl border border-bordo bg-avorio px-4 py-3 text-[15px] focus:border-blu focus:bg-white focus:outline-none"></textarea>
+        <button class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blu text-white hover:bg-navy" aria-label="Manda a Clara">${ico('invia')}</button>
+      </form>
+    </div>
+  </div>`
+}
+function contesto() {
+  if (S.scheda) return az(S.scheda)
+  if (S.view === 'posta' && S.posta.sel && itemPosta(S.posta.sel)) return az(itemPosta(S.posta.sel).az)
+  return null
+}
+function rispostaClara(q) {
+  const t = q.toLowerCase()
+  const ctx = contesto()
+  if (/cort/.test(t) && S.view === 'posta' && bozzaDi(S.posta.sel) !== null) { riscrivi(S.posta.sel, 'corta'); return { t: 'Fatto, l’ho accorciata: la trovi nella bozza. Se non ti piace c’è «Torna a prima».' } }
+  if (/giorno|giovedì|quel giorno/.test(t)) return { t: 'È il primo buco libero nel tuo calendario dopo 48 ore: abbastanza vicino da non raffreddarsi, abbastanza lontano da sembrare normale.' }
+  if (/passa|carlo/.test(t) && ctx?.tappa === 'tecnica') return { t: `Ti preparo il passaggio di ${ctx.nome}: la nota per Carlo l’ho già scritta dalla scheda.`, btn: [{ l: 'Apri il passaggio', a: `passa:${ctx.id}` }] }
+  if (/preventiv/.test(t)) return { t: 'Il preventivo nasce dalla tecnica, mai da una pagina vuota: dopo la call di giovedì ti lascio la bozza con le voci dette in call.' }
+  if (/call|prepar/.test(t) && ctx) return { t: `${ctx.nome}: ${ctx.dove} Le cose scomode: ${ctx.scomode.join(', ').toLowerCase() || 'nessuna'}. Io partirei dalla domanda: quanto lavoro vi arriva oggi da Google?`, btn: [{ l: 'Apri la scheda', a: `scheda:${ctx.id}` }] }
+  if (/scomod/.test(t) && ctx) return { t: `Su ${ctx.scomode[0]?.toLowerCase() || 'tutto'}: ${RISPOSTE_SCOMODE[ctx.scomode[0]] || 'chiedi prima come la gestisce oggi, poi proponi.'}` }
+  if (/sappiamo|in mano|chi è/.test(t) && ctx) return { t: `${ctx.persona}, ${ctx.settore.toLowerCase()} a ${ctx.citta}. Ha in mano: ${ctx.cosaHa.toLowerCase()}. Clienti da ${ctx.ticket}, ${ctx.domanda.toLocaleString('it-IT', { useGrouping: 'always' })} ricerche al mese.` }
+  if (/adesso|fare/.test(t)) { const n = daDecidere(); return n ? { t: `${n} decisioni in Posta, la prima è Officina Moretti. Poi alle 15 Bassi.`, btn: [{ l: 'Inizia', a: 'inizia' }] } : { t: 'Le decisioni sono finite. Alle 15 c’è Bassi: la scheda è pronta.', btn: [{ l: 'Apri la scheda', a: 'scheda:a1' }] } }
+  if (/carlo|prendere|prendo/.test(t)) { const d = S.task.filter((x) => x.a === 'carlo' && x.stato === 'da accettare'); return { t: d.length ? `Carlo ha ${d.length} ${d.length > 1 ? 'passaggi' : 'passaggio'} da prendere (${d.map((x) => az(x.azienda).nome).join(', ')}) e aspetta gli accessi di Palestra Forma da Alex.` : 'Carlo ha preso tutto. Aspetta solo gli accessi di Palestra Forma da Alex.' } }
+  if (/fattur|soldi|canone/.test(t)) return { t: 'Canone attivo 4.200 € al mese. Una prova (Palestra Forma, 1.400), 4 in trattativa, un preventivo in giro (Riva).' }
+  if (/ritardo/.test(t)) return { t: 'Una cosa: gli accessi Google Ads di Palestra Forma, li ha Alex, scadevano ieri.' }
+  if (/casell/.test(t)) return { t: 'Caselle sane al 91%. Sotto l’85% rallento gli invii e ti avviso.' }
+  if (/rispost|oggi/.test(t)) return { t: '6 risposte stamattina: 2 aspettano Dre (Officina Moretti, Edilnova), le altre sono corse da sole.' }
+  if (/prova|palestra/.test(t)) return { t: 'Palestra Forma è al giorno 21 di 60. Il primo report va il 15/10. Mancano ancora gli accessi da Alex.' }
+  if (/accessi|alex/.test(t)) return { t: 'Servono l’email del titolare dell’account Google Ads e un invito come amministratore a carlo@. Te lo scrivo io a Elena se vuoi.' }
+  if (/cantina|report/.test(t)) return { t: 'Il report di settembre: clic, chiamate dal sito e costo per contatto. I numeri sono già nel foglio, manca il tuo commento di tre righe.' }
+  return { t: 'Ci guardo e ti rispondo qui. Nel prototipo so rispondere su call, follow-up, Carlo, preventivi, soldi e caselle.' }
+}
+const RISPOSTE_SCOMODE = {
+  'Pochi prezzi sul sito': 'proponi tre prezzi civetta in una pagina. Senza, gli annunci pagano clic che tornano indietro.',
+  'Concorrenza forte delle catene': 'le catene non presidiano le ricerche di quartiere («ferramenta aperta oggi Padova»): lì si vince con poco.',
+  'Settore sanitario: regole sugli annunci': 'Google chiede la verifica per i servizi sanitari: la facciamo noi, una settimana.',
+  'Molti studi in zona': 'si punta sull’implantologia, dove pochi studi fanno annunci.',
+  'Chiede subito il prezzo': 'il prezzo dipende dal lavoro: dagli una forbice solo dopo aver capito quanti clienti vuole.',
+  'Decide il socio': 'chiedi subito se il socio può esserci alla call: altrimenti si rifà tutto due volte.',
+}
+function parlaAClara(testo) {
+  const filo = filoClara()
+  filo.push({ da: 'io', t: testo, ora: ORA() })
+  filo.push({ scrive: true })
+  aggiornaChat()
+  setTimeout(() => {
+    filo.pop()
+    const r = rispostaClara(testo)
+    filo.push({ da: 'clara', ora: ORA(), ...r })
+    if (S.layer === 'chiedi' || S.view === 'clara') render()
+    else aggiornaChat()
+    const inp = $(S.layer === 'chiedi' ? '[data-input="chiedi"]' : '[data-input="chat"]'); inp?.focus()
+  }, 650)
+}
+function aggiornaChat() {
+  if (S.layer === 'chiedi') { const m = $('#chiedi-msg'); if (m) { m.innerHTML = filoClara().slice(-4).map((x, i, arr) => bolla(x, filoClara().length - arr.length + i)).join(''); m.scrollTop = m.scrollHeight } }
+  else if (S.view === 'clara') { renderVista() }
+}
+
+// ═══════════════════════ STRATO: scheda e finestre ═══════════════════════
+function renderStrato() {
+  let h = ''
+  if (S.scheda) h += scheda(az(S.scheda))
+  if (S.layer === 'palette') h += palette()
+  if (S.layer === 'aiuto') h += aiuto()
+  if (S.layer === 'chiedi') h += chiedi()
+  if (S.layer === 'hey') h += heyPannello()
+  if (S.layer === 'come') h += comePannello()
+  if (S.layer === 'passa') h += passaPannello()
+  if (S.layer === 'passo') h += passoPannello()
+  $('#strato').innerHTML = h
+}
+const velo = (chiudi = 'chiudiLayer') => `<div data-a="${chiudi}" class="appare absolute inset-0 bg-inchiostro/25"></div>`
+
+function scheda(a) {
+  const s = statoAz(a)
+  const pre = ['risposta', 'analisi', 'follow_up', 'conoscitiva', 'tecnica'].includes(a.tappa)
+  const conv = L.conversazioni.find((c) => c.azienda === a.id) || L.seguiti.find((x) => x.azienda === a.id)
+  const visite = Math.round(300 / a.cpc)
+  const col = COLONNE.find((c) => c.tappe.includes(a.tappa))
+  const azioni = []
+  if (a.tappa === 'tecnica') azioni.push(`<button data-a="passa:${a.id}" class="btn btn-p flex-1 md:flex-none">Passa a Carlo <span class="kbd kbd-scuro hidden md:inline-flex">P</span></button>`)
+  if (a.tappa === 'conoscitiva') azioni.push(`<button data-a="avanti:${a.id}" class="btn btn-p flex-1 md:flex-none">Dopo la call: fissa la tecnica</button>`)
+  if (conv && !S.dec[conv.id]) azioni.push(`<button data-a="posta:${conv.id}" class="btn ${azioni.length ? 'btn-s' : 'btn-p'} flex-1 md:flex-none">Apri la conversazione</button>`)
+  if (pre) azioni.push(`<button data-a="lasciaAndare" class="btn btn-g">Lascia andare</button>`)
+  // da: Notion e Attio, perché la scheda è una pagina: proprietà in alto, poi il testo che serve, una colonna sola
+  return `<div class="fixed inset-0 z-40">${velo('chiudiScheda')}
+  <aside class="scivola absolute inset-y-0 right-0 flex w-full flex-col bg-white md:max-w-[700px] md:border-l md:border-bordo" role="dialog" aria-label="Scheda di ${esc(a.nome)}">
+    <div class="flex items-center gap-2 border-b border-bordo px-2 py-2 md:px-5">
+      <button data-a="chiudiScheda" class="flex h-11 items-center gap-1 rounded-xl px-2 text-[14px] font-semibold text-blu hover:bg-velo">${ico('indietro', 'h-5 w-5')} Torna</button>
+      <nav class="hidden min-w-0 flex-1 truncate text-[13px] text-tenue md:block" aria-label="Dove sei">${col ? `Trattativa / ${col.nome}` : 'Clienti'} / <span class="font-bold text-inchiostro">${esc(a.nome)}</span></nav>
+      <span class="flex-1 md:hidden"></span>
+      <button data-a="chiedi" class="btn btn-g">${avatar('clara', 20)}<span class="hidden md:inline">Chiedi a Clara</span><span class="kbd hidden md:inline-flex">⌘J</span></button>
+      <button data-a="chiudiScheda" class="hidden h-10 w-10 items-center justify-center rounded-xl text-tenue hover:bg-velo md:flex" aria-label="Chiudi">${ico('x')}</button>
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto scroll-sottile">
+      <div class="px-5 pb-32 pt-6 md:px-10 md:pb-10">
+        <h2 class="text-[26px] font-extrabold leading-tight text-navy md:text-[30px]">${esc(a.nome)}</h2>
+        <p class="mt-1 text-[14px] text-tenue">${esc(a.persona)}, ${esc(a.settore.toLowerCase())} a ${esc(a.citta)}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">${pill(s.c, s.t)}<span class="pill bg-velo text-inchiostro/80">${TAPPA[a.tappa]}</span></div>
+        <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-bordo px-3.5 py-3"><span class="mt-0.5 text-blu">${ico('orologio', 'h-5 w-5')}</span><div class="min-w-0 flex-1"><p class="text-[12px] font-semibold text-tenue">Prossimo passo</p><p class="text-[15px] font-bold">${esc(a.prossimo.cosa)}, <span class="num font-semibold text-tenue">${esc(a.prossimo.quando)}</span></p></div></div>
+        <dl class="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-[14px] md:grid-cols-3">
+          ${[['Con chi parla', a.persona], ['Chi la segue', persona(['carlo', 'salvatore'].includes(a.palla) ? a.palla : 'dre').nome], ['Fit', a.fit === 'SI' ? 'sì' : 'forse'], ['Cliente da', a.ticket], ['Ricerche al mese', a.domanda.toLocaleString('it-IT', { useGrouping: 'always' })], ['Costo a clic', a.cpc.toLocaleString('it-IT', { minimumFractionDigits: 2 }) + ' €']].map(([k, v]) => `<div><dt class="text-[12px] font-semibold text-tenue">${k}</dt><dd class="num font-semibold">${esc(v)}</dd></div>`).join('')}
+        </dl>
+        ${S.lascia ? `<form data-form="lascia" class="mt-5 rounded-2xl border border-bordo bg-avorio p-4"><p class="text-[15px] font-bold text-navy">Lascio andare ${esc(a.nome)}?</p><p class="mt-1 text-[13px] text-tenue">Il motivo resta nella storia, e si può riaprire.</p><input data-input="motivo" aria-label="Il motivo" placeholder="Il motivo, con parole tue" class="mt-3 min-h-[44px] w-full rounded-xl border border-bordo bg-white px-3 text-[14px] focus:border-blu focus:outline-none"><div class="mt-3 flex gap-2"><button class="btn btn-p">Lascia andare</button><button type="button" data-a="lasciaNo" class="btn btn-s">Annulla</button></div></form>` : ''}
+        ${pre ? `
+        <h3 class="mt-8 text-[18px] font-extrabold text-navy">Per la call</h3>
+        <div class="mt-3 space-y-5">
+          <div><p class="text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Dove eravamo</p><p class="mt-1 text-[15px] leading-relaxed">${esc(a.dove)}</p></div>
+          <div><p class="text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Cosa ha in mano</p><div class="mt-1.5 flex flex-wrap items-center gap-2"><span class="text-[15px]">${esc(a.cosaHa)}</span>${/Analisi/.test(a.cosaHa) ? `<button data-a="pdf" class="btn btn-s min-h-[36px] text-[13px]">Apri l’analisi</button>` : ''}</div></div>
+          <div><p class="text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Il suo mercato</p>
+            <div class="mt-2 grid grid-cols-3 gap-2">${[[a.domanda.toLocaleString('it-IT', { useGrouping: 'always' }), 'ricerche al mese'], [a.cpc.toLocaleString('it-IT', { minimumFractionDigits: 2 }) + ' €', 'a clic'], [a.ticket, 'il suo cliente']].map(([v, k]) => `<div class="rounded-xl bg-velo/70 px-3 py-2.5"><p class="num text-[15px] font-extrabold text-navy">${esc(v)}</p><p class="text-[12px] text-tenue">${k}</p></div>`).join('')}</div>
+            <p class="mt-2 text-[14px] leading-relaxed text-inchiostro/80">Con 300 € al mese arrivano circa <span class="num font-bold">${visite}</span> visite di gente che cerca proprio questo.</p></div>
+          ${a.scomode.length ? `<div><p class="text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Le cose scomode</p>
+            <!-- da: Notion, perché un callout separa quello che non va dimenticato dal resto della pagina -->
+            <div class="mt-2 space-y-2">${a.scomode.map((x) => `<div class="rounded-xl px-3.5 py-3" style="background:${TONO.ambra.bg}"><p class="text-[14px] font-bold" style="color:${TONO.ambra.fg}">${esc(x)}</p><p class="mt-1 flex gap-2 text-[13px] leading-relaxed text-inchiostro/80">${avatar('clara', 18)}<span>${esc(RISPOSTE_SCOMODE[x] || 'chiedi come la gestisce oggi, prima di proporre.')}</span></p></div>`).join('')}</div></div>` : ''}
+          <div><p class="text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Appunti della call</p><textarea data-auto rows="3" aria-label="Appunti della call" placeholder="Scrivi mentre parli: Clara ne fa il riassunto e il prossimo passo" class="mt-2 w-full rounded-xl border border-bordo p-3 text-[14px] focus:border-blu focus:outline-none"></textarea></div>
+        </div>` : `
+        <h3 class="mt-8 text-[18px] font-extrabold text-navy">Il progetto</h3>
+        <p class="mt-2 text-[15px] leading-relaxed">${esc(a.dove)}</p>
+        ${a.tappa === 'prova' ? `<div class="mt-3 h-2 overflow-hidden rounded-full bg-velo"><div class="h-full rounded-full bg-blu" style="width:35%"></div></div><p class="num mt-1 text-[12px] text-tenue">giorno 21 di 60</p>` : ''}
+        ${a.valore ? `<p class="mt-3 text-[14px]"><span class="text-tenue">Valore</span> <span class="num font-bold">${a.valore.toLocaleString('it-IT', { useGrouping: 'always' })} € al mese</span></p>` : ''}`}
+        <details class="mt-8 rounded-2xl border border-bordo px-4 py-3"><summary class="cursor-pointer text-[14px] font-bold text-navy">Storia</summary>
+          <ul class="mt-3 space-y-2 text-[13px]">${(conv ? filoDi(conv.id) : []).map((m) => `<li class="flex gap-2"><span class="num w-12 shrink-0 font-semibold text-tenue">${esc(m.quando)}</span><span>${m.chi === 'noi' ? 'Noi' : esc(a.persona.split(' ')[0])}: ${esc(m.testo)}</span></li>`).join('')}<li class="flex gap-2"><span class="num w-12 shrink-0 font-semibold text-tenue">${a.ultima.slice(8)}/${+a.ultima.slice(5, 7)}</span><span>Ultima mossa registrata</span></li></ul>
+        </details>
+      </div>
+    </div>
+    ${azioni.length ? `<div class="flex flex-wrap items-center gap-2 border-t border-bordo bg-white px-4 py-3 md:px-10" style="padding-bottom:max(12px, env(safe-area-inset-bottom))">${azioni.join('')}</div>` : ''}
+  </aside></div>`
+}
+
+function comandi() {
+  const c = []
+  NAV[S.who].forEach((v, i) => c.push({ g: 'Vai', l: VOCI[v], k: String(i + 1), a: `vai:${v}` }))
+  c.push({ g: 'Azioni', l: 'Chiedi a Clara', k: '⌘J', a: 'chiedi' })
+  if (S.who === 'dre') {
+    if (daDecidere()) c.push({ g: 'Azioni', l: 'Inizia dalla prima decisione', k: '↵', a: 'inizia' })
+    S.az.filter((a) => a.tappa === 'tecnica').forEach((a) => c.push({ g: 'Azioni', l: `Passa ${a.nome} a Carlo`, a: `passa:${a.id}` }))
+  }
+  L.squadra.forEach((p) => c.push({ g: 'Vedi come', l: `Vedi come ${p.nome}`, a: `chi:${p.id}` }))
+  S.az.forEach((a) => c.push({ g: 'Aziende', l: a.nome, s: `${TAPPA[a.tappa]}, ${a.citta}`, a: `scheda:${a.id}` }))
+  const q = S.pal.q.trim().toLowerCase()
+  return q ? c.filter((x) => (x.l + ' ' + (x.s || '') + ' ' + x.g).toLowerCase().includes(q)) : c
+}
+function palette() {
+  return `<div class="fixed inset-0 z-50 flex items-start justify-center px-3 pt-[8vh]">${velo()}
+    <div class="sale relative w-full max-w-[600px] overflow-hidden rounded-2xl border border-bordo bg-white shadow-2xl" role="dialog" aria-label="Cerca o fai">
+      <div class="flex items-center gap-3 border-b border-bordo px-4">${ico('cerca', 'h-5 w-5 text-tenue')}<input data-input="palette" value="${esc(S.pal.q)}" aria-label="Cerca un’azienda o un comando" placeholder="Un’azienda, una sezione, un’azione" class="h-14 flex-1 bg-transparent text-[16px] focus:outline-none"><span class="kbd">Esc</span></div>
+      <div id="pal-lista" class="max-h-[60vh] overflow-y-auto p-2 scroll-sottile">${paletteLista()}</div>
+    </div></div>`
+}
+function paletteLista() {
+  const l = comandi()
+  if (!l.length) return '<p class="px-3 py-6 text-center text-[14px] text-tenue">Niente con questo nome.</p>'
+  S.pal.i = Math.min(S.pal.i, l.length - 1)
+  let g = ''
+  return l.map((x, i) => {
+    const t = x.g !== g ? `<p class="px-3 pb-1 pt-3 text-[11px] font-bold uppercase tracking-[0.06em] text-tenue">${x.g}</p>` : ''
+    g = x.g
+    return t + `<button data-a="pal:${i}" class="flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] ${i === S.pal.i ? 'bg-[#E8F1FA] text-navy' : 'hover:bg-velo'}"><span class="flex-1 font-semibold">${esc(x.l)}${x.s ? `<span class="ml-2 font-normal text-tenue">${esc(x.s)}</span>` : ''}</span>${x.k ? `<span class="kbd">${x.k}</span>` : ''}</button>`
+  }).join('')
+}
+function aiuto() {
+  const gruppi = [
+    ['Ovunque', [['⌘K', 'cerca o fai qualsiasi cosa'], ['⌘J', 'chiedi a Clara, sa dove sei'], ['1 2 3 4 5', 'le sezioni'], ['V', 'vedi come un’altra persona'], ['?', 'questo elenco'], ['Esc', 'chiudi o torna']]],
+    ['Oggi', [['↵', 'inizia dalla prima cosa']]],
+    ['Posta', [['J  K', 'giù e su'], ['Tab', 'split dopo'], ['E', 'approva e copia, poi la prossima'], ['⌘↵', 'approva mentre scrivi'], ['#', 'lascia stare'], ['H', 'rimanda a domani'], ['S', 'apri la scheda'], ['Z', 'annulla l’ultima']]],
+    ['Trattativa', [['Frecce', 'muoviti fra le carte'], ['↵', 'apri la scheda'], ['Maiusc →', 'avanti di una tappa'], ['B', 'bacheca o tabella']]],
+    ['Scheda', [['P', 'passa a Carlo'], ['Esc', 'chiudi']]],
+  ]
+  return `<div class="fixed inset-0 z-50 flex items-center justify-center px-3">${velo()}
+    <div class="sale relative max-h-[86vh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-label="Scorciatoie">
+      <div class="flex items-center"><h2 class="flex-1 text-[20px] font-extrabold text-navy">Scorciatoie</h2><button data-a="chiudiLayer" class="flex h-10 w-10 items-center justify-center rounded-xl text-tenue hover:bg-velo" aria-label="Chiudi">${ico('x')}</button></div>
+      <div class="mt-4 grid gap-6 md:grid-cols-2">${gruppi.map(([g, l]) => `<div><p class="mb-2 text-[12px] font-bold uppercase tracking-[0.06em] text-tenue">${g}</p>${l.map(([k, t]) => `<p class="flex items-center gap-3 py-1 text-[14px]"><span class="flex w-[86px] shrink-0 gap-1">${k.split('  ').map((x) => `<span class="kbd">${x}</span>`).join('')}</span>${t}</p>`).join('')}</div>`).join('')}</div>
+    </div></div>`
+}
+function chiedi() {
+  const ctx = contesto()
+  const filo = filoClara()
+  // da: Superhuman AI e Notion AI, perché ⌘J apre Clara dove sei, sa di cosa parli e non ti porta via dalla pagina
+  return `<div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:px-3">${velo()}
+    <div class="sale relative flex max-h-[88dvh] w-full flex-col rounded-t-3xl bg-white shadow-2xl md:max-w-[640px] md:rounded-3xl" role="dialog" aria-label="Chiedi a Clara">
+      <div class="flex items-center gap-3 px-5 pb-2 pt-4">${avatar('clara', 32)}<div class="min-w-0 flex-1"><p class="text-[15px] font-extrabold text-navy">Clara</p><p class="truncate text-[12px] text-tenue">${ctx ? `stai guardando ${esc(ctx.nome)}` : 'sa cosa c’è oggi'}</p></div>
+        <button data-a="vai:clara" class="btn btn-g text-[13px]">Tutto il filo</button>
+        <button data-a="chiudiLayer" class="flex h-11 w-11 items-center justify-center rounded-xl text-tenue hover:bg-velo" aria-label="Chiudi">${ico('x')}</button></div>
+      <div id="chiedi-msg" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-avorio/60 px-4 py-4 scroll-sottile">${filo.slice(-4).map((m, i, arr) => bolla(m, filo.length - arr.length + i)).join('')}</div>
+      <div class="pb-4" style="padding-bottom:max(16px, env(safe-area-inset-bottom))">${compositore('chiedi')}</div>
+    </div></div>`
+}
+function heyPannello() {
+  const l = heyMiei()
+  return `<div class="fixed inset-0 z-50">${velo()}
+    <div class="sale absolute inset-x-2 top-2 max-h-[80vh] overflow-y-auto rounded-2xl border border-bordo bg-white shadow-2xl md:left-[248px] md:right-auto md:top-[150px] md:w-[400px]" role="dialog" aria-label="Hey!">
+      <div class="flex items-center px-4 pb-2 pt-4"><h2 class="flex-1 text-[18px] font-extrabold text-navy">Hey!</h2><button data-a="tuttiLetti" class="btn btn-g text-[13px]">Segna tutto letto</button></div>
+      ${l.length ? l.slice().reverse().map((h) => `<button data-a="heyApri:${h.id}" class="riga flex w-full items-start gap-3 border-t border-bordo/60 px-4 py-3 text-left">${avatar(h.da, 30)}<span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="text-[13px] font-bold text-navy">${esc(persona(h.da).nome)}</span><span class="ml-auto text-[12px] text-tenue">${esc(h.quando)}</span></span><span class="block text-[14px] leading-snug ${S.letti[h.id] ? 'text-tenue' : 'font-semibold'}">${esc(h.testo)}</span></span>${S.letti[h.id] ? '' : '<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-blu"></span>'}</button>`).join('') : '<p class="px-4 pb-5 text-[14px] text-tenue">Niente di nuovo.</p>'}
+    </div></div>`
+}
+function comePannello() {
+  return `<div class="fixed inset-0 z-50">${velo()}
+    <div class="sale absolute inset-x-2 top-2 rounded-2xl border border-bordo bg-white p-2 shadow-2xl md:bottom-6 md:left-3 md:right-auto md:top-auto md:w-[380px]" role="dialog" aria-label="Vedi come">
+      <p class="px-3 pb-1 pt-2 text-[12px] font-bold uppercase tracking-[0.06em] text-tenue">Vedi come</p>
+      ${L.squadra.map((p) => `<button data-a="chi:${p.id}" class="riga flex min-h-[52px] w-full items-center gap-3 rounded-xl px-3 py-2 text-left ${S.who === p.id ? 'bg-[#E8F1FA]' : ''}">${avatar(p.id, 32)}<span class="min-w-0 flex-1"><span class="block text-[14px] font-bold text-navy">${p.nome} <span class="font-semibold text-tenue">${esc(p.ruolo)}</span></span><span class="block truncate text-[12px] text-tenue">${esc(COSA_VEDE[p.id])}</span></span>${S.who === p.id ? `<span class="text-blu">${ico('check', 'h-5 w-5')}</span>` : ''}</button>`).join('')}
+    </div></div>`
+}
+function passaPannello() {
+  const h = S.handoff, a = az(h.az)
+  return `<div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:px-3">${velo()}
+    <form data-form="passa" class="sale relative max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl md:max-w-[560px] md:rounded-3xl md:p-6" role="dialog" aria-label="Passa a Carlo">
+      <div class="flex items-center gap-2">${avatar('dre', 32)}<span class="text-spento">${ico('freccia', 'h-5 w-5')}</span>${avatar('carlo', 32)}<h2 class="ml-2 flex-1 text-[19px] font-extrabold leading-tight text-navy">Passa ${esc(a.nome)} a Carlo</h2></div>
+      <p class="mt-4 text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Cosa gli serve sapere</p>
+      <textarea data-auto data-input="nota" aria-label="Nota per Carlo" class="mt-1.5 w-full rounded-xl border border-bordo p-3 text-[14px] leading-relaxed focus:border-blu focus:outline-none">${esc(h.nota)}</textarea>
+      <p class="mt-1 flex items-center gap-1.5 text-[12px] text-tenue">${avatar('clara', 16)} scritta da Clara dalla scheda, correggila pure</p>
+      <p class="mt-4 text-[12px] font-bold uppercase tracking-[0.05em] text-tenue">Entro quando la prende</p>
+      <div class="mt-1.5 flex gap-1.5">${['oggi', 'domani', 'venerdì'].map((q) => `<button type="button" data-a="hq:${q}" class="chip ${h.quando === q ? 'on' : ''}">${q}</button>`).join('')}</div>
+      <!-- da: Basecamp, perché il passaggio dice cosa succede a chi riceve e cosa succede se nessuno lo prende -->
+      <ul class="mt-5 space-y-2 rounded-2xl bg-velo/70 p-4 text-[14px]">
+        <li class="flex gap-2"><span class="mt-0.5 text-blu">${ico('check', 'h-4 w-4')}</span>La segue Carlo da adesso, tu resti in copia</li>
+        <li class="flex gap-2"><span class="mt-0.5 text-blu">${ico('check', 'h-4 w-4')}</span>Gli arriva in Hey! con questa nota e un «Prendi in carico»</li>
+        <li class="flex gap-2"><span class="mt-0.5 text-blu">${ico('check', 'h-4 w-4')}</span>Se non la prende entro ${h.quando === 'oggi' ? 'stasera alle 18' : h.quando === 'domani' ? 'domani alle 12' : 'venerdì alle 12'}, Clara te lo dice</li>
+      </ul>
+      <div class="mt-5 flex gap-2"><button class="btn btn-p flex-1 md:flex-none">Passa a Carlo <span class="kbd kbd-scuro hidden md:inline-flex">⌘↵</span></button><button type="button" data-a="chiudiLayer" class="btn btn-s">Annulla</button></div>
+    </form></div>`
+}
+const SUGG_PASSO = {
+  si: ['Follow-up, lun 12', 'Chiamarlo, domani'],
+  conoscitiva: ['Call conoscitiva, gio 8 alle 11', 'Mandare il link al calendario, oggi'],
+  tecnica: ['Call tecnica con Carlo, lun 12 alle 15', 'Domande per Carlo, domani'],
+}
+function passoPannello() {
+  const p = S.passo, a = az(p.az), col = COLONNE.find((c) => c.k === p.verso)
+  return `<div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:px-3">${velo()}
+    <form data-form="passo" class="sale relative w-full rounded-t-3xl bg-white p-5 shadow-2xl md:max-w-[480px] md:rounded-3xl md:p-6" role="dialog" aria-label="Prossimo passo">
+      <p class="text-[13px] font-semibold text-tenue">${esc(a.nome)} va in ${col.nome}</p>
+      <h2 class="mt-0.5 text-[20px] font-extrabold text-navy">Qual è il prossimo passo?</h2>
+      <div class="mt-3 flex flex-wrap gap-1.5">${SUGG_PASSO[p.verso].map((s) => `<button type="button" data-a="ps:${esc(s)}" class="chip ${p.testo === s ? 'on' : ''}">${esc(s)}</button>`).join('')}</div>
+      <input data-input="passo" value="${esc(p.testo)}" aria-label="Il prossimo passo" placeholder="Cosa e quando, con parole tue" class="mt-3 min-h-[48px] w-full rounded-xl border border-bordo px-3 text-[15px] focus:border-blu focus:outline-none">
+      <div class="mt-4 flex gap-2"><button class="btn btn-p flex-1 md:flex-none" ${p.testo.trim() ? '' : 'disabled'}>Sposta</button><button type="button" data-a="chiudiLayer" class="btn btn-s">Annulla</button></div>
+    </form></div>`
+}
+
+// ═══════════════════════ AZIONI ═══════════════════════
+function prossimo(idFatto, listePrima) {
+  // da: Superhuman, perché deciso uno si apre il successivo, senza tornare alla lista
+  const p = postaListe()
+  const lista = listePrima[S.posta.split]
+  const i = lista.findIndex((x) => x.id === idFatto)
+  const resto = p[S.posta.split]
+  let n = resto[Math.min(i, resto.length - 1)]
+  if (!n) {
+    const altro = SPLIT.map((s) => s.k).find((k) => k !== 'corsa' && p[k].length)
+    if (altro) { S.posta.split = altro; n = p[altro][0] }
+  }
+  S.posta.sel = n ? n.id : null
+  if (!n) S.posta.open = !mobile() ? false : true
+}
+function decidi(id, cosa, testoAvviso) {
+  const prima = postaListe()
+  const vecchio = { dec: S.dec[id], split: S.posta.split, sel: S.posta.sel, open: S.posta.open, palla: az((cn(id) || fu(id)).azienda).palla }
+  S.dec[id] = cosa
+  if (cosa === 'approvata') { const x = az((cn(id) || fu(id)).azienda); x.palla = 'loro'; x.ultimaPrima = x.ultima; x.ultima = L.oggi }
+  prossimo(id, prima)
+  render()
+  avviso(testoAvviso, () => { if (vecchio.dec) S.dec[id] = vecchio.dec; else delete S.dec[id]; { const x = az((cn(id) || fu(id)).azienda); x.palla = vecchio.palla; if (x.ultimaPrima) x.ultima = x.ultimaPrima } S.posta.split = vecchio.split; S.posta.sel = id; S.posta.open = vecchio.open; render() })
+}
+function copia(t) { try { navigator.clipboard?.writeText(t).catch(() => {}) } catch (e) { /* in locale gli appunti possono mancare */ } }
+function approva(id) {
+  const ta = $(`[data-bozza="${id}"]`); if (ta) S.posta.edit[id] = ta.value
+  copia(bozzaDi(id))
+  const a = az((cn(id) || fu(id)).azienda)
+  if (a.id === 'a5') a.prossimo = { cosa: 'Conoscitiva proposta', quando: 'gio 8, 15:00' }
+  if (a.id === 'a3') a.prossimo = { cosa: 'Conoscitiva proposta', quando: 'gio 8, 15:00' }
+  if (a.id === 'a6') a.prossimo = { cosa: 'Conoscitiva proposta', quando: 'ven 9, 15:30' }
+  decidi(id, 'approvata', `${a.nome}: copiata, incollala su Smartlead`)
+}
+const CORTE = {
+  c1: 'Salve Luca,\n\nle lascio in allegato l’analisi su Officina Moretti. Il costo dipende da cosa vi serve davvero: ne parliamo in venti minuti?\n\nLe propongo giovedì 8 ottobre alle 15.\n\nUn saluto',
+  s1: 'Salve Paolo,\n\nche impressione le ha fatto l’analisi su Serramenti Vetta? Bastano due righe.\n\nSe preferisce ne parliamo giovedì 8 ottobre alle 15.\n\nUn saluto',
+  s2: 'Salve Sara,\n\nriprendo l’analisi di luglio su Dolce Vita: per una pasticceria le settimane prima di Natale sono quelle che pesano di più.\n\nNe parliamo venerdì 9 ottobre alle 15:30?\n\nA presto',
+}
+function riscrivi(id, modo) {
+  const ta = $(`[data-bozza="${id}"]`); if (ta) S.posta.edit[id] = ta.value
+  const ora = bozzaDi(id)
+  if (modo === 'prima') { S.posta.edit[id] = S.posta.prima[id]; delete S.posta.prima[id]; render(); return }
+  S.posta.prima[id] ??= ora
+  const par = ora.split('\n\n')
+  let nuovo = ora
+  if (modo === 'corta') nuovo = CORTE[id] || [par[0], ...par.slice(1, -1).map((p) => p.split(/(?<=\.)\s/)[0].replace(/: se .*$/, '.')), par[par.length - 1]].join('\n\n')
+  if (modo === 'cordiale') nuovo = ora.replace(/^Salve ([^,]+),/, 'Buongiorno $1,\n\ngrazie per la risposta, fa piacere sentirla.').replace(/Un saluto$/, 'Un caro saluto, e buona giornata')
+  if (modo === 'giorno') nuovo = ora.replace(/Le propongo[^\n]*/, 'Mi dica lei il momento migliore: qui trova il calendario, scelga quando le torna comodo.')
+  S.posta.edit[id] = nuovo
+  render()
+  avviso(modo === 'corta' ? 'Clara l’ha accorciata' : modo === 'cordiale' ? 'Clara l’ha resa più cordiale' : 'Ora il giorno lo sceglie lui')
+}
+function passa(id) {
+  const a = az(id)
+  S.handoff = { az: id, quando: 'domani', nota: `${a.dove} Ha in mano: ${a.cosaHa.toLowerCase()}. Da tenere a mente: ${a.scomode.join(', ').toLowerCase() || 'niente di scomodo'}. Valore previsto ${a.valore.toLocaleString('it-IT', { useGrouping: 'always' })} € al mese.` }
+  S.layer = 'passa'; render()
+  $('[data-input="nota"]')?.focus()
+}
+function confermaPassa() {
+  const h = S.handoff, a = az(h.az)
+  const nota = $('[data-input="nota"]')?.value || h.nota
+  const prima = { tappa: a.tappa, palla: a.palla, prossimo: { ...a.prossimo } }
+  a.tappa = 'avvio'; a.palla = 'carlo'; a.prossimo = { cosa: 'Carlo prende in carico', quando: h.quando }
+  const tid = 'n' + Date.now()
+  S.task.push({ id: tid, titolo: `Prendi in carico ${a.nome}`, da: 'dre', a: 'carlo', azienda: a.id, scadenza: h.quando, stato: 'da accettare', nota })
+  const hid = 'h' + Date.now()
+  S.hey.push({ id: hid, a: 'carlo', da: 'dre', testo: `Ti ho passato ${a.nome}`, quando: ORA(), az: a.id, task: tid })
+  S.layer = null; S.scheda = null; S.handoff = null
+  render()
+  avviso(`${a.nome} è di Carlo. Ti dico io quando la prende`, () => { Object.assign(a, prima); S.task = S.task.filter((t) => t.id !== tid); S.hey = S.hey.filter((x) => x.id !== hid); render() })
+}
+function accetta(tid) {
+  const t = S.task.find((x) => x.id === tid); if (!t || t.stato !== 'da accettare') return
+  t.stato = 'in corso'
+  const a = az(t.azienda); a.prossimo = tid === 't1' ? { cosa: 'Avvio progetto', quando: 'lun 12, 10:00' } : { cosa: 'Preparare l’avvio', quando: 'venerdì' }
+  S.hey.push({ id: 'h' + Date.now(), a: t.da, da: t.a, testo: `Ho preso ${a.nome}`, quando: ORA(), az: a.id })
+  S.hey.filter((h) => h.task === tid).forEach((h) => (S.letti[h.id] = true))
+  render(); avviso(`${a.nome} è tua. ${persona(t.da).nome} lo vede in Hey!`)
+}
+function fatto(tid) {
+  const t = S.task.find((x) => x.id === tid); if (!t) return
+  const prima = t.stato
+  t.stato = 'fatto'
+  const hid = 'h' + Date.now()
+  S.hey.push({ id: hid, a: t.da, da: t.a, testo: `Fatto: ${t.titolo.toLowerCase()}`, quando: ORA(), az: t.azienda })
+  if (tid === 't3') az('a8').prossimo = { cosa: 'Primo report di prova', quando: '15/10' }
+  if (tid === 't2') az('a9').prossimo = { cosa: 'Report di ottobre', quando: '2/11' }
+  render(); avviso(`Fatto. ${persona(t.da).nome} lo vede in Hey!`, () => { t.stato = prima; S.hey = S.hey.filter((h) => h.id !== hid); render() })
+}
+function sposta(id, verso) {
+  S.passo = { az: id, verso, testo: '' }
+  S.layer = 'passo'; render(); $('[data-input="passo"]')?.focus()
+}
+function confermaPasso() {
+  const p = S.passo, a = az(p.az)
+  const prima = { tappa: a.tappa, prossimo: { ...a.prossimo }, palla: a.palla }
+  a.tappa = p.verso === 'si' ? 'risposta' : p.verso
+  const [cosa, ...q] = p.testo.split(',')
+  a.prossimo = { cosa: cosa.trim(), quando: q.join(',').trim() || 'da fissare' }
+  if (p.verso !== 'si') a.palla = 'loro'
+  S.layer = null; S.passo = null; S.tratt.focus = a.id
+  if (mobile()) S.tratt.col = p.verso
+  render()
+  avviso(`${a.nome} in ${COLONNE.find((c) => c.k === colDi(a)).nome}`, () => { Object.assign(a, prima); render() })
+}
+
+function act(a, el) {
+  const [k, ...r] = a.split(':'); const v = r.join(':')
+  switch (k) {
+    case 'chiudiStriscia': S.banner = false; render(); break
+    case 'vai': vai(v); break
+    case 'inizia': { const p = postaListe(); const x = p.te[0] || p.fila[0]; if (x) apriInPosta(x.id); else vai('posta'); break }
+    case 'posta': apriInPosta(v); break
+    case 'apri': S.posta.sel = v; S.posta.open = true; S.posta.chiama = false; render(); if (!mobile()) $(`[data-a="apri:${v}"]`)?.scrollIntoView({ block: 'nearest' }); break
+    case 'chiudiPosta': S.posta.open = false; render(); break
+    case 'split': S.posta.split = v; S.posta.sel = postaListe()[v][0]?.id || S.posta.sel; render(); break
+    case 'approva': approva(v); break
+    case 'lascia': decidi(v, 'lasciata', `${az((cn(v) || fu(v)).azienda).nome}: lasciata stare`); break
+    case 'rimanda': decidi(v, 'rimandata', `${az((cn(v) || fu(v)).azienda).nome}: torna domani alle 9`); break
+    case 'esito': { const [id, ...e] = v.split(':'); S.esito[id] = e.join(':'); const az10 = az(cn(id).azienda); const prima = { ...az10.prossimo }; if (/Fissata/.test(S.esito[id])) az10.prossimo = { cosa: 'Call conoscitiva', quando: 'gio 8, 11:00' }; else if (/richiamare/.test(S.esito[id])) az10.prossimo = { cosa: 'Richiamarlo', quando: 'domani' }; decidi(id, 'chiamato', `${az10.nome}: ${S.esito[id].toLowerCase()}`); break }
+    case 'mandata': { S.dec[v] = 'mandata'; render(); avviso('Segnata come mandata. La giornata avanza', () => { S.dec[v] = 'approvata'; render() }); break }
+    case 'copia': copia(bozzaDi(v)); avviso('Copiata di nuovo'); break
+    case 'riapri': delete S.dec[v]; S.posta.split = cn(v) ? 'te' : 'fila'; S.posta.sel = v; render(); break
+    case 'perche': S.posta.perche[v] = !S.posta.perche[v]; { const ta = $(`[data-bozza="${v}"]`); if (ta) S.posta.edit[v] = ta.value } render(); break
+    case 'riscrivi': { const [id, modo] = v.split(':'); riscrivi(id, modo); break }
+    case 'scheda': S.scheda = v; S.layer = null; S.lascia = false; render(); break
+    case 'chiudiScheda': S.scheda = null; S.lascia = false; render(); break
+    case 'lasciaAndare': S.lascia = true; render(); $('[data-input="motivo"]')?.focus(); break
+    case 'lasciaNo': S.lascia = false; render(); break
+    case 'pdf': avviso('Nel prototipo l’analisi non c’è: qui si apre il PDF'); break
+    case 'chiedi': S.layer = 'chiedi'; render(); $('[data-input="chiedi"]')?.focus(); break
+    case 'suggerisci': { const [dove, ...t] = v.split(':'); parlaAClara(t.join(':')); break }
+    case 'palette': S.layer = 'palette'; S.pal = { q: '', i: 0 }; render(); $('[data-input="palette"]')?.focus(); break
+    case 'pal': { const c = comandi()[+v]; S.layer = null; if (c) act(c.a); else render(); break }
+    case 'aiuto': S.layer = 'aiuto'; render(); break
+    case 'hey': S.layer = 'hey'; render(); break
+    case 'tuttiLetti': heyMiei().forEach((h) => (S.letti[h.id] = true)); render(); break
+    case 'heyApri': { const h = S.hey.find((x) => x.id === v); S.letti[v] = true; S.layer = null; if (h.az === 'a5' && S.who === 'dre' && !S.dec.c1) apriInPosta('c1'); else if (h.az) act('scheda:' + h.az); else render(); break }
+    case 'come': S.layer = 'come'; render(); break
+    case 'chi': S.who = v; S.view = 'oggi'; S.scheda = null; S.layer = null; S.posta.open = false; history.replaceState(null, '', '#oggi'); render(); avviso(`Ora vedi come ${persona(v).nome}`); break
+    case 'chiudiLayer': S.layer = null; render(); break
+    case 'annulla': if (S.undo) { const f = S.undo; S.undo = null; $('#avviso').innerHTML = ''; f() } break
+    case 'tvista': S.tratt.vista = v; render(); break
+    case 'tcol': S.tratt.col = v; render(); break
+    case 'ordina': S.tratt.sort = v; render(); break
+    case 'avanti': { const a = az(v); const i = COLONNE.findIndex((c) => c.k === colDi(a)); if (i < 2) sposta(v, COLONNE[i + 1].k); break }
+    case 'passa': passa(v); break
+    case 'hq': S.handoff.nota = $('[data-input="nota"]').value; S.handoff.quando = v; render(); break
+    case 'ps': S.passo.testo = v; render(); $('[data-input="passo"]')?.focus(); break
+    case 'accetta': accetta(v); break
+    case 'fatto': fatto(v); break
+    case 'sollecita': { const t = S.task.find((x) => x.id === v); S.hey.push({ id: 'h' + Date.now(), a: t.a, da: t.da, testo: `Ti ricordo: ${t.titolo.toLowerCase()}, scadeva ${t.scadenza}`, quando: ORA(), az: t.azienda, task: v }); render(); avviso(`${persona(t.a).nome} lo trova in Hey!`); break }
+    case 'blocco': { const t = S.task.find((x) => x.id === v); S.hey.push({ id: 'h' + Date.now(), a: t.da, da: t.a, testo: `Mi manca qualcosa su ${az(t.azienda).nome}: mi chiami?`, quando: ORA(), az: t.azienda }); render(); avviso(`${persona(t.da).nome} lo trova in Hey!`); break }
+    case 'fissaEdilnova': { S.dec.c2 = 'chiamato'; S.esito.c2 = 'conoscitiva fissata giovedì 8 alle 11'; az('a10').prossimo = { cosa: 'Call conoscitiva', quando: 'gio 8, 11:00' }; render(); avviso('Fissata: Clara gli manda l’invito da approvare'); break }
+    case 'cb': { const [i, ...az2] = v.split(':'); const m = filoClara()[+i]; const b = m.btn.find((x) => x.a === az2.join(':')); m.fatto = 'Hai scelto: ' + b.l.toLowerCase(); act(b.a); break }
+  }
+}
+
+// ─ eventi ─
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-a]')
+  if (!el) return
+  if (el.tagName === 'A') return
+  e.preventDefault()
+  act(el.dataset.a, el)
+})
+document.addEventListener('submit', (e) => {
+  e.preventDefault()
+  const f = e.target.dataset.form
+  if (f === 'chat' || f === 'chiedi') { const t = $(`[data-input="${f}"]`); const v = t.value.trim(); if (!v) return; t.value = ''; autoAlto(t); parlaAClara(v) }
+  if (f === 'passa') confermaPassa()
+  if (f === 'passo' && S.passo.testo.trim()) confermaPasso()
+  if (f === 'lascia') { const m = $('[data-input="motivo"]').value.trim(); if (!m) { $('[data-input="motivo"]').focus(); return } const a = az(S.scheda); const prima = a.tappa; a.tappa = 'perso'; S.scheda = null; S.lascia = false; render(); avviso(`${a.nome} lasciata andare: ${m}`, () => { a.tappa = prima; render() }) }
+})
+document.addEventListener('input', (e) => {
+  const t = e.target
+  if (t.matches('textarea[data-auto]')) autoAlto(t)
+  if (t.dataset.bozza) S.posta.edit[t.dataset.bozza] = t.value
+  if (t.dataset.input === 'palette') { S.pal.q = t.value; S.pal.i = 0; $('#pal-lista').innerHTML = paletteLista() }
+  if (t.dataset.input === 'passo') { S.passo.testo = t.value; const b = t.form.querySelector('button:not([type])'); b.disabled = !t.value.trim() }
+})
+document.addEventListener('focusout', (e) => {
+  const t = e.target
+  if (t.dataset?.modifica) { az(t.dataset.modifica).prossimo.cosa = t.textContent.trim(); avviso('Salvato') }
+})
+// trascinare le carte (da: Trello e Pipedrive, perché spostare è un gesto, non un menu)
+document.addEventListener('dragstart', (e) => { const c = e.target.closest?.('[data-card]'); if (!c) return; e.dataTransfer.setData('text/plain', c.dataset.card); c.classList.add('trascina') })
+document.addEventListener('dragend', (e) => { e.target.closest?.('[data-card]')?.classList.remove('trascina'); document.querySelectorAll('.col-sopra').forEach((x) => x.classList.remove('col-sopra')) })
+document.addEventListener('dragover', (e) => { const c = e.target.closest?.('[data-col]'); if (!c) return; e.preventDefault(); document.querySelectorAll('.col-sopra').forEach((x) => x !== c && x.classList.remove('col-sopra')); c.classList.add('col-sopra') })
+document.addEventListener('drop', (e) => { const c = e.target.closest?.('[data-col]'); if (!c) return; e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); c.classList.remove('col-sopra'); if (id && colDi(az(id)) !== c.dataset.col) sposta(id, c.dataset.col) })
+
+// ─ la tastiera ─
+// da: Linear, perché ogni azione frequente sta a uno o due tasti, e «?» le dice tutte
+let attesaG = false
+document.addEventListener('keydown', (e) => {
+  const t = e.target
+  const campo = t.matches('input, textarea, [contenteditable="true"]')
+  const meta = e.metaKey || e.ctrlKey
+  const k = e.key
+  if (meta && k.toLowerCase() === 'k') { e.preventDefault(); act('palette'); return }
+  if (meta && k.toLowerCase() === 'j') { e.preventDefault(); act('chiedi'); return }
+  if (meta && k === 'Enter') {
+    if (S.layer === 'passa') { e.preventDefault(); confermaPassa(); return }
+    if (t.dataset.bozza && S.who === 'dre') { e.preventDefault(); approva(t.dataset.bozza); return }
+  }
+  if (S.layer === 'palette' && (k === 'ArrowDown' || k === 'ArrowUp' || k === 'Enter')) {
+    e.preventDefault()
+    const n = comandi().length
+    if (k === 'Enter') { act('pal:' + S.pal.i); return }
+    S.pal.i = (S.pal.i + (k === 'ArrowDown' ? 1 : -1) + n) % n
+    $('#pal-lista').innerHTML = paletteLista(); $('#pal-lista .bg-\\[\\#E8F1FA\\]')?.scrollIntoView({ block: 'nearest' })
+    return
+  }
+  if ((S.layer === 'chiedi' || S.view === 'clara') && t.dataset.input && (t.dataset.input === 'chiedi' || t.dataset.input === 'chat') && k === 'Enter' && !e.shiftKey) { e.preventDefault(); t.form.requestSubmit(); return }
+  if (k === 'Escape') {
+    if (campo && !S.layer) { t.blur(); return }
+    if (S.layer) { S.layer = null; render(); return }
+    if (S.lascia) { S.lascia = false; render(); return }
+    if (S.scheda) { S.scheda = null; render(); return }
+    if (S.view === 'posta' && S.posta.open && mobile()) { S.posta.open = false; render(); return }
+    return
+  }
+  if (campo || meta || e.altKey) return
+  if (S.layer) return
+  if (k === '?') { act('aiuto'); return }
+  if (k.toLowerCase() === 'z' && S.undo) { act('annulla'); return }
+  if (k.toLowerCase() === 'v') { act('come'); return }
+  if (/^[1-5]$/.test(k) && NAV[S.who][+k - 1]) { vai(NAV[S.who][+k - 1]); return }
+  if (S.scheda) {
+    if (k.toLowerCase() === 'p' && az(S.scheda).tappa === 'tecnica') passa(S.scheda)
+    return
+  }
+  if (S.view === 'oggi' && k === 'Enter') {
+    const b = $('#vista .btn-p'); if (b) { e.preventDefault(); b.click() }
+    return
+  }
+  if (S.view === 'posta') {
+    const p = postaListe(); const l = p[S.posta.split]; const i = l.findIndex((x) => x.id === S.posta.sel)
+    if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); const n = l[Math.min(i + 1, l.length - 1)]; if (n) act('apri:' + n.id) }
+    else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); const n = l[Math.max(i - 1, 0)]; if (n) act('apri:' + n.id) }
+    else if (k === 'Tab') { e.preventDefault(); const ks = SPLIT.map((s) => s.k); act('split:' + ks[(ks.indexOf(S.posta.split) + (e.shiftKey ? 2 : 1)) % 3]) }
+    else if (k === 'Enter') { e.preventDefault(); if (mobile()) S.posta.open = true; render(); $('[data-bozza]')?.focus() }
+    else if (S.posta.sel && S.who === 'dre' && itemPosta(S.posta.sel) && !S.dec[S.posta.sel] && itemPosta(S.posta.sel).k !== 'auto') {
+      const id = S.posta.sel
+      if (k.toLowerCase() === 'e' && bozzaDi(id) !== null) approva(id)
+      else if (k === '#') act('lascia:' + id)
+      else if (k.toLowerCase() === 'h') act('rimanda:' + id)
+      else if (k.toLowerCase() === 's') act('scheda:' + itemPosta(id).az)
+    } else if (k.toLowerCase() === 's' && S.posta.sel && itemPosta(S.posta.sel)) act('scheda:' + itemPosta(S.posta.sel).az)
+    return
+  }
+  if (S.view === 'trattativa') {
+    if (k.toLowerCase() === 'b') { S.tratt.vista = S.tratt.vista === 'bacheca' ? 'tabella' : 'bacheca'; render(); return }
+    if (S.tratt.vista !== 'bacheca') return
+    const tutte = inTratt()
+    const cols = COLONNE.map((c) => tutte.filter((a) => colDi(a) === c.k).sort((x, y) => ordStato(x) - ordStato(y)))
+    let ci = 0, ri = 0
+    if (S.tratt.focus) { ci = cols.findIndex((c) => c.some((a) => a.id === S.tratt.focus)); ri = Math.max(0, cols[ci]?.findIndex((a) => a.id === S.tratt.focus)); if (ci < 0) ci = 0 }
+    const metti = (c, r) => { const col = cols[c]; if (!col?.length) return false; S.tratt.focus = col[Math.min(r, col.length - 1)].id; render(); return true }
+    if (k === 'ArrowRight' && e.shiftKey && S.tratt.focus) { e.preventDefault(); act('avanti:' + S.tratt.focus); return }
+    if (k === 'ArrowDown' || k === 'j') { e.preventDefault(); if (!S.tratt.focus) metti(0, 0); else metti(ci, ri + 1) }
+    else if (k === 'ArrowUp' || k === 'k') { e.preventDefault(); metti(ci, Math.max(0, ri - 1)) }
+    else if (k === 'ArrowRight' || k === 'l') { e.preventDefault(); for (let c = ci + 1; c < 3; c++) if (metti(c, ri)) break }
+    else if (k === 'ArrowLeft' || k === 'h') { e.preventDefault(); for (let c = ci - 1; c >= 0; c--) if (metti(c, ri)) break }
+    else if (k === 'Enter' && S.tratt.focus) { e.preventDefault(); act('scheda:' + S.tratt.focus) }
+    else if (k.toLowerCase() === 'p' && S.tratt.focus && az(S.tratt.focus).tappa === 'tecnica') passa(S.tratt.focus)
+  }
+})
+document.addEventListener('focusin', (e) => { const c = e.target.closest?.('[data-card]'); if (c) S.tratt.focus = c.dataset.card })
+window.addEventListener('resize', () => { clearTimeout(window.__r); window.__r = setTimeout(render, 120) })
+
+// ─ partenza: la sezione dall'indirizzo ─
+const h = location.hash.slice(1)
+if (VOCI[h]) { S.view = h; if (h === 'posta') primoInPosta() }
+render()
+})()
+</script>
+</body>
+</html>

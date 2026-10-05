@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FAF8F4">
+<link rel="icon" href="data:,">
+<title>V3, super minimal: Workspace Studio Galilei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1C2E6E; --blu:#2979C4; --avorio:#FAF8F4; --ink:#16204A;
+  --tenue:#646B8A; --spento:#A3A8BD; --bordo:#E9E4DA; --velo:#F2EFE9;
+  --ambra:#E59A0B; --ambra-t:#935A00; --ambra-bg:#FDF3E1;
+  --verde:#1F8A4C; --verde-t:#17693A; --verde-bg:#E7F4EC;
+  --rosso:#D43D32; --rosso-t:#B42D23; --rosso-bg:#FBE9E7;
+  --blu-bg:#E8F1FA; --blu-t:#1F65A8;
+  --w:680px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--avorio);color:var(--ink);font:500 15px/1.5 'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body.largo{--w:1040px}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--blu);outline-offset:2px;border-radius:10px}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* la striscia del laboratorio */
+.striscia{position:relative;display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 48px;background:var(--navy);color:#fff;font-size:12px;font-weight:600;letter-spacing:.01em}
+.striscia button{position:absolute;right:0;top:-6px;width:48px;height:44px;z-index:2;display:grid;place-items:center;color:#fff;opacity:.7}
+.striscia button:hover{opacity:1}
+
+/* testata: due parole e un volto */
+.testa{position:relative;max-width:var(--w);margin:0 auto;padding:14px 24px 0;display:flex;align-items:center;gap:4px}
+.lente{min-height:44px;padding:0 12px;border-radius:12px;font-size:15px;font-weight:600;color:var(--tenue);transition:color .15s ease-out}
+.lente:first-child{margin-left:-12px}
+.lente:hover{color:var(--navy)}
+.lente[aria-current="page"]{color:var(--navy);font-weight:800}
+.spazio{flex:1}
+.come{font-size:13px;font-weight:600;color:var(--tenue);margin-right:2px}
+.volto{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;margin-right:-4px}
+.volto span,.iniz{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px}
+.volto:hover span{box-shadow:0 0 0 3px var(--velo)}
+
+.menu{position:absolute;right:20px;top:62px;width:260px;background:#fff;border:1px solid var(--bordo);border-radius:18px;padding:8px;z-index:40;box-shadow:0 12px 32px rgba(28,46,110,.10)}
+.menu h3{margin:6px 10px 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--tenue)}
+.menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:0 10px;border-radius:12px;text-align:left}
+.menu button:hover{background:var(--velo)}
+.menu button b{display:block;font-size:14px;font-weight:700}
+.menu button small{display:block;font-size:12px;color:var(--tenue);font-weight:500}
+.menu .iniz{width:30px;height:30px;font-size:13px;flex:none}
+.menu .sep{height:1px;background:var(--velo);margin:6px 4px}
+.menu .spunta{margin-left:auto;color:var(--blu);font-weight:800}
+
+main{max-width:var(--w);margin:0 auto;padding:30px 24px 200px}
+
+/* Clara che parla: una frase */
+.chi{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin:-6px 0;font-size:13px;font-weight:700;color:var(--blu);border-radius:10px;padding-right:6px}
+.chi:hover{color:var(--navy)}
+.mark{width:10px;height:10px;border-radius:50%;background:var(--blu);box-shadow:0 0 0 4px var(--blu-bg);flex:none}
+.frase{margin:6px 0 0;font-size:27px;line-height:1.3;font-weight:800;color:var(--navy);letter-spacing:-.015em;text-wrap:balance}
+.sotto{margin:10px 0 0;font-size:16px;line-height:1.55;color:var(--tenue);text-wrap:pretty}
+.notizia{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:14px;font-weight:600;color:var(--verde-t)}
+.pallino{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.p-ambra{background:var(--ambra)} .p-blu{background:var(--blu)} .p-verde{background:var(--verde)} .p-rosso{background:var(--rosso)}
+.t-ambra{color:var(--ambra-t)} .t-blu{color:var(--blu-t)} .t-verde{color:var(--verde-t)} .t-rosso{color:var(--rosso-t)}
+
+.call{margin:18px 0 0 -12px;display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:12px;font-size:15px;color:var(--ink);text-align:left;max-width:calc(100% + 24px)}
+.call svg{flex:none;color:var(--tenue)}
+.call b{font-weight:700}
+.call .vai{color:var(--blu);font-weight:700;white-space:nowrap}
+.call:hover{background:var(--velo)}
+
+/* la cosa sola */
+.carta{margin-top:24px;background:#fff;border:1px solid var(--bordo);border-radius:22px;padding:24px 26px 20px}
+.carta.via{opacity:0;transform:translateX(-28px);transition:opacity .2s ease-in,transform .2s ease-in}
+.carta.entra{animation:entra .26s ease-out}
+@keyframes entra{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+.carta-testa{display:flex;align-items:baseline;gap:12px}
+.nome{display:inline-flex;align-items:center;min-height:44px;margin:-8px 0;font-size:21px;font-weight:800;color:var(--navy);text-align:left;letter-spacing:-.01em;border-radius:8px}
+.nome:hover{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1.5px}
+.eta{margin-left:auto;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.perche{margin:4px 0 0;display:flex;gap:9px;align-items:baseline;color:var(--tenue);font-size:15px}
+.perche .pallino{transform:translateY(-1px)}
+.corpo{margin:16px 0 0;font-size:16px;line-height:1.6;color:var(--ink)}
+.filo{margin-top:20px;display:flex;flex-direction:column;gap:8px}
+.bolla{max-width:86%;padding:10px 14px;border-radius:18px;font-size:15px;line-height:1.5}
+.bolla.loro{align-self:flex-start;background:var(--velo);border-bottom-left-radius:6px}
+.bolla.noi{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:6px}
+.bolla small{display:block;margin-top:3px;font-size:11px;font-weight:600;opacity:.6}
+.silenzio{align-self:center;margin:4px 0;font-size:12px;font-weight:600;color:var(--tenue)}
+.bozza{margin-top:18px;border-radius:16px;background:var(--avorio);border:1px solid var(--bordo);padding:14px 16px 4px;transition:border-color .15s ease-out}
+.bozza:focus-within{border-color:var(--blu)}
+.bozza label{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blu)}
+.bozza textarea{display:block;width:100%;border:0;background:transparent;resize:none;font:500 15px/1.6 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);padding:8px 0 10px;outline:none;overflow:hidden}
+.azioni{margin-top:16px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.primario{min-height:48px;padding:0 24px;border-radius:999px;background:var(--blu);color:#fff;font-weight:700;font-size:15px;transition:background-color .15s ease-out,transform .1s ease-out;white-space:nowrap}
+@media (hover:hover){.primario:hover{background:var(--navy)}}
+.primario:active{transform:scale(.98)}
+.primario.ok{background:var(--verde)}
+@media (hover:hover){.primario.ok:hover{background:var(--verde-t)}}
+.secondario{min-height:44px;padding:0 14px;border-radius:999px;color:var(--tenue);font-weight:600;font-size:14px;transition:background-color .15s ease-out,color .15s ease-out}
+.secondario:hover{background:var(--velo);color:var(--navy)}
+.azioni .primario{margin-right:8px}
+.hint{margin:10px 0 0;font-size:13px;color:var(--tenue)}
+
+.poi{margin:20px 0 0;font-size:14px;color:var(--tenue);line-height:1.5}
+.poi b{color:var(--ink);font-weight:700;margin-right:4px}
+.poi button{font-weight:600;color:var(--ink);border-radius:6px;padding:2px 0}
+.poi button:hover{color:var(--blu)}
+.dasole{margin:10px 0 0;display:flex;gap:9px;align-items:baseline;font-size:14px;color:var(--tenue)}
+.dasole button{font-weight:600;color:var(--blu-t);white-space:nowrap;min-height:44px;margin:-12px 0;padding:0 6px}
+.filo-tutto{align-self:center;min-height:44px;padding:0 12px;font-size:13px;font-weight:600;color:var(--tenue);border-radius:10px}
+.filo-tutto:hover{color:var(--navy)}
+.dasole-lista{margin:8px 0 0 17px;font-size:14px;color:var(--tenue)}
+.dasole-lista button{display:block;text-align:left;min-height:36px;color:var(--ink);font-weight:600}
+.dasole-lista button span{color:var(--tenue);font-weight:500}
+
+/* viste "tutto" */
+.colonne{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;margin-top:34px}
+.col h2,.blocco h2,.tit{margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--tenue)}
+.col h2 span{margin-left:6px;color:var(--spento);font-variant-numeric:tabular-nums}
+.riga{display:flex;gap:11px;align-items:baseline;width:calc(100% + 24px);text-align:left;padding:10px 12px;margin:0 -12px;border-radius:14px;min-height:56px}
+.riga:hover{background:#fff}
+.riga .pallino{transform:translateY(-2px)}
+.riga b{display:block;font-size:15px;font-weight:700;color:var(--ink)}
+.riga small{display:block;font-size:13px;color:var(--tenue);font-weight:500}
+.dopo-carlo{margin-top:40px;padding-top:22px;border-top:1px solid var(--bordo)}
+.dopo-carlo .righe{display:grid;grid-template-columns:repeat(3,1fr);gap:0 40px}
+.barra-prova{display:block;height:4px;border-radius:2px;background:var(--velo);margin-top:6px;width:160px;overflow:hidden}
+.barra-prova i{display:block;height:100%;background:var(--blu)}
+.numeri{margin-top:28px;border-top:1px solid var(--bordo)}
+.numeri div{display:flex;align-items:baseline;gap:16px;min-height:60px;padding:14px 0;border-bottom:1px solid var(--bordo)}
+.numeri b{font-size:28px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;min-width:72px}
+.numeri span{font-size:15px;color:var(--ink)}
+.numeri small{display:block;font-size:13px;color:var(--tenue)}
+.tab-wrap{overflow-x:auto;background:#fff;border:1px solid var(--bordo);border-radius:18px;margin-top:12px;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
+th{text-align:left;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--tenue);padding:12px 16px;border-bottom:1px solid var(--bordo);background:#fff;white-space:nowrap}
+td{padding:0 16px;height:50px;border-bottom:1px solid var(--velo);white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--avorio)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700}
+.pill.ambra{background:var(--ambra-bg);color:var(--ambra-t)} .pill.blu{background:var(--blu-bg);color:var(--blu-t)} .pill.verde{background:var(--verde-bg);color:var(--verde-t)} .pill.rosso{background:var(--rosso-bg);color:var(--rosso-t)}
+.chip-iniz{display:inline-flex;align-items:center;gap:8px}
+.chip-iniz .iniz{width:22px;height:22px;font-size:11px}
+.soldi{margin-top:12px;font-size:15px;color:var(--tenue)}
+.soldi b{color:var(--ink);font-weight:700}
+
+/* la scheda */
+.indietro{display:inline-flex;align-items:center;gap:4px;min-height:44px;margin-left:-10px;padding:0 10px;color:var(--blu);font-weight:700;font-size:14px;border-radius:12px}
+.indietro:hover{background:var(--velo)}
+.scheda h1{font-size:32px;line-height:1.2;font-weight:800;color:var(--navy);margin:10px 0 4px;letter-spacing:-.02em}
+.chi-e{margin:0;color:var(--tenue);font-size:15px}
+.evento{margin-top:16px;display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:0 14px;border-radius:999px;font-weight:700;font-size:13px}
+.blocco{margin-top:30px}
+.blocco p{margin:0;font-size:17px;line-height:1.6}
+.blocco ol{margin:0;padding:0;list-style:none;counter-reset:n}
+.blocco ol li{counter-increment:n;display:flex;gap:12px;font-size:17px;line-height:1.6;padding:2px 0}
+.blocco ol li::before{content:counter(n);font-weight:800;color:var(--blu);min-width:12px}
+.stato-passaggio{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600}
+.link{color:var(--blu);font-weight:700;border-radius:6px}
+.link:hover{color:var(--navy)}
+.scheda .azioni{margin-top:34px}
+
+/* il dock: la barra di Clara e, sul telefono, l'azione sotto il pollice */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 16px calc(14px + env(safe-area-inset-bottom));background:rgba(250,248,244,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.dock-in{position:relative;max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.dock-btn{display:none;width:100%;min-height:54px;font-size:16px}
+.barra{display:flex;align-items:center;gap:8px;height:54px;padding:0 7px 0 16px;background:#fff;border:1px solid var(--bordo);border-radius:27px;box-shadow:0 1px 2px rgba(28,46,110,.05),0 8px 24px rgba(28,46,110,.06);transition:border-color .15s ease-out}
+.barra:focus-within{border-color:var(--blu)}
+.barra input{flex:1;min-width:0;height:100%;border:0;outline:none;background:transparent;font:500 16px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.barra input::placeholder{color:var(--spento)}
+.manda{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--blu);color:#fff;flex:none;transition:opacity .15s ease-out}
+.manda:disabled{opacity:.25;cursor:default}
+.risultati{position:absolute;left:0;right:0;bottom:64px;background:#fff;border:1px solid var(--bordo);border-radius:18px;padding:6px;box-shadow:0 12px 32px rgba(28,46,110,.10)}
+.risultati button{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 12px;border-radius:12px;text-align:left}
+.risultati button:hover,.risultati button.sel{background:var(--velo)}
+.risultati b{font-weight:700}
+.risultati small{margin-left:auto;font-size:12px;color:var(--tenue)}
+
+/* Clara come una chat */
+.ombra{position:fixed;inset:0;background:rgba(22,32,74,.28);z-index:50;animation:appare .18s ease-out}
+@keyframes appare{from{opacity:0}}
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(680px,100%);height:min(78vh,720px);background:var(--avorio);border-radius:24px 24px 0 0;z-index:51;display:flex;flex-direction:column;animation:sale .24s ease-out}
+@keyframes sale{from{transform:translate(-50%,40px);opacity:0}}
+.sheet-testa{display:flex;align-items:center;gap:10px;padding:12px 10px 12px 22px;border-bottom:1px solid var(--bordo)}
+.sheet-testa b{font-size:16px;font-weight:800;color:var(--navy)}
+.sheet-testa small{display:block;font-size:12px;color:var(--tenue);font-weight:500}
+.chiudi{margin-left:auto;min-height:44px;padding:0 14px;border-radius:12px;font-weight:700;font-size:14px;color:var(--blu)}
+.chiudi:hover{background:var(--velo)}
+.messaggi{flex:1;overflow-y:auto;padding:20px 20px 8px;display:flex;flex-direction:column;gap:6px}
+.msg{max-width:82%;padding:9px 14px 7px;border-radius:18px;font-size:15px;line-height:1.5;animation:entra-msg .2s ease-out}
+@keyframes entra-msg{from{opacity:0;transform:translateY(6px)}}
+.msg small{display:block;text-align:right;font-size:10px;font-weight:600;opacity:.55;margin-top:1px}
+.msg.clara{align-self:flex-start;background:#fff;border:1px solid var(--bordo);border-bottom-left-radius:6px}
+.msg.io{align-self:flex-end;background:var(--blu);color:#fff;border-bottom-right-radius:6px}
+.msg.scrive{color:var(--tenue);letter-spacing:.2em}
+.giorno{align-self:center;font-size:11px;font-weight:700;color:var(--tenue);margin:4px 0 8px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-self:flex-start;margin:4px 0 10px}
+.chip{min-height:44px;padding:0 18px;border-radius:999px;border:1.5px solid var(--blu);color:var(--blu);font-weight:700;font-size:14px;background:#fff;transition:background-color .15s ease-out}
+.chip:hover{background:var(--blu-bg)}
+.sheet form{padding:10px 16px calc(14px + env(safe-area-inset-bottom))}
+
+.aiuto{padding:8px 24px 28px;overflow-y:auto}
+.aiuto ol{margin:12px 0 0;padding:0;list-style:none;counter-reset:n}
+.aiuto li{counter-increment:n;display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--bordo);font-size:16px;line-height:1.55}
+.aiuto li::before{content:counter(n);font-weight:800;color:var(--blu);min-width:14px}
+.aiuto kbd{font:700 12px 'Plus Jakarta Sans',sans-serif;background:#fff;border:1px solid var(--bordo);border-radius:6px;padding:1px 6px}
+
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:6px;width:max-content;max-width:calc(100% - 32px);min-height:52px;padding:4px 6px 4px 18px;border-radius:999px;background:var(--ink);color:#fff;font-size:14px;font-weight:600;animation:sale-t .2s ease-out}
+@keyframes sale-t{from{opacity:0;transform:translate(-50%,8px)}}
+.toast button{min-height:44px;flex:none;padding:0 14px;border-radius:999px;color:#9CC8F2;font-weight:700}
+.toast button:hover{background:rgba(255,255,255,.1)}
+.toast span{padding-right:12px}
+
+@media (max-width:759px){
+  .testa{padding:8px 16px 0}
+  main{padding:20px 20px 210px}
+  .frase{font-size:22px}
+  .carta{margin-top:20px;padding:20px 18px 14px;border-radius:20px}
+  .nome{font-size:19px}
+  .azioni .primario{display:none}
+  .dock-btn.si{display:block}
+  .toast{bottom:150px}
+  .colonne,.dopo-carlo .righe{grid-template-columns:1fr;gap:26px}
+  .dopo-carlo .righe{gap:0}
+  .scheda h1{font-size:27px}
+  .blocco p,.blocco ol li{font-size:16px}
+  .scheda .azioni .primario{display:none}
+  .sheet{height:100%;border-radius:0}
+  .menu{right:12px;top:56px}
+  .poi button{min-height:44px;display:inline-flex;align-items:center}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="striscia" id="striscia"><span>V3, super minimal: prototipo con dati finti</span><button data-act="chiudi-striscia" aria-label="Chiudi la striscia"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+<header class="testa" id="testa"></header>
+<main id="main"></main>
+
+<div class="dock" id="dock">
+  <div class="dock-in">
+    <div class="risultati" id="risultati" hidden></div>
+    <button class="primario dock-btn" id="dockBtn" data-act="primario"></button>
+    <form class="barra" id="barra" autocomplete="off">
+      <span class="mark" aria-hidden="true"></span>
+      <label class="sr" for="barraIn">Scrivi a Clara o cerca un’azienda</label>
+      <input id="barraIn" placeholder="Scrivi a Clara o cerca un’azienda" enterkeyhint="send">
+      <button class="manda" id="barraManda" aria-label="Manda" disabled><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </form>
+  </div>
+</div>
+
+<div id="strato"></div>
+<div id="toast"></div>
+
+<script src="dati.js"></script>
+<script>
+(function(){
+'use strict';
+var L = window.LAB;
+var AZ = {}; L.aziende.forEach(function(a){ AZ[a.id] = a; });
+var P = {}; L.squadra.forEach(function(p){ P[p.id] = p; });
+var $ = function(s){ return document.querySelector(s); };
+
+var S = {
+  io:'dre', vista:'adesso', aid:null, prima:'adesso',
+  fatti:{}, passi:{}, coda:[], focus:null, bozze:{},
+  task:{}, passate:{}, sollecito:null, notizie:[],
+  chat:{}, clara:false, aiuto:false, menu:false, striscia:true, dasole:false, filo:false,
+  entra:false, toast:null
+};
+
+/* piccoli aiuti */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function migliaia(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function euro(n){ return migliaia(n) + '\u00a0€'; }
+function clic(n){ return n.toFixed(2).replace('.', ',') + '\u00a0€'; }
+function ddmm(iso){ var p = iso.split('-'); return (+p[2]) + '/' + (+p[1]); }
+function giorniDa(iso){ return Math.round((new Date(L.oggi) - new Date(iso)) / 864e5); }
+function unisci(v){ if (v.length < 2) return v.join(''); return v.slice(0, -1).join(', ') + ' e ' + v[v.length - 1]; }
+function maiusc(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+function iniz(id, cls){ var p = P[id]; return '<span class="iniz ' + (cls || '') + '" style="background:' + p.colore + '">' + p.nome[0] + '</span>'; }
+function stretto(){ return window.matchMedia('(max-width:759px)').matches; }
+var ORE = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 4.6V8l2.3 1.4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+
+var LENTE2 = { dre:'Trattativa', carlo:'Clienti', giacomo:'Tabella', lorenzo:'Numeri', salvatore:'Progetti', alex:'Task' };
+var TAPPA = { risposta:'ha risposto', analisi:'analisi mandata', follow_up:'follow-up', conoscitiva:'conoscitiva', tecnica:'tecnica', avvio:'avvio', prova:'prova', cliente:'cliente' };
+
+/* ============ la fila: tutto quello che aspetta chi guarda ============ */
+function conv(id){ return L.conversazioni.filter(function(c){ return c.id === id; })[0]; }
+function seg(id){ return L.seguiti.filter(function(s){ return s.id === id; })[0]; }
+
+function tutteLeCose(io){
+  var l = [], t = S.task;
+  if (io === 'dre'){
+    var c2 = conv('c2'), c1 = conv('c1'), s1 = seg('s1'), s2 = seg('s2');
+    l.push({ id:'c2', aid:'a10', tipo:'chiama', tono:'ambra', eta:'da 2 giorni', numero:'347 000 0000',
+      perche:'Ha scritto «mi chiami»: preferisce il telefono', filo:c2.filo });
+    l.push({ id:'c1', aid:'a5', tipo:'bozza', tono:'ambra', eta:'da 3 ore',
+      perche:'Ha chiesto il prezzo: la risposta è pronta', filo:c1.filo, bozza:c1.bozza, etBozza:'La risposta di Clara' });
+    var g3 = giorniDa(AZ.a3.ultima), g6 = giorniDa(AZ.a6.ultima);
+    l.push({ id:'s1', aid:'a3', tipo:'bozza', tono:'ambra', eta:'tace da ' + g3 + ' giorni',
+      perche:'Follow-up pronto: propone ' + s1.giorno,
+      filo:[{ chi:'noi', quando:ddmm(AZ.a3.ultima), testo:'Le lascio l’analisi su Serramenti Vetta: come vi trova chi cerca infissi a Treviso, e dove si perdono i contatti.' }],
+      silenzio:'Poi silenzio, da ' + g3 + ' giorni', bozza:s1.bozza, etBozza:'Il follow-up di Clara' });
+    l.push({ id:'s2', aid:'a6', tipo:'bozza', tono:'rosso', eta:'tace da ' + g6 + ' giorni',
+      perche:'Ripresa pronta: propone ' + s2.giorno,
+      filo:[{ chi:'noi', quando:ddmm(AZ.a6.ultima), testo:'Le lascio l’analisi su Dolce Vita: come vi trova chi cerca una pasticceria a Bologna. Ne riparliamo dopo le ferie?' }],
+      silenzio:'Poi le ferie, e silenzio da ' + g6 + ' giorni', bozza:s2.bozza, etBozza:'La ripresa di Clara' });
+    if (t.t5 !== 'fatto') l.push({ id:'t5', task:'t5', aid:'a2', tipo:'fatto', tono:'ambra', eta:'entro giovedì', etFatto:'Fatto, è pronto',
+      perche:'Il preventivo, da finire prima della tecnica',
+      corpo:'Clara l’ha impostato dalla conoscitiva del 1/10: implantologia, circa ' + euro(AZ.a2.valore) + ' al mese. Manca il tuo ritocco sul prezzo.' });
+  }
+  if (io === 'carlo'){
+    if (S.passate.a2 && S.passate.a2.stato === 'da accettare') l.push({ id:'pass-a2', aid:'a2', tipo:'prendi', tono:'ambra', eta:'adesso',
+      perche:'Te l’ha passata Dre: la tecnica è giovedì alle 15:30', corpo:AZ.a2.dove, passaggio:'a2' });
+    if (t.t1 !== 'accettata') l.push({ id:'t1', task:'t1', aid:'a7', tipo:'prendi', tono:'ambra', eta:'oggi',
+      perche:'Te l’ha passata Dre: si parte lunedì 12 alle 10', corpo:AZ.a7.dove + ' Budget pubblicitario ancora da definire.' });
+    if (t.t3 !== 'fatto') l.push({ id:'t3-carlo', aid:'a8', tipo:'sollecita', tono:'rosso', eta:'era per ieri',
+      perche:'Alex non ha ancora gli accessi Google Ads', corpo:'Senza accessi la prova di Palestra Forma non si misura: siamo al giorno 21 di 60.' });
+  }
+  if (io === 'giacomo'){
+    if (t.t3 !== 'fatto') l.push({ id:'t3-giacomo', aid:'a8', tipo:'sollecita', tono:'rosso', eta:'era per ieri',
+      perche:'Accessi Google Ads: li ha Alex, li aspetta Carlo', corpo:'Senza accessi la prova di Palestra Forma non si misura: siamo al giorno 21 di 60.' });
+    if (t.t4 !== 'fatto') l.push({ id:'t4', task:'t4', aid:'a8', tipo:'fatto', tono:'ambra', eta:'entro venerdì',
+      perche:'La fattura della prova: te l’ha chiesta Dre', corpo:'Prova di 2 mesi iniziata il 15/9, ' + euro(AZ.a8.valore) + ' al mese.' });
+  }
+  if (io === 'salvatore'){
+    if (t.t2 !== 'fatto') l.push({ id:'t2', task:'t2', aid:'a9', tipo:'fatto', tono:'ambra', eta:'entro domani', etFatto:'Fatto, mandato',
+      perche:'Il report di settembre: te l’ha passato Giacomo', corpo:'Cliente da agosto, retainer di ' + euro(AZ.a9.valore) + ' al mese.' });
+  }
+  if (io === 'alex'){
+    if (t.t3 !== 'fatto') l.push({ id:'t3', task:'t3', aid:'a8', tipo:'fatto', tono:'rosso', eta:'era per ieri',
+      perche:'Accessi Google Ads: te li ha chiesti Carlo',
+      corpo:'Senza accessi la prova di Palestra Forma non si misura.' + (S.sollecito ? ' ' + P[S.sollecito].nome + ' ti ha appena sollecitato.' : '') });
+  }
+  return l.filter(function(x){ return !S.fatti[x.id]; });
+}
+function fila(){
+  var l = tutteLeCose(S.io);
+  var a = l.filter(function(x){ return S.coda.indexOf(x.id) < 0; });
+  var b = S.coda.map(function(id){ return l.filter(function(x){ return x.id === id; })[0]; }).filter(Boolean);
+  var r = a.concat(b);
+  if (S.focus){ var i = -1; r.forEach(function(x, k){ if (x.id === S.focus) i = k; }); if (i > 0) r.unshift(r.splice(i, 1)[0]); }
+  return r;
+}
+
+/* la frase di Clara: lo stato della giornata in una riga */
+function frase(l){
+  var has = function(id){ return l.some(function(x){ return x.id === id; }); };
+  var v = [];
+  if (S.io === 'dre'){
+    if (has('c2')) v.push('Edilnova vuole una telefonata');
+    if (has('c1')) v.push('Officina Moretti aspetta una risposta');
+    var f = ['s1', 's2'].filter(has).length;
+    if (f) v.push(f === 2 ? 'ho preparato 2 follow-up' : 'ho preparato un follow-up');
+    if (!v.length && has('t5')) v.push('resta il preventivo di Studio Dentistico Riva, per giovedì');
+  }
+  if (S.io === 'carlo'){
+    var p = []; if (has('pass-a2')) p.push('Studio Dentistico Riva'); if (has('t1')) p.push('Impianti Solari Nord');
+    if (p.length) v.push('Dre ti ha passato ' + unisci(p));
+    if (has('t3-carlo')) v.push('Alex è indietro con gli accessi di Palestra Forma');
+  }
+  if (S.io === 'giacomo'){
+    if (has('t3-giacomo')) v.push('gli accessi di Palestra Forma sono in ritardo');
+    if (has('t4')) v.push('la fattura della prova è per venerdì');
+  }
+  if (S.io === 'salvatore' && has('t2')) v.push('Giacomo ti ha passato il report di Cantina Le Vigne: serve per domani');
+  if (S.io === 'alex' && has('t3')) v.push('gli accessi di Palestra Forma erano per ieri: Carlo li aspetta');
+  if (v.some(function(x){ return / e /.test(x); })) return v.map(maiusc).join('. ') + '.';
+  return maiusc(unisci(v)) + '.';
+}
+function vuoto(){
+  var fd = ['s1', 's2'].filter(function(i){ return !S.fatti[i]; }).length;
+  return {
+    dre:['Fatto. La giornata è chiusa.', 'Tutti i sì hanno l’analisi e i follow-up dovuti sono partiti.'],
+    carlo:['Niente aspetta te.', 'Lunedì alle 10 parte Impianti Solari Nord.'],
+    giacomo:['Niente aspetta te.', 'Il canone del mese è a ' + euro(L.soldi.canoneMese) + ', con una prova in corso.'],
+    lorenzo:['Corre tutto da solo.', 'Oggi ' + L.outbound.risposteOggi + ' risposte e ' + L.outbound.consegneOggi + ' consegne partite con l’analisi. Nessun sì senza analisi, caselle sane al ' + L.outbound.caselleSane + '%.' + (fd ? ' ' + (fd === 2 ? 'I 2 follow-up dovuti' : 'Il follow-up dovuto') + ' li approva Dre.' : '')],
+    salvatore:['Niente aspetta te.', 'Cantina Le Vigne è a posto fino al prossimo report.'],
+    alex:['Niente aspetta te.', 'Quando qualcuno ti passa una cosa, compare qui.']
+  }[S.io];
+}
+
+function primarioDi(it){
+  var st = S.passi[it.id];
+  if (it.tipo === 'bozza') return { t: st ? 'Fatto, l’ho mandata' : 'Approva e copia', ok:!!st };
+  if (it.tipo === 'chiama') return { t: st ? 'Fatto, l’ho chiamato' : 'Chiama ' + it.numero, ok:!!st };
+  if (it.tipo === 'prendi') return { t:'Prendi in carico' };
+  if (it.tipo === 'sollecita') return { t:'Sollecita Alex' };
+  return { t: it.etFatto || 'Fatto' };
+}
+
+/* ============ disegno ============ */
+function testa(){
+  var me = P[S.io];
+  var h = '<nav class="lenti" aria-label="Viste" style="display:flex">' +
+    '<button class="lente" data-act="vai" data-arg="adesso"' + (S.vista === 'adesso' ? ' aria-current="page"' : '') + '>Adesso</button>' +
+    '<button class="lente" data-act="vai" data-arg="tutto"' + (S.vista === 'tutto' ? ' aria-current="page"' : '') + '>' + LENTE2[S.io] + '</button></nav>' +
+    '<span class="spazio"></span>' +
+    (S.io !== 'dre' ? '<span class="come">come ' + esc(me.nome) + '</span>' : '') +
+    '<button class="volto" data-act="menu" aria-label="Vedi come un’altra persona" aria-expanded="' + S.menu + '"><span style="background:' + me.colore + '">' + me.nome[0] + '</span></button>';
+  if (S.menu){
+    h += '<div class="menu" role="menu"><h3>Vedi come</h3>' + L.squadra.map(function(p){
+      return '<button role="menuitem" data-act="io" data-arg="' + p.id + '">' + iniz(p.id) + '<span><b>' + esc(p.nome) + '</b><small>' + esc(p.ruolo) + '</small></span>' + (p.id === S.io ? '<span class="spunta" aria-label="adesso">✓</span>' : '') + '</button>';
+    }).join('') + '<div class="sep"></div><button role="menuitem" data-act="aiuto"><span style="width:30px;text-align:center;font-weight:800;color:var(--blu)">?</span><span><b>Come si usa</b></span></button></div>';
+  }
+  return h;
+}
+
+function notizie(){
+  return S.notizie.filter(function(n){ return n.per === S.io; }).slice(-2).map(function(n){
+    return '<p class="notizia"><i class="pallino p-verde"></i>' + esc(n.t) + '</p>';
+  }).join('');
+}
+
+function callLine(){
+  if (S.io === 'dre') return '<button class="call" data-act="scheda" data-arg="a1">' + ORE + '<span><b>Oggi alle 15</b>, Ferramenta Bassi, conoscitiva. <span class="vai">La scheda</span></span></button>';
+  if (S.io === 'carlo') return '<button class="call" data-act="scheda" data-arg="a2">' + ORE + '<span><b>Giovedì alle 15:30</b>, Studio Dentistico Riva, tecnica con Dre. <span class="vai">La scheda</span></span></button>';
+  return '';
+}
+
+function bolle(filo){
+  return filo.map(function(b){
+    return '<div class="bolla ' + b.chi + '">' + esc(b.testo) + '<small>' + (b.chi === 'noi' ? 'Lorenzo, ' : '') + esc(b.quando) + '</small></div>';
+  }).join('');
+}
+
+function carta(it, quanti){
+  var a = AZ[it.aid], pr = primarioDi(it);
+  var h = '<article class="carta' + (S.entra ? ' entra' : '') + '" aria-label="' + esc(a.nome) + '">' +
+    '<div class="carta-testa"><button class="nome" data-act="scheda" data-arg="' + a.id + '">' + esc(a.nome) + '</button>' +
+    '<span class="eta t-' + it.tono + '">' + esc(it.eta) + '</span></div>' +
+    '<p class="perche"><i class="pallino p-' + it.tono + '"></i><span>' + esc(it.perche) + '</span></p>';
+  if (it.filo){
+    var tutti = S.filoCarta === it.id, vis = tutti ? it.filo : it.filo.slice(-1);
+    h += '<div class="filo">' + (it.filo.length > 1 ? '<button class="filo-tutto" data-act="filo-carta" data-arg="' + it.id + '">' + (tutti ? 'Solo l’ultimo messaggio' : 'Il filo intero, ' + it.filo.length + ' messaggi') + '</button>' : '') + bolle(vis) + (it.silenzio ? '<p class="silenzio">' + esc(it.silenzio) + '</p>' : '') + '</div>';
+  }
+  if (it.corpo) h += '<p class="corpo">' + esc(it.corpo) + '</p>';
+  if (it.bozza){
+    var txt = S.bozze[it.id] != null ? S.bozze[it.id] : it.bozza;
+    h += '<div class="bozza"><label for="bz-' + it.id + '">' + esc(it.etBozza) + '</label><textarea id="bz-' + it.id + '" data-bozza="' + it.id + '" rows="6">' + esc(txt) + '</textarea></div>';
+  }
+  h += '<div class="azioni"><button class="primario' + (pr.ok ? ' ok' : '') + '" data-act="primario">' + esc(pr.t) + '</button>';
+  if (quanti > 1) h += '<button class="secondario" data-act="dopo" data-arg="' + it.id + '">Dopo</button>';
+  if (it.bozza) h += '<button class="secondario" data-act="cambia" data-arg="' + it.id + '">Cambiala con Clara</button>';
+  else h += '<button class="secondario" data-act="scheda" data-arg="' + a.id + '">Scheda</button>';
+  h += '</div>';
+  if (S.passi[it.id] && it.tipo === 'bozza') h += '<p class="hint">Copiata. Incollala in Smartlead, poi torna qui.</p>';
+  if (S.passi[it.id] && it.tipo === 'chiama') h += '<p class="hint">Quando hai chiuso la telefonata, segnala qui.</p>';
+  return h + '</article>';
+}
+
+function adesso(){
+  var l = fila(), h = notizie();
+  h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button>';
+  if (!l.length){
+    var v = vuoto();
+    h += '<h1 class="frase">' + esc(v[0]) + '</h1><p class="sotto">' + esc(v[1]) + '</p>' + callLine();
+    if (S.io === 'lorenzo') h += '<p class="poi"><button data-act="vai" data-arg="tutto" class="link">Vedi i numeri</button></p>';
+    return h;
+  }
+  h += '<h1 class="frase">' + esc(frase(l)) + '</h1>' + callLine() + carta(l[0], l.length);
+  if (l.length > 1){
+    h += '<p class="poi"><b>Poi</b>' + l.slice(1).map(function(x){
+      return '<button data-act="focus" data-arg="' + x.id + '">' + esc(AZ[x.aid].nome) + '</button>';
+    }).join(', ') + '</p>';
+  }
+  if (S.io === 'dre'){
+    h += '<p class="dasole"><i class="pallino p-blu"></i><span>Da sole oggi: ' + L.outbound.consegneOggi + ' consegne con l’analisi, nessun sì senza analisi. <button data-act="dasole" aria-expanded="' + S.dasole + '">' + (S.dasole ? 'Chiudi' : 'Quali') + '</button></span></p>';
+    if (S.dasole) h += '<div class="dasole-lista"><button data-act="scheda" data-arg="a4">Agriturismo Colle Verde <span>analisi partita da sola il 4/10</span></button><button data-act="scheda" data-arg="a10">Edilnova Costruzioni <span>call proposta giovedì 8</span></button></div>';
+  }
+  S.entra = false;
+  return h;
+}
+
+/* lo stato di un'azienda, col colore che ritorna */
+function statoAz(id){
+  var f = S.fatti, pa = S.passate.a2;
+  switch(id){
+    case 'a5': return f.c1 ? ['verde', 'risposta partita oggi'] : ['ambra', 'ha chiesto il prezzo: risposta pronta'];
+    case 'a4': return ['blu', 'analisi partita da sola il 4/10'];
+    case 'a3': return f.s1 ? ['verde', 'follow-up partito oggi'] : ['ambra', 'tace da ' + giorniDa(AZ.a3.ultima) + ' giorni: follow-up pronto'];
+    case 'a6': return f.s2 ? ['verde', 'ripresa partita oggi'] : ['rosso', 'ferma da luglio: ripresa pronta'];
+    case 'a1': return ['ambra', 'conoscitiva oggi alle 15'];
+    case 'a10': return f.c2 ? ['verde', 'chiamato oggi'] : ['ambra', 'vuole una telefonata, da 2 giorni'];
+    case 'a2': return pa ? (pa.stato === 'presa' ? ['verde', 'presa da Carlo, tecnica giovedì'] : ['blu', 'passata a Carlo, deve prenderla']) : ['blu', 'tecnica giovedì alle 15:30 con Carlo'];
+    case 'a7': return S.task.t1 === 'accettata' ? ['verde', 'presa da Carlo, si parte lunedì'] : ['blu', 'passata a Carlo, deve prenderla'];
+    case 'a8': return S.task.t3 === 'fatto' ? ['blu', 'prova, giorno 21 di 60'] : ['rosso', 'prova, giorno 21 di 60: accessi in ritardo'];
+    case 'a9': return S.task.t2 === 'fatto' ? ['verde', 'cliente, report di settembre mandato'] : ['blu', 'cliente, report di settembre per domani'];
+  }
+  return ['blu', ''];
+}
+function riga(id, extra){
+  var s = statoAz(id);
+  return '<button class="riga" data-act="scheda" data-arg="' + id + '"><i class="pallino p-' + s[0] + '"></i><span><b>' + esc(AZ[id].nome) + '</b><small>' + esc(s[1]) + '</small>' + (extra || '') + '</span></button>';
+}
+
+function tutto(){
+  var io = S.io, h = '';
+  if (io === 'dre'){
+    var cols = [['Hanno detto sì', ['a5', 'a3', 'a6', 'a4']], ['Conoscitiva', ['a1', 'a10']], ['Tecnica', ['a2']]];
+    var fermo = S.fatti.s2 ? '' : ' Il più fermo è Pasticceria Dolce Vita.';
+    h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button><h1 class="frase">7 in trattativa: 4 sì, 2 alla conoscitiva, 1 alla tecnica.' + fermo + '</h1>';
+    h += '<div class="colonne">' + cols.map(function(c){
+      return '<section class="col"><h2>' + c[0] + '<span>' + c[1].length + '</span></h2>' + c[1].map(function(id){ return riga(id); }).join('') + '</section>';
+    }).join('') + '</div>';
+    h += '<section class="dopo-carlo"><h2 class="tit">Con Carlo e Salvatore</h2><div class="righe">' + riga('a7') + riga('a8') + riga('a9') + '</div></section>';
+  }
+  if (io === 'carlo'){
+    h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button><h1 class="frase">Il prossimo a partire è Impianti Solari Nord, lunedì alle 10.</h1><div style="margin-top:28px">';
+    if (S.passate.a2) h += riga('a2');
+    h += riga('a7') + riga('a8', '<span class="barra-prova" aria-label="giorno 21 di 60"><i style="width:35%"></i></span>') + '</div>';
+  }
+  if (io === 'giacomo'){
+    var aperte = L.task.filter(function(t){ return S.task[t.id] !== 'fatto'; });
+    var ritardo = S.task.t3 !== 'fatto';
+    h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button><h1 class="frase">' + aperte.length + ' task aperte' + (ritardo ? ', una in ritardo.' : ', nessuna in ritardo.') + '</h1>';
+    h += '<p class="soldi">Canone del mese <b>' + euro(L.soldi.canoneMese) + '</b>, ' + L.soldi.prove + ' prova, ' + L.soldi.inTrattativa + ' in trattativa, ' + L.soldi.preventiviInGiro + ' preventivo in giro.</p>';
+    h += '<h2 class="tit" style="margin-top:28px">Chi fa cosa</h2><div class="tab-wrap"><table><thead><tr><th>Cosa</th><th>Azienda</th><th>Da</th><th>A</th><th>Scadenza</th><th>Stato</th></tr></thead><tbody>' +
+      L.task.map(function(t){
+        var st = S.task[t.id] === 'fatto' ? ['verde', 'fatto'] : S.task[t.id] === 'accettata' ? ['verde', 'presa'] : t.stato === 'in ritardo' ? ['rosso', 'in ritardo'] : t.stato === 'in corso' ? ['blu', 'in corso'] : ['ambra', t.stato];
+        var da = P[t.da] ? '<span class="chip-iniz">' + iniz(t.da) + P[t.da].nome + '</span>' : '<span class="chip-iniz"><span class="iniz" style="background:var(--blu)">C</span>Clara</span>';
+        return '<tr data-act="scheda" data-arg="' + t.azienda + '"><td>' + esc(t.titolo.replace(/ per .*| di Palestra.*|, Palestra.*|: la tecnica.*/, '')) + '</td><td>' + esc(AZ[t.azienda].nome) + '</td><td>' + da + '</td><td><span class="chip-iniz">' + iniz(t.a) + P[t.a].nome + '</span></td><td>' + esc(t.scadenza) + '</td><td><span class="pill ' + st[0] + '">' + st[1] + '</span></td></tr>';
+      }).join('') + '</tbody></table></div>';
+    h += '<h2 class="tit" style="margin-top:32px">Aziende</h2><div class="tab-wrap"><table><thead><tr><th>Azienda</th><th>Tappa</th><th>Chi ce l’ha</th><th>Ultimo contatto</th><th class="num">Al mese</th></tr></thead><tbody>' +
+      L.aziende.map(function(a){
+        var chi = a.palla === 'loro' ? '<span style="color:var(--tenue)">palla a loro</span>' : '<span class="chip-iniz">' + iniz(a.palla === 'noi' ? 'dre' : a.palla) + P[a.palla === 'noi' ? 'dre' : a.palla].nome + '</span>';
+        return '<tr data-act="scheda" data-arg="' + a.id + '"><td><b>' + esc(a.nome) + '</b></td><td>' + TAPPA[a.tappa] + '</td><td>' + chi + '</td><td>' + ddmm(a.ultima) + '</td><td class="num">' + (a.valore ? euro(a.valore) : '<span style="color:var(--spento)">-</span>') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  if (io === 'lorenzo'){
+    var o = L.outbound, fd = ['s1', 's2'].filter(function(i){ return !S.fatti[i]; }).length;
+    h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button><h1 class="frase">Le caselle tengono: ' + o.caselleSane + '% sane.</h1><div class="numeri">' +
+      '<div><b>' + o.risposteOggi + '</b><span>risposte oggi</span></div>' +
+      '<div><b>' + o.consegneOggi + '</b><span>consegne partite da sole, con l’analisi</span></div>' +
+      '<div><b class="t-verde">' + o.siSenzaAnalisi + '</b><span>sì senza analisi<small>la giornata può chiudersi</small></span></div>' +
+      '<div><b class="' + (fd ? 't-ambra' : 't-verde') + '">' + fd + '</b><span>follow-up dovuti<small>' + (fd ? 'li approva Dre' : 'partiti tutti') + '</small></span></div>' +
+      '<div><b>' + o.caselleSane + '%</b><span>caselle sane</span></div></div>';
+  }
+  if (io === 'salvatore'){
+    h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button><h1 class="frase">Un progetto con te: Cantina Le Vigne.</h1><div style="margin-top:28px">' + riga('a9') + '</div>';
+  }
+  if (io === 'alex'){
+    var fatto = S.task.t3 === 'fatto';
+    h += '<button class="chi" data-act="clara"><span class="mark"></span>Clara</button><h1 class="frase">' + (fatto ? 'Nessuna task aperta.' : 'Una task, in ritardo.') + '</h1><div style="margin-top:28px">' +
+      '<button class="riga" data-act="scheda" data-arg="a8"><i class="pallino p-' + (fatto ? 'verde' : 'rosso') + '"></i><span><b>Accessi Google Ads di Palestra Forma</b><small>' + (fatto ? 'fatto oggi' : 'da Carlo, era per ieri') + '</small></span></button></div>';
+  }
+  return h;
+}
+
+/* la scheda: anche la scheda per la call */
+function primScheda(a){
+  var io = S.io, f = S.fatti;
+  if (io === 'dre'){
+    if (a.id === 'a5' && !f.c1) return { t:'Apri la risposta', fn:function(){ S.focus = 'c1'; vai('adesso'); } };
+    if (a.id === 'a10' && !f.c2) return { t:'Chiamalo', fn:function(){ S.focus = 'c2'; vai('adesso'); } };
+    if (a.id === 'a3' && !f.s1) return { t:'Apri il follow-up', fn:function(){ S.focus = 's1'; vai('adesso'); } };
+    if (a.id === 'a6' && !f.s2) return { t:'Apri la ripresa', fn:function(){ S.focus = 's2'; vai('adesso'); } };
+    if (a.id === 'a1') return { t:'Dopo la call, dillo a Clara', fn:function(){ apriClara('Ferramenta Bassi, com’è andata: '); } };
+    if (a.id === 'a2' && !S.passate.a2) return { t:'Passa a Carlo', fn:function(){ passa('a2'); } };
+  }
+  if (io === 'carlo'){
+    if (a.id === 'a7' && S.task.t1 !== 'accettata') return { t:'Prendi in carico', fn:function(){ S.focus = 't1'; vai('adesso'); } };
+    if (a.id === 'a2' && S.passate.a2 && S.passate.a2.stato === 'da accettare') return { t:'Prendi in carico', fn:function(){ S.focus = 'pass-a2'; vai('adesso'); } };
+  }
+  return null;
+}
+function chiCeLha(a){
+  if (a.id === 'a2' && S.passate.a2){
+    return S.passate.a2.stato === 'presa'
+      ? '<p class="stato-passaggio t-verde"><i class="pallino p-verde"></i>Carlo l’ha presa. Da adesso è sua.</p>'
+      : '<p class="stato-passaggio"><i class="pallino p-blu"></i>Passata a Carlo adesso: la trova in cima alla sua giornata. ' + (S.io === 'dre' ? '<button class="link" data-act="io" data-arg="carlo">Vedi come Carlo</button>' : '') + '</p>';
+  }
+  if (a.id === 'a7') return S.task.t1 === 'accettata' ? '<p class="stato-passaggio t-verde"><i class="pallino p-verde"></i>Carlo l’ha presa: si parte lunedì.</p>' : '<p class="stato-passaggio"><i class="pallino p-blu"></i>Passata a Carlo il 5/10, deve ancora prenderla.</p>';
+  var who = { noi:'Dre', carlo:'Carlo', salvatore:'Salvatore', loro:'La palla è a loro: aspettiamo ' + a.persona.split(' ')[0] }[a.palla];
+  return '<p>' + esc(a.palla === 'loro' ? who + '.' : who + '.') + '</p>';
+}
+function scheda(){
+  var a = AZ[S.aid]; if (!a) return '';
+  var call = L.call.filter(function(c){ return c.azienda === a.id; })[0];
+  var h = '<div class="scheda"><button class="indietro" data-act="indietro"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>' + (S.prima === 'tutto' ? LENTE2[S.io] : 'Adesso') + '</button>' +
+    '<h1>' + esc(a.nome) + '</h1><p class="chi-e">' + esc(a.persona) + ', ' + esc(a.settore.toLowerCase()) + ' a ' + esc(a.citta) + '</p>';
+  if (call){
+    var ambra = call.quando.indexOf('oggi') === 0;
+    h += '<span class="evento ' + (ambra ? 't-ambra' : 't-blu') + '" style="background:var(--' + (ambra ? 'ambra' : 'blu') + '-bg)">' + ORE + esc(call.tipo) + ', ' + esc(call.quando) + (call.chi.length > 1 ? ', con ' + call.chi.map(function(c){ return P[c].nome; }).join(' e ') : '') + '</span>';
+  }
+  h += '<section class="blocco"><h2>Dove eravamo</h2><p>' + esc(a.dove) + '</p></section>';
+  h += '<section class="blocco"><h2>Cosa ha in mano</h2><p>' + esc(a.cosaHa) + '</p></section>';
+  h += '<section class="blocco"><h2>Il suo mercato</h2><p>' + migliaia(a.domanda) + ' ricerche al mese, un clic costa ' + clic(a.cpc) + ', uno scontrino vale ' + esc(a.ticket).replace(' €', '\u00a0€') + '. ' + (a.fit === 'SI' ? 'Fa per noi.' : 'Forse fa per noi.') + '</p></section>';
+  if (a.scomode.length) h += '<section class="blocco"><h2>' + (a.scomode.length === 2 ? 'Le due cose scomode' : 'La cosa scomoda') + '</h2><ol>' + a.scomode.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></section>';
+  h += '<section class="blocco"><h2>Chi ce l’ha</h2>' + chiCeLha(a) + '</section>';
+  var c = L.conversazioni.filter(function(x){ return x.azienda === a.id; })[0];
+  if (c){
+    h += '<section class="blocco"><h2>Il filo</h2>' + (S.filo ? '<div class="filo" style="margin-top:8px">' + bolle(c.filo) + '</div>' : '') + '<button class="link" data-act="filo" style="min-height:44px">' + (S.filo ? 'Chiudi il filo' : 'Apri il filo, ' + c.filo.length + ' messaggi') + '</button></section>';
+  }
+  var p = primScheda(a);
+  if (p) h += '<div class="azioni"><button class="primario" data-act="primario">' + esc(p.t) + '</button></div>';
+  return h + '</div>';
+}
+
+/* Clara: una chat, poche cose al momento giusto */
+var ORA = '8:02';
+function chatIniziale(io){
+  var m = function(t, b){ return { da:'clara', t:t, b:b || null, ora:ORA }; };
+  return {
+    dre:[m('Buongiorno Dre. Stanotte sono arrivate 6 risposte: 4 le ho già sistemate io, con l’analisi.'),
+         m('Ne restano due per te: Edilnova vuole una telefonata, Officina Moretti chiede il prezzo. E ho preparato 2 follow-up.', [['Cominciamo', 'vai-adesso']]),
+         m('Alle 15 c’è Ferramenta Bassi. La scheda è pronta: dove eravate, cosa ha in mano, le due cose scomode.', [['Apri la scheda', 'scheda:a1']])],
+    carlo:[m('Ciao Carlo. Dre ti ha passato Impianti Solari Nord: preventivo accettato, si parte lunedì alle 10.', [['Vediamola', 'vai-adesso']]),
+           m('Alex è indietro con gli accessi di Palestra Forma, erano per ieri. Se vuoi gli scrivo io.', [['Sì, scrivigli', 'sollecita']])],
+    giacomo:[m('Ciao Giacomo. Una cosa sola in ritardo: gli accessi di Palestra Forma, li ha Alex.'),
+             m('Il canone del mese è a ' + euro(L.soldi.canoneMese) + ', con una prova in corso e un preventivo in giro.', [['Apri la tabella', 'vai-tutto']])],
+    lorenzo:[m('Ciao Lorenzo. Oggi ' + L.outbound.risposteOggi + ' risposte, ' + L.outbound.consegneOggi + ' consegne partite da sole con l’analisi.'),
+             m('Nessun sì senza analisi. Le caselle sane sono al ' + L.outbound.caselleSane + '%.', [['Vedi i numeri', 'vai-tutto']])],
+    salvatore:[m('Ciao Salvatore. Giacomo ti ha passato il report di settembre di Cantina Le Vigne: serve per domani.', [['Vediamolo', 'vai-adesso']])],
+    alex:[m('Ciao Alex. Gli accessi Google Ads di Palestra Forma erano per ieri: Carlo li aspetta.', [['Vediamolo', 'vai-adesso']])]
+  }[io];
+}
+function chat(){ if (!S.chat[S.io]) S.chat[S.io] = chatIniziale(S.io); return S.chat[S.io]; }
+function ora(){ var d = new Date(); return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
+function strato(){
+  var h = '';
+  if (S.clara){
+    var msgs = chat();
+    h += '<div class="ombra" data-act="chiudi"></div><section class="sheet" role="dialog" aria-label="Clara" aria-modal="true">' +
+      '<div class="sheet-testa"><span class="mark"></span><span><b>Clara</b><small>prepara, tu decidi</small></span><button class="chiudi" data-act="chiudi">Chiudi</button></div>' +
+      '<div class="messaggi" id="messaggi"><p class="giorno">Oggi, martedì 6 ottobre</p>' +
+      msgs.map(function(m, i){
+        var last = i === msgs.length - 1 || msgs[i + 1].da !== m.da;
+        return (m.scrive ? '<div class="msg clara scrive" aria-label="Clara sta scrivendo">...</div>' :
+          '<div class="msg ' + m.da + '">' + esc(m.t) + '<small>' + m.ora + '</small></div>') +
+          (m.b && last ? '<div class="chips">' + m.b.map(function(b){ return '<button class="chip" data-act="chip" data-arg="' + b[1] + '">' + esc(b[0]) + '</button>'; }).join('') + '</div>' : '');
+      }).join('') + '</div>' +
+      '<form class="barra" id="chatForm" autocomplete="off" style="margin:10px 16px calc(14px + env(safe-area-inset-bottom))"><label class="sr" for="chatIn">Scrivi a Clara</label><input id="chatIn" placeholder="Scrivi a Clara" enterkeyhint="send"><button class="manda" aria-label="Manda"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form></section>';
+  }
+  if (S.aiuto){
+    h += '<div class="ombra" data-act="chiudi"></div><section class="sheet" role="dialog" aria-label="Come si usa" aria-modal="true" style="height:auto;max-height:90vh">' +
+      '<div class="sheet-testa"><span><b>Come si usa</b></span><button class="chiudi" data-act="chiudi">Chiudi</button></div><div class="aiuto"><ol>' +
+      '<li>In cima Clara dice com’è la giornata. Sotto c’è una cosa sola: quella da fare adesso.</li>' +
+      '<li>Una bozza: «Approva e copia», la incolli in Smartlead, poi «Fatto, l’ho mandata». Arriva la prossima da sola.</li>' +
+      '<li>«Dopo» la manda in fondo alla fila. Il nome dell’azienda apre la scheda: dove eravate, cosa ha in mano, il mercato, le cose scomode.</li>' +
+      '<li>La seconda parola in alto è il quadro d’insieme: la trattativa per Dre, i clienti per Carlo, la tabella per Giacomo.</li>' +
+      '<li>In basso scrivi a Clara o cerchi un’azienda. Tasti: <kbd>Invio</kbd> fa l’azione blu, <kbd>Esc</kbd> torna indietro, <kbd>/</kbd> va alla barra.</li>' +
+      '<li>Il tuo volto in alto a destra: vedi la giornata come un collega.</li></ol></div></section>';
+  }
+  $('#strato').innerHTML = h;
+  var m = $('#messaggi'); if (m) m.scrollTop = m.scrollHeight;
+}
+
+function dock(){
+  var b = $('#dockBtn'), pr = null;
+  if (!S.clara && !S.aiuto){
+    if (S.vista === 'adesso'){ var it = fila()[0]; if (it) pr = primarioDi(it); }
+    else if (S.vista === 'scheda'){ var p = primScheda(AZ[S.aid] || {}); if (p) pr = { t:p.t }; }
+  }
+  b.classList.toggle('si', !!pr);
+  b.classList.toggle('ok', !!(pr && pr.ok));
+  b.textContent = pr ? pr.t : '';
+}
+
+function render(){
+  document.body.classList.toggle('largo', S.vista === 'tutto' && (S.io === 'dre' || S.io === 'giacomo'));
+  $('#striscia').hidden = !S.striscia;
+  $('#testa').innerHTML = testa();
+  var m = $('#main');
+  m.innerHTML = S.vista === 'adesso' ? adesso() : S.vista === 'tutto' ? tutto() : scheda();
+  m.querySelectorAll('textarea').forEach(alza);
+  strato();
+  dock();
+}
+function alza(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+
+/* ============ azioni ============ */
+function foto(){ return JSON.stringify({ fatti:S.fatti, passi:S.passi, task:S.task, passate:S.passate, notizie:S.notizie, sollecito:S.sollecito, coda:S.coda }); }
+function ripristina(f){ var o = JSON.parse(f); Object.keys(o).forEach(function(k){ S[k] = o[k]; }); render(); }
+var timerToast;
+function toast(testo, f){
+  clearTimeout(timerToast);
+  var el = $('#toast');
+  el.innerHTML = '<div class="toast" role="status"><span>' + esc(testo) + '</span>' + (f ? '<button data-act="annulla">Annulla</button>' : '') + '</div>';
+  S.toastFoto = f || null;
+  timerToast = setTimeout(function(){ el.innerHTML = ''; S.toastFoto = null; }, 5000);
+}
+function via(fn){
+  var c = document.querySelector('.carta');
+  if (c && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    c.classList.add('via'); setTimeout(function(){ S.entra = true; fn(); }, 200);
+  } else fn();
+}
+function avvisa(per, t){ S.notizie.push({ per:per, t:t }); }
+function copia(t){ try { navigator.clipboard.writeText(t).catch(function(){}); } catch(e){} }
+
+function completa(it, msg, effetto){
+  var f = foto();
+  via(function(){
+    if (effetto) effetto();
+    S.fatti[it.id] = true; delete S.passi[it.id]; S.focus = null;
+    render(); toast(msg, f);
+  });
+}
+function azione(it){
+  var st = S.passi[it.id], a = AZ[it.aid];
+  if (it.tipo === 'bozza'){
+    if (!st){ copia(S.bozze[it.id] != null ? S.bozze[it.id] : it.bozza); S.passi[it.id] = 1; render(); toast('Copiata. Incollala in Smartlead.'); return; }
+    return completa(it, a.nome + ': segnata come mandata.');
+  }
+  if (it.tipo === 'chiama'){
+    if (!st){ S.passi[it.id] = 1; render(); toast('Qui, sul telefono, parte la chiamata.'); return; }
+    return completa(it, 'Segnato: Edilnova chiamato.');
+  }
+  if (it.tipo === 'prendi'){
+    return completa(it, 'Presa. Dre lo vede.', function(){
+      if (it.passaggio){ S.passate[it.passaggio].stato = 'presa'; avvisa('dre', 'Carlo ha preso ' + a.nome + '.'); }
+      if (it.task === 't1'){ S.task.t1 = 'accettata'; avvisa('dre', 'Carlo ha preso Impianti Solari Nord.'); }
+    });
+  }
+  if (it.tipo === 'sollecita') return sollecita(it);
+  return completa(it, 'Fatto.', function(){
+    S.task[it.task] = 'fatto';
+    if (it.task === 't3'){ avvisa('carlo', 'Alex ha fatto gli accessi di Palestra Forma.'); avvisa('giacomo', 'Alex ha fatto gli accessi di Palestra Forma.'); }
+    if (it.task === 't2') avvisa('giacomo', 'Salvatore ha mandato il report di Cantina Le Vigne.');
+    if (it.task === 't4') avvisa('dre', 'Giacomo ha fatto la fattura della prova di Palestra Forma.');
+  });
+}
+function sollecita(it){
+  return completa(it, 'Ho scritto ad Alex. Lo vede in cima.', function(){
+    S.sollecito = S.io;
+  });
+}
+function passa(aid){
+  var f = foto();
+  S.passate[aid] = { stato:'da accettare' };
+  render();
+  toast('Passata a Carlo. La trova in cima.', f);
+}
+function eseguiPrimario(){
+  if (S.vista === 'adesso'){ var it = fila()[0]; if (it) azione(it); }
+  else if (S.vista === 'scheda'){ var p = primScheda(AZ[S.aid] || {}); if (p) p.fn(); }
+}
+
+/* navigazione: io/vista/azienda nell'indirizzo */
+function hash(){ return '#' + S.io + '/' + S.vista + (S.vista === 'scheda' ? '/' + S.aid : ''); }
+function vai(v, aid){
+  if (v === 'scheda'){ if (S.vista !== 'scheda') S.prima = S.vista; S.aid = aid; S.filo = false; }
+  S.vista = v; S.menu = false; S.clara = false; S.aiuto = false;
+  chiudiRisultati();
+  if (location.hash !== hash()) location.hash = hash(); else render();
+  window.scrollTo(0, 0);
+}
+function leggiHash(){
+  var p = location.hash.slice(1).split('/');
+  S.menu = S.clara = S.aiuto = false;
+  if (P[p[0]]) S.io = p[0];
+  if (['adesso', 'tutto', 'scheda'].indexOf(p[1]) >= 0) S.vista = p[1];
+  if (S.vista === 'scheda'){ if (AZ[p[2]]) S.aid = p[2]; else S.vista = 'adesso'; }
+  render();
+}
+function setIo(id){ clearTimeout(timerToast); $('#toast').innerHTML = ''; S.toastFoto = null; S.io = id; S.focus = null; S.coda = []; S.dasole = false; vai('adesso'); }
+
+function apriClara(pre){
+  S.clara = true; S.menu = false; chiudiRisultati(); render();
+  var i = $('#chatIn'); if (i){ i.value = pre || ''; i.focus(); }
+}
+function scrivi(testo){
+  var msgs = chat();
+  msgs.push({ da:'io', t:testo, ora:ora() });
+  msgs.push({ da:'clara', scrive:true });
+  render();
+  setTimeout(function(){ msgs.pop(); var r = risposta(testo); r.ora = ora(); r.da = 'clara'; msgs.push(r); if (S.clara) strato(); }, 650);
+}
+function trovaAz(t){
+  return L.aziende.filter(function(a){
+    return a.nome.toLowerCase().split(' ').some(function(w){ return w.length >= 5 && t.indexOf(w) >= 0; });
+  })[0];
+}
+function risposta(testo){
+  var t = testo.toLowerCase(), az = trovaAz(t);
+  if (/^su /.test(t) && az) return { t:'Ricevuto. Qui sono un prototipo e la bozza resta com’è; nel vero te la rimetto in fila riscritta.' };
+  if (t.indexOf('passa') >= 0 && t.indexOf('carlo') >= 0){
+    if (S.io !== 'dre') return { t:'I passaggi a Carlo li fa Dre.' };
+    if (S.passate.a2) return { t:'Studio Dentistico Riva l’hai già passata.' };
+    return { t:'Studio Dentistico Riva è alla tecnica, giovedì con Carlo. La passo a lui?', b:[['Passala', 'passa:a2'], ['Apri la scheda', 'scheda:a2']] };
+  }
+  if (az && t.indexOf('andata') >= 0) return { t:'Segnato nella storia di ' + az.nome + '. Fisso la tecnica con Carlo e ti preparo la mail per ' + az.persona.split(' ')[0] + ': la trovi in fila.', b:[['Apri la scheda', 'scheda:' + az.id]] };
+  if (az) return { t:az.nome + ': ' + az.dove, b:[['Apri la scheda', 'scheda:' + az.id]] };
+  if (t.indexOf('trattativa') >= 0) return { t:'Sono 7: 4 hanno detto sì, 2 alla conoscitiva, 1 alla tecnica. La più ferma è Pasticceria Dolce Vita.', b:[['Vedi la trattativa', 'vai-tutto']] };
+  if (/cominciamo|andiamo|vai|ok/.test(t)) return { t:'Allora la prima te la metto davanti.', b:[['Vai', 'vai-adesso']] };
+  return { t:'Qui sono un prototipo e capisco poco: prova col nome di un’azienda, «trattativa» o «passa a Carlo».' };
+}
+function chip(arg){
+  var c = arg.split(':');
+  if (c[0] === 'vai-adesso') return vai('adesso');
+  if (c[0] === 'vai-tutto') return vai('tutto');
+  if (c[0] === 'scheda') return vai('scheda', c[1]);
+  if (c[0] === 'passa'){ S.clara = false; passa(c[1]); return vai('scheda', c[1]); }
+  if (c[0] === 'sollecita'){
+    var it = fila().filter(function(x){ return x.tipo === 'sollecita'; })[0];
+    S.clara = false; vai('adesso');
+    if (it) setTimeout(function(){ sollecita(it); }, 60);
+  }
+}
+
+/* la barra: cerca mentre scrivi, Invio parla a Clara */
+var sel = 0;
+function chiudiRisultati(){ var r = $('#risultati'); if (r){ r.hidden = true; r.innerHTML = ''; } }
+function cercaAz(q){
+  q = q.trim().toLowerCase(); if (q.length < 2) return [];
+  return L.aziende.filter(function(a){ return (a.nome + ' ' + a.persona + ' ' + a.citta).toLowerCase().indexOf(q) >= 0; }).slice(0, 5);
+}
+function mostraRisultati(){
+  var q = $('#barraIn').value, l = cercaAz(q), r = $('#risultati');
+  $('#barraManda').disabled = !q.trim();
+  if (!l.length){ chiudiRisultati(); return; }
+  sel = Math.min(sel, l.length - 1);
+  r.innerHTML = l.map(function(a, i){ var s = statoAz(a.id); return '<button type="button" class="' + (i === sel ? 'sel' : '') + '" data-act="scheda" data-arg="' + a.id + '"><i class="pallino p-' + s[0] + '"></i><b>' + esc(a.nome) + '</b><small>' + TAPPA[a.tappa] + '</small></button>'; }).join('');
+  r.hidden = false;
+}
+$('#barraIn').addEventListener('input', function(){ sel = 0; mostraRisultati(); });
+$('#barraIn').addEventListener('keydown', function(e){
+  var l = cercaAz(this.value);
+  if (e.key === 'ArrowDown' && l.length){ e.preventDefault(); sel = (sel + 1) % l.length; mostraRisultati(); }
+  if (e.key === 'ArrowUp' && l.length){ e.preventDefault(); sel = (sel - 1 + l.length) % l.length; mostraRisultati(); }
+});
+$('#barra').addEventListener('submit', function(e){
+  e.preventDefault();
+  var i = $('#barraIn'), q = i.value.trim(); if (!q) return;
+  var l = cercaAz(q);
+  i.value = ''; $('#barraManda').disabled = true; i.blur();
+  if (l.length){ vai('scheda', l[sel].id); return; }
+  S.clara = true; scrivi(q);
+});
+document.addEventListener('submit', function(e){
+  if (e.target.id !== 'chatForm') return;
+  e.preventDefault();
+  var i = $('#chatIn'), q = i.value.trim(); if (!q) return;
+  scrivi(q);
+  setTimeout(function(){ var n = $('#chatIn'); if (n) n.focus(); }, 0);
+});
+
+document.addEventListener('input', function(e){
+  var id = e.target.getAttribute && e.target.getAttribute('data-bozza');
+  if (id){ S.bozze[id] = e.target.value; alza(e.target); }
+});
+
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-act]');
+  if (!el){
+    if (S.menu && !e.target.closest('.menu')){ S.menu = false; render(); }
+    if (!e.target.closest('.dock')) chiudiRisultati();
+    return;
+  }
+  var act = el.getAttribute('data-act'), arg = el.getAttribute('data-arg');
+  switch(act){
+    case 'vai': return vai(arg);
+    case 'scheda': return vai('scheda', arg);
+    case 'indietro': return vai(S.prima || 'adesso');
+    case 'primario': return eseguiPrimario();
+    case 'dopo':
+      S.coda = S.coda.filter(function(x){ return x !== arg; }).concat(arg); S.focus = null;
+      return via(function(){ render(); toast('Rimandata in fondo alla fila.'); });
+    case 'focus': S.focus = arg; S.entra = true; render(); return;
+    case 'menu': S.menu = !S.menu; render(); return;
+    case 'io': return setIo(arg);
+    case 'aiuto': S.menu = false; S.aiuto = true; render(); return;
+    case 'clara': return apriClara('');
+    case 'cambia': return apriClara('Su ' + AZ[fila()[0].aid].nome + ': ');
+    case 'chiudi': S.clara = false; S.aiuto = false; render(); return;
+    case 'chip': return chip(arg);
+    case 'dasole': S.dasole = !S.dasole; render(); return;
+    case 'filo': S.filo = !S.filo; render(); return;
+    case 'filo-carta': S.filoCarta = S.filoCarta === arg ? null : arg; render(); return;
+    case 'annulla': if (S.toastFoto){ ripristina(S.toastFoto); $('#toast').innerHTML = ''; S.toastFoto = null; } return;
+    case 'chiudi-striscia': S.striscia = false; render(); return;
+  }
+});
+
+document.addEventListener('keydown', function(e){
+  var tag = (e.target.tagName || '').toLowerCase();
+  var scrivendo = tag === 'input' || tag === 'textarea';
+  if (e.key === 'Escape'){
+    if (S.menu || S.clara || S.aiuto){ S.menu = S.clara = S.aiuto = false; render(); return; }
+    if (scrivendo){ e.target.blur(); chiudiRisultati(); return; }
+    if (S.vista === 'scheda') vai(S.prima || 'adesso');
+    return;
+  }
+  if (e.key === 'Enter' && tag === 'textarea' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); eseguiPrimario(); return; }
+  if (scrivendo || S.clara || S.aiuto || S.menu) return;
+  if (e.key === '/'){ e.preventDefault(); $('#barraIn').focus(); return; }
+  if (e.key === 'Enter' && (!e.target.closest || !e.target.closest('button,a'))){ e.preventDefault(); eseguiPrimario(); }
+});
+
+window.addEventListener('hashchange', leggiHash);
+leggiHash();
+})();
+</script>
+</body>
+</html>
