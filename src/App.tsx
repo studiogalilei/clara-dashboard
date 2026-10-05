@@ -373,7 +373,10 @@ export default function App() {
       // 26/9: se l'indirizzo dice gia' dove andare (link condiviso, ricarica,
       // tasto indietro) comanda lui. La pagina d'ingresso vale solo quando si
       // entra senza indirizzo: se no un link mandato a Carlo lo porta altrove.
+      // 5/10: una volta sola. L'effetto riparte a ogni «versione» (chiusura della scheda,
+      // preferenze), e senza spegnere il segnale riportava gli altri su Oggi ogni volta.
       if (c.ruolo !== 'ceo' && entrataSenzaIndirizzo.current) setTab('pipeline')
+      entrataSenzaIndirizzo.current = false
     })
   }, [session, versione])
 
