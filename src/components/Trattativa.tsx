@@ -130,7 +130,7 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
             {gruppi[k].map((p) => {
               const { testo, colore } = statoDi(p, k)
               return (
-                <div key={p.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                <div key={p.id} draggable data-azienda-id={p.id} onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
                      className="group mb-2 cursor-grab rounded-2xl border border-bordo bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing">
                   <button onClick={() => onOpen(p.id)} className="block w-full text-left">
                     <p className="truncate text-[15px] font-extrabold text-navy">{p.company || p.name || p.email}</p>

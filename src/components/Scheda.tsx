@@ -83,7 +83,9 @@ function spiegaErrore(e: { message?: string; code?: string } | null): string {
 }
 
 // le sette tappe del percorso, per lo stepper in testata
-const TAPPE = ['Risposta', 'Analisi', 'Follow-up', 'Conoscitiva', 'Tecnica', 'Avvio', 'Prova', 'Cliente']
+// 5/10, Dre: «solo risposta, analisi, follow-up, conoscitiva, tecnica: dopo la
+// tecnica c'e' solo il passaggio al dipartimento, la responsabilita' va a Carlo».
+const TAPPE = ['Risposta', 'Analisi', 'Follow-up', 'Conoscitiva', 'Tecnica']
 
 function tappaCorrente(p: Prospect): number {
   // stessa regola del resto dell'app: un cliente vecchio stile e' arrivato in
@@ -91,7 +93,7 @@ function tappaCorrente(p: Prospect): number {
   if (eCliente(p)) return 7
   if (ePerso(p)) return 0
   if (p.fuori && p.pipeline_stage) {
-    return { conoscitiva: 3, tecnica: 4, avvio: 5, prova: 6, cliente: 7, perso: 0 }[p.pipeline_stage] ?? 3
+    return { conoscitiva: 3, tecnica: 4, avvio: 4, prova: 4, cliente: 7, perso: 0 }[p.pipeline_stage] ?? 3
   }
   if (p.stage === 'in_follow_up') return 2
   if (p.stage === 'analisi_inviata') return 1
@@ -403,6 +405,20 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     }
   }
 
+  // IL PASSAGGIO AL DIPARTIMENTO (Dre, 5/10): dopo la tecnica il lead e' di Carlo.
+  // Un click: avanza ad Avvio, l'owner diventa Carlo, e a Carlo arriva la task
+  // (le task proposte arrivano sul suo telefono con l'operazione avvisi).
+  async function passaACarlo() {
+    if (!p) return
+    const { data: carlo } = await supabase.from('profili').select('id,nome').ilike('nome', '%carlo%').maybeSingle()
+    const idCarlo = (carlo as { id: string } | null)?.id
+    if (!(await aggiorna({ pipeline_stage: 'avvio', owner: idCarlo ?? null, next_action: null, next_action_date: null } as Partial<Prospect>))) return
+    await segna('nota', 'Tecnica fatta: il lead passa al dipartimento, responsabile Carlo.')
+    if (idCarlo) {
+      await creaTask({ titolo: `Prendi in carico ${p.company || p.name || p.email}: la tecnica è fatta, si parte`, prospect_id: p.id, perChi: idCarlo })
+    }
+  }
+
   // segna come perso: il motivo è obbligatorio e resta nella storia
   async function segnaPerso() {
     const perche = motivoPerso.trim()
@@ -576,8 +592,66 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)
   }
 
-  // LA STORIA VICINO ALLA BOZZA (Dre, 25/9): per un lead si legge cosa ha scritto e
-  // si risponde; la storia sta li', non in fondo. Per un cliente resta in fondo.
+  // PER LA CALL (Dre, 5/10): «la guardo durante la call: voglio le info per
+  // affrontarla bene, l'ultimo punto in cui ci si era lasciati, e l'analisi che
+  // gli abbiamo mandato. La storia non mi serve cosi' visibile.» Un blocco solo:
+  // dove eravamo, cosa ha in mano, il suo mercato. La storia sta dietro «Storia».
+  const fitCall = ((p?.enriched ?? {}) as { google_fit?: Record<string, unknown> }).google_fit ?? {}
+  const ultimaSua = [...(timeline ?? [])].reverse().find((x) => x.kind === 'email_in' || x.kind === 'call' || x.kind === 'transcript')
+  const recCall = fitCall.recensioni as { voto?: number; recensioni?: number } | undefined
+  const scomode = (fitCall.due_cose_scomode as string[] | undefined) ?? []
+  const cardCall = p && (
+            <Card className="p-4">
+              <TitoloCard>Per la call</TitoloCard>
+              <div className="mt-1 space-y-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tenue">Dove eravamo</p>
+                  {ultimaSua ? (
+                    <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
+                      <span className="font-semibold">{ultimaSua.kind === 'email_in' ? 'La sua ultima mail' : 'L\u2019ultima call'}, {fmtDateShort(ultimaSua.at)}:</span>{' '}
+                      {((ultimaSua.body ?? '').split('\n').find((r) => r.trim().length > 10) ?? ultimaSua.body ?? '').slice(0, 220)}
+                    </p>
+                  ) : <p className="mt-0.5 text-[13px] text-tenue">Niente di suo nel filo, ancora.</p>}
+                  {p.next_action && (
+                    <p className="mt-1 text-[13px] text-inchiostro">
+                      <span className="font-semibold">Il prossimo passo concordato:</span> {p.next_action}
+                      {p.next_action_date ? `, ${fmtDateShort(p.next_action_date)}` : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tenue">Cosa ha in mano</p>
+                  {p.analysis_pdf ? (
+                    <a href={p.analysis_pdf} target="_blank" rel="noreferrer"
+                       className="rounded-full border border-blu px-3 py-1 text-[12px] font-bold text-blu hover:bg-blu/5">Apri l'analisi ↗</a>
+                  ) : <span className="text-[12px] text-tenue">analisi non agganciata</span>}
+                  <span className="text-[12px] text-tenue">
+                    {p.analysis_sent ? `mandata il ${fmtDateShort(p.analysis_sent_at)}` : 'non ancora mandata'}
+                  </span>
+                </div>
+                {(fitCall.cosa_fa || recCall || fitCall.ticket || scomode.length > 0) && (
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tenue">Il suo mercato</p>
+                    {Boolean(fitCall.cosa_fa) && <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">{String(fitCall.cosa_fa).slice(0, 160)}</p>}
+                    <p className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-tenue">
+                      {Boolean(fitCall.provincia) && <span>{String(fitCall.provincia)}</span>}
+                      {recCall?.recensioni != null && <span>{recCall.recensioni} recensioni{recCall.voto ? `, ${recCall.voto}` : ''}</span>}
+                      {Boolean(fitCall.ticket) && <span>cliente da {String(fitCall.ticket)}</span>}
+                    </p>
+                    {scomode.length > 0 && (
+                      <p className="mt-1 text-[13px] leading-relaxed text-inchiostro">
+                        <span className="font-semibold">Da tenere a mente:</span> {scomode.join('; ').slice(0, 220)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+  )
+
+  // LA STORIA VICINO ALLA BOZZA (Dre, 25/9), poi dietro un click (Dre, 5/10:
+  // «la storia non mi serve cosi' visibile»): per i prospect al suo posto c'e'
+  // «Per la call», e la storia completa sta nel bottone «Storia» in alto.
   const cardStoria = (
             <Card className="p-4" id="storia">
               <TitoloCard>Storia</TitoloCard>
@@ -599,7 +673,18 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     <div className="fixed inset-0 z-50">
       {/* la scheda scivola da destra e la pagina resta dietro (intervista a Dre, 9/9):
           chiudi e sei dove eri. Un click fuori, o Esc, la chiude. */}
-      <div onClick={chiudi} className="absolute inset-0 bg-inchiostro/15" />
+      <div onClick={(e) => {
+        // 5/10, Dre: «se clicco su un'altra azienda che si vede a lato, si apre quella;
+        // sul vuoto, si chiude». Si guarda cosa c'e' sotto il punto cliccato.
+        const contenitore = (e.currentTarget as HTMLElement).parentElement ?? (e.currentTarget as HTMLElement)
+        contenitore.style.pointerEvents = 'none'
+        const sotto = document.elementFromPoint(e.clientX, e.clientY)
+        contenitore.style.pointerEvents = ''
+        const carta = sotto?.closest?.('[data-azienda-id]') as HTMLElement | null
+        const altra = carta?.dataset.aziendaId
+        if (altra && altra !== id && onApri) { onApri(altra); return }
+        chiudi()
+      }} className="absolute inset-0 bg-inchiostro/15" />
       <aside className="scivola absolute inset-y-0 right-0 w-full max-w-[760px] overflow-y-auto overflow-x-hidden border-l border-bordo bg-fondo">
       {/* barra alta: briciole e Torna */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5">
@@ -1071,13 +1156,27 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                 Avanza
               </button>
             )}
-            {p.fuori && next && !soppresso && (
+            {p.fuori && next && !soppresso && p.pipeline_stage !== 'tecnica' && !['avvio', 'prova'].includes(p.pipeline_stage ?? '') && (
               <button
                 onClick={() => { setAvanzaAperto(true); setTimeout(() => transcriptRef.current?.focus(), 50) }}
                 className="shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
               >
                 Avanza
               </button>
+            )}
+            {/* 5/10, Dre: dopo la tecnica non si «avanza», si PASSA il lead al
+                dipartimento: la responsabilita' va a Carlo, con la sua notifica. */}
+            {p.fuori && p.pipeline_stage === 'tecnica' && !soppresso && (
+              <button
+                onClick={() => void passaACarlo()}
+                title="La tecnica e' fatta: il lead passa al dipartimento"
+                className="shrink-0 rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
+              >
+                Passa a Carlo
+              </button>
+            )}
+            {p.fuori && ['avvio', 'prova'].includes(p.pipeline_stage ?? '') && (
+              <span className="shrink-0 rounded-full bg-velo px-3 py-1.5 text-[11px] font-bold text-navy">Dal dipartimento, con Carlo</span>
             )}
           </div>
           )}
@@ -1099,7 +1198,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
         {/* DA MANDARE (Dre, 24/9): la prima cosa della scheda e' cosa mando adesso,
             con l'analisi accanto se e' la prima volta */}
         <DaMandare p={p} onStoria={() => setStoriaAperta(true)} />
-        {!eCliente(p) && cardStoria}
+        {!eCliente(p) && cardCall}
 
         {/* la prossima call: quando c'è, sta sopra a tutto */}
         {prossimaCall && (
