@@ -411,6 +411,21 @@ export default function App() {
   const ruolo: Ruolo = demo ? mioRuolo() : ruoloDb
   const voci = menuDi(ruolo, 'menu', concessi)
   const vociSistema = menuDi(ruolo, 'sistema', concessi)
+  // LA BARRA DEL TELEFONO (gold, 6/10): Oggi e la Posta per prime, perche' sono le due cose
+  // che si fanno col pollice; poi le prime voci del menu di ognuno. Quello che non ci sta sale
+  // fra le icone in alto, dove prima stava la Posta: nessuna pagina diventa irraggiungibile.
+  const oggiW = widgetDi('pipeline')
+  const postaW = vociSistema.find((w) => w.chiave === 'clara')
+  const sotto = [
+    // Oggi col sole (come nella V1): l'icona della bacheca era la stessa di Aziende
+    ...(oggiW && !voci.some((w) => w.chiave === 'pipeline') ? [{ ...oggiW, immagine: undefined, icona: 'M12 3v1.5M12 19.5V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.5M19.5 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z' }] : []),
+    ...(postaW ? [{ ...postaW, nome: 'Posta' }] : []),
+    ...voci,
+  ].slice(0, 5)
+  const sopra = [
+    ...voci.filter((w) => !sotto.some((x) => x.chiave === w.chiave)),
+    ...vociSistema.filter((w) => w.chiave !== 'analytics' && w.chiave !== 'clara'),
+  ]
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
@@ -625,7 +640,7 @@ export default function App() {
           {/* la Posta, i Documenti e le Impostazioni: dal telefono si
               raggiungevano solo dalla pallina, e una volta li' nessuna icona
               era accesa (QA Dre, 14/9) */}
-          {vociSistema.filter((w) => w.chiave !== 'analytics').map(({ chiave: t, nome, icona, immagine }) => (
+          {sopra.map(({ chiave: t, nome, icona, immagine }) => (
             <button key={t} onClick={() => { setTab(t); setOpenId(null) }} aria-label={nome} title={nome}
                     className={`relative shrink-0 rounded-full p-1.5 ${tab === t ? 'bg-velo text-navy' : 'text-tenue'}`}>
               <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
@@ -784,16 +799,19 @@ export default function App() {
       {/* navigazione mobile */}
       <nav className={`fixed inset-x-0 bottom-0 border-t border-bordo bg-white pb-[env(safe-area-inset-bottom)] lg:hidden ${pieno ? 'hidden' : ''}`}>
         <div className="flex">
-          {voci.map(({ chiave: t, nome: label, icona, immagine }) => (
+          {sotto.map(({ chiave: t, nome: label, icona, immagine }) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setOpenId(null) }}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${
-                tab === t ? 'text-navy' : 'text-spento'
+              onClick={() => { setTab(t); setOpenId(null); if (t === 'pipeline') window.scrollTo(0, 0) }}
+              className={`relative flex min-h-[48px] flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${
+                tab === t || (t === 'pipeline' && tab === 'oggi') ? 'text-navy' : 'text-spento'
               }`}
             >
               <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
               {label}
+              {t === 'clara' && daDecidere > 0 && (
+                <span className="absolute left-1/2 top-1 ml-1.5 min-w-[16px] rounded-full bg-red-600 px-1 text-[9px] font-bold leading-4 text-white">{daDecidere}</span>
+              )}
             </button>
           ))}
         </div>
