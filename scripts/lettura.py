@@ -243,17 +243,29 @@ def ha_gia(p, righe):
     # una pec citata senza un verbo di rimando («scrivete a», «inviate a») e' quasi
     # sempre la firma legale, non un passaggio di persona (Finotti, 1/10: la sua pec
     # in firma bloccava un «sarei interessata a ricevere il documento»)
-    # i provider PEC italiani: una pec in firma non e' un «ci ha girato a», lo e' solo
-    # con un verbo di rimando davanti (5/10, Antonella/LuccaCase: casa...@legalmail.it in firma)
-    PEC = ("@pec.", "@legalmail.it", "@pec.it", "@postecert.it", "@pecimprese.it", "@registerpec.it", "@arubapec.it", "@cert.")
+    # un indirizzo in firma non e' un «ci ha girato a», lo e' solo con un verbo di
+    # rimando davanti. Vale per le pec (qualunque provider col «pec» nel dominio:
+    # legalmail, interfreepec, arubapec... casi LuccaCase e vetrocom, 5/10) e per
+    # l'indirizzo personale del mittente stesso (il suo cognome nel local-part:
+    # dimoreisontineRONCHI@gmail.com in firma di ronchi@gruppodimore, 5/10).
+    PEC = ("@legalmail.it", "@postecert.it", "@cert.")
+    _tok = {t for t in re.split(r"[^a-z]+", f"{p.get('name') or ''} {(p.get('email') or '').split('@')[0]}".lower()) if len(t) >= 4}
     def _rimando_vero(e, t):
-        if not any(x in e or e.endswith(x) for x in PEC):
+        locale, _, dominio = e.partition("@")
+        firma = ("pec" in dominio or any(e.endswith(x) or x in e for x in PEC)
+                 or any(tk in locale for tk in _tok))
+        if not firma:
             return True
         pos = t.lower().find(e)
         return bool(re.search(r"(scriv|invi|mand|contatt|rivolg)\w*\s[^@]{0,40}$", t[:pos].lower()[-60:]))
-    girato = sorted({e.lower() for e in EMAIL.findall(testo) if _rimando_vero(e.lower(), testo)
+    # 5/10, ronchi: «potete inviare una mail a ...@gmail» stava nel disclaimer privacy
+    # della firma, e il verbo convinceva la regex. Gli indirizzi si cercano solo nel
+    # testo suo vero (solo_suo), come gia' per NON_TOCCARE (28/9): la miglioria si
+    # applica ovunque.
+    suo = solo_suo(testo)
+    girato = sorted({e.lower() for e in EMAIL.findall(suo) if _rimando_vero(e.lower(), suo)
                      if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI) and e.lower().split("@")[-1] != dom} |
-                    {e.lower() for e in EMAIL.findall(testo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
+                    {e.lower() for e in EMAIL.findall(suo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
     return {
         "ultima_loro": " ".join(testo.split())[:600], "ultima_loro_il": (ultima_loro or {}).get("at", "")[:10],
         "ultima_nostra": " ".join(((ultima_nostra or {}).get("body") or "").split())[:400], "ultima_nostra_il": (ultima_nostra or {}).get("at", "")[:10],
