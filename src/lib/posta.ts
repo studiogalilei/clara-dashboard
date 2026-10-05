@@ -65,3 +65,20 @@ export function soloSuo(testo: string | null | undefined): string {
   if (f && t.slice(0, f.index).trim().length >= 25) t = t.slice(0, f.index)
   return t.trim()
 }
+
+// LA FRASE DI CLARA (gold, 6/10, dalla V3): in cima a Oggi Clara dice in una frase sola cosa
+// aspetta te, dal vivo. Il saluto del mattino invecchiava alla prima approvazione.
+export function fraseDiClara(x: { risposte: string[]; seguiti: number; siSenza?: number | null }): string {
+  const pezzi: string[] = []
+  const r = x.risposte
+  if (r.length === 1) pezzi.push(`${r[0]} aspetta una risposta`)
+  else if (r.length === 2) pezzi.push(`${r[0]} e ${r[1]} aspettano una risposta`)
+  else if (r.length > 2) pezzi.push(`${r[0]}, ${r[1]} e altre ${r.length - 2} aspettano una risposta`)
+  if (x.seguiti === 1) pezzi.push('ho preparato un follow-up')
+  else if (x.seguiti > 1) pezzi.push(`ho preparato ${x.seguiti} follow-up`)
+  if (x.siSenza === 1) pezzi.push('un sì aspetta ancora l’analisi')
+  else if (x.siSenza && x.siSenza > 1) pezzi.push(`${x.siSenza} sì aspettano ancora l’analisi`)
+  if (!pezzi.length) return 'Niente aspetta te: la giornata è chiusa.'
+  const frase = pezzi.length === 1 ? pezzi[0] : `${pezzi.slice(0, -1).join(', ')} e ${pezzi[pezzi.length - 1]}`
+  return frase.charAt(0).toUpperCase() + frase.slice(1) + '.'
+}

@@ -270,7 +270,7 @@ export default function App() {
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
   const tiroMenu = useRef(false)
-  const [salutoClara, setSalutoClara] = useState<string | null>(null)
+  const [, setSalutoClara] = useState<string | null>(null)   // gold: la frase ora e' quella dal vivo in Adesso
   const cercaRef = useRef<HTMLInputElement>(null)
 
   function chiudiScheda() {
@@ -681,13 +681,8 @@ export default function App() {
                   || (tab === 'calendario' && <Aiuto di="calendario" />) || (tab === 'analytics' && <Aiuto di="numeri" />)
                   || (tab === 'metro' && <Aiuto di="metro" />) || (tab === 'prospect' && <Aiuto di="trattativa" />) || ((tab === 'tutti' || tab === 'aziende') && <Aiuto di="aziende" />)}
               </h1>
-              {tab === 'pipeline' && (salutoClara ? (
-                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">
-                  {salutoClara.replace(/^buon\w*[,.]?\s+dre[.,]?\s*/i, '')}
-                </p>
-              ) : ruolo === 'ceo' && saluto(utente)[1] ? (
-                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto(utente)[1]}</p>
-              ) : null)}
+              {/* gold (6/10): sotto il saluto non c'e' piu' la frase del mattino: la frase di Clara
+                  sta in cima ad Adesso ed e' calcolata dal vivo (quella del mattino invecchiava) */}
               {/* quanto e' fresco quello che stai guardando (Dre, 15/9) */}
               {(tab === 'pipeline' || tab === 'prospect') && <Aggiornato />}
             </div>

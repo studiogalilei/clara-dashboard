@@ -32,3 +32,17 @@ describe('solo quello che ha scritto lei (come lettura.solo_suo)', () => {
     expect(soloSuo('Sì grazie, sarei felice di ricevere la vostra analisi.\nCordiali saluti\nCristian Porta\nInformativa privacy disponibile')).toBe('Sì grazie, sarei felice di ricevere la vostra analisi.')
   })
 })
+
+import { fraseDiClara } from './posta'
+
+describe('la frase di Clara in cima a Oggi', () => {
+  it('dice chi aspetta, con i nomi, e i follow-up pronti', () => {
+    expect(fraseDiClara({ risposte: ['CER Italia'], seguiti: 3 })).toBe('CER Italia aspetta una risposta e ho preparato 3 follow-up.')
+    expect(fraseDiClara({ risposte: ['A', 'B', 'C', 'D'], seguiti: 1, siSenza: 4 }))
+      .toBe('A, B e altre 2 aspettano una risposta, ho preparato un follow-up e 4 sì aspettano ancora l’analisi.')
+    expect(fraseDiClara({ risposte: [], seguiti: 2 })).toBe('Ho preparato 2 follow-up.')
+  })
+  it('a posta vuota la giornata è chiusa', () => {
+    expect(fraseDiClara({ risposte: [], seguiti: 0, siSenza: 0 })).toBe('Niente aspetta te: la giornata è chiusa.')
+  })
+})

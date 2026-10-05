@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
-import { apriInPosta, percheCosi } from '../lib/posta'
+import { apriInPosta, fraseDiClara, percheCosi } from '../lib/posta'
 import { useVivo } from '../lib/vivo'
 
 // ADESSO (gold, 6/10): la home non apre su una lista, apre sulla prossima cosa da fare.
@@ -87,9 +87,19 @@ export default function Adesso() {
   const seguiti = voci.length - risposte
   const prima = voci[0]
   const poi = voci.slice(1, 4)
+  // chi non e' ceo e non ha niente in Posta non vede niente, come prima (la sua giornata sono le task)
+  if (!prima && !ceo) return null
+  const frase = fraseDiClara({ risposte: voci.filter((v) => !v.seguito).map((v) => v.nome), seguiti, siSenza: ceo ? siSenza : null })
 
   return (
     <div className="space-y-3">
+      {/* LA FRASE DI CLARA (gold, dalla V3): cosa aspetta te, in una frase, dal vivo */}
+      <div>
+        <p className="flex items-center gap-1.5 text-[12px] font-bold text-blu">
+          <span className="h-2 w-2 rounded-full bg-blu ring-4 ring-blu/15" />Clara
+        </p>
+        <p className="mt-1 text-[19px] font-extrabold leading-snug text-navy">{frase}</p>
+      </div>
       {prima ? (
         <div className="rounded-2xl border border-bordo bg-white p-5">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
@@ -115,12 +125,7 @@ export default function Adesso() {
             )}
           </div>
         </div>
-      ) : (
-        <div className="rounded-2xl border border-bordo bg-white px-5 py-4">
-          <p className="text-[15px] font-bold text-navy">Posta finita</p>
-          <p className="mt-0.5 text-[13px] text-tenue">Nessuna bozza aspetta te.</p>
-        </div>
-      )}
+      ) : null}
 
       {ceo && siSenza !== null && (
         <Traguardo righe={[
