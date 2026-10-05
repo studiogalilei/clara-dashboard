@@ -197,10 +197,12 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
   }, [aperta, filo])
 
   // arrivati da «Leggi e approva» di Oggi: si apre quella conversazione appena c'e'
-  const [voglio, setVoglio] = useState<number | null>(() => prendiDaAprire())
+  const [voglio, setVoglio] = useState(() => prendiDaAprire())
   useEffect(() => {
     if (voglio === null || righe === null) return
-    const r = [...righe, ...seguiti].find((x) => x.proposta?.id === voglio)
+    const tutte = [...righe, ...seguiti]
+    const r = tutte.find((x) => x.proposta?.id === voglio.proposta)
+      ?? tutte.find((x) => x.proposta && x.id === voglio.azienda)
     if (r) { setAperta(r); setVoglio(null) }
   }, [voglio, righe, seguiti])
 

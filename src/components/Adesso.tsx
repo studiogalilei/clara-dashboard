@@ -131,7 +131,7 @@ export default function Adesso() {
             </p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <button onClick={() => apriInPosta(prima.id)}
+            <button onClick={() => apriInPosta(prima.id, prima.prospect)}
                     className="min-h-[44px] rounded-full bg-blu px-5 py-2 text-[14px] font-bold text-white hover:bg-blu/90">
               Leggi e approva
             </button>

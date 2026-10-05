@@ -423,6 +423,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // Dre corregge e manda. Il testo viaggia nella task di Carlo, che lo legge prima di accettare.
   type Passaggio = { promesso: string; perche: string; decide: string; non: string; accessi: string }
   const [passaggio, setPassaggio] = useState<Passaggio | null>(null)
+  const [passando, setPassando] = useState(false)      // un clic solo: col doppio clic partivano due task a Carlo
   function apriPassaggio() {
     if (!p) return
     setPassaggio({
@@ -1278,7 +1279,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                 {!passaggio.promesso.trim() && <span className="mr-auto text-[12px] text-tenue">Scrivi cosa abbiamo promesso: è la cosa che si perde di più.</span>}
                 <button onClick={() => setPassaggio(null)} className="min-h-[40px] rounded-full border border-bordo bg-white px-4 py-1.5 text-xs font-semibold text-tenue">Annulla</button>
-                <button onClick={() => void passaACarlo(testoPassaggio(passaggio))} disabled={!passaggio.promesso.trim()}
+                <button onClick={() => { setPassando(true); void passaACarlo(testoPassaggio(passaggio)).finally(() => setPassando(false)) }} disabled={!passaggio.promesso.trim() || passando}
                         className="min-h-[40px] rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Passa a Carlo</button>
               </div>
             </div>

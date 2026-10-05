@@ -15,13 +15,15 @@ export function percheCosi(perche: string | null | undefined): string {
 // DA OGGI ALLA POSTA, GIA' APERTA (gold, 6/10): «Leggi e approva» nella carta Adesso porta
 // nella Posta sulla conversazione giusta, dentro la fila. Si segna qui quale aprire; la Posta
 // la apre appena ha caricato e la dimentica.
-let daAprire: number | null = null
-export function apriInPosta(propostaId: number) {
-  daAprire = propostaId
+// si segna la proposta e, come riserva, l'azienda: se l'azienda ha due proposte aperte la Posta
+// potrebbe mostrarne un'altra, e la conversazione non si apriva
+let daAprire: { proposta: number; azienda: string | null } | null = null
+export function apriInPosta(propostaId: number, aziendaId: string | null = null) {
+  daAprire = { proposta: propostaId, azienda: aziendaId }
   scrivi('clara-posta', 'conversazioni')
   window.dispatchEvent(new Event('clara:vai-posta'))
 }
-export function prendiDaAprire(): number | null {
+export function prendiDaAprire(): { proposta: number; azienda: string | null } | null {
   const id = daAprire
   daAprire = null
   return id
