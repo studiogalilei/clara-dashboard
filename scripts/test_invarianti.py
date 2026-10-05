@@ -1126,6 +1126,22 @@ def _():
         S.sb = vero_sb
 
 
+@prova("la giornata non e' finita: una bozza di follow-up in Posta non chiude la giornata")
+def _():
+    import battito as B
+    vero = B.sb_tutte
+    try:
+        B.sb_tutte = lambda path, **k: []
+        assert B.giornata("2026-10-06")[0].startswith("GIORNATA CHIUSA")
+        B.sb_tutte = lambda path, **k: ([{"prospect_id": "x", "stato": "aperta", "azione": {"template": "FOLLOW UP 1"}}]
+                                        if "/proposte" in path else [])
+        assert B.giornata("2026-10-06")[0].startswith("GIORNATA APERTA"), "una bozza ferma e' un follow-up non partito"
+        B.sb_tutte = lambda path, **k: ([{"id": "y", "company": "Si' senza analisi"}] if "/prospects" in path else [])
+        assert B.giornata("2026-10-06")[0].startswith("GIORNATA APERTA"), "un si' senza analisi tiene aperta la giornata"
+    finally:
+        B.sb_tutte = vero
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

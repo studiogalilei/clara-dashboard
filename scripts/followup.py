@@ -96,11 +96,12 @@ def calendario(prova, oggi):
                   + (": aspetta l'analisi" if not p.get("analysis_pdf") else "")) if ferma else "in coda: la bozza arriva al prossimo giro"
         metti(p["id"], p["coda"], oggi, perche)
     # 2. FOLLOW UP 1: analisi mandata, silenzio, GIORNI dopo (stessa regola di main)
-    gia = gia_avute("FOLLOW%20UP%201")
-    da = (oggi - datetime.timedelta(days=30)).isoformat()
-    for p in sb("GET", "/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda"
+    gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
+    # 5/10: niente piu' finestra dei 30 giorni. Chi e' dovuto resta dovuto finche' il follow-up
+    # non parte o non esce con un motivo: la finestra faceva sparire dal conto chi era indietro.
+    for p in sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda"
                        f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
-                       f"&classificazione=in.({CLASSI})&analysis_sent_at=gte.{da}&limit=500") or []:
+                       f"&classificazione=in.({CLASSI})") or []:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda"):
             continue
         if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
@@ -112,7 +113,7 @@ def calendario(prova, oggi):
     # 3. MINI FOLLOW UP: sei giorni dopo la ripresa
     gia_mini = gia_avute("MINI%20FOLLOW%20UP")
     for m in sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA"
-                       f"&risposta_il=gte.{da}&limit=2000") or []:
+                       "") or []:
         if not m.get("prospect_id") or m["prospect_id"] in gia_mini or not m.get("risposta_il"):
             continue
         il = datetime.date.fromisoformat(m["risposta_il"][:10]) + datetime.timedelta(days=6)
@@ -149,7 +150,7 @@ def main():
     righe = sb("GET", "/rest/v1/prospects?select=id,name,company,email,analysis_sent_at,last_reply_at,classificazione,analysis_pdf,coda"
                       f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                       f"&classificazione=in.({CLASSI})&order=analysis_sent_at.desc&limit=500") or []
-    gia = gia_avute("FOLLOW%20UP%201")
+    gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
     fatti = 0
     for p in righe:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda"):

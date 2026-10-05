@@ -48,6 +48,32 @@ def _ore(iso):
     return round((ADESSO - t).total_seconds() / 3600, 1) if t else None
 
 
+SEGUITI = ("FOLLOW UP 1", "MINI FOLLOW UP", "RINVIO SCADUTO", "RICONTATTO OOO", "RIPRESA", "FOLLOW UP SU MISURA")
+
+
+def giornata(oggi):
+    """LA GIORNATA NON E' FINITA (Dre, 5/10: «finche' tutti quelli che hanno detto si' non hanno
+    ricevuto l'analisi, e tutti quelli che devono avere un follow-up non l'hanno ricevuto»).
+    Due liste che devono essere vuote. Una bozza in Posta non e' un follow-up partito: conta
+    come dovuto. Il workflow sta nel vault: «La giornata non e' finita (regola del 5-10-2026)»."""
+    si = sb_tutte("/rest/v1/prospects?select=id,company,name,email,coda&fuori=eq.false&analysis_sent=eq.false"
+                  "&classificazione=in.(positivo,tiepido)&no_followup=eq.false&stage=not.in.(perso,cliente)&pipeline_stage=is.null") or []
+    dovuti = {c["prospect_id"]: "il suo giorno e' passato" for c in
+              sb_tutte(f"/rest/v1/seguiti_calendario?select=prospect_id&il=lte.{oggi}", chiave="prospect_id") or []}
+    for x in sb_tutte("/rest/v1/proposte?select=prospect_id,stato,azione&stato=in.(aperta,approvata,in_invio)&tipo=eq.risposta") or []:
+        if x.get("prospect_id") and (x.get("azione") or {}).get("template") in SEGUITI:
+            dovuti[x["prospect_id"]] = "bozza in Posta, aspetta te" if x["stato"] == "aperta" else f"bozza {x['stato']}, in partenza"
+    if not si and not dovuti:
+        return ["GIORNATA CHIUSA: tutti i sì hanno l'analisi, tutti i follow-up sono partiti."]
+    out = [f"GIORNATA APERTA: {len(si)} sì senza analisi, {len(dovuti)} follow-up non partiti."]
+    in_posta = sum(1 for m in dovuti.values() if m.startswith("bozza in Posta"))
+    if in_posta:
+        out.append(f"  {in_posta} follow-up sono bozze in Posta: si chiudono con Approva e manda.")
+    for p in si[:3]:
+        out.append(f"  sì senza analisi: {(p.get('company') or p.get('name') or p['email'])[:26]}" + (" (in coda)" if p.get("coda") else ""))
+    return out
+
+
 def main():
     oggi = datetime.date.today().isoformat()
     mandate = sb("GET", f"/rest/v1/proposte?select=titolo&stato=eq.fatta&tipo=eq.risposta&risposta_il=gte.{oggi}T00:00:00") or []
@@ -98,6 +124,7 @@ def main():
     else:
         r.append("Nessuno oltre soglia (4 ore i vivi, 48 i no gentili). Gli OOO aspettano il rientro.")
 
+    r.extend(giornata(oggi))
     testo = "\n".join(r)
     print(testo)
     if not PROVA:
