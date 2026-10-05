@@ -49,7 +49,7 @@ const AUTO = ['INT-01', 'INT-02', 'INT-03', 'INT-23', 'INT-GB']
 function quandoCall(at: string): string {
   const d = new Date(at)
   const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-  const g = (x: Date) => x.toISOString().slice(0, 10)
+  const g = (x: Date) => x.toLocaleDateString('sv-SE')      // il giorno di qui, non quello di Greenwich
   const oggi = new Date()
   const domani = new Date(Date.now() + 86400e3)
   if (g(d) === g(oggi)) return `oggi alle ${ora}`
