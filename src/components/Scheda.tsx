@@ -1,3 +1,4 @@
+import { soloSuo } from '../lib/posta'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
@@ -609,19 +610,52 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // gli abbiamo mandato. La storia non mi serve cosi' visibile.» Un blocco solo:
   // dove eravamo, cosa ha in mano, il suo mercato. La storia sta dietro «Storia».
   const fitCall = ((p?.enriched ?? {}) as { google_fit?: Record<string, unknown> }).google_fit ?? {}
-  const ultimaSua = [...(timeline ?? [])].reverse().find((x) => x.kind === 'email_in' || x.kind === 'call' || x.kind === 'transcript')
+  const ultimaSua = [...(timeline ?? [])].reverse().find((x) => (x.kind === 'email_in' && soloSuo(x.body)) || x.kind === 'call' || x.kind === 'transcript')
+  // COSA CI HA GIA' DETTO (gold, 6/10): le sue parole, testuali, cosi' nessuno gliele rifa'
+  // chiedere in call. Solo quello che ha scritto lei: senza la nostra mail citata e la firma.
+  const detto = [...(timeline ?? [])].reverse()
+    .filter((x) => x.kind === 'email_in')
+    .map((x) => ({ at: x.at, testo: soloSuo(x.body).replace(/\s+/g, ' ') }))
+    .filter((x) => x.testo.length >= 12)
+    .slice(0, 3)
+  // la riga che dice qualcosa: salta i saluti («Buongiorno,», «Salve Lisa,»)
+  const rigaVera = (b: string) => b.split('\n').map((r) => r.trim()).find((r) => r.length > 25 && !/^(buongiorno|buonasera|salve|gentile|ciao|egregio)\b[^.!?]{0,30},?$/i.test(r)) ?? b.trim()
+  // se le sue parole stanno gia' sopra, «Dove eravamo» dice la nostra ultima mossa
+  const ultimaNostra = detto.length && ultimaSua?.kind === 'email_in'
+    ? [...(timeline ?? [])].reverse().find((x) => x.kind === 'email_out' && x.at > ultimaSua.at) ?? null
+    : null
   const recCall = fitCall.recensioni as { voto?: number; recensioni?: number } | undefined
   const scomode = (fitCall.due_cose_scomode as string[] | undefined) ?? []
   const cardCall = p && (
             <Card className="p-4">
               <TitoloCard>Per la call</TitoloCard>
               <div className="mt-1 space-y-3">
+                {detto.length > 0 && (
+                  <div className="rounded-xl bg-navy px-4 py-3 text-white">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/70">Cosa ci ha già detto</p>
+                    {detto.map((d) => (
+                      <p key={d.at} className="mt-2 text-[13px] leading-snug">
+                        «{d.testo.length > 200 ? d.testo.slice(0, 200).replace(/\s+\S*$/, '') + '…' : d.testo}»
+                        <span className="mt-0.5 block text-[11px] text-white/60">mail del {fmtDateShort(d.at)}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tenue">Dove eravamo</p>
-                  {ultimaSua ? (
+                  {ultimaNostra ? (
+                    <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
+                      <span className="font-semibold">La nostra ultima mail, {fmtDateShort(ultimaNostra.at)}:</span>{' '}
+                      {rigaVera(ultimaNostra.body ?? '').slice(0, 220)}
+                    </p>
+                  ) : ultimaSua && detto.length && ultimaSua.kind === 'email_in' ? (
+                    <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
+                      <span className="font-semibold">Aspetta una nostra risposta</span> dal {fmtDateShort(ultimaSua.at)}.
+                    </p>
+                  ) : ultimaSua ? (
                     <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
                       <span className="font-semibold">{ultimaSua.kind === 'email_in' ? 'La sua ultima mail' : 'L\u2019ultima call'}, {fmtDateShort(ultimaSua.at)}:</span>{' '}
-                      {((ultimaSua.body ?? '').split('\n').find((r) => r.trim().length > 10) ?? ultimaSua.body ?? '').slice(0, 220)}
+                      {rigaVera(ultimaSua.kind === 'email_in' ? soloSuo(ultimaSua.body) : (ultimaSua.body ?? '')).slice(0, 220)}
                     </p>
                   ) : <p className="mt-0.5 text-[13px] text-tenue">Niente di suo nel filo, ancora.</p>}
                   {p.next_action && (
