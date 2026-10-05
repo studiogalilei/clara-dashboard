@@ -173,7 +173,8 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
         errori.append(f"punto-spazio-e-continua {incollate} volte: un umano lega con le virgole o va a capo (Dre 1/10)")
     if "—" in testo:
         errori.append("trattino lungo")
-    tu, lei = TU.findall(testo), LEI.findall(testo)
+    # 5/10: «TI» dentro TI.EMME.TI non e' un tu: le parole tutte maiuscole sono sigle e nomi
+    tu, lei = [w for w in TU.findall(testo) if not w.isupper()], [w for w in LEI.findall(testo) if not w.isupper()]
     if tu and lei:
         errori.append(f"registro misto tu/lei ({', '.join(sorted(set(w.lower() for w in tu))[:3])})")
     righe = [r.strip() for r in testo.splitlines() if r.strip()]

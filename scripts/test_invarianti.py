@@ -1152,6 +1152,15 @@ def _():
     assert R.illeggibile({"classe": "da_classificare", "perche": "testo non disponibile"})
 
 
+@prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
+def _():
+    import bozze as Bz
+    e = Bz.cancello("Salve Mario,\n\nle scrivo per TI.EMME.TI: le propongo una chiamata giovedì, qui trova il calendario https://calendar.app.google/x\n\nUn saluto")
+    assert not any("registro misto" in x for x in e), e
+    e2 = Bz.cancello("Salve Mario,\n\nti scrivo e le propongo una chiamata giovedì: https://calendar.app.google/x\n\nUn saluto")
+    assert any("registro misto" in x for x in e2), "un tu vero insieme al lei deve ancora essere bocciato"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
