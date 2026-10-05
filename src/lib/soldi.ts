@@ -62,7 +62,10 @@ export function conSoldi<T extends { id: string; canone?: number | null; enriche
   if (s.prezzo != null) arr.prezzo = s.prezzo
   if (s.bilancio != null) arr.bilancio = s.bilancio
   if (s.valore != null) arr.valore = s.valore
-  return { ...p, canone: p.canone ?? s.canone, enriched: arr }
+  // 5/10: anche la fatturazione torna al suo posto (prima si rimetteva solo il canone, e i
+  // Preventivi non precompilavano mai i dati: il trigger della cassaforte li svuota dalla riga)
+  const fatt = (p as { fatturazione?: unknown }).fatturazione ?? s.fatturazione
+  return { ...p, canone: p.canone ?? s.canone, enriched: arr, ...(fatt != null ? { fatturazione: fatt } : {}) }
 }
 
 /** Il valore del progetto dalla cassaforte. */

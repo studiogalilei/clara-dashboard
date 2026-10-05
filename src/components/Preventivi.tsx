@@ -12,6 +12,7 @@ import { LINEA_NOME, controllaTono, ripulisciTono, testoDi } from '../lib/tono'
 import { cosaManca } from '../lib/condizioni'
 import { datiStudio, mancaStudio, scriviStudio, STUDIO_VUOTO, type DatiStudio } from '../lib/studio'
 import { vedoRiservato } from '../lib/riservato'
+import { soldiClienti, conSoldi } from '../lib/soldi'
 import {
   alMese, unaTantum, lineaDi, prossimoNumero, titoloDi, documentoDi, generaEArchivia, scaduto,
   type Preventivo, type Voce, type VoceListino, type Fatturazione,
@@ -131,10 +132,10 @@ export default function Preventivi({ onOpen }: Props) {
     setNomi((m) => {
       const mancanti = ids.filter((id) => id && !m[id])
       if (mancanti.length) {
-        void supabase.from('prospects').select(CAMPI).in('id', mancanti).limit(1000)
-          .then(({ data }) => setNomi((x) => {
+        void Promise.all([supabase.from('prospects').select(CAMPI).in('id', mancanti).limit(1000), soldiClienti()])
+          .then(([{ data }, soldi]) => setNomi((x) => {
             const out = { ...x }
-            for (const a of ((data as Nome[]) ?? [])) out[a.id] = a
+            for (const a of ((data as Nome[]) ?? [])) out[a.id] = conSoldi(a, soldi)
             return out
           }))
       }
@@ -150,8 +151,8 @@ export default function Preventivi({ onOpen }: Props) {
     const apri = (id: string | null) => {
       try { sessionStorage.removeItem('preventivo:nuovo') } catch { /* niente */ }
       if (!id) return
-      void supabase.from('prospects').select(CAMPI).eq('id', id).single().then(({ data }) => {
-        const a = data as Nome | null
+      void Promise.all([supabase.from('prospects').select(CAMPI).eq('id', id).single(), soldiClienti()]).then(([{ data }, soldi]) => {
+        const a = data ? conSoldi(data as Nome, soldi) : null
         if (!a) return
         setNomi((m) => ({ ...m, [a.id]: a }))
         setBozza({ ...vuota(), prospect_id: a.id, fatturazione: a.fatturazione ?? { ragione: a.company ?? '' } })
@@ -292,6 +293,7 @@ export default function Preventivi({ onOpen }: Props) {
       const f = bozza.fatturazione
       if (f.ragione || f.indirizzo || f.piva || f.pec || f.sdi) {
         await supabase.from('prospects').update({ fatturazione: f }).eq('id', bozza.prospect_id)
+        void soldiClienti(true)
         setNomi((m) => ({ ...m, [bozza.prospect_id]: { ...m[bozza.prospect_id], fatturazione: f } }))
       }
       if (conPdf) {
