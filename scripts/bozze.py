@@ -815,7 +815,12 @@ def main():
     print(f"\n  bozze pronte {fatte}, da guardare tu {ferme}, non passate il cancello {bocciate}, saltate con motivo {saltate}")
 
     # ── il gigante buono: i negativi cortesi, una volta sola ────────
-    negativi = sb("GET", "/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
+    # 5/10: la coda contiene solo candidati veri: dentro la finestra dei 45 giorni e mai
+    # gia' esclusi. Senza questi filtri i 15 esaminati a giro si bruciavano sui no di
+    # quattro mesi fa e i vivi della settimana non arrivavano mai al loro turno.
+    da_gb = (datetime.date.today() - datetime.timedelta(days=GIORNI_GB)).isoformat()
+    negativi = sb("GET", f"/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
+                         f"&last_reply_at=gte.{da_gb}&enriched->>gb_escluso=is.null"
                          "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup,awaiting_us"
                          "&order=last_reply_at.asc&limit=200") or []
     soppresse = sb_tutte("/rest/v1/suppressions?select=email,domain&limit=5000") or []
