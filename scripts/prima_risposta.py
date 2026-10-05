@@ -140,8 +140,12 @@ def contatti_fuori(p, giorni=GIORNI_CONTATTO):
         no.append(f"c'e' una nota fuori binario: «{' '.join(nota.split())[:60]}»")
     if p.get("owner"):
         no.append("qualcuno l'ha presa in carico")
-    righe = sb("GET", f"/rest/v1/interactions?select=kind,at,ref&prospect_id=eq.{pid}&at=gte.{da}"
+    righe = sb("GET", f"/rest/v1/interactions?select=kind,at,ref,body&prospect_id=eq.{pid}&at=gte.{da}"
                       f"&or=(kind.in.(call,transcript,nota,postit),ref.like.gmail:*)&order=at.desc&limit=5") or []
+    # le note scritte dal sistema (Clara o Achille, 5/10: «Riclassificata negativo da
+    # Clara...») non sono un contatto umano fuori banda: non frenano la corsia
+    righe = [r for r in righe if not (r["kind"] == "nota" and any(m in (r.get("body") or "")[:80]
+             for m in ("da Clara", "Achille:", "Clara:")))]
     for r in righe[:1]:
         cosa = "una mail da Gmail" if (r.get("ref") or "").startswith("gmail:") else {"call": "una call", "transcript": "una call registrata",
                                                                                        "nota": "una nota", "postit": "un post-it"}.get(r["kind"], r["kind"])
