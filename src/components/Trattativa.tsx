@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect } from '../lib/types'
 import { tappaDi, mossa, type Tappa } from '../lib/percorso'
+import { pedaggioPagato } from '../lib/regole'
+import type { PipelineStage } from '../lib/types'
 import { Spinner } from './ui'
 
 // IN TRATTATIVA (Dre, 5/10): «voglio solo 3 colonne stile Trello, solo quelli che
@@ -103,7 +105,12 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
     setRighe((l) => (l ?? []).map((x) => (x.id === p.id ? { ...x, ...m.patch } as Prospect : x)))
     const { error } = await supabase.from('prospects').update(m.patch).eq('id', p.id)
     if (error) { setRighe(prima); setGuaio(error.message); return false }
-    void supabase.from('interactions').insert({ prospect_id: p.id, at: new Date().toISOString(), kind: 'nota', body: m.nota })
+    // la nota dice «senza riassunto» solo se manca davvero (6/10): prima lo diceva sempre,
+    // perche' qui il riassunto non si guardava. Si guarda dopo, per non frenare la carta.
+    const da = tappaDi(p)
+    const riassunto = ['conoscitiva', 'tecnica', 'avvio'].includes(da) ? await pedaggioPagato(p.id, da as PipelineStage) : true
+    const nota = riassunto ? mossa(p, verso, { motivo: mot, riassunto }) : m
+    void supabase.from('interactions').insert({ prospect_id: p.id, at: new Date().toISOString(), kind: 'nota', body: 'nota' in nota ? nota.nota : m.nota })
     return true
   }, [righe])
 
