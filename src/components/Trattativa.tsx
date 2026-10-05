@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect } from '../lib/types'
 import { tappaDi, mossa, type Tappa } from '../lib/percorso'
-import { pedaggioPagato } from '../lib/regole'
+import { giorno, pedaggioPagato } from '../lib/regole'
 import type { PipelineStage } from '../lib/types'
 import { Spinner } from './ui'
 
@@ -49,7 +49,7 @@ function statoDi(p: Prospect, col: Colonna): { testo: string; colore: string } {
     if (!p.analysis_sent) return { testo: 'sì ricevuto, l’analisi sta partendo', colore: 'bg-blu' }
     return { testo: g !== null ? `sì di ${g === 0 ? 'oggi' : `${g} giorni fa`}, call da fissare` : 'call da fissare', colore: 'bg-blu' }
   }
-  if (p.next_action_date && p.next_action_date <= new Date().toISOString().slice(0, 10)) {
+  if (p.next_action_date && p.next_action_date <= giorno()) {
     return { testo: `${p.next_action ?? 'prossimo passo'} scaduto`, colore: 'bg-amber-400' }
   }
   if (fermo !== null && fermo > 7) return { testo: `fermo da ${fermo} giorni`, colore: 'bg-red-500' }
