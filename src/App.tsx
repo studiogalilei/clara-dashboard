@@ -747,7 +747,7 @@ export default function App() {
             ) : tab === 'prospect' && leggiPref('pipeline-vista', 'trattativa') !== 'classica' ? (
               <>
                 {/* 5/10, Dre: tre colonne, solo i si'. La vista classica resta a un click. */}
-                <Trattativa onOpen={setOpenId} />
+                <Trattativa onOpen={setOpenId} q={q} onTutte={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }} />
                 <button onClick={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }}
                         className="mt-4 text-[11px] font-semibold text-tenue hover:text-navy">Vista classica</button>
               </>

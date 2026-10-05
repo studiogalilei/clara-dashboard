@@ -80,10 +80,11 @@ export default function Chat({ onOpen }: Props) {
   }, [])
 
   const carica = useCallback(() => {
-    void supabase.from('chat').select('*').order('at', { ascending: true }).limit(500)
+    // le ULTIME 500, poi in ordine (5/10: con «ascending + limit» oltre 500 messaggi i nuovi sparivano)
+    void supabase.from('chat').select('*').order('at', { ascending: false }).limit(500)
       .then(({ data, error }) => {
         if (error) { setProblema(`Le condivisioni non si leggono: ${error.message}`); return }
-        setRighe((data as Riga[]) ?? [])
+        setRighe(((data as Riga[]) ?? []).reverse())
       })
   }, [])
 

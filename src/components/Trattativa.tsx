@@ -54,7 +54,7 @@ function statoDi(p: Prospect, col: Colonna): { testo: string; colore: string } {
   return { testo: p.next_action ? `${p.next_action}${p.next_action_date ? `, ${p.next_action_date.slice(8, 10)}/${p.next_action_date.slice(5, 7)}` : ''}` : 'in corso', colore: 'bg-blu' }
 }
 
-export default function Trattativa({ onOpen }: { onOpen: (id: string) => void }) {
+export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: string) => void; q?: string; onTutte?: () => void }) {
   const [righe, setRighe] = useState<Prospect[] | null>(null)
   const [sopra, setSopra] = useState<Colonna | null>(null)
   const [perdo, setPerdo] = useState<Prospect | null>(null)
@@ -70,9 +70,14 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
   }, [])
   useEffect(() => { carica() }, [carica])
 
+  // la ricerca in testata filtra anche qui (5/10: prima la Trattativa la ignorava)
+  const cerca = q.trim().toLowerCase()
+  const trovate = useMemo(() => (righe ?? []).filter((p) => !cerca ||
+    [p.company, p.name, p.email].some((x) => (x ?? '').toLowerCase().includes(cerca))), [righe, cerca])
+
   const gruppi = useMemo(() => {
     const g: Record<Colonna | 'persa', Prospect[]> = { si: [], conoscitiva: [], tecnica: [], persa: [] }
-    for (const p of righe ?? []) {
+    for (const p of trovate) {
       const c = colonnaDi(p)
       if (c) g[c].push(p)
     }
@@ -82,7 +87,7 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
         || (a.last_reply_at ?? '') .localeCompare(b.last_reply_at ?? ''))
     }
     return g
-  }, [righe])
+  }, [trovate])
 
   // la mossa: prima lo schermo, poi il database (regola 17)
   const muovi = useCallback(async (p: Prospect, verso: Tappa | 'perso' | 'lead', mot?: string) => {
@@ -111,6 +116,12 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
   return (
     <div>
       {guaio && <p className="mb-3 inline-block rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700">{guaio}</p>}
+      {cerca && gruppi.si.length + gruppi.conoscitiva.length + gruppi.tecnica.length === 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-bordo bg-white px-4 py-3">
+          <p className="text-[14px] text-inchiostro">«{q.trim()}» non è in trattativa{gruppi.persa.length ? ': è fra i lasciati andare, nel cassetto in fondo' : ''}.</p>
+          {onTutte && <button onClick={onTutte} className="rounded-full bg-blu px-3.5 py-1.5 text-[12px] font-bold text-white hover:bg-navy">Cercalo fra tutte le aziende</button>}
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         {COLONNE.map(({ k, nome, vuoto }) => (
           <div key={k}
@@ -159,9 +170,9 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
       {/* il cassetto: nulla si cancella davvero */}
       <div className="mt-6">
         <button onClick={() => setCassetto((v) => !v)} className="text-[12px] font-semibold text-tenue hover:text-navy">
-          {cassetto ? '▾' : '▸'} Lasciati andare, recuperabili ({perse.length})
+          {cassetto || (cerca !== '' && perse.length > 0) ? '▾' : '▸'} Lasciati andare, recuperabili ({perse.length})
         </button>
-        {cassetto && (
+        {(cassetto || (cerca !== '' && perse.length > 0)) && (
           <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {perse.length === 0 && <p className="text-[13px] text-tenue">Nessuno.</p>}
             {perse.map((p) => (

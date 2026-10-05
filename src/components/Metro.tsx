@@ -50,11 +50,11 @@ async function leggiContesto(c: Caso): Promise<Contesto> {
   const [az, storia, cal] = await Promise.all([
     supabase.from('prospects').select('company').eq('id', c.prospect_id).maybeSingle(),
     supabase.from('interactions').select('id,at,kind,body').eq('prospect_id', c.prospect_id)
-      .in('kind', ['email_in', 'email_out', 'followup', 'analisi', 'call', 'nota', 'transcript']).lte('at', riferimento).order('at', { ascending: true }).limit(40),
+      .in('kind', ['email_in', 'email_out', 'followup', 'analisi', 'call', 'nota', 'transcript']).lte('at', riferimento).order('at', { ascending: false }).limit(40),
     supabase.from('agenda').select('at,titolo').eq('prospect_id', c.prospect_id).lte('at', entro).order('at', { ascending: true }).limit(10),
   ])
   const prima: Fatto[] = [
-    ...((storia.data ?? []) as Array<{ id: string; at: string; kind: string; body: string | null }>)
+    ...((storia.data ?? []) as Array<{ id: string; at: string; kind: string; body: string | null }>).reverse()
       .filter((x) => x.id !== c.interaction_id)
       .map((x) => ({ quando: x.at, cosa: NOMI[x.kind] ?? x.kind, testo: (x.body ?? '').replace(/\s+/g, ' ').slice(0, 280) })),
     ...((cal.data ?? []) as Array<{ at: string; titolo: string | null }>)

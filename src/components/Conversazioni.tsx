@@ -111,9 +111,9 @@ export default function Conversazioni({ proposte, rispondi, occupato }: {
       .select('id,kind,at,body')
       .eq('prospect_id', aperta.id)
       .in('kind', ['email_in', 'email_out', 'call', 'nota'])
-      .order('at', { ascending: true })
+      .order('at', { ascending: false })
       .limit(40)
-      .then(({ data }) => { if (vivo) setFilo((data as Battuta[]) ?? []) })
+      .then(({ data }) => { if (vivo) setFilo(((data as Battuta[]) ?? []).reverse()) })
     return () => { vivo = false }
   }, [aperta])
 
