@@ -205,8 +205,13 @@ export default function App() {
       }, 75000)
     }
     riparti()
-    window.addEventListener('keydown', riparti)
-    return () => { window.clearTimeout(t); window.removeEventListener('keydown', riparti) }
+    // 5/10: anche il mouse, lo scroll e il tocco svegliano lo schermo (prima solo la tastiera:
+    // chi lavorava col mouse si vedeva attenuare il menu mentre lo usava)
+    const eventi = ['keydown', 'pointerdown', 'pointermove', 'wheel', 'touchstart'] as const
+    let ultimo = 0
+    const sveglia = () => { const ora = Date.now(); if (ora - ultimo > 1000) { ultimo = ora; riparti() } }
+    eventi.forEach((e) => window.addEventListener(e, sveglia, { passive: true }))
+    return () => { window.clearTimeout(t); eventi.forEach((e) => window.removeEventListener(e, sveglia)) }
   }, [tab, pieno, giro])
 
   const [daDecidere, setDaDecidere] = useState(0)     // le proposte aperte: il badge della Posta di Clara

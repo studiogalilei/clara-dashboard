@@ -275,7 +275,14 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     onClose()
   }
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.body.dataset.sopra) void chiudi() }
+    // 5/10: Esc dentro un campo esce dal campo, non chiude la scheda (prima chiudeva tutto mentre
+    // compilavi «Cosa manca»); un secondo Esc chiude. Chi gestisce gia' Esc lo segna con preventDefault.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.body.dataset.sopra || e.defaultPrevented) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) { el.blur(); return }
+      void chiudi()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1856,14 +1863,14 @@ function CosaManca({ p, aggiorna }: { p: Prospect; aggiorna: (patch: Partial<Pro
           {c.lungo ? (
             <textarea
               autoFocus rows={2} value={valore} onChange={(e) => setValore(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void salva() } if (e.key === 'Escape') setAperto(null) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void salva() } if (e.key === 'Escape') { e.preventDefault(); setAperto(null) } }}
               placeholder={c.aiuto}
               className="flex-1 resize-none rounded-lg border border-blu bg-white px-3 py-1.5 text-sm outline-none"
             />
           ) : (
             <input
               autoFocus type={c.type ?? 'text'} value={valore} onChange={(e) => setValore(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void salva(); if (e.key === 'Escape') setAperto(null) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void salva(); if (e.key === 'Escape') { e.preventDefault(); setAperto(null) } }}
               placeholder={c.aiuto}
               className="flex-1 rounded-lg border border-blu bg-white px-3 py-1.5 text-sm outline-none"
             />
