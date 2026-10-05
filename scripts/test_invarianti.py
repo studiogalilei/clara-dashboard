@@ -1162,6 +1162,22 @@ def _():
     assert R.parte_sua("mandi") == "mandi", "una risposta corta ma vera si legge"
 
 
+@prova("la stessa ora non si propone a piu' di tre persone insieme (caso mercoledi' 7 alle 16, 6/10)")
+def _():
+    import bozze as Bz
+    vero = Bz.sb
+    try:
+        Bz.sb = lambda m, path, corpo=None, h=None: []
+        primo = Bz.proposta_giorno_ora()
+        Bz.sb = lambda m, path, corpo=None, h=None: ([{"giorno_proposto": primo}] * 3 if "proposte" in path else [])
+        secondo = Bz.proposta_giorno_ora()
+        assert secondo != primo, f"proposto di nuovo {primo} con tre bozze aperte che lo propongono gia'"
+        Bz.sb = lambda m, path, corpo=None, h=None: ([{"giorno_proposto": primo}] * 2 if "proposte" in path else [])
+        assert Bz.proposta_giorno_ora() == primo, "con due bozze l'ora resta libera"
+    finally:
+        Bz.sb = vero
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
