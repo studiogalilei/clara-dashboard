@@ -113,6 +113,8 @@ prospects.push(
 )
 
 export const interactions: Interaction[] = [
+  { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su CER Italia che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },
+  { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui.\nGrazie, un saluto.' },
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },
   { id: 'i2', prospect_id: 'p1', at: gg(64), kind: 'email_out', body: 'Secondo tentativo' },
   { id: 'i3', prospect_id: 'p1', at: gg(53), kind: 'email_out', body: '«Chiudo qui se non è il momento»' },

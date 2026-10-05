@@ -5,6 +5,7 @@ import { decidi as decidiAccesso, sonoCeo } from '../lib/accessi'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Prospect } from '../lib/types'
 import ClaraLogo from './ClaraLogo'
+import Conversazioni from './Conversazioni'
 import ClaraPensa from './ClaraPensa'
 import Piano from './Piano'
 import { Avviso, Spinner, ZonaFile, fmtDateShort, fmtOra } from './ui'
@@ -358,6 +359,10 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // default: Clara prepara e mette in fila, non chiacchiera. Si riaccende da qui.
   const [chatSpenta, setChatSpenta] = useState(() => leggiPref('clara-chat', 'no') === 'no')
   const [vista, setVista] = useState<'chat' | 'posta'>(leggiPref('clara-chat', 'no') === 'no' ? 'posta' : 'chat')
+  // 5/10, Dre: «nel workspace devo avere solo le conversazioni e i follow-up». La posta
+  // apre sulle conversazioni per azienda; le decisioni tecniche stanno nella scheda accanto.
+  const [posta, setPosta] = useState<'conversazioni' | 'decisioni'>(leggiPref('clara-posta', 'conversazioni') as 'conversazioni' | 'decisioni')
+  function cambiaPosta(v: 'conversazioni' | 'decisioni') { scriviPref('clara-posta', v); setPosta(v) }
   function accendiChat(si: boolean) { scriviPref('clara-chat', si ? 'si' : 'no'); setChatSpenta(!si); setVista(si ? 'chat' : 'posta') }
   const [apertaId, setApertaId] = useState<number | null>(null)
   // il contesto di una proposta si carica quando la apri, non prima
@@ -1248,7 +1253,21 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             {/* LE COSE DA DECIDERE (bug trovato il 26/9: il pannello diceva
                 «Clara chiede 5» e sotto era vuoto, perché il corpo esisteva
                 solo per la chat. Con la chat spenta non si vedeva niente). */}
-            {vista === 'posta' && listaPosta()}
+            {vista === 'posta' && (
+              <div className="flex gap-1 border-b border-velo px-4 pb-2 pt-2.5">
+                {(['conversazioni', 'decisioni'] as const).map((v) => (
+                  <button key={v} onClick={() => cambiaPosta(v)}
+                          className={`rounded-full px-3 py-1 text-[12px] font-bold ${posta === v ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'}`}>
+                    {v === 'conversazioni' ? 'Conversazioni' : 'Decisioni'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {vista === 'posta' && posta === 'conversazioni' && (
+              <Conversazioni proposte={proposte} occupato={rispondo}
+                             rispondi={(p, si) => rispondi(p as unknown as Proposta, si)} />
+            )}
+            {vista === 'posta' && posta === 'decisioni' && listaPosta()}
 
             {/* la conversazione */}
             {vista === 'chat' && (
