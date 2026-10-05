@@ -10,7 +10,7 @@ import { useVivo } from '../lib/vivo'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 import { chiSono } from '../lib/accessi'
 import { COLORE_STATO, type Tono } from '../lib/stato'
-import { useSchermoLargo } from '../lib/schermo'
+import { useSchermoLargo, useScorroGiu } from '../lib/schermo'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -234,7 +234,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [ioVero, setIoVero] = useState<string | null>(null)
   const [scadenze, setScadenze] = useState<ScadenzaAccount[]>([])
 
-  const largo = useSchermoLargo()          // 29/9: sul computer la call sta in testata, qui non si carica due volte
+  const largo = useSchermoLargo()
+  const scorroGiu = useScorroGiu()          // 29/9: sul computer la call sta in testata, qui non si carica due volte
   const [stretto, setStretto] = useState(false)
   useEffect(() => {
     try {
@@ -1178,7 +1179,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       <button
         onClick={() => { setAggiungo(true); setTimeout(() => nuovoRef.current?.focus(), 50) }}
         aria-label="Aggiungi un'attività"
-        className="fixed bottom-20 left-4 z-30 flex items-center justify-center rounded-2xl bg-blu p-3 text-white shadow-[0_6px_20px_rgba(16,24,40,0.25)] sm:hidden"
+        className={`fixed bottom-20 left-4 z-30 flex items-center justify-center rounded-2xl bg-blu p-3 text-white shadow-[0_6px_20px_rgba(16,24,40,0.25)] transition-transform duration-200 ease-out sm:hidden ${scorroGiu ? 'translate-y-[160%]' : ''}`}
       >
         <svg viewBox="0 0 24 24" className="h-7 w-7"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
       </button>

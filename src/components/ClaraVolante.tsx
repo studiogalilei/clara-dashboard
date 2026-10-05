@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useScorroGiu } from '../lib/schermo'
 import { supabase } from '../lib/supabase'
 import CercaAzienda from './CercaAzienda'
 import { decidi as decidiAccesso, sonoCeo } from '../lib/accessi'
@@ -650,6 +651,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
   // un messaggio si segna letto da dentro, dopo averlo aperto (Dre, 9/9)
   const [apertoMsg, setApertoMsg] = useState<number | null>(null)
   // dove sta la pallina: dove l'hai messa tu, se l'hai spostata
+  const scorroGiu = useScorroGiu()          // sul telefono la pallina si fa da parte mentre leggi (gold 6/10)
   const [pallina, setPallina] = useState<{ x: number; y: number } | null>(() => {
     try { const v = localStorage.getItem('clara-pallina'); return v ? JSON.parse(v) : null } catch { return null }
   })
@@ -1140,7 +1142,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
         // la pallina (Dre, 9/9): un po' piu' grande, il nome sotto, e si sposta dove vuoi
         <div
           style={pallina ? { left: pallina.x, top: pallina.y, right: 'auto', bottom: 'auto' } : undefined}
-          className={`fixed bottom-20 right-4 z-[70] flex-col items-center gap-1 sm:bottom-6 sm:right-6 ${nascostaSuTelefono ? 'hidden sm:flex' : 'flex'}`}
+          className={`fixed bottom-20 right-4 z-[70] flex-col items-center gap-1 transition-transform duration-200 ease-out sm:bottom-6 sm:right-6 ${nascostaSuTelefono ? 'hidden sm:flex' : 'flex'} ${scorroGiu && !pallina ? 'translate-y-[160%] sm:translate-y-0' : ''}`}
         >
           <button
             onPointerDown={(e) => {

@@ -19,3 +19,25 @@ export function useSchermoLargo(minimo = 1024): boolean {
   }, [q])
   return largo
 }
+
+// CHI GALLEGGIA SI FA DA PARTE (gold, 6/10). Sul telefono il «+» di Oggi copriva la lista e
+// la pallina di Clara copriva la bozza nella scheda. Come in Google e Apple: mentre scorri
+// in giu' stai leggendo, e i bottoni galleggianti scendono fuori dallo schermo; appena
+// risali, o torni in cima, tornano (come la barra di Safari: fermarsi non basta, se no
+// ricoprono proprio la riga che stai leggendo). Sul computer non cambia niente.
+export function useScorroGiu(soglia = 12): boolean {
+  const [giu, setGiu] = useState(false)
+  useEffect(() => {
+    let ultimo = window.scrollY
+    const su = () => {
+      const y = window.scrollY
+      if (y < 80) setGiu(false)
+      else if (y - ultimo > soglia) setGiu(true)
+      else if (ultimo - y > soglia) setGiu(false)
+      ultimo = y
+    }
+    window.addEventListener('scroll', su, { passive: true })
+    return () => window.removeEventListener('scroll', su)
+  }, [soglia])
+  return giu
+}
