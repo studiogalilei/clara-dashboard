@@ -664,7 +664,8 @@ export default function App() {
           {/* le novita', una volta, a chi rientra (Dre, 17/9) */}
           {/* le novita' solo sulla prima pagina (Dre, 25/9): su ogni pagina erano la prima cosa che vedevi, sempre */}
           {/* gold (6/10): sulla prima pagina le novita' stanno sotto Adesso, dentro Oggi: prima erano la prima cosa che vedeva l'occhio */}
-          {tab === 'prospect' && !giro && <Novita />}
+          {/* gold: sulla Pipeline (prima pagina, 24/9) le novita' stanno sotto le colonne */}
+          {tab === 'prospect' && !giro && leggiPref('pipeline-vista', 'trattativa') === 'classica' && <Novita />}
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
@@ -776,6 +777,7 @@ export default function App() {
                 <Trattativa onOpen={setOpenId} q={q} onTutte={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }} />
                 <button onClick={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }}
                         className="mt-4 text-[11px] font-semibold text-tenue hover:text-navy">Vista classica</button>
+                {!giro && <div className="mt-6"><Novita /></div>}
               </>
             ) : tab === 'prospect' ? (
               <>
