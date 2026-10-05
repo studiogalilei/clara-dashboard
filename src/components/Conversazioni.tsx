@@ -30,6 +30,8 @@ interface Riga {
   proposta: PropostaMin | null
   daTe: boolean
   perche: string
+  seguito?: boolean
+  giorno?: string
 }
 
 interface Battuta {
@@ -58,20 +60,74 @@ function perRiga(p: { classificazione: string | null }, pr: PropostaMin | null):
   const esito = pr.azione?.prima_risposta
   if (pr.tipo === 'umano') return { daTe: true, perche: pr.perche?.split('.')[0] ?? 'serve una tua decisione' }
   if (esito?.esito === 'resta a Dre') return { daTe: true, perche: esito.motivo?.split('.')[0] ?? 'la bozza aspetta te' }
-  if (pr.azione?.bozza && !AUTO.includes(pr.azione?.intento ?? '')) return { daTe: true, perche: 'c’è una risposta pronta, la mandi tu' }
+  if (pr.azione?.bozza && !AUTO.includes(pr.azione?.intento ?? '')) return { daTe: true, perche: 'c’è una risposta pronta, la approvi tu' }
   return { daTe: false, perche: 'risposta in corsia automatica' }
 }
 
-export default function Conversazioni({ proposte, rispondi, occupato }: {
+// i follow-up decisi da noi (la coda di Clara e quelli su misura): non sono risposte a una mail
+// appena arrivata, quindi non stanno fra chi aspetta. Prima non comparivano proprio (5/10).
+const SEGUITI = ['FOLLOW UP 1', 'MINI FOLLOW UP', 'RINVIO SCADUTO', 'RICONTATTO OOO', 'RIPRESA', 'FOLLOW UP SU MISURA']
+
+export default function Conversazioni({ proposte, rispondi, occupato, invioAcceso = true }: {
   proposte: PropostaMin[]
-  rispondi: (p: PropostaMin, si: boolean) => Promise<boolean>
+  rispondi: (p: PropostaMin, si: boolean, muto?: boolean) => Promise<boolean>
   occupato: number | null
+  invioAcceso?: boolean
 }) {
   const [righe, setRighe] = useState<Riga[] | null>(null)
   const [aperta, setAperta] = useState<Riga | null>(null)
   const [filo, setFilo] = useState<Battuta[] | null>(null)
   const [testo, setTesto] = useState('')
   const [aiuto, setAiuto] = useState(false)
+  const [seguiti, setSeguiti] = useState<Riga[]>([])
+  const [tutti, setTutti] = useState<null | 'campione' | { fatte: number; totali: number; falliti: number; finito: boolean }>(null)
+
+  // I FOLLOW-UP PRONTI (5/10): le bozze di follow-up con il nome dell'azienda, in ordine alfabetico
+  useEffect(() => {
+    const ps = proposte.filter((p) => p.tipo === 'risposta' && p.prospect_id && p.azione?.bozza !== undefined
+      && SEGUITI.includes(String(p.azione?.template ?? '')))
+    if (!ps.length) { setSeguiti([]); return }
+    let vivo = true
+    const ids = [...new Set(ps.map((p) => p.prospect_id as string))]
+    const pezzi: string[][] = []
+    for (let i = 0; i < ids.length; i += 100) pezzi.push(ids.slice(i, i + 100))
+    void Promise.all(pezzi.map((c) => supabase.from('prospects').select('id,company,name,email,classificazione,stage').in('id', c)))
+      .then((rs) => {
+        if (!vivo) return
+        const nomi = new Map<string, { company: string | null; name: string | null; email: string; classificazione: string | null; stage: string | null }>()
+        for (const r of rs) for (const x of (r.data ?? []) as Array<{ id: string; company: string | null; name: string | null; email: string; classificazione: string | null; stage: string | null }>) nomi.set(x.id, x)
+        setSeguiti(ps.map((p) => {
+          const x = nomi.get(p.prospect_id as string)
+          return {
+            id: p.prospect_id as string, nome: x?.company || x?.name || x?.email || p.titolo, email: x?.email ?? '',
+            classificazione: x?.classificazione ?? null, stage: x?.stage ?? null, ore: 0, proposta: p, daTe: true,
+            perche: (p.perche ?? '').split(/[.:]/)[0] || 'follow-up pronto', seguito: true,
+            giorno: String(p.azione?.giorno_proposto ?? ''),
+          }
+        }).sort((a, b) => a.nome.localeCompare(b.nome)))
+      })
+    return () => { vivo = false }
+  }, [proposte])
+
+  const campione = useMemo(() => [...seguiti].sort(() => Math.random() - 0.5).slice(0, 3), [seguiti, tutti === 'campione'])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // APPROVA TUTTI: dopo aver letto il campione. In silenzio (niente messaggio in chat per ognuna),
+  // in fila; il postino le manda 12 ogni 5 minuti, ognuna dalla casella del suo thread.
+  async function approvaTutti() {
+    const lista = seguiti
+    let fatte = 0, falliti = 0
+    setTutti({ fatte, totali: lista.length, falliti, finito: false })
+    for (const r of lista) {
+      if (!r.proposta) continue
+      setSeguiti((l) => l.filter((x) => x.proposta?.id !== r.proposta!.id))
+      const ok = await rispondi(r.proposta, true, true)
+      if (ok) fatte++
+      else { falliti++; setSeguiti((l) => [...l, r]) }
+      setTutti({ fatte, totali: lista.length, falliti, finito: false })
+    }
+    void supabase.rpc('chiama_direttore', { forza: 'manda' })
+    setTutti({ fatte, totali: lista.length, falliti, finito: true })
+  }
 
   useEffect(() => {
     let vivo = true
@@ -126,11 +182,13 @@ export default function Conversazioni({ proposte, rispondi, occupato }: {
     // prima lo schermo, poi il database (regola 17): la riga scende subito
     const era = aperta
     const primaRighe = righe
+    const primaSeguiti = seguiti
     setAperta(null)
+    if (era.seguito) setSeguiti((l) => l.filter((x) => x.proposta?.id !== era.proposta?.id))
     setRighe((l) => (l ?? []).map((r) => r.id === era.id ? { ...r, daTe: false, proposta: null, perche: si ? 'approvata, parte da Smartlead' : 'lasciata andare' } : r))
     const ok = await rispondi(p as PropostaMin, si)
     // 5/10: se non riesce torna tutto com'era, anche la riga (restava fra «in corsa» come partita)
-    if (!ok) { setRighe(primaRighe); setAperta(era) }
+    if (!ok) { setRighe(primaRighe); setSeguiti(primaSeguiti); setAperta(era) }
   }
 
   if (righe === null) return <div className="flex justify-center py-10"><Spinner /></div>
@@ -143,7 +201,7 @@ export default function Conversazioni({ proposte, rispondi, occupato }: {
           <button onClick={() => setAperta(null)} className="rounded-lg px-2 py-1 text-sm font-bold text-blu hover:bg-velo">&lsaquo; Torna</button>
           <div className="min-w-0">
             <p className="truncate text-[15px] font-extrabold text-navy">{aperta.nome}</p>
-            <p className="truncate text-[11px] text-tenue">aspetta {eta(aperta.ore)}, {aperta.perche}</p>
+            <p className="truncate text-[11px] text-tenue">{aperta.seguito ? `follow-up pronto${aperta.giorno ? `, propone ${aperta.giorno}` : ''}` : `aspetta ${eta(aperta.ore)}, ${aperta.perche}`}</p>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
@@ -165,7 +223,7 @@ export default function Conversazioni({ proposte, rispondi, occupato }: {
           ))}
           {aperta.proposta?.azione?.bozza !== undefined && (
             <div className="mt-3 rounded-2xl border-2 border-dashed border-blu/40 bg-blu/5 p-3">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.05em] text-blu">La risposta di Clara, da mandare</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.05em] text-blu">{aperta.seguito ? 'Il follow-up, da mandare' : 'La risposta di Clara, da mandare'}</p>
               <textarea value={testo} onChange={(e) => setTesto(e.target.value)} rows={Math.min(14, testo.split('\n').length + 2)}
                         className="w-full resize-y rounded-xl border border-bordo bg-white p-3 text-[13px] leading-relaxed text-inchiostro focus:border-blu focus:outline-none" />
             </div>
@@ -223,6 +281,54 @@ export default function Conversazioni({ proposte, rispondi, occupato }: {
           </span>
         </button>
       ))}
+      {(seguiti.length > 0 || tutti) && (
+        <>
+          <div className="flex items-center gap-2 bg-fondo px-5 pb-1.5 pt-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">Follow-up pronti</span>
+            <span className="text-[10px] font-bold tabular-nums text-tenue">{seguiti.length}</span>
+            {/* con l'invio spento approvare non manda niente: niente «Approva tutti», si mandano a mano */}
+            {seguiti.length > 1 && tutti === null && invioAcceso && (
+              <button onClick={() => setTutti('campione')}
+                      className="ml-auto rounded-full bg-blu px-3 py-1 text-[11px] font-bold text-white hover:bg-navy">Approva tutti</button>
+            )}
+          </div>
+          {tutti === 'campione' && (
+            <div className="mx-4 mb-2 rounded-2xl border border-blu/30 bg-white p-3">
+              <p className="text-[13px] font-bold text-navy">Prima tre a caso, da leggere</p>
+              {campione.map((r) => (
+                <div key={r.proposta?.id} className="mt-2 rounded-xl bg-velo/50 p-2.5">
+                  <p className="text-[12px] font-bold text-navy">{r.nome}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-inchiostro">{r.proposta?.azione?.bozza}</p>
+                </div>
+              ))}
+              <p className="mt-2 text-[12px] text-tenue">Partono in fila, 12 ogni 5 minuti, ognuna dalla casella del suo thread.</p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => void approvaTutti()} className="rounded-full bg-blu px-4 py-2 text-[12px] font-bold text-white hover:bg-navy">Vanno bene, approva tutti i {seguiti.length}</button>
+                <button onClick={() => setTutti(null)} className="rounded-full border border-bordo px-4 py-2 text-[12px] font-semibold text-tenue">Annulla</button>
+              </div>
+            </div>
+          )}
+          {tutti && tutti !== 'campione' && (
+            <div className="mx-4 mb-2 rounded-xl bg-blu/5 px-3 py-2 text-[12px] font-semibold text-navy">
+              {tutti.finito ? `Approvati ${tutti.fatte} follow-up: partono in fila.${tutti.falliti ? ` ${tutti.falliti} non riusciti, restano qui sotto.` : ''}` : `Approvo ${tutti.fatte} di ${tutti.totali}…`}
+              {tutti.finito && <button onClick={() => setTutti(null)} className="ml-2 text-tenue hover:text-navy">Ok</button>}
+            </div>
+          )}
+          {seguiti.map((r) => (
+            <button key={r.proposta?.id} onClick={() => setAperta(r)}
+                    className="flex w-full items-start gap-3 border-b border-velo px-5 py-2.5 text-left hover:bg-velo/40">
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-[13px] font-semibold text-inchiostro">{r.nome}</span>
+                  {r.giorno && <span className="shrink-0 text-[11px] tabular-nums text-tenue">{r.giorno.replace(/ alle .*/, '')}</span>}
+                </span>
+                <span className="block truncate text-[12px] text-tenue">{r.perche}</span>
+              </span>
+            </button>
+          ))}
+        </>
+      )}
       <div className="flex items-center gap-2 bg-fondo px-5 pb-1.5 pt-4">
         <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">In corsa da sole</span>
         <span className="text-[10px] font-bold tabular-nums text-tenue">{inCorsa.length}</span>

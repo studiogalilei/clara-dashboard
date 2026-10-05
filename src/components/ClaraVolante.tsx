@@ -717,7 +717,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
       const azione = { ...p.azione, bozza_originale: p.azione.bozza_originale ?? p.azione.bozza, bozza: testo, approvata_da: sess?.session?.user.id ?? 'demo', approvata_il: new Date().toISOString() }
       const { error } = await supabase.from('proposte').update({ stato: 'approvata', azione }).eq('id', p.id)
       if (error) { esito = `Non sono riuscita ad approvarla: ${error.message}`; riuscito = false }
-      else { void supabase.rpc('chiama_direttore', { forza: 'manda' }); esito = `Approvata, Clara la manda da Smartlead: ${p.titolo}` }
+      else { if (!muto) void supabase.rpc('chiama_direttore', { forza: 'manda' }); esito = `Approvata, Clara la manda da Smartlead: ${p.titolo}` }   // in gruppo il direttore si chiama una volta sola, alla fine
       if (riuscito) { setProposte((l) => l.filter((x) => x.id !== p.id)); if (!muto) inFila(p) }
       else if (!muto) setGuaio(esito)
       if (!muto) await scriviMessaggio('controllo', esito, p.prospect_id)
@@ -1111,13 +1111,21 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
             Nessuna mail parte da sola, quindi non rischi di mandarla due volte.
           </Avviso>
         )}
-        {proposte.length > 0 && (
-          <div className="mb-3 flex items-baseline gap-3">
-            <span className="ml-auto text-sm font-bold tabular-nums text-navy">{proposte.length}</span>
-          </div>
-        )}
-        <div className="overflow-hidden rounded-2xl border border-bordo bg-white">
-          {listaPosta()}
+        {/* 5/10: anche la pagina si apre sulle Conversazioni, come il pannello: una verita' sola */}
+        <div className="mb-3 flex items-center gap-1">
+          {(['conversazioni', 'decisioni'] as const).map((v) => (
+            <button key={v} onClick={() => cambiaPosta(v)}
+                    className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold ${posta === v ? 'bg-navy text-white' : 'text-tenue hover:bg-velo'}`}>
+              {v === 'conversazioni' ? 'Conversazioni' : 'Decisioni'}
+            </button>
+          ))}
+          {proposte.length > 0 && <span className="ml-auto text-sm font-bold tabular-nums text-navy">{proposte.length}</span>}
+        </div>
+        <div className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-bordo bg-white">
+          {posta === 'conversazioni'
+            ? <Conversazioni proposte={proposte} occupato={rispondo} invioAcceso={invioAcceso !== false}
+                             rispondi={(p, si, muto) => rispondi(p as unknown as Proposta, si, muto)} />
+            : listaPosta()}
         </div>
       </div>
     )
@@ -1266,8 +1274,8 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
               </div>
             )}
             {vista === 'posta' && posta === 'conversazioni' && (
-              <Conversazioni proposte={proposte} occupato={rispondo}
-                             rispondi={(p, si) => rispondi(p as unknown as Proposta, si)} />
+              <Conversazioni proposte={proposte} occupato={rispondo} invioAcceso={invioAcceso !== false}
+                             rispondi={(p, si, muto) => rispondi(p as unknown as Proposta, si, muto)} />
             )}
             {vista === 'posta' && posta === 'decisioni' && listaPosta()}
 
