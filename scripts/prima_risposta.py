@@ -403,11 +403,12 @@ def main():
     mai_mandato = not sb("GET", "/rest/v1/proposte?select=id&risposta=like.Mandata%20da%20Clara*&limit=1")
     in_attesa_del_via = bool(sb("GET", "/rest/v1/proposte?select=id&stato=in.(aperta,approvata,in_invio)"
                                        "&azione->prima_risposta->>esito=eq.primo%20invio%20da%20guardare&limit=1"))
-    # LA PRIORITA' (Dre, 5/10): prima i si' (gli interessati), i no gentili (INT-GB)
-    # solo DOPO, e solo se in questo giro non e' rimasto un si' da mandare: la cortesia
-    # non deve mai rallentare chi e' interessato. Ordine: prima le non-GB, poi le GB.
+    # LA PRIORITA' (Dre, 5/10): prima i si' (gli interessati), poi i no gentili.
+    # Si fa con l'ORDINE: i si' si guardano per primi e prendono i posti del giro,
+    # i no prendono i posti che restano. (La prima versione fermava i no finche'
+    # esisteva un si' aperto QUALSIASI: ma un si' fermo da Dre o difettoso non
+    # partira' mai da solo, e i no aspettavano un fantasma. Corretto il 5/10 sera.)
     aperte = sorted(aperte, key=lambda x: (x.get("azione") or {}).get("intento") == "INT-GB")
-    si_in_attesa = any((x.get("azione") or {}).get("intento") != "INT-GB" for x in aperte)
     approvate, restano = 0, 0
     for pr in aperte:
         p = schede.get(pr["prospect_id"])
@@ -416,8 +417,6 @@ def main():
         if not PROVA and not finestra(adesso, "INT-GB" if gb else None):
             print(f"  -  {nome:34} fuori dalla sua finestra oraria, al prossimo giro"); continue
         no = perche_no_seguito(pr, p) if SEGUITI else perche_no(pr, p)
-        if gb and si_in_attesa and not SEGUITI:
-            print(f"  -  {nome:34} e' una cortesia (no): aspetta che i si' siano partiti"); continue
         if p and p["id"] in gia_auto:
             no.append("ha gia' avuto una risposta automatica")
         if OMBRA and (pr.get("azione") or {}).get("ombra"):
