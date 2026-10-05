@@ -60,10 +60,20 @@ def ultima_risposta_per_persona():
     return ultima
 
 
+def segnaposto(testo):
+    """La notifica di Smartlead al posto della risposta vera. Si decide col codice, non con le
+    parole del modello (5/10: «messaggio di sistema», «testo non disponibile», «automatico
+    senza contenuto» passavano il controllo e la classe cambiava ogni notte: Efficasa da
+    positivo a «da capire», Bank Station fuori target col blocco dei follow-up acceso)."""
+    t = " ".join((testo or "").split()).lower()
+    return len(t) < 60 or t.startswith("risposta ricevuta") or "smartlead" in t[:80]
+
+
 def illeggibile(v):
     p = (v.get("perche") or "").lower()
     return v["classe"] == "da_classificare" and any(
-        k in p for k in ("non leggibile", "vuoto", "notifica", "solo firma", "illeggibile"))
+        k in p for k in ("non leggibile", "vuoto", "notifica", "solo firma", "illeggibile", "non disponibile",
+                         "senza contenuto", "messaggio di sistema", "non risposta umana", "nessun testo"))
 
 
 def main():
@@ -85,6 +95,9 @@ def main():
         a_mano = (p.get("enriched") or {}).get("classificazione") == "manual"
         if a_mano or p.get("stage") in INTOCCABILI or p.get("fuori"):
             continue
+        if segnaposto(msg.get("body")):
+            continue                                        # non c'e' niente da leggere: la classe resta
+
         indice[p["id"]] = p
         da_leggere.append({"id": p["id"], "testo": msg.get("body") or ""})
         if QUANTI and len(da_leggere) >= QUANTI:
@@ -102,6 +115,9 @@ def main():
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:40]
         if illeggibile(v):
             vuoti += 1
+            continue
+        if prima in ("positivo", "tiepido", "rinvio") and v["classe"] == "da_classificare":
+            vuoti += 1                                      # non capire non e' una prova contro un si'
             continue
         if v["classe"] == prima:
             uguali += 1

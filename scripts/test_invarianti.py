@@ -1142,6 +1142,16 @@ def _():
         B.sb_tutte = vero
 
 
+@prova("la rilettura non cambia classe leggendo la notifica di Smartlead")
+def _():
+    import rilettura as R
+    assert R.segnaposto("Risposta ricevuta (Smartlead) - apri il thread per leggerla")
+    assert R.segnaposto("")
+    assert not R.segnaposto("Buongiorno, sì mi interessa ricevere l'analisi che mi avete proposto, grazie")
+    assert R.illeggibile({"classe": "da_classificare", "perche": "messaggio di sistema, non risposta umana"})
+    assert R.illeggibile({"classe": "da_classificare", "perche": "testo non disponibile"})
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
