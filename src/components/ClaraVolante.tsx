@@ -563,9 +563,12 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
 
   useEffect(() => {
     caricaMessaggi()
-    supabase.from('prospects').select('*').neq('stage', 'nuovo')
+    // serve a riconoscere un nome scritto in chat: bastano quattro colonne, ma
+    // servono tutte le aziende (6/10: col tetto a 300 su 753, chi aveva risposto
+    // a settembre, come i follow-up riaperti, non si trovava piu' per nome)
+    supabase.from('prospects').select('id,company,name,email').neq('stage', 'nuovo')
       .order('last_reply_at', { ascending: false, nullsFirst: false })
-      .limit(300)
+      .limit(1000)
       .then(({ data }) => setProspects((data as Prospect[]) ?? []))
   }, [aperta, caricaMessaggi])
 
