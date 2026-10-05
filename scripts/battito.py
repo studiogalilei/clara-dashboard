@@ -51,6 +51,17 @@ def _ore(iso):
 SEGUITI = ("FOLLOW UP 1", "MINI FOLLOW UP", "RINVIO SCADUTO", "RICONTATTO OOO", "RIPRESA", "FOLLOW UP SU MISURA")
 
 
+def _perche_non_parte(pr, pid):
+    """Il primo motivo per cui la prima risposta automatica non la prende: lo stesso cancello, letto senza scrivere."""
+    try:
+        import prima_risposta as PR
+        p = (sb("GET", f"/rest/v1/prospects?select={PR.CAMPI}&id=eq.{pid}") or [None])[0]
+        no = [m for m in PR.perche_no(pr, p) if m != "gia' passata di qui"]
+        return no[0] if no else ""
+    except Exception as e:                                   # noqa: BLE001
+        return f"cancello non letto ({str(e)[:40]})"
+
+
 def giornata(oggi):
     """LA GIORNATA NON E' FINITA (Dre, 5/10: «finche' tutti quelli che hanno detto si' non hanno
     ricevuto l'analisi, e tutti quelli che devono avere un follow-up non l'hanno ricevuto»).
@@ -77,11 +88,14 @@ def giornata(oggi):
 def main():
     oggi = datetime.date.today().isoformat()
     mandate = sb("GET", f"/rest/v1/proposte?select=titolo&stato=eq.fatta&tipo=eq.risposta&risposta_il=gte.{oggi}T00:00:00") or []
+    # con l'invio spento (28/9) ogni bozza aperta aspetta Dre: dire «non passata dai controlli»
+    # faceva pensare a un guasto dove c'era solo una bozza da approvare (6/10)
+    invio = (sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.manda") or [{}])[0].get("attiva")
 
     att = sb_tutte("/rest/v1/prospects?select=id,company,name,email,last_reply_at,classificazione&awaiting_us=eq.true&fuori=eq.false")
     vivi = [p for p in att if (p.get("classificazione") or "") not in MORTI]
     prop = {}
-    for x in sb_tutte("/rest/v1/proposte?select=prospect_id,stato,azione&stato=in.(aperta,approvata,in_invio)"):
+    for x in sb_tutte("/rest/v1/proposte?select=id,tipo,titolo,prospect_id,stato,azione&stato=in.(aperta,approvata,in_invio)"):
         if x.get("prospect_id") and x["prospect_id"] not in prop:
             prop[x["prospect_id"]] = x
 
@@ -106,7 +120,13 @@ def main():
             if esito.get("esito") == "resta a Dre":
                 motivo = "fermo in Posta, aspetta TE: " + (esito.get("motivo") or "")[:60]
             elif pr["stato"] == "aperta":
-                motivo = "bozza pronta, non ancora passata dai controlli"
+                motivo = "bozza in Posta, aspetta te"
+                if invio:
+                    # il motivo vero per cui non parte da sola (6/10): prima diceva «non ancora
+                    # passata dai controlli» anche quando il cancello l'aveva fermata da giorni
+                    perche = _perche_non_parte(pr, p["id"])
+                    if perche:
+                        motivo += f" (non parte da sola: {perche})"
             else:
                 motivo = f"bozza {pr['stato']}"
         fermi.append((ore, nome, motivo))

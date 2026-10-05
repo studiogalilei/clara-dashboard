@@ -1152,6 +1152,16 @@ def _():
     assert R.illeggibile({"classe": "da_classificare", "perche": "testo non disponibile"})
 
 
+@prova("la rilettura legge solo la parte del lead, mai la nostra mail citata (caso WATER WAY, 6/10)")
+def _():
+    import rilettura as R
+    vuota = "Il 2026-08-03 13:22 Lorenzo Fornasier ha scritto: Buongiorno Daniele, abbiamo preparato una breve analisi. Se le fa piacere riceverla, gliela mando subito"
+    assert R.parte_sua(vuota) == "", "una risposta che cita solo noi non ha niente da leggere"
+    vera = "mi incuriosisce vediamo e poi fissiamo un appuntamento Il giorno lun 10 ago 2026 alle ore 13:42 Lorenzo Fornasier < l@x.com > ha scritto: Buongiorno Lisa, gliela mando subito"
+    assert "gliela mando" not in R.parte_sua(vera) and "mi incuriosisce" in R.parte_sua(vera)
+    assert R.parte_sua("mandi") == "mandi", "una risposta corta ma vera si legge"
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz

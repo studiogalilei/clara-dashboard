@@ -69,6 +69,15 @@ def segnaposto(testo):
     return len(t) < 60 or t.startswith("risposta ricevuta") or "smartlead" in t[:80]
 
 
+def parte_sua(testo):
+    """Solo quello che ha scritto la persona, senza la nostra mail citata sotto (6/10: WATER WAY
+    aveva risposto a vuoto, col nostro messaggio citato; il modello ha letto la NOSTRA frase «se le
+    fa piacere riceverla, gliela mando subito» come sua e l'ha fatto passare da fuori target a
+    positivo). Lo stesso taglio che usa la lettura delle risposte nuove (lettura.solo_suo)."""
+    import lettura
+    return lettura.solo_suo(testo or "", con_firma=True).strip()
+
+
 def illeggibile(v):
     p = (v.get("perche") or "").lower()
     return v["classe"] == "da_classificare" and any(
@@ -97,9 +106,12 @@ def main():
             continue
         if segnaposto(msg.get("body")):
             continue                                        # non c'e' niente da leggere: la classe resta
+        suo = parte_sua(msg.get("body"))
+        if not suo:
+            continue                                        # ha risposto solo citando noi: la classe resta
 
         indice[p["id"]] = p
-        da_leggere.append({"id": p["id"], "testo": msg.get("body") or ""})
+        da_leggere.append({"id": p["id"], "testo": suo})
         if QUANTI and len(da_leggere) >= QUANTI:
             break
     print(f"  {len(persone)} hanno risposto, {len(da_leggere)} da rileggere\n")
