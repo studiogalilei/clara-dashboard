@@ -121,7 +121,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
         setDomande(l.filter((p) => !eBozza(p)).length)
       })
     if (vuoleCall) supabase.from('prospects').select('id,company,name,email,prova_fine').eq('fuori', true).eq('pipeline_stage', 'prova')
-      .not('prova_fine', 'is', null).lte('prova_fine', new Date(Date.now() + 14 * 86400e3).toISOString().slice(0, 10))
+      .not('prova_fine', 'is', null).lte('prova_fine', giorno(new Date(Date.now() + 14 * 86400e3)))
       .order('prova_fine', { ascending: true }).limit(20)
       .then(({ data }) => setProveInScadenza(((data as Array<{ id: string; company: string | null; name: string | null; email: string; prova_fine: string }>) ?? [])
         .map((p) => ({ id: p.id, nome: p.company || p.name || p.email, fine: p.prova_fine }))))

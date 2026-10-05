@@ -58,7 +58,7 @@ function scarica(righe: Array<{ p: Riga; s: StatoFoglio }>) {
   const testo = '\ufeff' + [testa.map(campo).join(';'), ...corpo].join('\r\n')
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([testo], { type: 'text/csv;charset=utf-8' }))
-  a.download = `studio-galilei-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `studio-galilei-${giorno()}.csv`
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 2000)
 }
@@ -171,9 +171,9 @@ export default function TuttiFoglio({ onOpen }: Props) {
   async function cambiaStato(p: Riga, s: StatoFoglio) {
     if (s === 'cliente') await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'cliente', contratto: 'stable', awaiting_us: false, no_followup: true })
     else if (s === 'prova') {
-      const d = new Date(); const inizio = d.toISOString().slice(0, 10); d.setMonth(d.getMonth() + 2)
+      const d = new Date(); const inizio = giorno(d); d.setMonth(d.getMonth() + 2)
       await scriviRiga(p, { fuori: true, fuori_at: p.fuori_at ?? new Date().toISOString(), pipeline_stage: 'prova', contratto: 'prova',
-        prova_inizio: p.prova_inizio ?? inizio, prova_fine: p.prova_fine ?? d.toISOString().slice(0, 10), awaiting_us: false, no_followup: true })
+        prova_inizio: p.prova_inizio ?? inizio, prova_fine: p.prova_fine ?? giorno(d), awaiting_us: false, no_followup: true })
     }
     else if (s === 'perso') setPerdo({ p, motivo: '' })
     else if (s === 'preventivo') {

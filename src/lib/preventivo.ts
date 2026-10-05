@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { giorno } from './regole'
 import { urlFile, dimenticaFile } from './file'
 import { nomeFile, LINEA_SIGLA, type Linea, type Risorse } from './tono'
 import { documentoDi, type Voce, type Fatturazione, type Ricorrenza } from './condizioni'
@@ -47,7 +48,7 @@ export const STATI: Array<[StatoPreventivo, string, string]> = [
   ['rifiutato', 'rifiutato', 'bg-red-700 text-white'],
 ]
 
-export const scaduto = (q: Preventivo) => q.stato === 'inviato' && !!q.valido_fino && q.valido_fino < new Date().toISOString().slice(0, 10)
+export const scaduto = (q: Preventivo) => q.stato === 'inviato' && !!q.valido_fino && q.valido_fino < giorno()
 
 // la linea la dicono le voci: se ce n'e' piu' d'una, istituzionale (un documento, una linea sola)
 export function lineaDi(voci: Voce[], listino: VoceListino[]): Linea {

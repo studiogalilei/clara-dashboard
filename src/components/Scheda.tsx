@@ -17,10 +17,10 @@ import {
   type AgendaItem,
 } from '../lib/types'
 import { mercatoDi } from '../lib/mercato'
-import { entraInConoscitiva, NOTA_ENTRA, ultimoMovimento, eCliente, ePerso, oggi, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, MOTIVI_PERSO, type Appunto } from '../lib/regole'
+import { entraInConoscitiva, NOTA_ENTRA, ultimoMovimento, eCliente, ePerso, oggi, giorno, pedaggioPagato, marcaFase, creaTask, appuntiRecenti, MOTIVI_PERSO, type Appunto } from '../lib/regole'
 import { segnaRecente } from '../lib/recenti'
-const giornoOggi = () => new Date().toISOString().slice(0, 10)
-const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10) }
+const giornoOggi = () => giorno()      // il giorno di qui: con toISOString fra mezzanotte e le 2 era ieri (6/10)
+const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return giorno(d) }
 import NuovoProgetto from './NuovoProgetto'
 import DaMandare from './DaMandare'
 import Copia from './Copia'
