@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { agendaAttorno } from '../lib/agenda'
 import { PIPELINE_LABEL, type Prospect, type AgendaItem } from '../lib/types'
 import { Dot, Card, daysAgo, fmtDateShort, fmtOra } from './ui'
 import { VIVI, oggi, giorno, GIORNI_FOLLOWUP, ultimoMovimento } from '../lib/regole'
@@ -134,12 +135,7 @@ export default function Radar({ onOpen, onOggi, onCalendario, parte = 'tutto' }:
     })
 
     Promise.all([
-      supabase
-        .from('agenda')
-        .select('*')
-        .gte('at', new Date(Date.now() - 14 * 86400e3).toISOString())
-        .order('at', { ascending: true })
-        .limit(50),
+      agendaAttorno(14, 30, 50),
       !vuoleAvvisi ? nulla : supabase
         .from('prospects')
         .select('*')

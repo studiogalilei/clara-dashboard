@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { agendaAttorno } from '../lib/agenda'
 import type { Prospect, AgendaItem } from '../lib/types'
 import { Card, Micro, Empty, Avviso, fmtDateShort, fmtOra } from './ui'
 import { giorno, creaTask } from '../lib/regole'
@@ -143,12 +144,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
 
   useEffect(() => {
     Promise.all([
-      supabase
-        .from('agenda')
-        .select('*')
-        .gte('at', new Date(Date.now() - 90 * 86400e3).toISOString())
-        .order('at', { ascending: true })
-        .limit(300),
+      agendaAttorno(90, 200, 300),
       supabase
         .from('prospects')
         .select('*')
@@ -165,8 +161,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
         .order('followup_due', { ascending: true })
         .limit(200),
       // i miei (owner = io) e quelli del pod, se sono manager
-      supabase.from('agenda').select('*').not('owner', 'is', null)
-        .gte('at', new Date(Date.now() - 7 * 86400e3).toISOString()).order('at', { ascending: true }).limit(400),
+      agendaAttorno(7, 100, 400, { conOwner: true }),
       pod.length ? supabase.from('task').select('id,titolo,scadenza,owner,fatta').in('owner', pod.map((p) => p.id))
         .eq('fatta', false).not('scadenza', 'is', null).limit(300) : Promise.resolve({ data: [] }),
       pod.length ? supabase.from('progetti').select('id,nome,scadenza,chi_segue,stato,prospect_id').not('scadenza', 'is', null).neq('stato', 'consegnato').limit(300) : Promise.resolve({ data: [] }),

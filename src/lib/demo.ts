@@ -475,6 +475,8 @@ class Query {
   }
   lte(c: string, v: unknown) { this.filtri.push((r) => r[c] != null && String(r[c]) <= String(v)); return this }
   gte(c: string, v: unknown) { this.filtri.push((r) => r[c] != null && String(r[c]) >= String(v)); return this }
+  lt(c: string, v: unknown) { this.filtri.push((r) => r[c] != null && String(r[c]) < String(v)); return this }
+  gt(c: string, v: unknown) { this.filtri.push((r) => r[c] != null && String(r[c]) > String(v)); return this }
   // .or() era un no-op: la demo mostrava gente che il DB vero esclude (2/9)
   or(s: string) {
     const clausole = spezzaOr(s).map(leggiClausola).filter(Boolean) as Array<(r: Riga) => boolean>
