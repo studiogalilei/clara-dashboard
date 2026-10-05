@@ -417,12 +417,14 @@ export default function Lista({ onOpen, q }: Props) {
     // resta appeso al record un canone che nessuno paga più
     const prima = rows!.find((x) => x.id === id)
     const eraCliente = prima?.pipeline_stage === 'cliente' && target !== 'cliente'
-    if (eraCliente) { patch.contratto = null; void azzeraCanone(id) }   // il canone sta in cassaforte (29/9)
+    if (eraCliente) patch.contratto = null
     const { data } = await supabase.from('prospects').update(patch).eq('id', id).select().single()
     if (!data) {
       setToast({ testo: `${nome}: non sono riuscito a salvare, la carta resta dov'era`, tono: 'stop', id })
       return false
     }
+    // il canone (in cassaforte, 29/9) si azzera solo DOPO che lo spostamento e' riuscito (5/10)
+    if (eraCliente) void azzeraCanone(id)
     await supabase.from('interactions').insert({
       prospect_id: id, at: new Date().toISOString(), kind: 'nota',
       body: come === 'riapri'

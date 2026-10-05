@@ -170,13 +170,13 @@ export default function Vault({ onOpen }: Props) {
     const n = f.name.toLowerCase()
     // se stai guardando una sezione, e' quasi sempre quella: si propone
     const dallaVista = scelta === 'modelli' ? 'modelli' : scelta === 'azienda' ? 'azienda' : ''
-    const posto = dallaVista ||
+    const posto = dallaVista || (
       /logo|marchio|simbolo|intreccio/.test(n) ? 'brand:loghi'
       : /copertina|cover/.test(n) ? 'brand:copertine'
       : /font|carattere/.test(n) ? 'brand:font'
       : /modello|template|esempio/.test(n) ? 'modelli'
       : /visura|camerale|statuto|verbale|bilancio|libro|interno/.test(n) ? 'azienda'
-      : ''
+      : '')
     setDove(posto)
     setIndovinato(Boolean(posto))
   }

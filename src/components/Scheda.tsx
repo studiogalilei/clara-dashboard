@@ -410,9 +410,11 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // (le task proposte arrivano sul suo telefono con l'operazione avvisi).
   async function passaACarlo() {
     if (!p) return
-    const { data: carlo } = await supabase.from('profili').select('id,nome').ilike('nome', '%carlo%').maybeSingle()
-    const idCarlo = (carlo as { id: string } | null)?.id
-    if (!(await aggiorna({ pipeline_stage: 'avvio', owner: idCarlo ?? null, next_action: null, next_action_date: null } as Partial<Prospect>))) return
+    // il primo «Carlo» per nome (5/10: con maybeSingle due omonimi davano errore e l'owner diventava vuoto)
+    const { data: carli } = await supabase.from('profili').select('id,nome').ilike('nome', 'carlo%').order('nome').limit(1)
+    const idCarlo = ((carli ?? []) as Array<{ id: string }>)[0]?.id
+    if (!idCarlo) { setErrore('Non trovo Carlo fra i profili della squadra: il passaggio non è partito.'); return }
+    if (!(await aggiorna({ pipeline_stage: 'avvio', owner: idCarlo, next_action: null, next_action_date: null } as Partial<Prospect>))) return
     await segna('nota', 'Tecnica fatta: il lead passa al dipartimento, responsabile Carlo.')
     if (idCarlo) {
       await creaTask({ titolo: `Prendi in carico ${p.company || p.name || p.email}: la tecnica è fatta, si parte`, prospect_id: p.id, perChi: idCarlo })

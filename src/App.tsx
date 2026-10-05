@@ -786,7 +786,12 @@ export default function App() {
       {openId && <Rete dove={openId}><Scheda key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
-      <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} nascostaSuTelefono={tab === 'pipeline' || tab === 'oggi' || tab === 'clara'} />
+      {/* 5/10: dentro la rete (un suo errore non spegne tutta l'app) e non due volte con la Posta aperta */}
+      {tab !== 'clara' && (
+        <Rete dove="clara">
+          <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} nascostaSuTelefono={tab === 'pipeline' || tab === 'oggi'} />
+        </Rete>
+      )}
 
       {giro && <Giro nome={utente} ruoloVero={ruoloVero} onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
     </div>
