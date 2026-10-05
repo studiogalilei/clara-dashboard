@@ -229,6 +229,24 @@ def playbook():
         "PLAYBOOK_OUTBOUND del workflow")
 
 
+MAX_PER_ORARIO = 3        # quante bozze aperte possono proporre la stessa ora (6/10)
+_MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
+         "settembre", "ottobre", "novembre", "dicembre"]
+
+
+def quando_proposto(testo, anno, fuso):
+    """«mercoledì 7 ottobre alle 16» o «... alle 15:30» -> datetime, o None."""
+    import re
+    m = re.search(r"(\d{1,2})\s+(" + "|".join(_MESI) + r")\s+alle\s+(\d{1,2})(?:[:.](\d{2}))?", testo or "", re.I)
+    if not m:
+        return None
+    try:
+        return datetime.datetime(anno, _MESI.index(m.group(2).lower()) + 1, int(m.group(1)),
+                                 int(m.group(3)), int(m.group(4) or 0), tzinfo=fuso)
+    except ValueError:
+        return None
+
+
 def proposta_giorno_ora():
     """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
     stesso giorno; scritto sempre «giorno + data».
@@ -244,8 +262,21 @@ def proposta_giorno_ora():
     while d.weekday() >= 5:
         d += datetime.timedelta(days=1)
     occupati = []
+    # GLI ORARI GIA' PROPOSTI (6/10): il primo buco libero di Dre lo prendevano tutte le bozze
+    # scritte nello stesso giorno, e quattro prime risposte proponevano mercoledi' 7 alle 16.
+    # Se due dicono si', Dre ha due call alla stessa ora. Un orario offerto in tre bozze aperte
+    # (o approvate e non ancora partite) conta come occupato.
+    offerti = {}
     try:
-        da = (d - datetime.timedelta(days=1)).isoformat(); a = (d + datetime.timedelta(days=8)).isoformat()
+        for x in sb("GET", "/rest/v1/proposte?select=azione->>giorno_proposto&stato=in.(aperta,approvata,in_invio)"
+                           "&azione->>giorno_proposto=not.is.null&limit=1000") or []:
+            t = quando_proposto(x.get("giorno_proposto"), oggi.year, roma)
+            if t:
+                offerti[t] = offerti.get(t, 0) + 1
+    except Exception:
+        offerti = {}
+    try:
+        da = (d - datetime.timedelta(days=1)).isoformat(); a = (d + datetime.timedelta(days=15)).isoformat()
         for ev in sb("GET", f"/rest/v1/agenda?select=at,fonte,owner&at=gte.{da}&at=lte.{a}&limit=300") or []:
             # il calendario di Dre entra come fonte «gcal» secca (gli altri hanno la mail nella fonte)
             if (ev.get("fonte") or "gcal") == "gcal" or "dramane" in (ev.get("fonte") or ""):
@@ -255,12 +286,14 @@ def proposta_giorno_ora():
     # Documento Gold (Dre): pomeriggio preferito, mai weekend, mai lunedi' a meno
     # che lo propongano loro. Quindi prima i pomeriggi della settimana, poi le mattine.
     for fascia in (((14, 30), (15, 0), (15, 30), (16, 0), (16, 30)), ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))):
-      for salto in range(7):
+      for salto in range(14):
         g = d + datetime.timedelta(days=salto)
         if g.weekday() >= 5 or g.weekday() == 0:
             continue
         for ora, minuti in fascia:
             t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
+            if offerti.get(t, 0) >= MAX_PER_ORARIO:
+                continue
             if all(abs((t - o).total_seconds()) >= 3600 for o in occupati):
                 return f"{giorni[g.weekday()]} {g.day} {mesi[g.month - 1]} alle {ora}" + (f":{minuti:02d}" if minuti else "")
     while d.weekday() in (0, 5, 6):
