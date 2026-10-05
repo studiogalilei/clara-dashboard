@@ -275,6 +275,10 @@ def ha_gia(p, righe):
         # 28/9: solo le sue righe. La nostra mail citata sotto contiene le nostre
         # frasi, e una di quelle poteva far sembrare che avesse detto di no.
         "detto_no": frena(DETTO_NO.search(solo_suo(testo)), lettore, ("no", "non_scrivere")),
+        # il no CONCORDE: regex E modello sicuro insieme. Serve per aggiornare la classe
+        # da soli (5/10, casainromagna): un no cosi' certo non si scarica su Dre.
+        "detto_no_sicuro": bool(DETTO_NO.search(solo_suo(testo))) and bool(
+            lettore and lettore.get("etichetta") in ("no", "non_scrivere") and not lettore.get("dubbio")),
         "autorisposta": frena(AUTORISPOSTA.search(testo[:1200]), lettore, ("fuori_ufficio",)),
         "non_scrivere": frena(False, lettore, ("non_scrivere",)),
         "casella_di_servizio": bool(SERVIZIO.match(p.get("email") or "")),

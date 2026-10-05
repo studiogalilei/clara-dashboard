@@ -696,6 +696,16 @@ def main():
             return (p, gruppo, nome, None, [f"lettura non riuscita: {str(e)[:80]}"], None, None)
         # 2. LE REGOLE DURE
         dura = lettura.regola_dura(gruppo, letti, p.get("classificazione"))
+        if dura and dura[0] == "fermati" and "ma la classe non lo dice" in dura[1] and letti.get("detto_no_sicuro"):
+            # 5/10, casainromagna (Donatella): «abbiamo gia' chi ci fornisce questo servizio»
+            # con la classe ferma a positivo. Le due teste concordi su un no non si
+            # scaricano su Dre: la classe si aggiorna e il gigante buono la serve.
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}",
+               {"classificazione": "negativo"}, {"Prefer": "return=minimal"})
+            sb("POST", "/rest/v1/interactions", {"prospect_id": p["id"], "kind": "nota",
+               "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+               "body": "Riclassificata negativo da Clara: le due teste concordi su un no gentile (regex e modello sicuro). Va al gigante buono."}, {"Prefer": "return=minimal"})
+            return (p, gruppo, nome, None, [], letti, ("salta", "no concorde: riclassificata negativo, ci pensa il gigante buono"))
         if dura and dura[0] == "salta":
             return (p, gruppo, nome, None, [], letti, dura)
         if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO") and not p.get("analysis_pdf"):

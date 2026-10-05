@@ -960,6 +960,19 @@ def _():
     assert not PR.finestra(lun.replace(hour=22), "INT-GB"), "un no parte dopo le 21:30"
 
 
+@prova("un no concorde delle due teste aggiorna la classe da solo, un no dubbioso resta a Dre")
+def _():
+    import lettura as L
+    # 5/10, casainromagna: la classe diceva positivo, la mail un no chiaro. Concordi -> si risolve.
+    assert L.leggi.__doc__ is not None  # esiste
+    src = open(L.__file__, encoding="utf-8").read()
+    assert "detto_no_sicuro" in src, "manca il no concorde in lettura"
+    import re
+    assert re.search(r'detto_no_sicuro.*\n.*not lettore\.get\("dubbio"\)', src) or "not lettore.get(\"dubbio\")" in src, "il no concorde non esige il modello sicuro"
+    srcb = open(L.__file__.replace("lettura", "bozze"), encoding="utf-8").read()
+    assert "detto_no_sicuro" in srcb and "classificazione\": \"negativo" in srcb, "bozze non riclassifica il no concorde"
+
+
 @prova("a chi dice no, mai una data: porta aperta e' consegnare, non riproporre")
 def _():
     import bozze as B
