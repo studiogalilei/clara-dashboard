@@ -292,7 +292,10 @@ def valuta(p, kp=None):
 
 
 def salva(p, fit):
-    e = dict(p.get("enriched") or {})
+    # si rilegge la scheda un attimo prima di scrivere: il calcolo dura minuti, e nel frattempo
+    # Clara puo' aver scritto altro in enriched (5/10)
+    fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{p['id']}") or [{}])[0]
+    e = dict(fresco.get("enriched") or {})
     e["google_fit_v2"] = fit
     sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": e})
 
@@ -315,13 +318,21 @@ def main():
     from concurrent.futures import ThreadPoolExecutor
 
     def uno(i):
-        p = (sb("GET", f"/rest/v1/prospects?select=*&id=eq.{i}") or [None])[0]
-        if not p:
-            return i, None
-        fit = valuta(p, kp)
-        if not prova:
-            salva(p, fit)
-        return i, (p.get("company") or p.get("email"), fit)
+        # un errore su un'azienda (rete che cade, 5/10 notte) non ferma le altre: si riprova, poi si salta
+        import time
+        for tentativo in range(3):
+            try:
+                p = (sb("GET", f"/rest/v1/prospects?select=*&id=eq.{i}") or [None])[0]
+                if not p:
+                    return i, None
+                fit = valuta(p, kp)
+                if not prova:
+                    salva(p, fit)
+                return i, (p.get("company") or p.get("email"), fit)
+            except Exception as e:                               # noqa: BLE001
+                print(f"  errore su {i} (tentativo {tentativo + 1}): {str(e)[:80]}", flush=True)
+                time.sleep(20 * (tentativo + 1))
+        return i, None
     with ThreadPoolExecutor(max_workers=4) as pool:
         esiti = list(pool.map(uno, ids))
     conti = {}

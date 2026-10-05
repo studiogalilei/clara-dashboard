@@ -85,9 +85,9 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
   }, [righe])
 
   // la mossa: prima lo schermo, poi il database (regola 17)
-  const muovi = useCallback(async (p: Prospect, verso: Tappa | 'perso', mot?: string) => {
+  const muovi = useCallback(async (p: Prospect, verso: Tappa | 'perso' | 'lead', mot?: string) => {
     setGuaio(null)
-    const m = mossa(p, verso as Tappa, { motivo: mot })
+    const m = mossa(p, verso, { motivo: mot })
     if ('no' in m) { setGuaio(m.no); return false }
     const prima = righe
     setRighe((l) => (l ?? []).map((x) => (x.id === p.id ? { ...x, ...m.patch } as Prospect : x)))
@@ -119,7 +119,7 @@ export default function Trattativa({ onOpen }: { onOpen: (id: string) => void })
                onDrop={(e) => {
                  e.preventDefault(); setSopra(null)
                  const p = (righe ?? []).find((x) => x.id === e.dataTransfer.getData('text/plain'))
-                 if (p) void muovi(p, k === 'si' ? 'follow_up' : k)
+                 if (p) void muovi(p, k === 'si' ? 'lead' : k)
                }}
                className={`rounded-2xl p-3 transition-colors ${sopra === k ? 'bg-blu/10 ring-2 ring-blu/40' : 'bg-velo/50'}`}>
             <div className="mb-2 flex items-baseline gap-2 px-1">

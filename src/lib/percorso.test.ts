@@ -69,3 +69,19 @@ describe('le regole per muoversi', () => {
     expect('patch' in t && t.patch.contratto).toBeNull()
   })
 })
+
+describe('la mossa porta con se la tappa nuova (5/10: la carta restava nella colonna vecchia)', () => {
+  const base = { stage: 'risposto', pipeline_stage: null, fuori: false, analysis_sent: true, prova_inizio: null } as never
+  it('entrando in Conoscitiva la tappa diventa conoscitiva', () => {
+    const m = mossa({ ...(base as object), tappa: 'analisi' } as never, 'conoscitiva')
+    expect('patch' in m && m.patch.tappa).toBe('conoscitiva')
+  })
+  it('riaprendo un perso la tappa esce da perso', () => {
+    const m = mossa({ stage: 'risposto', pipeline_stage: 'perso', fuori: true, analysis_sent: true, prova_inizio: null, tappa: 'perso' } as never, 'conoscitiva', {})
+    expect('patch' in m && m.patch.tappa).toBe('conoscitiva')
+  })
+  it('tornando fra i si la tappa non resta conoscitiva', () => {
+    const m = mossa({ stage: 'risposto', pipeline_stage: 'conoscitiva', fuori: true, analysis_sent: true, prova_inizio: null, tappa: 'conoscitiva' } as never, 'lead')
+    expect('patch' in m && m.patch.tappa).toBe('analisi')
+  })
+})

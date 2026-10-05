@@ -62,7 +62,7 @@ export function inBacheca(p: Campi & Pick<Prospect, 'classificazione'>): boolean
   return t !== 'nuovo' && t !== 'perso' && t !== 'cliente' && vivo(p)
 }
 
-export type Mossa = { patch: Partial<Prospect>; nota: string } | { no: string }
+export type Mossa = { patch: Partial<Prospect> & { tappa?: string }; nota: string } | { no: string }
 
 const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); return giorno(d) }
 
@@ -72,6 +72,15 @@ const fraDueMesi = () => { const d = new Date(); d.setMonth(d.getMonth() + 2); r
  * il riassunto della call non blocca piu', l'avanzamento lo ricorda nella nota.
  */
 export function mossa(p: Campi & Pick<Prospect, 'prova_inizio'>, verso: Tappa | 'lead', opz: { motivo?: string; riassunto?: boolean } = {}): Mossa {
+  // La tappa nuova viaggia con la patch (5/10): la calcola il database col trigger, ma lo
+  // schermo che aggiorna subito (regola 17) legge p.tappa per prima, e senza questa la carta
+  // restava nella colonna vecchia finche' non si ricaricava la pagina.
+  const m = regola(p, verso, opz)
+  if ('patch' in m) m.patch.tappa = tappaDi({ ...p, ...m.patch, tappa: null })
+  return m
+}
+
+function regola(p: Campi & Pick<Prospect, 'prova_inizio'>, verso: Tappa | 'lead', opz: { motivo?: string; riassunto?: boolean }): Mossa {
   const da = tappaDi(p)
   const pulisci = { next_action: null, next_action_date: null }
   if (verso === 'perso') {
