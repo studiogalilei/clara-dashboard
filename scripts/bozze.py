@@ -907,9 +907,20 @@ def main():
         print(f"\n  [GB] Gigante buono per {nome}\n      " + bozza[:200].replace("\n", " ") + "…")
         if not PROVA:
             PRONTE.append((p["id"], nome, True))
-            proponi("risposta", f"Gigante buono per {nome}, INT-GB", prospect_id=p["id"],
-                    perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
-                    azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB", "lettura": lett})
+            esito = proponi("risposta", f"Gigante buono per {nome}, INT-GB", prospect_id=p["id"],
+                            perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
+                            azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB", "lettura": lett})
+            if esito is None and not sb("GET", f"/rest/v1/proposte?select=id&stato=eq.aperta&tipo=eq.risposta&prospect_id=eq.{p['id']}&limit=1"):
+                # 5/10, spaziocasa: il database rifiutava la proposta (no_followup, trigger
+                # del 25/9) e il giro la riscriveva all'infinito. Il caso esce dalla coda
+                # col marchio, e Dre riceve UNA domanda: decide lui se sbloccare.
+                enr = dict(p.get("enriched") or {})
+                enr["gb_escluso"] = "il database rifiuta la proposta (no_followup/trigger 25/9): chiesto a Dre"
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": enr}, {"Prefer": "return=minimal"})
+                proponi("umano", f"Il gigante buono per {nome} non puo' nascere: il database lo blocca",
+                        prospect_id=p["id"], ref=f"gb-bloccato:{p['id']}",
+                        perche="Ha detto no con garbo e gli lasceremmo l'analisi, ma il prospect ha il blocco no_followup e il trigger del 25/9 rifiuta ogni proposta. Se vuoi che la cortesia parta, togli il blocco dalla scheda e io rifaccio la bozza; se il blocco l'avevi messo tu, lascia cosi' e lo archivio.")
+                gb -= 1
         gb += 1
     print(f"  giganti buoni pronti: {gb}")
     # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare
