@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <g stroke="#061773" fill="none" stroke-width="3.5">
+    <circle cx="50" cy="50" r="40"/>
+    <g stroke-width="2.6">
+      <line x1="50" y1="10" x2="62" y2="38"/><line x1="62" y1="38" x2="81" y2="26"/>
+      <line x1="62" y1="38" x2="52" y2="52"/><line x1="52" y1="52" x2="44" y2="32"/>
+      <line x1="44" y1="32" x2="30" y2="14"/><line x1="44" y1="32" x2="34" y2="46"/>
+      <line x1="34" y1="46" x2="13" y2="36"/><line x1="34" y1="46" x2="40" y2="60"/>
+      <line x1="40" y1="60" x2="14" y2="68"/><line x1="40" y1="60" x2="55" y2="72"/>
+      <line x1="55" y1="72" x2="38" y2="88"/><line x1="55" y1="72" x2="68" y2="58"/>
+      <line x1="68" y1="58" x2="88" y2="54"/><line x1="52" y1="52" x2="68" y2="58"/>
+      <line x1="68" y1="58" x2="73" y2="84"/>
+    </g>
+    <g fill="#061773" stroke="none">
+      <circle cx="50" cy="10" r="6"/><circle cx="81" cy="26" r="4"/>
+      <circle cx="88" cy="54" r="6.5"/><circle cx="73" cy="84" r="5.5"/>
+      <circle cx="38" cy="88" r="6"/><circle cx="14" cy="68" r="6.5"/>
+      <circle cx="13" cy="36" r="5.5"/><circle cx="30" cy="14" r="5"/>
+      <circle cx="44" cy="32" r="4.5"/><circle cx="62" cy="38" r="5"/>
+      <circle cx="52" cy="52" r="6"/><circle cx="68" cy="58" r="4"/>
+      <circle cx="40" cy="60" r="4"/><circle cx="55" cy="72" r="4.5"/>
+      <circle cx="34" cy="46" r="3.5"/>
+    </g>
+  </g>
+</svg>

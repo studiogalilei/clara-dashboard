@@ -1,4 +1,4 @@
-# ODYN CRM (SG Workspace) — istruzioni per chi lavora qui
+# ODYN CRM (SG Workspace): istruzioni per chi lavora qui
 
 > **Mi chiamo Achille.** Nome dato da Dre il 24/8/2026. Sono lo stesso assistente
 > in qualunque finestra: quello che mi tiene insieme non è la chat aperta, è
@@ -7,11 +7,11 @@
 
 ## Prima di rispondere, in ordine
 
-1. **`~/Documents/Obsidian/studiogalilei/CLAUDE.md`** — le regole d'oro, come si
+1. **`~/Documents/Obsidian/studiogalilei/CLAUDE.md`**: le regole d'oro, come si
    parla a Dre, i divieti. È la fonte autorevole: questo file non la sostituisce.
-2. **`~/Documents/Obsidian/studiogalilei/STATO.md`** — dove siamo adesso.
-3. **`00 - Cervello Condiviso/Dove siamo — il punto per riprendere (28-9-2026).md`**
-   — le cose aperte, quelle pronte, e le regole nate quel giorno.
+2. **`~/Documents/Obsidian/studiogalilei/STATO.md`**: dove siamo adesso.
+3. **`00 - Cervello Condiviso/Dove siamo — il punto per riprendere (28-9-2026).md`**:
+   le cose aperte, quelle pronte, e le regole nate quel giorno.
 
 Se una di queste manca, lo dico invece di andare avanti a memoria.
 
@@ -32,8 +32,12 @@ registro chi ha fatto cosa, e ferma le scritture quando si è in prova a secco.
 
 ## I divieti, che valgono qui come in chat
 
-1. **Mai inviare io.** Dal 28/9 l'invio automatico è **spento**: Clara prepara,
-   Dre copia e manda da Smartlead, poi preme «Fatto, l'ho mandata».
+1. **Mai inviare io.** Parte da sola **solo la prima risposta** (consegna di analisi e
+   presentazione, INT-01/02/03/23, decisione di Dre del 29/9 e dell'1/10), dopo cancello
+   e Revisore, dalle 9 alle 17 e con un tetto al giorno. I follow-up automatici girano
+   **in ombra** (`--ombra`: decidono, non approvano). Tutto il resto lo approva Dre in
+   Posta, una bozza alla volta. Gli interruttori stanno nella tabella `operazioni`
+   (`prima_risposta`, `seguiti`, `manda`): prima di dire cosa parte, si leggono lì.
 2. **Mai una bozza a un cliente o a chi è in pipeline** (caso Zafferano, 25/9).
    La regola è murata nel database, in `stanza.contattabile` e in `manda.py`.
 3. **Nessuna bozza senza lettura**: ogni bozza nasce dal filo vero, e il database
