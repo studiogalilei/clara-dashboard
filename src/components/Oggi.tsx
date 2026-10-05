@@ -149,11 +149,13 @@ async function leggiFatte(): Promise<Set<string>> {
   const { data } = await supabase.from('coda_fatte').select('chiave').eq('giorno', oggi())
   return new Set(((data as Array<{ chiave: string }>) ?? []).map((r) => r.chiave))
 }
-async function segnaFatte(chiavi: string[]) {
-  await supabase.from('coda_fatte').insert(chiavi.map((chiave) => ({ chiave, giorno: oggi() })))
+async function segnaFatte(chiavi: string[]): Promise<boolean> {
+  const { error } = await supabase.from('coda_fatte').insert(chiavi.map((chiave) => ({ chiave, giorno: oggi() })))
+  return !error
 }
-async function togliFatta(chiave: string) {
-  await supabase.from('coda_fatte').delete().eq('chiave', chiave).eq('giorno', oggi())
+async function togliFatta(chiave: string): Promise<boolean> {
+  const { error } = await supabase.from('coda_fatte').delete().eq('chiave', chiave).eq('giorno', oggi())
+  return !error
 }
 
 function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; onClick: () => void }) {
@@ -449,7 +451,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       const nuove = new Set(fatteCoda)
       chiavi.forEach((c) => nuove.add(c))
       setFatteCoda(nuove)
-      void segnaFatte(chiavi)
+      // 5/10: se il database rifiuta, la spunta torna indietro (prima restava solo sullo schermo)
+      void segnaFatte(chiavi).then((ok) => { if (!ok) setFatteCoda((s) => { const n = new Set(s); chiavi.forEach((c) => n.delete(c)); return n }) })
     }, 380)
   }
 
@@ -483,7 +486,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       const nuove = new Set(fatteCoda)
       nuove.delete(c.chiave)
       setFatteCoda(nuove)
-      void togliFatta(c.chiave)
+      void togliFatta(c.chiave).then((ok) => { if (!ok) setFatteCoda((s) => new Set(s).add(c.chiave)) })
     }
   }
 

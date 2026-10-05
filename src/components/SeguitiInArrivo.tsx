@@ -41,6 +41,7 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
   const [giro, setGiro] = useState(0)
   const [chiedo, setChiedo] = useState<string | null>(null)   // «Niente follow-up?» chiesto una volta
   const [lavoro, setLavoro] = useState<string | null>(null)
+  const [guaio, setGuaio] = useState<string | null>(null)
   useVivo(['proposte', 'seguiti_calendario'], () => setGiro((n) => n + 1))
 
   useEffect(() => {
@@ -99,9 +100,17 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
   async function nienteFollowup(r: Riga) {
     if (chiedo !== r.prospect_id) { setChiedo(r.prospect_id); return }
     setLavoro(r.prospect_id)
-    await supabase.from('prospects').update({ no_followup: true, coda: null }).eq('id', r.prospect_id)
-    if (r.proposta) await supabase.from('proposte').update({ stato: 'no', risposta: 'Niente follow-up (dal calendario dei follow-up)' }).eq('id', r.proposta.id)
-    await supabase.from('seguiti_calendario').delete().eq('prospect_id', r.prospect_id)
+    // 5/10: tre scritture, ognuna controllata; alla prima che fallisce ci si ferma e lo si dice
+    const passi = [
+      () => supabase.from('prospects').update({ no_followup: true, coda: null }).eq('id', r.prospect_id),
+      ...(r.proposta ? [() => supabase.from('proposte').update({ stato: 'no', risposta: 'Niente follow-up (dal calendario dei follow-up)' }).eq('id', r.proposta!.id)] : []),
+      () => supabase.from('seguiti_calendario').delete().eq('prospect_id', r.prospect_id),
+    ]
+    for (const passo of passi) {
+      const { error } = await passo()
+      if (error) { setGuaio(`Non sono riuscito a fermarlo: ${error.message}`); setChiedo(null); setLavoro(null); return }
+    }
+    setGuaio(null)
     setRighe((l) => (l ?? []).filter((x) => x.prospect_id !== r.prospect_id))
     setChiedo(null); setLavoro(null)
   }
@@ -120,6 +129,7 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
 
   return (
     <Card className="mb-4">
+      {guaio && <p className="px-4 pt-3 text-[12px] font-semibold text-red-700">{guaio}</p>}
       <button
         onClick={() => { setAperta(!aperta); scriviPref('seguiti-aperti', aperta ? 'no' : 'si') }}
         className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-velo/40"

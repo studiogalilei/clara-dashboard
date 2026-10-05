@@ -270,7 +270,8 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   const dirty = Object.keys(draft).length > 0
 
   async function chiudi() {
-    if (dirty) await save()
+    // 5/10: se il salvataggio non riesce la scheda resta aperta con l'errore, le modifiche non si perdono
+    if (dirty && !(await save())) return
     onClose()
   }
   useEffect(() => {
@@ -285,8 +286,8 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     setDraft((d) => ({ ...d, [key]: value === '' ? null : value }))
   }
 
-  async function save() {
-    if (!p) return
+  async function save(): Promise<boolean> {
+    if (!p) return false
     setSaving(true)
     // le correzioni a mano vincono per sempre: campo marcato 'manual',
     // il sync non lo tocca piu'
@@ -302,6 +303,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
       setErrore(spiegaErrore(error))
     }
     setSaving(false)
+    return !error
   }
 
   // LA CASSAFORTE (29/9): il database risponde senza soldi; qui si rimettono sulla
@@ -488,9 +490,10 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
       return
     }
     const nome = f.name.replace(/\.[^.]+$/, '')
-    await supabase.from('vault_file')
+    const { error: errFile } = await supabase.from('vault_file')
       .insert({ nome, path, mime: f.type || null, dimensione: f.size, prospect_id: p!.id })
       .select().single()
+    if (errFile) { setNotaEsito(`Il file è caricato ma non è finito nei Documenti: ${errFile.message}`); return }
     await segna('nota', `${f.name}, nei Documenti`)
     setNotaEsito(`«${nome}» nei Documenti, agganciato a ${p!.company || p!.name}`)
     setTimeout(() => { setNotaEsito(null); setNoteAperte(false) }, 2200)

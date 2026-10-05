@@ -41,6 +41,7 @@ export default function Pannello({ p, bozze, onChiudi, onEsegui, onIndietro, onC
   const [riassunto, setRiassunto] = useState(false)
   const [perso, setPerso] = useState<string | null>(null)
   const [lavoro, setLavoro] = useState(false)
+  const [guaio, setGuaio] = useState<string | null>(null)
   const [giro, setGiro] = useState(0)
 
   useEffect(() => {
@@ -78,8 +79,11 @@ export default function Pannello({ p, bozze, onChiudi, onEsegui, onIndietro, onC
     setLavoro(true)
     const kind = riassunto && ['conoscitiva', 'tecnica', 'avvio'].includes(t) ? 'transcript' : 'nota'
     const body = kind === 'transcript' ? `${marcaFase(t as PipelineStage)} ${s}` : s
-    await supabase.from('interactions').insert({ prospect_id: p.id, at: new Date().toISOString(), kind, body })
-    setTesto(''); setRiassunto(false); setLavoro(false); setGiro((g) => g + 1)
+    const { error } = await supabase.from('interactions').insert({ prospect_id: p.id, at: new Date().toISOString(), kind, body })
+    setLavoro(false)
+    // 5/10: se non si salva, il testo resta li' e si dice perche' (prima si svuotava comunque)
+    if (error) { setGuaio(`Non salvata: ${error.message}. Il testo è ancora qui, riprova.`); return }
+    setGuaio(null); setTesto(''); setRiassunto(false); setGiro((g) => g + 1)
   }
 
   async function muovi(verso: Tappa | 'lead', motivo?: string) {
@@ -192,6 +196,7 @@ export default function Pannello({ p, bozze, onChiudi, onEsegui, onIndietro, onC
 
           {/* un posto solo per aggiungere */}
           <div>
+            {guaio && <p className="mb-1.5 text-[12px] font-semibold text-red-700">{guaio}</p>}
             <textarea value={testo} onChange={(e) => setTesto(e.target.value)} rows={3}
                       placeholder={diCall ? 'Una nota, o il riassunto della call' : 'Una nota: cosa è successo, cosa ricordare'}
                       className="w-full resize-y rounded-xl border border-bordo px-3 py-2.5 text-sm outline-none focus:border-blu" />
