@@ -67,6 +67,11 @@ INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
 # saluto. Mai a chi chiede di non essere contattato, cita la privacy o e'
 # scortese: quelli restano fuori, e' la regola sacra. Passa dalla Posta.
 QUANTI_GB = 5        # per giro, cosi' la Posta non si riempie
+# IL GIGANTE BUONO E' SPENTO (Dre, 5/10): «non inviamo piu' le analisi ai no,
+# sta spendendo tanti crediti OpenAI anche per chi ha detto no». Ogni candidato
+# costava una lettura Smartlead + un giro di modello + la generazione della bozza.
+# Chi dice no: l'attesa si chiude e basta. Si riaccende solo se Dre lo chiede.
+GIGANTE_ACCESO = False
 GIORNI_GB = 45       # oltre, «l'avevamo gia' preparata» suona strano
 # «privacy» c'e' apposta: chi la nomina (anche solo in firma) non riceve niente
 # la stessa regola di analisi_auto, in un posto solo (28/9): due copie divergono
@@ -828,19 +833,29 @@ def main():
     # 5/10: la coda contiene solo candidati veri: dentro la finestra dei 45 giorni e mai
     # gia' esclusi. Senza questi filtri i 15 esaminati a giro si bruciavano sui no di
     # quattro mesi fa e i vivi della settimana non arrivavano mai al loro turno.
-    da_gb = (datetime.date.today() - datetime.timedelta(days=GIORNI_GB)).isoformat()
-    negativi = sb("GET", f"/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
-                         f"&last_reply_at=gte.{da_gb}&enriched->>gb_escluso=is.null"
-                         "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup,awaiting_us"
-                         "&order=last_reply_at.asc&limit=200") or []
-    soppresse = sb_tutte("/rest/v1/suppressions?select=email,domain&limit=5000") or []
+    if not GIGANTE_ACCESO:
+        # Dre 5/10: niente analisi ai no. Chi aspettava un gigante buono smette di
+        # aspettare: l'attesa si chiude con il motivo, una volta, e non torna.
+        for p in sb_tutte("/rest/v1/prospects?select=id,company,name,email,awaiting_us&classificazione=eq.negativo&fuori=eq.false&awaiting_us=eq.true"):
+            chiudi_attesa(p, "ha detto no: dal 5/10 ai no non si risponde piu' (decisione di Dre, costi)")
+            print(f"  [GB spento] attesa chiusa: {(p.get('company') or p.get('name') or p['email'])[:40]}")
+        print("  giganti buoni pronti: 0 (spento dal 5/10)")
+        negativi, soppresse = [], []
+    else:
+        da_gb = (datetime.date.today() - datetime.timedelta(days=GIORNI_GB)).isoformat()
+        negativi = sb("GET", f"/rest/v1/prospects?classificazione=eq.negativo&fuori=eq.false&analysis_sent=eq.false"
+                             f"&last_reply_at=gte.{da_gb}&enriched->>gb_escluso=is.null"
+                             "&select=id,name,company,email,classificazione,stage,analysis_sent,analysis_pdf,last_reply_at,sector,city,enriched,no_followup,awaiting_us"
+                             "&order=last_reply_at.asc&limit=200") or []
+        soppresse = sb_tutte("/rest/v1/suppressions?select=email,domain&limit=5000") or []
     mail_no = {(x.get("email") or "").lower() for x in soppresse}
     dom_no = {(x.get("domain") or "").lower() for x in soppresse if x.get("domain")}
     gb = 0
     # a chi Dre ha gia' detto no, non si riscrive: la proposta rifiutata vale
     # come risposta (prima tornava ogni giro, QA del 14/9)
-    rifiutate = {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id,risposta&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
-                 if x.get("prospect_id") and not (x.get("risposta") or "").startswith("rigenerata")}
+    rifiutate = set() if not negativi else {
+        x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id,risposta&stato=eq.no&tipo=eq.risposta&azione->>intento=eq.INT-GB&limit=5000") or [])
+        if x.get("prospect_id") and not (x.get("risposta") or "").startswith("rigenerata")}
     def mai_gb(p, motivo):
         """Il gigante buono non arrivera' mai: se aspettava, l'attesa si chiude (29/9).
         E il motivo si scrive sul prospect (5/10): senza il marchio, lo stesso caso

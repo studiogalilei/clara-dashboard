@@ -532,11 +532,12 @@ def _():
     assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
     # 2/10: l'alias dello stesso dominio (info@ per commerciale@) non e' un rimbalzo
     assert R.perche_no({**pr, "azione": {**pr["azione"], "lettura": {**let, "girato_a": ["c@b.it"]}}}, p) == []
-    # il gigante buono passa dal 2/10 (Dre: «anche i negativi: analisi e calendario, mai una data»)
+    # il gigante buono e' passato dalla corsia dal 2/10 al 5/10; poi Dre l'ha spento
+    # («niente analisi ai no: costa crediti»). Un INT-GB oggi NON passa.
     gb_pr = {**pr, "titolo": "Gigante buono per Rossi, INT-GB",
              "azione": {**pr["azione"], "intento": "INT-GB", "lettura": {**let, "gruppo": "GIGANTE BUONO", "detto_no": True}}}
     gb_p = {**p, "classificazione": "negativo"}
-    assert R.perche_no(gb_pr, gb_p) == [], R.perche_no(gb_pr, gb_p)
+    assert R.perche_no(gb_pr, gb_p) != [], "il gigante buono e' spento (Dre 5/10): non deve passare"
     def con(pr_mod=None, let_mod=None, p_mod=None, az_mod=None):
         az = {**pr["azione"], "lettura": {**let, **(let_mod or {})}, **(az_mod or {})}
         return R.perche_no({**pr, **(pr_mod or {}), "azione": az}, {**p, **(p_mod or {})})
@@ -898,8 +899,9 @@ def _():
     import prima_risposta as PR
     # 1/10, Dre: «questo intero sistema e' solo per la consegna delle analisi: la prima
     # risposta, con l'analisi e la presentazione. Le conversazioni me le gestisco io».
-    # INT-GB aggiunto il 2/10 su ordine di Dre («anche i negativi: analisi, calendario, mai una data»)
-    assert PR.INTENTI_OK == ("INT-01", "INT-02", "INT-03", "INT-23", "INT-GB"), "la lista degli intenti automatici e' cambiata senza Dre"
+    # INT-GB aggiunto il 2/10 e TOLTO il 5/10 su ordine di Dre («non inviamo piu' le
+    # analisi ai no: sta spendendo tanti crediti anche per chi ha detto no»)
+    assert PR.INTENTI_OK == ("INT-01", "INT-02", "INT-03", "INT-23"), "la lista degli intenti automatici e' cambiata senza Dre"
     t = pathlib.Path(PR.__file__).read_text(encoding="utf-8")
     assert "ALLEGA_ANALISI.search(testo)" in t, "l'automatico puo' partire senza consegnare l'analisi"
     assert "non e' una prima risposta" in t, "l'automatico non controlla piu' che sia la PRIMA risposta"
