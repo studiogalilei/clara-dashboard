@@ -684,6 +684,8 @@ export const demoClient = {
   },
   auth: {
     getSession: async () => ({ data: { session: { user: { id: 'demo', email: 'demo@studiogalilei' } } } }),
+    // 5/10: Compila PDF chiede l'utente (firma.ts): senza, la demo andava in errore
+    getUser: async () => ({ data: { user: { id: 'demo', email: 'demo@studiogalilei' } }, error: null }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     signOut: async () => ({}),
     signInWithPassword: async () => ({ error: null }),
