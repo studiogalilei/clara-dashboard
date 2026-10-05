@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""IL BATTITO DELL'OUTBOUND (Dre, 2/10/2026).
+"""IL BATTITO DELL'OUTBOUND (Dre, 2/10/2026; rifatto il 5/10 dopo il caso Contarini).
 
-Parole sue: «Smartlead non lo uso piu'. Nel pannello laterale del Workspace voglio
-una chat stile WhatsApp dove Clara mi manda messaggi di questo tipo: oggi N
-consegne, N in attesa, il problema vero. Devo poter controllare e dire: ok, sta
-andando tutto bene, oppure no. Un sistema per vedere il tutto».
+Parole sue: «Smartlead non lo uso piu': voglio che Clara mi scriva nel pannello,
+stile WhatsApp, come stanno andando le cose». E il 5/10: «quando dici di aver
+controllato, controlla sul serio, dal posto di chi usa, non con finta sicurezza».
 
-Questo scrive UN messaggio «battito» nella chat di Clara (clara_messaggi), in
-italiano, a colpo d'occhio: cosa e' partito oggi, chi aspetta e diviso come, se
-la promessa dei tempi tiene, e il problema vero se c'e'. Niente numeri inventati:
-conta quello che c'e' nel database. Gira la mattina e il pomeriggio dal direttore.
+La lezione di Contarini: una bozza FERMA non e' una risposta. Il vecchio battito
+contava gli stati interni («ha una bozza → coperto») e chiamava sano un lead che
+aspettava da 2 giorni dietro un freno sbagliato. Questo battito conta dal posto
+del lead: per ognuno che aspetta, QUANTE ORE aspetta e cosa lo tiene fermo, e
+nomina chiunque sia oltre soglia, bozza o non bozza. Niente «tutto ok» sommari.
 
 USO:  python3 scripts/battito.py [--prova]
 """
 import datetime
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,16 +24,28 @@ from stanza import sb, sb_tutte, di_clara                  # noqa: E402
 
 PROVA = "--prova" in sys.argv
 ADESSO = datetime.datetime.now(datetime.timezone.utc)
+ROMA = datetime.timezone(datetime.timedelta(hours=2))
 MORTI = ("fuori_target", "soppresso", "nervoso")
 AUTO = ("INT-01", "INT-02", "INT-03", "INT-23", "INT-GB")
+# oltre queste ore di attesa, il lead si nomina col motivo (i no e gli ooo hanno piu' margine)
+SOGLIA_ORE = 4
+SOGLIA_ORE_NO = 48
+
+
+def _dt(iso):
+    if not iso:
+        return None
+    iso = re.sub(r"\.(\d{6})\d+", r".\1", str(iso).replace("Z", "+00:00"))
+    try:
+        t = datetime.datetime.fromisoformat(iso)
+        return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return None
 
 
 def _ore(iso):
-    try:
-        t = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        return (ADESSO - (t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc))).total_seconds() / 3600
-    except Exception:                                       # noqa: BLE001
-        return None
+    t = _dt(iso)
+    return round((ADESSO - t).total_seconds() / 3600, 1) if t else None
 
 
 def main():
@@ -42,46 +55,48 @@ def main():
     att = sb_tutte("/rest/v1/prospects?select=id,company,name,email,last_reply_at,classificazione&awaiting_us=eq.true&fuori=eq.false")
     vivi = [p for p in att if (p.get("classificazione") or "") not in MORTI]
     prop = {}
-    for x in sb_tutte("/rest/v1/proposte?select=prospect_id,azione&stato=in.(aperta,approvata,in_invio)"):
-        if x.get("prospect_id"):
-            prop[x["prospect_id"]] = (x.get("azione") or {}).get("intento") or "?"
+    for x in sb_tutte("/rest/v1/proposte?select=prospect_id,stato,azione&stato=in.(aperta,approvata,in_invio)"):
+        if x.get("prospect_id") and x["prospect_id"] not in prop:
+            prop[x["prospect_id"]] = x
 
-    neg = ooo = corsia = tua = senza = 0
-    tardi = []
-    in_finestra = ADESSO.astimezone(datetime.timezone(datetime.timedelta(hours=2)))
-    finestra = in_finestra.weekday() < 5 and 9 <= in_finestra.hour < 17
+    # dal posto del lead: ognuno con le sue ore di attesa e cosa lo tiene fermo
+    fermi = []           # (ore, nome, motivo) per chi e' oltre soglia
+    eta_max = 0.0
     for p in vivi:
+        ore = _ore(p.get("last_reply_at")) or 0
+        eta_max = max(eta_max, ore)
         cls = p.get("classificazione") or ""
-        if cls == "negativo":
-            neg += 1
-        elif cls == "ooo":
-            ooo += 1
-        inten = prop.get(p["id"])
-        if inten in AUTO:
-            corsia += 1
-            if finestra and (_ore(p.get("last_reply_at")) or 0) > 1 and cls not in ("negativo", "ooo"):
-                tardi.append(p.get("company") or p.get("name") or p["email"])
-        elif inten:
-            tua += 1
+        soglia = SOGLIA_ORE_NO if cls in ("negativo", "ooo") else SOGLIA_ORE
+        if ore <= soglia:
+            continue
+        pr = prop.get(p["id"])
+        if cls == "ooo":
+            continue                                        # aspettano il rientro: fermo giusto
+        nome = (p.get("company") or p.get("name") or p["email"])[:26]
+        if not pr:
+            motivo = "nessuna bozza" if cls != "negativo" else "gigante buono non ancora scritto"
         else:
-            senza += 1
+            esito = ((pr.get("azione") or {}).get("prima_risposta") or {})
+            if esito.get("esito") == "resta a Dre":
+                motivo = "fermo in Posta, aspetta TE: " + (esito.get("motivo") or "")[:60]
+            elif pr["stato"] == "aperta":
+                motivo = "bozza pronta, non ancora passata dai controlli"
+            else:
+                motivo = f"bozza {pr['stato']}"
+        fermi.append((ore, nome, motivo))
+    fermi.sort(reverse=True)
 
-    # il problema vero: chi aspetta, non e' un morto, non e' OOO, e non ha nemmeno una bozza
-    orfani = [p for p in vivi if p["id"] not in prop
-              and (p.get("classificazione") or "") not in ("negativo", "ooo")]
-
-    r = [f"Outbound, {ADESSO.astimezone(datetime.timezone(datetime.timedelta(hours=2))):%d/%m %H:%M}."]
+    r = [f"Outbound, {ADESSO.astimezone(ROMA):%d/%m %H:%M}."]
     r.append(f"Oggi {len(mandate)} {'consegna' if len(mandate) == 1 else 'consegne'} partite.")
-    r.append(f"In attesa adesso: {len(vivi)}. {corsia} in corsia automatica, {tua} da te, {neg} no (gigante buono), {ooo} fuori ufficio.")
-    if tardi:
-        r.append(f"ATTENZIONE: {len(tardi)} in corsia oltre l'ora ({', '.join(tardi[:3])}): guarda il polso nei Numeri.")
-    elif finestra:
-        r.append("La promessa dei tempi tiene: niente oltre l'ora.")
-    if orfani:
-        nomi = ", ".join((p.get("company") or p.get("name") or p["email"])[:24] for p in orfani[:3])
-        r.append(f"Da sistemare: {len(orfani)} aspettano senza una bozza ({nomi}).")
+    r.append(f"Aspettano una risposta: {len(vivi)}. Il piu' vecchio da {eta_max:.0f} ore.")
+    if fermi:
+        r.append(f"FERMI OLTRE SOGLIA: {len(fermi)}.")
+        for ore, nome, motivo in fermi[:5]:
+            r.append(f"  {nome}, {ore:.0f}h: {motivo}")
+        if len(fermi) > 5:
+            r.append(f"  e altri {len(fermi) - 5}: li vedi nel polso, nei Numeri")
     else:
-        r.append("Tutti quelli che aspettano hanno la loro risposta in lavorazione.")
+        r.append("Nessuno oltre soglia (4 ore i vivi, 48 i no gentili). Gli OOO aspettano il rientro.")
 
     testo = "\n".join(r)
     print(testo)
