@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Spinner, fmtDateShort } from './ui'
-import { percheCosi } from '../lib/posta'
+import { percheCosi, prendiDaAprire } from '../lib/posta'
 
 // LA POSTA PER CONVERSAZIONI (Dre, 5/10: «nel workspace devo avere solo le
 // conversazioni e i follow-up», «tanto rumore e rimbalzo tra Smartlead e
@@ -182,6 +182,14 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     oss.observe(el)
     return () => oss.disconnect()
   }, [aperta, filo])
+
+  // arrivati da «Leggi e approva» di Oggi: si apre quella conversazione appena c'e'
+  const [voglio, setVoglio] = useState<number | null>(() => prendiDaAprire())
+  useEffect(() => {
+    if (voglio === null || righe === null) return
+    const r = [...righe, ...seguiti].find((x) => x.proposta?.id === voglio)
+    if (r) { setAperta(r); setVoglio(null) }
+  }, [voglio, righe, seguiti])
 
   const daTe = useMemo(() => (righe ?? []).filter((r) => r.daTe), [righe])
   const inCorsa = useMemo(() => (righe ?? []).filter((r) => !r.daTe), [righe])

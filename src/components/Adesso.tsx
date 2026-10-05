@@ -1,0 +1,161 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { sonoCeo } from '../lib/accessi'
+import { apriInPosta, percheCosi } from '../lib/posta'
+import { useVivo } from '../lib/vivo'
+
+// ADESSO (gold, 6/10): la home non apre su una lista, apre sulla prossima cosa da fare.
+// Workflow nel vault: «Il Workspace gold, i workflow prima del software (6-10-2026)».
+// 1. Adesso: la conversazione che aspetta da piu' tempo, col perche' di Clara in una riga
+//    e un bottone che porta nella Posta gia' aperta su di lei, dentro la fila;
+// 2. Poi: i due o tre nomi dopo, nello stesso ordine della Posta;
+// 3. il traguardo di oggi (la regola di Dre del 5/10, solo ai ceo): tre spunte che
+//    diventano verdi, e quando lo sono tutte la giornata e' chiusa.
+// Prende il posto della striscia «N bozze pronte da approvare».
+
+const SEGUITI = ['FOLLOW UP 1', 'MINI FOLLOW UP', 'RINVIO SCADUTO', 'RICONTATTO OOO', 'RIPRESA', 'FOLLOW UP SU MISURA']
+
+interface Voce { id: number; prospect: string; nome: string; perche: string; ore: number | null; seguito: boolean; giorno: string }
+
+function eta(ore: number | null): string {
+  if (ore === null) return ''
+  if (ore < 1) return 'da meno di un’ora'
+  if (ore < 48) return `da ${Math.round(ore)} ore`
+  return `da ${Math.round(ore / 24)} giorni`
+}
+
+export default function Adesso() {
+  const [voci, setVoci] = useState<Voce[] | null>(null)
+  const [siSenza, setSiSenza] = useState<number | null>(null)
+  const [ceo, setCeo] = useState(false)
+  const [giro, setGiro] = useState(0)
+  useVivo(['proposte'], () => setGiro((n) => n + 1))
+
+  useEffect(() => { void sonoCeo().then(setCeo) }, [])
+
+  useEffect(() => {
+    let vivo = true
+    ;(async () => {
+      const { data } = await supabase.from('proposte')
+        .select('id,tipo,titolo,perche,prospect_id,at,azione')
+        .in('tipo', ['risposta', 'umano']).eq('stato', 'aperta').not('azione->>bozza', 'is', null)
+        .order('at', { ascending: true }).limit(300)
+      const ps = ((data ?? []) as Array<{ id: number; titolo: string; perche: string | null; prospect_id: string | null; azione: Record<string, unknown> | null }>)
+        .filter((p) => p.prospect_id)
+      const ids = [...new Set(ps.map((p) => p.prospect_id as string))]
+      const schede = new Map<string, { company: string | null; name: string | null; email: string; last_reply_at: string | null }>()
+      for (let i = 0; i < ids.length; i += 100) {
+        const { data: d } = await supabase.from('prospects').select('id,company,name,email,last_reply_at').in('id', ids.slice(i, i + 100))
+        for (const x of (d ?? []) as Array<{ id: string; company: string | null; name: string | null; email: string; last_reply_at: string | null }>) schede.set(x.id, x)
+      }
+      const adesso = Date.now()
+      const visti = new Set<string>()
+      const lista: Voce[] = []
+      for (const p of ps) {
+        const pid = p.prospect_id as string
+        if (visti.has(pid)) continue
+        visti.add(pid)
+        const s = schede.get(pid)
+        const seguito = SEGUITI.includes(String(p.azione?.template ?? ''))
+        lista.push({
+          id: p.id, prospect: pid, nome: s?.company || s?.name || s?.email || p.titolo,
+          perche: percheCosi(p.perche), seguito, giorno: String(p.azione?.giorno_proposto ?? ''),
+          ore: !seguito && s?.last_reply_at ? (adesso - new Date(s.last_reply_at).getTime()) / 3600_000 : null,
+        })
+      }
+      // lo stesso ordine della Posta: prima chi aspetta (dal piu' vecchio), poi i follow-up per nome
+      lista.sort((a, b) => Number(a.seguito) - Number(b.seguito)
+        || (a.seguito ? a.nome.localeCompare(b.nome) : (b.ore ?? 0) - (a.ore ?? 0)))
+      if (vivo) setVoci(lista)
+    })()
+    return () => { vivo = false }
+  }, [giro])
+
+  // la prima meta' della regola del 5/10: chi ha detto si' e non ha ancora l'analisi
+  useEffect(() => {
+    if (!ceo) return
+    let vivo = true
+    supabase.from('prospects').select('id')
+      .eq('fuori', false).eq('analysis_sent', false).in('classificazione', ['positivo', 'tiepido'])
+      .eq('no_followup', false).not('stage', 'in', '(perso,cliente)').is('pipeline_stage', null).limit(1000)
+      .then(({ data }) => { if (vivo) setSiSenza((data ?? []).length) })
+    return () => { vivo = false }
+  }, [ceo, giro])
+
+  if (voci === null) return null
+  const risposte = voci.filter((v) => !v.seguito).length
+  const seguiti = voci.length - risposte
+  const prima = voci[0]
+  const poi = voci.slice(1, 4)
+
+  return (
+    <div className="space-y-3">
+      {prima ? (
+        <div className="rounded-2xl border border-bordo bg-white p-5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            {prima.seguito ? `Follow-up pronto${prima.giorno ? `, propone ${prima.giorno.replace(/ alle .*/, '')}` : ''}` : `Aspetta te ${eta(prima.ore)}`}
+          </span>
+          <p className="mt-2 text-[22px] font-extrabold leading-tight text-navy">{prima.nome}</p>
+          {prima.perche && (
+            <p className="mt-2 rounded-xl bg-blu/[0.06] px-3 py-2 text-[13px] leading-snug text-inchiostro">
+              <span className="font-bold text-blu">Clara: </span>{prima.perche}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button onClick={() => apriInPosta(prima.id)}
+                    className="min-h-[44px] rounded-full bg-blu px-5 py-2 text-[14px] font-bold text-white hover:bg-blu/90">
+              Leggi e approva
+            </button>
+            {poi.length > 0 && (
+              <p className="min-w-0 text-[12px] text-tenue">
+                Poi <span className="font-semibold text-inchiostro">{poi.map((v) => v.nome).join(', ')}</span>
+                {voci.length > 4 && <span>, e altre {voci.length - 4}</span>}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-bordo bg-white px-5 py-4">
+          <p className="text-[15px] font-bold text-navy">Posta finita</p>
+          <p className="mt-0.5 text-[13px] text-tenue">Nessuna bozza aspetta te.</p>
+        </div>
+      )}
+
+      {ceo && siSenza !== null && (
+        <Traguardo righe={[
+          { fatto: siSenza === 0, testo: 'Tutti i sì hanno l’analisi', conto: siSenza === 0 ? '' : `${siSenza} senza` },
+          { fatto: risposte === 0, testo: 'Le risposte che aspettano te', conto: risposte === 0 ? '' : `${risposte} da decidere` },
+          { fatto: seguiti === 0, testo: 'I follow-up partiti', conto: seguiti === 0 ? '' : `${seguiti} in Posta` },
+        ]} />
+      )}
+    </div>
+  )
+}
+
+function Traguardo({ righe }: { righe: Array<{ fatto: boolean; testo: string; conto: string }> }) {
+  const fatte = righe.filter((r) => r.fatto).length
+  const chiusa = fatte === righe.length
+  return (
+    <div className="rounded-2xl border border-bordo bg-white px-5 py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-tenue">Il traguardo di oggi</p>
+        <p className={`text-[12px] font-bold ${chiusa ? 'text-emerald-700' : 'text-tenue'}`}>{chiusa ? 'Giornata chiusa' : `${fatte} di ${righe.length}`}</p>
+      </div>
+      <div className="mt-2 flex gap-1.5" aria-hidden>
+        {righe.map((r, i) => <span key={i} className={`h-1.5 flex-1 rounded-full ${r.fatto ? 'bg-emerald-500' : 'bg-velo'}`} />)}
+      </div>
+      <ul className="mt-3 space-y-2">
+        {righe.map((r) => (
+          <li key={r.testo} className="flex items-center gap-2.5 text-[13px]">
+            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${r.fatto ? 'bg-emerald-500 text-white' : 'border-2 border-bordo'}`}>
+              {r.fatto && <svg viewBox="0 0 24 24" className="h-3 w-3"><path fill="none" stroke="currentColor" strokeWidth="3" d="M5 12l5 5L20 7" /></svg>}
+            </span>
+            <span className={r.fatto ? 'text-tenue' : 'text-inchiostro'}>{r.testo}</span>
+            {r.conto && <span className="ml-auto text-[12px] font-semibold tabular-nums text-tenue">{r.conto}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}

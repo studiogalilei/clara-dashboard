@@ -648,7 +648,8 @@ export default function App() {
           {!pieno && (<>
           {/* le novita', una volta, a chi rientra (Dre, 17/9) */}
           {/* le novita' solo sulla prima pagina (Dre, 25/9): su ogni pagina erano la prima cosa che vedevi, sempre */}
-          {(tab === 'prospect' || tab === 'pipeline') && !giro && <Novita />}
+          {/* gold (6/10): sulla prima pagina le novita' stanno sotto Adesso, dentro Oggi: prima erano la prima cosa che vedeva l'occhio */}
+          {tab === 'prospect' && !giro && <Novita />}
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
