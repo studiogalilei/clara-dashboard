@@ -304,6 +304,11 @@ def revisore(pr, p, letti):
         prompt = f"""{cervello.ruolo("revisore")}Sei il REVISORE di Studio Galilei. Questa mail PARTIRA' DAVVERO, in automatico,
 senza che Dre la legga prima. Dopo di te non c'e' nessuno. Il tuo compito: dire se puo' partire cosi'.
 
+IL VOI AZIENDALE E IL LEI PERSONALE INSIEME SONO LO STILE DI DRE, non un errore (5/10):
+nei suoi template «vi inoltro l'analisi sulla vostra azienda» (voi = l'azienda) convive con
+«le propongo una call» (lei = la persona). NON segnalarlo come registro incoerente: e' corretto
+e approvato. Boccia solo il tu/lei vero (il «tu» informale mescolato al «lei»).
+
 I TESTI APPROVATI DA DRE, parola per parola. Quello che la mail dice con queste frasi (la proposta con
 garanzia, il calendario, il doc di presentazione, «centrata principalmente sulla comunicazione su Google»)
 e' approvato da lui: non e' un impegno inventato e non e' un motivo per fermarla.

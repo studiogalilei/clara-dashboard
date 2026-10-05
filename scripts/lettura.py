@@ -243,8 +243,11 @@ def ha_gia(p, righe):
     # una pec citata senza un verbo di rimando («scrivete a», «inviate a») e' quasi
     # sempre la firma legale, non un passaggio di persona (Finotti, 1/10: la sua pec
     # in firma bloccava un «sarei interessata a ricevere il documento»)
+    # i provider PEC italiani: una pec in firma non e' un «ci ha girato a», lo e' solo
+    # con un verbo di rimando davanti (5/10, Antonella/LuccaCase: casa...@legalmail.it in firma)
+    PEC = ("@pec.", "@legalmail.it", "@pec.it", "@postecert.it", "@pecimprese.it", "@registerpec.it", "@arubapec.it", "@cert.")
     def _rimando_vero(e, t):
-        if "@pec." not in e and not e.endswith("@pec.it"):
+        if not any(x in e or e.endswith(x) for x in PEC):
             return True
         pos = t.lower().find(e)
         return bool(re.search(r"(scriv|invi|mand|contatt|rivolg)\w*\s[^@]{0,40}$", t[:pos].lower()[-60:]))
