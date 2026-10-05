@@ -28,6 +28,15 @@ export const AIUTI: Record<string, Guida> = {
       'Il battito, nella chat, ti dice due volte al giorno se tutto corre.',
     ],
   },
+  trattativa: {
+    titolo: 'In trattativa',
+    passi: [
+      'Qui ci sono solo quelli che hanno detto sì, in tre colonne: sì ricevuto, call conoscitiva, call tecnica.',
+      'Ogni carta dice a che punto è e la prossima mossa: il bottone blu è quella.',
+      'Si trascina tra le colonne come su Trello; avanzando dalla conoscitiva ti chiedo com’è andata.',
+      'Lascia andare chiede il motivo e nulla si perde: il cassetto in fondo li tiene recuperabili.',
+    ],
+  },
   aziende: {
     titolo: 'Le aziende',
     passi: [

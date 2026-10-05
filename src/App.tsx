@@ -53,6 +53,7 @@ import Scheda from './components/Scheda'
 import { useSchermoLargo } from './lib/schermo'
 import Metro from './components/Metro'
 import BachecaAziende from './components/aziende/Aziende'
+import Trattativa from './components/Trattativa'
 
 // La struttura sul riferimento scelto da Dre (31/8): sidebar bianca a
 // sinistra, testata con titolo grande e ricerca, contenuto in carte morbide.
@@ -647,7 +648,7 @@ export default function App() {
                 {/* il come-si-usa della schermata (Dre 5/10: «tutorial su TUTTE le funzioni») */}
                 {(tab === 'oggi' && <Aiuto di="oggi" />) || (tab === 'preventivi' && <Aiuto di="preventivi" />)
                   || (tab === 'calendario' && <Aiuto di="calendario" />) || (tab === 'analytics' && <Aiuto di="numeri" />)
-                  || (tab === 'metro' && <Aiuto di="metro" />) || ((tab === 'tutti' || tab === 'aziende' || tab === 'prospect') && <Aiuto di="aziende" />)}
+                  || (tab === 'metro' && <Aiuto di="metro" />) || (tab === 'prospect' && <Aiuto di="trattativa" />) || ((tab === 'tutti' || tab === 'aziende') && <Aiuto di="aziende" />)}
               </h1>
               {tab === 'pipeline' && (salutoClara ? (
                 <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">
@@ -743,6 +744,19 @@ export default function App() {
             ) : tab === 'impostazioni' ? (
               <Impostazioni nome={utente} email={mail} demo={demo} ruolo={ruolo} ruoloVero={ruoloVero} onCambio={() => setVersione((v) => v + 1)}
                             onNumeri={() => setTab('analytics')} onWidget={() => setTab('plugin')} />
+            ) : tab === 'prospect' && leggiPref('pipeline-vista', 'trattativa') !== 'classica' ? (
+              <>
+                {/* 5/10, Dre: tre colonne, solo i si'. La vista classica resta a un click. */}
+                <Trattativa onOpen={setOpenId} />
+                <button onClick={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }}
+                        className="mt-4 text-[11px] font-semibold text-tenue hover:text-navy">Vista classica</button>
+              </>
+            ) : tab === 'prospect' ? (
+              <>
+                <Aziende onOpen={setOpenId} q={q} />
+                <button onClick={() => { scriviPref('pipeline-vista', 'trattativa'); setVersione((v) => v + 1) }}
+                        className="mt-4 text-[11px] font-semibold text-tenue hover:text-navy">Vista nuova, in trattativa</button>
+              </>
             ) : (
               <Aziende onOpen={setOpenId} q={q} />
             )}
