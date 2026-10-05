@@ -48,7 +48,7 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
     let vivo = true
     setCerco(true)
     const t = setTimeout(() => {
-      const s = q.trim().replace(/[%,]/g, ' ')
+      const s = q.trim().replace(/[%,()]/g, ' ')   // 5/10: le parentesi rompevano il filtro .or()
       // IL CODICE INCOLLATO (Dre, 26/9): «SG-201» o «SG-201-AN-02» portano
       // dritti all'azienda, senza doversi ricordare come si chiamava
       const cod = paiUnCodice(s) ? leggiCodice(s) : null

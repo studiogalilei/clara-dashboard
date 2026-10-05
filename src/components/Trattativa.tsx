@@ -65,8 +65,13 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
   const carica = useCallback(() => {
     void supabase.from('prospects').select('*')
       .or('and(fuori.eq.false,stage.in.(risposto,analisi_inviata,in_follow_up,call_fissata,rinviato,perso)),fuori.eq.true')
+      .order('last_reply_at', { ascending: false, nullsFirst: false })
       .limit(800)
-      .then(({ data }) => setRighe((data as Prospect[]) ?? []))
+      .then(({ data, error }) => {
+        // un errore non e' «nessuno in trattativa»: si dice (5/10)
+        if (error) setGuaio(`Non riesco a leggere la trattativa: ${error.message}`)
+        setRighe((data as Prospect[]) ?? [])
+      })
   }, [])
   useEffect(() => { carica() }, [carica])
 

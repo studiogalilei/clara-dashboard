@@ -52,7 +52,8 @@ export default function Aziende({ onScheda }: { onScheda: (id: string) => void }
 
   const carica = useCallback(async () => {
     const [pr, bz] = await Promise.all([
-      supabase.from('prospects').select('*').neq('tappa', 'nuovo').limit(1000),
+      // 5/10: con un tetto serve un ordine, se no il taglio cade a caso: prima i piu' recenti
+      supabase.from('prospects').select('*').neq('tappa', 'nuovo').order('last_reply_at', { ascending: false, nullsFirst: false }).limit(1000),
       supabase.from('proposte').select('prospect_id').eq('stato', 'aperta').eq('tipo', 'risposta').limit(1000),
     ])
     setRighe(((pr.data as Prospect[]) ?? []).filter((p) => tappaDi(p) !== 'nuovo'))
