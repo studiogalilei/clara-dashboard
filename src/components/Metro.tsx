@@ -125,9 +125,14 @@ export default function Metro() {
   }, [casi, c, i, salvo, nota])
 
   useEffect(() => {
+    // 5/10: «g» poi una lettera e' il salto di sezione dell'app: dopo una «g» il tasto non e' degli esami
+    // (prima «g c» apriva il contesto E saltava ai Clienti)
+    let gAlle = 0
     function tasto(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.metaKey || e.ctrlKey || e.altKey) return        // Cmd+C copia, Cmd+1 cambia scheda: non sono etichette
+      if (e.key.toLowerCase() === 'g') { gAlle = Date.now(); return }
+      if (Date.now() - gAlle < 1200) { gAlle = 0; return }
       const n = Number(e.key)
       if (c && n >= 1 && n <= c.scelte.length) { e.preventDefault(); void scegli(c.scelte[n - 1][0]) }
       if (e.key === 'ArrowLeft' && i > 0) { void salvaNota(); setI(i - 1) }

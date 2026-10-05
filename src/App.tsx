@@ -339,6 +339,9 @@ export default function App() {
   // G e poi una lettera salta a una sezione: o=Oggi, p=Pipeline, c=Clienti,
   // k=Calendario, m=posta (Clara), v=preventivi. «?» mostra l'elenco.
   const [comandi, setComandi] = useState(false)
+  // l'esito di un comando, in una pillola che sparisce da sola (5/10: prima i comandi non dicevano niente)
+  const [esito, setEsito] = useState<{ testo: string; male: boolean } | null>(null)
+  useEffect(() => { if (!esito) return; const t = window.setTimeout(() => setEsito(null), 3500); return () => window.clearTimeout(t) }, [esito])
   const [scorciatoie, setScorciatoie] = useState(false)
   useEffect(() => {
     let g = false
@@ -442,7 +445,11 @@ export default function App() {
           { id: 'do:preventivo', titolo: 'Nuovo preventivo', sotto: 'parte dal listino', gruppo: 'Azioni',
             fai: () => setTab('preventivi') },
           { id: 'do:sync', titolo: 'Sincronizza adesso', sotto: 'rilegge Smartlead, il calendario e la posta', gruppo: 'Azioni',
-            fai: () => { void supabase.rpc('chiama_direttore', { forza: 'sync_smartlead' }) } },
+            fai: () => {
+              setEsito({ testo: 'Sincronizzo Smartlead, calendario e posta…', male: false })
+              void supabase.rpc('chiama_direttore', { forza: 'sync_smartlead' }).then(({ error }) =>
+                setEsito(error ? { testo: `La sincronizzazione non è partita: ${error.message}`, male: true } : { testo: 'Sincronizzazione partita: fra un paio di minuti è tutto aggiornato.', male: false }))
+            } },
           { id: 'do:link', titolo: 'Copia il link di questa pagina', sotto: 'da mandare a qualcuno', gruppo: 'Azioni',
             fai: () => { void navigator.clipboard.writeText(linkDi({ tab, id: openId, sezione })).catch(() => {}) } },
         ] as Comando[]}
@@ -801,6 +808,11 @@ export default function App() {
         </Rete>
       )}
 
+      {esito && (
+        <div role="status" className={`fixed bottom-24 left-1/2 z-[130] -translate-x-1/2 rounded-full px-4 py-2 text-[13px] font-semibold shadow-lg sm:bottom-6 ${esito.male ? 'bg-red-600 text-white' : 'bg-navy text-white'}`}>
+          {esito.testo}
+        </div>
+      )}
       {giro && <Giro nome={utente} ruoloVero={ruoloVero} onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
     </div>
   )
