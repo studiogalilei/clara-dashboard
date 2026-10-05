@@ -311,10 +311,15 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
 
   async function aggiorna(patch: Partial<Prospect>): Promise<boolean> {
     if (!p) return false
+    // prima lo schermo, poi il database (Dre 5/10: «ho segnato un perso e ho
+    // aspettato 5 secondi»). Si vede subito; se la scrittura fallisce si torna
+    // indietro con l'errore in vista. La risposta vera riconcilia alla fine.
+    const prima = p
+    setP({ ...p, ...patch } as Prospect)
     const { data, error } = await supabase.from('prospects')
       .update(patch).eq('id', id).select().single()
     if (data) setP(await conCassaforte(data as Prospect, true))
-    if (error) setErrore(spiegaErrore(error))
+    if (error) { setP(prima); setErrore(spiegaErrore(error)) }
     return Boolean(data) && !error
   }
 
@@ -329,11 +334,15 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     // e piu' avanti le regole del database li mostreranno solo a lui
     const riga: Record<string, unknown> = { prospect_id: id, at: new Date().toISOString(), kind, body }
     if (kind === 'postit') riga.owner = utenteId
+    // anche qui prima lo schermo (5/10): la riga appare subito con un id suo,
+    // e quella vera del database la sostituisce; se fallisce, sparisce con l'errore.
+    const finta = { id: `tmp-${Date.now()}`, ...riga } as unknown as Interaction
+    setTimeline((t) => [...(t ?? []), finta])
     const { data, error } = await supabase.from('interactions')
       .insert(riga)
       .select().single()
-    if (data) setTimeline((t) => [...(t ?? []), data as Interaction])
-    if (error) setErrore(spiegaErrore(error))
+    if (data) setTimeline((t) => (t ?? []).map((x) => (x.id === finta.id ? (data as Interaction) : x)))
+    if (error) { setTimeline((t) => (t ?? []).filter((x) => x.id !== finta.id)); setErrore(spiegaErrore(error)) }
     return Boolean(data) && !error
   }
 
@@ -401,11 +410,11 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
     const patch = p.fuori
       ? { pipeline_stage: 'perso' as PipelineStage, lost_reason: perche, next_action: null, next_action_date: null }
       : { stage: 'perso' as Stage, lost_reason: perche, next_action: null, next_action_date: null }
-    if (!(await aggiorna(patch))) return
+    setPersoAperto(false)                        // il modale si chiude subito (5/10)
+    if (!(await aggiorna(patch))) { setPersoAperto(true); return }
     // come in un tribunale (Dre, 24/9): il motivo e, se c'e', la prova con le
     // parole del cliente. Tornano nel Google Fit dei prossimi simili.
     await segna('nota', `Segnato come perso: ${perche}${paroleSue.trim() ? `\nParole sue: «${paroleSue.trim()}»` : ''}`)
-    setPersoAperto(false)
     setMotivoPerso(''); setParoleSue('')
   }
 
