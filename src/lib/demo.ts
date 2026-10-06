@@ -124,7 +124,7 @@ prospects.push(
 export const interactions: Interaction[] = [
   { id: 'i95', prospect_id: 'p11', at: gg(60), kind: 'email_in', body: 'Gentile Lorenzo,\nnon riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti.\nCordiali saluti' },
   { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su CER Italia che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },
-  { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui.\nGrazie, un saluto.' },
+  { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui. Ma poi quanto costa il vostro servizio?\nGrazie, un saluto.' },
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },
   { id: 'i2', prospect_id: 'p1', at: gg(64), kind: 'email_out', body: 'Secondo tentativo' },
   { id: 'i3', prospect_id: 'p1', at: gg(53), kind: 'email_out', body: '«Chiudo qui se non è il momento»' },
@@ -372,8 +372,8 @@ const proposte: Riga[] = [
   {
     id: 1, at: oreFa(2), tipo: 'risposta', stato: 'aperta', prospect_id: 'p4', owner: null,
     titolo: 'CER Italia: risposta pronta',
-    perche: 'Ha chiesto quanto costa. Gli propongo la call conoscitiva di giovedì.',
-    azione: { bozza: 'Buongiorno,\n\ngrazie del riscontro. Le propongo una call giovedì alle 15, mezz\'ora: le mostro i numeri della sua zona e le dico cosa faremmo, senza impegno.\n\nSe le va bene, le mando l\'invito.\n\nUn saluto', template: 'INT-CALL' },
+    perche: 'Ha confermato e chiede quanto costa. Gli propongo la call conoscitiva di giovedì per parlarne.',
+    azione: { bozza: 'Buongiorno,\n\ngrazie, gliela mando oggi in una mail a parte. Sul costo: dipende da cosa le serve davvero, e glielo dico in mezz\'ora guardando insieme i numeri della sua zona, senza impegno. Le va bene giovedì alle 15?\n\nUn saluto', template: 'INT-CALL' },
   },
   {
     id: 2, at: oreFa(4), tipo: 'avanza', stato: 'aperta', prospect_id: 'p7', owner: null,

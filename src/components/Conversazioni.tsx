@@ -372,26 +372,26 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         {aperta.proposta && (
           <div className="border-t border-velo px-4 py-3">
             {dopo && <p className="mb-2 truncate text-[11px] text-tenue">Dopo questa: <span className="font-semibold text-inchiostro">{dopo.nome}</span></p>}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
               {pronto ? (
                 <button onClick={() => void decidi(true)} disabled={occupato !== null} title={conBozza ? 'E, oppure ⌘ Invio' : undefined}
-                        className="min-h-[44px] rounded-full bg-blu px-5 py-2 text-[13px] font-bold text-white disabled:opacity-40">
+                        className="min-h-[44px] w-full whitespace-nowrap rounded-full bg-blu px-5 py-2 text-[13px] font-bold text-white disabled:opacity-40 sm:w-auto">
                   {conBozza ? (invioAcceso ? 'Approva e manda' : 'Approva (non parte)') : 'Fai così'}
                 </button>
               ) : (
                 <button onClick={() => fine.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        className="min-h-[44px] rounded-full border border-blu px-5 py-2 text-[13px] font-bold text-blu">
+                        className="min-h-[44px] w-full whitespace-nowrap rounded-full border border-blu px-5 py-2 text-[13px] font-bold text-blu sm:w-auto">
                   Leggi fino in fondo
                 </button>
               )}
               {conBozza && (
                 <button onClick={() => void rimanda()} disabled={occupato !== null} title="La rivedi domani: non la rifiuti"
-                        className="min-h-[44px] rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
+                        className="min-h-[44px] flex-1 whitespace-nowrap rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40 sm:flex-none">
                   Domani
                 </button>
               )}
               <button onClick={() => void decidi(false)} disabled={occupato !== null}
-                      className="min-h-[44px] rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
+                      className="min-h-[44px] flex-1 whitespace-nowrap rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40 sm:flex-none">
                 Lascia stare
               </button>
             </div>
