@@ -212,6 +212,18 @@ def testo_suo(body):
     return corpo_pulito(body)
 
 
+def attesa_da_sync(awaiting, rec, risposta_nuova, ultima_risposta):
+    """Se il lead «aspetta noi» secondo il filo. Un'attesa chiusa nel CRM resta chiusa se la
+    risposta e' vecchia (24/9: oltre 30 giorni e' materiale della ripresa) o se e' LA STESSA
+    gia' vista (6/10: il sync completo riapriva le attese dei no chiuse dalle bozze, e ogni
+    categoria scritta su Smartlead cambia la firma e fa rileggere il lead). Si riapre solo
+    se il lead scrive di nuovo."""
+    if awaiting and rec and not rec.get("awaiting_us"):
+        if not risposta_nuova or (ultima_risposta and ultima_risposta < STALE):
+            return False
+    return awaiting
+
+
 def classe_da_sync(body, categoria, attuale, risposta_nuova):
     """La classe che il sync propone. UN NO NON SI RIBALTA SULLO STESSO MESSAGGIO (6/10):
     il sync completo delle 5 ha riletto risposte gia' classificate e ha fatto diventare
@@ -362,8 +374,7 @@ def main():
             # la pulizia aveva chiuso (negativi, ferie, corpi vuoti). Una risposta
             # vecchia di piu' di 30 giorni non «aspetta noi»: se nel CRM e' gia'
             # chiusa, resta chiusa. E' materiale della ripresa, non della coda.
-            if awaiting and rec and not rec.get("awaiting_us") and body_last_reply and body_last_reply < STALE:
-                awaiting = False
+            awaiting = attesa_da_sync(awaiting, rec, nuova, body_last_reply)
             # 25/9: se nel CRM c'e' una risposta piu' recente (arrivata da Gmail, che Smartlead
             # non vede), Smartlead non comanda: awaiting e last_reply restano quelli del CRM
             gmail_dopo = bool(rec and (rec.get("last_reply_at") or "")[:19] > (body_last_reply or ""))

@@ -90,6 +90,32 @@ def _():
     assert src.count("blocca(p)") >= 2, "la strada «decisa da sola» non blocca chi chiede la rimozione"
 
 
+@prova("il sync non riapre un'attesa chiusa sulla stessa risposta, solo se il lead riscrive (6/10)")
+def _():
+    import sync_v2 as S
+    chiusa = {"awaiting_us": False}
+    assert S.attesa_da_sync(True, chiusa, False, "2026-10-05T13:17:15") is False, "la stessa risposta riapriva l'attesa di un no"
+    assert S.attesa_da_sync(True, chiusa, True, "2026-10-06T09:00:00") is True, "una risposta nuova deve riaprire"
+    assert S.attesa_da_sync(True, chiusa, True, "2020-01-01T00:00:00") is False, "oltre 30 giorni resta chiusa"
+    assert S.attesa_da_sync(True, {"awaiting_us": True}, False, "2026-10-05T13:17:15") is True
+    assert S.attesa_da_sync(True, None, True, "2026-10-06T09:00:00") is True, "un lead nuovo aspetta"
+
+
+@prova("le categorie di Dre su Smartlead: dalla classe del Workspace, mai su soppressi, fuori o fuori target (6/10)")
+def _():
+    import categorie_smartlead as C
+    assert C.categoria_di({"classificazione": "positivo"}) == C.SI
+    assert C.categoria_di({"classificazione": "positivo"}, intento="INT-03") == C.DOMANDA
+    assert C.categoria_di({"classificazione": "tiepido"}) == C.DOMANDA
+    assert C.categoria_di({"classificazione": "rinvio"}) == C.AVANTI and C.categoria_di({"classificazione": "ooo"}) == C.AVANTI
+    assert C.categoria_di({"classificazione": "persona_sbagliata"}) == C.GIRATO
+    assert C.categoria_di({"classificazione": "positivo"}, girato=True) == C.GIRATO
+    assert C.categoria_di({"classificazione": "negativo"}) == C.NO and C.categoria_di({"classificazione": "nervoso"}) == C.NO
+    for c in ("soppresso", "fuori_target", "da_classificare", None):
+        assert C.categoria_di({"classificazione": c}) is None, c
+    assert C.categoria_di({"classificazione": "positivo", "fuori": True}) is None, "pipeline e clienti non si toccano"
+
+
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")
 def _():
     import analisi_auto as A
