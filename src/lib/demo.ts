@@ -123,6 +123,9 @@ prospects.push(
   {
     ...vuoto, id: 'p12', sg_id: 204, email: 'info@officinabreda.it', name: 'Sergio B.',
     company: 'Autofficina Breda', sector: 'autofficina', city: 'Rovigo',
+    website: 'officinabreda.it',
+    descrizione: 'Officina meccanica a conduzione familiare: tagliandi, gomme e revisioni per i privati della zona di Rovigo.',
+    analysis_pdf: 'https://example.com/analisi-officinabreda.pdf',
     campaign: 'Casa 1, serramenti', stage: 'risposto',
     classificazione: 'positivo', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(0), updated_at: gg(0),
@@ -131,6 +134,8 @@ prospects.push(
   {
     ...vuoto, id: 'p13', sg_id: 205, email: 'commerciale@ricambiplanet.it', name: null,
     company: 'Ricambi Planet', sector: 'ricambi', city: 'Brescia',
+    website: 'ricambiplanet.it',
+    descrizione: 'Grossista di ricambi auto: vende a officine e negozi in tutto il Nord, non al privato.',
     campaign: 'Casa 1, serramenti', stage: 'risposto',
     classificazione: 'tiepido', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(1), updated_at: gg(1),

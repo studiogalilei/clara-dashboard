@@ -125,10 +125,30 @@ export default function Triage({ righe, onOpen, onDeciso }: {
                 <button onClick={() => onOpen(r.p.id)} className="text-[14px] font-extrabold text-navy hover:underline">
                   {r.p.company || r.p.name || r.p.email}
                 </button>
+                {(r.p.sector || r.p.city) && (
+                  <span className="text-[12px] text-tenue">{[r.p.sector?.replace(/_/g, ' '), r.p.city].filter(Boolean).join(', ')}</span>
+                )}
                 <span className="text-[12px] font-semibold text-amber-900">{r.motivo}</span>
               </div>
+              {/* chi sono e i link per la ricerca al volo (Dre, 6/10: «lasciami
+                  l'analisi e il sito, qualcosa che posso prendere e farmi la ricerca») */}
+              {r.p.descrizione && (
+                <p className="mt-1 text-[12.5px] leading-snug text-inchiostro/80">{r.p.descrizione}</p>
+              )}
               {parole[r.p.id] && (
                 <p className="mt-1 text-[12.5px] leading-snug text-tenue">Ha scritto: «{parole[r.p.id]}»</p>
+              )}
+              {(r.p.website || r.p.analysis_pdf) && (
+                <p className="mt-1.5 flex flex-wrap gap-x-3 text-[12px] font-semibold">
+                  {r.p.website && (
+                    <a href={r.p.website.startsWith('http') ? r.p.website : `https://${r.p.website}`} target="_blank" rel="noreferrer" className="text-blu hover:underline">
+                      Sito: {r.p.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                    </a>
+                  )}
+                  {r.p.analysis_pdf && (
+                    <a href={r.p.analysis_pdf} target="_blank" rel="noreferrer" className="text-blu hover:underline">Apri l'analisi ↗</a>
+                  )}
+                </p>
               )}
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <input
