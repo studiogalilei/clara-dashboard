@@ -1242,6 +1242,19 @@ def _():
         F.sb, F.sb_tutte, F.in_coda, F.calendario = vero
 
 
+@prova("la prima risposta: una bozza gia' decisa da un altro giro non si approva sopra (caso casainromagna, 6/10)")
+def _():
+    import prima_risposta as PR
+    vero = PR.sb
+    viste = []
+    try:
+        PR.sb = lambda m, path, corpo=None, h=None: (viste.append(path) or [])
+        assert PR.segna({"id": 5}, {"x": 1}, {"stato": "approvata"}, prima_decisione=True) is False
+        assert "azione->prima_risposta=is.null" in viste[-1] and "stato=eq.aperta" in viste[-1], viste[-1]
+    finally:
+        PR.sb = vero
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
