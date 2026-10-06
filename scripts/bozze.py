@@ -267,7 +267,10 @@ def orario_scaduto(testo, oggi):
     if _ORARIO_NEL_TESTO is None:
         _ORARIO_NEL_TESTO = re.compile(r"(?:luned|marted|mercoled|gioved|venerd)ì\s+(\d{1,2})\s+(" + "|".join(_MESI)
                                        + r")\s+alle\s+\d{1,2}(?:[:.]\d{2})?", re.I)
-    m = _ORARIO_NEL_TESTO.search(testo or "")
+    # solo un orario PROPOSTO: «le avevo scritto martedi' 29 settembre alle 10» e' un ricordo, non si tocca
+    m = next((x for x in _ORARIO_NEL_TESTO.finditer(testo or "")
+              if re.search(r"propon|proporrei|sentirci|sentiamoci|chiamata|call|videochiamata|disponibil|che ne dice|potremmo|ci vediamo",
+                           (testo or "")[max(0, x.start() - 80):x.start()], re.I)), None)
     if not m:
         return None
     try:

@@ -1292,6 +1292,7 @@ def _():
     assert Bz.orario_scaduto("Le propongo giovedì 8 ottobre alle 15", oggi) is None
     assert Bz.orario_scaduto("Le propongo lunedì 11 gennaio alle 15", oggi) is None, "gennaio e' dell'anno prossimo"
     assert Bz.orario_scaduto("Le propongo martedì 14 luglio alle 15", oggi), "luglio scritto a ottobre e' passato"
+    assert Bz.orario_scaduto("le avevo scritto martedì 29 settembre alle 10 e non ci siamo sentiti", oggi) is None, "un ricordo non e' una proposta"
 
 
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
