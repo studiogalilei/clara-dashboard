@@ -37,6 +37,7 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, sb_tutte, env                       # noqa: E402
@@ -152,6 +153,15 @@ def leggi_sito(url):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (clara-dashboard)"})
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read(300_000).decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        # 6/10, GIOCOPLAST: il server dice «errore 500» ma manda la pagina intera. Se c'e' una
+        # pagina vera la si legge; un errore senza contenuto resta un errore
+        try:
+            raw = e.read(300_000).decode("utf-8", errors="replace") if e.code >= 500 else ""
+        except Exception:                                    # noqa: BLE001
+            raw = ""
+        if len(raw) < 2000 or "<html" not in raw[:5000].lower():
+            return ""
     except Exception:
         return ""
     raw = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", " ", raw, flags=re.S | re.I)
