@@ -75,6 +75,21 @@ def _():
     assert S.classe_da_sync("in realtà abbiamo già chi si occupa di queste cose", "Information Request", None, True) == "negativo"
 
 
+@prova("la rilettura blocca chi chiede la rimozione da qualunque strada passi (caso Panorama, 6/10)")
+def _():
+    import rilettura as R
+    scritti = []
+    vero = R.sb
+    try:
+        R.sb = lambda m, path, corpo=None, h=None: scritti.append((m, path, corpo))
+        R.blocca({"email": "Info@Esempio.it"})
+    finally:
+        R.sb = vero
+    assert scritti and scritti[0][1] == "/rest/v1/suppressions" and scritti[0][2][0]["email"] == "info@esempio.it"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "rilettura.py")).read()
+    assert src.count("blocca(p)") >= 2, "la strada «decisa da sola» non blocca chi chiede la rimozione"
+
+
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")
 def _():
     import analisi_auto as A

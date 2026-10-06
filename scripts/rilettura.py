@@ -99,6 +99,17 @@ def illeggibile(v):
                          "senza contenuto", "messaggio di sistema", "non risposta umana", "nessun testo"))
 
 
+def blocca(p):
+    """RICHIESTA DI RIMOZIONE (25/9): chi la chiede finisce nella lista di blocco, cosi'
+    nessuna lista futura lo ricarica. Da qualunque strada passi la classe (6/10: la strada
+    «decisa da sola» scriveva soppresso senza bloccare, caso Panorama)."""
+    try:
+        sb("POST", "/rest/v1/suppressions", [{"kind": "email", "email": e.lower(), "reason": "richiesta di rimozione", "source": "rilettura"}
+                                             for e in [p.get("email")] if e], {"Prefer": "resolution=merge-duplicates"})
+    except Exception as e2:                              # noqa: BLE001
+        print(f"    (blocco non scritto: {str(e2)[:60]})")
+
+
 def main():
     print("LA RILETTURA" + (" (prova: non scrive niente)" if PROVA else ""))
     if not cervello.disponibile():
@@ -204,11 +215,7 @@ def main():
             # RICHIESTA DI RIMOZIONE (25/9): chi lo chiede finisce subito nella lista di
             # blocco, cosi' nessuna lista futura lo ricarica
             if v["classe"] == "soppresso":
-                try:
-                    sb("POST", "/rest/v1/suppressions", [{"kind": "email", "email": e.lower(), "reason": "richiesta di rimozione", "source": "rilettura"}
-                                                         for e in [p.get("email")] if e], {"Prefer": "resolution=merge-duplicates"})
-                except Exception as e2:                          # noqa: BLE001
-                    print(f"    (blocco non scritto: {str(e2)[:60]})")
+                blocca(p)
         if v["quando"] and v["classe"] in ("rinvio", "ooo") and not p.get("next_action_date"):
             patch["next_action_date"] = v["quando"]
             patch["next_action"] = "Rientra" if v["classe"] == "ooo" else "Ricontatto: l'aveva chiesto lui"
@@ -224,6 +231,8 @@ def main():
         patch = {"enriched": arr, "classificazione": "fuori_target" if tipo == "scarta" else v["classe"]}
         if tipo == "scarta":
             patch["no_followup"] = True
+        if patch["classificazione"] == "soppresso":
+            blocca(p)                                    # 6/10: Panorama era soppressa ma non bloccata
         if v["quando"]:
             patch["next_action_date"] = v["quando"]
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
