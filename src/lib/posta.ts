@@ -149,3 +149,16 @@ export function rimandata(azione: Record<string, unknown> | null | undefined, og
   const al = String(azione?.rimandata_al ?? '')
   return Boolean(al) && al > oggi.toLocaleDateString('sv-SE')
 }
+
+// IL PIU' URGENTE PRIMA (gold, 6/10): i follow-up si mettono in fila per il giorno di call che
+// propongono, il piu' vicino prima. Se la fila non si finisce in giornata, quelli col giorno vicino
+// sono gia' partiti; gli altri hanno ancora tempo. Senza giorno, in fondo.
+const MESI_FILA = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+export function quandoProposto(g: string | null | undefined, oggi: Date = new Date()): number {
+  const m = /(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)(?:\s+alle\s+(\d{1,2})(?:[:.](\d{2}))?)?/i.exec(g ?? '')
+  if (!m) return Number.POSITIVE_INFINITY
+  const mese = MESI_FILA.indexOf(m[2].toLowerCase())
+  let anno = oggi.getFullYear()
+  if (mese < oggi.getMonth() - 6) anno += 1
+  return new Date(anno, mese, Number(m[1]), Number(m[3] ?? 0), Number(m[4] ?? 0)).getTime()
+}

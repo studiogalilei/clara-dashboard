@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Spinner, fmtDateShort } from './ui'
-import { percheCosi, prendiDaAprire, rimandata } from '../lib/posta'
+import { percheCosi, prendiDaAprire, quandoProposto, rimandata } from '../lib/posta'
 import { giorno } from '../lib/regole'
 
 // LA POSTA PER CONVERSAZIONI (Dre, 5/10: «nel workspace devo avere solo le
@@ -137,7 +137,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
             perche: (p.perche ?? '').split(/[.:]/)[0] || 'follow-up pronto', seguito: true,
             giorno: String(p.azione?.giorno_proposto ?? ''),
           }
-        }).sort((a, b) => a.nome.localeCompare(b.nome)))
+        }).sort((a, b) => (quandoProposto(a.giorno) - quandoProposto(b.giorno)) || a.nome.localeCompare(b.nome)))
       })
     return () => { vivo = false }
   }, [visibili])
