@@ -1243,6 +1243,35 @@ def _():
     assert "Le propongo giovedì 8 ottobre alle 15:30" in S.risposta("INT-01", {}, {}, "x", giorno="giovedì 8 ottobre alle 15:30", testo_file=vero)
 
 
+@prova("i template di Dre: se il bucket non risponde si usa l'ultima copia buona, non il vuoto (6/10)")
+def _():
+    import tempfile, urllib.request as U
+    import bozze as Bz
+    loc = os.path.join(tempfile.gettempdir(), "odyn-risposte-template.md")
+    c_era = os.path.exists(loc)
+    prima = open(loc, encoding="utf-8").read() if c_era else None
+    vero, vero_sleep = U.urlopen, Bz.time.sleep if hasattr(Bz, "time") else None
+    try:
+        open(loc, "w", encoding="utf-8").write("## INTERESSATO\n```\nSalve,\nciao\n```\n")
+        os.utime(loc, (0, 0))                              # vecchia: va riscaricata
+        def giu(*a, **k):
+            raise OSError("bucket giu'")
+        U.urlopen = giu
+        import time as T
+        dorme, T.sleep = T.sleep, (lambda s: None)
+        try:
+            t = Bz.template_verbatim()
+        finally:
+            T.sleep = dorme
+        assert "Salve," in t, "con il bucket giu' i template sparivano"
+    finally:
+        U.urlopen = vero
+        if prima is not None:
+            open(loc, "w", encoding="utf-8").write(prima)
+        else:
+            os.remove(loc)
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
