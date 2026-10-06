@@ -35,6 +35,14 @@ MUTE_VA_BENE = {"salute", "backup", "avvisi", "manda", "webhooks", "lezioni", "s
                 "appunti", "googlefit", "calendar", "preparo", "bozze", "posta", "analisi"}
 
 
+
+def supera_vecchie(oggi):
+    """Chiude le domande «Salute del sistema» dei giorni prima ancora aperte."""
+    for x in sb("GET", "/rest/v1/proposte?select=id,ref&ref=like.salute:*&stato=eq.aperta&limit=100") or []:
+        if x.get("ref") != f"salute:{oggi}":
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}",
+               {"stato": "no", "risposta": "superata dal controllo di oggi"})
+
 def quando(iso):
     """La data come la scrive il database, con qualunque numero di decimali."""
     t = re.sub(r"\.(\d{1,6})\d*", lambda m: "." + m.group(1).ljust(6, "0"), (iso or "").replace("Z", "+00:00"))
@@ -283,6 +291,9 @@ def main():
     print(testo)
     if prova:
         return
+    # una domanda sola aperta (6/10): quelle dei giorni prima restavano in Posta, cinque copie
+    # della stessa voce; il controllo di oggi le contiene gia', quindi si chiudono come superate
+    supera_vecchie(ora.date().isoformat())
     if problemi:
         proponi("umano", "Salute del sistema: c'è qualcosa che non torna", perche=testo[:280], azione={"salute": problemi, "giorno": ora.date().isoformat()}, ref=f"salute:{ora.date().isoformat()}")
     else:
