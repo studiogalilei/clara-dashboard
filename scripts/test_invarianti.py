@@ -109,11 +109,18 @@ def _():
     assert C.categoria_di({"classificazione": "tiepido"}) == C.DOMANDA
     assert C.categoria_di({"classificazione": "rinvio"}) == C.AVANTI and C.categoria_di({"classificazione": "ooo"}) == C.AVANTI
     assert C.categoria_di({"classificazione": "persona_sbagliata"}) == C.GIRATO
-    assert C.categoria_di({"classificazione": "positivo"}, girato=True) == C.GIRATO
+    assert C.categoria_di({"classificazione": "tiepido"}, girato=True) == C.GIRATO
     assert C.categoria_di({"classificazione": "negativo"}) == C.NO and C.categoria_di({"classificazione": "nervoso"}) == C.NO
     for c in ("soppresso", "fuori_target", "da_classificare", None):
         assert C.categoria_di({"classificazione": c}) is None, c
     assert C.categoria_di({"classificazione": "positivo", "fuori": True}) is None, "pipeline e clienti non si toccano"
+    # dal campione letto prima di scrivere (6/10)
+    assert C.categoria_di({"classificazione": "ooo"}, testo="Hello, my email address has recently changed") == C.GIRATO
+    assert C.categoria_di({"classificazione": "ooo"}, testo="questa casella di posta verra' dismessa in data 30.04") == C.GIRATO
+    assert C.categoria_di({"classificazione": "ooo"}, testo="sono fuori ufficio fino al 12") == C.AVANTI
+    assert C.categoria_di({"classificazione": "positivo"}, girato=True, testo="Ok grazie") == C.SI, "un si' con un inoltro resta un si'"
+    assert C.categoria_di({"classificazione": "tiepido"}, testo="la ringrazio ma non è di nostro interesse") is None, "un no scritto non si etichetta come domanda"
+    assert C.categoria_di({"classificazione": "tiepido"}, testo="mi occupo della parte commerciale, ho girato la vostra mail all'ufficio competente") == C.GIRATO
 
 
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")

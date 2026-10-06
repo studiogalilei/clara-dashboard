@@ -40,8 +40,23 @@ INTENTI_DOMANDA = {"INT-03", "INT-04", "INT-15"}
 INTENTI_GIRATO = {"INT-08", "INT-09"}
 
 
-def categoria_di(p, intento=None, girato=False):
-    """La categoria di Dre per un lead, o None se non se ne mette una."""
+import re as _re
+# 6/10, dal campione letto prima di scrivere: «il mio indirizzo e' cambiato», «casella
+# dismessa», «non collabora piu'» erano classificati fuori ufficio e finivano in «Piu' avanti»
+CAMBIO = _re.compile(r"(indirizzo|address|e-?mail)\W+(\w+\W+){0,4}(cambiat|changed|modificat)|non (e'|è) piu' attiv|non è più attiv|"
+                     r"(verra'|verrà|sara'|sarà) dismess|casella\W+(\w+\W+){0,4}(chius|dismess|disattiv|non (e'|è) piu')|"
+                     r"non collabora pi|non fa pi[uù] parte|no longer (with|works)|inoltrare la (mail|comunicazione)", _re.I)
+# «ho girato la vostra mail all'ufficio competente» (6/10, secondo campione): e' un inoltro
+INOLTRATO = _re.compile(r"(ho|abbiamo) (girato|inoltrato|passato) (la (vostra|sua|tua) (mail|email|richiesta)|al (collega|responsabile|ufficio))", _re.I)
+# un no scritto chiaro dentro un si' di classe: non si etichetta, si segnala (la classe e' sbagliata)
+NO_SCRITTO = _re.compile(r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) interessa|non (siamo|sono) interessat|"
+                         r"non fa per noi|non abbiamo (bisogno|necessit|interesse)|abbiamo gi[aà] chi", _re.I)
+
+
+def categoria_di(p, intento=None, girato=False, testo=""):
+    """La categoria di Dre per un lead, o None se non se ne mette una.
+    `testo` e' la sua ultima risposta (solo la parte sua): corregge i casi che la classe
+    sbaglia per costruzione (un cambio d'indirizzo letto come fuori ufficio)."""
     if p.get("fuori") or p.get("bloccato"):
         return None
     c = p.get("classificazione")
@@ -49,15 +64,26 @@ def categoria_di(p, intento=None, girato=False):
         return None
     if c in ("negativo", "nervoso"):
         return NO
+    if testo and CAMBIO.search(testo):
+        return GIRATO
     if c in ("rinvio", "ooo"):
         return AVANTI
-    if c == "persona_sbagliata" or girato or intento in INTENTI_GIRATO:
+    if c == "persona_sbagliata" or intento in INTENTI_GIRATO:
         return GIRATO
+    if c in ("positivo", "tiepido") and testo and NO_SCRITTO.search(testo):
+        return None                       # la classe dice si', lui dice no: va guardato, non etichettato
+    if (girato or (testo and INOLTRATO.search(testo))) and c != "positivo":
+        return GIRATO                     # un inoltro conta se non ha detto si' (6/10: «Ok grazie» finiva qui)
     if c == "tiepido" or intento in INTENTI_DOMANDA:
         return DOMANDA
     if c == "positivo":
         return SI
     return None
+
+
+def da_guardare(p, testo):
+    """Si' di classe con un no scritto: la classe va corretta da Dre o dalla rilettura."""
+    return p.get("classificazione") in ("positivo", "tiepido") and not p.get("fuori") and bool(testo and NO_SCRITTO.search(testo))
 
 
 def _sl(metodo, percorso, corpo=None):
@@ -89,6 +115,9 @@ def dove_ha_risposto(email):
     return (int(camp[0]["campaign_id"]), int(d["id"])) if camp and d.get("id") else (None, None)
 
 
+DA_GUARDARE = []
+
+
 def da_allineare():
     ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,enriched"
                   "&last_reply_at=not.is.null&email=not.is.null")
@@ -100,9 +129,19 @@ def da_allineare():
             intenti[x["prospect_id"]] = az["intento"]
         if (az.get("lettura") or {}).get("girato_a"):
             girati.add(x["prospect_id"])
-    righe = []
+    import lettura
+    ultima = {}
+    ids = [p["id"] for p in ps]
+    for i in range(0, len(ids), 80):
+        for x in sb("GET", "/rest/v1/interactions?select=prospect_id,at,body&kind=eq.email_in&order=at.desc&limit=1000"
+                           f"&prospect_id=in.({','.join(ids[i:i + 80])})") or []:
+            ultima.setdefault(x["prospect_id"], x.get("body") or "")
+    righe, DA_GUARDARE[:] = [], []
     for p in ps:
-        voluta = categoria_di(p, intenti.get(p["id"]), p["id"] in girati)
+        testo = lettura.solo_suo(ultima.get(p["id"], ""), con_firma=True) or ""
+        if da_guardare(p, testo):
+            DA_GUARDARE.append((p.get("company") or p["email"], p.get("classificazione"), testo[:90]))
+        voluta = categoria_di(p, intenti.get(p["id"]), p["id"] in girati, testo)
         gia = ((p.get("enriched") or {}).get("sl_categoria") or {}).get("nome")
         if voluta and voluta != gia:
             righe.append({"id": p["id"], "email": p["email"], "azienda": p.get("company") or "", "classificazione": p.get("classificazione"),
@@ -116,6 +155,10 @@ def main():
     for r in righe:
         conta[r["esito"]] = conta.get(r["esito"], 0) + 1
     print(f"categorie: {len(righe)} lead da allineare {conta}")
+    if DA_GUARDARE:
+        print(f"categorie: {len(DA_GUARDARE)} si' di classe con un no scritto, senza etichetta (da correggere la classe):")
+        for n, c, t in DA_GUARDARE[:15]:
+            print(f"  {n[:30]:30} {c}: «{t}»")
     if not righe:
         return
     if PROVA:
