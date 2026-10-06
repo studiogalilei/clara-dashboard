@@ -671,8 +671,16 @@ def _():
         (con(az_mod={"bozza": "Salve,\nvolentieri la call: https://calendar.app.google/x"}), "una prima risposta senza l'analisi (Yachtspassion)"),
         (con(az_mod={"bozza": "Salve,\necco l'analisi, resto a disposizione."}), "una prima risposta senza call (Optima, Mason)"),
         (con(az_mod={"bozza": "Salve,\nin chiamata vediamo insieme l'analisi: https://calendar.app.google/x"}), "una mail che non dice che l'analisi e' allegata (Yachtspassion)"),
+        # 6/10, Dre: «se non supera il Google Fit mi scrive fuori target e decido io»
+        (con(p_mod={"enriched": {"google_fit_v2": {"verdetto": "NO", "motivo": "domanda sotto soglia"}}}), "un fuori target per il fit nuovo, senza decisione di Dre"),
+        (con(p_mod={"enriched": {"google_fit": {"verdetto": "NO"}}}), "un fuori target per il fit vecchio, senza decisione di Dre"),
     ):
         assert caso, f"la prima risposta automatica farebbe partire {motivo}"
+    # la decisione di Dre «invia comunque» riapre la corsia; quella del fit nuovo
+    # vince sul vecchio (un v2 SI con un v1 NO non e' bocciato)
+    assert R.perche_no(pr, {**p, "enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "invia"}}) == []
+    assert R.perche_no(pr, {**p, "enriched": {"google_fit_v2": {"verdetto": "SI"}, "google_fit": {"verdetto": "NO"}}}) == []
+    assert R.fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "soppresso"}})
     # la finestra: lun-ven 9-17 a Roma
     roma = R.ROMA
     assert R.finestra(datetime.datetime(2026, 9, 29, 10, 0, tzinfo=roma))       # martedi' 10:00

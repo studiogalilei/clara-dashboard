@@ -5,6 +5,7 @@ import { tappaDi, mossa, type Tappa } from '../lib/percorso'
 import { giorno, pedaggioPagato } from '../lib/regole'
 import type { PipelineStage } from '../lib/types'
 import { Spinner } from './ui'
+import Triage from './Triage'
 
 // IN TRATTATIVA (Dre, 5/10): «voglio solo 3 colonne stile Trello, solo quelli che
 // hanno detto si'. Prima il workflow, poi il software.» Il workflow sta nel vault
@@ -63,6 +64,11 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
   const [motivo, setMotivo] = useState('')
   const [cassetto, setCassetto] = useState(false)
   const [guaio, setGuaio] = useState<string | null>(null)
+  // LA COLONNA A TUTTA PAGINA (Dre, 6/10: «quelli che hanno detto si' sono tanti,
+  // scrollo giu' all'infinito: rendila navigabile»). Click sull'intestazione e la
+  // colonna si apre intera, con la ricerca, ordinata per ultimo movimento.
+  const [espansa, setEspansa] = useState<Colonna | null>(null)
+  const [cercaCol, setCercaCol] = useState('')
 
   const carica = useCallback(() => {
     void supabase.from('prospects').select('*')
@@ -140,6 +146,7 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
   return (
     <div>
       {guaio && <p className="mb-3 inline-block rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700">{guaio}</p>}
+      {!cerca && <Triage righe={righe ?? []} onOpen={onOpen} onDeciso={() => carica()} />}
       {riga && !cerca && <p className="mb-3 text-[14px] text-tenue">{riga}</p>}
       {cerca && gruppi.si.length + gruppi.conoscitiva.length + gruppi.tecnica.length === 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-bordo bg-white px-4 py-3">
@@ -158,10 +165,13 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
                  if (p) void muovi(p, k === 'si' ? 'lead' : k)
                }}
                className={`rounded-2xl p-3 transition-colors ${sopra === k ? 'bg-blu/10 ring-2 ring-blu/40' : 'bg-velo/50'}`}>
-            <div className="mb-2 flex items-baseline gap-2 px-1">
-              <h2 className="text-[13px] font-extrabold uppercase tracking-[0.04em] text-navy">{nome}</h2>
+            <button onClick={() => { setEspansa(k); setCercaCol('') }}
+                    title="Apre la colonna a tutta pagina, con la ricerca"
+                    className="group/testa mb-2 flex w-full items-baseline gap-2 px-1 text-left">
+              <h2 className="text-[13px] font-extrabold uppercase tracking-[0.04em] text-navy group-hover/testa:underline">{nome}</h2>
               <span className="text-[12px] font-bold tabular-nums text-tenue">{gruppi[k].length}</span>
-            </div>
+              <span className="ml-auto text-[11px] font-bold text-blu opacity-0 transition-opacity group-hover/testa:opacity-100">Apri ›</span>
+            </button>
             {gruppi[k].length === 0 && <p className="px-2 py-6 text-[13px] leading-relaxed text-tenue">{vuoto}</p>}
             {gruppi[k].map((p) => {
               const { testo, colore } = statoDi(p, k)
@@ -215,6 +225,48 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
           </div>
         )}
       </div>
+
+      {/* la colonna a tutta pagina: lista densa, ricerca, ultimo movimento in testa */}
+      {espansa && (() => {
+        const { nome } = COLONNE.find((c) => c.k === espansa)!
+        const ago = cercaCol.trim().toLowerCase()
+        const dentro = gruppi[espansa]
+          .filter((p) => !ago || [p.company, p.name, p.email].some((x) => (x ?? '').toLowerCase().includes(ago)))
+          .slice()
+          .sort((a, b) => ((b as Prospect & { mosso_il?: string | null }).mosso_il ?? b.last_reply_at ?? '')
+            .localeCompare((a as Prospect & { mosso_il?: string | null }).mosso_il ?? a.last_reply_at ?? ''))
+        return (
+          <div className="fixed inset-0 z-[80] flex flex-col bg-fondo">
+            <header className="flex flex-wrap items-center gap-3 border-b border-bordo bg-white px-4 py-3 lg:px-8">
+              <button onClick={() => setEspansa(null)} className="shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-tenue hover:bg-velo">‹ Torna</button>
+              <h1 className="text-[17px] font-extrabold">{nome}</h1>
+              <span className="text-[13px] font-bold tabular-nums text-tenue">{dentro.length}{ago ? ` su ${gruppi[espansa].length}` : ''}</span>
+              <input autoFocus value={cercaCol} onChange={(e) => setCercaCol(e.target.value)}
+                     onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEspansa(null) } }}
+                     placeholder="Cerca qui dentro"
+                     className="ml-auto w-full max-w-[280px] rounded-full border border-bordo px-3.5 py-1.5 text-[13px] outline-none focus:border-blu" />
+            </header>
+            <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-4 lg:px-8">
+              {dentro.length === 0 && <p className="py-8 text-center text-sm text-tenue">{ago ? `Nessuno con «${cercaCol.trim()}» qui dentro.` : 'Vuota.'}</p>}
+              <ul className="divide-y divide-velo rounded-2xl border border-bordo bg-white">
+                {dentro.map((p) => {
+                  const { testo, colore } = statoDi(p, espansa)
+                  return (
+                    <li key={p.id}>
+                      <button onClick={() => { setEspansa(null); onOpen(p.id) }}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-velo/40">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${colore}`} />
+                        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{p.company || p.name || p.email}</span>
+                        <span className="min-w-0 max-w-[45%] truncate text-[12px] text-tenue">{testo}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* lascia andare: il motivo resta nella storia */}
       {perdo && (

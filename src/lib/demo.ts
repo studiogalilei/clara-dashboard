@@ -119,6 +119,23 @@ prospects.push(
     classificazione: 'rinvio', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(70), last_reply_at: gg(60), updated_at: gg(60),
   },
+  // il triage fuori target (6/10): due che vogliono l'analisi ma il fit dice no
+  {
+    ...vuoto, id: 'p12', sg_id: 204, email: 'info@officinabreda.it', name: 'Sergio B.',
+    company: 'Autofficina Breda', sector: 'autofficina', city: 'Rovigo',
+    campaign: 'Casa 1, serramenti', stage: 'risposto',
+    classificazione: 'positivo', awaiting_us: true,
+    analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(0), updated_at: gg(0),
+    enriched: { google_fit_v2: { verdetto: 'NO', motivo: 'la zona cerca troppo poco: 40 ricerche al mese, sotto la soglia di 100' } } as never,
+  },
+  {
+    ...vuoto, id: 'p13', sg_id: 205, email: 'commerciale@ricambiplanet.it', name: null,
+    company: 'Ricambi Planet', sector: 'ricambi', city: 'Brescia',
+    campaign: 'Casa 1, serramenti', stage: 'risposto',
+    classificazione: 'tiepido', awaiting_us: true,
+    analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(1), updated_at: gg(1),
+    enriched: { google_fit_v2: { verdetto: 'NO', motivo: 'è un grossista: vende ad altri negozi, non al cliente che cerca su Google' } } as never,
+  },
 )
 
 export const interactions: Interaction[] = [
@@ -136,6 +153,8 @@ export const interactions: Interaction[] = [
   { id: 'i9', prospect_id: 'p5', at: gg(10), kind: 'email_in', body: 'Anna: «Facciamo una call»' },
   { id: 'i10', prospect_id: 'p6', at: gg(29), kind: 'email_in', body: '«Sentiamoci a settembre»' },
   { id: 'i11', prospect_id: 'p7', at: gg(90), kind: 'nota', body: 'Firmato: periodo di prova, poi stable 1.400 €/mese' },
+  { id: 'i96', prospect_id: 'p12', at: gg(0), kind: 'email_in', body: 'Buongiorno, sì mi interessa, può mandarmi questa analisi qui. Grazie' },
+  { id: 'i97', prospect_id: 'p13', at: gg(1), kind: 'email_in', body: 'Ci può mandare maggiori informazioni? Poi valutiamo internamente.' },
   // una call col riassunto di Gemini, per provare «Chiamate» nel Vault
   { id: 'i12', prospect_id: 'p7', at: gg(30).slice(0, 11) + '15:40:00', kind: 'transcript', body: 'Riassunto della call di avvio: campagne Search sui serramenti in Friuli, budget 900 € il primo mese. Gli accessi al sito sono arrivati, manca il tag di conversione sui moduli. Prossimo passo: la landing dedicata alle zanzariere entro fine mese.\n\nAppunti interi: https://docs.google.com/document/d/demo-klavzar' },
 ]

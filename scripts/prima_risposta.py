@@ -256,9 +256,23 @@ def perche_no(pr, p):
         no.append("l'analisi risulta gia' mandata")
     if not p.get("analysis_pdf"):
         no.append("l'analisi in PDF non c'e'")
+    if fit_bocciato(p):
+        no.append("fuori target per il Google Fit: decide Dre dal triage")
     if "usa" in (p.get("campaign") or "").lower():
         no.append("campagna USA")
     return no
+
+
+def fit_bocciato(p):
+    """Il fit ha detto NO e Dre non ha ancora deciso (6/10: «la soppressione non la
+    fa il sistema: appare nel Workspace col motivo, e io scelgo se sopprimere o
+    inviare comunque»). Con la decisione 'invia' il blocco sparisce; la decisione
+    'soppresso' chiude da sola (il lead non e' piu' contattabile)."""
+    e = (p or {}).get("enriched") or {}
+    v2 = (e.get("google_fit_v2") or {}).get("verdetto")
+    v1 = (e.get("google_fit") or {}).get("verdetto")
+    bocciato = (v2 == "NO") or (v2 is None and v1 == "NO")
+    return bocciato and e.get("google_fit_decisione") != "invia"
 
 
 def verdetto_revisore(testo):
