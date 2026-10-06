@@ -49,6 +49,17 @@ DRY = "--dry-run" in sys.argv
 COMPLETO = "--completo" in sys.argv
 
 # ---------- config ----------
+
+def consegna_analisi(testo):
+    """La nostra mail CONSEGNA l'analisi? (6/10) Si cercava «allega», ma si scrive «le allego»: Boris,
+    Digital Instruments e altri tre avevano l'analisi nel thread e non nel database, e senza quel segno
+    il calendario dei follow-up non li vede. Le offerte («se le fa piacere riceverla, gliela mando
+    subito») non sono una consegna."""
+    t = (testo or "").lower()
+    if "analisi" not in t:
+        return False
+    return any(k in t for k in ("alleg", "apri l", "pdf", "inoltro", "lascio qui", "la trova qui", "le lascio l'analisi", "le lascio l’analisi"))
+
 def load_env():
     env = {}
     p = os.path.join(ROOT, ".env.local")
@@ -412,7 +423,7 @@ def main():
                                     headers={"Prefer": "return=representation"}) or []
                         testo_nostro = " ".join(corpo_pulito(m.get("email_body")) for m in nostre).lower()
                         agg = {}
-                        if ("analisi" in testo_nostro) and ("allega" in testo_nostro or "apri l" in testo_nostro or "pdf" in testo_nostro or "inoltro" in testo_nostro):
+                        if consegna_analisi(testo_nostro):
                             agg = {"analysis_sent": True, "analysis_sent_at": (nostre[-1].get("time") or "")[:19]}
                         if agg and not rec.get("analysis_sent"):
                             sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", agg)

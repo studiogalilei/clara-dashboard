@@ -1272,6 +1272,16 @@ def _():
         M.sb = vero
 
 
+@prova("il sync riconosce l'analisi consegnata anche con «le allego» (caso Boris, 6/10)")
+def _():
+    import sync_v2 as S
+    assert S.consegna_analisi("salve alberto, l'analisi che le allego lo dice apertamente")
+    assert S.consegna_analisi("perfetto, come promesso le inoltro qui l'analisi che abbiamo preparato")
+    assert S.consegna_analisi("le lascio qui l'analisi che avevamo preparato su the right side")
+    assert not S.consegna_analisi("abbiamo preparato una breve analisi che mi piacerebbe condividerle. se le fa piacere riceverla, gliela mando subito")
+    assert not S.consegna_analisi("le avevo scritto qualche giorno fa riguardo a un'analisi marketing che avevamo preparato")
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
