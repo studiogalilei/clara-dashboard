@@ -101,7 +101,7 @@ export function guidaDi(chi: Chi): Documento {
   const b: Blocco[] = []
 
   b.push({ tipo: 'h2', testo: 'Come si entra' })
-  b.push({ tipo: 'p', testo: 'Si va su studiogalilei.github.io/clara e si entra con Google, con la mail dello Studio. La prima volta Google mostra una lista di permessi con delle caselle: vanno spuntate tutte. Servono perché il Workspace legge il calendario, gli appunti delle call e la posta di lavoro, e da lì tiene aggiornate le schede da solo. Sul telefono conviene metterlo nella schermata Home: si apre come un\'app.' })
+  b.push({ tipo: 'p', testo: 'Si va su workspace.studiogalilei.com e si entra con Google, con la mail dello Studio. La prima volta Google mostra una lista di permessi con delle caselle: vanno spuntate tutte. Servono perché il Workspace legge il calendario, gli appunti delle call e la posta di lavoro, e da lì tiene aggiornate le schede da solo. Sul telefono conviene metterlo nella schermata Home: si apre come un\'app.' })
 
   b.push({ tipo: 'h2', testo: 'Cosa ci trovi tu' })
   b.push({

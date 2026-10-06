@@ -49,7 +49,7 @@ DA_SOLA = ("tecnica", "avvio", "prova")        # le fasi in cui Clara sposta da 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 ORARIO = (9, 18)                               # orario di lavoro, ore di Roma
 DURATA = 30                                    # minuti del blocco dopo la call
-DASHBOARD = os.environ.get("DASHBOARD_URL", "https://studiogalilei.github.io/clara/")
+DASHBOARD = os.environ.get("DASHBOARD_URL", "https://workspace.studiogalilei.com/")
 
 PROMPT = """Sei l'assistente commerciale di Studio Galilei, agenzia Google Ads.
 Dre ha appena fatto una call con un'azienda e ti passa il transcript (o il suo

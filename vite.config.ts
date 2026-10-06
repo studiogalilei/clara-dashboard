@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// GitHub Pages serve la dashboard sotto /clara/ (BASE_PATH), in locale sotto /
+// Vercel serve la dashboard su workspace.studiogalilei.com alla radice, come in locale; GitHub Pages (riserva) sotto /clara/ con BASE_PATH
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [
