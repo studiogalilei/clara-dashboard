@@ -1194,6 +1194,20 @@ def _():
         Bz.sb = vero
 
 
+@prova("la salute del sistema: una domanda sola aperta, non una al giorno (6/10)")
+def _():
+    import salute as Sa
+    vero = Sa.sb
+    chiuse = []
+    try:
+        aperte = [{"id": 7, "ref": "salute:2026-10-05"}, {"id": 8, "ref": "salute:2026-10-06"}]
+        Sa.sb = lambda m, path, corpo=None, h=None: (aperte if m == "GET" else chiuse.append(path))
+        Sa.supera_vecchie("2026-10-06")
+        assert chiuse == ["/rest/v1/proposte?id=eq.7"], chiuse
+    finally:
+        Sa.sb = vero
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
