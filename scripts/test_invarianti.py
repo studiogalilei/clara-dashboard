@@ -1219,6 +1219,28 @@ def _():
     assert R.conferma({"enriched": {}}, "soppresso") == "applica", "la richiesta di rimozione vale subito"
 
 
+@prova("il FOLLOW UP 1 non si mette in coda a chi ha gia' una bozza aperta in Posta (caso SCUDO, 6/10)")
+def _():
+    import followup as F
+    import datetime as _dt
+    vecchia = (_dt.date.today() - _dt.timedelta(days=20)).isoformat()
+    p = {"id": "x", "company": "Prova", "email": "a@b.it", "analysis_sent_at": vecchia, "last_reply_at": None, "coda": None}
+    messi = []
+    vero = (F.sb, F.sb_tutte, F.in_coda, F.calendario)
+    try:
+        F.sb = lambda m, path, corpo=None, h=None: [p] if path.startswith("/rest/v1/prospects?select") else []
+        F.sb_tutte = lambda path, **k: [{"prospect_id": "x"}] if "stato=in.(aperta" in path else []
+        F.in_coda = lambda pid, gruppo: messi.append(pid)
+        F.calendario = lambda prova, oggi: None
+        F.main()
+        assert not messi, "messo in coda per il FOLLOW UP 1 con una bozza gia' aperta"
+        F.sb_tutte = lambda path, **k: []
+        F.main()
+        assert messi == ["x"], "senza bozze aperte deve andare in coda"
+    finally:
+        F.sb, F.sb_tutte, F.in_coda, F.calendario = vero
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
