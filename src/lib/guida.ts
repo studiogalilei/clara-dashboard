@@ -58,37 +58,37 @@ const PAROLE: Array<[string, string]> = [
 // nella guida, in prima persona. Non «Clara ti aggiunge», ma «te la aggiungo»
 export const CASI_TUTTI: string[] = [
   '«Chi aspetta una risposta da me?»: te li elenco, dal più fermo',
-  '«Ricordami giovedì di richiamare Klavzar»: nasce la task, appesa a quella azienda',
-  '«Fissa una call tecnica con Verde Urbano giovedì alle 15»: preparo l\'invito, tu confermi',
+  '«Ricordami giovedì di richiamare Ferretti Infissi»: nasce la task, appesa a quella azienda',
+  '«Fissa una call tecnica con Giardini Pellizzari giovedì alle 15»: preparo l\'invito, tu confermi',
   'Dopo una call, ti metto il riassunto sulla scheda del cliente senza che tu faccia niente',
-  '«Fammi un piano per Bimout»: metto in fila le cose da fare giorno per giorno, tu togli quello che non serve e diventano task',
+  '«Fammi un piano per Carpenterie Ronchi»: metto in fila le cose da fare giorno per giorno, tu togli quello che non serve e diventano task',
 ]
 
 export const CASI_RUOLO: Record<string, string[]> = {
   ceo: [
-    '«Scrivimi la proposta per Bimout con quello che si sono detti in call»: la scrivo dentro il documento, tu correggi',
+    '«Scrivimi la proposta per Carpenterie Ronchi con quello che si sono detti in call»: la scrivo dentro il documento, tu correggi',
     '«Come siamo messi questa settimana?»: chi è fermo, chi aspetta, cosa si è chiuso',
     'Ogni mattina ti lascio il punto della giornata, e la sera quello che è cambiato',
   ],
   manager: [
-    '«Scrivimi il verbale della call di ieri con Apiemme»: lo compilo dagli appunti della call',
+    '«Scrivimi il verbale della call di ieri con Bortolin Impianti»: lo compilo dagli appunti della call',
     '«Chi del mio pod ha roba scaduta?»: una riga per persona, senza chiederlo a loro',
-    '«Manda una task ad Alex per gli accessi di Zeni entro venerdì»',
+    '«Manda una task ad Alex per gli accessi di Dolomiti Sicurezza entro venerdì»',
   ],
   specialist: [
-    '«Ricordami il primo del mese di rifare il budget di Klavzar»: torna ogni mese, non te lo devi ricordare',
-    '«Preparami il report mensile di Serenergy»: parto dal modello e dai numeri che ci sono',
+    '«Ricordami il primo del mese di rifare il budget di Ferretti Infissi»: torna ogni mese, non te lo devi ricordare',
+    '«Preparami il report mensile di Brentasol»: parto dal modello e dai numeri che ci sono',
     '«Questa campagna è ferma da quanto?»',
   ],
   frontend: [
-    '«Scrivi tu a Zeni che mancano gli accessi all\'hosting»: preparo la mail, tu la mandi con un clic',
-    '«Segna che il sito di Tecnolegno è andato online oggi»',
-    '«Cosa manca per chiudere il progetto di Bimout?»',
+    '«Scrivi tu a Dolomiti Sicurezza che mancano gli accessi all\'hosting»: preparo la mail, tu la mandi con un clic',
+    '«Segna che il sito di Arte Legno Udine è andato online oggi»',
+    '«Cosa manca per chiudere il progetto di Carpenterie Ronchi?»',
   ],
   coordinamento: [
     '«Ho appena parlato con questa azienda su LinkedIn»: te la aggiungo e ci appendo la nota',
     '«Chi mi ha risposto e non ho ancora ripreso in mano?»',
-    '«Prepara la risposta a CER Italia»: scrivo la bozza, tu leggi e mandi',
+    '«Prepara la risposta a Sole Comune»: scrivo la bozza, tu leggi e mandi',
   ],
 }
 

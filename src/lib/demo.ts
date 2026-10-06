@@ -24,8 +24,8 @@ const vuoto = {
 
 export const prospects: Prospect[] = [
   {
-    ...vuoto, id: 'p1', sg_id: 127, email: 'ufficio@x-holding.it', name: null,
-    company: 'Serenergy', website: 'serenergy.it', sector: 'fotovoltaico_casa',
+    ...vuoto, id: 'p1', sg_id: 127, email: 'ufficio@brentasol.it', name: null,
+    company: 'Brentasol', website: 'brentasol.it', sector: 'fotovoltaico_casa',
     city: 'Padova', campaign: 'Casa 2, fotovoltaico',
     descrizione: 'Installano fotovoltaico sulle case private in provincia di Padova. Scrive dalla casella dell’ufficio, il nome del titolare non compare.',
     stage: 'analisi_inviata', classificazione: 'positivo', awaiting_us: false,
@@ -33,44 +33,44 @@ export const prospects: Prospect[] = [
     updated_at: gg(1),
   },
   {
-    ...vuoto, id: 'p2', sg_id: 84, email: 'info@primarysecuritykey.it', name: 'Marco R.',
-    company: 'Primary Security Key', sector: 'serramenti', city: 'Vicenza',
+    ...vuoto, id: 'p2', sg_id: 84, email: 'info@portasicura.it', name: 'Marco R.',
+    company: 'Portasicura Vicenza', sector: 'serramenti', city: 'Vicenza',
     campaign: 'Casa 1, serramenti', stage: 'analisi_inviata',
     classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(63), last_reply_at: gg(67),
     updated_at: gg(2),
   },
   {
-    ...vuoto, id: 'p3', sg_id: 133, email: 'amministrazione@apiemme.it', name: 'Paolo A.',
-    company: 'Apiemme Engineering', sector: 'fotovoltaico_casa', city: 'Treviso',
+    ...vuoto, id: 'p3', sg_id: 133, email: 'amministrazione@bortolinimpianti.it', name: 'Paolo A.',
+    company: 'Bortolin Impianti', sector: 'fotovoltaico_casa', city: 'Treviso',
     campaign: 'Casa 2, fotovoltaico', stage: 'in_follow_up',
     classificazione: 'rinvio', awaiting_us: false, ooo_until: data(3),
     analysis_sent: true, analysis_sent_at: gg(40), last_reply_at: gg(12),
     notes: 'Era in ospedale: delicato, niente pressione.', updated_at: gg(3),
   },
   {
-    ...vuoto, id: 'p4', sg_id: 156, email: 'segreteria@ceritalia.it', name: 'Lucia B.',
-    company: 'CER Italia', sector: 'fotovoltaico_casa', city: 'Verona',
+    ...vuoto, id: 'p4', sg_id: 156, email: 'segreteria@solecomune.it', name: 'Lucia B.',
+    company: 'Sole Comune', sector: 'fotovoltaico_casa', city: 'Verona',
     campaign: 'Casa 2, fotovoltaico', stage: 'risposto',
     classificazione: 'tiepido', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(1),
     updated_at: gg(0),
   },
   {
-    ...vuoto, id: 'p5', sg_id: 141, email: 'anna@venicedesignweek.com', name: 'Anna',
-    company: 'Venice Design Week', website: 'venicedesignweek.com',
+    ...vuoto, id: 'p5', sg_id: 141, email: 'anna@lagunadesigndays.com', name: 'Anna',
+    company: 'Laguna Design Days', website: 'lagunadesigndays.com',
     sector: null, city: 'Venezia', campaign: 'Eventi',
     descrizione: 'Organizzano la settimana del design a Venezia, a ottobre. Vendono biglietti e spazi espositivi: la campagna serve nei tre mesi prima dell’evento.',
     stage: 'call_fissata', classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(35), last_reply_at: gg(10),
-    analysis_pdf: 'https://example.com/analisi-venicedesignweek.pdf',
+    analysis_pdf: 'https://example.com/analisi-lagunadesigndays.pdf',
     fuori: true, fuori_at: gg(9), pipeline_stage: 'conoscitiva',
     fuori_binario: 'no', next_action: 'Conoscitiva fissata',
     next_action_date: fra(1).slice(0, 10), updated_at: gg(0),
   },
   {
-    ...vuoto, id: 'p6', sg_id: 98, email: 'info@zenisicurezza.it', name: 'Alberto Zeni',
-    company: 'Zeni Sicurezza', website: 'zenisicurezza.it',
+    ...vuoto, id: 'p6', sg_id: 98, email: 'info@dolomitisicurezza.it', name: 'Alberto Dal Bo',
+    company: 'Dolomiti Sicurezza', website: 'dolomitisicurezza.it',
     sector: 'serramenti', city: 'Belluno', campaign: 'Casa 1, serramenti',
     stage: 'call_fissata', classificazione: 'rinvio', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(45), last_reply_at: gg(29),
@@ -79,9 +79,9 @@ export const prospects: Prospect[] = [
     fuori_binario: 'si', updated_at: gg(5),
   },
   {
-    ...vuoto, id: 'p7', sg_id: 12, email: 'amministrazione@klavzar.it', name: 'Luca K.', role: 'titolare',
-    phone: '0481 555 210', website: 'klavzar.it',
-    company: 'Klavzar', sector: 'serramenti', city: 'Gorizia', campaign: null,
+    ...vuoto, id: 'p7', sg_id: 12, email: 'amministrazione@ferrettinfissi.it', name: 'Marco Ferretti', role: 'titolare',
+    phone: '0481 555 210', website: 'ferrettinfissi.it',
+    company: 'Ferretti Infissi', sector: 'serramenti', city: 'Gorizia', campaign: null,
     descrizione: 'Serramenti e zanzariere su misura per le case della provincia di Gorizia.',
     enriched: { punto: { testo: 'Campagne avviate, manca il tag di conversione sui moduli. La landing delle zanzariere va pronta entro fine mese.', il: gg(2) }, referente: { decide: 'si', nota: 'Preferisce WhatsApp alle mail, mai prima delle 10.' } } as never,
     stage: 'cliente', classificazione: 'positivo', awaiting_us: false,
@@ -90,8 +90,8 @@ export const prospects: Prospect[] = [
     fuori_binario: 'si', contratto: 'stable', canone: 1400, updated_at: gg(4),
   },
   {
-    ...vuoto, id: 'p8', sg_id: 158, email: 'info@bimoutgroup.com', name: null,
-    company: 'Bimout Group', sector: 'carpenteria_metallica', city: 'Pordenone',
+    ...vuoto, id: 'p8', sg_id: 158, email: 'info@carpenterieronchi.com', name: null,
+    company: 'Carpenterie Ronchi', sector: 'carpenteria_metallica', city: 'Pordenone',
     campaign: 'Casa 1, serramenti', stage: 'risposto',
     classificazione: 'positivo', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(2),
@@ -101,23 +101,23 @@ export const prospects: Prospect[] = [
 
 prospects.push(
   {
-    ...vuoto, id: 'p9', sg_id: 201, email: 'marco@tecnolegno.it', name: 'Marco Bianchi',
-    company: 'Tecnolegno', sector: 'serramenti', city: 'Udine',
+    ...vuoto, id: 'p9', sg_id: 201, email: 'marco@artelegnoudine.it', name: 'Marco Bianchi',
+    company: 'Arte Legno Udine', sector: 'serramenti', city: 'Udine',
     campaign: 'LinkedIn, profilo 2', chi_segue: 'Dre', stage: 'risposto',
     classificazione: 'positivo', awaiting_us: false,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(4), updated_at: gg(4),
   },
   {
-    ...vuoto, id: 'p10', sg_id: 202, email: 'info@verdeurbano.it', name: null,
-    company: 'Verde Urbano', sector: 'giardinaggio', city: 'Treviso',
+    ...vuoto, id: 'p10', sg_id: 202, email: 'info@giardinipellizzari.it', name: null,
+    company: 'Giardini Pellizzari', sector: 'giardinaggio', city: 'Treviso',
     campaign: 'LinkedIn, profilo 1', chi_segue: 'Dre', stage: 'risposto',
     classificazione: 'tiepido', awaiting_us: false,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(11), updated_at: gg(11),
   },
   // gold (6/10): un «non ora» senza data, per vedere come diventa una data
   {
-    ...vuoto, id: 'p11', sg_id: 203, email: 'domenico@termoidraulicanord.it', name: 'Domenico Sala',
-    company: 'Termoidraulica Nord', sector: 'impianti', city: 'Bergamo',
+    ...vuoto, id: 'p11', sg_id: 203, email: 'domenico@termoservizibrembo.it', name: 'Domenico Sala',
+    company: 'Termoservizi Brembo', sector: 'impianti', city: 'Bergamo',
     campaign: 'Casa 2, impianti', chi_segue: 'Dre', stage: 'risposto',
     classificazione: 'rinvio', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(70), last_reply_at: gg(60), updated_at: gg(60),
@@ -149,7 +149,7 @@ prospects.push(
 
 export const interactions: Interaction[] = [
   { id: 'i95', prospect_id: 'p11', at: gg(60), kind: 'email_in', body: 'Gentile Lorenzo,\nnon riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti.\nCordiali saluti' },
-  { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su CER Italia che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },
+  { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su Sole Comune che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },
   { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui. Ma poi quanto costa il vostro servizio?\nGrazie, un saluto.' },
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },
   { id: 'i2', prospect_id: 'p1', at: gg(64), kind: 'email_out', body: 'Secondo tentativo' },
@@ -165,7 +165,7 @@ export const interactions: Interaction[] = [
   { id: 'i96', prospect_id: 'p12', at: gg(0), kind: 'email_in', body: 'Buongiorno, sì mi interessa, può mandarmi questa analisi qui. Grazie' },
   { id: 'i97', prospect_id: 'p13', at: gg(1), kind: 'email_in', body: 'Ci può mandare maggiori informazioni? Poi valutiamo internamente.' },
   // una call col riassunto di Gemini, per provare «Chiamate» nel Vault
-  { id: 'i12', prospect_id: 'p7', at: gg(30).slice(0, 11) + '15:40:00', kind: 'transcript', body: 'Riassunto della call di avvio: campagne Search sui serramenti in Friuli, budget 900 € il primo mese. Gli accessi al sito sono arrivati, manca il tag di conversione sui moduli. Prossimo passo: la landing dedicata alle zanzariere entro fine mese.\n\nAppunti interi: https://docs.google.com/document/d/demo-klavzar' },
+  { id: 'i12', prospect_id: 'p7', at: gg(30).slice(0, 11) + '15:40:00', kind: 'transcript', body: 'Riassunto della call di avvio: campagne Search sui serramenti in Friuli, budget 900 € il primo mese. Gli accessi al sito sono arrivati, manca il tag di conversione sui moduli. Prossimo passo: la landing dedicata alle zanzariere entro fine mese.\n\nAppunti interi: https://docs.google.com/document/d/demo-ferrettinfissi' },
 ]
 
 
@@ -200,7 +200,7 @@ for (const [giorniFa, out, dentro, analisi, followup, call] of RITMO) {
 // la prep pre-call di esempio (il formato vero del protocollo)
 interactions.push({
   id: 'prep-1', prospect_id: 'p5', at: gg(0), kind: 'prep',
-  body: `PREP, Conoscitiva Venice Design Week (Anna)
+  body: `PREP, Conoscitiva Laguna Design Days (Anna)
 
 CHI SONO
 Organizzano la settimana del design a Venezia, terza settimana di ottobre.
@@ -232,11 +232,11 @@ Budget reale, chi decide, accesso al sito/tag, obiettivo (biglietti o espositori
 })
 
 export const agenda: AgendaItem[] = [
-  { id: 4, at: gg(3).slice(0, 11) + '11:00:00', titolo: 'Conoscitiva, Zeni Sicurezza', tipo: 'conoscitiva', prospect_id: 'p6', fonte: 'gcal' },
-  { id: 5, at: fra(12).slice(0, 11) + '10:00:00', titolo: 'Check mensile, Klavzar', tipo: 'altro', prospect_id: 'p7', fonte: 'gcal' },
-  { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva, Venice Design Week', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal',
+  { id: 4, at: gg(3).slice(0, 11) + '11:00:00', titolo: 'Conoscitiva, Dolomiti Sicurezza', tipo: 'conoscitiva', prospect_id: 'p6', fonte: 'gcal' },
+  { id: 5, at: fra(12).slice(0, 11) + '10:00:00', titolo: 'Check mensile, Ferretti Infissi', tipo: 'altro', prospect_id: 'p7', fonte: 'gcal' },
+  { id: 1, at: fra(1).slice(0, 11) + '15:00:00', titolo: 'Conoscitiva, Laguna Design Days', tipo: 'conoscitiva', prospect_id: 'p5', link: 'https://meet.google.com/abc-defg-hij', fonte: 'gcal',
     preparata_il: oreFa(3),
-    preparazione: `Chi sono: Venice Design Week, organizzano la settimana del design a Venezia a ottobre. Vendono biglietti e spazi espositivi, la stagione buona sono i tre mesi prima.
+    preparazione: `Chi sono: Laguna Design Days, organizzano la settimana del design a Venezia a ottobre. Vendono biglietti e spazi espositivi, la stagione buona sono i tre mesi prima.
 
 A che punto siamo
 - Analisi mandata il 12 agosto, Anna ha risposto subito.
@@ -258,7 +258,7 @@ Attento a
   { id: 7, at: fra(2).slice(0, 11) + '09:00:00', titolo: 'Rinnovo campagna brand', tipo: 'rinnovo', prospect_id: 'p3', owner: 'demo', fonte: 'workspace' },
   { id: 8, at: fra(12).slice(0, 11) + '09:00:00', titolo: 'Budget del trimestre', tipo: 'budget', prospect_id: 'p5', owner: 'demo', fonte: 'workspace' },
   // una call passata col suo transcript (i12): la coppia che riempie «Chiamate»
-  { id: 9, at: gg(30).slice(0, 11) + '15:00:00', titolo: 'Call di avvio, Klavzar', tipo: 'avvio', prospect_id: 'p7', fonte: 'gcal' },
+  { id: 9, at: gg(30).slice(0, 11) + '15:00:00', titolo: 'Call di avvio, Ferretti Infissi', tipo: 'avvio', prospect_id: 'p7', fonte: 'gcal' },
 ] as AgendaItem[]
 
 export const clara_messaggi = [
@@ -272,19 +272,19 @@ export const clara_messaggi = [
   },
   {
     id: 1, at: oreFa(6.1), tipo: 'brief', letto: true, prospect_id: null,
-    testo: 'Buongiorno Dre. Il punto di oggi:\n15:00: Conoscitiva, Venice Design Week (domani, ti preparo il foglio)\nIn coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io, il resto sta in Oggi.',
+    testo: 'Buongiorno Dre. Il punto di oggi:\n15:00: Conoscitiva, Laguna Design Days (domani, ti preparo il foglio)\nIn coda: 2 da rispondere, 3 follow-up dovuti.\nHo controllato tutto io, il resto sta in Oggi.',
   },
   {
     id: 2, at: oreFa(5.9), tipo: 'promemoria', letto: false, prospect_id: 'p7',
-    testo: 'Klavzar: giorno 52 di 60 del periodo di prova. Prepariamo il rinnovo?',
+    testo: 'Ferretti Infissi: giorno 52 di 60 del periodo di prova. Prepariamo il rinnovo?',
   },
   {
     id: 3, at: oreFa(5.8), tipo: 'domanda', letto: false, prospect_id: 'p1',
-    testo: 'Serenergy tace da 49 giorni dopo l\'analisi. Lo tengo nel follow-up del 1° settembre o lo lasciamo andare?',
+    testo: 'Brentasol tace da 49 giorni dopo l\'analisi. Lo tengo nel follow-up del 1° settembre o lo lasciamo andare?',
   },
   {
     id: 5, at: oreFa(3), tipo: 'domanda', letto: false, prospect_id: 'p4',
-    testo: 'Ciao Dre, ho visto che su Smartlead hai fissato una call con CER Italia, però in Calendar non vedo nulla. Vuoi che la preparo io?',
+    testo: 'Ciao Dre, ho visto che su Smartlead hai fissato una call con Sole Comune, però in Calendar non vedo nulla. Vuoi che la preparo io?',
   },
   {
     id: 4, at: oreFa(14), tipo: 'controllo', letto: true, prospect_id: null,
@@ -293,8 +293,8 @@ export const clara_messaggi = [
 ]
 
 export const vault_file = [
-  { id: 1, at: gg(4), nome: 'Analisi Google Ads, Serenergy', path: 'demo/analisi-serenergy.pdf', mime: 'application/pdf', dimensione: 482000, prospect_id: 'p1', sezione: 'clienti', gruppo: null, nota: null },
-  { id: 2, at: gg(1), nome: 'Contratto Klavzar firmato', path: 'demo/contratto-klavzar.pdf', mime: 'application/pdf', dimensione: 130000, prospect_id: 'p7', sezione: 'clienti', gruppo: null, nota: null },
+  { id: 1, at: gg(4), nome: 'Analisi Google Ads, Brentasol', path: 'demo/analisi-brentasol.pdf', mime: 'application/pdf', dimensione: 482000, prospect_id: 'p1', sezione: 'clienti', gruppo: null, nota: null },
+  { id: 2, at: gg(1), nome: 'Contratto Ferretti Infissi firmato', path: 'demo/contratto-ferrettinfissi.pdf', mime: 'application/pdf', dimensione: 130000, prospect_id: 'p7', sezione: 'clienti', gruppo: null, nota: null },
   { id: 3, at: gg(20), nome: 'sg-logo-blu.svg', path: 'demo/sg-logo-blu.svg', mime: 'image/svg+xml', dimensione: 8400, prospect_id: null, sezione: 'brand', gruppo: 'loghi', nota: null },
   { id: 4, at: gg(20), nome: 'sg-condizioni-modello.pdf', path: 'demo/sg-condizioni-modello.pdf', mime: 'application/pdf', dimensione: 96000, prospect_id: null, sezione: 'modelli', gruppo: 'modelli', nota: 'Le condizioni economiche, il modello' },
   { id: 5, at: gg(30), nome: 'Visura camerale', path: 'demo/visura.pdf', mime: 'application/pdf', dimensione: 210000, prospect_id: null, sezione: 'azienda', gruppo: null, nota: null },
@@ -308,13 +308,13 @@ const sync_runs: Riga[] = [{ id: 1, finished_at: new Date(Date.now() - 13 * 6000
 const task: Riga[] = [
   { id: 1, at: gg(1), titolo: 'Mandare i 30 follow-up su Smartlead', dettagli: 'le bozze sono pronte', scadenza: data(-1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'demo', stato: 'accettata' },
   // gold (6/10): una task mandata da un altro, per vedere «Sono bloccato»
-  { id: 7, at: gg(1), titolo: 'Firmare il contratto di prova di Klavzar', dettagli: 'manca la firma per la fattura', scadenza: data(1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'giacomo', stato: 'accettata', prospect_id: 'p7' },
+  { id: 7, at: gg(1), titolo: 'Firmare il contratto di prova di Ferretti Infissi', dettagli: 'manca la firma per la fattura', scadenza: data(1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'giacomo', stato: 'accettata', prospect_id: 'p7' },
   { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1), owner: 'demo', da: 'demo', stato: 'fatta' },
   // il pod di Carlo: due persone con roba in mano, una scaduta
-  { id: 3, at: gg(3), titolo: 'Rifare il budget di Klavzar', dettagli: null, scadenza: data(2), ordine: 2, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
+  { id: 3, at: gg(3), titolo: 'Rifare il budget di Ferretti Infissi', dettagli: null, scadenza: data(2), ordine: 2, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
   { id: 4, at: gg(1), titolo: 'Controllare le conversioni di settembre', dettagli: null, scadenza: data(-3), ordine: 3, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
-  { id: 5, at: gg(6), titolo: 'Pubblicare la landing di Zeni', dettagli: null, scadenza: null, ordine: 4, fatta: true, fatta_il: gg(2), owner: 'alex', da: 'carlo', stato: 'fatta' },
-  { id: 6, at: gg(1), titolo: 'Sistemare i moduli del sito Klavzar', dettagli: null, scadenza: data(4), ordine: 5, fatta: false, fatta_il: null, owner: 'alex', da: 'carlo', stato: 'accettata' },
+  { id: 5, at: gg(6), titolo: 'Pubblicare la landing di Dolomiti Sicurezza', dettagli: null, scadenza: null, ordine: 4, fatta: true, fatta_il: gg(2), owner: 'alex', da: 'carlo', stato: 'fatta' },
+  { id: 6, at: gg(1), titolo: 'Sistemare i moduli del sito Ferretti Infissi', dettagli: null, scadenza: data(4), ordine: 5, fatta: false, fatta_il: null, owner: 'alex', da: 'carlo', stato: 'accettata' },
 ]
 
 // le persone dentro la Dashboard: servono per mandarsi le task
@@ -333,7 +333,7 @@ const chat: Riga[] = [
   { id: 3, at: oreFa(2), da: 'demo', a: 'salvatore', testo: 'L\'analisi che gli abbiamo mandato: guarda le campagne prima della call.', prospect_id: 'p1', file_id: 1, letto: false },
 ]
 
-// i progetti: il lavoro a scadenza del cliente demo (Klavzar, p7)
+// i progetti: il lavoro a scadenza del cliente demo (Ferretti Infissi, p7)
 const progetti: Riga[] = [
   { id: 1, at: gg(12), prospect_id: 'p7', nome: 'Sito vetrina', natura: 'sito', chi_segue: 'Alex',
     scadenza: data(-18), valore: 1500, stato: 'in_corso', note: null, owner: null },
@@ -374,17 +374,17 @@ const preventivi: Riga[] = [
 
 // gli altri referenti (v75): il principale sta nelle colonne di prospects
 const referenti: Riga[] = [
-  { id: 1, at: gg(60), prospect_id: 'p7', nome: 'Martina F.', ruolo: 'Amministrazione', email: 'fatture@klavzar.it', telefono: null, linkedin: null, decide: 'no', nota: 'Le fatture vanno a lei' },
+  { id: 1, at: gg(60), prospect_id: 'p7', nome: 'Martina F.', ruolo: 'Amministrazione', email: 'fatture@ferrettinfissi.it', telefono: null, linkedin: null, decide: 'no', nota: 'Le fatture vanno a lei' },
 ]
 const incassi: Riga[] = [
   { id: 'ch_demo1', genere: 'addebito', importo: 1500, valuta: 'eur', stato: 'succeeded', quando: gg(4), ricorrenza: null, metodo: 'carta',
-    prossimo_il: null, fine_il: null, cliente_nome: 'Dän Ink', cliente_email: 'steven@danink.it', stripe_cliente: 'cus_demo1',
+    prossimo_il: null, fine_il: null, cliente_nome: 'Ferretti Infissi', cliente_email: 'marco@ferrettinfissi.it', stripe_cliente: 'cus_demo1',
     descrizione: 'Fase pilota Google Ads', prospect_id: 'p7', preventivo_id: 1, letto_il: gg(0) },
   { id: 'sub_demo1', genere: 'abbonamento', importo: 1400, valuta: 'eur', stato: 'active', quando: gg(4), ricorrenza: 'month', metodo: 'sepa',
-    prossimo_il: data(-12), fine_il: null, cliente_nome: 'Dän Ink', cliente_email: 'steven@danink.it', stripe_cliente: 'cus_demo1',
+    prossimo_il: data(-12), fine_il: null, cliente_nome: 'Ferretti Infissi', cliente_email: 'marco@ferrettinfissi.it', stripe_cliente: 'cus_demo1',
     descrizione: 'Lavoro continuativo', prospect_id: 'p7', preventivo_id: null, letto_il: gg(0) },
   { id: 'ch_demo2', genere: 'addebito', importo: 350, valuta: 'eur', stato: 'succeeded', quando: gg(20), ricorrenza: null, metodo: 'carta',
-    prossimo_il: null, fine_il: null, cliente_nome: 'GR Box', cliente_email: 'info@grbox.it', stripe_cliente: 'cus_demo2',
+    prossimo_il: null, fine_il: null, cliente_nome: 'Bortolin Impianti', cliente_email: 'info@bortolinimpianti.it', stripe_cliente: 'cus_demo2',
     descrizione: 'Modifiche sito', prospect_id: 'p3', preventivo_id: null, letto_il: gg(0) },
 ]
 
@@ -395,37 +395,37 @@ const proposte: Riga[] = [
   // tre follow-up su misura, come quelli preparati la notte del 5/10: nella Posta stanno in «Follow-up pronti»
   {
     id: 91, at: oreFa(6), tipo: 'risposta', stato: 'aperta', prospect_id: 'p2', owner: null,
-    titolo: 'Follow-up: Primary Security Key, la stagione che riparte',
+    titolo: 'Follow-up: Portasicura Vicenza, la stagione che riparte',
     perche: 'Aveva detto sì all\'analisi a luglio e poi silenzio: lo riprendiamo dopo l\'estate.',
     azione: { bozza: 'Salve Marco,\n\na luglio le avevo mandato l\'analisi proprio prima delle ferie, e immagino sia finita sotto il resto.\n\nMi piacerebbe sapere che impressione le ha fatto, anche solo in due righe.\n\nLe propongo una chiamata conoscitiva giovedì 8 ottobre alle 15: se le va meglio un altro momento, qui trova il calendario: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nUn saluto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'giovedì 8 ottobre alle 15', lettura: { gruppo: 'FOLLOW UP 1' }, ombra: { esito: 'partirebbe' } },
   },
   {
     id: 92, at: oreFa(6), tipo: 'risposta', stato: 'aperta', prospect_id: 'p1', owner: null,
-    titolo: 'Follow-up: Serenergy, il loro parere',
+    titolo: 'Follow-up: Brentasol, il loro parere',
     perche: 'Analisi ricevuta a settembre, nessuna risposta: chiediamo il suo parere.',
-    azione: { bozza: 'Salve,\n\na settembre le avevo lasciato l\'analisi su Serenergy, e tra impianti e preventivi immagino che le settimane siano volate.\n\nSono curioso di sapere se gli spunti le sono sembrati centrati.\n\nLe propongo una chiamata conoscitiva venerdì 9 ottobre alle 15:30: se preferisce un altro giorno, dal calendario sceglie lei: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nA presto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'venerdì 9 ottobre alle 15:30' },
+    azione: { bozza: 'Salve,\n\na settembre le avevo lasciato l\'analisi su Brentasol, e tra impianti e preventivi immagino che le settimane siano volate.\n\nSono curioso di sapere se gli spunti le sono sembrati centrati.\n\nLe propongo una chiamata conoscitiva venerdì 9 ottobre alle 15:30: se preferisce un altro giorno, dal calendario sceglie lei: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nA presto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'venerdì 9 ottobre alle 15:30' },
   },
   {
     id: 93, at: oreFa(6), tipo: 'risposta', stato: 'aperta', prospect_id: 'p3', owner: null,
-    titolo: 'Follow-up: Apiemme Engineering, ci eravamo detti ottobre',
+    titolo: 'Follow-up: Bortolin Impianti, ci eravamo detti ottobre',
     perche: 'Aveva chiesto di risentirci a ottobre: gli riscriviamo come promesso.',
     azione: { bozza: 'Salve,\n\nci eravamo detti di risentirci a ottobre, e le riscrivo come promesso.\n\nLe propongo una chiamata conoscitiva martedì 13 ottobre alle 14:30: se le va meglio un altro momento, qui trova il calendario: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nUn saluto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'martedì 13 ottobre alle 14:30' },
   },
   {
     id: 1, at: oreFa(2), tipo: 'risposta', stato: 'aperta', prospect_id: 'p4', owner: null,
-    titolo: 'CER Italia: risposta pronta',
+    titolo: 'Sole Comune: risposta pronta',
     perche: 'Ha confermato e chiede quanto costa. Gli propongo la call conoscitiva di giovedì per parlarne.',
     azione: { bozza: 'Buongiorno,\n\ngrazie, gliela mando oggi in una mail a parte. Sul costo: dipende da cosa le serve davvero, e glielo dico in mezz\'ora guardando insieme i numeri della sua zona, senza impegno. Le va bene giovedì alle 15?\n\nUn saluto', template: 'INT-CALL' },
   },
   {
     id: 2, at: oreFa(4), tipo: 'avanza', stato: 'aperta', prospect_id: 'p7', owner: null,
-    titolo: 'Klavzar: giorno 52 dei 60 di prova, preparo il rinnovo?',
+    titolo: 'Ferretti Infissi: giorno 52 dei 60 di prova, preparo il rinnovo?',
     perche: 'La prova finisce fra otto giorni e il canone stabile è già nel preventivo accettato.',
-    azione: { task: { titolo: 'Chiamare Klavzar per il rinnovo' } },
+    azione: { task: { titolo: 'Chiamare Ferretti Infissi per il rinnovo' } },
   },
   {
     id: 3, at: oreFa(5), tipo: 'classifica', stato: 'aperta', prospect_id: 'p1', owner: null,
-    titolo: 'Serenergy tace da 49 giorni: lo lascio andare?',
+    titolo: 'Brentasol tace da 49 giorni: lo lascio andare?',
     perche: 'Analisi mandata il 28 luglio, due follow-up, nessuna risposta.',
     azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
   },
@@ -433,13 +433,13 @@ const proposte: Riga[] = [
   // solo quando le domande uguali sono più di una (Dre, 15/9)
   {
     id: 4, at: oreFa(5), tipo: 'classifica', stato: 'aperta', prospect_id: 'p2', owner: null,
-    titolo: 'Primary Security Key tace da 63 giorni: lo lascio andare?',
+    titolo: 'Portasicura Vicenza tace da 63 giorni: lo lascio andare?',
     perche: 'Analisi mandata a luglio, nessuna risposta da allora.',
     azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
   },
   {
     id: 5, at: oreFa(6), tipo: 'classifica', stato: 'aperta', prospect_id: 'p6', owner: null,
-    titolo: 'Zeni Sicurezza tace da 29 giorni: lo lascio andare?',
+    titolo: 'Dolomiti Sicurezza tace da 29 giorni: lo lascio andare?',
     perche: 'Aveva detto «sentiamoci a settembre», la call è passata e non ha più scritto.',
     azione: { prospects: { classificazione: 'negativo', awaiting_us: false } },
   },
@@ -480,7 +480,7 @@ const TABELLE: Record<string, Riga[]> = {
   ] as unknown as Riga[],
   metro_casi: [
     { id: 1, tema: 'seguiti', prospect_id: 'p1', domanda: 'Che mossa fai qui?',
-      mostra: [{ eti: 'Azienda', testo: 'Serenergy' }, { eti: 'Dove siamo', testo: 'tappa analisi, analisi mandata 49 giorni fa, silenzio da 53 giorni' },
+      mostra: [{ eti: 'Azienda', testo: 'Brentasol' }, { eti: 'Dove siamo', testo: 'tappa analisi, analisi mandata 49 giorni fa, silenzio da 53 giorni' },
                { eti: "L'ultima cosa che ha scritto", testo: '«Sentiamo»: da qui diventa prospect' }],
       scelte: [['seguito', 'Follow-up ora'], ['mini', 'Mini, due righe'], ['ripresa', 'Ripresa, scusa nuova'], ['aspetto', 'Aspetto ancora'], ['chiudo', 'Chiudo qui'], ['altro', 'Altro, lo scrivo']],
       etichetta: null, nota: null, creato_il: gg(0) },
@@ -719,11 +719,11 @@ export const demoClient = {
       if (nome === 'piano') {
         const g = (n: number) => { const d = new Date(Date.now() + n * 86400e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
         await new Promise((r) => setTimeout(r, 900))
-        return { data: { titolo: 'Il piano per Venice Design', azienda: 'Venice Design', passi: [
-          { giorno: g(1), titolo: 'Mandare a Venice Design la lista degli accessi che servono', perche: 'Senza accessi non parte niente: prima cosa.' },
+        return { data: { titolo: 'Il piano per Laguna Design', azienda: 'Laguna Design', passi: [
+          { giorno: g(1), titolo: 'Mandare a Laguna Design la lista degli accessi che servono', perche: 'Senza accessi non parte niente: prima cosa.' },
           { giorno: g(1), titolo: 'Chiedere a Carlo se il budget di ottobre è confermato', perche: 'Lo hanno lasciato in sospeso in call.' },
           { giorno: g(3), titolo: 'Preparare la bozza di proposta con i due scenari', perche: 'Se la vedono prima di venerdì decidono in settimana.' },
-          { giorno: g(6), titolo: 'Richiamare Venice Design per la decisione', perche: 'Avevano detto una settimana.' },
+          { giorno: g(6), titolo: 'Richiamare Laguna Design per la decisione', perche: 'Avevano detto una settimana.' },
         ] }, error: null }
       }
       return { data: { errore: 'Nella demo non scrivo davvero: entra con il tuo account' }, error: null }

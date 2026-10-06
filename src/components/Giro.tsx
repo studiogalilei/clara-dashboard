@@ -75,7 +75,7 @@ function passiDi(nome: string, ruoloVero: string): Passo[] {
     {
       chiave: 'clara',
       titolo: 'Io sto sempre qui',
-      testo: 'Mi trovi in questo angolo, in ogni schermata. Leggo quello che succede, tengo in ordine le schede, ti preparo le bozze e ti avviso se qualcuno è fermo da troppo. Non mando niente e non decido niente da sola: ti propongo, e tu mi dici sì o no. E se ti serve qualcosa, scrivimelo qui: «ricordami giovedì di richiamare Klavzar».',
+      testo: 'Mi trovi in questo angolo, in ogni schermata. Leggo quello che succede, tengo in ordine le schede, ti preparo le bozze e ti avviso se qualcuno è fermo da troppo. Non mando niente e non decido niente da sola: ti propongo, e tu mi dici sì o no. E se ti serve qualcosa, scrivimelo qui: «ricordami giovedì di richiamare Ferretti Infissi».',
       dove: '[data-giro="pallina"]',
     },
     {

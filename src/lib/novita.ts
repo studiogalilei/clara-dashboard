@@ -31,7 +31,7 @@ export const NOVITA: Novita[] = [
     chiave: 'piano-2026-09-17',
     data: '2026-09-17',
     titolo: 'Clara fa il piano',
-    testo: 'Dopo una call, o quando riprendi in mano un cliente, sulla sua scheda c\'è «Fammi il piano»: Clara mette in fila le cose da fare giorno per giorno, tu togli quello che non serve e con un clic diventano task. Funziona anche scrivendole «fammi un piano per Klavzar». E il logo SG in alto riporta sempre a Oggi.',
+    testo: 'Dopo una call, o quando riprendi in mano un cliente, sulla sua scheda c\'è «Fammi il piano»: Clara mette in fila le cose da fare giorno per giorno, tu togli quello che non serve e con un clic diventano task. Funziona anche scrivendole «fammi un piano per Ferretti Infissi». E il logo SG in alto riporta sempre a Oggi.',
   },
 ]
 
