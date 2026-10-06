@@ -51,6 +51,30 @@ def _():
     assert A.numeri_non_nei_fatti(ok + "<p>ben 30 recensioni in casa</p>", fatti) == ["30"], "«ben 30» non e' una norma"
 
 
+@prova("il sync non ribalta un no sullo stesso messaggio e legge solo la parte del lead (caso La Bussola e Panorama, 6/10)")
+def _():
+    import sync_v2 as S
+    citata = ("Non ci interessa, gentilmente non ci contatti piu. Cordiali saluti\n\n"
+              "Il giorno lun 5 ott 2026 alle 11:02 Lorenzo Fornasier <l@x.com> ha scritto:\n"
+              "Abbiamo preparato una breve analisi che mi piacerebbe condividerle. Se le fa piacere riceverla, gliela mando subito")
+    # un no gia' deciso resta no se il lead non ha scritto niente di nuovo
+    assert S.classe_da_sync(citata, "", "negativo", False) == "negativo"
+    assert S.classe_da_sync("si' mandatela pure, mi interessa", "Interested", "negativo", False) == "negativo"
+    assert S.classe_da_sync("ok", "", "soppresso", False) == "soppresso"
+    # e nemmeno un si': le regole del sync sono piu' grezze della rilettura che l'ha deciso
+    assert S.classe_da_sync("Buongiorno, ricevuto", "", "positivo", False) == "positivo"
+    assert S.classe_da_sync("Grazie non ci interessa.", "", "da_classificare", False) == "negativo", "chi non e' classificato si classifica"
+    # una risposta nuova invece si rilegge
+    assert S.classe_da_sync("si', mandatela pure, mi interessa", "", "negativo", True) == "positivo"
+    # la nostra mail citata non conta: «mi piacerebbe» e' nostro
+    assert S.classe_da_sync(citata, "", None, True) == "negativo"
+    # i no di stanotte, scritti come li scrivono
+    for no in ("Grazie non ci interessa.", "la ringrazio ma abbiamo già chi ci fornisce questo servizio",
+               "grazie per il messaggio, in realtà abbiamo già chi si occupa di queste cose"):
+        assert S.classifica(no) == "negativo", no
+    assert S.classe_da_sync("in realtà abbiamo già chi si occupa di queste cose", "Information Request", None, True) == "negativo"
+
+
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")
 def _():
     import analisi_auto as A
