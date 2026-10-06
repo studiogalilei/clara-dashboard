@@ -1,0 +1,3 @@
+# il Workspace e' privato: nessun motore di ricerca (Dre, 6/10)
+User-agent: *
+Disallow: /
