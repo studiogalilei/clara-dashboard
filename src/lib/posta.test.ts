@@ -46,3 +46,39 @@ describe('la frase di Clara in cima a Oggi', () => {
     expect(fraseDiClara({ risposte: [], seguiti: 0, siSenza: 0 })).toBe('Niente aspetta te: la giornata è chiusa.')
   })
 })
+
+import { dataDiRipresa } from './posta'
+
+describe('il non ora diventa una data', () => {
+  const oggi = new Date(2026, 9, 6)          // martedì 6 ottobre 2026
+  const giorno = (d: Date) => d.toLocaleDateString('sv-SE')
+  it('il mese nominato si legge dal giorno della sua mail', () => {
+    expect(giorno(dataDiRipresa('ci sentiamo a gennaio', new Date(2026, 9, 1), oggi).il)).toBe('2027-01-11')
+    expect(giorno(dataDiRipresa('ne riparliamo a novembre', new Date(2026, 8, 20), oggi).il)).toBe('2026-11-09')
+  })
+  it('«dopo l’estate» scritto a luglio è già passato: si riprende subito', () => {
+    const r = dataDiRipresa('ne riparliamo dopo l’estate', new Date(2026, 6, 10), oggi)
+    expect(giorno(r.il)).toBe('2026-10-08')
+    expect(r.perche).toContain('già passato')
+  })
+  it('senza data, tre mesi dalla sua mail, mai nel weekend', () => {
+    const r = dataDiRipresa('non riesco a darle una risposta in questo momento', new Date(2026, 7, 7), oggi)
+    expect(giorno(r.il)).toBe('2026-11-09')
+    expect([0, 6]).not.toContain(r.il.getDay())
+  })
+})
+
+import { nonDaRiprendere } from './posta'
+
+describe('chi non è un non ora da riprendere', () => {
+  it('cambi di indirizzo, «la ricontatto io», motivi personali', () => {
+    expect(nonDaRiprendere('Hello Everyone, My Email address has recently changed')).toBeTruthy()
+    expect(nonDaRiprendere('Ho provveduto in data 23/06 ad inoltrare alla sede di Brescia')).toBeTruthy()
+    expect(nonDaRiprendere('sarà mia premura ricontattarLa qualora di interesse')).toBe('ha detto che si fa vivo lui')
+    expect(nonDaRiprendere('in questo momento non posso per problemi in famiglia')).toBe('un motivo personale: non si insiste')
+  })
+  it('un non ora vero resta', () => {
+    expect(nonDaRiprendere('Siamo ancora in early stage per questa iniziativa. Grazie')).toBeNull()
+    expect(nonDaRiprendere('Non riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti')).toBeNull()
+  })
+})

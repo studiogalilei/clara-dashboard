@@ -84,3 +84,61 @@ export function fraseDiClara(x: { risposte: string[]; seguiti: number; siSenza?:
   const frase = pezzi.length === 1 ? pezzi[0] : `${pezzi.slice(0, -1).join(', ')} e ${pezzi[pezzi.length - 1]}`
   return frase.charAt(0).toUpperCase() + frase.slice(1) + '.'
 }
+
+// IL «NON ORA» DIVENTA UNA DATA (gold, 6/10, dalla ricerca: il 60-70% dei «persi» sono
+// follow-up dimenticati). Dalla frase del lead si propone il giorno di ripresa: il mese che
+// nomina (il secondo lunedi'), «dopo l'estate» a settembre, «dopo le feste» a gennaio,
+// altrimenti fra tre mesi. Sempre un giorno feriale, sempre nel futuro. Conferma una persona.
+const MESI_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+
+function feriale(d: Date): Date {
+  const x = new Date(d)
+  while (x.getDay() === 0 || x.getDay() === 6) x.setDate(x.getDate() + 1)
+  return x
+}
+
+function secondoLunedi(anno: number, mese: number): Date {
+  const d = new Date(anno, mese, 1)
+  while (d.getDay() !== 1) d.setDate(d.getDate() + 1)
+  d.setDate(d.getDate() + 7)
+  return d
+}
+
+// chi NON e' un «non ora» da riprendere (gold, 6/10, dalle decisioni sui fili veri del 5/10):
+// cambi di indirizzo e autorisposte (sono un altro lavoro), chi ha detto «vi ricontatto io»
+// (un no gentile: la palla e' a loro), e chi ha un problema personale (non si insiste).
+export function nonDaRiprendere(frase: string): string | null {
+  const t = (frase ?? '').toLowerCase()
+  if (/e-?mail address|indirizzo (e-?mail )?(è |e' )?(cambiat|disattivat)|nuovo indirizzo|new e-?mail|has (recently )?changed|direct your e-?mails|incorporat|inoltr(at|ar|o)|maternity|maternit|out of office|fuori ufficio|sono assente|in ferie fino/.test(t)) return 'cambio di indirizzo o autorisposta'
+  if (/sar[àa] mia premura|vi ricontatter|la ricontatter|ti ricontatter|vi contatter[oò]|la contatter[oò]|ci faremo viv|mi far[oò] viv/.test(t)) return 'ha detto che si fa vivo lui'
+  if (/famiglia|lutto|salute|malattia|ospedal|personal/.test(t)) return 'un motivo personale: non si insiste'
+  return null
+}
+
+export function dataDiRipresa(frase: string, scritta: Date, oggi: Date = new Date()): { il: Date; perche: string } {
+  // la frase si legge dal giorno in cui l'ha scritta: «dopo l'estate» scritto a luglio e'
+  // settembre di quest'anno, non dell'anno prossimo
+  const t = (frase ?? '').toLowerCase()
+  const dopo = (mese: number) => {
+    let anno = scritta.getFullYear()
+    if (mese < scritta.getMonth() || (mese === scritta.getMonth() && scritta.getDate() > 10)) anno += 1
+    return secondoLunedi(anno, mese)
+  }
+  let r: { il: Date; perche: string }
+  const m = MESI_IT.findIndex((x) => new RegExp(`\\b${x}\\b`).test(t))
+  if (m >= 0) r = { il: dopo(m), perche: `aveva detto ${MESI_IT[m]}` }
+  else if (/dopo (l'|l’)?estate|dopo le ferie estive/.test(t)) r = { il: dopo(8), perche: 'aveva detto dopo l’estate' }
+  else if (/dopo le feste|anno nuovo|inizio (dell'|dell’)?anno|nuovo anno/.test(t)) r = { il: dopo(0), perche: 'aveva detto dopo le feste' }
+  else {
+    const tre = new Date(scritta)
+    tre.setMonth(tre.getMonth() + 3)
+    r = { il: tre, perche: 'nessuna data nelle sue parole: tre mesi dalla sua mail' }
+  }
+  // gia' passata: e' proprio il follow-up dimenticato, si riprende subito (fra due giorni)
+  const domani = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() + 1)
+  if (r.il < domani) {
+    const presto = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() + 2)
+    return { il: feriale(presto), perche: `${r.perche}, ed è già passato: si riprende subito` }
+  }
+  return { il: feriale(r.il), perche: r.perche }
+}

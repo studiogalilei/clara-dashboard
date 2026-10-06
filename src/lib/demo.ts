@@ -111,9 +111,18 @@ prospects.push(
     classificazione: 'tiepido', awaiting_us: false,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(11), updated_at: gg(11),
   },
+  // gold (6/10): un «non ora» senza data, per vedere come diventa una data
+  {
+    ...vuoto, id: 'p11', sg_id: 203, email: 'domenico@termoidraulicanord.it', name: 'Domenico Sala',
+    company: 'Termoidraulica Nord', sector: 'impianti', city: 'Bergamo',
+    campaign: 'Casa 2, impianti', chi_segue: 'Dre', stage: 'risposto',
+    classificazione: 'rinvio', awaiting_us: false,
+    analysis_sent: true, analysis_sent_at: gg(70), last_reply_at: gg(60), updated_at: gg(60),
+  },
 )
 
 export const interactions: Interaction[] = [
+  { id: 'i95', prospect_id: 'p11', at: gg(60), kind: 'email_in', body: 'Gentile Lorenzo,\nnon riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti.\nCordiali saluti' },
   { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su CER Italia che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },
   { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui.\nGrazie, un saluto.' },
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },

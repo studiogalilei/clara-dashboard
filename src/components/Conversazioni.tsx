@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { supabase } from '../lib/supabase'
 import { Spinner, fmtDateShort } from './ui'
 import { percheCosi, prendiDaAprire } from '../lib/posta'
+import NonOra from './NonOra'
 
 // LA POSTA PER CONVERSAZIONI (Dre, 5/10: «nel workspace devo avere solo le
 // conversazioni e i follow-up», «tanto rumore e rimbalzo tra Smartlead e
@@ -219,6 +220,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     return () => { vivo = false }
   }, [vuota])
 
+  const conBozza = useMemo(() => new Set(proposte.map((p) => p.prospect_id).filter((x): x is string => Boolean(x))), [proposte])
   const daTe = useMemo(() => (righe ?? []).filter((r) => r.daTe), [righe])
   const inCorsa = useMemo(() => (righe ?? []).filter((r) => !r.daTe), [righe])
 
@@ -407,6 +409,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
           ))}
         </>
       )}
+      <NonOra conBozza={conBozza} />
       <div className="flex items-center gap-2 bg-fondo px-5 pb-1.5 pt-4">
         <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">In corsa da sole</span>
         <span className="text-[10px] font-bold tabular-nums text-tenue">{inCorsa.length}</span>
