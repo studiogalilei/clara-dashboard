@@ -47,7 +47,7 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, proponi, senza_trattini        # noqa: E402
+from stanza import env, sb, proponi, senza_trattini, fit_di  # noqa: E402
 import lettura                                            # noqa: E402
 import cervello                                            # noqa: E402
 import brand_assets                                        # noqa: E402
@@ -163,9 +163,22 @@ def persona(p):
     return f"{m.group(1).capitalize()} {m.group(2).capitalize()}" if m else ""
 
 
+def fit_unito(p):
+    """I due Google Fit in uno (revisione 7/10): il nuovo vince campo per campo, il vecchio
+    riempie quello che il nuovo non ha (settore, ticket, cose scomode). Verdetto e motivo
+    da stanza.fit_di, la regola unica. Prima il brief leggeva solo il vecchio: chi aveva
+    solo il nuovo finiva con «Cosa fa: None» e un'analisi povera."""
+    e = p.get("enriched") or {}
+    v1, v2 = e.get("google_fit") or {}, e.get("google_fit_v2") or {}
+    unito = {**v1, **{k: v for k, v in v2.items() if v not in (None, "", [], {})}}
+    verdetto, motivo, _ = fit_di(p)
+    unito["verdetto"], unito["motivo"] = verdetto, motivo
+    return unito
+
+
 def scheda(p):
     dom = dominio(p.get("website"))
-    fit = (p.get("enriched") or {}).get("google_fit") or {}
+    fit = fit_unito(p)
     racc = (sb("GET", f"/rest/v1/raccolta?select=azienda,fa_ads,annunci,giorni_ads,inserzionista,maps_trovato,recensioni,voto,tipo_maps,"
                       f"recensioni_testi,sito_testo,raccolto_il,tag_google_ads,tag_analytics,tag_tag_manager,tag_clarity,tag_meta_pixel"
                       f"&dominio=eq.{urllib.parse.quote(dom)}") or [{}])[0] if dom else {}
@@ -522,10 +535,19 @@ def servita(p):
     Serve il sito letto e il fit. Il fit NO non ferma chi ha risposto positivo o tiepido:
     l'analisi dira' la verita' scomoda. Le ONLUS la ricevono con l'angolo Ad Grants.
     Mai ad agenzie, portali, catene, multinazionali, chi cita la privacy. Un affiliato in franchising (Century 21, RE/MAX) va bene."""
-    fit = (p.get("enriched") or {}).get("google_fit") or {}
-    if not fit or not fit.get("sito_letto"):
+    e = p.get("enriched") or {}
+    fit = e.get("google_fit") or {}
+    v2 = e.get("google_fit_v2") or {}
+    # 7/10: anche il fit nuovo vale come «sito letto» (19 lead vivi avevano solo quello
+    # e non ricevevano mai l'analisi, in silenzio). Ma solo se ha capito cosa fanno: un
+    # «FORSE, il sito non si legge» non e' un sito letto (revisione 7/10)
+    letto = fit.get("sito_letto") or bool(v2.get("cosa_fa"))
+    if not letto:
         return False
-    if fit.get("esclusione") in MAI:
+    # «Invia comunque» dal triage (Dre, 6/10) passa sopra alle esclusioni: l'ha deciso lui
+    if fit_di(p)[2] == "invia":
+        return True
+    if fit.get("esclusione") in MAI or v2.get("esclusione") in MAI:
         return False
     # SE HA RISPOSTO, SI GENERA (Dre, 1/10: «se rispondono generiamo bene questa
     # analisi e inviamo; i dettagli me li dite a parte, magari nella preparazione
@@ -586,6 +608,13 @@ def main():
         #   - dopo due bocciature l'azienda esce dalla fila e diventa una domanda
         #     in Posta: una cosa che non riesce due volte vuole una persona;
         #   - chi ha gia' fallito una volta passa dietro a chi non ha mai provato.
+        # 7/10: chi Dre ha deciso di servire ma non si puo' servire (sito illeggibile) non
+        # sparisce in silenzio: diventa una domanda in Posta, una volta sola (regola 4 del 28/9)
+        for p in righe:
+            if fit_di(p)[2] == "invia" and not servita(p):
+                proponi("umano", f"Avevi detto di mandare l'analisi a {p.get('company') or p.get('email')}, ma non si puo' generare",
+                        prospect_id=p["id"], ref=f"invia-senza-analisi:{p['id']}",
+                        perche="Il sito non si legge, quindi l'analisi verrebbe vuota. Fai cosi' = gli rispondi tu senza analisi; Lascia stare = resta com'e'.")
         righe = [p for p in righe if servita(p)]
         fuori_fila = [p for p in righe if _quante_bocciature(p) >= MAX_TENTATIVI]
         for p in fuori_fila:

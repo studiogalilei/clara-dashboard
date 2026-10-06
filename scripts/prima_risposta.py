@@ -59,7 +59,7 @@ import sys
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, quando          # noqa: E402
+from stanza import sb, di_clara, contattabile, quando, fit_bocciato  # noqa: E402
 
 PROVA = "--prova" in sys.argv
 OMBRA = "--ombra" in sys.argv
@@ -69,7 +69,14 @@ OMBRA = "--ombra" in sys.argv
 SEGUITI = "--seguiti" in sys.argv
 CHIAVE = "seguiti" if SEGUITI else "prima_risposta"
 FIRMA_SEGUITI = "seguito-automatico (decisione Dre 29/9, strada A)"
-MAX_SEGUITI_AL_GIORNO = 15
+# NIENTE TETTO AI FOLLOW-UP, SOLO UN AMMORTIZZATORE (Dre, 6/10: «perche' un tetto? se tanti
+# cadono nello stesso quinto giorno dovremmo aspettare?»). Aveva ragione: un follow-up e' una
+# risposta dentro un filo gia' aperto, il profilo piu' sano che esista, e si spalma sulle
+# caselle. Il numero sotto non e' un tetto: e' 5 follow-up in piu' per casella in campagna
+# (68 il 6/10). Si raggiunge solo in un giorno estremo, e allora l'eccedenza scivola al
+# mattino dopo, i piu' vecchi prima, e Clara lo scrive in Posta.
+CASELLE_IN_CAMPAGNA = 68
+MAX_SEGUITI_AL_GIORNO = 5 * CASELLE_IN_CAMPAGNA
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 FIRMA = "prima-risposta-automatica (decisione Dre 29/9)"
 MAX_PER_GIRO = 5                 # per giro: la fila resta umana
@@ -172,6 +179,10 @@ def perche_no_seguito(pr, p):
         no.append("gia' passata di qui")
     if gruppo not in seguiti.GRUPPI_DAL_CODICE:
         no.append(f"non e' un follow-up col template ({gruppo or 'prima risposta'})")
+    # 7/10: il giorno spostato da Dre sulla bozza gia' pronta (caso Jaam Italia): prima
+    # di quel giorno non parte da sola, anche se tutto il resto e' in ordine
+    if str(az.get("parte_il") or "")[:10] > datetime.date.today().isoformat():
+        no.append(f"parte il {str(az['parte_il'])[8:10]}/{str(az['parte_il'])[5:7]}, il giorno scelto da Dre")
     if not az.get("testo_dal_codice"):
         no.append("il testo l'ha scritto il modello, non il codice")
     if let.get("coerenza") != "COERENTE":
@@ -256,9 +267,14 @@ def perche_no(pr, p):
         no.append("l'analisi risulta gia' mandata")
     if not p.get("analysis_pdf"):
         no.append("l'analisi in PDF non c'e'")
+    if fit_bocciato(p):
+        no.append("fuori target per il Google Fit: decide Dre dal triage")
     if "usa" in (p.get("campaign") or "").lower():
         no.append("campagna USA")
     return no
+
+
+# fit_bocciato vive in stanza.py (7/10): una regola sola per tutti i copioni
 
 
 def verdetto_revisore(testo):
@@ -393,6 +409,12 @@ def main():
     posti = min(MAX_PER_GIRO, tetto - fatte_oggi)
     if posti <= 0 and not PROVA:
         print(f"  gia' {fatte_oggi} oggi: il tetto e' {tetto}, riprendo domani")
+        if SEGUITI and fatte_oggi >= tetto:
+            # l'ammortizzatore si e' svegliato: si dice, una volta al giorno (regola 4 del 28/9)
+            gia = sb("GET", f"/rest/v1/clara_messaggi?select=id&tipo=eq.controllo&testo=ilike.*ammortizzatore*&at=gte.{oggi.isoformat()}&limit=1") or []
+            if not gia:
+                di_clara("controllo", f"Follow-up: oggi ne sono partiti {fatte_oggi}, il massimo dell'ammortizzatore "
+                                      f"(5 in piu' per casella). Gli altri partono domattina, i piu' vecchi per primi.")
         print("prima_risposta: 0 approvate")
         return
 

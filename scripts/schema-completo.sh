@@ -9,20 +9,25 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ordine=(schema.sql schema_v2.sql schema_v3.sql schema_v4.sql schema_v5.sql schema_v5b.sql schema_v6.sql schema_v7.sql schema_v8.sql schema_v9.sql schema_v10 schema_v11 schema_v12 schema_v13 schema_v14 schema_v15.sql)
-mancanti=()
-for f in supabase/*.sql; do
-  b=$(basename "$f")
-  [ "$b" = "schema_completo.sql" ] && continue
-  trovato=no
-  for o in "${ordine[@]}"; do [ "$o" = "$b" ] && trovato=si; done
-  [ "$trovato" = no ] && mancanti+=("$b")
-done
-if [ ${#mancanti[@]} -gt 0 ]; then
-  echo "✗ questi file non sono nell'ordine dentro $0: ${mancanti[*]}" >&2
-  echo "  aggiungili alla lista, se no non finiscono nello schema completo" >&2
-  exit 1
-fi
+# 6/10: la lista scritta a mano era ferma alla v15 da settimane, e lo schema
+# completo con lei: proprio il marcio che questo script prometteva di evitare.
+# Ora l'ordine si calcola dai file (numero di versione, poi la lettera: v5
+# prima di v5b), cosi' un file nuovo non puo' restare fuori in silenzio.
+ordine=()
+while IFS= read -r f; do ordine+=("$f"); done < <(python3 - <<'PY'
+import os, re
+fs = []
+for f in os.listdir('supabase'):
+    if not f.endswith('.sql') or f == 'schema_completo.sql':
+        continue
+    m = re.match(r'schema(?:_v(\d+)([a-z]?))?\.sql$', f)
+    if not m:
+        raise SystemExit(f"✗ nome fuori schema: supabase/{f} (atteso schema_vN[.lettera].sql)")
+    fs.append(((int(m.group(1) or 0), m.group(2) or ''), f))
+for _, f in sorted(fs):
+    print(f)
+PY
+)
 
 out=supabase/schema_completo.sql
 {
