@@ -155,8 +155,13 @@ def da_allineare():
         voluta = categoria_di(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call)
         gia = ((p.get("enriched") or {}).get("sl_categoria") or {}).get("nome")
         if voluta and voluta != gia:
+            # niente campo «fuori» nelle righe per il Revisore: la sua regola dura («mai
+            # toccare chi e' fuori») protegge da cancellazioni e invii, ma Meeting booked
+            # esiste PER la pipeline (6/10, Dre: «cosi' so che questi sono sul workspace»).
+            # Chi non va toccato lo decide gia' categoria_di (soppressi, fuori target,
+            # persi, no dopo la call: None). Qui si scrive solo un'etichetta, mai una mail.
             righe.append({"id": p["id"], "email": p["email"], "azienda": p.get("company") or "", "classificazione": p.get("classificazione"),
-                          "esito": voluta, "fuori": p.get("fuori"), "enriched": p.get("enriched") or {}})
+                          "esito": voluta, "pipeline": p.get("pipeline_stage") or "", "enriched": p.get("enriched") or {}})
     return righe
 
 
