@@ -1553,6 +1553,47 @@ def _():
     assert any("registro misto" in x for x in e2), "un tu vero insieme al lei deve ancora essere bocciato"
 
 
+@prova("i follow-up non hanno un tetto, solo un ammortizzatore di 5 in piu' per casella (Dre, 6/10)")
+def _():
+    import prima_risposta as R
+    # «se tanti cadono nello stesso quinto giorno dovremmo aspettare?» No: il numero deve
+    # reggere un giorno pieno (5 per casella), non fermare chi e' dovuto
+    assert R.MAX_SEGUITI_AL_GIORNO >= 5 * R.CASELLE_IN_CAMPAGNA >= 300, R.MAX_SEGUITI_AL_GIORNO
+    # la prima risposta automatica invece resta col suo tetto, deciso da Dre il 2/10
+    assert R.MAX_AL_GIORNO == 15
+
+
+@prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
+def _():
+    # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
+    # persona fuori target che prenotava una call avrebbe fatto cadere il giro, e l'avviso
+    # a Dre non sarebbe mai nato. Qui si controlla ogni copione: chi chiama una funzione
+    # della stanza per nome deve averla importata, o definita da se'.
+    import ast, pathlib
+    qui = pathlib.Path(__file__).resolve().parent
+    stanza_f = {n.name for n in ast.parse((qui / "stanza.py").read_text(encoding="utf-8")).body if isinstance(n, ast.FunctionDef)}
+    mancano = []
+    for f in sorted(list(qui.glob("*.py")) + list(qui.glob("strumenti/*.py"))):
+        if f.name in ("stanza.py", "test_invarianti.py"):
+            continue
+        t = ast.parse(f.read_text(encoding="utf-8"))
+        noti = set()
+        for n in ast.walk(t):
+            if isinstance(n, (ast.Import, ast.ImportFrom)):
+                noti |= {(a.asname or a.name).split(".")[0] for a in n.names}
+            elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                noti.add(n.name)
+                noti |= {a.arg for a in n.args.args + n.args.kwonlyargs} if not isinstance(n, ast.ClassDef) else set()
+            elif isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store):
+                noti.add(n.id)
+            elif isinstance(n, ast.arg):
+                noti.add(n.arg)
+        for n in ast.walk(t):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in stanza_f and n.func.id not in noti:
+                mancano.append(f"{f.name}:{n.lineno} {n.func.id}")
+    assert not mancano, "chiamate a funzioni della stanza mai importate: " + ", ".join(mancano[:8])
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

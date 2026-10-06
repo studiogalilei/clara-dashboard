@@ -41,7 +41,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, di_clara, quando, sb_tutte                # noqa: E402, proponi
+from stanza import env, sb, di_clara, quando, sb_tutte, proponi       # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 INDIETRO = 400      # giorni di storia da tenere (il tracciato)

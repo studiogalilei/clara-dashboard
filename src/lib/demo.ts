@@ -147,6 +147,23 @@ prospects.push(
   },
 )
 
+// l'archivio (7/10): analisi mandata, follow-up partito, poi 10 giorni di silenzio
+const archiviato = (n: number) => `Nessuna risposta dopo l'analisi (10 giorni), uscito dai prospect il ${new Date(Date.now() - n * 86400000).toLocaleDateString('it-IT')}`
+prospects.push(
+  { ...vuoto, id: 'p14', sg_id: 210, email: 'info@agriturismocolle.it', name: 'Elena M.', company: 'Agriturismo Il Colle', sector: 'turismo', city: 'Asolo',
+    campaign: 'Turismo', stage: 'perso', classificazione: 'positivo', awaiting_us: false, no_followup: true, lost_reason: archiviato(12),
+    analysis_sent: true, analysis_sent_at: gg(40), last_reply_at: gg(44), updated_at: gg(12), enriched: { google_fit: { verdetto: 'SI' } } as never },
+  { ...vuoto, id: 'p15', sg_id: 211, email: 'segreteria@palestrapiave.it', name: null, company: 'Palestra Piave', sector: 'palestre', city: 'Treviso',
+    campaign: 'Casa 2, impianti', stage: 'perso', classificazione: 'positivo', awaiting_us: false, no_followup: true, lost_reason: archiviato(20),
+    analysis_sent: true, analysis_sent_at: gg(52), last_reply_at: gg(55), updated_at: gg(20), enriched: { google_fit_v2: { verdetto: 'FORSE' } } as never },
+  { ...vuoto, id: 'p16', sg_id: 212, email: 'info@viaggiaurora.it', name: 'Davide T.', company: 'Viaggi Aurora', sector: 'tour_operator', city: 'Vicenza',
+    campaign: 'Turismo', stage: 'perso', classificazione: 'rinvio', awaiting_us: false, no_followup: true, lost_reason: archiviato(35),
+    analysis_sent: true, analysis_sent_at: gg(70), last_reply_at: gg(74), updated_at: gg(35) },
+  { ...vuoto, id: 'p17', sg_id: 213, email: 'info@nordtour.it', name: null, company: 'Nord Tour', sector: 'tour_operator', city: 'Bolzano',
+    campaign: 'Turismo', stage: 'perso', classificazione: 'negativo', awaiting_us: false, no_followup: true, lost_reason: archiviato(38),
+    analysis_sent: true, analysis_sent_at: gg(72), last_reply_at: gg(76), updated_at: gg(38) },
+)
+
 export const interactions: Interaction[] = [
   { id: 'i95', prospect_id: 'p11', at: gg(60), kind: 'email_in', body: 'Gentile Lorenzo,\nnon riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti.\nCordiali saluti' },
   { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su Sole Comune che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },

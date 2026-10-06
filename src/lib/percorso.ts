@@ -80,6 +80,22 @@ export function mossa(p: Campi & Pick<Prospect, 'prova_inizio'>, verso: Tappa | 
   return m
 }
 
+/** RIPRENDERE DALL'ARCHIVIO (Dre, 6/10: «l'archivio lo teniamo al sicuro, posso prendere
+ *  se voglio»). Chi e' uscito per silenzio dopo analisi e follow-up torna fra i lead con
+ *  l'analisi gia' ricevuta. Il motivo d'uscita si toglie, il «niente follow-up» del silenzio
+ *  pure: da li' valgono le regole di sempre, e nessuna mail parte da sola. */
+export function riprendiDallArchivio(p: Campi & Pick<Prospect, 'prova_inizio' | 'classificazione' | 'lost_reason'>): Mossa {
+  if (tappaDi(p) !== 'perso' || !/^Nessuna risposta dopo l'analisi/i.test(p.lost_reason ?? '')) {
+    return { no: 'Si riprende dall\'archivio solo chi e\' uscito per silenzio.' }
+  }
+  if (['negativo', 'nervoso', 'soppresso', 'fuori_target', 'persona_sbagliata'].includes(p.classificazione ?? '')) {
+    return { no: 'Ha detto di no o non e\' roba nostra: non si ricontatta.' }
+  }
+  const patch: Partial<Prospect> & { tappa?: string } = { stage: 'analisi_inviata' as Stage, no_followup: false, lost_reason: null }
+  patch.tappa = tappaDi({ ...p, ...patch, tappa: null })
+  return { patch, nota: 'Ripreso dall\'archivio: torna fra i lead.' }
+}
+
 function regola(p: Campi & Pick<Prospect, 'prova_inizio'>, verso: Tappa | 'lead', opz: { motivo?: string; riassunto?: boolean }): Mossa {
   const da = tappaDi(p)
   const pulisci = { next_action: null, next_action_date: null }

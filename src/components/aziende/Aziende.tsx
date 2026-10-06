@@ -6,6 +6,7 @@ import { azzeraCanone } from '../../lib/soldi'
 import { IN_TRATTATIVA, NOME_TAPPA, PRIMA_DELLA_CALL, inBacheca, mossa, tappaDi, toccaANoi, type Tappa } from '../../lib/percorso'
 import { daysAgo, fmtDateShort, giorni, Spinner } from '../ui'
 import Pannello from './Pannello'
+import Archivio, { eArchiviato } from './Archivio'
 
 // AZIENDE, LA BACHECA NUOVA (Dre, 30/9: «a me serve mandare avanti i lead e
 // aggiungere le cose»). Rifatta da zero sulle fondamenta del 30/9: ogni azienda ha
@@ -16,7 +17,7 @@ type Colonna = 'lead' | Tappa
 const COLONNE: Array<[Colonna, string]> = [
   ['lead', 'Lead'], ['conoscitiva', 'Conoscitiva'], ['tecnica', 'Tecnica'], ['avvio', 'Avvio'], ['prova', 'Prova'],
 ]
-type Vista = 'cammino' | 'clienti' | 'persi' | 'scartati'
+type Vista = 'cammino' | 'clienti' | 'persi' | 'archivio' | 'scartati'
 
 export type Esegui = (p: Prospect, verso: Tappa | 'lead', opz?: { motivo?: string }) => Promise<boolean>
 
@@ -102,7 +103,9 @@ export default function Aziende({ onScheda }: { onScheda: (id: string) => void }
   const insiemi = useMemo(() => ({
     cammino: tutte.filter((p) => inBacheca(p)),
     clienti: tutte.filter((p) => tappaDi(p) === 'cliente'),
-    persi: tutte.filter((p) => tappaDi(p) === 'perso'),
+    // 7/10: chi e' uscito per silenzio dopo analisi e follow-up sta nell'Archivio, non fra i persi
+    persi: tutte.filter((p) => tappaDi(p) === 'perso' && !eArchiviato(p)),
+    archivio: tutte.filter((p) => eArchiviato(p)),
     scartati: tutte.filter((p) => !vivo(p) && tappaDi(p) !== 'perso' && tappaDi(p) !== 'cliente'),
   }), [tutte])
 
@@ -137,7 +140,7 @@ export default function Aziende({ onScheda }: { onScheda: (id: string) => void }
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {([['cammino', 'In cammino', insiemi.cammino.length], ['clienti', 'Clienti', insiemi.clienti.length], ['persi', 'Persi', insiemi.persi.length], ['scartati', 'Scartati', insiemi.scartati.length]] as Array<[Vista, string, number]>).map(([k, n, c]) => (
+        {([['cammino', 'In cammino', insiemi.cammino.length], ['clienti', 'Clienti', insiemi.clienti.length], ['persi', 'Persi', insiemi.persi.length], ['archivio', 'Archivio', insiemi.archivio.length], ['scartati', 'Scartati', insiemi.scartati.length]] as Array<[Vista, string, number]>).map(([k, n, c]) => (
           <button key={k} onClick={() => setVista(k)}
                   className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${vista === k ? 'bg-navy text-white' : 'text-tenue hover:text-navy'}`}>
             {n} <span className="tabular-nums opacity-70">{c}</span>
@@ -180,6 +183,9 @@ export default function Aziende({ onScheda }: { onScheda: (id: string) => void }
             )
           })}
         </div>
+      ) : vista === 'archivio' ? (
+        <Archivio righe={insiemi.archivio} onScheda={onScheda}
+                  onCambiato={(x) => { setRighe((rs) => (rs ?? []).map((y) => (y.id === x.id ? x : y))); setAvviso(`${nomeDi(x)}: torna fra i lead`) }} />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {insiemi[vista].length === 0 ? <p className="text-sm text-spento">Nessuno</p> : ordina(insiemi[vista]).map((p) => carta(p, true))}
