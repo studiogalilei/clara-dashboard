@@ -19,7 +19,6 @@ import Aggiornato from './components/Aggiornato'
 import Novita from './components/Novita'
 import Giro from './components/Giro'
 import Calendario from './components/Calendario'
-import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
 import Chat from './components/Chat'
@@ -270,7 +269,6 @@ export default function App() {
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
   const tiroMenu = useRef(false)
-  const [, setSalutoClara] = useState<string | null>(null)   // gold: la frase ora e' quella dal vivo in Adesso
   const cercaRef = useRef<HTMLInputElement>(null)
 
   function chiudiScheda() {
@@ -316,23 +314,7 @@ export default function App() {
     return () => sub?.subscription.unsubscribe()
   }, [])
 
-  // il buongiorno in testata è uno spazio di Clara: se oggi l'ha scritto,
-  // si mostra il suo
-  useEffect(() => {
-    if (!configured) return
-    const oggiIso = giornoOggi()
-    supabase
-      .from('clara_messaggi')
-      .select('*')
-      .eq('tipo', 'saluto')
-      .gte('at', oggiIso + 'T00:00:00')
-      .order('at', { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        const m = (data as Array<{ testo: string }> | null)?.[0]
-        if (m?.testo) setSalutoClara(m.testo)
-      })
-  }, [])
+  // gold (6/10): il saluto del mattino non si legge piu': la frase di Clara e' quella dal vivo in Adesso
 
   // LE SCORCIATOIE (Dre, 26/9: «il feel di un software professionale»).
   // ⌘K apre la palette; «/» fa lo stesso, per chi la conosce da prima.
