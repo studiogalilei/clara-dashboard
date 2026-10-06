@@ -314,7 +314,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
       </>
     )
     return (
-      <div key={i} className="flex items-start border-b border-velo last:border-0">
+      <div key={i} className="flex items-start border-b border-velo last:border-0 lg:break-inside-avoid">
         {v.prospect_id ? (
           <button
             onClick={() => onOpen(v.prospect_id!)}
@@ -411,7 +411,7 @@ export default function Calendario({ onOpen, pod = [] }: Props) {
                 <Micro>{nome}</Micro>
                 <span className="text-xs text-spento">{lista.length}</span>
               </div>
-              <Card>{lista.map(rigaVoce)}</Card>
+              <Card><div className="lg:columns-2 lg:gap-10">{lista.map(rigaVoce)}</div></Card>
             </section>
           )
         )}
