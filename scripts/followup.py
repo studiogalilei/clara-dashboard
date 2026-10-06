@@ -44,8 +44,11 @@ def con_bozza_aperta():
     6/10: SCUDO, Xcope e CoEHAR avevano un mini follow-up aperto dall'1/10 e intanto venivano
     rimessi in coda per il FOLLOW UP 1: due follow-up per la stessa persona, e una coda che il
     motore delle bozze non svuotava mai (salta chi ha gia' una proposta aperta)."""
-    return {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id&tipo=in.(risposta,umano)"
-                                                "&stato=in.(aperta,approvata,in_invio)&limit=5000") or []) if x.get("prospect_id")}
+    # conta una mail pronta (risposta, o «da guardare tu» col testo dentro), non una domanda: chi
+    # aspetta che Dre guardi un'analisi bocciata deve restare in coda per il suo follow-up
+    return {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id,tipo,azione->>bozza&tipo=in.(risposta,umano)"
+                                                "&stato=in.(aperta,approvata,in_invio)&limit=5000") or [])
+            if x.get("prospect_id") and (x.get("tipo") == "risposta" or x.get("bozza"))}
 
 
 def in_coda(pid, gruppo):

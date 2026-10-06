@@ -1229,14 +1229,15 @@ def _():
     vero = (F.sb, F.sb_tutte, F.in_coda, F.calendario)
     try:
         F.sb = lambda m, path, corpo=None, h=None: [p] if path.startswith("/rest/v1/prospects?select") else []
-        F.sb_tutte = lambda path, **k: [{"prospect_id": "x"}] if "stato=in.(aperta" in path else []
+        F.sb_tutte = lambda path, **k: [{"prospect_id": "x", "tipo": "risposta"}] if "stato=in.(aperta" in path else []
         F.in_coda = lambda pid, gruppo: messi.append(pid)
         F.calendario = lambda prova, oggi: None
         F.main()
         assert not messi, "messo in coda per il FOLLOW UP 1 con una bozza gia' aperta"
-        F.sb_tutte = lambda path, **k: []
+        # una domanda aperta (l'analisi bocciata, da guardare) non e' una bozza: si va in coda lo stesso
+        F.sb_tutte = lambda path, **k: [{"prospect_id": "x", "tipo": "umano", "bozza": None}] if "stato=in.(aperta" in path else []
         F.main()
-        assert messi == ["x"], "senza bozze aperte deve andare in coda"
+        assert messi == ["x"], "una domanda senza mail dentro non deve togliere il follow-up"
     finally:
         F.sb, F.sb_tutte, F.in_coda, F.calendario = vero
 
