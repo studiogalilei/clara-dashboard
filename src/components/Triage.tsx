@@ -15,15 +15,19 @@ import type { Prospect } from '../lib/types'
 interface FitRiga {
   p: Prospect
   motivo: string
+  chiSono: string | null
 }
 
-function fitDi(p: Prospect): { verdetto: string | null; motivo: string | null; decisione: string | null } {
+function fitDi(p: Prospect): { verdetto: string | null; motivo: string | null; chiSono: string | null; decisione: string | null } {
   const e = (p.enriched ?? {}) as Record<string, unknown>
-  const v2 = e.google_fit_v2 as { verdetto?: string; motivo?: string } | undefined
-  const v1 = e.google_fit as { verdetto?: string } | undefined
+  const v2 = e.google_fit_v2 as { verdetto?: string; motivo?: string; cosa_fa?: string } | undefined
+  // anche il fit vecchio scrive `motivo` e `cosa_fa` (6/10, Dre: «non ci sono i motivi»:
+  // c'erano, questa schermata leggeva solo il fit nuovo)
+  const v1 = e.google_fit as { verdetto?: string; motivo?: string; cosa_fa?: string } | undefined
   return {
     verdetto: v2?.verdetto ?? v1?.verdetto ?? null,
-    motivo: v2?.motivo ?? (v1?.verdetto === 'NO' ? 'il Google Fit vecchio ha detto no (senza motivo scritto)' : null),
+    motivo: v2?.motivo ?? v1?.motivo ?? null,
+    chiSono: v2?.cosa_fa ?? v1?.cosa_fa ?? null,
     decisione: (e.google_fit_decisione as string) ?? null,
   }
 }
@@ -37,7 +41,7 @@ export function daDecidere(righe: Prospect[]): FitRiga[] {
       return verdetto === 'NO' && !decisione && !p.fuori
         && VIVE.has(p.classificazione ?? 'da_classificare')
     })
-    .map((p) => ({ p, motivo: fitDi(p).motivo ?? 'fuori target' }))
+    .map((p) => { const f = fitDi(p); return { p, motivo: f.motivo ?? 'fuori target', chiSono: f.chiSono } })
     .sort((a, b) => (b.p.last_reply_at ?? '').localeCompare(a.p.last_reply_at ?? ''))
 }
 
@@ -132,8 +136,8 @@ export default function Triage({ righe, onOpen, onDeciso }: {
               </div>
               {/* chi sono e i link per la ricerca al volo (Dre, 6/10: «lasciami
                   l'analisi e il sito, qualcosa che posso prendere e farmi la ricerca») */}
-              {r.p.descrizione && (
-                <p className="mt-1 text-[12.5px] leading-snug text-inchiostro/80">{r.p.descrizione}</p>
+              {(r.p.descrizione || r.chiSono) && (
+                <p className="mt-1 text-[12.5px] leading-snug text-inchiostro/80">{r.p.descrizione || r.chiSono}</p>
               )}
               {parole[r.p.id] && (
                 <p className="mt-1 text-[12.5px] leading-snug text-tenue">Ha scritto: «{parole[r.p.id]}»</p>

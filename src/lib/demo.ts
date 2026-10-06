@@ -139,7 +139,8 @@ prospects.push(
     campaign: 'Casa 1, serramenti', stage: 'risposto',
     classificazione: 'tiepido', awaiting_us: true,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(1), updated_at: gg(1),
-    enriched: { google_fit_v2: { verdetto: 'NO', motivo: 'è un grossista: vende ad altri negozi, non al cliente che cerca su Google' } } as never,
+    // questo col fit VECCHIO: il triage legge il motivo anche da li' (6/10)
+    enriched: { google_fit: { verdetto: 'NO', motivo: 'è un grossista: vende ad altri negozi, non al cliente che cerca su Google', cosa_fa: 'Grossista di ricambi auto: vende a officine e negozi in tutto il Nord.' } } as never,
   },
 )
 
