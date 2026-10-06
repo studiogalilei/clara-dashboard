@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
-import { apriInPosta, fraseDiClara, percheCosi, rimandata } from '../lib/posta'
+import { apriInPosta, fraseDiClara, percheCosi, quandoProposto, rimandata } from '../lib/posta'
 import { useVivo } from '../lib/vivo'
 
 // ADESSO (gold, 6/10): la home non apre su una lista, apre sulla prossima cosa da fare.
@@ -63,9 +63,9 @@ export default function Adesso() {
           ore: !seguito && s?.last_reply_at ? (adesso - new Date(s.last_reply_at).getTime()) / 3600_000 : null,
         })
       }
-      // lo stesso ordine della Posta: prima chi aspetta (dal piu' vecchio), poi i follow-up per nome
+      // lo stesso ordine della Posta: prima chi aspetta (dal piu' vecchio), poi i follow-up dal giorno di call piu' vicino
       lista.sort((a, b) => Number(a.seguito) - Number(b.seguito)
-        || (a.seguito ? a.nome.localeCompare(b.nome) : (b.ore ?? 0) - (a.ore ?? 0)))
+        || (a.seguito ? (quandoProposto(a.giorno) - quandoProposto(b.giorno)) || a.nome.localeCompare(b.nome) : (b.ore ?? 0) - (a.ore ?? 0)))
       if (vivo) setVoci(lista)
     })()
     return () => { vivo = false }

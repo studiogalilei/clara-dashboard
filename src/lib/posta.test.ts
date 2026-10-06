@@ -93,3 +93,14 @@ describe('rimandata a domani', () => {
     expect(rimandata({}, oggi)).toBe(false)
   })
 })
+
+import { quandoProposto } from './posta'
+
+describe('la fila dei follow-up, il piu urgente prima', () => {
+  const oggi = new Date(2026, 9, 6)
+  it('giovedì 8 viene prima di martedì 13, e chi non ha un giorno va in fondo', () => {
+    expect(quandoProposto('giovedì 8 ottobre alle 15', oggi)).toBeLessThan(quandoProposto('martedì 13 ottobre alle 14:30', oggi))
+    expect(quandoProposto('giovedì 8 ottobre alle 15', oggi)).toBeLessThan(quandoProposto('giovedì 8 ottobre alle 16:30', oggi))
+    expect(quandoProposto('', oggi)).toBe(Number.POSITIVE_INFINITY)
+  })
+})
