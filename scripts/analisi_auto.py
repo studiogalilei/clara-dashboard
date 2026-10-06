@@ -293,8 +293,24 @@ def _norma(n):
     return n.replace(",", ".")                        # 3,5 -> 3.5
 
 
+# 6/10: una data («29 settembre», «29/9») e due modi di dire («365 giorni», «24 ore») non sono dati
+# inventati. Tre analisi (Viaggi del Mappamondo, R.E. DEL BO, Neuronica) scritte il 29/9 erano
+# bocciate per «29»: due bocciature e fuori dalla fila, ferme da una settimana.
+_DOPO_DATA = re.compile(r"\s*(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\b|/\d", re.I)
+_MODO_DI_DIRE = re.compile(r"\s*(?:giorni|ore)\b", re.I)
+
+
 def numeri_di(testo):
-    return {(_norma(m.group(1)), m.group(2) or "") for m in NUMERO.finditer(testo)}
+    fuori = set()
+    for m in NUMERO.finditer(testo):
+        n, unita = _norma(m.group(1)), m.group(2) or ""
+        dopo = testo[m.end(1):m.end(1) + 14]
+        if not unita and n.isdigit() and 1 <= int(n) <= 31 and _DOPO_DATA.match(dopo):
+            continue                                        # il giorno di una data
+        if not unita and n in ("24", "365") and (_MODO_DI_DIRE.match(dopo) or testo[max(0, m.start(1) - 3):m.start(1)].lower() == "su "):
+            continue                                        # «24 ore su 24», «365 giorni»
+        fuori.add((n, unita))
+    return fuori
 
 
 def numeri_non_nei_fatti(tutto, fatti):
