@@ -1178,6 +1178,22 @@ def _():
         Bz.sb = vero
 
 
+@prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
+def _():
+    import bozze as Bz
+    vero = Bz.sb
+    chiuse = []
+    try:
+        aperte = [{"id": 1, "ref": "ferme:2026-10-04"}, {"id": 2, "ref": "ferme:2026-10-05"}, {"id": 3, "ref": "ferme:2026-10-06"}]
+        Bz.sb = lambda m, path, corpo=None, h=None: (aperte if m == "GET" else chiuse.append((path, corpo)))
+        Bz.supera_ferme("2026-10-06")
+        ids = sorted(int(p.split("eq.")[1]) for p, _ in chiuse)
+        assert ids == [1, 2], f"chiuse {ids}: vanno chiuse solo quelle dei giorni prima"
+        assert all(c["stato"] == "no" for _, c in chiuse)
+    finally:
+        Bz.sb = vero
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
