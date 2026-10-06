@@ -151,7 +151,8 @@ def sb(method, path, body=None, headers=None):
 NEG = re.compile(r"non (siamo|sono) interessat|non mi interessa|no,?\s*grazie|non interessa|basta spam|"
                  r"cancellat|rimuov|non voglio|ci occupiamo (gia|già)|abbiamo gia|unsubscribe|non desidero|"
                  r"togliet|non fa per noi|non abbiamo (intenzione|interesse|budget)|siamo (a posto|copert)|"
-                 r"^\s*(stop|no|remove)\b|non contattarmi|non scriv|gia'? seguiti|già seguiti", re.I)
+                 r"^\s*(stop|no|remove)\b|non contattarmi|non scriv|gia'? seguiti|già seguiti|"
+                 r"non ci interessa|non ci contatt|abbiamo già|gi[aà] chi (ci|si)", re.I)   # 6/10: «non ci», l'accento
 OOO = re.compile(r"out of (the )?office|fuori ufficio|assenza|assente|in ferie|maternit|paternit|congedo|"
                  r"rientr|automatic reply|risposta automatica|messaggio automatico|autorepl|vacation|"
                  r"i'?ll be (back|out)|accesso limitato", re.I)
@@ -192,6 +193,38 @@ def classifica(testo):
     if POS.search(t):
         return "positivo"
     return "da_classificare"
+
+CLASSI_NO = ("negativo", "soppresso", "nervoso", "fuori_target", "persona_sbagliata")
+
+
+def testo_suo(body):
+    """Solo la parte scritta dal lead: lo stesso taglio della rilettura (lettura.solo_suo).
+    6/10: corpo_pulito a volte non trovava l'inizio della citazione, e la nostra mail
+    («mi piacerebbe condividerle») faceva diventare positivo chi aveva detto no."""
+    t = strip_html(body)
+    try:
+        import lettura
+        suo = lettura.solo_suo(t, con_firma=True)
+        if suo is not None:
+            return suo.strip()
+    except Exception:                                        # noqa: BLE001
+        pass
+    return corpo_pulito(body)
+
+
+def classe_da_sync(body, categoria, attuale, risposta_nuova):
+    """La classe che il sync propone. UN NO NON SI RIBALTA SULLO STESSO MESSAGGIO (6/10):
+    il sync completo delle 5 ha riletto risposte gia' classificate e ha fatto diventare
+    positivo La Bussola («Grazie non ci interessa»), casainromagna, Madaprojects e Panorama
+    («non ci contatti piu»). Una classe gia' decisa (dalla rilettura, da Dre, dalle bozze)
+    cambia solo se il lead scrive di nuovo: le regole del sync sono piu' grezze di chi l'ha letta."""
+    if attuale and attuale != "da_classificare" and not risposta_nuova:
+        return attuale                                   # stesso messaggio: decide chi lo ha gia' letto meglio
+    cls = classifica(testo_suo(body))
+    if cls == "da_classificare" and categoria in CAT_HINT:
+        cls = CAT_HINT[categoria]
+    return cls
+
 
 def data_ooo(testo):
     """Prova a leggere 'fino al X luglio' / 'until July X' -> date ISO, se no None."""
@@ -311,14 +344,13 @@ def main():
             last = msgs[-1]
             last_reply = replies[-1]
             awaiting = last.get("type") == "REPLY"
-            testo = corpo_pulito(last_reply.get("email_body"))
-            cls = classifica(testo)
-            # se il testo non decide, la categoria Smartlead suggerisce
-            if cls == "da_classificare" and lead.get("category") in CAT_HINT:
-                cls = CAT_HINT[lead["category"]]
+            testo = testo_suo(last_reply.get("email_body"))
+            rec = known.get(em)
+            nuova = (last_reply.get("time") or "")[:19] > ((rec or {}).get("last_reply_at") or "")[:19]
+            # se il testo non decide, la categoria Smartlead suggerisce; un no resta no (6/10)
+            cls = classe_da_sync(last_reply.get("email_body"), lead.get("category"), (rec or {}).get("classificazione"), nuova)
             ooo_until = data_ooo(testo) if cls == "ooo" else None
 
-            rec = known.get(em)
             # se Dre ha classificato a mano ooo/rinvio/negativo/fuori_target/soppresso,
             # l'autoreply non rimette il lead in coda risposta
             manual_cls = (rec or {}).get("enriched", {}) or {}
