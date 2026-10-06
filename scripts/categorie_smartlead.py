@@ -183,7 +183,10 @@ def main():
             esito = _sl("POST", f"/campaigns/{cid}/leads/{lid}/category", {"category_id": ids[r["esito"]], "pause_lead": False})
             if isinstance(esito, dict) and esito.get("ok") is False:
                 saltati.append((r["email"], str(esito)[:80])); continue
-            arr = dict(r["enriched"])
+            # si rilegge adesso: una passata lunga non deve riscrivere una copia vecchia di enriched
+            # sopra quello che nel frattempo hanno scritto sync, rilettura e bozze (6/10)
+            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{r['id']}") or [{}])[0]
+            arr = dict(fresco.get("enriched") or {})
             arr["sl_categoria"] = {"nome": r["esito"], "campagna": cid, "il": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
             sb("PATCH", f"/rest/v1/prospects?id=eq.{r['id']}", {"enriched": arr})
             fatti += 1
