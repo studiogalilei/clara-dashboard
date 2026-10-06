@@ -73,6 +73,10 @@ def _():
                "grazie per il messaggio, in realtà abbiamo già chi si occupa di queste cose"):
         assert S.classifica(no) == "negativo", no
     assert S.classe_da_sync("in realtà abbiamo già chi si occupa di queste cose", "Information Request", None, True) == "negativo"
+    # 6/10 pomeriggio: due consensi veri restavano «da classificare» e la prima risposta non partiva
+    assert S.classifica("Me la mandi, senza impegno") == "positivo"
+    assert S.classifica("Se vuole inviare a titolo gratuito faccia pure.") == "positivo"
+    assert S.classifica("mandatela pure, grazie") == "positivo"
 
 
 @prova("la rilettura blocca chi chiede la rimozione da qualunque strada passi (caso Panorama, 6/10)")
@@ -88,6 +92,43 @@ def _():
     assert scritti and scritti[0][1] == "/rest/v1/suppressions" and scritti[0][2][0]["email"] == "info@esempio.it"
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "rilettura.py")).read()
     assert src.count("blocca(p)") >= 2, "la strada «decisa da sola» non blocca chi chiede la rimozione"
+
+
+@prova("il sync non riapre un'attesa chiusa sulla stessa risposta, solo se il lead riscrive (6/10)")
+def _():
+    import sync_v2 as S
+    chiusa = {"awaiting_us": False}
+    assert S.attesa_da_sync(True, chiusa, False, "2026-10-05T13:17:15") is False, "la stessa risposta riapriva l'attesa di un no"
+    assert S.attesa_da_sync(True, chiusa, True, "2026-10-06T09:00:00") is True, "una risposta nuova deve riaprire"
+    assert S.attesa_da_sync(True, chiusa, True, "2020-01-01T00:00:00") is False, "oltre 30 giorni resta chiusa"
+    assert S.attesa_da_sync(True, {"awaiting_us": True}, False, "2026-10-05T13:17:15") is True
+    assert S.attesa_da_sync(True, None, True, "2026-10-06T09:00:00") is True, "un lead nuovo aspetta"
+    # e il sync deve avere awaiting_us nei lead che carica, se no ogni attesa sembra chiusa (6/10, 11:43)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py")).read()
+    sel = src[src.index('rows = sb("GET", f"/rest/v1/prospects?select='):][:300]
+    assert "awaiting_us" in sel, "il sync carica i lead senza awaiting_us: chiude le attese di chi aspetta noi"
+
+
+@prova("le categorie di Dre su Smartlead: dalla classe del Workspace, mai su soppressi, fuori o fuori target (6/10)")
+def _():
+    import categorie_smartlead as C
+    assert C.categoria_di({"classificazione": "positivo"}) == C.SI
+    assert C.categoria_di({"classificazione": "positivo"}, intento="INT-03") == C.DOMANDA
+    assert C.categoria_di({"classificazione": "tiepido"}) == C.DOMANDA
+    assert C.categoria_di({"classificazione": "rinvio"}) == C.AVANTI and C.categoria_di({"classificazione": "ooo"}) == C.AVANTI
+    assert C.categoria_di({"classificazione": "persona_sbagliata"}) == C.GIRATO
+    assert C.categoria_di({"classificazione": "tiepido"}, girato=True) == C.GIRATO
+    assert C.categoria_di({"classificazione": "negativo"}) == C.NO and C.categoria_di({"classificazione": "nervoso"}) == C.NO
+    for c in ("soppresso", "fuori_target", "da_classificare", None):
+        assert C.categoria_di({"classificazione": c}) is None, c
+    assert C.categoria_di({"classificazione": "positivo", "fuori": True}) is None, "pipeline e clienti non si toccano"
+    # dal campione letto prima di scrivere (6/10)
+    assert C.categoria_di({"classificazione": "ooo"}, testo="Hello, my email address has recently changed") == C.GIRATO
+    assert C.categoria_di({"classificazione": "ooo"}, testo="questa casella di posta verra' dismessa in data 30.04") == C.GIRATO
+    assert C.categoria_di({"classificazione": "ooo"}, testo="sono fuori ufficio fino al 12") == C.AVANTI
+    assert C.categoria_di({"classificazione": "positivo"}, girato=True, testo="Ok grazie") == C.SI, "un si' con un inoltro resta un si'"
+    assert C.categoria_di({"classificazione": "tiepido"}, testo="la ringrazio ma non è di nostro interesse") is None, "un no scritto non si etichetta come domanda"
+    assert C.categoria_di({"classificazione": "tiepido"}, testo="mi occupo della parte commerciale, ho girato la vostra mail all'ufficio competente") == C.GIRATO
 
 
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")
