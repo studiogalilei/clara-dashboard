@@ -295,8 +295,13 @@ def proposta_giorno_ora():
         occupati = []
     # Documento Gold (Dre): pomeriggio preferito, mai weekend, mai lunedi' a meno
     # che lo propongano loro. Quindi prima i pomeriggi della settimana, poi le mattine.
-    for fascia in (((14, 30), (15, 0), (15, 30), (16, 0), (16, 30)), ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))):
-      for salto in range(14):
+    # 6/10: prima la settimana (pomeriggi, poi mattine), poi la seguente. Cercando tutti i pomeriggi
+    # di due settimane prima delle mattine, con molte bozze aperte si saltava a una settimana dopo
+    # (Cosimo, appena detto si', finiva a martedi' 13) mentre giovedi' mattina era libero.
+    pomeriggi = ((14, 30), (15, 0), (15, 30), (16, 0), (16, 30))
+    mattine = ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))
+    for quali, fascia in ((range(0, 7), pomeriggi), (range(0, 7), mattine), (range(7, 14), pomeriggi), (range(7, 14), mattine)):
+      for salto in quali:
         g = d + datetime.timedelta(days=salto)
         if g.weekday() >= 5 or g.weekday() == 0:
             continue
