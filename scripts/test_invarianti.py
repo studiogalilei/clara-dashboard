@@ -40,6 +40,10 @@ def _():
     assert set(fuori) == {"30%", "2300", "1500€"}, fuori
     errs = A.cancello({"intro": "x", "body": male}, fatti)
     assert any("numeri che non stanno nei fatti" in e for e in errs)
+    # 6/10: una data e i modi di dire non sono numeri inventati; un numero vero accanto si', ancora
+    data = ok + "<p>Analisi del 29 settembre 2026 (aggiornata il 29/9), aperti 365 giorni l'anno, 24 ore su 24.</p>"
+    assert A.numeri_non_nei_fatti(data, fatti) == [], A.numeri_non_nei_fatti(data, fatti)
+    assert A.numeri_non_nei_fatti(ok + "<p>29 clienti nuovi</p>", fatti) == ["29"]
 
 
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")
