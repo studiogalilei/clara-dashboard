@@ -1282,6 +1282,18 @@ def _():
     assert not S.consegna_analisi("le avevo scritto qualche giorno fa riguardo a un'analisi marketing che avevamo preparato")
 
 
+@prova("una bozza in attesa non propone mai un giorno gia' passato (6/10)")
+def _():
+    import bozze as Bz
+    import datetime as _dt
+    oggi = _dt.date(2026, 10, 6)
+    assert Bz.orario_scaduto("Le propongo martedì 29 settembre alle 14:30, oppure", oggi) == "martedì 29 settembre alle 14:30"
+    assert Bz.orario_scaduto("Le propongo martedì 6 ottobre alle 14:30", oggi), "oggi stesso conta come scaduto: arriverebbe tardi"
+    assert Bz.orario_scaduto("Le propongo giovedì 8 ottobre alle 15", oggi) is None
+    assert Bz.orario_scaduto("Le propongo lunedì 11 gennaio alle 15", oggi) is None, "gennaio e' dell'anno prossimo"
+    assert Bz.orario_scaduto("Le propongo martedì 14 luglio alle 15", oggi), "luglio scritto a ottobre e' passato"
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz

@@ -257,6 +257,61 @@ def supera_ferme(oggi):
                {"stato": "no", "risposta": "superata dalla domanda di oggi sulle analisi ferme"})
 
 
+_ORARIO_NEL_TESTO = None
+
+
+def orario_scaduto(testo, oggi):
+    """Il primo orario di call scritto nella bozza, se e' oggi o gia' passato; altrimenti None."""
+    import re
+    global _ORARIO_NEL_TESTO
+    if _ORARIO_NEL_TESTO is None:
+        _ORARIO_NEL_TESTO = re.compile(r"(?:luned|marted|mercoled|gioved|venerd)ì\s+(\d{1,2})\s+(" + "|".join(_MESI)
+                                       + r")\s+alle\s+\d{1,2}(?:[:.]\d{2})?", re.I)
+    m = _ORARIO_NEL_TESTO.search(testo or "")
+    if not m:
+        return None
+    try:
+        giorno = datetime.date(oggi.year, _MESI.index(m.group(2).lower()) + 1, int(m.group(1)))
+    except ValueError:
+        return None
+    # l'anno e' quello che mette la data piu' vicina a oggi: gennaio scritto a ottobre e' il prossimo
+    if (giorno - oggi).days > 180:
+        giorno = giorno.replace(year=giorno.year - 1)
+    elif (oggi - giorno).days > 180:
+        giorno = giorno.replace(year=giorno.year + 1)
+    return m.group(0) if giorno <= oggi else None
+
+
+def rinfresca_orari():
+    """GLI ORARI SCADUTI (6/10). Le bozze «da guardare tu» aspettano Dre anche per giorni, e intanto
+    l'orario proposto passa: stanotte undici proponevano il 29/9, l'1/10, il 2/10 o il giorno stesso.
+    Approvate cosi', il lead avrebbe ricevuto un invito per un giorno gia' passato. A ogni giro una
+    bozza aperta con l'orario di oggi o passato prende il prossimo buco libero; cambia solo l'orario,
+    e si salva solo se il cancello non trova errori nuovi. Resta la traccia in azione.ritocco."""
+    oggi = datetime.date.today()
+    # prima solo il testo (il giro passa ogni pochi minuti): l'azione intera solo per chi va sistemata
+    for t in sb("GET", "/rest/v1/proposte?select=id,azione->>bozza&stato=eq.aperta&tipo=in.(risposta,umano)"
+                       "&azione->>bozza=not.is.null&limit=1000") or []:
+        vecchio = orario_scaduto(t.get("bozza"), oggi)
+        if not vecchio:
+            continue
+        x = (sb("GET", f"/rest/v1/proposte?select=id,azione&id=eq.{t['id']}&stato=eq.aperta") or [None])[0]
+        if not x:
+            continue
+        a = dict(x.get("azione") or {})
+        nuovo = proposta_giorno_ora()
+        testo = a["bozza"].replace(vecchio, nuovo, 1)
+        if set(cancello(testo)) - set(cancello(a["bozza"])):
+            continue
+        if PROVA:
+            print(f"  orario scaduto nella bozza {x['id']}: {vecchio} -> {nuovo}")
+            continue
+        a.update({"bozza_originale": a.get("bozza_originale") or a["bozza"], "bozza": testo, "giorno_proposto": nuovo,
+                  "ritocco": {"il": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                              "da": "rinfresca_orari", "perche": f"proponeva {vecchio}, gia' passato: orario spostato al prossimo buco libero"}})
+        sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}&stato=eq.aperta", {"azione": a})
+
+
 def proposta_giorno_ora():
     """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
     stesso giorno; scritto sempre «giorno + data».
@@ -652,6 +707,7 @@ def main():
     print("LE BOZZE" + (" (prova: non scrive niente)" if PROVA else ""))
     if not SOLO:
         chiudi_attese_senza_risposta()
+        rinfresca_orari()
     LEZIONI = come_corregge_dre()
     if LEZIONI:
         print(f"  (Clara ha {LEZIONI.count('BOZZA DI CLARA') + LEZIONI.count('SCARTATA')} correzioni di Dre da cui partire)")
