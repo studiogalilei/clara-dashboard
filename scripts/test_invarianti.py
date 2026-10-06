@@ -121,7 +121,16 @@ def _():
     assert C.categoria_di({"classificazione": "negativo"}) == C.NO and C.categoria_di({"classificazione": "nervoso"}) == C.NO
     for c in ("soppresso", "fuori_target", "da_classificare", None):
         assert C.categoria_di({"classificazione": c}) is None, c
-    assert C.categoria_di({"classificazione": "positivo", "fuori": True}) is None, "pipeline e clienti non si toccano"
+    assert C.categoria_di({"classificazione": "positivo", "fuori": True}) is None, "pipeline e clienti senza call non si toccano"
+    # 6/10, Dre: «Meeting booked = quelli sul workspace». Chi ha una call vince su tutto...
+    assert C.categoria_di({"classificazione": "positivo", "fuori": True}, call=True) == C.MEETING
+    assert C.categoria_di({"classificazione": None}, call=True) == C.MEETING, "una call prenotata basta, anche senza classe"
+    assert C.categoria_di({"classificazione": "rinvio"}, call=True) == C.MEETING
+    # ...tranne soppressi, fuori target e persi
+    assert C.categoria_di({"classificazione": "soppresso"}, call=True) is None
+    assert C.categoria_di({"classificazione": "fuori_target"}, call=True) is None
+    assert C.categoria_di({"classificazione": "negativo", "fuori": True, "pipeline_stage": "perso"}, call=True) is None
+    assert C.categoria_di({"classificazione": "negativo"}, call=True) == C.NO, "un no dopo la call resta un No (Witty)"
     # dal campione letto prima di scrivere (6/10)
     assert C.categoria_di({"classificazione": "ooo"}, testo="Hello, my email address has recently changed") == C.GIRATO
     assert C.categoria_di({"classificazione": "ooo"}, testo="questa casella di posta verra' dismessa in data 30.04") == C.GIRATO

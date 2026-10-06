@@ -489,6 +489,17 @@ def main():
                     except RuntimeError:
                         pass
                 updated += 1
+            # MEETING BOOKED A MANO (6/10, Dre): se su Smartlead segna lui «Meeting booked»
+            # su un lead che non e' ancora nel Workspace, nasce la proposta di portarlo in
+            # pipeline, con tutti i suoi dati. Il ref evita i doppioni per sempre.
+            if (lead.get("category") == "Meeting booked" and rec and not rec.get("fuori") and not DRY):
+                try:
+                    sb("POST", "/rest/v1/proposte",
+                       {"tipo": "avanza", "prospect_id": rec["id"], "ref": f"meeting-booked:{em}",
+                        "titolo": f"{(lead.get('company_name') or em)[:60]}: su Smartlead e' Meeting booked. Lo porto in pipeline, in Conoscitiva?",
+                        "perche": "L'hai segnato tu su Smartlead (categoria viola): confermi e va nel Workspace con la sua storia."})
+                except RuntimeError:
+                    pass                                     # c'e' gia': il ref e' unico
             if awaiting and cls not in ("negativo",):
                 da_rispondere.append(f"{em} [{cls}] {lead.get('company_name') or ''}")
             time.sleep(0.12)

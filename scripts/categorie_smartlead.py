@@ -33,7 +33,8 @@ from stanza import sb, sb_tutte, di_clara                     # noqa: E402
 PROVA = "--prova" in sys.argv or os.environ.get("PROVA") == "1"
 
 SI, DOMANDA, AVANTI, GIRATO, NO = "Sì, vuole l'analisi.", "Ha una domanda", "Più avanti", "Girato a un altro.", "No"
-CATEGORIE = (SI, DOMANDA, AVANTI, GIRATO, NO)
+MEETING = "Meeting booked"                       # 6/10, Dre: viola = «quelli sul workspace»
+CATEGORIE = (SI, DOMANDA, AVANTI, GIRATO, NO, MEETING)
 # gli intenti del playbook che sono una domanda, non un si' (INT-03 chi siete, INT-04 come
 # ci avete trovato, INT-15 che societa' siete)
 INTENTI_DOMANDA = {"INT-03", "INT-04", "INT-15"}
@@ -53,13 +54,18 @@ NO_SCRITTO = _re.compile(r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) int
                          r"non fa per noi|non abbiamo (bisogno|necessit|interesse)|abbiamo gi[aà] chi", _re.I)
 
 
-def categoria_di(p, intento=None, girato=False, testo=""):
+def categoria_di(p, intento=None, girato=False, testo="", call=False):
     """La categoria di Dre per un lead, o None se non se ne mette una.
     `testo` e' la sua ultima risposta (solo la parte sua): corregge i casi che la classe
-    sbaglia per costruzione (un cambio d'indirizzo letto come fuori ufficio)."""
+    sbaglia per costruzione (un cambio d'indirizzo letto come fuori ufficio).
+    `call` = ha una call in agenda (conoscitiva, tecnica o avvio): e' «Meeting booked»,
+    il viola di Dre che su Smartlead dice «questo e' sul Workspace» (6/10). Vince su
+    tutto, tranne che per soppressi, fuori target, nervosi e persi."""
+    c = p.get("classificazione")
+    if call and c not in ("soppresso", "fuori_target", "nervoso", "negativo") and p.get("pipeline_stage") != "perso":
+        return MEETING                               # chi ha detto no DOPO la call resta un No (caso Witty)
     if p.get("fuori") or p.get("bloccato"):
         return None
-    c = p.get("classificazione")
     if c in ("soppresso", "fuori_target", "da_classificare", None):
         return None
     if c in ("negativo", "nervoso"):
@@ -122,7 +128,7 @@ DA_GUARDARE = []
 
 
 def da_allineare():
-    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,enriched"
+    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,pipeline_stage,enriched"
                   "&last_reply_at=not.is.null&email=not.is.null")
     intenti, girati = {}, set()
     for x in sb_tutte("/rest/v1/proposte?select=prospect_id,at,azione&prospect_id=not.is.null"
@@ -139,12 +145,14 @@ def da_allineare():
         for x in sb("GET", "/rest/v1/interactions?select=prospect_id,at,body&kind=eq.email_in&order=at.desc&limit=1000"
                            f"&prospect_id=in.({','.join(ids[i:i + 80])})") or []:
             ultima.setdefault(x["prospect_id"], x.get("body") or "")
+    con_call = {a["prospect_id"] for a in sb_tutte("/rest/v1/agenda?select=prospect_id,tipo"
+                                                   "&prospect_id=not.is.null&tipo=in.(conoscitiva,tecnica,avvio)") or []}
     righe, DA_GUARDARE[:] = [], []
     for p in ps:
         testo = lettura.solo_suo(ultima.get(p["id"], ""), con_firma=True) or ""
         if da_guardare(p, testo):
             DA_GUARDARE.append((p.get("company") or p["email"], p.get("classificazione"), testo[:90]))
-        voluta = categoria_di(p, intenti.get(p["id"]), p["id"] in girati, testo)
+        voluta = categoria_di(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call)
         gia = ((p.get("enriched") or {}).get("sl_categoria") or {}).get("nome")
         if voluta and voluta != gia:
             righe.append({"id": p["id"], "email": p["email"], "azienda": p.get("company") or "", "classificazione": p.get("classificazione"),
