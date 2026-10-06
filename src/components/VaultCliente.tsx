@@ -38,7 +38,11 @@ interface Doc { id: number; nome: string; path: string; at: string }
 // una chiamata del Vault: l'evento in agenda sposato col suo riassunto
 interface Chiamata { chiave: string; at: string; titolo: string; riassunto: string | null; link: string | null }
 
-const CALL_TIPI = new Set(['conoscitiva', 'tecnica', 'avvio'])
+// in agenda ci sono anche promemoria che non sono call (budget, rinnovi, invii)
+const NON_CALL = new Set(['budget', 'rinnovo', 'invio', 'scadenza', 'promemoria'])
+const PAROLE_CALL = /call|chiamata|conoscitiva|tecnica|avvio|meet|incontro|riunione|studio galilei/i
+const FINESTRA = 36 * 3600e3            // Gemini e Granola arrivano col loro tempo
+const LUNGO = 2500                      // oltre, e' una trascrizione grezza, non un riassunto
 
 // il riassunto di Gemini arriva nel body del transcript, con il link agli
 // appunti interi in fondo (scripts/appunti.py). Qui si separano le due cose.
@@ -52,23 +56,68 @@ function spezzaTranscript(body: string): { riassunto: string; link: string | nul
   return { riassunto, link }
 }
 
+const vicino = (x: string, y: string) => Math.abs(new Date(x).getTime() - new Date(y).getTime()) < FINESTRA
+
+// IL RIASSUNTO GIUSTO (caccia ai bug 6/10): fra piu' testi della stessa call si preferisce
+// quello di Gemini col link (breve e ordinato), poi la nota «Dalla call» che Clara scrive
+// leggendo il transcript, e solo per ultimo l'inizio di una trascrizione grezza, tagliato.
+function sceltaRiassunto(trans: Interaction[], note: Interaction[], at: string): { riassunto: string | null; link: string | null } {
+  const pezzi = trans.map((t) => spezzaTranscript(t.body ?? ''))
+  const link = pezzi.find((x) => x.link)?.link ?? null
+  const breve = pezzi.find((x) => x.link && x.riassunto && x.riassunto.length <= LUNGO)
+    ?? pezzi.find((x) => x.riassunto && x.riassunto.length <= LUNGO)
+  if (breve) return { riassunto: breve.riassunto, link }
+  const nota = note.find((n) => vicino(n.at, at) || trans.some((t) => vicino(n.at, t.at)))
+  if (nota?.body) return { riassunto: nota.body.replace(/^Dalla call:\s*/i, '').trim(), link }
+  const lungo = pezzi.find((x) => x.riassunto)?.riassunto
+  return { riassunto: lungo ? `${lungo.slice(0, 900).trim()}…\n\n(La trascrizione intera sta negli appunti.)` : null, link }
+}
+
 function chiamateDi(timeline: Interaction[], agenda: AgendaItem[]): Chiamata[] {
   const adesso = new Date().toISOString()
   const trans = timeline.filter((t) => t.kind === 'transcript' || t.kind === 'call')
+  const note = timeline.filter((t) => t.kind === 'nota' && /^dalla call/i.test(t.body ?? ''))
   const usati = new Set<string>()
   const out: Chiamata[] = []
-  for (const a of agenda.filter((x) => x.at <= adesso && CALL_TIPI.has(x.tipo ?? ''))) {
-    // il transcript della stessa giornata (o del giorno dopo: Gemini arriva col suo tempo)
-    const t = trans.find((x) => !usati.has(x.id) && Math.abs(new Date(x.at).getTime() - new Date(a.at).getTime()) < 36 * 3600e3)
-    if (t) usati.add(t.id)
-    const sp = t?.body ? spezzaTranscript(t.body) : null
-    out.push({ chiave: `ag-${a.id}`, at: a.at, titolo: a.titolo, riassunto: sp?.riassunto || null, link: sp?.link ?? null })
-  }
+  // un evento per call: in agenda ci sono doppioni identici (stesso titolo, stesso minuto)
+  const visti = new Set<string>()
+  const eventi = agenda.filter((a) => {
+    if (a.at > adesso || NON_CALL.has(a.tipo ?? '')) return false
+    const k = `${a.titolo.trim().toLowerCase()}|${a.at.slice(0, 16)}`
+    if (visti.has(k)) return false
+    visti.add(k)
+    return true
+  })
+  // ogni transcript va all'evento PIU' VICINO nel tempo, non al primo della finestra
+  // (revisione 7/10: due call in due giorni di fila si rubavano gli appunti)
+  const delEvento = new Map<number, Interaction[]>()
   for (const t of trans) {
-    if (usati.has(t.id) || !t.body) continue
-    const fase = /^\[(.+?)\]/.exec(t.body)?.[1]
-    const sp = spezzaTranscript(t.body)
-    out.push({ chiave: t.id, at: t.at, titolo: fase ? `Call, ${fase.toLowerCase()}` : 'Call', riassunto: sp.riassunto || null, link: sp.link })
+    let meglio: AgendaItem | null = null
+    for (const a of eventi) {
+      if (!vicino(t.at, a.at)) continue
+      if (!meglio || Math.abs(new Date(t.at).getTime() - new Date(a.at).getTime())
+          < Math.abs(new Date(t.at).getTime() - new Date(meglio.at).getTime())) meglio = a
+    }
+    if (meglio) delEvento.set(meglio.id, [...(delEvento.get(meglio.id) ?? []), t])
+  }
+  for (const a of eventi) {
+    const suoi = delEvento.get(a.id) ?? []
+    const eCall = ['conoscitiva', 'tecnica', 'avvio'].includes(a.tipo ?? '') || suoi.length > 0
+      || Boolean(a.link) || PAROLE_CALL.test(a.titolo)
+    if (!eCall) continue
+    suoi.forEach((x) => usati.add(x.id))
+    const { riassunto, link } = sceltaRiassunto(suoi, note, a.at)
+    out.push({ chiave: `ag-${a.id}`, at: a.at, titolo: a.titolo, riassunto, link })
+  }
+  // i transcript senza evento in agenda, raggruppati per call (a 36 ore l'uno dall'altro)
+  const orfani = trans.filter((t) => !usati.has(t.id) && t.body)
+  for (const t of orfani) {
+    if (usati.has(t.id)) continue
+    const gruppo = orfani.filter((x) => !usati.has(x.id) && vicino(x.at, t.at))
+    gruppo.forEach((x) => usati.add(x.id))
+    const fase = gruppo.map((x) => /^\[(.+?)\]/.exec(x.body ?? '')?.[1]).find(Boolean)
+    const { riassunto, link } = sceltaRiassunto(gruppo, note, t.at)
+    out.push({ chiave: t.id, at: t.at, titolo: fase ? `Call, ${fase.toLowerCase()}` : 'Call', riassunto, link })
   }
   return out.sort((x, y) => y.at.localeCompare(x.at))
 }
@@ -150,7 +199,12 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
       .then(({ data }) => { if (vivo) setAgendaSua((data as AgendaItem[]) ?? []) })
     supabase.from('referenti').select('id,nome,ruolo,email,telefono,nota').eq('prospect_id', id)
       .order('at', { ascending: true }).limit(30)
-      .then(({ data }) => { if (vivo) setReferenti((data as Referente[]) ?? []) })
+      .then(({ data, error }) => {
+        if (!vivo) return
+        // 7/10: un errore non e' «nessun referente» (la tabella v75 puo' non essere ancora attiva)
+        if (error) setEsito(`I referenti in piu' non si leggono: ${error.message}`)
+        setReferenti((data as Referente[]) ?? [])
+      })
     supabase.from('preventivi').select('id,numero,titolo,importo,mensile,stato,pagato_il,inviato_il,pdf_path')
       .eq('prospect_id', id).order('creato_il', { ascending: false }).limit(20)
       .then(({ data }) => { if (vivo) setPreventivi((data as Prev[]) ?? []) })
@@ -385,7 +439,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
                       {c.riassunto && <Azione su={() => scarica(`call-${fmtDateShort(c.at).replace(/\//g, '-')}.txt`, `${c.titolo}, ${fmtDateShort(c.at)}\n\n${c.riassunto}`)} tip="Scarica il riassunto">Scarica</Azione>}
                       {c.riassunto && <Azione su={() => void inChat(`Call «${c.titolo}» del ${fmtDateShort(c.at)}, il riassunto:\n${c.riassunto}`)} tip="Manda il riassunto nella chat della squadra">In chat</Azione>}
                     </div>
-                    {!c.riassunto && <p className="mt-0.5 pl-[68px] text-xs text-spento">Senza riassunto: gli appunti non sono ancora arrivati.</p>}
+                    {!c.riassunto && <p className="mt-0.5 pl-[68px] text-xs text-spento">{Date.now() - new Date(c.at).getTime() > 3 * 86400e3 ? 'Senza appunti.' : 'Gli appunti non sono ancora arrivati.'}</p>}
                     {vedo === c.chiave && c.riassunto && (
                       <p className="mt-1.5 whitespace-pre-wrap rounded-lg bg-velo/60 px-3 py-2 text-[13px] leading-snug">{c.riassunto}</p>
                     )}

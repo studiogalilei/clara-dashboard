@@ -59,7 +59,7 @@ import sys
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, quando          # noqa: E402
+from stanza import sb, di_clara, contattabile, quando, fit_bocciato  # noqa: E402
 
 PROVA = "--prova" in sys.argv
 OMBRA = "--ombra" in sys.argv
@@ -172,6 +172,10 @@ def perche_no_seguito(pr, p):
         no.append("gia' passata di qui")
     if gruppo not in seguiti.GRUPPI_DAL_CODICE:
         no.append(f"non e' un follow-up col template ({gruppo or 'prima risposta'})")
+    # 7/10: il giorno spostato da Dre sulla bozza gia' pronta (caso Jaam Italia): prima
+    # di quel giorno non parte da sola, anche se tutto il resto e' in ordine
+    if str(az.get("parte_il") or "")[:10] > datetime.date.today().isoformat():
+        no.append(f"parte il {str(az['parte_il'])[8:10]}/{str(az['parte_il'])[5:7]}, il giorno scelto da Dre")
     if not az.get("testo_dal_codice"):
         no.append("il testo l'ha scritto il modello, non il codice")
     if let.get("coerenza") != "COERENTE":
@@ -263,16 +267,7 @@ def perche_no(pr, p):
     return no
 
 
-def fit_bocciato(p):
-    """Il fit ha detto NO e Dre non ha ancora deciso (6/10: «la soppressione non la
-    fa il sistema: appare nel Workspace col motivo, e io scelgo se sopprimere o
-    inviare comunque»). Con la decisione 'invia' il blocco sparisce; la decisione
-    'soppresso' chiude da sola (il lead non e' piu' contattabile)."""
-    e = (p or {}).get("enriched") or {}
-    v2 = (e.get("google_fit_v2") or {}).get("verdetto")
-    v1 = (e.get("google_fit") or {}).get("verdetto")
-    bocciato = (v2 == "NO") or (v2 is None and v1 == "NO")
-    return bocciato and e.get("google_fit_decisione") != "invia"
+# fit_bocciato vive in stanza.py (7/10): una regola sola per tutti i copioni
 
 
 def verdetto_revisore(testo):

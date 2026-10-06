@@ -46,7 +46,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import casi
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando, senza_trattini, sb_tutte     # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato  # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
 
@@ -568,6 +568,18 @@ def come_corregge_dre(quante=8):
             "cosa toglie, cosa aggiunge. Parti gia' da li'.\n\n" + "\n\n".join(lezioni))
 
 
+def analisi_impossibile(p):
+    """L'analisi non arrivera': non c'e' il PDF e il fit l'ha bocciata, oppure Dre ha detto
+    «invia comunque» ma il motore delle analisi non la puo' generare (sito illeggibile).
+    Promettere una cosa che non arriva e' peggio che dire di no (29/9, Elettroone)."""
+    if p.get("analysis_pdf"):
+        return False
+    if fit_bocciato(p):
+        return True
+    import analisi_auto
+    return fit_di(p)[2] == "invia" and not analisi_auto.servita(p)
+
+
 def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     fatti = {
         "nome": p.get("name") or "", "azienda": p.get("company") or "", "email": p.get("email"),
@@ -580,11 +592,10 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
         # l'analisi»: ma il fit dice NO (50 ricerche/mese a Trento, meno di due
         # clic al giorno), quindi quell'analisi non nascera'. Promettere una cosa
         # che non arriva e' peggio che dire di no. Lo stesso su Studio Canova.
-        "analisi_non_si_puo_fare": (not p.get("analysis_pdf")
-                                    and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO"),
-        "perche_niente_analisi": (((p.get("enriched") or {}).get("google_fit") or {}).get("motivo") or "")[:160]
-        if (not p.get("analysis_pdf")
-            and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO") else "",
+        # 7/10: il fit si legge in un modo solo (stanza.fit_di, il nuovo vince sul vecchio),
+        # e se Dre dal triage ha detto «invia comunque» l'analisi nasce: si promette
+        "analisi_non_si_puo_fare": analisi_impossibile(p),
+        "perche_niente_analisi": ((fit_di(p)[1] or "il sito non si legge")[:160] if analisi_impossibile(p) else ""),
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
     # il Google Fit di Clara (googlefit.py): il numero della zona va nel messaggio,
@@ -766,6 +777,12 @@ def main():
         if p.get("stage") in INTOCCABILI:
             fuori_coda.append((p, f"non si ricontatta: nel frattempo e' «{p.get('stage')}»"))
             continue
+        # 7/10: lo stesso per chi nel frattempo e' diventato soppresso, negativo o nervoso
+        # (il «Sopprimi» del triage, una rilettura): prima restava in coda per sempre e
+        # questo motore lo riprendeva a ogni giro, in silenzio
+        if p.get("classificazione") in ("soppresso", "negativo", "nervoso", "fuori_target", "persona_sbagliata"):
+            fuori_coda.append((p, f"non si ricontatta: nel frattempo e' «{p.get('classificazione')}»"))
+            continue
         if p["id"] in aperte or p.get("coda") not in lettura.GRUPPI:
             continue
         candidate.append((p, p["coda"]))
@@ -858,8 +875,7 @@ def main():
             b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
             return (p, gruppo, nome, None, [], letti, None)
-        niente_analisi = (not p.get("analysis_pdf")
-                          and ((p.get("enriched") or {}).get("google_fit") or {}).get("verdetto") == "NO")
+        niente_analisi = analisi_impossibile(p)     # 7/10: regola unica, decisione di Dre compresa
         # IL TESTO DI DRE (29/9: «basta seguire questo tutte le volte possibili»): se per
         # l'intento c'e' un suo template, la bozza e' quello, composto dal codice. Il testo
         # del modello resta accanto (bozza_modello). Se l'analisi non puo' nascere, no:

@@ -1376,16 +1376,96 @@ def _():
     assert R.conferma({"enriched": {}}, "soppresso") == "applica", "la richiesta di rimozione vale subito"
 
 
-@prova("il timer del follow-up: analisi + 5 giorni, ma il giorno di Dre vince (6/10)")
+@prova("il timer del follow-up: analisi + 5 giorni, ma il giorno di Dre vince, in un campo suo (6-7/10)")
 def _():
     import followup as F
     import datetime as _dt
     inviata = _dt.date(2026, 10, 1)
-    assert F.giorno_follow_up(inviata, None) == (_dt.date(2026, 10, 6), False)
-    assert F.giorno_follow_up(inviata, "2026-10-20") == (_dt.date(2026, 10, 20), True)
-    assert F.giorno_follow_up(inviata, "2026-10-20T09:00:00+00:00") == (_dt.date(2026, 10, 20), True)
+    assert F.giorno_follow_up(inviata, {}) == (_dt.date(2026, 10, 6), False)
+    assert F.giorno_follow_up(inviata, {"follow_up_il": "2026-10-20"}) == (_dt.date(2026, 10, 20), True)
     # una data rotta non ferma il giro: si torna alla regola dei 5 giorni
-    assert F.giorno_follow_up(inviata, "boh") == (_dt.date(2026, 10, 6), False)
+    assert F.giorno_follow_up(inviata, {"follow_up_il": "boh"}) == (_dt.date(2026, 10, 6), False)
+    # 7/10: la data detta dal LEAD (next_action_date, rinvio) non e' il giorno di Dre
+    assert F.giorno_follow_up(inviata, {"next_action_date": "2027-01-10"}) == (_dt.date(2026, 10, 6), False)
+
+
+@prova("il giorno di Dre ferma anche la CODA, non solo lo schermo (caccia ai bug 6/10)")
+def _():
+    import followup as F
+    import datetime as _dt
+    vecchia = (_dt.date.today() - _dt.timedelta(days=20)).isoformat()
+    lontano = (_dt.date.today() + _dt.timedelta(days=15)).isoformat()
+    p = {"id": "x", "company": "Prova", "email": "a@b.it", "analysis_sent_at": vecchia, "last_reply_at": None,
+         "coda": None, "follow_up_il": lontano}
+    messi = []
+    vero = (F.sb, F.sb_tutte, F.in_coda, F.calendario, F.mini_followup, F._fu)
+    try:
+        F._fu = lambda: ",follow_up_il"
+        F.sb = lambda m, path, corpo=None, h=None: [p] if path.startswith("/rest/v1/prospects?select") else []
+        F.sb_tutte = lambda path, **k: []
+        F.in_coda = lambda pid, gruppo: messi.append(pid)
+        F.calendario = lambda prova, oggi: None
+        F.mini_followup = lambda prova, oggi: 0
+        F.main()
+        assert not messi, "accodato prima del giorno scelto da Dre"
+        p["follow_up_il"] = None
+        F.main()
+        assert messi == ["x"], "senza giorno scelto, analisi+5 deve accodare"
+    finally:
+        F.sb, F.sb_tutte, F.in_coda, F.calendario, F.mini_followup, F._fu = vero
+
+
+@prova("il Google Fit si legge in un modo solo: il nuovo vince, la decisione di Dre riapre (7/10)")
+def _():
+    from stanza import fit_di, fit_bocciato
+    v1no = {"google_fit": {"verdetto": "NO", "motivo": "vecchio"}}
+    assert fit_di({"enriched": v1no})[:2] == ("NO", "vecchio")
+    assert fit_bocciato({"enriched": v1no})
+    # caso SAD Sanificazioni: v1 NO ma v2 FORSE -> non e' fuori target, per NESSUN copione
+    assert not fit_bocciato({"enriched": {**v1no, "google_fit_v2": {"verdetto": "FORSE"}}})
+    assert fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO", "motivo": "portale"}}})
+    assert not fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "invia"}})
+    assert fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "soppresso"}})
+    # bozze.py e prima_risposta usano QUESTA regola, non una copia
+    import pathlib
+    qui = pathlib.Path(__file__).parent
+    for f in ("bozze.py", "prima_risposta.py"):
+        t = qui.joinpath(f).read_text(encoding="utf-8")
+        assert 'get("google_fit") or {}).get("verdetto") == "NO"' not in t, f"{f} legge ancora solo il fit vecchio"
+
+
+@prova("«Invia comunque» passa sopra alle esclusioni dell'analisi, il sito illeggibile no (7/10)")
+def _():
+    import analisi_auto as A
+    agenzia = {"enriched": {"google_fit": {"verdetto": "NO", "sito_letto": True, "esclusione": "agenzia"}}}
+    assert not A.servita(agenzia)
+    assert A.servita({"enriched": {**agenzia["enriched"], "google_fit_decisione": "invia"}})
+    assert not A.servita({"enriched": {"google_fit": {"verdetto": "NO"}, "google_fit_decisione": "invia"}}), "senza sito letto non si genera"
+    # e la bozza non promette un'analisi che con «invia comunque» non puo' nascere
+    import bozze as B
+    assert B.analisi_impossibile({"enriched": {"google_fit": {"verdetto": "NO"}, "google_fit_decisione": "invia"}})
+    assert not B.analisi_impossibile({"enriched": {"google_fit": {"verdetto": "NO", "sito_letto": True}, "google_fit_decisione": "invia"}})
+    assert not B.analisi_impossibile({"analysis_pdf": "x.pdf", "enriched": {"google_fit": {"verdetto": "NO"}}})
+    # il fit nuovo vale come sito letto solo se ha capito cosa fanno (revisione 7/10)
+    assert A.servita({"enriched": {"google_fit_v2": {"verdetto": "SI", "cosa_fa": "serramenti"}}})
+    assert not A.servita({"enriched": {"google_fit_v2": {"verdetto": "FORSE", "cosa_fa": None, "motivo": "il sito non si legge"}}})
+    # Keyword Planner caduto ma sito letto: si genera lo stesso
+    assert A.servita({"enriched": {"google_fit_v2": {"verdetto": "FORSE", "cosa_fa": "serramenti", "errore": "planner giu'"}}})
+    # il brief dell'analisi legge il fit unito: il nuovo vince, il vecchio riempie
+    u = A.fit_unito({"enriched": {"google_fit": {"verdetto": "NO", "settore": "infissi", "cosa_fa": "vecchio"},
+                                  "google_fit_v2": {"verdetto": "FORSE", "cosa_fa": "nuovo", "motivo": "m"}}})
+    assert (u["verdetto"], u["cosa_fa"], u["settore"]) == ("FORSE", "nuovo", "infissi")
+
+
+@prova("una bozza di follow-up col giorno spostato da Dre non parte prima di quel giorno (caso Jaam, 7/10)")
+def _():
+    import prima_risposta as R
+    import datetime as _dt
+    domani = (_dt.date.today() + _dt.timedelta(days=1)).isoformat()
+    pr = {"tipo": "risposta", "titolo": "FU", "azione": {"parte_il": domani, "lettura": {"gruppo": "FOLLOW UP 1"}}}
+    assert any("giorno scelto da Dre" in m for m in R.perche_no_seguito(pr, {"email": "a@b.it"}))
+    pr["azione"]["parte_il"] = _dt.date.today().isoformat()
+    assert not any("giorno scelto da Dre" in m for m in R.perche_no_seguito(pr, {"email": "a@b.it"}))
 
 
 @prova("il FOLLOW UP 1 non si mette in coda a chi ha gia' una bozza aperta in Posta (caso SCUDO, 6/10)")

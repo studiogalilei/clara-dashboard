@@ -176,6 +176,7 @@ export interface Prospect {
   // chi la segue: si scrive a mano nel Foglio, e ci si scrive da solo chi
   // aggiunge un'azienda. E' anche una delle chiavi del perimetro
   chi_segue: string | null
+  follow_up_il?: string | null   // il giorno del prossimo follow-up scelto da Dre (schema_v76)
 }
 
 export interface Interaction {

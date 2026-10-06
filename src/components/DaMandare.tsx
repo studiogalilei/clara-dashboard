@@ -119,13 +119,16 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
     const agg: Record<string, unknown> = { awaiting_us: false }
     if (allego && p.analysis_pdf) { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString() }
     if (pr.azione?.intento === 'INT-GB') { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString(); agg.no_followup = true }
-    await supabase.from('prospects').update(agg).eq('id', p.id)
+    // la mail e' partita: la bozza si chiude in ogni caso (revisione 7/10, rischio doppio invio)
+    const { error: e1 } = await supabase.from('prospects').update(agg).eq('id', p.id)
     // 29/9: la correzione di Dre resta scritta (bozza di Clara vs testo mandato).
     // Senza questa riga `lezioni` non vede piu' niente da quando si manda a mano,
     // e le correzioni non diventano mai regole.
     const azione = { ...(pr.azione ?? {}), bozza_originale: pr.azione?.bozza_originale ?? pr.azione?.bozza, bozza: corpo }
-    await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', pr.id)
-    setEsito('Segnata come mandata a mano.'); setLavoro(false); setPr(null)
+    const { error: e2 } = await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', pr.id)
+    // 7/10: prima diceva «segnata» anche quando non lo era, e la bozza tornava aperta
+    if (e2) { setEsito(`La mail è nella storia, ma la bozza resta aperta: non riapprovarla. ${e2.message}`); setLavoro(false); return }
+    setEsito(e1 ? `Segnata come mandata, ma la scheda non si è aggiornata: ${e1.message}` : 'Segnata come mandata a mano.'); setLavoro(false); setPr(null)
   }
 
   async function nonCosi() {
@@ -133,7 +136,8 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
     const motivo = window.prompt('Cosa non va nella bozza? Una riga: Clara la usa per la prossima.') ?? ''
     if (!motivo.trim()) return
     setLavoro(true)
-    await supabase.from('proposte').update({ stato: 'no', risposta: `NO: ${motivo.trim()}`, risposta_il: new Date().toISOString() }).eq('id', pr.id)
+    const { error } = await supabase.from('proposte').update({ stato: 'no', risposta: `NO: ${motivo.trim()}`, risposta_il: new Date().toISOString() }).eq('id', pr.id)
+    if (error) { setEsito(`Non è scartata: ${error.message}. Riprova, la nota non è andata persa.`); setLavoro(false); return }
     setEsito('Scartata. Clara ne scrive un\'altra al prossimo giro, tenendo conto della nota.'); setLavoro(false); setPr(null)
   }
 

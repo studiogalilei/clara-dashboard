@@ -12,9 +12,10 @@ import { Card } from './ui'
 // mette in coda. Qui si legge, si raggruppa per giorno e si decide sulle eccezioni.
 // Le bozze gia' pronte in Posta stanno in «Oggi», con quello che l'ombra ha deciso.
 
-const GRUPPI = ['FOLLOW UP 1', 'MINI FOLLOW UP', 'RIPRESA', 'RINVIO SCADUTO', 'RICONTATTO OOO']
+// 7/10: anche i FOLLOW UP SU MISURA (nati il 5/10): 103 bozze pronte erano invisibili qui
+const GRUPPI = ['FOLLOW UP 1', 'FOLLOW UP SU MISURA', 'MINI FOLLOW UP', 'RIPRESA', 'RINVIO SCADUTO', 'RICONTATTO OOO']
 const NOME: Record<string, string> = {
-  'FOLLOW UP 1': 'Follow up', 'MINI FOLLOW UP': 'Mini follow up', RIPRESA: 'Ripresa',
+  'FOLLOW UP 1': 'Follow up', 'FOLLOW UP SU MISURA': 'Su misura', 'MINI FOLLOW UP': 'Mini follow up', RIPRESA: 'Ripresa',
   'RINVIO SCADUTO': 'Rinvio', 'RICONTATTO OOO': 'Dopo le ferie',
 }
 
@@ -63,8 +64,10 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
         const gruppo = ((az.lettura as { gruppo?: string } | undefined)?.gruppo) ?? ''
         if (!GRUPPI.includes(gruppo)) continue
         const ombra = az.ombra as { esito?: string; motivo?: string } | undefined
+        const parte = String((az as { parte_il?: string }).parte_il ?? '').slice(0, 10)
         perId.set(x.prospect_id, {
-          prospect_id: x.prospect_id, gruppo, il: adesso, perche: 'bozza pronta in Posta', nome: '',
+          prospect_id: x.prospect_id, gruppo, il: parte > adesso ? parte : adesso,
+          perche: parte > adesso ? 'bozza pronta, parte il giorno scelto da te' : 'bozza pronta in Posta', nome: '',
           proposta: { id: x.id, esito: ombra?.esito, motivo: ombra?.motivo, dalCodice: Boolean(az.testo_dal_codice), azione: az },
         })
       }
@@ -108,6 +111,8 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
     const passi = [
       () => supabase.from('prospects').update({ no_followup: true, coda: null }).eq('id', r.prospect_id),
       ...(r.proposta ? [() => supabase.from('proposte').update({ stato: 'no', risposta: 'Niente follow-up (dal calendario dei follow-up)' }).eq('id', r.proposta!.id)] : []),
+      // 7/10: senza la regola v76 questa tocca zero righe senza errore; la scheda (no_followup)
+      // e' gia' la verita' e il ricalcolo orario toglie la riga comunque
       () => supabase.from('seguiti_calendario').delete().eq('prospect_id', r.prospect_id),
     ]
     for (const passo of passi) {
@@ -119,18 +124,40 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
     setChiedo(null); setLavoro(null)
   }
 
-  // SPOSTARE IL GIORNO: la data di Dre finisce in next_action_date (che per il
-  // motore vince su analisi+5, followup.giorno_follow_up) e subito anche nel
-  // calendario, cosi' la riga si sposta senza aspettare il prossimo giro.
+  // SPOSTARE IL GIORNO (7/10): il giorno di Dre ha una colonna sua, prospects.follow_up_il
+  // (schema_v76), che il motore legge per la coda e per il calendario di OGNI gruppo
+  // (stanza.giorno_scelto). Prima stava in next_action_date, dove il sistema scrive la data detta dal lead.
+  // Se la bozza e' gia' pronta, il giorno va anche dentro la bozza (azione.parte_il):
+  // prima di quel giorno il cancello non la fa partire da sola.
   async function spostaGiorno(r: Riga, nuovo: string) {
-    if (!nuovo || nuovo === r.il) return
+    const mostrato = String((r.proposta?.azione as { parte_il?: string } | undefined)?.parte_il ?? r.il).slice(0, 10)
+    if (!nuovo || nuovo === mostrato) return
     setLavoro(r.prospect_id)
-    const { error } = await supabase.from('prospects').update({ next_action_date: nuovo }).eq('id', r.prospect_id)
-    if (error) { setGuaio(`Il giorno non si sposta: ${error.message}`); setLavoro(null); return }
-    await supabase.from('seguiti_calendario').update({ il: nuovo, perche: 'giorno scelto da te' }).eq('prospect_id', r.prospect_id)
-    setGuaio(null)
-    setRighe((l) => (l ?? []).map((x) => (x.prospect_id === r.prospect_id ? { ...x, il: nuovo, perche: 'giorno scelto da te' } : x))
-      .sort((a, b) => a.il.localeCompare(b.il)))
+    // 7/10 (revisione): una colonna sua, scritta da sola. Dentro enriched la cancellava
+    // ogni copione che riscrive enriched intero.
+    const { error } = await supabase.from('prospects').update({ follow_up_il: nuovo }).eq('id', r.prospect_id)
+    if (error) {
+      setGuaio(/follow_up_il/.test(error.message)
+        ? 'Per spostare i giorni manca un passo in Supabase (schema_v76): è nel foglio «Da incollare in Supabase».'
+        : `Il giorno non si sposta: ${error.message}`)
+      setLavoro(null); return
+    }
+    if (r.proposta) {
+      const azione = { ...r.proposta.azione, parte_il: nuovo }
+      const { error: e2 } = await supabase.from('proposte').update({ azione }).eq('id', r.proposta.id)
+      if (e2) { setGuaio(`Il giorno è salvato, ma la bozza in Posta non l'ha preso: ${e2.message}`); setLavoro(null); return }
+      r = { ...r, proposta: { ...r.proposta, azione } }
+    }
+    // il calendario: se il database non lascia scrivere (regola v76 non ancora applicata)
+    // tocca zero righe senza errore. Lo si dice com'e': la scheda e' gia' a posto, il
+    // calendario si riallinea al ricalcolo orario.
+    const { data: toccate, error: e3 } = await supabase.from('seguiti_calendario')
+      .update({ il: nuovo, perche: 'giorno scelto da te' }).eq('prospect_id', r.prospect_id).select('prospect_id')
+    setGuaio(e3 ? `Il giorno è salvato; il calendario si aggiorna entro un'ora (${e3.message})`
+      : !r.proposta && (toccate ?? []).length === 0 ? 'Il giorno è salvato; il calendario si aggiorna entro un\u2019ora.' : null)
+    const oggiG = oggi()
+    const fatto = { ...r, il: nuovo > oggiG ? nuovo : oggiG, perche: r.proposta ? 'bozza pronta, parte il giorno scelto da te' : 'giorno scelto da te' }
+    setRighe((l) => (l ?? []).map((x) => (x.prospect_id === r.prospect_id ? fatto : x)).sort((a, b) => a.il.localeCompare(b.il)))
     setLavoro(null)
   }
 
@@ -156,7 +183,8 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
     setLavoro(r.prospect_id)
     const { ombra: _via, ...resto } = r.proposta.azione
     void _via
-    await supabase.from('proposte').update({ azione: { ...resto, via_libera: true } }).eq('id', r.proposta.id)
+    const { error } = await supabase.from('proposte').update({ azione: { ...resto, via_libera: true } }).eq('id', r.proposta.id)
+    if (error) setGuaio(`Il via libera non è passato: ${error.message}`)
     setGiro((n) => n + 1); setLavoro(null)
   }
 
@@ -197,8 +225,8 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
                         : r.proposta ? (r.proposta.dalCodice ? 'pronta, col tuo testo' : 'pronta in Posta')
                         : r.perche}
                     </span>
-                    {!r.proposta && (
-                      <input type="date" value={r.il} disabled={lavoro === r.prospect_id}
+                    {(
+                      <input type="date" value={String((r.proposta?.azione as { parte_il?: string } | undefined)?.parte_il ?? r.il).slice(0, 10)} disabled={lavoro === r.prospect_id}
                              onChange={(e) => void spostaGiorno(r, e.target.value)}
                              data-tip="Il giorno in cui parte: spostalo quando vuoi"
                              className="rounded-full border border-bordo px-2 py-0.5 text-[11px] text-tenue outline-none hover:border-navy focus:border-blu" />

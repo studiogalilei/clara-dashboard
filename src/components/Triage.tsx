@@ -86,27 +86,44 @@ export default function Triage({ righe, onOpen, onDeciso }: {
       google_fit_deciso_il: new Date().toISOString(),
       ...(commento ? { google_fit_commento: commento } : {}),
     }
+    // 7/10: il soppresso esce anche dalla coda dei follow-up (prima bozze.py lo riprendeva
+    // a ogni giro, per sempre) e le sue bozze aperte si chiudono col motivo
     const patch = scelta === 'soppresso'
-      ? { enriched, classificazione: 'soppresso', awaiting_us: false, no_followup: true }
+      ? { enriched, classificazione: 'soppresso', awaiting_us: false, no_followup: true, coda: null }
       : { enriched }
     const { error } = await supabase.from('prospects').update(patch).eq('id', p.id)
     if (error) { setGuaio(`Non ho salvato la decisione: ${error.message}`); setScrivo(null); return }
+    const guai: string[] = []
+    if (scelta === 'soppresso') {
+      const { error: e1 } = await supabase.from('proposte')
+        .update({ stato: 'no', risposta: 'NO: soppresso da Dre dal triage fuori target' })
+        .eq('prospect_id', p.id).eq('stato', 'aperta')
+      if (e1) guai.push(`le bozze aperte non si sono chiuse (${e1.message})`)
+    }
     if (scelta === 'soppresso' && p.email) {
+      // il registro «non contattare»: pid e' l'anagrafe numerica, NON l'uuid della scheda
+      // (caccia ai bug 6/10: con l'uuid l'insert falliva sempre sul database vero). Se
+      // l'indirizzo c'e' gia' (indice unico su lower(email), errore 23505) e' gia' protetto:
+      // si scrive e basta, senza una lettura prima (ilike tratterebbe _ e % come jolly)
       const { error: e2 } = await supabase.from('suppressions').insert({
-        kind: 'email', email: p.email, pid: p.id,
+        kind: 'email', email: p.email.toLowerCase(),
         reason: `fuori target: ${r.motivo}${commento ? `. ${commento}` : ''}`, source: 'workspace',
       })
-      if (e2) { setGuaio(`Soppresso sulla scheda, ma la riga in suppressions non è nata: ${e2.message}`); setScrivo(null); return }
+      if (e2 && e2.code !== '23505') guai.push(`la riga nel registro «non contattare» non è nata (${e2.message})`)
     }
     const nota = scelta === 'soppresso'
       ? `SOPPRESSO da Dre dal triage fuori target. Motivo del fit: ${r.motivo}${commento ? `. Nota: ${commento}` : ''}`
       : `Fuori target per il fit, ma Dre ha detto di mandare lo stesso. Motivo del fit: ${r.motivo}${commento ? `. Nota: ${commento}` : ''}`
-    void supabase.from('interactions').insert({ prospect_id: p.id, at: new Date().toISOString(), kind: 'nota', body: nota })
+    const { error: e3 } = await supabase.from('interactions').insert({ prospect_id: p.id, at: new Date().toISOString(), kind: 'nota', body: nota })
+    if (e3) guai.push(`la nota in storia non è nata (${e3.message})`)
+    // la decisione e' salvata comunque: quello che non e' riuscito si dice, con le parole giuste
+    if (guai.length) setGuaio(`Decisione salvata, ma ${guai.join('; ')}.`)
     setScrivo(null)
     onDeciso(p.id)
   }
 
-  if (lista.length === 0) return null
+  // anche sull'ultimo deciso il guaio si deve vedere (revisione 7/10)
+  if (lista.length === 0) return guaio ? <p className="mb-3 inline-block rounded-full bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-900">{guaio}</p> : null
 
   return (
     <div className="mb-3 rounded-2xl border border-amber-300 bg-white">

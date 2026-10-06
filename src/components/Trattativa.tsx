@@ -71,15 +71,24 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
   const [cercaCol, setCercaCol] = useState('')
 
   const carica = useCallback(() => {
-    void supabase.from('prospects').select('*')
-      .or('and(fuori.eq.false,stage.in.(risposto,analisi_inviata,in_follow_up,call_fissata,rinviato,perso)),fuori.eq.true')
-      .order('last_reply_at', { ascending: false, nullsFirst: false })
-      .limit(800)
-      .then(({ data, error }) => {
+    // A PAGINE (7/10): erano 777 righe su un tetto di 800, e alla 801esima le piu' vecchie
+    // sarebbero sparite in silenzio dal cassetto, dai conteggi e dal triage. Il database ne
+    // da' al massimo mille per richiesta: si chiedono a fette finche' finiscono.
+    void (async () => {
+      const tutte: Prospect[] = []
+      for (let da = 0; da < 20000; da += 1000) {
+        const { data, error } = await supabase.from('prospects').select('*')
+          .or('and(fuori.eq.false,stage.in.(risposto,analisi_inviata,in_follow_up,call_fissata,rinviato,perso)),fuori.eq.true')
+          .order('last_reply_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: true })
+          .range(da, da + 999)
         // un errore non e' «nessuno in trattativa»: si dice (5/10)
-        if (error) setGuaio(`Non riesco a leggere la trattativa: ${error.message}`)
-        setRighe((data as Prospect[]) ?? [])
-      })
+        if (error) { setGuaio(`Non riesco a leggere la trattativa: ${error.message}`); break }
+        tutte.push(...((data as Prospect[]) ?? []))
+        if ((data ?? []).length < 1000) break
+      }
+      setRighe(tutte)
+    })()
   }, [])
   useEffect(() => { carica() }, [carica])
 

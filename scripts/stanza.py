@@ -175,6 +175,54 @@ def contattabile(p):
     return True
 
 
+def fit_di(p):
+    """IL GOOGLE FIT, LETTO IN UN MODO SOLO (7/10). Prima c'erano due gerarchie: il
+    triage e la prima risposta leggevano il fit nuovo prima del vecchio, bozze.py e
+    analisi_auto solo il vecchio, e 14 lead avevano i due in disaccordo. Ora tutti
+    passano di qui: il nuovo (google_fit_v2) vince, il vecchio vale solo se il nuovo
+    manca. Torna (verdetto, motivo, decisione di Dre o None)."""
+    e = (p or {}).get("enriched") or {}
+    v2 = e.get("google_fit_v2") or {}
+    v1 = e.get("google_fit") or {}
+    fonte = v2 if v2.get("verdetto") else v1
+    return fonte.get("verdetto"), fonte.get("motivo"), e.get("google_fit_decisione")
+
+
+def fit_bocciato(p):
+    """Il fit ha detto NO e Dre non ha ancora deciso «invia comunque» (6/10: la
+    soppressione non la fa il sistema, decide Dre dal triage)."""
+    verdetto, _, decisione = fit_di(p)
+    return verdetto == "NO" and decisione != "invia"
+
+
+_colonne = {}
+
+
+def colonna_c_e(tabella, colonna):
+    """Una colonna nuova esiste gia' nel database vero? (7/10) Il codice puo' arrivare in
+    produzione prima che la migrazione sia incollata in Supabase: chi chiede una colonna
+    che non c'e' riceve un errore e il giro si ferma. Si chiede una volta e si ricorda."""
+    k = (tabella, colonna)
+    if k not in _colonne:
+        try:
+            sb("GET", f"/rest/v1/{tabella}?select={colonna}&limit=1")
+            _colonne[k] = True
+        except Exception:                                     # noqa: BLE001
+            _colonne[k] = False
+    return _colonne[k]
+
+
+def giorno_scelto(p):
+    """Il giorno del follow-up scelto da Dre (7/10): la colonna prospects.follow_up_il
+    (schema_v76). Prima stava in next_action_date, che il sistema usa gia' per la data
+    detta dal lead (rinvio, ferie): due significati nello stesso campo."""
+    v = (p or {}).get("follow_up_il")
+    try:
+        return datetime.date.fromisoformat(str(v)[:10]) if v else None
+    except ValueError:
+        return None
+
+
 def _a_secco():
     """Siamo in una prova a secco? Si guarda la riga di comando e l'ambiente."""
     return ("--prova" in sys.argv or "--dry-run" in sys.argv

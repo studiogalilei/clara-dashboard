@@ -696,11 +696,17 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     const agg: Record<string, unknown> = { awaiting_us: false }
     if (p.azione?.allega) { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString() }
     if (p.azione?.intento === 'INT-GB') { agg.analysis_sent = true; agg.analysis_sent_at = new Date().toISOString(); agg.no_followup = true }
-    await supabase.from('prospects').update(agg).eq('id', p.prospect_id)
+    // 7/10: ogni scrittura si controlla, come in rispondi(). Prima una proposta non chiusa
+    // spariva dallo schermo e restava aperta nel database: riapprovarla = doppio invio vero
+    // la mail e' partita davvero: la bozza si chiude IN OGNI CASO (revisione 7/10: lasciarla
+    // aperta per un errore sulla scheda voleva dire rischiare il doppio invio)
+    const { error: e1 } = await supabase.from('prospects').update(agg).eq('id', p.prospect_id)
     // 29/9: la correzione di Dre resta scritta, cosi' `lezioni` la trova e la propone come regola
     const azione = { ...(p.azione ?? {}), bozza_originale: p.azione?.bozza_originale ?? p.azione?.bozza, bozza: corpo }
-    await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', p.id)
+    const { error: e2 } = await supabase.from('proposte').update({ stato: 'fatta', azione, risposta_il: new Date().toISOString() }).eq('id', p.id)
+    if (e2) { setGuaio(`La mail è nella storia, ma la bozza resta aperta: non riapprovarla. ${e2.message}`); setRispondo(null); return }
     setProposte((l) => l.filter((x) => x.id !== p.id))
+    if (e1) setGuaio(`Mandata e chiusa, ma la scheda non si è aggiornata (aspetta ancora te): ${e1.message}`)
     // 29/9: fatta una, si apre la prossima, come dopo «Approva» (la fila del 25/9)
     inFila(p)
     await scriviMessaggio('controllo', `Mandata a mano: ${p.titolo}`, p.prospect_id)

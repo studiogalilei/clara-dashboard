@@ -521,8 +521,10 @@ function dentroLista(spec: unknown): string[] {
 class Query {
   private tabella: string
   private filtri: Array<(r: Riga) => boolean> = []
-  private ordina: { col: string; asc: boolean } | null = null
+  private ordina: Array<{ col: string; asc: boolean }> = []   // 7/10: piu' order() in fila, come il vero
   private max: number | null = null
+  private da = 0                                               // l'offset di range(), che prima si perdeva
+  private suConflitto: string | null = null
   private patch: Riga | null = null
   private nuovo: Riga | null = null
   private uno = false
@@ -554,7 +556,7 @@ class Query {
     if (clausole.length) this.filtri.push((r) => clausole.some((c) => c(r)))
     return this
   }
-  order(c: string, o?: { ascending?: boolean }) { this.ordina = { col: c, asc: o?.ascending !== false }; return this }
+  order(c: string, o?: { ascending?: boolean }) { this.ordina.push({ col: c, asc: o?.ascending !== false }); return this }
   limit(n: number) { this.max = n; return this }
   single() { this.uno = true; return this }
   // i metodi che il codice vero usa e che qui mancavano: bastava uno per
@@ -574,8 +576,10 @@ class Query {
     })
     return this
   }
-  range(da: number, a: number) { this.max = a - da + 1; return this }
-  upsert(riga: Riga) { this.nuovo = riga; return this }
+  range(da: number, a: number) { this.da = da; this.max = a - da + 1; return this }
+  // 7/10: l'upsert del vero unisce sulla chiave (onConflict); qui duplicava, e la rilettura
+  // tornava la versione vecchia
+  upsert(riga: Riga, o?: { onConflict?: string }) { this.nuovo = riga; this.suConflitto = o?.onConflict ?? 'id'; return this }
   delete() { this.cancella = true; return this }
   update(patch: Riga) { this.patch = patch; return this }
   insert(riga: Riga | Riga[]) { this.nuovo = riga as Riga; return this }
@@ -593,7 +597,14 @@ class Query {
       // e si inserisce anche una lista, come fa la coda di Oggi
       const nuove = (Array.isArray(this.nuovo) ? this.nuovo : [this.nuovo]) as Riga[]
       righe = nuove.map((n) => {
-        const r = { id: 'demo-' + Math.random().toString(36).slice(2, 8), at: new Date().toISOString(), ...n }
+        if (this.suConflitto) {
+          const chiavi = this.suConflitto.split(',').map((k) => k.trim())
+          const gia = (TABELLE[this.tabella] ?? []).find((r) => chiavi.every((k) => n[k] !== undefined && r[k] === n[k]))
+          if (gia) { Object.assign(gia, n); return gia }
+        }
+        // i default del database vero: una proposta nasce «aperta» (schema_v8)
+        const difetti: Riga = this.tabella === 'proposte' ? { stato: 'aperta' } : {}
+        const r = { id: 'demo-' + Math.random().toString(36).slice(2, 8), at: new Date().toISOString(), ...difetti, ...n }
         if (r.at == null) r.at = new Date().toISOString()
         TABELLE[this.tabella] ??= []
         TABELLE[this.tabella].push(r)
@@ -605,18 +616,20 @@ class Query {
     if (this.patch && this.tabella === 'prospects' && ['stage', 'pipeline_stage', 'fuori'].some((k) => k in this.patch!)) {
       righe.forEach((r) => { r.mosso_il = new Date().toISOString() })
     }
-    if (this.ordina) {
-      const { col, asc } = this.ordina
+    if (this.ordina.length) {
       // i numeri si ordinano da numeri: come stringhe 10 veniva prima di 2
       righe = [...righe].sort((a, b) => {
-        const x = a[col], y = b[col]
-        const n = typeof x === 'number' && typeof y === 'number'
-          ? x - y
-          : String(x ?? '').localeCompare(String(y ?? ''))
-        return n * (asc ? 1 : -1)
+        for (const { col, asc } of this.ordina) {
+          const x = a[col], y = b[col]
+          const n = typeof x === 'number' && typeof y === 'number'
+            ? x - y
+            : String(x ?? '').localeCompare(String(y ?? ''))
+          if (n) return n * (asc ? 1 : -1)
+        }
+        return 0
       })
     }
-    if (this.max != null) righe = righe.slice(0, this.max)
+    if (this.max != null || this.da) righe = righe.slice(this.da, this.max != null ? this.da + this.max : undefined)
     // copie fresche: se si restituisse l'oggetto vero del magazzino, React
     // vedrebbe lo stesso riferimento dopo un update e non ridisegnerebbe
     const out = righe.map((r) => ({ ...r }))

@@ -376,17 +376,19 @@ export default function Preventivi({ onOpen }: Props) {
       const gia = (suoi as Array<{ id: number; nome: string }> | null)?.find((g) => g.nome.trim().toLowerCase() === (q.titolo ?? '').trim().toLowerCase())
       if (gia) { await scrivi(q.id, { progetto_id: gia.id }); messaggio += ', agganciato al progetto che c\'era' }
       else {
-        const { data: g } = await supabase.from('progetti').insert({
+        const { data: g, error: eg } = await supabase.from('progetti').insert({
           prospect_id: q.prospect_id, nome: q.titolo ?? 'Progetto', valore: q.importo ?? 0, stato: 'da_iniziare', tipo,
           data_inizio: oggi(), note: `Dal preventivo ${q.numero}`,
         }).select('id').single()
         if (g) { await scrivi(q.id, { progetto_id: g.id }); messaggio += ', progetto creato' }
+        else if (eg) messaggio += `, ma il progetto NON è nato (${eg.message}): crealo da Progetti`
       }
     }
     // il canone del cliente e' quello che ha appena accettato: una verita' sola
     if (q.mensile) {
-      await supabase.from('prospects').update({ canone: q.mensile }).eq('id', q.prospect_id)
-      messaggio += `, canone ${euro(q.mensile)} al mese`
+      // 7/10: il canone si promette solo se e' scritto davvero
+      const { error: ec } = await supabase.from('prospects').update({ canone: q.mensile }).eq('id', q.prospect_id)
+      messaggio += ec ? `, ma il canone NON è aggiornato (${ec.message}): scrivilo in Clienti` : `, canone ${euro(q.mensile)} al mese`
     }
     // e la call di avvio va fissata: una task in cima alla lista
     const { task } = await creaTask({ titolo: `Fissare la call di avvio con ${nomeDi(q.prospect_id)}`, prospect_id: q.prospect_id, scadenza: fraGiorni(3) })
