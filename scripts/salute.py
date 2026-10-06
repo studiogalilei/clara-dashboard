@@ -26,7 +26,9 @@ from stanza import sb, di_clara, contattabile, proponi, sb_tutte        # noqa: 
 
 # le operazioni che possono legittimamente non produrre niente per giorni:
 # guardano e stanno zitte, ed e' giusto cosi'
-MUTE_VA_BENE = {"salute", "backup", "avvisi", "manda", "webhooks", "lezioni", "silenzi",
+# 6/10: «lampo» prende solo le risposte senza bozza, e il giro normale le copre in pochi minuti:
+# il suo lavoro vero e' passare il testimone a postino e prima risposta, che conta a parte
+MUTE_VA_BENE = {"salute", "backup", "avvisi", "manda", "webhooks", "lezioni", "silenzi", "lampo",
                 "scadenze", "diario", "diario_recap", "recap_sera", "recap_pomeriggio",
                 "brief", "posta_ordine", "sync_completo", "crediti", "stripe", "calendario_sg",
                 # queste guardano e parlano solo quando c'e' qualcosa da dire:
