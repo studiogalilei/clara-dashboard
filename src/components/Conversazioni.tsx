@@ -172,21 +172,36 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     return () => { vivo = false }
   }, [visibili])
 
-  // il filo a bolle della conversazione aperta: le sue mail, le nostre, le call
+  // il filo a bolle della conversazione aperta: le sue mail, le nostre, le call.
+  // LA SUCCESSIVA E' GIA' PRONTA (gold, 6/10): mentre leggi questa si carica il filo di quella
+  // dopo, cosi' quando approvi la fila va avanti senza la rotella. Ogni filo si legge una volta.
+  const fili = useRef(new Map<string, Promise<Battuta[]>>())
+  const leggiFilo = useCallback((id: string): Promise<Battuta[]> => {
+    let p = fili.current.get(id)
+    if (!p) {
+      p = Promise.resolve(supabase.from('interactions')
+        .select('id,kind,at,body')
+        .eq('prospect_id', id)
+        .in('kind', ['email_in', 'email_out', 'call', 'nota'])
+        .order('at', { ascending: false })
+        .limit(40))
+        .then(({ data }) => ((data as Battuta[]) ?? []).reverse())
+      fili.current.set(id, p)
+    }
+    return p
+  }, [])
   useEffect(() => {
     if (!aperta) { setFilo(null); return }
     let vivo = true
     setFilo(null)
     setTesto(aperta.proposta?.azione?.bozza ?? '')
-    supabase.from('interactions')
-      .select('id,kind,at,body')
-      .eq('prospect_id', aperta.id)
-      .in('kind', ['email_in', 'email_out', 'call', 'nota'])
-      .order('at', { ascending: false })
-      .limit(40)
-      .then(({ data }) => { if (vivo) setFilo(((data as Battuta[]) ?? []).reverse()) })
+    void leggiFilo(aperta.id).then((f) => { if (vivo) setFilo(f) })
+    const dopo = dopoDi(aperta, righe, seguiti)
+    if (dopo) void leggiFilo(dopo.id)
     return () => { vivo = false }
-  }, [aperta])
+    // la fila (righe, seguiti) serve solo a sapere chi viene dopo: non deve ricaricare il filo aperto
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aperta, leggiFilo])
 
   useEffect(() => {
     setVisto(false)
