@@ -36,15 +36,12 @@ export default function Adesso() {
   useEffect(() => {
     let vivo = true
     ;(async () => {
-      // chi non e' ceo vede in Adesso solo le proposte intestate a lui: le bozze senza nome
-      // (la coda di Dre) le legge anche l'area vendita, ma non sono sue da approvare (6/10)
-      const io = ceo ? null : (await supabase.auth.getUser()).data.user?.id ?? null
       const { data } = await supabase.from('proposte')
-        .select('id,tipo,titolo,perche,prospect_id,at,azione,owner')
+        .select('id,tipo,titolo,perche,prospect_id,at,azione')
         .in('tipo', ['risposta', 'umano']).eq('stato', 'aperta').not('azione->>bozza', 'is', null)
         .order('at', { ascending: true }).limit(300)
-      const ps = ((data ?? []) as Array<{ id: number; titolo: string; perche: string | null; prospect_id: string | null; azione: Record<string, unknown> | null; owner: string | null }>)
-        .filter((p) => p.prospect_id && (ceo || (io !== null && p.owner === io)))
+      const ps = ((data ?? []) as Array<{ id: number; titolo: string; perche: string | null; prospect_id: string | null; azione: Record<string, unknown> | null }>)
+        .filter((p) => p.prospect_id)
       const ids = [...new Set(ps.map((p) => p.prospect_id as string))]
       const schede = new Map<string, { company: string | null; name: string | null; email: string; last_reply_at: string | null }>()
       for (let i = 0; i < ids.length; i += 100) {
@@ -72,7 +69,7 @@ export default function Adesso() {
       if (vivo) setVoci(lista)
     })()
     return () => { vivo = false }
-  }, [giro, ceo])
+  }, [giro])
 
   // la regola del 5/10, contata come la conta il battito (scripts/battito.py, giornata):
   // 1) chi ha detto si' e non ha ancora l'analisi;
