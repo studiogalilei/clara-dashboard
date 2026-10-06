@@ -147,7 +147,14 @@ def main():
         if "(SG)" in doc["name"]:
             continue
         mio = di_chi_e.get(doc["id"])
-        testo = drive_testo(doc["id"], email=mio)
+        # un file solo che sparisce (404) o un Google che inciampa (500) non ferma gli altri:
+        # il 5/10 due giri interi sono caduti cosi'. Si salta, si dice, e al giro dopo si riprova.
+        try:
+            testo = drive_testo(doc["id"], email=mio)
+        except Exception as e:                               # noqa: BLE001
+            print(f"  !  {doc['name'][:60]}: non letto ({str(e)[:80]})")
+            saltati += 1
+            continue
         if len(testo.strip()) < 200:
             continue
         pid, come = di_chi(doc, testo, aziende)
