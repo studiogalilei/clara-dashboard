@@ -27,7 +27,7 @@ echo
 echo "════ Promemoria ════"
 echo "· Le regole complete stanno nel vault: $VAULT/CLAUDE.md"
 echo "· Il blocco Parked CHIUDE ogni messaggio (in fondo) finché c'è una cosa aperta."
-echo "· L'invio automatico è SPENTO (28/9): Clara prepara, Dre copia e manda."
+echo "· Parte da sola SOLO la prima risposta (dal 29/9, tetto 15 al giorno, 9-17). I follow-up automatici sono in ombra. Il resto lo approva Dre in Posta. Gli interruttori veri stanno nella tabella operazioni."
 echo "· Prima di consegnare: npm run controlla · test_invarianti.py · vite build"
 echo "· Una prova a secco NON scrive: proponi() si ferma con --prova o PROVA=1."
 echo "· Per cercare nel passato:  ricorda.py \"cosa cerchi\"  (negli script del vault)"
