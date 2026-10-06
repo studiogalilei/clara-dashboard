@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Spinner, fmtDateShort } from './ui'
+import { percheCosi, prendiDaAprire, rimandata } from '../lib/posta'
+import { giorno } from '../lib/regole'
 
 // LA POSTA PER CONVERSAZIONI (Dre, 5/10: «nel workspace devo avere solo le
 // conversazioni e i follow-up», «tanto rumore e rimbalzo tra Smartlead e
@@ -44,6 +46,18 @@ interface Battuta {
 const MORTI = ['fuori_target', 'soppresso', 'nervoso']
 const AUTO = ['INT-01', 'INT-02', 'INT-03', 'INT-23', 'INT-GB']
 
+// «oggi alle 15:00», «domani alle 9:30», «giovedì alle 15:00»: come lo dice una persona
+function quandoCall(at: string): string {
+  const d = new Date(at)
+  const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+  const g = (x: Date) => x.toLocaleDateString('sv-SE')      // il giorno di qui, non quello di Greenwich
+  const oggi = new Date()
+  const domani = new Date(Date.now() + 86400e3)
+  if (g(d) === g(oggi)) return `oggi alle ${ora}`
+  if (g(d) === g(domani)) return `domani alle ${ora}`
+  return `${d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} alle ${ora}`
+}
+
 function eta(ore: number): string {
   if (ore < 1) return 'da meno di un ora'
   if (ore < 48) return `da ${Math.round(ore)} ore`
@@ -68,22 +82,42 @@ function perRiga(p: { classificazione: string | null }, pr: PropostaMin | null):
 // appena arrivata, quindi non stanno fra chi aspetta. Prima non comparivano proprio (5/10).
 const SEGUITI = ['FOLLOW UP 1', 'MINI FOLLOW UP', 'RINVIO SCADUTO', 'RICONTATTO OOO', 'RIPRESA', 'FOLLOW UP SU MISURA']
 
-export default function Conversazioni({ proposte, rispondi, occupato, invioAcceso = true }: {
+export default function Conversazioni({ proposte, rispondi, occupato, invioAcceso = true, onOpen }: {
   proposte: PropostaMin[]
   rispondi: (p: PropostaMin, si: boolean, muto?: boolean) => Promise<boolean>
   occupato: number | null
   invioAcceso?: boolean
+  onOpen?: (id: string) => void
 }) {
+  // le rimandate a domani non stanno nella fila finche' non arriva il loro giorno
+  const visibili = useMemo(() => proposte.filter((p) => !rimandata(p.azione)), [proposte])
   const [righe, setRighe] = useState<Riga[] | null>(null)
   const [aperta, setAperta] = useState<Riga | null>(null)
   const [filo, setFilo] = useState<Battuta[] | null>(null)
   const [testo, setTesto] = useState('')
   const [aiuto, setAiuto] = useState(false)
   const [seguiti, setSeguiti] = useState<Riga[]>([])
+  // LETTA FINO IN FONDO (gold, 6/10): il bottone si accende quando la fine della bozza e' passata
+  // sotto gli occhi. Sul telefono la barra fissa arrivava prima della fine della mail (V3).
+  const [visto, setVisto] = useState(false)
+  const fine = useRef<HTMLDivElement | null>(null)
+  const lettore = useRef<HTMLDivElement | null>(null)
+  const area = useRef<HTMLTextAreaElement | null>(null)
+  const cresci = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + 2}px`
+  }, [])
+  useLayoutEffect(() => { cresci(area.current) }, [testo, filo, cresci])
+  // ogni conversazione si legge dall'inizio: aprendo la successiva della fila la pagina
+  // restava in fondo, la fine della bozza era gia' a vista e Approva si accendeva da solo
+  useEffect(() => {
+    if (aperta) lettore.current?.scrollIntoView({ block: 'start' })
+  }, [aperta])
 
   // I FOLLOW-UP PRONTI (5/10): le bozze di follow-up con il nome dell'azienda, in ordine alfabetico
   useEffect(() => {
-    const ps = proposte.filter((p) => p.tipo === 'risposta' && p.prospect_id && p.azione?.bozza !== undefined
+    const ps = visibili.filter((p) => p.tipo === 'risposta' && p.prospect_id && p.azione?.bozza !== undefined
       && SEGUITI.includes(String(p.azione?.template ?? '')))
     if (!ps.length) { setSeguiti([]); return }
     let vivo = true
@@ -106,7 +140,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         }).sort((a, b) => a.nome.localeCompare(b.nome)))
       })
     return () => { vivo = false }
-  }, [proposte])
+  }, [visibili])
 
 
   useEffect(() => {
@@ -118,7 +152,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         if (!vivo) return
         const adesso = Date.now()
         const perProspect = new Map<string, PropostaMin>()
-        for (const pr of proposte) if (pr.prospect_id && !perProspect.has(pr.prospect_id)) perProspect.set(pr.prospect_id, pr)
+        for (const pr of visibili) if (pr.prospect_id && !perProspect.has(pr.prospect_id)) perProspect.set(pr.prospect_id, pr)
         const lista = ((data as Array<{ id: string; company: string | null; name: string | null; email: string; last_reply_at: string | null; classificazione: string | null; stage: string | null }>) ?? [])
           .filter((p) => !MORTI.includes(p.classificazione ?? ''))
           .map((p) => {
@@ -135,23 +169,73 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         setRighe(lista)
       })
     return () => { vivo = false }
-  }, [proposte])
+  }, [visibili])
 
-  // il filo a bolle della conversazione aperta: le sue mail, le nostre, le call
+  // il filo a bolle della conversazione aperta: le sue mail, le nostre, le call.
+  // LA SUCCESSIVA E' GIA' PRONTA (gold, 6/10): mentre leggi questa si carica il filo di quella
+  // dopo, cosi' quando approvi la fila va avanti senza la rotella. Ogni filo si legge una volta.
+  const fili = useRef(new Map<string, Promise<Battuta[]>>())
+  const leggiFilo = useCallback((id: string): Promise<Battuta[]> => {
+    let p = fili.current.get(id)
+    if (!p) {
+      p = Promise.resolve(supabase.from('interactions')
+        .select('id,kind,at,body')
+        .eq('prospect_id', id)
+        .in('kind', ['email_in', 'email_out', 'call', 'nota'])
+        .order('at', { ascending: false })
+        .limit(40))
+        .then(({ data }) => ((data as Battuta[]) ?? []).reverse())
+      fili.current.set(id, p)
+    }
+    return p
+  }, [])
   useEffect(() => {
     if (!aperta) { setFilo(null); return }
     let vivo = true
     setFilo(null)
     setTesto(aperta.proposta?.azione?.bozza ?? '')
-    supabase.from('interactions')
-      .select('id,kind,at,body')
-      .eq('prospect_id', aperta.id)
-      .in('kind', ['email_in', 'email_out', 'call', 'nota'])
-      .order('at', { ascending: false })
-      .limit(40)
-      .then(({ data }) => { if (vivo) setFilo(((data as Battuta[]) ?? []).reverse()) })
+    void leggiFilo(aperta.id).then((f) => { if (vivo) setFilo(f) })
+    const dopo = dopoDi(aperta, righe, seguiti)
+    if (dopo) void leggiFilo(dopo.id)
     return () => { vivo = false }
-  }, [aperta])
+    // la fila (righe, seguiti) serve solo a sapere chi viene dopo: non deve ricaricare il filo aperto
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aperta, leggiFilo])
+
+  useEffect(() => {
+    setVisto(false)
+    if (!aperta || filo === null) return
+    const el = fine.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setVisto(true); return }
+    // lo schermo vero, non il riquadro: al telefono e' la pagina intera a scorrere, e in basso
+    // ci sono la barra delle sezioni e quella dei bottoni: la fine conta se sta sopra di loro
+    const oss = new IntersectionObserver((v) => { if (v.some((x) => x.isIntersecting)) setVisto(true) }, { threshold: 0, rootMargin: '0px 0px -96px 0px' })
+    oss.observe(el)
+    return () => oss.disconnect()
+  }, [aperta, filo])
+
+  // arrivati da «Leggi e approva» di Oggi: si apre quella conversazione appena c'e'
+  const [voglio, setVoglio] = useState(() => prendiDaAprire())
+  useEffect(() => {
+    if (voglio === null || righe === null) return
+    const tutte = [...righe, ...seguiti]
+    const r = tutte.find((x) => x.proposta?.id === voglio.proposta)
+      ?? tutte.find((x) => x.proposta && x.id === voglio.azienda)
+    if (r) { setAperta(r); setVoglio(null) }
+  }, [voglio, righe, seguiti])
+
+  // POSTA FINITA (gold, 6/10, dalla V1): a fila vuota la Posta non resta una lista vuota,
+  // dice cosa viene dopo: la prossima call, con «Prepara» che apre la scheda per la call
+  const [prossimaCall, setProssimaCall] = useState<{ at: string; tipo: string | null; titolo: string | null; prospect_id: string | null } | null>(null)
+  const vuota = righe !== null && !(righe ?? []).some((r) => r.daTe) && seguiti.length === 0
+  useEffect(() => {
+    if (!vuota) return
+    let vivo = true
+    supabase.from('agenda').select('at,tipo,titolo,prospect_id').gte('at', new Date().toISOString())
+      .not('prospect_id', 'is', null).order('at', { ascending: true }).limit(1)
+      .then(({ data }) => { if (vivo) setProssimaCall(((data ?? []) as Array<{ at: string; tipo: string | null; titolo: string | null; prospect_id: string | null }>)[0] ?? null) })
+    return () => { vivo = false }
+  }, [vuota])
 
   const daTe = useMemo(() => (righe ?? []).filter((r) => r.daTe), [righe])
   const inCorsa = useMemo(() => (righe ?? []).filter((r) => !r.daTe), [righe])
@@ -169,27 +253,80 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     const ok = await rispondi(p as PropostaMin, si)
     // 5/10: se non riesce torna tutto com'era, anche la riga (restava fra «in corsa» come partita)
     if (!ok) { setRighe(primaRighe); setSeguiti(primaSeguiti); setAperta(era); return }
-    // LA FILA (5/10): deciso un follow-up si apre il successivo, gia' col filo e la bozza.
+    // LA FILA (5/10, estesa a tutta la Posta nel gold del 6/10): decisa una conversazione si apre
+    // la successiva dello stesso gruppo, gia' col filo e la bozza; finito un gruppo si passa al dopo.
     // Non c'e' un «Approva tutti»: Dre il 25/9 l'ha fatto togliere («ogni bozza si legge e si approva da sola»).
-    if (era.seguito) {
-      const i = primaSeguiti.findIndex((x) => x.proposta?.id === era.proposta?.id)
-      const prossimo = primaSeguiti.filter((x) => x.proposta?.id !== era.proposta?.id)[Math.max(0, i)]
-      if (prossimo) setAperta(prossimo)
+    const prossimo = dopoDi(era, primaRighe, primaSeguiti)
+    if (prossimo) setAperta(prossimo)
+  }
+
+  // DOMANI: si rimanda senza rifiutare, e si va avanti nella fila
+  async function rimanda() {
+    if (!aperta?.proposta) return
+    const era = aperta
+    const pr = aperta.proposta
+    const primaRighe = righe
+    const primaSeguiti = seguiti
+    const al = giorno(new Date(Date.now() + 86400e3))
+    setAperta(null)
+    if (era.seguito) setSeguiti((l) => l.filter((x) => x.proposta?.id !== era.proposta?.id))
+    else setRighe((l) => (l ?? []).map((r) => (r.id === era.id ? { ...r, daTe: false, proposta: null, perche: 'rimandata a domani' } : r)))
+    const { error } = await supabase.from('proposte')
+      .update({ azione: { ...pr.azione, bozza: testo, rimandata_al: al } }).eq('id', pr.id).eq('stato', 'aperta')
+    if (error) { setRighe(primaRighe); setSeguiti(primaSeguiti); setAperta(era); return }
+    const prossimo = dopoDi(era, primaRighe, primaSeguiti)
+    if (prossimo) setAperta(prossimo)
+  }
+
+  // IL TASTO E (gold, 6/10, dalla V2): approva la bozza aperta senza il mouse. Solo a bozza letta
+  // fino in fondo, e mai mentre si scrive in un campo (li' la «e» e' una lettera).
+  const tastoE = useRef<() => void>(() => {})
+  useEffect(() => {
+    const su = (e: KeyboardEvent) => {
+      if (e.key !== 'e' || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      tastoE.current()
     }
+    window.addEventListener('keydown', su)
+    return () => window.removeEventListener('keydown', su)
+  }, [])
+
+  // la fila in cui sta la conversazione aperta, e chi viene dopo
+  const filaDi = useCallback((r: Riga, rs: Riga[] | null, sg: Riga[]): Riga[] =>
+    r.seguito ? sg : (rs ?? []).filter((x) => x.daTe && x.proposta), [])
+  function dopoDi(r: Riga, rs: Riga[] | null, sg: Riga[]): Riga | null {
+    const stessa = (x: Riga) => (x.seguito ? x.proposta?.id === r.proposta?.id : x.id === r.id)
+    const fila = filaDi(r, rs, sg)
+    const i = fila.findIndex(stessa)
+    const resto = fila.filter((x) => !stessa(x))
+    if (resto.length) return resto[Math.min(Math.max(0, i), resto.length - 1)]
+    // finita la fila delle risposte si passa ai follow-up pronti
+    if (!r.seguito && sg.length) return sg[0]
+    return null
   }
 
   if (righe === null) return <div className="flex justify-center py-10"><Spinner /></div>
 
   // ── la conversazione aperta: il filo a bolle e la decisione ──
+  if (!aperta) tastoE.current = () => {}
   if (aperta) {
+    const fila = filaDi(aperta, righe, seguiti)
+    const posto = fila.findIndex((x) => (x.seguito ? x.proposta?.id === aperta.proposta?.id : x.id === aperta.id))
+    const dopo = dopoDi(aperta, righe, seguiti)
+    const perche = percheCosi(aperta.proposta?.perche)
+    const conBozza = aperta.proposta?.azione?.bozza !== undefined
+    const pronto = !conBozza || visto
+    tastoE.current = () => { if (pronto && conBozza && occupato === null) void decidi(true) }
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={lettore} className="flex min-h-0 flex-1 flex-col scroll-mt-16">
         <div className="flex items-center gap-2 border-b border-velo px-4 py-2.5">
           <button onClick={() => setAperta(null)} className="rounded-lg px-2 py-1 text-sm font-bold text-blu hover:bg-velo">&lsaquo; Torna</button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-extrabold text-navy">{aperta.nome}</p>
             <p className="truncate text-[11px] text-tenue">{aperta.seguito ? `follow-up pronto${aperta.giorno ? `, propone ${aperta.giorno}` : ''}` : `aspetta ${eta(aperta.ore)}, ${aperta.perche}`}</p>
           </div>
+          {posto >= 0 && fila.length > 1 && <span className="shrink-0 text-[11px] font-semibold tabular-nums text-tenue">{posto + 1} di {fila.length}</span>}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {filo === null ? <div className="flex justify-center py-8"><Spinner /></div> : filo.length === 0 ? (
@@ -208,13 +345,21 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
               </p>
             )
           ))}
-          {aperta.proposta?.azione?.bozza !== undefined && (
+          {conBozza && (
             <div className="mt-3 rounded-2xl border-2 border-dashed border-blu/40 bg-blu/5 p-3">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.05em] text-blu">{aperta.seguito ? 'Il follow-up, da mandare' : 'La risposta di Clara, da mandare'}</p>
-              <textarea value={testo} onChange={(e) => setTesto(e.target.value)} rows={Math.min(14, testo.split('\n').length + 2)}
-                        className="w-full resize-y rounded-xl border border-bordo bg-white p-3 text-[13px] leading-relaxed text-inchiostro focus:border-blu focus:outline-none" />
+              {perche && (
+                <p className="mb-2 rounded-xl bg-white/70 px-3 py-2 text-[12px] leading-snug text-inchiostro">
+                  <span className="font-bold text-blu">Perché così: </span>{perche}
+                </p>
+              )}
+              {/* alta quanto il testo, mai con la fine nascosta dentro (gold, 6/10) */}
+              <textarea ref={area} value={testo} onChange={(e) => setTesto(e.target.value)} rows={3}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && pronto && occupato === null) { e.preventDefault(); void decidi(true) } }}
+                        className="w-full resize-none overflow-hidden rounded-xl border border-bordo bg-white p-3 text-[13px] leading-relaxed text-inchiostro focus:border-blu focus:outline-none" />
             </div>
           )}
+          <div ref={fine} className="h-px" aria-hidden />
           {aperta.proposta && aperta.proposta.azione?.bozza === undefined && (
             <div className="mt-3 rounded-2xl border border-bordo bg-white p-3">
               <p className="text-[13px] font-semibold text-inchiostro">{aperta.proposta.titolo}</p>
@@ -223,15 +368,31 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
           )}
         </div>
         {aperta.proposta && (
-          <div className="flex items-center gap-2 border-t border-velo px-4 py-3">
-            <button onClick={() => void decidi(true)} disabled={occupato !== null}
-                    className="rounded-full bg-blu px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40">
-              {aperta.proposta.azione?.bozza !== undefined ? (invioAcceso ? 'Approva e manda' : 'Approva (non parte)') : 'Fai così'}
-            </button>
-            <button onClick={() => void decidi(false)} disabled={occupato !== null}
-                    className="rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
-              Lascia stare
-            </button>
+          <div className="border-t border-velo px-4 py-3">
+            {dopo && <p className="mb-2 truncate text-[11px] text-tenue">Dopo questa: <span className="font-semibold text-inchiostro">{dopo.nome}</span></p>}
+            <div className="flex items-center gap-2">
+              {pronto ? (
+                <button onClick={() => void decidi(true)} disabled={occupato !== null} title={conBozza ? 'E, oppure ⌘ Invio' : undefined}
+                        className="min-h-[44px] rounded-full bg-blu px-5 py-2 text-[13px] font-bold text-white disabled:opacity-40">
+                  {conBozza ? (invioAcceso ? 'Approva e manda' : 'Approva (non parte)') : 'Fai così'}
+                </button>
+              ) : (
+                <button onClick={() => fine.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        className="min-h-[44px] rounded-full border border-blu px-5 py-2 text-[13px] font-bold text-blu">
+                  Leggi fino in fondo
+                </button>
+              )}
+              {conBozza && (
+                <button onClick={() => void rimanda()} disabled={occupato !== null} title="La rivedi domani: non la rifiuti"
+                        className="min-h-[44px] rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
+                  Domani
+                </button>
+              )}
+              <button onClick={() => void decidi(false)} disabled={occupato !== null}
+                      className="min-h-[44px] rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
+                Lascia stare
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -254,7 +415,22 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
           <p className="mt-1">Apri una conversazione, leggi il filo, e decidi lì: Approva e manda, oppure Lascia stare. Il resto corre da solo e lo conta il battito.</p>
         </div>
       )}
-      {daTe.length === 0 && <p className="px-5 py-3 text-sm text-tenue">Nessuna conversazione aspetta te.</p>}
+      {vuota ? (
+        <div className="mx-4 my-2 rounded-2xl border border-bordo bg-white px-4 py-3.5">
+          <p className="text-[15px] font-extrabold text-navy">Posta finita</p>
+          {prossimaCall ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="min-w-0 flex-1 text-[13px] text-inchiostro">
+                Poi: <span className="font-semibold">{prossimaCall.titolo || prossimaCall.tipo || 'una call'}</span>, {quandoCall(prossimaCall.at)}
+              </p>
+              {onOpen && prossimaCall.prospect_id && (
+                <button onClick={() => onOpen(prossimaCall.prospect_id as string)}
+                        className="min-h-[40px] rounded-full bg-blu px-4 py-1.5 text-[13px] font-bold text-white">Prepara</button>
+              )}
+            </div>
+          ) : <p className="mt-0.5 text-[13px] text-tenue">Niente aspetta te, e nessuna call in agenda.</p>}
+        </div>
+      ) : daTe.length === 0 && <p className="px-5 py-3 text-sm text-tenue">Nessuna conversazione aspetta te.</p>}
       {daTe.map((r) => (
         <button key={r.id} onClick={() => setAperta(r)}
                 className="flex w-full items-start gap-3 border-b border-velo px-5 py-3 text-left hover:bg-velo/40">
