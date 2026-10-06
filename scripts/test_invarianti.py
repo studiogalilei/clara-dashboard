@@ -99,6 +99,10 @@ def _():
     assert S.attesa_da_sync(True, chiusa, True, "2020-01-01T00:00:00") is False, "oltre 30 giorni resta chiusa"
     assert S.attesa_da_sync(True, {"awaiting_us": True}, False, "2026-10-05T13:17:15") is True
     assert S.attesa_da_sync(True, None, True, "2026-10-06T09:00:00") is True, "un lead nuovo aspetta"
+    # e il sync deve avere awaiting_us nei lead che carica, se no ogni attesa sembra chiusa (6/10, 11:43)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py")).read()
+    sel = src[src.index('rows = sb("GET", f"/rest/v1/prospects?select='):][:300]
+    assert "awaiting_us" in sel, "il sync carica i lead senza awaiting_us: chiude le attese di chi aspetta noi"
 
 
 @prova("le categorie di Dre su Smartlead: dalla classe del Workspace, mai su soppressi, fuori o fuori target (6/10)")

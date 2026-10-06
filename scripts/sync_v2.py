@@ -271,7 +271,10 @@ def db_prospects():
     out = {}
     offset = 0
     while True:
-        rows = sb("GET", f"/rest/v1/prospects?select=id,email,stage,fuori,classificazione,enriched,"
+        # 6/10: awaiting_us mancava. La regola «chi aspetta noi si rilegge a ogni giro» (24/9) non
+        # scattava mai, e attesa_da_sync leggeva ogni attesa come chiusa: il 6/10 tra le 11:43 e le
+        # 11:55 il sync ha chiuso l'attesa a chi aspettava davvero noi (Oikos, Lucca Case, Grigna...)
+        rows = sb("GET", f"/rest/v1/prospects?select=id,email,stage,fuori,classificazione,enriched,awaiting_us,"
                          f"analysis_sent,analysis_sent_at,no_followup,last_reply_at,followup_due"
                          f"&limit=1000&offset={offset}") or []
         for r in rows:
