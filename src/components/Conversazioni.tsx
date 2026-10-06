@@ -265,6 +265,20 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     if (prossimo) setAperta(prossimo)
   }
 
+  // IL TASTO E (gold, 6/10, dalla V2): approva la bozza aperta senza il mouse. Solo a bozza letta
+  // fino in fondo, e mai mentre si scrive in un campo (li' la «e» e' una lettera).
+  const tastoE = useRef<() => void>(() => {})
+  useEffect(() => {
+    const su = (e: KeyboardEvent) => {
+      if (e.key !== 'e' || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      tastoE.current()
+    }
+    window.addEventListener('keydown', su)
+    return () => window.removeEventListener('keydown', su)
+  }, [])
+
   // la fila in cui sta la conversazione aperta, e chi viene dopo
   const filaDi = useCallback((r: Riga, rs: Riga[] | null, sg: Riga[]): Riga[] =>
     r.seguito ? sg : (rs ?? []).filter((x) => x.daTe && x.proposta), [])
@@ -282,6 +296,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
   if (righe === null) return <div className="flex justify-center py-10"><Spinner /></div>
 
   // ── la conversazione aperta: il filo a bolle e la decisione ──
+  if (!aperta) tastoE.current = () => {}
   if (aperta) {
     const fila = filaDi(aperta, righe, seguiti)
     const posto = fila.findIndex((x) => (x.seguito ? x.proposta?.id === aperta.proposta?.id : x.id === aperta.id))
@@ -289,6 +304,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     const perche = percheCosi(aperta.proposta?.perche)
     const conBozza = aperta.proposta?.azione?.bozza !== undefined
     const pronto = !conBozza || visto
+    tastoE.current = () => { if (pronto && conBozza && occupato === null) void decidi(true) }
     return (
       <div ref={lettore} className="flex min-h-0 flex-1 flex-col scroll-mt-16">
         <div className="flex items-center gap-2 border-b border-velo px-4 py-2.5">
@@ -343,7 +359,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
             {dopo && <p className="mb-2 truncate text-[11px] text-tenue">Dopo questa: <span className="font-semibold text-inchiostro">{dopo.nome}</span></p>}
             <div className="flex items-center gap-2">
               {pronto ? (
-                <button onClick={() => void decidi(true)} disabled={occupato !== null} title={conBozza ? '⌘ Invio' : undefined}
+                <button onClick={() => void decidi(true)} disabled={occupato !== null} title={conBozza ? 'E, oppure ⌘ Invio' : undefined}
                         className="min-h-[44px] rounded-full bg-blu px-5 py-2 text-[13px] font-bold text-white disabled:opacity-40">
                   {conBozza ? (invioAcceso ? 'Approva e manda' : 'Approva (non parte)') : 'Fai così'}
                 </button>
