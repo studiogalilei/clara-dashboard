@@ -125,6 +125,17 @@ def thread(p):
     return None, None, None
 
 
+def prendi(pr):
+    """IL LUCCHETTO VERO (6/10). La bozza passa a «in invio» solo se e' ancora «approvata», e si
+    guarda se la scrittura e' riuscita. Prima il passaggio non controllava niente: l'1/10 alle 9:11
+    lampo e il direttore hanno fatto girare il postino insieme, tutti e due hanno letto
+    «approvata», tutti e due hanno scritto «in invio», tutti e due hanno spedito. Christian Pircher
+    e Maura (Studio M) hanno ricevuto la stessa mail due volte, a due secondi di distanza."""
+    r = sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}&stato=eq.approvata", {"stato": "in_invio"},
+           {"Prefer": "return=representation"}) or []
+    return bool(r)
+
+
 def link_fresco(url):
     """Un link firmato nuovo (un giorno) per il PDF nel bucket: quello nella scheda
     puo' essere vecchio. Se non e' un file del bucket, resta com'e'."""
@@ -306,8 +317,9 @@ def main():
         print(f"  {azienda} → {a}  (campagna {cid}, risposta del {str(ultima.get('time'))[:16]})")
         if prova:
             print("    " + bozza[:160].replace("\n", " ") + "…"); continue
-        # il lucchetto: prima di chiamare Smartlead
-        sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "in_invio"})
+        # il lucchetto: prima di chiamare Smartlead, e solo se nessun altro postino l'ha presa
+        if not prendi(pr):
+            print(f"    {azienda}: l'ha gia' presa un altro giro del postino, non la rimando"); continue
         try:
             r = sl("POST", f"/campaigns/{cid}/reply-email-thread", corpo)
         except Exception as e:                                    # noqa: BLE001
