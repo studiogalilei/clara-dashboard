@@ -309,7 +309,7 @@ def eventi_google(email):
             at = datetime.datetime.fromisoformat(inizio["dateTime"].replace("Z", "+00:00"))
             giornata = False
         elif inizio.get("date"):
-            at = datetime.datetime.fromisoformat(inizio["date"] + "T09:00:00+02:00")
+            at = datetime.datetime.fromisoformat(inizio["date"]).replace(hour=9, tzinfo=ROMA)   # alle 9 di Roma, anche d'inverno
             giornata = True
         else:
             continue
