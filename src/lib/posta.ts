@@ -142,3 +142,10 @@ export function dataDiRipresa(frase: string, scritta: Date, oggi: Date = new Dat
   }
   return { il: feriale(r.il), perche: r.perche }
 }
+
+// DOMANI (gold, 6/10, dalla V2): una bozza si rimanda a domani senza rifiutarla. Fino a quel
+// giorno non sta nella fila ne' in Adesso; il battito la conta lo stesso (resta dovuta).
+export function rimandata(azione: Record<string, unknown> | null | undefined, oggi = new Date()): boolean {
+  const al = String(azione?.rimandata_al ?? '')
+  return Boolean(al) && al > oggi.toLocaleDateString('sv-SE')
+}

@@ -82,3 +82,14 @@ describe('chi non è un non ora da riprendere', () => {
     expect(nonDaRiprendere('Non riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti')).toBeNull()
   })
 })
+
+import { rimandata } from './posta'
+
+describe('rimandata a domani', () => {
+  const oggi = new Date(2026, 9, 6)
+  it('fino al suo giorno non sta nella fila, dal suo giorno torna', () => {
+    expect(rimandata({ rimandata_al: '2026-10-07' }, oggi)).toBe(true)
+    expect(rimandata({ rimandata_al: '2026-10-06' }, oggi)).toBe(false)
+    expect(rimandata({}, oggi)).toBe(false)
+  })
+})

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Spinner, fmtDateShort } from './ui'
-import { percheCosi, prendiDaAprire } from '../lib/posta'
+import { percheCosi, prendiDaAprire, rimandata } from '../lib/posta'
+import { giorno } from '../lib/regole'
 import NonOra from './NonOra'
 
 // LA POSTA PER CONVERSAZIONI (Dre, 5/10: «nel workspace devo avere solo le
@@ -89,6 +90,8 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
   invioAcceso?: boolean
   onOpen?: (id: string) => void
 }) {
+  // le rimandate a domani non stanno nella fila finche' non arriva il loro giorno
+  const visibili = useMemo(() => proposte.filter((p) => !rimandata(p.azione)), [proposte])
   const [righe, setRighe] = useState<Riga[] | null>(null)
   const [aperta, setAperta] = useState<Riga | null>(null)
   const [filo, setFilo] = useState<Battuta[] | null>(null)
@@ -115,7 +118,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
 
   // I FOLLOW-UP PRONTI (5/10): le bozze di follow-up con il nome dell'azienda, in ordine alfabetico
   useEffect(() => {
-    const ps = proposte.filter((p) => p.tipo === 'risposta' && p.prospect_id && p.azione?.bozza !== undefined
+    const ps = visibili.filter((p) => p.tipo === 'risposta' && p.prospect_id && p.azione?.bozza !== undefined
       && SEGUITI.includes(String(p.azione?.template ?? '')))
     if (!ps.length) { setSeguiti([]); return }
     let vivo = true
@@ -138,7 +141,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         }).sort((a, b) => a.nome.localeCompare(b.nome)))
       })
     return () => { vivo = false }
-  }, [proposte])
+  }, [visibili])
 
 
   useEffect(() => {
@@ -150,7 +153,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         if (!vivo) return
         const adesso = Date.now()
         const perProspect = new Map<string, PropostaMin>()
-        for (const pr of proposte) if (pr.prospect_id && !perProspect.has(pr.prospect_id)) perProspect.set(pr.prospect_id, pr)
+        for (const pr of visibili) if (pr.prospect_id && !perProspect.has(pr.prospect_id)) perProspect.set(pr.prospect_id, pr)
         const lista = ((data as Array<{ id: string; company: string | null; name: string | null; email: string; last_reply_at: string | null; classificazione: string | null; stage: string | null }>) ?? [])
           .filter((p) => !MORTI.includes(p.classificazione ?? ''))
           .map((p) => {
@@ -167,7 +170,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
         setRighe(lista)
       })
     return () => { vivo = false }
-  }, [proposte])
+  }, [visibili])
 
   // il filo a bolle della conversazione aperta: le sue mail, le nostre, le call
   useEffect(() => {
@@ -240,6 +243,24 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
     // LA FILA (5/10, estesa a tutta la Posta nel gold del 6/10): decisa una conversazione si apre
     // la successiva dello stesso gruppo, gia' col filo e la bozza; finito un gruppo si passa al dopo.
     // Non c'e' un «Approva tutti»: Dre il 25/9 l'ha fatto togliere («ogni bozza si legge e si approva da sola»).
+    const prossimo = dopoDi(era, primaRighe, primaSeguiti)
+    if (prossimo) setAperta(prossimo)
+  }
+
+  // DOMANI: si rimanda senza rifiutare, e si va avanti nella fila
+  async function rimanda() {
+    if (!aperta?.proposta) return
+    const era = aperta
+    const pr = aperta.proposta
+    const primaRighe = righe
+    const primaSeguiti = seguiti
+    const al = giorno(new Date(Date.now() + 86400e3))
+    setAperta(null)
+    if (era.seguito) setSeguiti((l) => l.filter((x) => x.proposta?.id !== era.proposta?.id))
+    else setRighe((l) => (l ?? []).map((r) => (r.id === era.id ? { ...r, daTe: false, proposta: null, perche: 'rimandata a domani' } : r)))
+    const { error } = await supabase.from('proposte')
+      .update({ azione: { ...pr.azione, bozza: testo, rimandata_al: al } }).eq('id', pr.id).eq('stato', 'aperta')
+    if (error) { setRighe(primaRighe); setSeguiti(primaSeguiti); setAperta(era); return }
     const prossimo = dopoDi(era, primaRighe, primaSeguiti)
     if (prossimo) setAperta(prossimo)
   }
@@ -330,6 +351,12 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
                 <button onClick={() => fine.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                         className="min-h-[44px] rounded-full border border-blu px-5 py-2 text-[13px] font-bold text-blu">
                   Leggi fino in fondo
+                </button>
+              )}
+              {conBozza && (
+                <button onClick={() => void rimanda()} disabled={occupato !== null} title="La rivedi domani: non la rifiuti"
+                        className="min-h-[44px] rounded-full border border-bordo px-4 py-2 text-[13px] font-semibold text-tenue hover:border-spento disabled:opacity-40">
+                  Domani
                 </button>
               )}
               <button onClick={() => void decidi(false)} disabled={occupato !== null}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
-import { apriInPosta, fraseDiClara, percheCosi } from '../lib/posta'
+import { apriInPosta, fraseDiClara, percheCosi, rimandata } from '../lib/posta'
 import { useVivo } from '../lib/vivo'
 
 // ADESSO (gold, 6/10): la home non apre su una lista, apre sulla prossima cosa da fare.
@@ -41,7 +41,7 @@ export default function Adesso() {
         .in('tipo', ['risposta', 'umano']).eq('stato', 'aperta').not('azione->>bozza', 'is', null)
         .order('at', { ascending: true }).limit(300)
       const ps = ((data ?? []) as Array<{ id: number; titolo: string; perche: string | null; prospect_id: string | null; azione: Record<string, unknown> | null }>)
-        .filter((p) => p.prospect_id)
+        .filter((p) => p.prospect_id && !rimandata(p.azione))
       const ids = [...new Set(ps.map((p) => p.prospect_id as string))]
       const schede = new Map<string, { company: string | null; name: string | null; email: string; last_reply_at: string | null }>()
       for (let i = 0; i < ids.length; i += 100) {
