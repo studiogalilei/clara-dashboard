@@ -32,7 +32,11 @@ niente elenchi puntati se non servono, mai il trattino lungo. Dai del tu.
 Non inventare dati: se non sai una cosa lo dici. Se Dre ti chiede di fare
 qualcosa che cambia la pipeline (spostare, scartare, segnare perso, cambiare
 una classificazione) NON dire che l'hai fatto: di' che glielo metti nella tua
-stanza come proposta, e lui conferma da li'.`;
+stanza come proposta, e lui conferma da li'.
+NON HAI STRUMENTI per creare task, eventi, promemoria o mail, ne' per assegnare lavoro
+alle persone (6/10: il 2/10 hai risposto «Ok, vado» a Carlo su cinque cose che non potevi
+fare). Non dire mai «fatto», «vado», «imposto», «preparo» su queste cose: di' chiaramente
+che non lo sai ancora fare e che lo segnali ad Achille.`;
 
 const ISTRUZIONI = `Rispondi a Dre. Massimo 4 righe, a meno che non chieda un elenco.
 Se nella conversazione c'e' una cosa concreta da fare sulla pipeline, chiudi
@@ -79,28 +83,31 @@ async function chiParla(owner: string | null): Promise<{ nome: string; ceo: bool
 // IL DIARIO (12/9): se l'ultima cosa che Clara ha detto a questa persona era
 // una domanda del diario (colonna «diario»), la risposta va nel diario, non a
 // GPT. Un grazie breve, e basta.
-async function eRispostaAlDiario(msg: { testo: string; owner: string | null }): Promise<boolean> {
-  if (!msg.owner) return false;
-  const { data } = await sb.from("clara_messaggi").select("tipo,testo,diario").eq("owner", msg.owner)
+// 6/10: prima OGNI messaggio dopo una domanda del diario finiva nel diario con un grazie.
+// Le 7 «risposte» raccolte erano tutte richieste di lavoro (Carlo, Salvatore, Alex, Giacomo,
+// Dre): 5 persone hanno dovuto riscrivere, 2 non hanno mai avuto risposta. Ora si risponde
+// sempre; se il messaggio risponde davvero al diario, lo dice il modello con una riga DIARIO.
+async function domandaDelDiario(owner: string | null): Promise<string | null> {
+  if (!owner) return null;
+  const { data } = await sb.from("clara_messaggi").select("tipo,testo,diario").eq("owner", owner)
     .neq("tipo", "dre").order("at", { ascending: false }).limit(1);
   const ultima = data?.[0];
-  if (!ultima || ultima.tipo !== "domanda" || !ultima.diario) return false;
-  await sb.from("diario").insert({ user_id: msg.owner, domanda: String(ultima.testo), testo: msg.testo });
-  const grazie = ["Grazie, me lo segno. Lo leggono solo Dre e Giacomo.", "Preso, grazie. Resta tra noi e la direzione.", "Grazie, lo tengo. Se vuoi aggiungere altro, scrivi pure."];
-  await sb.from("clara_messaggi").insert({ tipo: "clara", testo: grazie[Math.floor(Math.random() * grazie.length)], owner: msg.owner, letto: false });
-  return true;
+  return ultima && ultima.tipo === "domanda" && ultima.diario ? String(ultima.testo) : null;
 }
 
 async function contesto(msg: { testo: string; owner: string | null; prospect_id: string | null }, ceo: boolean) {
   const pezzi: string[] = [];
   // la conversazione: la propria. Quella senza proprietario e' della direzione
   // (brief, promemoria, domande a Dre) e non si mostra agli altri
-  const q = sb.from("clara_messaggi").select("tipo,testo");
+  const q = sb.from("clara_messaggi").select("tipo,testo,owner");
   const { data: conv } = await (ceo
     ? q.or(msg.owner ? `owner.eq.${msg.owner},owner.is.null` : "owner.is.null")
     : q.eq("owner", msg.owner ?? "")).neq("tipo", "saluto").order("at", { ascending: false }).limit(14);
+  // 6/10: col nome vero di chi ha scritto (prima ogni messaggio umano era firmato «Dre»)
+  const { data: prof } = await sb.from("profili").select("id,nome");
+  const nomeDi = new Map((prof ?? []).map((p) => [p.id, String(p.nome ?? "").split(" ")[0]]));
   pezzi.push("LA CONVERSAZIONE FINORA:\n" + (conv ?? []).reverse()
-    .map((m) => `${m.tipo === "dre" ? "Dre" : "Clara"}: ${m.testo.replace(/\s+/g, " ").slice(0, 400)}`).join("\n"));
+    .map((m) => `${m.tipo === "dre" ? (nomeDi.get(m.owner) || "Dre") : "Clara"}: ${m.testo.replace(/\s+/g, " ").slice(0, 400)}`).join("\n"));
 
   let pid = msg.prospect_id ?? await trovaPersona(msg.testo);
   if (pid) {
@@ -140,6 +147,7 @@ async function chiedi(prompt: string): Promise<string> {
 }
 
 const RIGA_PROPOSTA = /^\s*PROPOSTA\s*\|\s*(\w+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*$/gm;
+const RIGA_DIARIO = /^\s*DIARIO\s*\|.*$/m;
 const TIPI = new Set(["classifica", "scarta", "perso", "tornato", "richiesta", "data", "avanza"]);
 
 const SEGRETO = Deno.env.get("CLARA_SEGRETO") ?? "";
@@ -159,11 +167,12 @@ Deno.serve(async (req) => {
   const prospect_id = typeof rec.prospect_id === "string" && UUID.test(rec.prospect_id) ? rec.prospect_id : null;
   const msg = { testo: String(rec.testo).slice(0, 8000), owner, prospect_id };
   try {
-    if (await eRispostaAlDiario(msg)) return new Response("diario", { status: 200 });
+    const diario = await domandaDelDiario(msg.owner);
     const chi = await chiParla(msg.owner);
     const { testo: ctx, pid } = await contesto(msg, chi.ceo);
     const prompt = PERSONA.replace("{CHI}", chi.nome) + await istruzione("chat") + "\n\n" + ctx + "\n\n" + ISTRUZIONI +
       (chi.ceo ? "" : "\n\nChi ti scrive non e' Dre: e' una persona del team. Aiutala sul suo lavoro; le decisioni sulla pipeline restano a Dre e Giacomo.") +
+      (diario ? `\n\nL'ultima cosa che gli hai chiesto era la domanda del diario: «${diario.slice(0, 300)}». Se il messaggio qui sotto RISPONDE a quella domanda, aggiungi in fondo una riga da sola: DIARIO | la sua risposta in breve. Se invece chiede o dice altro, rispondi a quello e non scrivere la riga DIARIO.` : "") +
       `\n\nL'ULTIMO MESSAGGIO DI ${chi.nome.split(",")[0].toUpperCase()}:\n` + msg.testo;
     const grezzo = (await chiedi(prompt)).trim();
 
@@ -176,7 +185,9 @@ Deno.serve(async (req) => {
         tipo, titolo: titolo.slice(0, 200), perche: perche.slice(0, 300), prospect_id: pid, owner: msg.owner,
       });
     }
-    const testo = grezzo.replace(RIGA_PROPOSTA, "").trim() || "Fatto: te l'ho messa nella mia stanza, confermi da li'.";
+    const rigaDiario = diario ? grezzo.match(RIGA_DIARIO) : null;
+    if (rigaDiario && msg.owner) await sb.from("diario").insert({ user_id: msg.owner, domanda: diario, testo: msg.testo });
+    const testo = grezzo.replace(RIGA_PROPOSTA, "").replace(RIGA_DIARIO, "").trim() || "Te l'ho messa nella mia stanza come proposta: si conferma da li'.";
     await sb.from("clara_messaggi").insert({ tipo: "clara", testo: pulisci(testo), prospect_id: pid, owner: msg.owner, letto: false });
     return new Response("ok", { status: 200 });
   } catch (e) {
