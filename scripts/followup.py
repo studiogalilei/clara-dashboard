@@ -39,6 +39,15 @@ def gia_avute(*template):
     return {x["prospect_id"] for x in rs if x["stato"] != "no" or (x.get("risposta") or "").startswith("NO:")}
 
 
+def con_bozza_aperta():
+    """Chi ha gia' una bozza in Posta (aperta, approvata o in partenza), di qualunque tipo.
+    6/10: SCUDO, Xcope e CoEHAR avevano un mini follow-up aperto dall'1/10 e intanto venivano
+    rimessi in coda per il FOLLOW UP 1: due follow-up per la stessa persona, e una coda che il
+    motore delle bozze non svuotava mai (salta chi ha gia' una proposta aperta)."""
+    return {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id&tipo=in.(risposta,umano)"
+                                                "&stato=in.(aperta,approvata,in_invio)&limit=5000") or []) if x.get("prospect_id")}
+
+
 def in_coda(pid, gruppo):
     """In coda: il motore delle bozze la trova al prossimo giro (5 minuti) e scrive dopo aver letto."""
     sb("PATCH", f"/rest/v1/prospects?id=eq.{pid}", {"coda": gruppo, "coda_il": datetime.datetime.now(datetime.timezone.utc).isoformat()})
@@ -87,9 +96,12 @@ def calendario(prova, oggi):
             righe[pid] = {"prospect_id": pid, "gruppo": gruppo, "il": il, "perche": perche[:200]}
 
     fine = oggi + datetime.timedelta(days=ORIZZONTE)
+    aperte = con_bozza_aperta()            # chi ha gia' la bozza in Posta non e' «in arrivo»: e' gia' li'
     # 1. gia' in coda: la bozza arriva al prossimo giro delle bozze
     for p in sb("GET", "/rest/v1/prospects?select=id,coda,coda_il,analysis_pdf&coda=not.is.null&fuori=eq.false"
                        "&stage=not.in.(cliente,perso,call_fissata,rinviato)&limit=1000") or []:
+        if p["id"] in aperte:
+            continue
         # l'attesa si dice com'e': chi aspetta un'analisi da giorni non «arriva al prossimo giro»
         ferma = p.get("coda_il") and (oggi - datetime.date.fromisoformat(p["coda_il"][:10])).days >= 2
         perche = ("in coda da " + str((oggi - datetime.date.fromisoformat(p["coda_il"][:10])).days) + " giorni"
@@ -102,7 +114,7 @@ def calendario(prova, oggi):
     for p in sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda"
                        f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                        f"&classificazione=in.({CLASSI})") or []:
-        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda"):
+        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
             continue
         if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
             continue
@@ -151,9 +163,10 @@ def main():
                       f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                       f"&classificazione=in.({CLASSI})&order=analysis_sent_at.desc&limit=500") or []
     gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
+    aperte = con_bozza_aperta()
     fatti = 0
     for p in righe:
-        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda"):
+        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
         if (oggi - inviata).days < GIORNI:
