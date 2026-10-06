@@ -202,8 +202,19 @@ def template_verbatim():
             from stanza import env
             req = urllib.request.Request(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/vault/riservato/risposte-template.md",
                                          headers={"apikey": env("SUPABASE_SERVICE_KEY"), "Authorization": f"Bearer {env('SUPABASE_SERVICE_KEY')}"})
-            with urllib.request.urlopen(req, timeout=60) as r:
-                open(loc, "wb").write(r.read())
+            # 6/10: un intoppo del bucket buttava via anche la copia buona gia' scaricata, e il
+            # giro restava senza i template di Dre. Due tentativi; se falliscono, l'ultima copia.
+            for tentativo in range(2):
+                try:
+                    with urllib.request.urlopen(req, timeout=60) as r:
+                        dati = r.read()
+                    if dati.strip():
+                        open(loc, "wb").write(dati)
+                    break
+                except Exception:                                # noqa: BLE001
+                    if tentativo == 1 and not os.path.exists(loc):
+                        raise
+                    _t.sleep(2)
         return "\n\n" + open(loc, encoding="utf-8").read()
     except Exception as e:                                       # noqa: BLE001
         print(f"  (template verbatim non caricati: {str(e)[:80]})")
