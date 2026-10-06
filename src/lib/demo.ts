@@ -136,6 +136,8 @@ export const interactions: Interaction[] = [
   { id: 'i9', prospect_id: 'p5', at: gg(10), kind: 'email_in', body: 'Anna: «Facciamo una call»' },
   { id: 'i10', prospect_id: 'p6', at: gg(29), kind: 'email_in', body: '«Sentiamoci a settembre»' },
   { id: 'i11', prospect_id: 'p7', at: gg(90), kind: 'nota', body: 'Firmato: periodo di prova, poi stable 1.400 €/mese' },
+  // una call col riassunto di Gemini, per provare «Chiamate» nel Vault
+  { id: 'i12', prospect_id: 'p7', at: gg(30).slice(0, 11) + '15:40:00', kind: 'transcript', body: 'Riassunto della call di avvio: campagne Search sui serramenti in Friuli, budget 900 € il primo mese. Gli accessi al sito sono arrivati, manca il tag di conversione sui moduli. Prossimo passo: la landing dedicata alle zanzariere entro fine mese.\n\nAppunti interi: https://docs.google.com/document/d/demo-klavzar' },
 ]
 
 
@@ -227,6 +229,8 @@ Attento a
   { id: 6, at: fra(0).slice(0, 11) + '09:00:00', titolo: 'Rifare il budget di ottobre', tipo: 'budget', prospect_id: 'p7', owner: 'demo', fonte: 'workspace' },
   { id: 7, at: fra(2).slice(0, 11) + '09:00:00', titolo: 'Rinnovo campagna brand', tipo: 'rinnovo', prospect_id: 'p3', owner: 'demo', fonte: 'workspace' },
   { id: 8, at: fra(12).slice(0, 11) + '09:00:00', titolo: 'Budget del trimestre', tipo: 'budget', prospect_id: 'p5', owner: 'demo', fonte: 'workspace' },
+  // una call passata col suo transcript (i12): la coppia che riempie «Chiamate»
+  { id: 9, at: gg(30).slice(0, 11) + '15:00:00', titolo: 'Call di avvio, Klavzar', tipo: 'avvio', prospect_id: 'p7', fonte: 'gcal' },
 ] as AgendaItem[]
 
 export const clara_messaggi = [
@@ -333,6 +337,16 @@ const preventivi: Riga[] = [
     voci: [{ nome: 'Fase pilota Google Ads, 2 mesi', quantita: 1, prezzo: 1500, ricorrenza: 'una_tantum' }],
     inviato_il: null, stato: 'bozza', accettato_il: null, rifiutato_il: null, motivo: null, pagato_il: null, pagamento_atteso_il: null,
     valido_fino: data(-30), pdf_path: null, link_pagamento: null, note: null, owner: 'demo', creato_il: gg(1), aggiornato_il: gg(1) },
+  // un inviato in attesa sul cliente demo: il triangolo giallo del Vault
+  { id: 4, prospect_id: 'p7', progetto_id: null, numero: 'SG-SW-2026-002', linea: 'software', titolo: 'Landing page zanzariere', importo: 400, mensile: null,
+    voci: [{ nome: 'Landing page', quantita: 1, prezzo: 400, ricorrenza: 'una_tantum' }],
+    inviato_il: data(2), stato: 'inviato', accettato_il: null, rifiutato_il: null, motivo: null, pagato_il: null, pagamento_atteso_il: null,
+    valido_fino: data(-28), pdf_path: null, link_pagamento: null, note: null, owner: 'demo', creato_il: gg(2), aggiornato_il: gg(2) },
+]
+
+// gli altri referenti (v75): il principale sta nelle colonne di prospects
+const referenti: Riga[] = [
+  { id: 1, at: gg(60), prospect_id: 'p7', nome: 'Martina F.', ruolo: 'Amministrazione', email: 'fatture@klavzar.it', telefono: null, nota: 'Le fatture vanno a lei' },
 ]
 const incassi: Riga[] = [
   { id: 'ch_demo1', genere: 'addebito', importo: 1500, valuta: 'eur', stato: 'succeeded', quando: gg(4), ricorrenza: null, metodo: 'carta',
@@ -419,6 +433,7 @@ const TABELLE: Record<string, Riga[]> = {
   sync_runs,
   listino,
   preventivi,
+  referenti,
   incassi,
   profili,
   progetti,

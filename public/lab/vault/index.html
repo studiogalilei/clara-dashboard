@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./sg-simbolo.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#061773" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SG Workspace" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>SG Workspace</title>
+    <!-- l'anteprima del link su WhatsApp, Slack, mail: il logo intero e il
+         nome giusto, non l'icona tagliata (Dre, 17/9) -->
+    <meta name="description" content="Il posto di lavoro di Studio Galilei: clienti, progetti, task, e Clara che tiene tutto in ordine." />
+    <!-- il Workspace e' privato: Google non lo indicizza (Dre, 6/10) -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SG Workspace" />
+    <meta property="og:title" content="SG Workspace" />
+    <meta property="og:description" content="Il posto di lavoro di Studio Galilei: clienti, progetti, task, e Clara che tiene tutto in ordine." />
+    <meta property="og:url" content="https://studiogalilei.github.io/clara/" />
+    <meta property="og:image" content="https://studiogalilei.github.io/clara/anteprima.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SG Workspace" />
+    <meta name="twitter:image" content="https://studiogalilei.github.io/clara/anteprima.png" />
+    <!-- il primo mezzo secondo, prima che parta l'app: il marchio, non il
+         bianco. Sparisce da solo quando React disegna dentro #root -->
+    <style>
+      /* l'apertura (Dre, 26/9): il fondo del reparto e l'albero bianco, come
+         Smartlead. Il colore si ricorda dall'ultimo ingresso, cosi' c'e' subito. */
+      #root .avvio { display: flex; min-height: 100dvh; align-items: center; justify-content: center; background: var(--reparto, #061773); }
+      #root .avvio img { height: min(40vh, 40vw, 340px); width: auto; }
+    </style>
+    <script type="module" crossorigin src="./assets/index-D2W8a4EN.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-QTnfLwEv.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-MJS7VNWb.css">
+  </head>
+  <body>
+    <div id="root"><div class="avvio"><img src="reparti/albero-bianco.svg" alt="" /></div></div>
+    <script>
+      // il colore dell'ultimo reparto, prima ancora che parta l'app
+      try {
+        var C = { direzione: '#061773', marketing: '#D21205', software: '#2F6B33', ai: '#0689FF' }
+        var r = C[localStorage.getItem('sg:reparto')] || C.direzione
+        document.documentElement.style.setProperty('--reparto', r)
+        document.querySelector('meta[name=theme-color]').setAttribute('content', r)
+        // l'icona in home e' quella del reparto, subito: iOS la legge al momento del «Aggiungi a Home»
+        var n = localStorage.getItem('sg:reparto') || 'direzione'
+        document.querySelectorAll('link[rel=apple-touch-icon]').forEach(function (l) { l.setAttribute('href', 'reparti/icona-' + n + '-192.png') })
+      } catch (e) {}
+    </script>
+  </body>
+</html>

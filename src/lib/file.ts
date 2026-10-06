@@ -36,6 +36,28 @@ export function dimenticaFile(path: string) {
   firmate.delete(path)
 }
 
+// CARICARE UN FILE (6/10): la stessa sequenza viveva copiata in tre posti
+// (Vault, Chat, Scheda), ognuno col suo modo di sbagliare. Qui una volta sola:
+// sale nello storage, nasce la riga nei Documenti, e se la riga non nasce il
+// file si toglie (niente orfani nel bucket). Il titolo e' il nome del file
+// senza estensione, come fa Google.
+export interface FileCaricato { id: number; nome: string; path: string; mime: string | null; dimensione: number | null; at: string }
+
+export async function caricaFile(prospectId: string, f: File, nota?: string): Promise<{ file: FileCaricato | null; errore: string | null }> {
+  const pulito = f.name.replace(/[^a-zA-Z0-9._-]+/g, '-')
+  const path = `clienti/${prospectId}/${Date.now()}-${pulito}`
+  const { error } = await supabase.storage.from('vault').upload(path, f)
+  if (error) return { file: null, errore: `Non sono riuscito a caricare «${f.name}»: ${error.message}` }
+  const { data, error: e2 } = await supabase.from('vault_file')
+    .insert({ nome: f.name.replace(/\.[^.]+$/, ''), path, mime: f.type || null, dimensione: f.size, prospect_id: prospectId, sezione: 'clienti', nota: nota ?? null })
+    .select('id,nome,path,mime,dimensione,at').single()
+  if (e2 || !data) {
+    await supabase.storage.from('vault').remove([path])
+    return { file: null, errore: `Il file è salito ma non è finito nei Documenti: ${e2?.message ?? ''}` }
+  }
+  return { file: data as FileCaricato, errore: null }
+}
+
 // tanti file insieme (la griglia dei Documenti): una chiamata sola
 export async function urlFileTanti(paths: string[], minuti = 60): Promise<Record<string, string>> {
   const ora = Date.now()

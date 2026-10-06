@@ -48,7 +48,7 @@ import { ricordaReparto, repartoRicordato } from './lib/reparto'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
-import Scheda from './components/Scheda'
+import VaultCliente from './components/VaultCliente'
 import { useSchermoLargo } from './lib/schermo'
 import Metro from './components/Metro'
 import BachecaAziende from './components/aziende/Aziende'
@@ -796,7 +796,7 @@ export default function App() {
         </div>
       </nav>
 
-      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Rete>}
+      {openId && <Rete dove={openId}><VaultCliente key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       {/* 5/10: dentro la rete (un suo errore non spegne tutta l'app) e non due volte con la Posta aperta */}
