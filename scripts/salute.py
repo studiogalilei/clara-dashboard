@@ -109,6 +109,12 @@ def main():
             continue
         corse = sb("GET", f"/rest/v1/corse?select=righe&operazione=eq.{o['chiave']}&at=gte.{z(ora - datetime.timedelta(days=3))}&limit=200") or []
         if len(corse) >= 5 and all((c.get("righe") or 0) == 0 for c in corse):
+            # 6/10: la prima risposta la fa girare anche lampo, e le approvazioni finiscono nelle
+            # corse di lampo: le sue risultavano sempre a zero mentre ne approvava 15 al giorno.
+            # Si contano le approvazioni vere, con la sua firma, degli ultimi tre giorni.
+            if o["chiave"] == "prima_risposta" and (sb("GET", "/rest/v1/proposte?select=id&azione->>approvata_da=like.prima-risposta-automatica*"
+                                                           f"&azione->>approvata_il=gte.{z(ora - datetime.timedelta(days=3))}&limit=1") or []):
+                continue
             mute.append(o["chiave"])
     if mute:
         problemi.append("operazioni che girano senza mai produrre niente: " + ", ".join(mute))
