@@ -7,22 +7,14 @@ import Login from './components/Login'
 import Oggi from './components/Oggi'
 import Radar from './components/Radar'
 import Rete from './components/Rete'
-import Aziende from './components/Aziende'
-import ClaraVolante from './components/ClaraVolante'
-import SeguitiInArrivo from './components/SeguitiInArrivo'
 import ClaraLogo from './components/ClaraLogo'
 import Aiuto from './components/Aiuto'
-import Vault from './components/Vault'
-import Plugin from './components/Plugin'
-import Feedback from './components/Feedback'
+import Trattativa from './components/Trattativa'         // la Pipeline e' la prima pagina (24/9): subito
+import Aziende from './components/Aziende'
+import { Spinner } from './components/ui'
 import Aggiornato from './components/Aggiornato'
 import Novita from './components/Novita'
-import Giro from './components/Giro'
-import Calendario from './components/Calendario'
 import { oggi as giornoOggi } from './lib/regole'
-import Impostazioni from './components/Impostazioni'
-import Clienti from './components/Clienti'
-import Chat from './components/Chat'
 // dopo un aggiornamento il pezzo vecchio non esiste piu': si ricarica una volta
 // sola invece di lasciare lo schermo bianco (QA backend, 14/9)
 // Il segno restava scritto per sempre: dopo il primo aggiornamento della
@@ -40,20 +32,32 @@ function pezzo<T>(carica: () => Promise<T>) {
   }) as Promise<T>
 }
 const Preventivi = lazy(pezzo(() => import('./components/Preventivi')))
+// 6/10: si carica subito solo la prima schermata (Pipeline, Oggi, Radar, la pallina di Clara);
+// le altre pagine arrivano quando si aprono. All'apertura si scaricava tutto: 288 kB.
+const Vault = lazy(pezzo(() => import('./components/Vault')))
+const Plugin = lazy(pezzo(() => import('./components/Plugin')))
+const Feedback = lazy(pezzo(() => import('./components/Feedback')))
+const Giro = lazy(pezzo(() => import('./components/Giro')))
+const Calendario = lazy(pezzo(() => import('./components/Calendario')))
+const Impostazioni = lazy(pezzo(() => import('./components/Impostazioni')))
+const Clienti = lazy(pezzo(() => import('./components/Clienti')))
+const Chat = lazy(pezzo(() => import('./components/Chat')))
+const Analytics = lazy(pezzo(() => import('./components/Analytics')))
+const Scheda = lazy(pezzo(() => import('./components/Scheda')))
+const Metro = lazy(pezzo(() => import('./components/Metro')))
+const SeguitiInArrivo = lazy(pezzo(() => import('./components/SeguitiInArrivo')))
+const BachecaAziende = lazy(pezzo(() => import('./components/aziende/Aziende')))
+const ClaraVolante = lazy(pezzo(() => import('./components/ClaraVolante')))   // la pallina arriva un attimo dopo
+const Comandi = lazy(pezzo(() => import('./components/Comandi')))             // la palette, al primo ⌘K
 import { menuDi, mioRuolo, widgetDi, type Chiave, type Ruolo } from './lib/widget'
 import Suggerimento from './components/Suggerimento'
 import Apertura from './components/Apertura'
-import Comandi, { type Comando } from './components/Comandi'
+import type { Comando } from './components/Comandi'
 import { leggiIndirizzo, scriviIndirizzo, linkDi } from './lib/indirizzo'
 import { ricordaReparto, repartoRicordato } from './lib/reparto'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
 import { nomeDa, iniziali } from './lib/profilo'
-import Analytics from './components/Analytics'
-import Scheda from './components/Scheda'
 import { useSchermoLargo } from './lib/schermo'
-import Metro from './components/Metro'
-import BachecaAziende from './components/aziende/Aziende'
-import Trattativa from './components/Trattativa'
 
 // La struttura sul riferimento scelto da Dre (31/8): sidebar bianca a
 // sinistra, testata con titolo grande e ricerca, contenuto in carte morbide.
@@ -125,6 +129,15 @@ export default function App() {
   // vero: Carlo, Alex e Salvatore non arrivavano mai su Oggi (studio d'uso di Alex).
   const entrataSenzaIndirizzo = useRef(dIniziale === null)
   const largo = useSchermoLargo()
+  // 6/10: disegnata la prima schermata, le pagine piu' usate si scaricano in sottofondo,
+  // cosi' il primo click resta immediato anche se non sono nel pacchetto iniziale
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void import('./components/Scheda'); void import('./components/Calendario'); void import('./components/Clienti')
+      void import('./components/SeguitiInArrivo'); void import('./components/aziende/Aziende')
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [])
   const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'prospect')   // 24/9 (Dre): senza indirizzo si entra sulla Pipeline
   const [openId, setOpenId] = useState<string | null>(dIniziale?.id ?? null)
   const [sezione, setSezione] = useState<string | null>(dIniziale?.sezione ?? null)
@@ -435,7 +448,8 @@ export default function App() {
           </div>
         </div>
       )}
-      <Comandi
+      {comandi && <Suspense fallback={null}>
+        <Comandi
         aperto={comandi} chiudi={() => setComandi(false)} ruolo={ruolo} concessi={concessi}
         vaiA={(t) => { setTab(t); setOpenId(null) }}
         apriScheda={(id) => { setOpenId(id); setSezione(null); setTab('prospect') }}
@@ -454,6 +468,7 @@ export default function App() {
             fai: () => { void navigator.clipboard.writeText(linkDi({ tab, id: openId, sezione })).catch(() => {}) } },
         ] as Comando[]}
       />
+      </Suspense>}
       <Suggerimento />
       {vista && (
         <div className="fixed inset-x-0 top-0 z-[70] flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-900">
@@ -728,6 +743,7 @@ export default function App() {
           )}
           <div key={versione}>
             <Rete dove={tab}>
+            <Suspense fallback={<div className="flex justify-center py-16"><Spinner /></div>}>
             {tab === 'oggi' || tab === 'pipeline' ? (
               <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
             ) : tab === 'calendario' ? (
@@ -747,7 +763,7 @@ export default function App() {
             ) : tab === 'progetti' ? (
               <Clienti onOpen={setOpenId} />
             ) : tab === 'preventivi' ? (
-              <Suspense fallback={null}><Preventivi onOpen={setOpenId} /></Suspense>
+              <Preventivi onOpen={setOpenId} />
             ) : tab === 'chat' ? (
               <Chat onOpen={setOpenId} />
             ) : tab === 'clara' ? (
@@ -775,6 +791,7 @@ export default function App() {
             ) : (
               <Aziende onOpen={setOpenId} q={q} />
             )}
+            </Suspense>
             </Rete>
           </div>
         </main>
@@ -798,13 +815,15 @@ export default function App() {
         </div>
       </nav>
 
-      {openId && <Rete dove={openId}><Scheda key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Rete>}
+      {openId && <Rete dove={openId}><Suspense fallback={null}><Scheda key={openId} id={openId} sezione={sezione} onSezione={setSezione} onClose={chiudiScheda} onApri={(id) => { setOpenId(id); setSezione(null) }} /></Suspense></Rete>}
 
       {/* Clara: colonna fissa a destra sul desktop, pannello sul telefono */}
       {/* 5/10: dentro la rete (un suo errore non spegne tutta l'app) e non due volte con la Posta aperta */}
       {tab !== 'clara' && (
         <Rete dove="clara">
+          <Suspense fallback={null}>
           <ClaraVolante onOpen={(id) => setOpenId(id)} compatta={pieno} attenuata={riposo} nascostaSuTelefono={tab === 'pipeline' || tab === 'oggi'} />
+          </Suspense>
         </Rete>
       )}
 
@@ -813,7 +832,7 @@ export default function App() {
           {esito.testo}
         </div>
       )}
-      {giro && <Giro nome={utente} ruoloVero={ruoloVero} onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} />}
+      {giro && <Suspense fallback={null}><Giro nome={utente} ruoloVero={ruoloVero} onFine={() => { setGiro(false); scriviPref('giro-fatto', 'si') }} /></Suspense>}
     </div>
   )
 }
