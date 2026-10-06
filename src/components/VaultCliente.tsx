@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   PIPELINE_LABEL,
@@ -12,16 +12,14 @@ import Scheda from './Scheda'
 import { StoriaCompleta } from './Storia'
 import { Card, Micro, Spinner, ZonaFile, Faccia, fmtDateShort, fmtOra, sgid } from './ui'
 
-// IL VAULT DEL CLIENTE (Dre, a voce, 6/10): «quando si entra c'è il nome
-// dell'azienda, con accanto lo stato selezionabile: cliente oppure prospect.
-// Subito sotto i referenti, poi i preventivi (quelli in attesa col triangolo
-// giallo), poi le chiamate col riassunto di Gemini, poi i documenti, e in
-// fondo visualizza storico completo. La prima facciata è pulita: posso
-// cliccare sulla parte che mi interessa e approfondire».
-//
-// Quindi: una colonna di sezioni chiuse, ognuna con la sua riga di sintesi.
-// Un clic apre, un altro chiude. Il lavoro fine (bozze, pipeline, prezzo)
-// resta nella Scheda completa, a un bottone da qui.
+// IL VAULT DEL CLIENTE (Dre, a voce, 6/10; ridisegnato il 7/10 dalla bozza C).
+// La v1 erano quattro fisarmoniche chiuse e Dre l'ha bocciata: «quella di prima
+// sembrava di piu' un vault cliente; Marco non e' navigabile; vorrei che alcune
+// info si vedessero gia' a vista». Fra tre strade disegnate sul canvas ha scelto
+// «il filo del rapporto»: una testata col referente gia' contattabile, a sinistra
+// le cose ferme (referenti, preventivi, documenti), a destra «Adesso» e il filo
+// delle tappe vere, dalla piu' recente. Niente e' chiuso: il clic serve per
+// aggiungere o andare piu' a fondo, mai per scoprire cosa c'e'.
 
 interface Props {
   id: string
@@ -31,8 +29,15 @@ interface Props {
   onApri?: (id: string) => void
 }
 
-interface Referente { id: number; nome: string; ruolo: string | null; email: string | null; telefono: string | null; nota: string | null }
-interface Prev { id: number; numero: string | null; titolo: string | null; importo: number | null; mensile: number | null; stato: string; pagato_il: string | null; inviato_il: string | null; pdf_path: string | null }
+interface Referente {
+  id: number               // 0 = il referente principale, che vive nelle colonne di prospects
+  nome: string; ruolo: string | null; email: string | null; telefono: string | null
+  linkedin: string | null; decide: string | null; nota: string | null
+}
+interface Prev {
+  id: number; numero: string | null; titolo: string | null; importo: number | null; mensile: number | null; stato: string
+  pagato_il: string | null; inviato_il: string | null; accettato_il: string | null; rifiutato_il: string | null; pdf_path: string | null
+}
 interface Doc { id: number; nome: string; path: string; at: string }
 
 // una chiamata del Vault: l'evento in agenda sposato col suo riassunto
@@ -122,37 +127,10 @@ function chiamateDi(timeline: Interaction[], agenda: AgendaItem[]): Chiamata[] {
   return out.sort((x, y) => y.at.localeCompare(x.at))
 }
 
-// il triangolo giallo, stile nostro: pieno, netto, col numero accanto
-function Triangolo({ n }: { n: number }) {
-  return (
-    <span data-tip={`${n} in attesa di risposta`} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-amber-800">
-      <svg viewBox="0 0 24 24" className="h-[13px] w-[13px] fill-amber-400"><path d="M12 3 22 20H2z" /></svg>
-      {n} in attesa
-    </span>
-  )
-}
-
-// una sezione del Vault: chiusa e' una riga di sintesi, aperta mostra tutto
-function Sez({ titolo, sommario, extra, aperta, su, children }: {
-  titolo: string
-  sommario: string
-  extra?: React.ReactNode
-  aperta: boolean
-  su: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <Card>
-      <button onClick={su} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-velo/40">
-        <Micro className="w-[88px]">{titolo}</Micro>
-        <span className="min-w-0 flex-1 truncate text-sm text-tenue">{sommario}</span>
-        {extra}
-        <span className="shrink-0 text-xs text-spento">{aperta ? '▴' : '▾'}</span>
-      </button>
-      {aperta && <div className="border-t border-velo px-4 py-3">{children}</div>}
-    </Card>
-  )
-}
+// il triangolo giallo, stile nostro: pieno, netto
+const Triangolo = ({ size = 13 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" style={{ width: size, height: size }} className="shrink-0 fill-amber-400" aria-hidden="true"><path d="M12 3 22 20H2z" /></svg>
+)
 
 const scarica = (nome: string, testo: string) => {
   const url = URL.createObjectURL(new Blob([testo], { type: 'text/plain;charset=utf-8' }))
@@ -161,11 +139,127 @@ const scarica = (nome: string, testo: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
-const Azione = ({ su, children, tip }: { su: () => void; children: React.ReactNode; tip?: string }) => (
-  <button onClick={su} data-tip={tip} className="shrink-0 rounded-full border border-bordo px-2.5 py-0.5 text-[11px] font-semibold text-navy hover:border-navy">
-    {children}
-  </button>
+// le azioni secondarie sono link, non trenta bottoni uguali (regola del 7/10)
+const Link_ = ({ su, children, tip, href }: { su?: () => void; children: ReactNode; tip?: string; href?: string }) => href
+  ? <a href={href} target="_blank" rel="noreferrer" data-tip={tip} className="shrink-0 text-[12px] font-semibold text-blu hover:underline">{children}</a>
+  : <button onClick={su} data-tip={tip} className="shrink-0 text-[12px] font-semibold text-blu hover:underline">{children}</button>
+
+const Titolo = ({ children, azione }: { children: ReactNode; azione?: ReactNode }) => (
+  <div className="mb-2 flex items-baseline justify-between gap-2">
+    <Micro>{children}</Micro>
+    {azione}
+  </div>
 )
+
+// etichette neutre: dal nome non si indovina il genere (Luca, Andrea, Nicola)
+const DECIDE: Array<[string, string]> = [['si', 'Decide'], ['insieme', 'Decide con altri'], ['no', 'Non decide']]
+const decideDi = (r: Pick<Referente, 'decide'>) => DECIDE.find(([k]) => k === r.decide)?.[1] ?? null
+
+// una tappa del filo: quando, cosa, e i gesti che servono li'
+interface Tappa {
+  chiave: string
+  at: string
+  titolo: string
+  testo?: string | null
+  citazione?: boolean
+  aperto?: string | null     // il testo lungo che si legge con «Vedi»
+  attesa?: boolean           // col triangolo giallo
+  azioni?: ReactNode
+}
+
+function Filo({ tappe, onTutto, totale, extra }: { tappe: Tappa[]; onTutto: () => void; totale: number; extra: ReactNode }) {
+  const [vedo, setVedo] = useState<string | null>(null)
+  return (
+    <ol className="relative">
+      {tappe.map((t, i) => (
+        <li key={t.chiave} className="relative flex gap-3 pb-4">
+          <div className="flex w-3 shrink-0 flex-col items-center">
+            <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${i === 0 ? 'bg-navy' : 'bg-bordo'}`} />
+            <span className="w-px flex-1 bg-bordo" />
+          </div>
+          <article className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold tabular-nums text-tenue">{fmtDateShort(t.at)}{t.at.length > 10 ? `, ${fmtOra(t.at)}` : ''}</p>
+            <h3 className="text-[15px] font-bold text-navy">{t.titolo}</h3>
+            {t.testo && (
+              <p className={`mt-0.5 text-[14px] leading-snug ${t.citazione ? 'italic text-inchiostro/80' : 'text-inchiostro/90'}`}>
+                {t.attesa && <span className="mr-1.5 inline-flex translate-y-[1px]"><Triangolo /></span>}
+                {t.citazione ? `«${t.testo}»` : t.testo}
+              </p>
+            )}
+            {t.aperto && vedo === t.chiave && (
+              <p className="mt-2 whitespace-pre-wrap rounded-xl bg-velo/70 px-3.5 py-2.5 text-[14px] leading-relaxed">{t.aperto}</p>
+            )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+              {t.aperto && <Link_ su={() => setVedo(vedo === t.chiave ? null : t.chiave)}>{vedo === t.chiave ? 'Chiudi' : 'Vedi'}</Link_>}
+              {t.azioni}
+            </div>
+          </article>
+        </li>
+      ))}
+      <li className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-6">
+        <button onClick={onTutto} className="text-[14px] font-bold text-blu hover:underline">
+          Storico completo{totale ? `, ${totale} eventi` : ''} ›
+        </button>
+        {extra}
+      </li>
+    </ol>
+  )
+}
+
+// LA SCHEDA DI UN REFERENTE (Dre, 7/10: «Marco: non c'e' modo di aggiungere piu' info
+// su di lui»). Si apre sul posto. Il principale vive nelle colonne di prospects (l'email
+// e' la chiave con Smartlead: si copia, non si cambia da qui); gli altri in `referenti`.
+function SchedaReferente({ r, principale, onSalva, onChiudi }: {
+  r: Referente
+  principale: boolean
+  onSalva: (r: Referente) => Promise<boolean>
+  onChiudi: () => void
+}) {
+  const [d, setD] = useState<Referente>(r)
+  const [salvo, setSalvo] = useState(false)
+  const campo = (k: keyof Referente, label: string, tipo = 'text', bloccato = false) => (
+    <label className="block">
+      <span className="mb-0.5 block text-[11px] font-semibold text-tenue">{label}</span>
+      <input type={tipo} value={(d[k] as string | null) ?? ''} disabled={bloccato}
+             onChange={(e) => setD({ ...d, [k]: e.target.value || null })}
+             className="w-full rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-[14px] outline-none focus:border-blu disabled:bg-velo/60 disabled:text-tenue" />
+    </label>
+  )
+  return (
+    <div className="mt-2 space-y-2.5 rounded-xl border border-bordo bg-fondo p-3">
+      {campo('nome', 'Nome')}
+      {campo('ruolo', 'Ruolo')}
+      {campo('email', principale ? 'Email (la chiave con Smartlead: non si cambia da qui)' : 'Email', 'email', principale)}
+      {campo('telefono', 'Telefono', 'tel')}
+      {campo('linkedin', 'LinkedIn')}
+      <div>
+        <span className="mb-1 block text-[11px] font-semibold text-tenue">Chi decide</span>
+        <div className="flex flex-wrap gap-1.5">
+          {DECIDE.map(([k, t]) => (
+            <button key={k} onClick={() => setD({ ...d, decide: d.decide === k ? null : k })}
+                    className={`rounded-full px-3 py-1 text-[12px] font-semibold ${d.decide === k ? 'bg-navy text-white' : 'border border-bordo bg-white text-tenue hover:border-navy hover:text-navy'}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="block">
+        <span className="mb-0.5 block text-[11px] font-semibold text-tenue">Note su di lui</span>
+        <textarea value={d.nota ?? ''} onChange={(e) => setD({ ...d, nota: e.target.value || null })} rows={3}
+                  placeholder="Come preferisce essere sentito, cosa gli sta a cuore, chi c'e' dietro"
+                  className="w-full resize-y rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-[14px] leading-snug outline-none focus:border-blu" />
+      </label>
+      <div className="flex gap-2">
+        <button disabled={!d.nome.trim() || salvo}
+                onClick={async () => { setSalvo(true); if (await onSalva(d)) onChiudi(); setSalvo(false) }}
+                className="rounded-full bg-blu px-4 py-1.5 text-[12px] font-bold text-white hover:bg-navy disabled:opacity-40">
+          Salva
+        </button>
+        <button onClick={onChiudi} className="rounded-full px-3 py-1.5 text-[12px] font-semibold text-tenue hover:text-inchiostro">Annulla</button>
+      </div>
+    </div>
+  )
+}
 
 export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }: Props) {
   const [completa, setCompleta] = useState(Boolean(sezione))   // #/azienda/<id>/lavoro apre gia' la Scheda
@@ -177,17 +271,14 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   const [preventivi, setPreventivi] = useState<Prev[]>([])
   const [documenti, setDocumenti] = useState<Doc[]>([])
   const [utenteId, setUtenteId] = useState<string | null>(null)
-  const [aperta, setAperta] = useState<string | null>(null)
   const [statoAperto, setStatoAperto] = useState(false)
   const [storiaAperta, setStoriaAperta] = useState(false)
-  const [vedo, setVedo] = useState<string | null>(null)        // la chiamata col riassunto spiegato
   const [esito, setEsito] = useState<string | null>(null)
-  const [nuovoRef, setNuovoRef] = useState(false)
-  const [refDraft, setRefDraft] = useState({ nome: '', ruolo: '', email: '', telefono: '' })
+  const [apertoRef, setApertoRef] = useState<number | 'nuovo' | null>(null)
 
   useEffect(() => {
     let vivo = true
-    setP(null); setNonCe(false); setAperta(null); setVedo(null); setEsito(null)
+    setP(null); setNonCe(false); setApertoRef(null); setEsito(null)
     supabase.auth.getSession().then(({ data }) => { if (vivo) setUtenteId(data.session?.user?.id ?? null) })
     supabase.from('prospects').select('*').eq('id', id).maybeSingle()
       .then(({ data }) => { if (vivo) { setP(data as Prospect | null); if (!data) setNonCe(true) } })
@@ -197,15 +288,15 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
     supabase.from('agenda').select('*').eq('prospect_id', id)
       .order('at', { ascending: true }).limit(100)
       .then(({ data }) => { if (vivo) setAgendaSua((data as AgendaItem[]) ?? []) })
-    supabase.from('referenti').select('id,nome,ruolo,email,telefono,nota').eq('prospect_id', id)
+    supabase.from('referenti').select('id,nome,ruolo,email,telefono,linkedin,decide,nota').eq('prospect_id', id)
       .order('at', { ascending: true }).limit(30)
       .then(({ data, error }) => {
         if (!vivo) return
-        // 7/10: un errore non e' «nessun referente» (la tabella v75 puo' non essere ancora attiva)
+        // un errore non e' «nessun referente» (la tabella v75 puo' non essere ancora attiva)
         if (error) setEsito(`I referenti in piu' non si leggono: ${error.message}`)
         setReferenti((data as Referente[]) ?? [])
       })
-    supabase.from('preventivi').select('id,numero,titolo,importo,mensile,stato,pagato_il,inviato_il,pdf_path')
+    supabase.from('preventivi').select('id,numero,titolo,importo,mensile,stato,pagato_il,inviato_il,accettato_il,rifiutato_il,pdf_path')
       .eq('prospect_id', id).order('creato_il', { ascending: false }).limit(20)
       .then(({ data }) => { if (vivo) setPreventivi((data as Prev[]) ?? []) })
     supabase.from('vault_file').select('id,nome,path,at').eq('prospect_id', id)
@@ -226,7 +317,6 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   }, [onClose, completa, storiaAperta])
 
   const chiamate = useMemo(() => chiamateDi(timeline, agendaSua), [timeline, agendaSua])
-  const inAttesa = preventivi.filter((q) => q.stato === 'inviato')
 
   function di(secondi: number, msg: string) { setEsito(msg); setTimeout(() => setEsito(null), secondi * 1000) }
 
@@ -240,6 +330,12 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
     return Boolean(data) && !error
   }
 
+  async function nota(body: string) {
+    const { data } = await supabase.from('interactions')
+      .insert({ prospect_id: id, at: new Date().toISOString(), kind: 'nota', body }).select().single()
+    if (data) setTimeline((t) => [...t, data as Interaction])   // il filo la vede subito
+  }
+
   // la pillola di stato: Prospect o Cliente, lo decide Dre con un clic.
   // «Cliente» usa la stessa scrittura del Foglio (TuttiFoglio.cambiaStato);
   // «Prospect» lo rimette in pipeline, in Conoscitiva.
@@ -251,10 +347,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
       ? { fuori: true, fuori_at: p.fuori_at ?? adesso, pipeline_stage: 'cliente', contratto: p.contratto ?? 'stable', awaiting_us: false, no_followup: true }
       : { fuori: true, fuori_at: p.fuori_at ?? adesso, pipeline_stage: 'conoscitiva' }
     if (!(await aggiorna(patch as Partial<Prospect>))) return
-    const body = s === 'cliente' ? 'DIVENTA CLIENTE.' : 'Torna prospect, in Conoscitiva.'
-    const { data } = await supabase.from('interactions')
-      .insert({ prospect_id: id, at: adesso, kind: 'nota', body }).select().single()
-    if (data) setTimeline((t) => [...t, data as Interaction])   // lo storico la vede subito
+    await nota(s === 'cliente' ? 'DIVENTA CLIENTE.' : 'Torna prospect, in Conoscitiva.')
   }
 
   // condividere in chat: un messaggio nella stanza comune, taggato su di lui.
@@ -268,24 +361,40 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
     const { file, errore } = await caricaFile(id, f)
     if (errore || !file) { di(6, errore ?? 'Caricamento non riuscito'); return }
     setDocumenti((v) => [{ id: file.id, nome: file.nome, path: file.path, at: file.at ?? new Date().toISOString() }, ...v])
-    await supabase.from('interactions').insert({ prospect_id: id, at: new Date().toISOString(), kind: 'nota', body: `${f.name}, nei Documenti` })
+    await nota(`${f.name}, nei Documenti`)
     di(3, `«${file.nome}» nei Documenti`)
   }
 
-  async function salvaReferente() {
-    if (!refDraft.nome.trim()) return
-    const riga = { prospect_id: id, nome: refDraft.nome.trim(), ruolo: refDraft.ruolo.trim() || null, email: refDraft.email.trim() || null, telefono: refDraft.telefono.trim() || null }
-    const { data, error } = await supabase.from('referenti').insert(riga).select('id,nome,ruolo,email,telefono,nota').single()
-    if (error || !data) { di(5, 'Il referente non si salva: ' + (error?.message ?? '')); return }
-    setReferenti((v) => [...v, data as Referente])
-    setRefDraft({ nome: '', ruolo: '', email: '', telefono: '' })
-    setNuovoRef(false)
+  // il referente principale: colonne di prospects + enriched.referente (decide, nota)
+  const principale: Referente | null = p ? {
+    id: 0, nome: p.name ?? '', ruolo: p.role, email: p.email, telefono: p.phone, linkedin: p.linkedin,
+    decide: ((p.enriched as Record<string, unknown> | null)?.referente as { decide?: string } | undefined)?.decide ?? null,
+    nota: ((p.enriched as Record<string, unknown> | null)?.referente as { nota?: string } | undefined)?.nota ?? null,
+  } : null
+
+  async function salvaReferente(r: Referente): Promise<boolean> {
+    if (r.id === 0 && p) {
+      const enriched = { ...(p.enriched ?? {}), referente: { decide: r.decide, nota: r.nota } } as unknown as Prospect['enriched']
+      return aggiorna({ name: r.nome.trim() || null, role: r.ruolo, phone: r.telefono, linkedin: r.linkedin, enriched } as Partial<Prospect>)
+    }
+    const riga = { nome: r.nome.trim(), ruolo: r.ruolo, email: r.email, telefono: r.telefono, linkedin: r.linkedin, decide: r.decide, nota: r.nota }
+    if (r.id < 0) {
+      const { data, error } = await supabase.from('referenti').insert({ prospect_id: id, ...riga })
+        .select('id,nome,ruolo,email,telefono,linkedin,decide,nota').single()
+      if (error || !data) { di(6, /referenti/.test(error?.message ?? '') ? 'I referenti in più chiedono un passo in Supabase (schema_v75): è nel foglio «Da incollare in Supabase».' : 'Il referente non si salva: ' + (error?.message ?? '')); return false }
+      setReferenti((v) => [...v, data as Referente])
+      return true
+    }
+    const { error } = await supabase.from('referenti').update(riga).eq('id', r.id)
+    if (error) { di(6, 'Il referente non si salva: ' + error.message); return false }
+    setReferenti((v) => v.map((x) => (x.id === r.id ? r : x)))
+    return true
   }
 
   // lo storico in un testo solo, da scaricare: le stesse tappe della Storia
   function storicoTesto(): string {
     const righe = [
-      `${p?.company || p?.name || p?.email} — storico completo, ${fmtDateShort(new Date().toISOString())}`,
+      `${p?.company || p?.name || p?.email}, storico completo al ${fmtDateShort(new Date().toISOString())}`,
       '',
       ...[...timeline.filter((t) => t.kind !== 'postit' && t.kind !== 'prep').map((t) => ({ at: t.at, r: `[${fmtDateShort(t.at)} ${fmtOra(t.at)}] ${t.kind}: ${(t.body ?? '').trim()}` })),
         ...agendaSua.map((a) => ({ at: a.at, r: `[${fmtDateShort(a.at)} ${fmtOra(a.at)}] in calendario: ${a.titolo}` }))]
@@ -294,12 +403,63 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
     return righe.join('\n\n')
   }
 
+  // IL FILO: le tappe vere, dalla piu' recente. Le mail, l'analisi, ogni call col suo
+  // riassunto, i preventivi, i cambi di fase, i documenti. Le note di servizio no.
+  const tappe = useMemo((): Tappa[] => {
+    if (!p) return []
+    const out: Tappa[] = []
+    const prima = timeline.find((t) => t.kind === 'email_in')
+    for (const t of timeline) {
+      const b = (t.body ?? '').replace(/\s+/g, ' ').trim()
+      const corto = b.length > 160 ? `${b.slice(0, 159)}…` : b
+      if (t.kind === 'email_in') {
+        out.push({ chiave: t.id, at: t.at, titolo: t.id === prima?.id ? 'Prima risposta' : 'Ha scritto', testo: corto, citazione: true,
+          aperto: b.length > 160 ? t.body : null })
+      } else if (t.kind === 'email_out' || t.kind === 'followup') {
+        out.push({ chiave: t.id, at: t.at, titolo: t.kind === 'followup' ? 'Follow-up' : 'Gli abbiamo scritto', testo: corto,
+          aperto: b.length > 160 ? t.body : null })
+      } else if (t.kind === 'analisi') {
+        out.push({ chiave: t.id, at: t.at, titolo: 'Analisi Google Ads inviata',
+          azioni: p.analysis_pdf ? <>
+            <Link_ href={p.analysis_pdf}>Apri</Link_>
+            <Link_ su={() => void inChat(`L'analisi di ${p.company || p.name}: ${p.analysis_pdf}`)}>In chat</Link_>
+          </> : undefined })
+      } else if (t.kind === 'nota') {
+        const fase = /^\[(.+?)\]/.exec(t.body ?? '')?.[1]
+        if (fase) out.push({ chiave: t.id, at: t.at, titolo: fase, testo: (t.body ?? '').replace(/^\[.+?\]\s*/, '').slice(0, 160) })
+        else if (/^DIVENTA CLIENTE/i.test(b)) out.push({ chiave: t.id, at: t.at, titolo: 'Diventa cliente' })
+        else if (/^(Passa a|Torna prospect|SOPPRESSO|Fuori target)/i.test(b)) out.push({ chiave: t.id, at: t.at, titolo: b.split('.')[0].slice(0, 80) })
+      }
+    }
+    for (const c of chiamate) {
+      out.push({ chiave: c.chiave, at: c.at, titolo: c.titolo,
+        testo: c.riassunto ? (c.riassunto.length > 220 ? `${c.riassunto.slice(0, 219).trim()}…` : c.riassunto)
+          : Date.now() - new Date(c.at).getTime() > 3 * 86400e3 ? 'Senza appunti.' : 'Gli appunti non sono ancora arrivati.',
+        aperto: c.riassunto && c.riassunto.length > 220 ? c.riassunto : null,
+        azioni: <>
+          {c.link && <Link_ href={c.link}>Appunti su Drive</Link_>}
+          {c.riassunto && <Link_ su={() => scarica(`call-${fmtDateShort(c.at).replace(/\//g, '-')}.txt`, `${c.titolo}, ${fmtDateShort(c.at)}\n\n${c.riassunto}`)}>Scarica</Link_>}
+          {c.riassunto && <Link_ su={() => void inChat(`Call «${c.titolo}» del ${fmtDateShort(c.at)}, il riassunto:\n${c.riassunto}`)}>In chat</Link_>}
+        </> })
+    }
+    for (const q of preventivi) {
+      const cosa = `${q.titolo || 'Preventivo'}${q.importo ? `, ${Number(q.importo).toLocaleString('it-IT')} €` : ''}${q.mensile ? ` + ${Number(q.mensile).toLocaleString('it-IT')} €/mese` : ''}`
+      const pdf = q.pdf_path ? <Link_ su={() => void apriFile(q.pdf_path!)}>Apri il PDF</Link_> : null
+      if (q.inviato_il) out.push({ chiave: `pi-${q.id}`, at: q.inviato_il, titolo: 'Preventivo inviato', testo: cosa,
+        attesa: q.stato === 'inviato', azioni: pdf })
+      if (q.accettato_il) out.push({ chiave: `pa-${q.id}`, at: q.accettato_il, titolo: 'Preventivo accettato', testo: cosa, azioni: pdf })
+      if (q.rifiutato_il) out.push({ chiave: `pr-${q.id}`, at: q.rifiutato_il, titolo: 'Preventivo rifiutato', testo: cosa })
+      if (q.pagato_il) out.push({ chiave: `pp-${q.id}`, at: q.pagato_il, titolo: 'Pagato', testo: cosa })
+    }
+    return out.sort((x, y) => y.at.localeCompare(x.at))
+  }, [p, timeline, chiamate, preventivi])   // eslint-disable-line react-hooks/exhaustive-deps
+
   if (completa) return <Scheda key={id} id={id} sezione={sezione} onSezione={onSezione} onClose={onClose} onApri={onApri} />
 
   if (!p) return (
     <div className="fixed inset-0 z-50">
       <div onClick={onClose} className="absolute inset-0 bg-inchiostro/15" />
-      <aside className="scivola absolute inset-y-0 right-0 w-full max-w-[720px] overflow-y-auto border-l border-bordo bg-fondo">
+      <aside className="scivola absolute inset-y-0 right-0 w-full max-w-[920px] overflow-y-auto border-l border-bordo bg-fondo">
         <div className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5">
           <button onClick={onClose} className="text-sm font-semibold text-blu hover:underline">‹ Torna</button>
         </div>
@@ -313,180 +473,214 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   const cliente = eCliente(p)
   const perso = ePerso(p)
   const nome = p.company || p.name || p.email
-  const ultimaChiamata = chiamate[0]
+  const adesso = new Date().toISOString()
+  const prossima = agendaSua.find((a) => a.at > adesso && !NON_CALL.has(a.tipo ?? ''))
+  const inAttesa = preventivi.filter((q) => q.stato === 'inviato')
+  const punto = (p.enriched as Record<string, unknown> | null)?.punto as { testo?: string; passo?: string } | undefined
+  const fase = cliente ? null : p.fuori && p.pipeline_stage ? PIPELINE_LABEL[p.pipeline_stage as PipelineStage] : null
+  const sito = p.website ? (p.website.startsWith('http') ? p.website : `https://${p.website}`) : null
+  const tutti = principale ? [principale, ...referenti] : referenti
+  const daMostrare = tappe.slice(0, 8)
 
   return (
     <div className="fixed inset-0 z-50">
       <div onClick={onClose} className="absolute inset-0 bg-inchiostro/15" />
-      <aside className="scivola absolute inset-y-0 right-0 flex w-full max-w-[720px] flex-col border-l border-bordo bg-fondo">
+      <aside className="scivola absolute inset-y-0 right-0 flex w-full max-w-[920px] flex-col border-l border-bordo bg-fondo">
+        {/* la barra: torna, il link del vault, la scheda completa per il lavoro fine */}
         <div className="flex items-center gap-3 border-b border-bordo bg-white px-4 py-2.5">
           <button onClick={onClose} className="shrink-0 text-sm font-semibold text-blu hover:underline">‹ Torna</button>
           <Micro>Vault</Micro>
           <span className="min-w-0 flex-1" />
           <Copia testo={linkDi({ tab: 'prospect', id: p.id, sezione: null })} cosa="il link di questo Vault, da mandare a qualcuno">
-            <span className="shrink-0 text-[11px] font-semibold text-blu">Link</span>
+            <span className="shrink-0 text-[12px] font-semibold text-blu">Link</span>
           </Copia>
           <button onClick={() => setCompleta(true)} className="shrink-0 rounded-full border border-bordo px-3 py-1 text-xs font-bold text-navy hover:border-navy">
             Scheda completa
           </button>
         </div>
 
-        <ZonaFile onFile={accogli} messaggio={`Lascia qui: nei Documenti, agganciato a ${nome}`} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-16 sm:px-5">
+        <ZonaFile onFile={accogli} messaggio={`Lascia qui: nei Documenti, agganciato a ${nome}`} className="flex-1 overflow-y-auto">
 
-          {/* ── la testata: il nome, e lo stato che si clicca ─────── */}
-          <div className="flex items-start gap-3 px-1">
-            <Faccia p={p} size={44} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="min-w-0 truncate text-lg font-extrabold">{nome}</h2>
-                <button
-                  onClick={() => setStatoAperto(!statoAperto)}
-                  title="Lo stato: clicca per cambiarlo"
-                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                    cliente ? 'bg-green-50 text-green-800' : perso ? 'bg-velo text-tenue' : 'bg-amber-50 text-amber-800'}`}
-                >
-                  {cliente ? 'Cliente' : perso ? 'Perso' : 'Prospect'} {statoAperto ? '▴' : '▾'}
-                </button>
-                {statoAperto && (['prospect', 'cliente'] as const)
-                  .filter((s) => (s === 'cliente') !== cliente || perso)
-                  .map((s) => (
-                    <button key={s} onClick={() => void cambiaStato(s)}
-                            className="rounded-full border border-bordo bg-white px-2.5 py-0.5 text-[11px] font-semibold text-tenue hover:border-blu hover:text-blu">
-                      {s === 'cliente' ? 'Cliente' : 'Prospect'}
-                    </button>
-                  ))}
-              </div>
-              <p className="mt-0.5 text-[13px] text-tenue">
-                {sgid(p.sg_id)}{p.city ? `, ${p.city}` : ''}
-                {!cliente && !perso && p.fuori && p.pipeline_stage ? `, in ${PIPELINE_LABEL[p.pipeline_stage as PipelineStage]}` : ''}
-              </p>
-            </div>
-          </div>
-
-          {/* ── Referenti ─────────────────────────────────────────── */}
-          <Sez
-            titolo="Referenti"
-            sommario={p.name ? `${p.name}${p.role ? `, ${p.role}` : ''}${referenti.length ? ` e altri ${referenti.length}` : ''}` : referenti[0]?.nome ?? 'Ancora nessun nome'}
-            aperta={aperta === 'referenti'} su={() => setAperta(aperta === 'referenti' ? null : 'referenti')}
-          >
-            <ul className="divide-y divide-velo">
-              {[{ id: 0, nome: p.name ?? '(senza nome)', ruolo: p.role, email: p.email, telefono: p.phone, nota: null } as Referente, ...referenti].map((r) => (
-                <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2 text-sm">
-                  <span className="font-semibold">{r.nome}{r.ruolo ? <span className="font-normal text-tenue">, {r.ruolo}</span> : null}</span>
-                  {r.email && <Copia testo={r.email} cosa="l'indirizzo"><span className="text-blu">{r.email}</span></Copia>}
-                  {r.telefono && <a href={`tel:${r.telefono}`} className="text-blu hover:underline">{r.telefono}</a>}
-                  {r.nota && <span className="text-xs text-spento">{r.nota}</span>}
-                </li>
-              ))}
-            </ul>
-            {nuovoRef ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(['nome', 'ruolo', 'email', 'telefono'] as const).map((k) => (
-                  <input key={k} value={refDraft[k]} placeholder={k[0].toUpperCase() + k.slice(1)}
-                         onChange={(e) => setRefDraft((d) => ({ ...d, [k]: e.target.value }))}
-                         onKeyDown={(e) => { if (e.key === 'Enter') void salvaReferente() }}
-                         className="w-[calc(50%-4px)] rounded-lg border border-bordo px-2 py-1.5 text-sm outline-none focus:border-blu sm:w-[150px]" />
-                ))}
-                <button onClick={() => void salvaReferente()} className="rounded-full bg-blu px-3 py-1.5 text-xs font-bold text-white">Salva</button>
-                <button onClick={() => setNuovoRef(false)} className="rounded-full px-2 py-1.5 text-xs font-semibold text-tenue">Annulla</button>
-              </div>
-            ) : (
-              <button onClick={() => setNuovoRef(true)} className="mt-1 text-xs font-bold text-blu hover:underline">+ Referente</button>
-            )}
-          </Sez>
-
-          {/* ── Preventivi ────────────────────────────────────────── */}
-          <Sez
-            titolo="Preventivi"
-            sommario={preventivi.length === 0 ? 'Nessuno ancora' : `${preventivi.length} in tutto`}
-            extra={inAttesa.length > 0 ? <Triangolo n={inAttesa.length} /> : undefined}
-            aperta={aperta === 'preventivi'} su={() => setAperta(aperta === 'preventivi' ? null : 'preventivi')}
-          >
-            {preventivi.length === 0 ? <p className="text-sm text-spento">Nessun preventivo ancora.</p> : (
-              <ul className="divide-y divide-velo">
-                {preventivi.map((q) => (
-                  <li key={q.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-2 text-sm">
-                    {q.stato === 'inviato' && <svg viewBox="0 0 24 24" className="h-[13px] w-[13px] shrink-0 fill-amber-400"><path d="M12 3 22 20H2z" /></svg>}
-                    <span className="min-w-0 flex-1 truncate font-semibold">{q.titolo || 'Preventivo'} <span className="font-normal text-spento">{q.numero}</span></span>
-                    <span className="font-bold tabular-nums">{q.importo ? `${Number(q.importo).toLocaleString('it-IT')} €` : ''}{q.mensile ? `${q.importo ? ' + ' : ''}${Number(q.mensile).toLocaleString('it-IT')} €/mese` : ''}</span>
-                    <span className={`text-[11px] font-semibold ${q.pagato_il ? 'text-green-800' : q.stato === 'accettato' ? 'text-green-800' : q.stato === 'rifiutato' ? 'text-red-700' : q.stato === 'inviato' ? 'text-amber-800' : 'text-tenue'}`}>
-                      {q.pagato_il ? `pagato il ${fmtDateShort(q.pagato_il)}` : q.stato === 'inviato' && q.inviato_il ? `aspetta dal ${fmtDateShort(q.inviato_il)}` : q.stato}
-                    </span>
-                    {q.pdf_path && <Azione su={() => void apriFile(q.pdf_path!)}>PDF</Azione>}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button onClick={() => { try { sessionStorage.setItem('preventivo:nuovo', id) } catch { /* niente */ } window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: id })) }}
-                    className="mt-1 text-xs font-bold text-blu hover:underline">+ Nuovo preventivo</button>
-          </Sez>
-
-          {/* ── Chiamate ──────────────────────────────────────────── */}
-          <Sez
-            titolo="Chiamate"
-            sommario={chiamate.length === 0 ? 'Nessuna ancora' : `${chiamate.length}, ultima il ${fmtDateShort(ultimaChiamata.at)}`}
-            aperta={aperta === 'chiamate'} su={() => setAperta(aperta === 'chiamate' ? null : 'chiamate')}
-          >
-            {chiamate.length === 0 ? <p className="text-sm text-spento">Le call con il loro riassunto compaiono qui da sole.</p> : (
-              <ul className="divide-y divide-velo">
-                {chiamate.map((c) => (
-                  <li key={c.chiave} className="py-2">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                      <span className="w-14 shrink-0 text-xs tabular-nums text-tenue">{fmtDateShort(c.at)}</span>
-                      <span className="min-w-0 flex-1 truncate font-semibold">{c.titolo}</span>
-                      {c.riassunto && <Azione su={() => setVedo(vedo === c.chiave ? null : c.chiave)}>{vedo === c.chiave ? 'Chiudi' : 'Vedi'}</Azione>}
-                      {c.link && <a href={c.link} target="_blank" rel="noreferrer" className="shrink-0 rounded-full border border-bordo px-2.5 py-0.5 text-[11px] font-semibold text-navy hover:border-navy">Appunti</a>}
-                      {c.riassunto && <Azione su={() => scarica(`call-${fmtDateShort(c.at).replace(/\//g, '-')}.txt`, `${c.titolo}, ${fmtDateShort(c.at)}\n\n${c.riassunto}`)} tip="Scarica il riassunto">Scarica</Azione>}
-                      {c.riassunto && <Azione su={() => void inChat(`Call «${c.titolo}» del ${fmtDateShort(c.at)}, il riassunto:\n${c.riassunto}`)} tip="Manda il riassunto nella chat della squadra">In chat</Azione>}
-                    </div>
-                    {!c.riassunto && <p className="mt-0.5 pl-[68px] text-xs text-spento">{Date.now() - new Date(c.at).getTime() > 3 * 86400e3 ? 'Senza appunti.' : 'Gli appunti non sono ancora arrivati.'}</p>}
-                    {vedo === c.chiave && c.riassunto && (
-                      <p className="mt-1.5 whitespace-pre-wrap rounded-lg bg-velo/60 px-3 py-2 text-[13px] leading-snug">{c.riassunto}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Sez>
-
-          {/* ── Documenti ─────────────────────────────────────────── */}
-          <Sez
-            titolo="Documenti"
-            sommario={documenti.length + (p.analysis_pdf ? 1 : 0) === 0 ? 'Niente ancora: trascina qui un file' : `${documenti.length + (p.analysis_pdf ? 1 : 0)} ${documenti.length + (p.analysis_pdf ? 1 : 0) === 1 ? 'documento' : 'documenti'}`}
-            aperta={aperta === 'documenti'} su={() => setAperta(aperta === 'documenti' ? null : 'documenti')}
-          >
-            <ul className="divide-y divide-velo">
-              {p.analysis_pdf && (
-                <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate font-semibold">L'analisi Google Ads</span>
-                  <a href={p.analysis_pdf} target="_blank" rel="noreferrer" className="shrink-0 rounded-full border border-bordo px-2.5 py-0.5 text-[11px] font-semibold text-navy hover:border-navy">Apri</a>
-                  <Copia testo={p.analysis_pdf} cosa="il link dell'analisi, da mandare al cliente">
-                    <span className="shrink-0 rounded-full border border-bordo px-2.5 py-0.5 text-[11px] font-semibold text-tenue">Link</span>
-                  </Copia>
-                  <Azione su={() => void inChat(`L'analisi di ${nome}: ${p.analysis_pdf}`)} tip="Manda il link nella chat della squadra">In chat</Azione>
-                </li>
+          {/* ── la testata: chi e', a che punto, e il referente gia' contattabile ── */}
+          <header className="border-b border-bordo bg-white px-4 pb-4 pt-4 sm:px-6">
+            <div className="flex flex-wrap items-center gap-2">
+              {sgid(p.sg_id) && (
+                <Copia testo={sgid(p.sg_id)!} cosa="il codice">
+                  <span className="text-[12px] font-bold tracking-wide text-blu">{sgid(p.sg_id)}</span>
+                </Copia>
               )}
-              {documenti.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
-                  <button onClick={() => void apriFile(d.path)} className="min-w-0 flex-1 truncate text-left text-blu hover:underline">{d.nome}</button>
-                  <span className="shrink-0 text-xs text-spento">{fmtDateShort(d.at)}</span>
-                  <Azione su={() => void inChat(`«${d.nome}»`, d.id)} tip="Passa il documento nella chat della squadra">In chat</Azione>
-                </li>
+              <button onClick={() => setStatoAperto(!statoAperto)} title="Lo stato: clicca per cambiarlo"
+                      className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${cliente ? 'bg-green-50 text-green-800' : perso ? 'bg-velo text-tenue' : 'bg-amber-50 text-amber-800'}`}>
+                {cliente ? 'Cliente' : perso ? 'Perso' : 'Prospect'} {statoAperto ? '▴' : '▾'}
+              </button>
+              {statoAperto && (['prospect', 'cliente'] as const)
+                .filter((s) => (s === 'cliente') !== cliente || perso)
+                .map((s) => (
+                  <button key={s} onClick={() => void cambiaStato(s)}
+                          className="rounded-full border border-bordo bg-white px-2.5 py-0.5 text-[12px] font-semibold text-tenue hover:border-blu hover:text-blu">
+                    {s === 'cliente' ? 'Cliente' : 'Prospect'}
+                  </button>
+                ))}
+              {fase && <span className="text-[12px] font-semibold text-tenue">{fase}</span>}
+            </div>
+            <div className="mt-2 flex items-start gap-3">
+              <Faccia p={p} size={44} />
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[22px] font-extrabold leading-tight text-navy">{nome}</h2>
+                <p className="mt-0.5 text-[14px] text-tenue">
+                  {[p.descrizione ? p.descrizione.split(/(?<=\.)\s/)[0].replace(/\.$/, '') : p.sector?.replace(/_/g, ' '), p.city].filter(Boolean).join(', ')}
+                  {sito && <> {' '}<a href={sito} target="_blank" rel="noreferrer" className="font-semibold text-blu hover:underline">{p.website!.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a></>}
+                </p>
+              </div>
+            </div>
+            {principale && (principale.nome || principale.email) && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[14px]">
+                <span className="font-semibold">{principale.nome || 'Referente'}{principale.ruolo ? <span className="font-normal text-tenue">, {principale.ruolo}</span> : null}</span>
+                {principale.email && <Copia testo={principale.email} cosa="l'indirizzo"><span className="text-blu">{principale.email}</span></Copia>}
+                {principale.telefono && <a href={`tel:${principale.telefono}`} className="text-blu hover:underline">{principale.telefono}</a>}
+                {decideDi(principale) && <span className="rounded-full bg-velo px-2.5 py-0.5 text-[12px] font-semibold text-navy">{decideDi(principale)}</span>}
+              </div>
+            )}
+          </header>
+
+          <div className="grid gap-4 px-4 py-4 pb-16 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)]">
+
+            {/* ── Adesso: cosa aspetta, la prossima call ── */}
+            <Card className="p-4 lg:col-start-2 lg:row-start-1">
+              <Titolo>Adesso</Titolo>
+              {punto?.testo && <p className="text-[15px] leading-snug">{punto.testo}</p>}
+              {!punto?.testo && p.next_action && <p className="text-[15px] leading-snug">{p.next_action}{p.next_action_date ? `, ${fmtDateShort(p.next_action_date)}` : ''}</p>}
+              {!punto?.testo && !p.next_action && !prossima && !inAttesa.length && !p.awaiting_us && (
+                <p className="text-[14px] text-tenue">Niente in sospeso.</p>
+              )}
+              {p.awaiting_us && (
+                <p className="mt-2 flex items-center gap-2 text-[14px] font-semibold text-amber-900">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />Ha scritto: c'è da rispondere
+                </p>
+              )}
+              {prossima && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl bg-velo/70 px-3 py-2.5">
+                  <span className="flex w-11 shrink-0 flex-col items-center rounded-lg bg-white py-1 leading-none">
+                    <span className="text-[10px] font-bold uppercase text-tenue">{new Date(prossima.at).toLocaleDateString('it-IT', { weekday: 'short' })}</span>
+                    <span className="text-[18px] font-extrabold text-navy">{new Date(prossima.at).getDate()}</span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-bold">{prossima.titolo}</span>
+                    <span className="block text-[13px] text-tenue">{new Date(prossima.at).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' })} alle {fmtOra(prossima.at)}</span>
+                  </span>
+                  {prossima.link && (
+                    <a href={prossima.link} target="_blank" rel="noreferrer" className="shrink-0 rounded-full bg-blu px-3.5 py-1.5 text-[12px] font-bold text-white hover:bg-navy">Apri Meet</a>
+                  )}
+                </div>
+              )}
+              {inAttesa.map((q) => (
+                <p key={q.id} className="mt-2 flex items-center gap-2 text-[14px]">
+                  <Triangolo size={14} />
+                  <span><b>{q.numero ?? q.titolo}</b> aspetta risposta{q.inviato_il ? ` dal ${fmtDateShort(q.inviato_il)}` : ''}</span>
+                </p>
               ))}
-            </ul>
-            <p className="mt-2 text-xs text-spento">Trascina un file qui dentro: entra nei Documenti col suo titolo, agganciato a {nome}.</p>
-          </Sez>
+            </Card>
 
-          {/* ── lo storico completo, in fondo ─────────────────────── */}
-          <div className="flex flex-wrap items-center gap-2 px-1 pt-1">
-            <button onClick={() => setStoriaAperta(true)}
-                    className="flex-1 rounded-full border border-bordo py-2 text-xs font-bold text-navy hover:border-navy">
-              Visualizza storico completo
-            </button>
-            <Azione su={() => scarica(`storico-${(nome ?? 'azienda').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`, storicoTesto())} tip="Tutto il rapporto, in un file di testo">Scarica</Azione>
-            <Azione su={() => void inChat(`Il fascicolo di ${nome}: ${linkDi({ tab: 'prospect', id: p.id, sezione: null })}`)} tip="Manda il link del Vault nella chat della squadra">In chat</Azione>
+            {/* ── le cose ferme: referenti, preventivi, documenti ── */}
+            <div className="space-y-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+              <Card className="p-4">
+                <Titolo azione={<Link_ su={() => setApertoRef(apertoRef === 'nuovo' ? null : 'nuovo')}>+ Aggiungi</Link_>}>Referenti</Titolo>
+                <ul className="space-y-1">
+                  {tutti.map((r) => (
+                    <li key={r.id}>
+                      <button onClick={() => setApertoRef(apertoRef === r.id ? null : r.id)}
+                              className="flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left hover:bg-velo/50">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-velo text-[12px] font-bold text-navy">
+                          {(r.nome || '?').split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase()}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-semibold">{r.nome || 'Senza nome'}</span>
+                          <span className="block truncate text-[12px] text-tenue">{[r.ruolo, decideDi(r)].filter(Boolean).join(', ') || (r.id === 0 ? 'il contatto principale' : '')}</span>
+                        </span>
+                        <span className="shrink-0 text-[12px] text-spento">{apertoRef === r.id ? '▴' : '›'}</span>
+                      </button>
+                      {apertoRef !== r.id && r.id !== 0 && (r.email || r.telefono) && (
+                        <p className="ml-[42px] flex flex-wrap gap-x-3 text-[13px]">
+                          {r.email && <Copia testo={r.email} cosa="l'indirizzo"><span className="text-blu">{r.email}</span></Copia>}
+                          {r.telefono && <a href={`tel:${r.telefono}`} className="text-blu">{r.telefono}</a>}
+                        </p>
+                      )}
+                      {apertoRef !== r.id && r.nota && <p className="ml-[42px] line-clamp-2 text-[12.5px] text-tenue">{r.nota}</p>}
+                      {apertoRef === r.id && (
+                        <SchedaReferente r={r} principale={r.id === 0} onSalva={salvaReferente} onChiudi={() => setApertoRef(null)} />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {apertoRef === 'nuovo' && (
+                  <SchedaReferente r={{ id: -1, nome: '', ruolo: null, email: null, telefono: null, linkedin: null, decide: null, nota: null }}
+                                   principale={false} onSalva={salvaReferente} onChiudi={() => setApertoRef(null)} />
+                )}
+              </Card>
+
+              <Card className="p-4">
+                <Titolo azione={<Link_ su={() => { try { sessionStorage.setItem('preventivo:nuovo', id) } catch { /* niente */ } window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: id })) }}>+ Nuovo</Link_>}>Preventivi</Titolo>
+                {preventivi.length === 0 ? <p className="text-[13px] text-tenue">Nessuno ancora.</p> : (
+                  <ul className="space-y-2.5">
+                    {preventivi.map((q) => (
+                      <li key={q.id}>
+                        <button onClick={() => q.pdf_path && void apriFile(q.pdf_path)} disabled={!q.pdf_path} className="block w-full text-left disabled:cursor-default">
+                          <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.04em] ${
+                            q.stato === 'inviato' ? 'text-amber-800' : q.stato === 'accettato' || q.pagato_il ? 'text-green-800' : q.stato === 'rifiutato' ? 'text-red-700' : 'text-tenue'}`}>
+                            {q.stato === 'inviato' && <Triangolo size={11} />}
+                            {q.pagato_il ? 'Pagato' : q.stato === 'inviato' ? `In attesa${q.inviato_il ? ` dal ${fmtDateShort(q.inviato_il)}` : ''}` : q.stato}
+                          </span>
+                          <span className="block text-[14px] font-semibold leading-snug">{q.titolo || 'Preventivo'}</span>
+                          <span className="flex justify-between gap-2 text-[12.5px] text-tenue">
+                            <span className="truncate">{q.numero}</span>
+                            <span className="shrink-0 font-semibold tabular-nums text-inchiostro">
+                              {q.importo ? `${Number(q.importo).toLocaleString('it-IT')} €` : ''}{q.mensile ? `${q.importo ? ' + ' : ''}${Number(q.mensile).toLocaleString('it-IT')} €/mese` : ''}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+
+              <Card className="p-4">
+                <Titolo azione={<span className="text-[12px] font-semibold text-tenue">{documenti.length + (p.analysis_pdf ? 1 : 0) || ''}</span>}>Documenti</Titolo>
+                <ul className="space-y-1.5">
+                  {p.analysis_pdf && (
+                    <li className="flex items-center gap-2">
+                      <a href={p.analysis_pdf} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-[14px] font-semibold text-blu hover:underline">Analisi Google Ads</a>
+                      <Link_ su={() => void inChat(`L'analisi di ${nome}: ${p.analysis_pdf}`)} tip="Il link nella chat della squadra">In chat</Link_>
+                    </li>
+                  )}
+                  {documenti.map((d) => (
+                    <li key={d.id} className="flex items-center gap-2">
+                      <button onClick={() => void apriFile(d.path)} className="min-w-0 flex-1 truncate text-left text-[14px] text-blu hover:underline">{d.nome}</button>
+                      <span className="shrink-0 text-[12px] tabular-nums text-tenue">{fmtDateShort(d.at)}</span>
+                      <Link_ su={() => void inChat(`«${d.nome}»`, d.id)} tip="Il documento nella chat della squadra">In chat</Link_>
+                    </li>
+                  ))}
+                </ul>
+                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-bordo py-2.5 text-[13px] font-semibold text-tenue hover:border-navy hover:text-navy">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></svg>
+                  Trascina un file, o sceglilo
+                  <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void accogli(f); e.target.value = '' }} />
+                </label>
+              </Card>
+            </div>
+
+            {/* ── il filo del rapporto, dalla tappa piu' recente ── */}
+            <section className="lg:col-start-2 lg:row-start-2">
+              <Micro className="mb-3 block">Il filo</Micro>
+              {daMostrare.length === 0
+                ? <p className="text-[14px] text-tenue">Ancora nessuna tappa: le mail, le call e i preventivi arrivano qui da soli.</p>
+                : <Filo tappe={daMostrare} totale={timeline.filter((t) => t.kind !== 'postit' && t.kind !== 'prep').length + agendaSua.length} onTutto={() => setStoriaAperta(true)}
+                        extra={<>
+                          <Link_ su={() => scarica(`storico-${(nome ?? 'azienda').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`, storicoTesto())} tip="Tutto il rapporto in un file">Scarica</Link_>
+                          <Link_ su={() => void inChat(`Il fascicolo di ${nome}: ${linkDi({ tab: 'prospect', id: p.id, sezione: null })}`)} tip="Il link del Vault nella chat della squadra">In chat</Link_>
+                        </>} />}
+            </section>
           </div>
-
         </ZonaFile>
 
         {esito && (

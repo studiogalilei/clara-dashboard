@@ -3340,8 +3340,15 @@ create table if not exists referenti (
   ruolo text,
   email text,
   telefono text,
+  linkedin text,
+  -- chi decide (Dre, 7/10: «decide lui?»): si | insieme | no
+  decide text check (decide is null or decide in ('si', 'insieme', 'no')),
   nota text
 );
+
+-- se la tabella e' nata prima di questi campi
+alter table referenti add column if not exists linkedin text;
+alter table referenti add column if not exists decide text;
 
 create index if not exists idx_referenti_prospect on referenti (prospect_id);
 

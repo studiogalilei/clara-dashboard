@@ -79,8 +79,11 @@ export const prospects: Prospect[] = [
     fuori_binario: 'si', updated_at: gg(5),
   },
   {
-    ...vuoto, id: 'p7', sg_id: 12, email: 'amministrazione@klavzar.it', name: 'Klavzar',
-    company: 'Klavzar', sector: null, city: 'Gorizia', campaign: null,
+    ...vuoto, id: 'p7', sg_id: 12, email: 'amministrazione@klavzar.it', name: 'Luca K.', role: 'titolare',
+    phone: '0481 555 210', website: 'klavzar.it',
+    company: 'Klavzar', sector: 'serramenti', city: 'Gorizia', campaign: null,
+    descrizione: 'Serramenti e zanzariere su misura per le case della provincia di Gorizia.',
+    enriched: { punto: { testo: 'Campagne avviate, manca il tag di conversione sui moduli. La landing delle zanzariere va pronta entro fine mese.', il: gg(2) }, referente: { decide: 'si', nota: 'Preferisce WhatsApp alle mail, mai prima delle 10.' } } as never,
     stage: 'cliente', classificazione: 'positivo', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(120), last_reply_at: gg(20),
     fuori: true, fuori_at: gg(90), pipeline_stage: 'cliente',
@@ -371,7 +374,7 @@ const preventivi: Riga[] = [
 
 // gli altri referenti (v75): il principale sta nelle colonne di prospects
 const referenti: Riga[] = [
-  { id: 1, at: gg(60), prospect_id: 'p7', nome: 'Martina F.', ruolo: 'Amministrazione', email: 'fatture@klavzar.it', telefono: null, nota: 'Le fatture vanno a lei' },
+  { id: 1, at: gg(60), prospect_id: 'p7', nome: 'Martina F.', ruolo: 'Amministrazione', email: 'fatture@klavzar.it', telefono: null, linkedin: null, decide: 'no', nota: 'Le fatture vanno a lei' },
 ]
 const incassi: Riga[] = [
   { id: 'ch_demo1', genere: 'addebito', importo: 1500, valuta: 'eur', stato: 'succeeded', quando: gg(4), ricorrenza: null, metodo: 'carta',
