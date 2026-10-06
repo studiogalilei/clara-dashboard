@@ -259,3 +259,12 @@ Formato: data · cosa ha detto Dre · problema · causa · regola.
   come contenuto · la «foto» con le due cifre sul colore di fase, l'ID
   intero solo al passaggio del mouse e nella scheda; meno filtri, una
   colonna preventivo sola.
+- 7/10 · «sincero fa abbastanza schifo cosi', quella di prima sembrava di
+  piu' un vault cliente; Marco non e' navigabile, vorrei che alcune info si
+  vedessero gia' a vista» · il Vault v1 erano quattro fisarmoniche chiuse
+  sotto il nome («Referenti ▾», «Preventivi: nessuno ▾») · avevo letto «prima
+  facciata pulita» come «tutto chiuso»: pulito vuol dire ordinato, non vuoto ·
+  un fascicolo si apre con una COPERTINA ricca (codice, stato, nome, il punto,
+  il referente coi contatti, cio' che e' in sospeso) e sotto i capitoli
+  APERTI; il clic serve per aggiungere o andare piu' a fondo, mai per scoprire
+  cosa c'e'. Le azioni secondarie sono link, non trenta bottoni uguali.
