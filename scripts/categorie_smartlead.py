@@ -110,8 +110,11 @@ def id_categorie():
 def dove_ha_risposto(email):
     """(campagna, lead) dove ha risposto per ultimo."""
     d = _sl("GET", f"/leads/?email={urllib.parse.quote(email)}") or {}
-    camp = sorted([c for c in d.get("lead_campaign_data") or [] if c.get("last_reply_at")],
-                  key=lambda c: c["last_reply_at"], reverse=True)
+    tutte = d.get("lead_campaign_data") or []
+    camp = sorted([c for c in tutte if c.get("last_reply_at")], key=lambda c: c["last_reply_at"], reverse=True)
+    # 6/10: nelle campagne «Risposta 24/9» Smartlead non segna la risposta (e' partita da li'):
+    # si usa la campagna dove il lead c'e', l'ultima della lista
+    camp = camp or tutte[-1:]
     return (int(camp[0]["campaign_id"]), int(d["id"])) if camp and d.get("id") else (None, None)
 
 
