@@ -35,7 +35,7 @@ import csv as csvmod
 import io
 import json, os, re, sys, time, html as ihtml
 import urllib.request, urllib.parse, urllib.error
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -227,7 +227,7 @@ def db_prospects():
 
 # ---------- il giro ----------
 def main():
-    started = datetime.now().isoformat()
+    started = datetime.now(timezone.utc).isoformat()   # col fuso: sul Mac di Dre l'ora di Roma finiva nel database come UTC (6/10)
     print(f"SYNC V2 {'(DRY RUN)' if DRY else ''} — {started}")
     known = db_prospects()
     print(f"  DB: {len(known)} prospects noti")
@@ -451,7 +451,7 @@ def main():
 
     if not DRY:
         sb("POST", "/rest/v1/sync_runs", {
-            "started_at": started, "finished_at": datetime.now().isoformat(),
+            "started_at": started, "finished_at": datetime.now(timezone.utc).isoformat(),
             "campaigns_checked": len(camps), "leads_scanned": tot_scanned,
             "replies_found": tot_replies, "updated": updated,
             "reconciliation_ok": ok, "ok": ok,
