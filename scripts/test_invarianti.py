@@ -1376,6 +1376,18 @@ def _():
     assert R.conferma({"enriched": {}}, "soppresso") == "applica", "la richiesta di rimozione vale subito"
 
 
+@prova("il timer del follow-up: analisi + 5 giorni, ma il giorno di Dre vince (6/10)")
+def _():
+    import followup as F
+    import datetime as _dt
+    inviata = _dt.date(2026, 10, 1)
+    assert F.giorno_follow_up(inviata, None) == (_dt.date(2026, 10, 6), False)
+    assert F.giorno_follow_up(inviata, "2026-10-20") == (_dt.date(2026, 10, 20), True)
+    assert F.giorno_follow_up(inviata, "2026-10-20T09:00:00+00:00") == (_dt.date(2026, 10, 20), True)
+    # una data rotta non ferma il giro: si torna alla regola dei 5 giorni
+    assert F.giorno_follow_up(inviata, "boh") == (_dt.date(2026, 10, 6), False)
+
+
 @prova("il FOLLOW UP 1 non si mette in coda a chi ha gia' una bozza aperta in Posta (caso SCUDO, 6/10)")
 def _():
     import followup as F

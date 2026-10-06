@@ -28,6 +28,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, sb_tutte                                       # noqa: E402
 
 GIORNI = 5
+
+
+def giorno_follow_up(inviata, scelto_da_dre):
+    """Il timer del follow-up (Dre, 6/10): analisi + 5 giorni, MA il giorno lo puo'
+    spostare Dre dalla schermata (scrive next_action_date). La sua data vince.
+    Torna (giorno, True se l'ha scelto lui)."""
+    if scelto_da_dre:
+        try:
+            return datetime.date.fromisoformat(str(scelto_da_dre)[:10]), True
+        except ValueError:
+            pass
+    return inviata + datetime.timedelta(days=GIORNI), False
 QUANTI = 50
 CLASSI = "positivo,tiepido,da_classificare"
 
@@ -114,7 +126,7 @@ def calendario(prova, oggi):
     gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
     # 5/10: niente piu' finestra dei 30 giorni. Chi e' dovuto resta dovuto finche' il follow-up
     # non parte o non esce con un motivo: la finestra faceva sparire dal conto chi era indietro.
-    for p in sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda"
+    for p in sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda,next_action_date"
                        f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                        f"&classificazione=in.({CLASSI})") or []:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
@@ -122,9 +134,10 @@ def calendario(prova, oggi):
         if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
-        il = inviata + datetime.timedelta(days=GIORNI)
+        il, scelto = giorno_follow_up(inviata, p.get("next_action_date"))
         if il <= fine:
-            metti(p["id"], "FOLLOW UP 1", max(il, oggi), f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
+            metti(p["id"], "FOLLOW UP 1", max(il, oggi),
+                  "giorno scelto da Dre" if scelto else f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
     # 3. MINI FOLLOW UP: sei giorni dopo la ripresa
     gia_mini = gia_avute("MINI%20FOLLOW%20UP")
     for m in sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA"

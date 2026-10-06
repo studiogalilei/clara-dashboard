@@ -42,6 +42,10 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
   const [chiedo, setChiedo] = useState<string | null>(null)   // «Niente follow-up?» chiesto una volta
   const [lavoro, setLavoro] = useState<string | null>(null)
   const [guaio, setGuaio] = useState<string | null>(null)
+  // IL TIMER SI SPOSTA E LA BOZZA SI RITOCCA (Dre, 6/10: «posso modificare la
+  // bozza, e anche il giorno in cui parte il follow-up»)
+  const [bozzaDi, setBozzaDi] = useState<Riga | null>(null)
+  const [bozzaTesto, setBozzaTesto] = useState('')
   useVivo(['proposte', 'seguiti_calendario'], () => setGiro((n) => n + 1))
 
   useEffect(() => {
@@ -115,6 +119,35 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
     setChiedo(null); setLavoro(null)
   }
 
+  // SPOSTARE IL GIORNO: la data di Dre finisce in next_action_date (che per il
+  // motore vince su analisi+5, followup.giorno_follow_up) e subito anche nel
+  // calendario, cosi' la riga si sposta senza aspettare il prossimo giro.
+  async function spostaGiorno(r: Riga, nuovo: string) {
+    if (!nuovo || nuovo === r.il) return
+    setLavoro(r.prospect_id)
+    const { error } = await supabase.from('prospects').update({ next_action_date: nuovo }).eq('id', r.prospect_id)
+    if (error) { setGuaio(`Il giorno non si sposta: ${error.message}`); setLavoro(null); return }
+    await supabase.from('seguiti_calendario').update({ il: nuovo, perche: 'giorno scelto da te' }).eq('prospect_id', r.prospect_id)
+    setGuaio(null)
+    setRighe((l) => (l ?? []).map((x) => (x.prospect_id === r.prospect_id ? { ...x, il: nuovo, perche: 'giorno scelto da te' } : x))
+      .sort((a, b) => a.il.localeCompare(b.il)))
+    setLavoro(null)
+  }
+
+  // RITOCCARE LA BOZZA: si scrive dentro la proposta, che resta la verita' unica
+  // (la Posta e il postino leggono lo stesso testo). Il cancello la rilegge comunque.
+  async function salvaBozza() {
+    if (!bozzaDi?.proposta) return
+    const r = bozzaDi
+    setLavoro(r.prospect_id)
+    const azione = { ...r.proposta!.azione, bozza: bozzaTesto, corretta_da_dre: true }
+    const { error } = await supabase.from('proposte').update({ azione }).eq('id', r.proposta!.id)
+    if (error) { setGuaio(`La bozza non si salva: ${error.message}`); setLavoro(null); return }
+    setGuaio(null)
+    setRighe((l) => (l ?? []).map((x) => (x.prospect_id === r.prospect_id ? { ...x, proposta: { ...x.proposta!, azione } } : x)))
+    setBozzaDi(null); setLavoro(null)
+  }
+
   // VIA LIBERA: l'ha fermato una traccia che Dre sa essere innocua (una nota di
   // servizio, una call vecchia). Si toglie il giudizio dell'ombra e si segna il via:
   // al prossimo giro il cancello non guarda piu' i contatti fuori da Smartlead.
@@ -164,6 +197,19 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
                         : r.proposta ? (r.proposta.dalCodice ? 'pronta, col tuo testo' : 'pronta in Posta')
                         : r.perche}
                     </span>
+                    {!r.proposta && (
+                      <input type="date" value={r.il} disabled={lavoro === r.prospect_id}
+                             onChange={(e) => void spostaGiorno(r, e.target.value)}
+                             data-tip="Il giorno in cui parte: spostalo quando vuoi"
+                             className="rounded-full border border-bordo px-2 py-0.5 text-[11px] text-tenue outline-none hover:border-navy focus:border-blu" />
+                    )}
+                    {r.proposta?.azione.bozza != null && (
+                      <button onClick={() => { setBozzaDi(r); setBozzaTesto(String(r.proposta!.azione.bozza ?? '')) }}
+                              data-tip="Leggi e ritocca la bozza: parte col tuo testo"
+                              className="rounded-full border border-bordo px-2.5 py-0.5 text-[11px] font-bold text-navy hover:border-navy">
+                        Bozza
+                      </button>
+                    )}
                     {esito === 'resta a Dre' && (r.proposta?.motivo ?? '').includes('fuori da Smartlead') && (
                       <button onClick={() => void viaLibera(r)} disabled={lavoro === r.prospect_id}
                               data-tip="La traccia che l'ha fermato è innocua: al prossimo giro il cancello non guarda più i contatti fuori da Smartlead"
@@ -180,6 +226,22 @@ export default function SeguitiInArrivo({ onOpen }: { onOpen: (id: string) => vo
               })}
             </div>
           ))}
+        </div>
+      )}
+      {bozzaDi && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4" onMouseDown={() => setBozzaDi(null)}>
+          <div className="absolute inset-0 bg-inchiostro/25" />
+          <div onMouseDown={(e) => e.stopPropagation()} className="relative flex max-h-[80vh] w-full max-w-[560px] flex-col rounded-2xl border border-bordo bg-white p-4 shadow-xl">
+            <p className="text-[15px] font-extrabold text-navy">La bozza per {bozzaDi.nome}</p>
+            <p className="mt-0.5 text-[12px] text-tenue">Quello che salvi è quello che parte: la Posta legge lo stesso testo.</p>
+            <textarea autoFocus value={bozzaTesto} onChange={(e) => setBozzaTesto(e.target.value)}
+                      className="mt-3 min-h-[260px] flex-1 resize-y rounded-xl border border-bordo p-3 text-[13px] leading-relaxed focus:border-blu focus:outline-none" />
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => void salvaBozza()} disabled={!bozzaTesto.trim() || lavoro === bozzaDi.prospect_id}
+                      className="rounded-full bg-blu px-4 py-2 text-[12px] font-bold text-white hover:bg-navy disabled:opacity-40">Salva la bozza</button>
+              <button onClick={() => setBozzaDi(null)} className="rounded-full border border-bordo px-4 py-2 text-[12px] font-semibold text-tenue">Annulla</button>
+            </div>
+          </div>
         </div>
       )}
     </Card>
