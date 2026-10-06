@@ -349,9 +349,14 @@ Rispondi SOLO con una riga: «OK» oppure «STOP: motivo in venti parole»."""
         return "STOP", f"il Revisore non ha potuto leggere ({str(e)[:60]})"
 
 
-def segna(pr, az, patch_extra=None, solo_se_aperta=True):
-    """Scrive sulla proposta solo se e' ancora aperta: se Dre l'ha toccata nel frattempo, vince lui."""
-    filtro = f"id=eq.{pr['id']}" + ("&stato=eq.aperta" if solo_se_aperta else "")
+def segna(pr, az, patch_extra=None, solo_se_aperta=True, prima_decisione=False):
+    """Scrive sulla proposta solo se e' ancora aperta: se Dre l'ha toccata nel frattempo, vince lui.
+    Con prima_decisione, scrive solo se nessun altro giro ha gia' deciso (6/10, casainromagna:
+    alle 10:56 un giro l'ha fermata, «siamo gia' in contatto fuori da Smartlead», e alle 10:58
+    un giro parallelo, partito prima con una copia vecchia, l'ha approvata e spedita, cancellando
+    lo stop. Lampo e il direttore fanno girare la prima risposta insieme: vince chi decide per primo.)"""
+    filtro = f"id=eq.{pr['id']}" + ("&stato=eq.aperta" if solo_se_aperta else "") \
+        + ("&azione->prima_risposta=is.null" if prima_decisione else "")
     r = sb("PATCH", f"/rest/v1/proposte?{filtro}", {"azione": az, **(patch_extra or {})},
            {"Prefer": "return=representation"}) or []
     return bool(r)
@@ -485,7 +490,7 @@ def main():
             if PROVA:
                 continue
             az["prima_risposta"] = {"esito": "resta a Dre", "motivo": motivo, "il": il}
-            if segna(pr, az):
+            if segna(pr, az, prima_decisione=True):
                 di_clara("controllo", f"Prima risposta a {nome}: non parte da sola, resta a te in Posta. Il Revisore: {motivo}",
                          prospect_id=p["id"])
             continue
@@ -497,7 +502,7 @@ def main():
                 approvate += 1; continue
             az.update({"allega": True, "allega_presentazione": True,
                        "prima_risposta": {"esito": "primo invio da guardare", "il": il}})
-            if segna(pr, az, {"titolo": f"Primo invio automatico, dai tu il via: {nome}"[:200]}):
+            if segna(pr, az, {"titolo": f"Primo invio automatico, dai tu il via: {nome}"[:200]}, prima_decisione=True):
                 in_attesa_del_via = True
                 di_clara("domanda", f"È pronta la prima risposta che partirebbe da sola: {nome}. Aprila in Posta e premi «Approva e manda»: "
                                     f"la guardiamo uscire su Smartlead, con analisi e presentazione allegate. Dopo questa, le prossime partono da sole (massimo {MAX_AL_GIORNO} al giorno).",
@@ -511,12 +516,12 @@ def main():
                    "allega": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"),
                    "allega_presentazione": (not SEGUITI) or gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"),
                    "prima_risposta": {"esito": "OK", "il": il}})
-        if segna(pr, az, {"stato": "approvata"}):
+        if segna(pr, az, {"stato": "approvata"}, prima_decisione=True):
             approvate += 1
             di_clara("controllo", f"Prima risposta a {nome} approvata in automatico (Revisore: OK). Parte con analisi e presentazione al prossimo giro.",
                      prospect_id=p["id"], letto=True)
         else:
-            print(f"     {nome}: nel frattempo l'ha presa Dre, non tocco")
+            print(f"     {nome}: nel frattempo l'ha presa Dre o l'ha gia' decisa un altro giro, non tocco")
     print(f"prima_risposta: {approvate} {'partirebbero (ombra)' if OMBRA else 'passerebbero' if PROVA else 'approvate'}, {restano} restano a Dre, "
           f"{len(aperte)} bozze guardate, {fatte_oggi}/{tetto} oggi")
 
