@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// GitHub Pages serve la dashboard sotto /clara/ (BASE_PATH), in locale sotto /
+// GitHub Pages serve la dashboard su workspace.studiogalilei.com, alla radice (BASE_PATH /), come in locale
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [

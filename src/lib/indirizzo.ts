@@ -3,9 +3,9 @@
 // mandi a Carlo, lui apre esattamente quello che vedevi tu. E il tasto indietro
 // del browser fa quello che ci si aspetta.
 //
-//   /clara/#/pipeline                una sezione
-//   /clara/#/azienda/<id>            una scheda
-//   /clara/#/azienda/<id>/lavoro     una scheda, tab Lavoro
+//   /#/pipeline                una sezione
+//   /#/azienda/<id>            una scheda
+//   /#/azienda/<id>/lavoro     una scheda, tab Lavoro
 //
 // Restano buoni i vecchi link ?scheda=<id> che Clara ha messo in calendario.
 

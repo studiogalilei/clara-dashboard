@@ -1,9 +1,11 @@
 # La dashboard online, su GitHub Pages (9/9/2026).
 # Dre non vuole Clara su un account che puo' sparire (Vercel con la 2FA
 # persa): sta su GitHub, dove stanno gia' codice, backup e direttore.
-# A ogni salvataggio su main: build con la base /clara/ e i file compilati
+# A ogni salvataggio su main: build con la base / e i file compilati
 # vanno nel repo pubblico studiogalilei/clara (solo i compilati: il codice
-# resta qui, privato). Indirizzo: https://studiogalilei.github.io/clara/
+# resta qui, privato). Indirizzo: https://workspace.studiogalilei.com/ (6/10:
+# sottodominio di studiogalilei.com su GoDaddy, CNAME verso studiogalilei.github.io;
+# il vecchio studiogalilei.github.io/clara/ rimanda li' da solo)
 name: pubblica
 on:
   push:
@@ -26,7 +28,7 @@ jobs:
       - run: npm ci
       - name: build
         env:
-          BASE_PATH: /clara/
+          BASE_PATH: /
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_VAPID_PUBLIC: ${{ secrets.VAPID_PUBLIC }}
@@ -42,6 +44,7 @@ jobs:
           publish_branch: main
           publish_dir: ./dist
           force_orphan: true
+          cname: workspace.studiogalilei.com
           user_name: clara-dashboard
           user_email: clara@studiogalilei.com
           commit_message: "dashboard ${{ github.sha }}"
