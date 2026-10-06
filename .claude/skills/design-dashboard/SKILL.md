@@ -181,9 +181,60 @@ in `riferimenti/`. Quello che vale per noi, in regole:
 4. Stato vuoto = una riga secca, mai una spiegazione.
 5. Provarla in demo (`?demo`) a 1200px e a 390px prima di mostrarla.
 
+## Le regole del 5/10 (il feedback dei sei punti)
+
+16. **Niente feature senza workflow.** Dre: «il software e' costruito intorno al
+    nulla senza un workflow; quando facciamo features, se non c'e' un workflow
+    dietro non si fa». Prima di ogni schermata o funzione si scrive il workflow
+    (chi arriva, da dove, cosa decide, dove va dopo); se serve, si ricerca ed
+    estrae il workflow standard del settore. La schermata E' il workflow.
+17. **Veloce da sentire.** Un click deve rispondere subito: optimistic update
+    sempre (si aggiorna lo schermo, poi si scrive), mai aspettare il database
+    per far vedere l'effetto (il «lead perso» che ha atteso 5 secondi, 5/10).
+18. **Le tabelle dove si scrive devono essere belle da scrivere**: celle grandi,
+    click e scrivi, niente form travestiti (gia' regola 7, rinforzata il 5/10).
+19. **Un software che sembri un software.** «Cool il branding ma non c'entra un
+    cazzo»: l'estetica serve il lavoro, ogni schermata dice da dove cominciare,
+    cosa cliccare, cosa succede dopo. Se non si capisce, e' bocciata.
+20. **Tutorial su TUTTE le funzioni**: ogni schermata ha il suo «come si usa» a
+    portata di click (brevi, con i passi del workflow, non didascalie sparse).
+21. **Nel Workspace solo conversazioni e follow-up** per la posta di Dre: la
+    prima consegna e' tutta della corsia automatica; cio' che arriva a lui e'
+    solo cio' che richiede una sua decisione.
+
+## Le regole del 6/10 (dal giro di prova del gold e dalla direzione nuova)
+
+22. **Smartlead e' dove Dre lavora, il Workspace e' il fascicolo.** Ogni schermata
+    parte da qui: tracciare tutto, aggiornarsi da sola, condividersi (PDF,
+    passaggio a un collega). Niente che costringa Dre a fare nel Workspace il
+    lavoro che fa su Smartlead.
+23. **Una riga di lista non spreca meta' schermo.** Dre (6/10, Calendario):
+    «non mi piace il fatto che la riga sia cosi' lunga per il cazzo». Dal
+    desktop le liste temporali vanno a due colonne o portano la meta a destra:
+    il contenuto riempie la larghezza, non la riga vuota.
+24. **Niente estetica da app AI.** Dre: «eliminare il grigio e qualsiasi cosa
+    che rispecchi un'app AI». Solo i toni del tema (velo, bordo, tenue,
+    spento), mai grigi fuori palette, mai il puntino «·», mai gradienti o
+    bagliori; l'aspetto e' quello di un software di lavoro.
+25. **Il workflow deve dare un motivo (incentivato, non gamificato).** Dre:
+    «nessuno ha un motivo del perche' dovrebbe caricare». Ogni schermata che
+    chiede dati mostra subito cosa ci guadagna chi li mette: il fascicolo che
+    si completa, il passo dopo gia' pronto, il conto che si aggiorna. Se il
+    ritorno non si vede, la schermata e' sbagliata.
+
 ## Rifinitura (si aggiorna a ogni bocciatura)
 
 Formato: data · cosa ha detto Dre · problema · causa · regola.
+
+- 6/10 · «c'e' scritto domani call con Venice Design Week? non esiste» · la demo
+  usa nomi di clienti e prospect VERI e Dre non distingue piu' demo e realta' ·
+  dati finti travestiti da veri · i dati demo usano nomi inventati, mai quelli
+  veri (e il laboratorio e' pubblico: i nomi veri non ci devono proprio stare).
+- 6/10 · «Klavzar non e' assegnato a nessuno, mi e' venuto spontaneo assegnarlo
+  e non sapevo come fare» · «segue X» era testo morto · si mostrava il dato senza
+  il gesto · dove si legge uno stato suo, li' si cambia (regola «click e scrivi»).
+- 6/10 · righe del Calendario lunghe e vuote · lista a una colonna su schermo
+  largo · pattern mobile portato pari pari sul desktop · regola 23.
 
 - 7/9 · «quei numeri sono inutili» · la home apriva con quattro tessere
   numeriche · avevo copiato il pattern «dashboard = KPI in alto» · regola 3.
