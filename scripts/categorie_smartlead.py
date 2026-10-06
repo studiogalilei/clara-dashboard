@@ -34,7 +34,8 @@ PROVA = "--prova" in sys.argv or os.environ.get("PROVA") == "1"
 
 SI, DOMANDA, AVANTI, GIRATO, NO = "Sì, vuole l'analisi.", "Ha una domanda", "Più avanti", "Girato a un altro.", "No"
 MEETING = "Meeting booked"                       # 6/10, Dre: viola = «quelli sul workspace»
-CATEGORIE = (SI, DOMANDA, AVANTI, GIRATO, NO, MEETING)
+INFO = "Information Request"                     # quella standard di Smartlead: Dre la usa per chi chiede informazioni
+CATEGORIE = (SI, DOMANDA, AVANTI, GIRATO, NO, MEETING, INFO)
 # gli intenti del playbook che sono una domanda, non un si' (INT-03 chi siete, INT-04 come
 # ci avete trovato, INT-15 che societa' siete)
 INTENTI_DOMANDA = {"INT-03", "INT-04", "INT-15"}
@@ -49,6 +50,9 @@ CAMBIO = _re.compile(r"(indirizzo|address|e-?mail)\W+(\w+\W+){0,4}(cambiat|chang
                      r"non collabora pi|non fa pi[uù] parte|no longer (with|works)|inoltrare la (mail|comunicazione)", _re.I)
 # «ho girato la vostra mail all'ufficio competente» (6/10, secondo campione): e' un inoltro
 INOLTRATO = _re.compile(r"(ho|abbiamo) (girato|inoltrato|passato) (la (vostra|sua|tua) (mail|email|richiesta)|al (collega|responsabile|ufficio))", _re.I)
+# un autorisponditore non e' una persona che chiede informazioni (caso Tangible Design, 6/10)
+AUTORISPOSTA = _re.compile(r"your message has been received|support (staff|team)|ticket|thank you for (your|contacting)|"
+                           r"risposta automatica|messaggio automatico|automatic reply|out of (the )?office|fuori ufficio|do not reply", _re.I)
 # un no scritto chiaro dentro un si' di classe: non si etichetta, si segnala (la classe e' sbagliata)
 NO_SCRITTO = _re.compile(r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) interessa|non (siamo|sono) interessat|"
                          r"non fa per noi|non abbiamo (bisogno|necessit|interesse)|abbiamo gi[aà] chi", _re.I)
@@ -62,12 +66,18 @@ def categoria_di(p, intento=None, girato=False, testo="", call=False):
     il viola di Dre che su Smartlead dice «questo e' sul Workspace» (6/10). Vince su
     tutto, tranne che per soppressi, fuori target, nervosi e persi."""
     c = p.get("classificazione")
-    if call and c not in ("soppresso", "fuori_target", "nervoso", "negativo") and p.get("pipeline_stage") != "perso":
-        return MEETING                               # chi ha detto no DOPO la call resta un No (caso Witty)
+    # 6/10, Dre: «ogni persona che prenota finisce in workspace», col viola, anche se per noi
+    # e' fuori target o un no: poi decide lui (tieni / sopprimi / rispondi e sopprimi).
+    # Restano fuori solo i soppressi e i persi (gia' decisi).
+    if call and c != "soppresso" and p.get("pipeline_stage") != "perso":
+        return MEETING
     if p.get("fuori") or p.get("bloccato"):
         return None
-    if c in ("soppresso", "fuori_target", "da_classificare", None):
+    if c in ("soppresso", "fuori_target"):
         return None
+    if c in ("da_classificare", None):
+        # 6/10, Dre: chi chiede informazioni prende la Information Request standard (caso Cadeddu)
+        return INFO if testo and "?" in testo and not AUTORISPOSTA.search(testo) else None
     if c in ("negativo", "nervoso"):
         return NO
     if testo and CAMBIO.search(testo):

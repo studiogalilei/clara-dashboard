@@ -126,11 +126,16 @@ def _():
     assert C.categoria_di({"classificazione": "positivo", "fuori": True}, call=True) == C.MEETING
     assert C.categoria_di({"classificazione": None}, call=True) == C.MEETING, "una call prenotata basta, anche senza classe"
     assert C.categoria_di({"classificazione": "rinvio"}, call=True) == C.MEETING
-    # ...tranne soppressi, fuori target e persi
+    # ...e vince anche su fuori target e sui no (Dre 6/10: «ogni persona che prenota finisce
+    # in workspace», poi decide lui); restano fuori solo soppressi e persi
+    assert C.categoria_di({"classificazione": "fuori_target"}, call=True) == C.MEETING
+    assert C.categoria_di({"classificazione": "negativo"}, call=True) == C.MEETING
     assert C.categoria_di({"classificazione": "soppresso"}, call=True) is None
-    assert C.categoria_di({"classificazione": "fuori_target"}, call=True) is None
     assert C.categoria_di({"classificazione": "negativo", "fuori": True, "pipeline_stage": "perso"}, call=True) is None
-    assert C.categoria_di({"classificazione": "negativo"}, call=True) == C.NO, "un no dopo la call resta un No (Witty)"
+    # chi chiede informazioni senza una classe prende la Information Request standard (Cadeddu)
+    assert C.categoria_di({"classificazione": "da_classificare"}, testo="non ho capito bene di cosa si tratta, e cio che ci state proponendo?") == C.INFO
+    assert C.categoria_di({"classificazione": "da_classificare"}, testo="Risposta ricevuta (Smartlead)") is None
+    assert C.categoria_di({"classificazione": "da_classificare"}, testo="Thank you for your email! Your message has been received and is being reviewed by our support staff. What is your WordPress login?") is None, "un autorisponditore non chiede informazioni"
     # dal campione letto prima di scrivere (6/10)
     assert C.categoria_di({"classificazione": "ooo"}, testo="Hello, my email address has recently changed") == C.GIRATO
     assert C.categoria_di({"classificazione": "ooo"}, testo="questa casella di posta verra' dismessa in data 30.04") == C.GIRATO
