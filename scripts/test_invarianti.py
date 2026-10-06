@@ -1255,6 +1255,23 @@ def _():
         PR.sb = vero
 
 
+@prova("il postino prende una mail solo se e' ancora approvata: mai due invii uguali (caso Pircher e Maura, 1/10)")
+def _():
+    import manda as M
+    vero = M.sb
+    chiamate = []
+    try:
+        M.sb = lambda m, path, corpo=None, h=None: (chiamate.append((m, path, corpo, h)) or [])
+        assert M.prendi({"id": 9}) is False, "se un altro postino l'ha gia' presa non si manda"
+        m, path, corpo, h = chiamate[-1]
+        assert m == "PATCH" and "stato=eq.approvata" in path and corpo == {"stato": "in_invio"}
+        assert h and "return=representation" in h.get("Prefer", ""), "senza la risposta non si sa se la presa e' riuscita"
+        M.sb = lambda m, path, corpo=None, h=None: [{"id": 9}]
+        assert M.prendi({"id": 9}) is True
+    finally:
+        M.sb = vero
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz
