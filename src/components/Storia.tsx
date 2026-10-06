@@ -26,7 +26,7 @@ const TONO: Record<Tappa['tono'], string> = {
   out: 'bg-blu',           // noi abbiamo mandato
   call: 'bg-navy',         // ci siamo parlati
   fase: 'bg-amber-400',    // e' cambiato di fase
-  nota: 'bg-gray-300',     // un appunto nostro
+  nota: 'bg-bordo',        // un appunto nostro
 }
 
 function unaRiga(s: string | null | undefined, max = 90): string {

@@ -90,7 +90,7 @@ export default function Comandi({ aperto, chiudi, ruolo, concessi, vaiA, apriSch
       id: `az:${p.id}`,
       titolo: p.company || p.name || p.email || 'senza nome',
       sotto: cod?.tipo ? `${TIPO_NOME[cod.tipo]} ${testo.toUpperCase()}, nella sua scheda`
-             : [p.name, p.city, p.email].filter(Boolean).join(' · '),
+             : [p.name, p.city, p.email].filter(Boolean).join(', '),          // mai il puntino (regola 14)
       gruppo: 'Aziende' as const,
       fai: () => apriScheda(p.id),
     }))

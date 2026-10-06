@@ -71,7 +71,7 @@ const aChi = (p: Prospect) => (p as unknown as { passato_a?: string }).passato_a
 
 const COLORE: Record<Chiave, string> = {
   arrivo: 'bg-amber-200', prospect: 'bg-amber-400', conoscitiva: 'bg-[#6b85e0]', tecnica: 'bg-blu',
-  avvio: 'bg-navy', prova: 'bg-teal-600', cliente: 'bg-green-600', perso: 'bg-gray-300', scartato: 'bg-gray-200',
+  avvio: 'bg-navy', prova: 'bg-teal-600', cliente: 'bg-green-600', perso: 'bg-spento', scartato: 'bg-bordo',
 }
 
 const ORDINE: Record<Chiave, number> = {

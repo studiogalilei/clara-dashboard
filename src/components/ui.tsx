@@ -47,7 +47,7 @@ export { Eti }
 // grigio = mai acceso (che non è un guasto)
 export function Dot({ tone }: { tone: 'ok' | 'attesa' | 'fermo' | 'spento' }) {
   const c = tone === 'ok' ? 'bg-green-600' : tone === 'attesa' ? 'bg-amber-500'
-    : tone === 'spento' ? 'bg-gray-300' : 'bg-red-600'
+    : tone === 'spento' ? 'bg-bordo' : 'bg-red-600'
   return <span className={`inline-block h-[7px] w-[7px] shrink-0 rounded-full ${c}`} />
 }
 
@@ -67,7 +67,7 @@ export type FacciaP = Pick<Prospect, 'sg_id' | 'name' | 'company' | 'fuori' | 's
 export function tonoFase(p: Pick<FacciaP, 'fuori' | 'stage' | 'pipeline_stage'>): string {
   const perso = (p.fuori && p.pipeline_stage === 'perso') || (!p.fuori && p.stage === 'perso')
   const cliente = (p.fuori && p.pipeline_stage === 'cliente') || (!p.fuori && p.stage === 'cliente')
-  if (perso) return 'bg-gray-200 text-gray-500'
+  if (perso) return 'bg-velo text-spento'
   if (cliente) return 'bg-green-600 text-white'
   if (p.fuori) {
     if (p.pipeline_stage === 'tecnica') return 'bg-blu text-white'

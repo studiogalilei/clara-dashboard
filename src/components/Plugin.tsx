@@ -43,7 +43,7 @@ const STATO_RICHIESTA: Record<string, [string, string]> = {
   richiesto: ['Richiesto', 'bg-velo text-tenue'],
   in_costruzione: ['In costruzione', 'bg-blu/10 text-blu'],
   attivo: ['Attivo', 'bg-green-700 text-white'],
-  scartato: ['Scartato', 'bg-gray-100 text-spento'],
+  scartato: ['Scartato', 'bg-velo text-spento'],
 }
 
 const COLLEGAMENTI: Array<[string, 'ok' | 'attesa' | 'no', string]> = [
