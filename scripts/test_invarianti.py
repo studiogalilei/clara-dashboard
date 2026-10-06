@@ -1208,6 +1208,17 @@ def _():
         Sa.sb = vero
 
 
+@prova("la rilettura cambia classe solo se la nuova lettura si ripete due volte di fila (6/10)")
+def _():
+    import rilettura as R
+    p = {"enriched": {}}
+    assert R.conferma(p, "negativo") == "aspetta", "una lettura sola non cambia la classe"
+    p = {"enriched": {"lettura_candidata": {"classe": "negativo"}}}
+    assert R.conferma(p, "negativo") == "applica", "due letture uguali di fila la cambiano"
+    assert R.conferma(p, "tiepido") == "aspetta", "una lettura diversa dalla candidata riparte da capo"
+    assert R.conferma({"enriched": {}}, "soppresso") == "applica", "la richiesta di rimozione vale subito"
+
+
 @prova("una sigla in maiuscolo non e' un «tu» (caso TI.EMME.TI, 5/10)")
 def _():
     import bozze as Bz

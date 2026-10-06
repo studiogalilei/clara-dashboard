@@ -78,6 +78,20 @@ def parte_sua(testo):
     return lettura.solo_suo(testo or "", con_firma=True).strip()
 
 
+def conferma(p, nuova):
+    """L'ISTERESI (6/10). La rilettura gira in cloud e la cache del cervello non sopravvive fra
+    una corsa e l'altra: ogni notte lo stesso messaggio ambiguo veniva riletto da capo e la
+    classe saltava (tiepido, negativo, tiepido, negativo: cinque cambi in una settimana, e ogni
+    cambio accende o spegne i blocchi dei follow-up). Una classe nuova si applica solo se la
+    rilettura la ripete due volte di fila; la prima volta si annota come candidata.
+    La richiesta di rimozione non aspetta: vale subito.
+    Torna «applica» o «aspetta»."""
+    if nuova == "soppresso":
+        return "applica"
+    cand = ((p.get("enriched") or {}).get("lettura_candidata") or {}).get("classe")
+    return "applica" if cand == nuova else "aspetta"
+
+
 def illeggibile(v):
     p = (v.get("perche") or "").lower()
     return v["classe"] == "da_classificare" and any(
@@ -121,6 +135,7 @@ def main():
     letti = cervello.leggi(da_leggere, quando_pronto=lambda f, t: print(f"  letti {f}/{t}…"))
 
     uguali, vuoti, sicure, proposte = 0, 0, [], []
+    candidate, smentite = [], []                            # l'isteresi (6/10): vedi conferma()
     for pid, v in letti.items():
         p = indice[pid]
         prima = p.get("classificazione")
@@ -133,9 +148,14 @@ def main():
             continue
         if v["classe"] == prima:
             uguali += 1
+            if (p.get("enriched") or {}).get("lettura_candidata"):
+                smentite.append(p)                          # l'oscillazione e' rientrata: la candidata si toglie
             # anche se non cambia classe, una data detta dalla persona vale
             if v["quando"] and v["classe"] in ("rinvio", "ooo") and not p.get("next_action_date"):
                 sicure.append((p, prima, v, "data"))
+            continue
+        if conferma(p, v["classe"]) == "aspetta":
+            candidate.append((p, v))                        # la prima volta si annota soltanto
             continue
         calda = prima == "positivo" or v["classe"] == "positivo"
         # un risponditore automatico fra i positivi non e' una domanda: lo
@@ -153,7 +173,8 @@ def main():
             sicure.append((p, prima, v, "classe"))
 
     print(f"\n  confermate {uguali}, archivio vuoto {vuoti}, "
-          f"correggo da sola {len(sicure)}, chiedo a Dre {len(proposte)}\n")
+          f"correggo da sola {len(sicure)}, chiedo a Dre {len(proposte)}, "
+          f"in attesa di una seconda lettura {len(candidate)}, oscillazioni rientrate {len(smentite)}\n")
     for p, prima, v, cosa in sicure[:25]:
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
         print(f"  faccio   {nome:36} {str(prima):14} -> {v['classe']:12} {v['perche']}")
@@ -163,8 +184,19 @@ def main():
         print("\n(prova: non ho scritto niente)")
         return
 
+    adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    for p, v in candidate:
+        arr = dict(p.get("enriched") or {})
+        arr["lettura_candidata"] = {"classe": v["classe"], "perche": v["perche"], "il": adesso}
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
+    for p in smentite:
+        arr = dict(p.get("enriched") or {})
+        arr.pop("lettura_candidata", None)
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
+
     for p, prima, v, cosa in sicure:
         arr = dict(p.get("enriched") or {})
+        arr.pop("lettura_candidata", None)
         arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello", "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
         patch = {"enriched": arr}
         if cosa == "classe":
@@ -187,6 +219,7 @@ def main():
     # 67 «da positivo a tiepido?» aperte erano lavoro in piu', non in meno.
     for p, prima, v, tipo, titolo in proposte:
         arr = dict(p.get("enriched") or {})
+        arr.pop("lettura_candidata", None)
         arr["lettura"] = {"classe": v["classe"], "perche": v["perche"], "quando": v["quando"], "da": "cervello", "il": datetime.datetime.now(datetime.timezone.utc).isoformat(), "prima": prima}
         patch = {"enriched": arr, "classificazione": "fuori_target" if tipo == "scarta" else v["classe"]}
         if tipo == "scarta":
