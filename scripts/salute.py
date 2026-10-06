@@ -242,12 +242,15 @@ def main():
     # 13. UNA COSA E' VERA IN UN POSTO SOLO (27/9). Due campi dicono la fase di
     #     un'azienda e su nove si contraddicevano: Zafferano e Klavzar erano
     #     clienti per un pezzo del sistema e prospect per un altro.
-    due = sb("GET", "/rest/v1/prospects?select=company,stage,pipeline_stage&fuori=eq.true&pipeline_stage=not.is.null&limit=300") or []
-    discordi = [d for d in due
-                if (d.get("pipeline_stage") in ("cliente", "prova") and d.get("stage") not in ("cliente", "prova"))
-                or (d.get("pipeline_stage") == "perso" and d.get("stage") in ("call_fissata", "rinviato"))]
+    #     6/10: dallo schema v72 la fase vera e' `tappa`, calcolata dal database, e per chi e'
+    #     in pipeline (fuori) conta pipeline_stage: lo `stage` vecchio rimasto li' non lo legge
+    #     nessuno (e contattabile ferma comunque chi e' fuori). Segnalarlo faceva rumore ogni
+    #     giorno su cinque aziende a posto. Resta la contraddizione vera: una fase di pipeline
+    #     su chi NON e' in pipeline, che la tappa ignorerebbe.
+    due = sb("GET", "/rest/v1/prospects?select=company,stage,pipeline_stage&fuori=eq.false&pipeline_stage=not.is.null&limit=300") or []
+    discordi = [d for d in due if d.get("pipeline_stage") in ("cliente", "prova", "conoscitiva", "tecnica", "avvio")]
     if discordi:
-        problemi.append(f"{len(discordi)} aziende hanno due fasi diverse nei due campi (es. {discordi[0].get('company')}: «{discordi[0].get('stage')}» e «{discordi[0].get('pipeline_stage')}»)")
+        problemi.append(f"{len(discordi)} aziende hanno una fase di pipeline ma non sono in pipeline (es. {discordi[0].get('company')}: «{discordi[0].get('pipeline_stage')}»): la tappa le ignora")
 
     # 29/9: GLI AGGANCI SBAGLIATI DEL CALENDARIO. Una call di selezione («Chiamata
     # conoscitiva (Enrico Filippini)») era finita su un'azienda soppressa per una
