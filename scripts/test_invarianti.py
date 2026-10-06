@@ -44,8 +44,8 @@ def _():
     data = ok + "<p>Analisi del 29 settembre 2026 (aggiornata il 29/9), aperti 365 giorni l'anno, 24 ore su 24.</p>"
     assert A.numeri_non_nei_fatti(data, fatti) == [], A.numeri_non_nei_fatti(data, fatti)
     assert A.numeri_non_nei_fatti(ok + "<p>29 clienti nuovi</p>", fatti) == ["29"]
-    # 6/10: il nome di una norma non e' un dato (SMART Consulting, bocciata due volte per «9001»)
-    norme = ok + "<p>Certificazioni ISO 9001, UNI EN ISO 14001:2015, ISO/IEC 27001, ISO-45001 e OHSAS 18001.</p>"
+    # 6/10: il nome di una norma o di un prodotto non e' un dato (SMART per «9001», Neuronica per «Microsoft 365»)
+    norme = ok + "<p>Certificazioni ISO 9001, UNI EN ISO 14001:2015, ISO/IEC 27001, ISO-45001 e OHSAS 18001. Migrazioni a Microsoft 365, Office 365 e Windows 11.</p>"
     assert A.numeri_non_nei_fatti(norme, fatti) == [], A.numeri_non_nei_fatti(norme, fatti)
     assert A.numeri_non_nei_fatti(ok + "<p>9001 aziende certificate</p>", fatti) == ["9001"], "un numero vero resta un numero"
     assert A.numeri_non_nei_fatti(ok + "<p>ben 30 recensioni in casa</p>", fatti) == ["30"], "«ben 30» non e' una norma"

@@ -298,9 +298,9 @@ def _norma(n):
 # bocciate per «29»: due bocciature e fuori dalla fila, ferme da una settimana.
 _DOPO_DATA = re.compile(r"\s*(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\b|/\d", re.I)
 _MODO_DI_DIRE = re.compile(r"\s*(?:giorni|ore)\b", re.I)
-# 6/10: il nome di una norma non e' un dato. SMART Consulting (certificazioni) era bocciata due
+# 6/10: il nome di una norma o di un prodotto (ISO 9001, Microsoft 365) non e' un dato. SMART Consulting (certificazioni) era bocciata due
 # volte per «9001» di ISO 9001, e il suo ricontatto aspettava l'analisi da undici giorni.
-_PRIMA_NORMA = re.compile(r"\b(?:ISO|IEC|UNI|EN|OHSAS|IATF|SA)[\s/\-:]*(?:(?:IEC|EN|ISO)[\s/\-:]*)*$")   # maiuscole: «ben 30» non e' «EN 30»
+_PRIMA_NORMA = re.compile(r"\b(?:ISO|IEC|UNI|EN|OHSAS|IATF|SA|Microsoft|Office|Dynamics|Windows)[\s/\-:]*(?:(?:IEC|EN|ISO)[\s/\-:]*)*$")   # maiuscole: «ben 30» non e' «EN 30»
 
 
 def numeri_di(testo):
@@ -313,7 +313,7 @@ def numeri_di(testo):
         if not unita and n in ("24", "365") and (_MODO_DI_DIRE.match(dopo) or testo[max(0, m.start(1) - 3):m.start(1)].lower() == "su "):
             continue                                        # «24 ore su 24», «365 giorni»
         if not unita and _PRIMA_NORMA.search(testo[max(0, m.start(1) - 16):m.start(1)]):
-            continue                                        # ISO 9001, UNI EN ISO 14001, ISO/IEC 27001
+            continue                                        # ISO 9001, UNI EN ISO 14001, Microsoft 365
         fuori.add((n, unita))
     return fuori
 
