@@ -73,6 +73,10 @@ def _():
                "grazie per il messaggio, in realtà abbiamo già chi si occupa di queste cose"):
         assert S.classifica(no) == "negativo", no
     assert S.classe_da_sync("in realtà abbiamo già chi si occupa di queste cose", "Information Request", None, True) == "negativo"
+    # 6/10 pomeriggio: due consensi veri restavano «da classificare» e la prima risposta non partiva
+    assert S.classifica("Me la mandi, senza impegno") == "positivo"
+    assert S.classifica("Se vuole inviare a titolo gratuito faccia pure.") == "positivo"
+    assert S.classifica("mandatela pure, grazie") == "positivo"
 
 
 @prova("la rilettura blocca chi chiede la rimozione da qualunque strada passi (caso Panorama, 6/10)")

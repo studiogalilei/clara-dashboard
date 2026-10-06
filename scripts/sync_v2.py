@@ -160,6 +160,7 @@ CAMBIO = re.compile(r"non (e'|è) piu' (attiv|in uso)|non è più (attiv|in uso)
                     r"nuovo indirizzo|casella.*(chius|dismess|disattiv)|non collabora piu|non collabora più|"
                     r"non ricopro piu|non ricopro più|non fa più parte|non faccio più parte", re.I)
 POS = re.compile(r"interessat[oa]|mi interessa|volentieri|va bene|invii pure|invia pure|inviate pure|"
+                 r"me l[ae] mandi|mandatel[ae]|faccia pure|fate pure|invii? pure|procedete|proceda pure|"   # 6/10: «Me la mandi», «faccia pure» restavano da classificare e la bozza non partiva
                  r"mi mandi|puo' mandare|può mandare|sentiamo|chiamat|telefonat|fissiamo|"
                  r"disponibil|ci dica|quanto cost|come funziona|aspetto|attendo|ricevo|con piacere|"
                  r"mi piacerebbe|me la invii|mandi pure|\bcall\b|videochiamata|ok\b", re.I)
