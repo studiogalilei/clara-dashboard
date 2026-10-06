@@ -176,6 +176,15 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
     t = "\n".join(righe)
     if chiave == "INTERESSATO":
         t = re.sub(r"Va bene perfetto,\s*", (_attacco(attacco) or "Va bene perfetto,") + " ", t, count=1)
+    if (intento or "").strip() == "INT-23":
+        # INT-23, VUOLE IL MATERIALE MA NON LA CALL (playbook: «mandi, dici che resti a
+        # disposizione, non proponi orari; chi lo ha chiesto si irrigidisce»). Il template e'
+        # INTERESSATO senza la proposta di call: il 6/10 Oikos («valuteremo l'eventuale call»)
+        # stava per ricevere uno slot alle 9, in automatico.
+        righe = [r for r in t.splitlines() if not re.match(r"\s*(Le propongo\b|📅|Calendario:)", r)]
+        t = "\n".join("Se dopo averla letta volesse approfondire, resto a disposizione." if "confrontarmi" in r else r
+                      for r in righe)
+        garanzia = True                  # la frase della garanzia e' sparita con la riga: niente da togliere
     if chiave == "SENTIAMOCI":
         per = _periodo(periodo)
         if not per:

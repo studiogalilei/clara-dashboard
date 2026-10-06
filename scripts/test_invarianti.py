@@ -1182,6 +1182,23 @@ def _():
         Bz.sb = vero
 
 
+@prova("INT-23, vuole il materiale ma non la call: si manda l'analisi e non si propone nessun orario (caso Oikos, 6/10)")
+def _():
+    import bozze as Bz
+    import seguiti as S
+    vero = Bz.template_verbatim()
+    t = S.risposta("INT-23", {}, {}, "https://cal/NUOVO", giorno="giovedì 8 ottobre alle 15:30", testo_file=vero, garanzia=True)
+    assert t, "INT-23 deve avere il suo testo dal template di Dre"
+    assert "Le propongo" not in t and "giovedì 8 ottobre" not in t, "INT-23 propone comunque un orario: il playbook dice di non farlo"
+    assert "calendar" not in t and "cal/NUOVO" not in t and "Calendario" not in t, "INT-23 non spinge il calendario"
+    assert "confrontarmi" not in t and "a disposizione" in t, "si dice che restiamo a disposizione, come dice il playbook"
+    assert "vi inoltro qui l'analisi" in t and "presentazione" in t, "l'analisi e la presentazione restano"
+    # senza giorno dal calendario INT-23 si scrive lo stesso (non serve un orario)
+    assert S.risposta("INT-23", {}, {}, "x", giorno=None, testo_file=vero, garanzia=False)
+    # INT-01 resta com'era: propone l'orario
+    assert "Le propongo giovedì 8 ottobre alle 15:30" in S.risposta("INT-01", {}, {}, "x", giorno="giovedì 8 ottobre alle 15:30", testo_file=vero)
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

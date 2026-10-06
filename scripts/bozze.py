@@ -665,7 +665,9 @@ def testo_di_dre(b, p, letti):
     comp = seguiti.risposta(b.get("intento"), p, letti, CALENDARIO, giorno=giorno, attacco=b.get("attacco"),
                             periodo=b.get("periodo"), loro=(letti or {}).get("ultima_loro") or "")
     if comp:
-        b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": giorno,
+        # il giorno si salva solo se il testo lo propone davvero (INT-23 no: conterebbe nel tetto
+        # dei tre per orario un'offerta che non c'e')
+        b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": giorno if giorno and giorno in comp else None,
              "nota": f"il template di Dre parola per parola ({b.get('intento')}); " + (b.get("nota") or "")}
     return b
 
