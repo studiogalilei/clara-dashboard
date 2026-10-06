@@ -26,10 +26,16 @@ export default function NonOra({ conBozza }: { conBozza: Set<string> }) {
       const ps = ((data ?? []) as Array<{ id: string; company: string | null; name: string | null; email: string; next_action: string | null }>)
         .filter((p) => !conBozza.has(p.id) && !/^(riscrivere|parcheggiato)/i.test(p.next_action ?? ''))
       if (!ps.length) { if (vivo) setVoci([]); return }
-      const { data: mail } = await supabase.from('interactions').select('prospect_id,at,body')
-        .eq('kind', 'email_in').in('prospect_id', ps.map((p) => p.id)).order('at', { ascending: false }).limit(1000)
+      // a blocchi di 60: con tutti gli id in una richiesta sola l'indirizzo diventa troppo lungo
+      const mail: Array<{ prospect_id: string; at: string; body: string | null }> = []
+      for (let i = 0; i < ps.length; i += 60) {
+        const { data: pezzo } = await supabase.from('interactions').select('prospect_id,at,body')
+          .eq('kind', 'email_in').in('prospect_id', ps.slice(i, i + 60).map((p) => p.id)).order('at', { ascending: false }).limit(1000)
+        mail.push(...((pezzo ?? []) as typeof mail))
+      }
+      mail.sort((a, b) => b.at.localeCompare(a.at))
       const ultima = new Map<string, { at: string; body: string | null }>()
-      for (const m of (mail ?? []) as Array<{ prospect_id: string; at: string; body: string | null }>) {
+      for (const m of mail) {
         if (!ultima.has(m.prospect_id) && soloSuo(m.body)) ultima.set(m.prospect_id, m)
       }
       const lista: Voce[] = []
