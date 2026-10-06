@@ -439,7 +439,7 @@ const TABELLE: Record<string, Riga[]> = {
   preparazioni: agenda.filter((a) => a.preparazione).map((a) => ({ agenda_id: a.id, prospect_id: a.prospect_id, testo: a.preparazione, preparata_il: a.preparata_il ?? a.at })) as unknown as Riga[],
   // il riservato di Dre (29/9): prezzo, bilancio e le preparazioni delle call
   riservato_clienti: [
-    { prospect_id: 'p5', prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [] },
+    { prospect_id: 'p5', prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [], formula: 'domanda', cluster: 'eventi', tetto_mese: 2100, tetto_fonte: 'dalla domanda della zona', il: gg(1), perche: ['Domanda nella zona: circa 2.900 ricerche al mese sul loro mestiere', 'Spesa pubblicitaria sostenibile stimata 2.200 € al mese', 'Il canone sta fra il 60 e il 75% della spesa, come dagli ultimi preventivi accettati'] },
       bilancio: { fatturato: 1850000, utile: 94000, anno: 2025, dipendenti: 14 }, valore: null },
   ] as unknown as Riga[],
   soldi_progetti: [] as unknown as Riga[],

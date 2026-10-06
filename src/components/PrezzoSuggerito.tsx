@@ -55,14 +55,14 @@ export default function PrezzoSuggerito({ p, onSalvato }: { p: Prospect; onSalva
           <p className="mt-1 text-2xl font-bold tabular-nums text-navy">{euro(prezzo.fascia[0])} <span className="text-base font-semibold text-tenue">a</span> {euro(prezzo.fascia[1])} <span className="text-sm font-semibold text-tenue">al mese</span></p>
           <p className="mt-0.5 text-xs text-tenue">
             affidabilità <b>{prezzo.affidabilita}</b>, dalla {prezzo.formula === 'domanda' ? 'domanda Google della zona' : 'capacità di spesa del bilancio'}; spesa Ads sostenibile ~{euro(prezzo.spesa_ads_mese)}/mese
-            {prezzo.tetto_mese ? <>; tetto di valore ~{euro(prezzo.tetto_mese)} ({prezzo.tetto_fonte})</> : <>; tetto di valore {prezzo.tetto_fonte}</>}
+            {prezzo.tetto_mese ? <>; tetto di valore ~{euro(prezzo.tetto_mese)} ({prezzo.tetto_fonte})</> : <>{prezzo.tetto_fonte ? <>; tetto di valore {prezzo.tetto_fonte}</> : null}</>}
           </p>
-          {prezzo.flag.length > 0 && (
-            <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{prezzo.flag.join(' · ')}</p>
+          {(prezzo.flag ?? []).length > 0 && (
+            <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{(prezzo.flag ?? []).join(', ')}</p>
           )}
           <details className="mt-1 text-xs text-tenue">
             <summary className="cursor-pointer select-none font-semibold">com'è venuto fuori</summary>
-            <ul className="mt-1 list-disc space-y-0.5 pl-4">{prezzo.perche.map((r, i) => <li key={i}>{r}</li>)}</ul>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">{(prezzo.perche ?? []).map((r, i) => <li key={i}>{r}</li>)}</ul>
             <p className="mt-1 text-spento">Tutte le percentuali sono ipotesi di lavoro (Impostazioni › Lo Studio): si tarano sui primi dieci preventivi veri. Il numero è interno, non entra mai in una mail.</p>
           </details>
         </>
