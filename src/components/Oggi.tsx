@@ -342,6 +342,24 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const nomeDi = (id: string | null) =>
     persone.find((p) => p.id === id)?.nome ?? 'qualcuno'
 
+  // SONO BLOCCATO (gold, 6/10, dalla V5 e dalla ricerca: «il blocco di Alex arriva subito a
+  // Carlo»). Su una task che ti ha mandato un altro: una riga su cosa ti blocca, e diventa una
+  // task per chi te l'aveva chiesta, per oggi. Prima il blocco restava nella testa di chi l'aveva.
+  const [blocco, setBlocco] = useState<{ id: number; testo: string } | null>(null)
+  const [bloccoEsito, setBloccoEsito] = useState<string | null>(null)
+  async function segnalaBlocco(t: TaskDre) {
+    const testo = (blocco?.testo ?? '').trim()
+    if (!testo || !t.da) return
+    const { problema } = await creaTask({
+      titolo: `${nomeDi(io)} è bloccato su «${t.titolo}»: ${testo}`,
+      perChi: t.da, scadenza: oggi(),
+      prospect_id: (t as TaskDre & { prospect_id?: string | null }).prospect_id ?? null,
+    })
+    if (problema) { setBloccoEsito(`Non è partito: ${problema}`); return }
+    setBlocco(null)
+    setBloccoEsito(`Mandato a ${nomeDi(t.da)}: lo trova in cima alla sua giornata.`)
+  }
+
   async function apriPersona(id: string | null) {
     setPossoVedere(true)
     const p = persone.find((x) => x.id === id)
@@ -1026,6 +1044,21 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
                   onChange={(e) => aggiorna(t.id, { scadenza: e.target.value || null })}
                   className="rounded-full border border-bordo px-2.5 py-1 text-xs text-tenue outline-none focus:border-blu"
                 />
+                {t.da && t.da !== io && (blocco?.id === t.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input autoFocus value={blocco.testo} onChange={(e) => setBlocco({ id: t.id, testo: e.target.value })}
+                           onKeyDown={(e) => { if (e.key === 'Enter') void segnalaBlocco(t); if (e.key === 'Escape') setBlocco(null) }}
+                           placeholder={`Cosa ti blocca? Arriva a ${nomeDi(t.da)}`}
+                           className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
+                    <button onClick={() => void segnalaBlocco(t)} disabled={!blocco.testo.trim()}
+                            className="min-h-[36px] rounded-full bg-blu px-3 py-1 text-xs font-bold text-white disabled:opacity-40">Manda</button>
+                    <button onClick={() => setBlocco(null)} className="text-xs text-spento hover:text-inchiostro">Annulla</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setBloccoEsito(null); setBlocco({ id: t.id, testo: '' }) }}
+                          className="block text-xs font-semibold text-tenue hover:text-navy">Sono bloccato</button>
+                ))}
+                {bloccoEsito && apertaTask === t.id && <p className="text-xs font-semibold text-emerald-700">{bloccoEsito}</p>}
               </div>
             )}
           </div>

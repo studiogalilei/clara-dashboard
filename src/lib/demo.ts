@@ -266,6 +266,8 @@ const sync_runs: Riga[] = [{ id: 1, finished_at: new Date(Date.now() - 13 * 6000
 
 const task: Riga[] = [
   { id: 1, at: gg(1), titolo: 'Mandare i 30 follow-up su Smartlead', dettagli: 'le bozze sono pronte', scadenza: data(-1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'demo', stato: 'accettata' },
+  // gold (6/10): una task mandata da un altro, per vedere «Sono bloccato»
+  { id: 7, at: gg(1), titolo: 'Firmare il contratto di prova di Klavzar', dettagli: 'manca la firma per la fattura', scadenza: data(1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'giacomo', stato: 'accettata', prospect_id: 'p7' },
   { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1), owner: 'demo', da: 'demo', stato: 'fatta' },
   // il pod di Carlo: due persone con roba in mano, una scaduta
   { id: 3, at: gg(3), titolo: 'Rifare il budget di Klavzar', dettagli: null, scadenza: data(2), ordine: 2, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
