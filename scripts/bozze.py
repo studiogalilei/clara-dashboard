@@ -247,6 +247,16 @@ def quando_proposto(testo, anno, fuso):
         return None
 
 
+def supera_ferme(oggi):
+    """La domanda delle analisi ferme e' una al giorno, ma quelle dei giorni prima restavano
+    aperte: il 6/10 in Posta c'erano sei copie della stessa domanda, dall'1 al 6. Quando nasce
+    quella di oggi, le vecchie si chiudono come superate (la lista nuova le contiene gia')."""
+    for x in sb("GET", "/rest/v1/proposte?select=id,ref&ref=like.ferme:*&stato=eq.aperta&limit=100") or []:
+        if x.get("ref") != f"ferme:{oggi}":
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}",
+               {"stato": "no", "risposta": "superata dalla domanda di oggi sulle analisi ferme"})
+
+
 def proposta_giorno_ora():
     """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
     stesso giorno; scritto sempre «giorno + data».
@@ -855,6 +865,7 @@ def main():
         titolo_f = (f"{quante} risposte sono ferme: aspettano un'analisi che non arriva"
                     if quante > 1 else f"Ferma da giorni: {ferme_da_dire[0][1]}")
         if not PROVA:
+            supera_ferme(datetime.date.today().isoformat())
             proponi("umano", titolo_f,
                     perche=(f"Aspettano da due giorni o piu'. Apri il loro sito: se non risponde, l'analisi non puo' nascere. "
                             f"Puoi mandarle senza l'analisi o lasciarle.\n{righe_f}")[:280],
