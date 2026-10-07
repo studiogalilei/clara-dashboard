@@ -282,6 +282,14 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   // sezione non si mostra, invece di dire «nessuno ancora» quando non e' vero (7/10)
   const [ceo, setCeo] = useState(false)
   useEffect(() => { void sonoCeo().then(setCeo) }, [])
+  // PASSA A (Dre, 6/10: «mandarlo dal mio profilo a quello di Carlo o a Giacomo»): il
+  // fascicolo arriva nella chat personale di quella persona, col link e una riga tua
+  const [squadra, setSquadra] = useState<Array<{ id: string; nome: string | null }>>([])
+  const [passa, setPassa] = useState(false)
+  const [passaNota, setPassaNota] = useState('')
+  useEffect(() => {
+    void supabase.from('profili').select('id,nome').order('nome').then(({ data }) => setSquadra((data as Array<{ id: string; nome: string | null }>) ?? []))
+  }, [])
 
   useEffect(() => {
     let vivo = true
@@ -361,6 +369,16 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
     if (!(await aggiorna(patch as Partial<Prospect>))) return
     if (s === 'prospect' && eraCliente) void azzeraCanone(id)
     await nota(s === 'cliente' ? 'DIVENTA CLIENTE.' : 'Torna prospect, in Conoscitiva.')
+  }
+
+  async function passaA(chi: { id: string; nome: string | null }) {
+    if (!p) return
+    const link = linkDi({ tab: 'prospect', id: p.id, sezione: null })
+    const testo = `Ti passo il fascicolo di ${p.company || p.name || p.email}${passaNota.trim() ? `: ${passaNota.trim()}` : ''}\n${link}`
+    const { error } = await supabase.from('chat').insert({ da: utenteId, a: chi.id, testo, prospect_id: id, file_id: null })
+    if (error) { di(5, 'Non è partito: ' + error.message); return }
+    setPassa(false); setPassaNota('')
+    di(3, `Il fascicolo è nella chat di ${(chi.nome ?? 'qualcuno').split(' ')[0]}`)
   }
 
   // condividere in chat: un messaggio nella stanza comune, taggato su di lui.
@@ -532,6 +550,20 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
           <button onClick={onClose} className="shrink-0 text-sm font-semibold text-blu hover:underline">‹ Torna</button>
           <Micro>Vault</Micro>
           <span className="min-w-0 flex-1" />
+          <span className="relative shrink-0">
+            <button onClick={() => setPassa(!passa)} aria-expanded={passa} className="text-[12px] font-semibold text-blu hover:underline">Passa a…</button>
+            {passa && (
+              <div className="absolute right-0 top-7 z-30 w-64 rounded-xl border border-bordo bg-white p-2 shadow-lg">
+                <input autoFocus value={passaNota} onChange={(e) => setPassaNota(e.target.value)} placeholder="Una riga per lui, se vuoi"
+                       onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setPassa(false) } }}
+                       className="mb-1.5 w-full rounded-lg border border-bordo px-2.5 py-1.5 text-[13px] outline-none focus:border-blu" />
+                {squadra.filter((x) => x.id !== utenteId).map((x) => (
+                  <button key={x.id} onClick={() => void passaA(x)}
+                          className="block w-full rounded-lg px-2.5 py-2 text-left text-[14px] hover:bg-velo/60">{x.nome ?? 'Senza nome'}</button>
+                ))}
+              </div>
+            )}
+          </span>
           <button onClick={pdf} data-tip="Il fascicolo su un foglio: lo salvi in PDF e lo mandi" className="shrink-0 text-[12px] font-semibold text-blu hover:underline">PDF</button>
           <Copia testo={linkDi({ tab: 'prospect', id: p.id, sezione: null })} cosa="il link di questo Vault, da mandare a qualcuno">
             <span className="shrink-0 text-[12px] font-semibold text-blu">Link</span>
