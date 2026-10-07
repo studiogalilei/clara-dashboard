@@ -8,6 +8,7 @@ import { mieiAccessi, tuttiAccessi, chiedi, decidi, vediCome, type StatoAccesso,
 import { nomeSalvato, salvaNome, iniziali } from '../lib/profilo'
 import { leggi as leggiPref, scrivi as scriviPref, type Chiave as ChiavePref } from '../lib/preferenze'
 import { Card, TitoloCard, Micro } from './ui'
+import Utilizzo from './Utilizzo'
 import { incassiSenzaAzienda, mensile, type Incasso } from './TuttiFoglio'
 import type { VoceListino } from '../lib/preventivo'
 import Firma from './Firma'
@@ -271,6 +272,9 @@ export default function Impostazioni({ nome, email, demo, ruolo, ruoloVero = ruo
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-36 sm:pb-8">
 
+
+      {/* L'UTILIZZO (Dre, 7/10): mostra se stesso solo a Dre, a tutti gli altri non compare */}
+      <Utilizzo />
 
       <Gruppo titolo="Tu" sotto="nome, firma, password, notifiche" aperto={true}>
       {/* ── PROFILO ────────────────────────────────────────────── */}

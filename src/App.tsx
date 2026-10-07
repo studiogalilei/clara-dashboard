@@ -46,6 +46,7 @@ import Comandi, { type Comando } from './components/Comandi'
 import { leggiIndirizzo, scriviIndirizzo, linkDi } from './lib/indirizzo'
 import { ricordaReparto, repartoRicordato } from './lib/reparto'
 import { chiSono, vediCome, type ChiSono, type Persona } from './lib/accessi'
+import { avviaUtilizzo } from './lib/utilizzo'
 import { nomeDa, iniziali } from './lib/profilo'
 import Analytics from './components/Analytics'
 import VaultCliente from './components/VaultCliente'
@@ -139,6 +140,11 @@ export default function App() {
     window.addEventListener('popstate', dallUrl)
     return () => window.removeEventListener('popstate', dallUrl)
   }, [])
+  // L'UTILIZZO (Dre, 7/10): un minuto contato per ogni minuto di lavoro vero, per persona e
+  // per schermata. Invisibile; lo legge solo Dre in Impostazioni (schema_v77)
+  const doveSono = useRef<string>('')
+  doveSono.current = openId ? 'vault' : tab
+  useEffect(() => avviaUtilizzo(() => doveSono.current, demo), [])
   const primoGiro = useRef(true)
   useEffect(() => {
     scriviIndirizzo({ tab, id: openId, sezione }, primoGiro.current)
