@@ -1651,6 +1651,16 @@ def _():
     assert all(tanti[e]["enriched"]["sl_riletto_il"] <= min(tanti[x]["enriched"]["sl_riletto_il"] for x in tanti if x not in scelti) for e in scelti)
 
 
+@prova("un rinvio con la data entra in coda da solo quando la data arriva, ma solo dal 7/10 in poi: il passato lo decide Dre (La Fonte, 7/10)")
+def _():
+    import followup as F
+    import datetime
+    assert F.MOTORE_RINVII_DAL == datetime.date(2026, 10, 7)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "followup.py"), encoding="utf-8").read()
+    assert "rinvii_scaduti(prova, datetime.date.today())" in src, "il motore dei rinvii gira nel giro orario"
+    assert "next_action_date=gte." in src and "coda=is.null" in src, "solo date nuove, e mai sopra una coda gia' piena"
+
+
 @prova("un follow-up non parte verso chi nel frattempo ha detto no o non e' la persona giusta, e il timer dell'analisi non riparte a ogni invio (controllo dal vivo del 7/10)")
 def _():
     base = os.path.dirname(os.path.abspath(__file__))

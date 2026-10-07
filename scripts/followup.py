@@ -200,12 +200,49 @@ def calendario(prova, oggi):
     return len(righe)
 
 
+# IL MOTORE DEI RINVII (7/10, caso La Fonte Immobiliare: «ci sentiamo con l'anno nuovo»,
+# scheda segnata 1/1/2027, e POI? Fino a oggi quella data la onorava solo uno script a
+# mano: il calendario prometteva, nessuno manteneva. Regola 4 del 28/9: niente attese
+# senza motore). Il giorno dopo la data del rinvio, il lead entra in coda da solo e il
+# motore delle bozze scrive la ripresa, che resta in Posta per Dre come tutte.
+# I rinvii VECCHI (date prima del 7/10) restano fuori: molti sono residui da ripulire
+# (17 il giorno del varo), e un motore che li riprende tutti insieme rifa' il rumore
+# appena tolto. Quelli li decide Dre, dal calendario di Clara.
+MOTORE_RINVII_DAL = datetime.date(2026, 10, 7)
+
+
+def rinvii_scaduti(prova, oggi):
+    onorati = {m["prospect_id"]: m["risposta_il"] for m in (sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il"
+               "&stato=eq.fatta&azione->>intento=eq.RIPRESA") or []) if m.get("prospect_id") and m.get("risposta_il")}
+    con_bozza = con_bozza_aperta()
+    messi = 0
+    for p in sb("GET", "/rest/v1/prospects?select=id,company,email,next_action_date,coda&classificazione=eq.rinvio"
+                       f"&fuori=eq.false&no_followup=eq.false&stage=not.in.(cliente,perso,call_fissata,rinviato)"
+                       f"&next_action_date=gte.{MOTORE_RINVII_DAL.isoformat()}&next_action_date=lt.{oggi.isoformat()}&limit=200") or []:
+        if p.get("coda") or p["id"] in con_bozza:
+            continue
+        if onorati.get(p["id"], "") >= (p.get("next_action_date") or "~"):
+            continue
+        nome = p.get("company") or p["email"]
+        if prova:
+            print(f"  [prova] rinvio scaduto il {p['next_action_date']}: {nome} entra in coda")
+            messi += 1
+            continue
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}&coda=is.null",
+           {"coda": "RINVIO SCADUTO", "coda_il": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        messi += 1
+    if messi:
+        print(f"rinvii scaduti entrati in coda da soli: {messi}")
+    return messi
+
+
 def main():
     prova = "--prova" in sys.argv
     if "--calendario" in sys.argv:
         calendario(prova, datetime.date.today())
         return
     mini_followup(prova, datetime.date.today())
+    rinvii_scaduti(prova, datetime.date.today())
     oggi = datetime.date.today()
     righe = sb("GET", f"/rest/v1/prospects?select=id,name,company,email,analysis_sent_at,last_reply_at,classificazione,analysis_pdf,coda{_fu()}"
                       f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
