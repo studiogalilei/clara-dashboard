@@ -101,6 +101,9 @@ function Elenco({ onOpen }: Props) {
         {vedoSoldi && retainer > 0 && <span className="ml-auto text-sm font-bold tabular-nums">{retainer.toLocaleString('it-IT')} € al mese</span>}
       </div>
 
+      {guaio && lista.length > 0 && (
+        <Avviso tono="rosso" titolo="Qualcosa non si è salvato">Riprova: {guaio}</Avviso>
+      )}
       {lista.length === 0 && (guaio
         ? <Avviso tono="rosso" titolo="Non sono riuscito a leggere i clienti">
             La lista potrebbe non essere vuota: è la lettura che non è andata ({guaio}). Riprova fra poco, e se resta così dimmelo.

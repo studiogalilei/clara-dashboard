@@ -199,11 +199,11 @@ export default function Aziende({ onScheda }: { onScheda: (id: string) => void }
             <p className="text-[15px] font-bold text-inchiostro">
               {nomeDi(conferma.p)} torna {conferma.verso === 'lead' ? 'fra i lead' : `in ${NOME_TAPPA[conferma.verso]}`}?
             </p>
-            <p className="mt-1 text-sm text-tenue">Resta scritto nella storia.</p>
+            <p className="mt-1 text-sm text-tenue">Il passo indietro resta scritto nella storia dell'azienda.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setConferma(null)} className="rounded-full px-4 py-2 text-sm font-semibold text-tenue hover:text-navy">Annulla</button>
               <button onClick={() => { const c = conferma; setConferma(null); void esegui(c.p, c.verso) }}
-                      className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white">Torna indietro</button>
+                      className="rounded-full bg-blu px-4 py-2 text-sm font-bold text-white">Sì, riportala</button>
             </div>
           </div>
         </div>

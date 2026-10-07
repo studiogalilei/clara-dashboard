@@ -24,6 +24,19 @@ interface CallOggi { id: number; at: string; titolo: string; prospect_id: string
 const MORTI = ['negativo', 'ooo', 'fuori_target', 'soppresso', 'nervoso', 'persona_sbagliata']
 const GG = 86400e3
 
+// «Follow up 1: Rino, FOLLOW UP 1» si legge male: sopra va il nome, sotto il tipo.
+// Si spezza sul primo «:» SOLO se il prefisso e' un tipo noto («Zeni tace da 29 giorni:
+// lo lascio andare?» resta intero), e la coda «, TUTTO MAIUSCOLO» del modello si toglie.
+const TIPI_NOTI = /^(follow[ -]?up|da guardare tu|decisione|risposta|analisi|bozza|rinvio|mini|ricontatto|avanza|nuovo|richiesta|prep|ripresa)/i
+function spezza(t: string): [string, string] {
+  const i = t.indexOf(':')
+  if (i > 0 && i < 40 && TIPI_NOTI.test(t.slice(0, i).trim())) {
+    const corpo = t.slice(i + 1).trim().replace(/,\s*[A-Z0-9 À-Ü'\-]{3,}$/u, '').trim()
+    return [corpo || t.slice(i + 1).trim(), t.slice(0, i).trim()]
+  }
+  return [t, '']
+}
+
 function eta(iso: string): string {
   const h = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3600e3))
   if (h < 1) return 'adesso'
@@ -111,9 +124,9 @@ export default function SalaControllo({ onOpen }: { onOpen: (id: string) => void
         <Card className="px-4 py-3">
           <p className="text-[14px]">
             <span className="mr-2 inline-block h-2 w-2 rounded-full bg-green-600 align-middle" />
-            <span className="font-bold">Clara lavora.</span>{' '}
+            <span className="font-bold">Clara è al lavoro.</span>{' '}
             <span className="text-tenue">
-              Ultimo giro alle {giro ? fmtOra(giro) : '…'}, {mandateOggi} mail mandate oggi{inCorsa ? `, ${inCorsa}` : ''}.
+              Ha controllato tutto alle {giro ? fmtOra(giro) : '…'}{mandateOggi > 0 ? `, oggi ha mandato ${mandateOggi} ${mandateOggi === 1 ? 'mail' : 'mail'}` : ', oggi niente da mandare, va bene così'}{inCorsa ? `. Attenzione: ${inCorsa}` : ''}.
             </span>
           </p>
         </Card>
@@ -121,9 +134,11 @@ export default function SalaControllo({ onOpen }: { onOpen: (id: string) => void
 
       <Card>
         <header className="flex items-baseline justify-between border-b border-velo px-4 py-2.5">
-          <p className="text-[14px] font-bold">Aspetta te</p>
+          <p className="text-[14px] font-bold">
+            {aperte === null || aperte.length === 0 ? 'Aspetta te' : `${aperte.length} ${aperte.length === 1 ? 'cosa aspetta' : 'cose aspettano'} te`}
+          </p>
           <span className="text-[11px] font-semibold text-tenue">
-            {aperte === null ? '…' : aperte.length === 0 ? 'niente' : vecchie.length ? `${aperte.length}, ${vecchie.length} da piu' di un giorno` : aperte.length}
+            {aperte === null ? '…' : aperte.length === 0 ? 'niente' : vecchie.length ? `${vecchie.length} da più di un giorno` : 'tutte di oggi'}
           </span>
         </header>
         {aperte === null && <Spinner />}
@@ -136,9 +151,14 @@ export default function SalaControllo({ onOpen }: { onOpen: (id: string) => void
             onClick={() => apriInPosta(p.id, p.prospect_id)}
             className="flex w-full items-center gap-3 border-b border-velo px-4 py-2.5 text-left last:border-0 hover:bg-velo/50"
           >
-            <span className="min-w-0 flex-1 truncate text-[13px]">{p.titolo}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-semibold">{spezza(p.titolo)[0]}</span>
+              {spezza(p.titolo)[1] && (
+                <span className="block text-[10.5px] font-bold uppercase tracking-[0.04em] text-tenue">{spezza(p.titolo)[1]}</span>
+              )}
+            </span>
             <span className={`shrink-0 text-[11px] font-semibold tabular-nums ${Date.now() - new Date(p.at).getTime() > GG ? 'text-red-700' : 'text-tenue'}`}>
-              {eta(p.at)}
+              da {eta(p.at)}
             </span>
           </button>
         ))}
@@ -153,7 +173,7 @@ export default function SalaControllo({ onOpen }: { onOpen: (id: string) => void
         <header className="flex items-baseline justify-between border-b border-velo px-4 py-2.5">
           <p className="text-[14px] font-bold">In conversazione</p>
           <span className="text-[11px] font-semibold text-tenue">
-            {vivi.length ? `${aspettanoNoi.length} aspettano noi, ${aspettanoLoro.length} aspettano loro` : 'ultimi 7 giorni'}
+            {vivi.length ? 'ultimi 7 giorni' : 'ultimi 7 giorni'}
           </span>
         </header>
         {vivi.length === 0 && <p className="px-4 py-4 text-[13px] text-tenue">Nessuna risposta negli ultimi 7 giorni.</p>}
@@ -164,8 +184,10 @@ export default function SalaControllo({ onOpen }: { onOpen: (id: string) => void
             className="flex w-full items-center gap-3 border-b border-velo px-4 py-2.5 text-left last:border-0 hover:bg-velo/50"
           >
             <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{v.company || v.email}</span>
-            {v.awaiting_us && <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold text-amber-900">aspetta noi</span>}
-            <span className="shrink-0 text-[11px] tabular-nums text-tenue">{eta(v.last_reply_at)}</span>
+            {v.awaiting_us
+              ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold text-amber-900">tocca a noi</span>
+              : <span className="shrink-0 rounded-full bg-velo px-2 py-0.5 text-[10.5px] font-bold text-tenue">tocca a loro</span>}
+            <span className="shrink-0 text-[11px] tabular-nums text-tenue">da {eta(v.last_reply_at)}</span>
           </button>
         ))}
       </Card>

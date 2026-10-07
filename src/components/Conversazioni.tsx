@@ -449,7 +449,7 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
       {seguiti.length > 0 && (
         <>
           <div className="flex items-center gap-2 bg-fondo px-5 pb-1.5 pt-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">Follow-up pronti</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">Pronti da mandare</span>
             <span className="text-[10px] font-bold tabular-nums text-tenue">{seguiti.length}</span>
           </div>
           {seguiti.map((r) => (
@@ -469,10 +469,10 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
       )}
       <NonOra conBozza={conBozza} />
       <div className="flex items-center gap-2 bg-fondo px-5 pb-1.5 pt-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">In corsa da sole</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">Ci pensa Clara</span>
         <span className="text-[10px] font-bold tabular-nums text-tenue">{inCorsa.length}</span>
       </div>
-      {inCorsa.length === 0 && <p className="px-5 py-3 text-sm text-tenue">Niente in corsa.</p>}
+      {inCorsa.length === 0 && <p className="px-5 py-3 text-sm text-tenue">Niente in mano a Clara adesso.</p>}
       {inCorsa.map((r) => (
         <button key={r.id} onClick={() => setAperta(r)}
                 className="flex w-full items-start gap-3 border-b border-velo px-5 py-2.5 text-left hover:bg-velo/40">

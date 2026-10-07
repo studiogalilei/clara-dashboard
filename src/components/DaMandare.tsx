@@ -262,16 +262,26 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
                   così»). Il gesto principale non è più approvare: è segnare che l'hai
                   mandata tu. Così la scheda resta vera senza che nessuno spedisca al
                   posto tuo. Il bottone che approva compare solo se l'invio è acceso. */}
-              <button onClick={mandataAMano} disabled={lavoro}
-                      data-tip="L'hai già mandata da Smartlead: la scrivo nella storia, tolgo l'attesa e chiudo la bozza"
-                      className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">
-                Fatto, l'ho mandata
-              </button>
-              {postino?.attiva && (
-                <button onClick={approva} disabled={lavoro}
-                        data-tip="La bozza passa a Clara, che la manda dal thread di Smartlead"
-                        className="rounded-full border border-blu px-3 py-1.5 text-xs font-bold text-blu hover:bg-blu/5 disabled:opacity-40">
-                  Falla mandare a Clara
+              {/* 7/10 (critica UX): UNA sola azione primaria. Con l'invio acceso il gesto
+                  consigliato e' farla mandare a Clara; «l'ho mandata io» resta, ma di lato. */}
+              {postino?.attiva ? (
+                <>
+                  <button onClick={approva} disabled={lavoro}
+                          data-tip="La bozza passa a Clara, che la manda dal thread di Smartlead"
+                          className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white transition-colors duration-150 hover:bg-navy disabled:opacity-40">
+                    Falla mandare a Clara
+                  </button>
+                  <button onClick={mandataAMano} disabled={lavoro}
+                          data-tip="L'hai già mandata tu da Smartlead: la scrivo nella storia e chiudo la bozza"
+                          className="rounded-full border border-blu px-3 py-1.5 text-xs font-bold text-blu transition-colors duration-150 hover:bg-blu/5 disabled:opacity-40">
+                    L'ho mandata io
+                  </button>
+                </>
+              ) : (
+                <button onClick={mandataAMano} disabled={lavoro}
+                        data-tip="L'hai già mandata da Smartlead: la scrivo nella storia, tolgo l'attesa e chiudo la bozza"
+                        className="rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white transition-colors duration-150 hover:bg-navy disabled:opacity-40">
+                  Fatto, l'ho mandata
                 </button>
               )}
               <button onClick={nonCosi} disabled={lavoro} className="rounded-full border border-bordo px-3 py-1.5 text-xs font-semibold text-tenue hover:border-spento disabled:opacity-40">Non così</button>
@@ -279,11 +289,18 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
           </div>
           {destinatario !== p.email && <p className="mt-2 text-[11px] text-tenue">Va mandata a {destinatario} (ci ha dato questo indirizzo).</p>}
           <p className="mt-2 text-[11px] text-tenue">
-            Copia il testo, mandalo dal thread di Smartlead, poi premi «Fatto, l'ho mandata»: la mail entra nella storia e la bozza si chiude.
+            {postino?.attiva
+              ? 'Se la fai mandare a Clara, parte lei dal thread di Smartlead. Se la mandi tu, poi premi «L\'ho mandata io» e la scheda resta vera.'
+              : 'Copia il testo, mandalo dal thread di Smartlead, poi premi «Fatto, l\'ho mandata»: la mail entra nella storia e la bozza si chiude.'}
           </p>
         </div>
       )}
-      {esito && <p className="border-t border-velo px-4 py-2 text-xs text-navy">{esito}</p>}
+      {/* un errore non si veste da conferma: ambra se qualcosa non e' andato, verde se e' andata */}
+      {esito && (
+        <p className={`border-t border-velo px-4 py-2 text-xs font-semibold ${/^non |^NON /.test(esito) ? 'bg-amber-50 text-amber-900' : 'text-green-700'}`}>
+          {esito}
+        </p>
+      )}
     </Card>
   )
 }

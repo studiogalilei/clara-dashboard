@@ -569,7 +569,7 @@ export default function Preventivi({ onOpen }: Props) {
                         onClick={() => apriNuovo('', [{ nome: v.nome, descrizione: v.descrizione ?? '', prezzo: v.prezzo, ricorrenza: v.ricorrenza, quantita: 1 }])}
                         className="carta flex flex-col gap-0.5 !rounded-xl px-3 py-2.5 text-left transition-all hover:border-blu hover:shadow-[var(--shadow-alta)]">
                   <span className="truncate text-[13px] font-bold text-inchiostro">{v.nome}</span>
-                  <span className="text-[12px] text-tenue">{euro(v.prezzo)}{v.ricorrenza === 'mese' ? ' al mese' : ' una tantum'}</span>
+                  <span className="text-[12px] text-tenue">{euro(v.prezzo)}{v.ricorrenza === 'mese' ? ' al mese' : ' una volta sola'}</span>
                 </button>
               ))}
             </div>
@@ -590,7 +590,7 @@ export default function Preventivi({ onOpen }: Props) {
             {buchiStudioSempre.length > 0 && (
               <button onClick={() => setStudioAperto(true)} data-tip="Ragione sociale, P.IVA, IVA, termini: finiscono in ogni PDF"
                       className="ml-auto text-[12px] font-semibold text-amber-700 hover:underline">
-                Mancano i dati dello Studio per il PDF
+                Prima di stampare: aggiungi i dati dello Studio, clicca qui
               </button>
             )}
           </div>
@@ -650,7 +650,7 @@ export default function Preventivi({ onOpen }: Props) {
       <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 rounded-2xl border border-bordo bg-white px-5 py-4">
         <span className="flex items-baseline gap-2">
           <span className="text-[26px] font-extrabold leading-none tabular-nums">{somma(inGiro).toLocaleString('it-IT')} €</span>
-          <Micro>in giro, in attesa</Micro>
+          <Micro>mandati, aspettano risposta</Micro>
         </span>
         {scaduti.length > 0 && (
           <span className="text-sm font-bold text-amber-800">{scaduti.length} scadut{scaduti.length === 1 ? 'o' : 'i'}</span>
@@ -767,7 +767,7 @@ export default function Preventivi({ onOpen }: Props) {
                       {(['una_tantum', 'mese'] as const).map((r) => (
                         <button key={r} onClick={() => cambiaVoce(i, { ricorrenza: r })}
                                 className={`flex-1 px-1.5 py-1 ${v.ricorrenza === r ? 'bg-blu text-white' : 'bg-white text-tenue hover:bg-velo'}`}>
-                          {r === 'mese' ? 'al mese' : 'una tantum'}
+                          {r === 'mese' ? 'al mese' : 'una volta sola'}
                         </button>
                       ))}
                     </div>
@@ -797,7 +797,7 @@ export default function Preventivi({ onOpen }: Props) {
             </label>
             <div className="ml-auto flex items-center gap-2 lg:mr-24">
               <button onClick={() => salva(false)} disabled={!!lavoro} className="rounded-full border border-bordo bg-white px-4 py-2 text-sm font-semibold text-tenue hover:border-navy hover:text-navy disabled:opacity-40">Salva bozza</button>
-              <button onClick={() => salva(true)} disabled={!!lavoro || manca.length > 0 || bozza.voci.length === 0}
+              <button onClick={() => salva(true)} disabled={!!lavoro || bozza.voci.length === 0}
                       title={manca.length ? `Manca ${manca.join(', ')}` : undefined}
                       className="rounded-full bg-blu px-5 py-2 text-sm font-bold text-white hover:bg-blu-scuro disabled:opacity-40">{lavoro ?? 'Genera il PDF'}</button>
             </div>
@@ -880,7 +880,7 @@ export default function Preventivi({ onOpen }: Props) {
                       {q.importo ? euro(q.importo) : q.mensile ? euro(q.mensile) : '0 €'}
                     </span>
                     <span className="block truncate text-[11px] text-tenue">
-                      {q.mensile && q.importo ? `più ${euro(q.mensile)} al mese` : q.mensile ? 'al mese' : (q.titolo || 'una tantum')}
+                      {q.mensile && q.importo ? `più ${euro(q.mensile)} al mese` : q.mensile ? 'al mese' : (q.titolo || 'una volta sola')}
                     </span>
                   </span>
 

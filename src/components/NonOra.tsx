@@ -67,7 +67,7 @@ export default function NonOra({ conBozza }: { conBozza: Set<string> }) {
   return (
     <>
       <div className="flex items-center gap-2 bg-fondo px-5 pb-1.5 pt-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">Non ora, senza una data</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-navy/70">Hanno detto «non ora»: scegli tu quando risentirli</span>
         <span className="text-[10px] font-bold tabular-nums text-tenue">{voci.length}</span>
       </div>
       {fatto && <p className="px-5 pb-1 text-[12px] font-semibold text-emerald-700">{fatto}</p>}

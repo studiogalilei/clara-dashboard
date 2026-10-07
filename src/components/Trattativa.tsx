@@ -178,10 +178,10 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
                   <div className="mt-2.5 flex items-center gap-1.5">
                     <button onClick={() => onOpen(p.id)}
                             className="rounded-full bg-blu px-3 py-1.5 text-[11px] font-bold text-white hover:bg-navy">
-                      {k === 'si' ? 'Fissa la call' : k === 'conoscitiva' ? 'Dopo la call' : 'Verso il preventivo'}
+                      {p.awaiting_us ? 'Leggi e rispondi' : k === 'si' ? 'Fissa la call' : k === 'conoscitiva' ? 'Dopo la call' : 'Verso il preventivo'}
                     </button>
                     <button onClick={() => { setPerdo(p); setMotivo('') }}
-                            className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-tenue opacity-0 transition-opacity hover:bg-velo hover:text-inchiostro group-hover:opacity-100">
+                            className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-tenue transition-opacity hover:bg-velo hover:text-inchiostro focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
                       Lascia andare
                     </button>
                   </div>

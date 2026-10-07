@@ -232,7 +232,7 @@ export default function Progetti({ onOpen }: Props) {
                 <span className="truncate">{nomeCliente}</span>
               </button>
               <button onClick={() => setScelgo(p.id)} aria-label="Cambia cliente" title="Cambia cliente"
-                      className="mr-1 hidden rounded px-1 text-xs text-spento hover:bg-velo hover:text-navy group-hover:block">⇄</button>
+                      className="mr-1 rounded px-1.5 text-[11px] font-semibold text-spento hover:bg-velo hover:text-navy lg:hidden lg:group-hover:block">Cambia</button>
             </div>
           ) : (
             <SceltaCliente
@@ -381,7 +381,7 @@ export default function Progetti({ onOpen }: Props) {
         <th className="min-w-[150px] px-3 py-2.5">Progetto</th>
         <th className="min-w-[130px] px-3 py-2.5">Inizio</th>
         {vedoSoldi && <th className="min-w-[90px] px-3 py-2.5 text-right">Prezzo</th>}
-        <th className="min-w-[130px] px-3 py-2.5">Stato</th>
+        <th className="min-w-[130px] px-3 py-2.5">Rapporto</th>
         <th className="min-w-[100px] px-3 py-2.5">Chi segue</th>
         {accessiPronti && <th className="min-w-[150px] px-3 py-2.5">Accessi</th>}
         <th className="min-w-[130px] px-3 py-2.5">Scadenza</th>
