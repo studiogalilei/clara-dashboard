@@ -326,7 +326,7 @@ def rinfresca_orari():
         sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}&stato=eq.aperta", {"azione": a})
 
 
-def proposta_giorno_ora():
+def proposta_giorno_ora(da_giorni=2):
     """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
     stesso giorno; scritto sempre «giorno + data».
     24/9 (Dre: «per decidere l'ora ha guardato il mio calendario?»): adesso si'.
@@ -337,7 +337,7 @@ def proposta_giorno_ora():
             "settembre", "ottobre", "novembre", "dicembre"]
     roma = datetime.timezone(datetime.timedelta(hours=2))
     oggi = datetime.datetime.now(roma).date()
-    d = oggi + datetime.timedelta(days=2)
+    d = oggi + datetime.timedelta(days=max(2, da_giorni))       # 7/10: «ci risentiamo fra 15 giorni»
     while d.weekday() >= 5:
         d += datetime.timedelta(days=1)
     occupati = []
@@ -683,7 +683,9 @@ def testo_di_dre(b, p, letti):
     motore e il banco di prova, cosi' si prova quello che gira davvero."""
     if not b or b.get("dal_codice"):
         return b
-    giorno = proposta_giorno_ora()
+    # chi ha gia' l'analisi e dice «piu' avanti»: la data a due settimane (Dre, 7/10)
+    dopo_analisi = b.get("intento") in ("INT-05", "INT-06") and bool((p or {}).get("analysis_sent"))
+    giorno = proposta_giorno_ora(seguiti.GIORNI_DOPO_ANALISI if dopo_analisi else 2)
     comp = seguiti.risposta(b.get("intento"), p, letti, CALENDARIO, giorno=giorno, attacco=b.get("attacco"),
                             periodo=b.get("periodo"), loro=(letti or {}).get("ultima_loro") or "")
     if comp:
@@ -691,6 +693,13 @@ def testo_di_dre(b, p, letti):
         # dei tre per orario un'offerta che non c'e')
         b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": giorno if giorno and giorno in comp else None,
              "nota": f"il template di Dre parola per parola ({b.get('intento')}); " + (b.get("nota") or "")}
+        if dopo_analisi:
+            # il follow-up a 15 giorni: quando la mail parte, la scheda diventa un rinvio con la sua
+            # data, e il calendario dei follow-up la riprende il giorno dopo (followup.py, RINVIO)
+            fra = (datetime.date.today() + datetime.timedelta(days=seguiti.GIORNI_DOPO_ANALISI)).isoformat()
+            b["dopo_invio"] = {"classificazione": "rinvio", "next_action_date": fra,
+                               "next_action": "Risentirla: leggeva l'analisi con calma"}
+            b["nota"] = "ha gia' l'analisi e dice piu' avanti: data a due settimane, follow-up a 15 giorni (Dre 7/10); " + b["nota"]
     return b
 
 
@@ -937,6 +946,8 @@ def main():
                     azione["giorno_proposto"] = b["giorno"]
                 if b.get("bozza_modello"):
                     azione["bozza_modello"] = b["bozza_modello"]
+                if b.get("dopo_invio"):
+                    azione["dopo_invio"] = b["dopo_invio"]
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"):
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):

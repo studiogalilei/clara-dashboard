@@ -77,6 +77,21 @@ def sl(metodo, percorso, corpo=None):
         return {"grezzo": t}
 
 
+def dopo_invio(az):
+    """Cosa cambia sulla scheda quando la mail e' partita davvero (7/10: «follow-up a 15
+    giorni» per chi ha l'analisi e dice piu' avanti). Solo questi campi, solo valori sani:
+    la bozza non puo' scrivere altro sulla scheda per questa strada."""
+    d = (az or {}).get("dopo_invio") or {}
+    out = {}
+    if d.get("classificazione") == "rinvio":
+        out["classificazione"] = "rinvio"
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(d.get("next_action_date") or "")):
+        out["next_action_date"] = d["next_action_date"]
+    if isinstance(d.get("next_action"), str) and d["next_action"].strip():
+        out["next_action"] = d["next_action"].strip()[:120]
+    return out
+
+
 def in_html(testo):
     """La bozza e' testo semplice: paragrafi separati da riga vuota, a capo dentro.
     I link al bucket (analisi, presentazione) non ci vanno: quei file partono in allegato."""
@@ -334,6 +349,7 @@ def main():
         # e senza quel segno il segugio non programma i follow-up. Stessa condizione dell'allegato.
         elif prima_risposta or az.get("allega") or (p.get("analysis_pdf") and p["analysis_pdf"] in bozza):
             agg.update({"analysis_sent": True, "analysis_sent_at": ora.isoformat()})
+        agg.update(dopo_invio(az))
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", agg)
         sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "fatta", "risposta_il": ora.isoformat(),
                                                              "risposta": f"Mandata da Clara alle {ora:%H:%M} da Smartlead, a {a}",
