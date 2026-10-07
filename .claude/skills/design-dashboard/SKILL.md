@@ -259,3 +259,13 @@ Formato: data · cosa ha detto Dre · problema · causa · regola.
   come contenuto · la «foto» con le due cifre sul colore di fase, l'ID
   intero solo al passaggio del mouse e nella scheda; meno filtri, una
   colonna preventivo sola.
+- 7/10 · «molte scritte arrivano sporche, disordinato, serve mental energy; ogni
+  operazione comprensibile e azionabile da un bimbo di 12 anni» · gergo interno a
+  schermo («il template di Dre, parola per parola (scritto dal codice)», «seconda
+  testa: coerente», «fit», «cancello») · le etichette nascevano dai nomi del codice,
+  non dalla testa di chi legge · REGOLA: nessuna parola di sistema sullo schermo;
+  ogni scritta si legge come la direbbe una persona a voce («Modello fisso di Dre»,
+  «Controllata: regge»); ogni blocco risponde a UNA domanda e porta UN gesto; se
+  per capire una riga serve conoscere il motore, la riga e' sbagliata. E i colori
+  del brand non vietano gli effetti: stati, transizioni 120-250ms, gerarchia
+  tipografica piena, profondita' leggera, tutto cio' che TOGLIE carico mentale.

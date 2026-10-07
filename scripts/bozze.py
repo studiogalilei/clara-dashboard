@@ -878,7 +878,7 @@ def main():
         giorno = proposta_giorno_ora() if gruppo == "RICONTATTO OOO" else None
         dal_codice = seguiti.testo(gruppo, p, letti, CALENDARIO, giorno=giorno) if gruppo else None
         if dal_codice:
-            b = {"intento": gruppo, "template": gruppo, "fermati": "no", "nota": "il template di Dre, parola per parola (scritto dal codice)",
+            b = {"intento": gruppo, "template": gruppo, "fermati": "no", "nota": "Modello fisso di Dre, usato parola per parola",
                  "bozza": dal_codice, "dal_codice": True, "giorno": giorno}
         else:
             b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
