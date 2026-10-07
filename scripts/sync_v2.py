@@ -267,6 +267,30 @@ def data_ooo(testo):
 # ---------- stato attuale dal DB ----------
 LOCKED_STAGES = {"cliente", "call_fissata", "perso", "rinviato"}
 
+CALDI_GIORNI = 30          # una conversazione dove abbiamo scritto noi da meno di un mese
+CALDI_PER_GIRO = 40        # a rotazione: con ~100 fili caldi, ognuno si rilegge ogni 15 minuti circa
+
+
+def fili_caldi(known):
+    """LA SECONDA RISPOSTA (7/10, caso La Bottega del Legno). Smartlead, nell'export e nelle
+    statistiche, conta solo la prima risposta alla sequenza: quando il lead risponde DI NUOVO
+    dopo la nostra mail, il contatore resta uguale e il giro lo saltava come «invariato». Paola
+    ha risposto alle 9:11 e il sistema non l'avrebbe vista fino al giro completo della notte.
+    Qui i fili dove l'ultima mossa e' nostra (analisi o risposta mandata di recente, l'attesa
+    chiusa) si rileggono comunque, a rotazione: i meno riletti per primi."""
+    soglia = (datetime.now(timezone.utc) - timedelta(days=CALDI_GIORNI)).isoformat()
+    cand = []
+    for em, r in known.items():
+        if r.get("awaiting_us") or r.get("classificazione") in ("soppresso", "fuori_target"):
+            continue                          # chi aspetta noi si rilegge gia'; i chiusi no
+        recente = max((r.get("analysis_sent_at") or ""), (r.get("last_reply_at") or ""))
+        if recente < soglia:
+            continue
+        cand.append(((r.get("enriched") or {}).get("sl_riletto_il") or "", em))
+    cand.sort()
+    return {em for _, em in cand[:CALDI_PER_GIRO]}
+
+
 def db_prospects():
     """Tutti i prospects (email -> record ridotto), paginati."""
     out = {}
@@ -291,6 +315,10 @@ def main():
     print(f"SYNC V2 {'(DRY RUN)' if DRY else ''} — {started}")
     known = db_prospects()
     print(f"  DB: {len(known)} prospects noti")
+
+    caldi = fili_caldi(known)
+    if caldi:
+        print(f"  fili caldi da rileggere a rotazione: {len(caldi)}")
 
     camps = sl_get("/campaigns") or []
     camps = [c for c in camps
@@ -331,7 +359,8 @@ def main():
             if rc > 0 or known_replied:
                 # 24/9 (Dre: «il thread si aggiorna anche se non clicco»): chi aspetta noi si
                 # rilegge a ogni giro, perche' la nostra risposta manuale non cambia la firma
-                if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma) and not known[em].get("awaiting_us"):
+                if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma) and not known[em].get("awaiting_us") \
+                        and em not in caldi:
                     invariati += 1
                     continue
                 r["_firma"] = firma
@@ -390,7 +419,7 @@ def main():
             fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
             enr = dict(fresco.get("enriched") or {})
             patch = {
-                "enriched": {**enr, "sl_firma": wrap.get("_firma")},
+                "enriched": {**enr, "sl_firma": wrap.get("_firma"), "sl_riletto_il": started},
                 "awaiting_us": awaiting,
                 "last_reply_at": (fresco.get("last_reply_at") if gmail_dopo else body_last_reply) or None,
                 "first_reply_at": body_first_reply or None,

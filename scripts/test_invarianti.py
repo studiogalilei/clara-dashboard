@@ -1630,6 +1630,27 @@ def _():
     assert M.dopo_invio({}) == {}
 
 
+@prova("la seconda risposta di un lead non si perde: i fili caldi si rileggono anche col contatore fermo (7/10, La Bottega del Legno)")
+def _():
+    import sync_v2 as S
+    from datetime import datetime, timezone, timedelta
+    ieri = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    vecchio = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    known = {
+        "caldo@x.it": {"awaiting_us": False, "classificazione": "positivo", "analysis_sent_at": ieri, "enriched": {}},
+        "freddo@x.it": {"awaiting_us": False, "classificazione": "positivo", "analysis_sent_at": vecchio, "last_reply_at": vecchio, "enriched": {}},
+        "chiuso@x.it": {"awaiting_us": False, "classificazione": "soppresso", "analysis_sent_at": ieri, "enriched": {}},
+        "aspetta@x.it": {"awaiting_us": True, "classificazione": "positivo", "analysis_sent_at": ieri, "enriched": {}},
+    }
+    assert S.fili_caldi(known) == {"caldo@x.it"}, S.fili_caldi(known)
+    # la rotazione: i meno riletti per primi, al massimo CALDI_PER_GIRO
+    tanti = {f"l{i}@x.it": {"awaiting_us": False, "classificazione": "positivo", "analysis_sent_at": ieri,
+                             "enriched": {"sl_riletto_il": f"2026-10-0{i % 9 + 1}"}} for i in range(S.CALDI_PER_GIRO + 10)}
+    scelti = S.fili_caldi(tanti)
+    assert len(scelti) == S.CALDI_PER_GIRO
+    assert all(tanti[e]["enriched"]["sl_riletto_il"] <= min(tanti[x]["enriched"]["sl_riletto_il"] for x in tanti if x not in scelti) for e in scelti)
+
+
 @prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
 def _():
     # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
