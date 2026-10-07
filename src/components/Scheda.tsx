@@ -212,6 +212,9 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   const [chiedoProgetto, setChiedoProgetto] = useState(false)
   const [taskSue, setTaskSue] = useState<Array<{ id: number; titolo: string; fatta: boolean; scadenza: string | null }>>([])
   const [prepAperta, setPrepAperta] = useState(false)
+  // 7/10, Dre prima della call con Studio Nigris: «non trovo la preparazione pre-call». C'era,
+  // ma dietro un bottone chiuso. Se la call e' entro 24 ore e la preparazione esiste, si apre da sola.
+  const prepAutoAperta = useRef(false)
   const [prepChiesta, setPrepChiesta] = useState(false)
   const appuntiRef = useRef<HTMLTextAreaElement>(null)
   const transcriptRef = useRef<HTMLTextAreaElement>(null)
@@ -565,6 +568,11 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   const prep = !riservato ? null
     : prepRiservata ? { body: prepRiservata.testo, at: prepRiservata.preparata_il }
     : prepVecchia
+  if (prep && prossimaCall && !prepAutoAperta.current && !prepAperta
+      && new Date(prossimaCall.at).getTime() - Date.now() < 24 * 3600_000) {
+    prepAutoAperta.current = true
+    queueMicrotask(() => setPrepAperta(true))
+  }
   const primaRisposta = (timeline ?? []).find((t) => t.kind === 'email_in')
   const mercato = p.market ?? mercatoDi(p.sector, p.city)
   const soppresso = p.classificazione === 'soppresso'
