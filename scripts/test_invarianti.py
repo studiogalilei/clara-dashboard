@@ -1559,6 +1559,8 @@ def _():
     # «se tanti cadono nello stesso quinto giorno dovremmo aspettare?» No: il numero deve
     # reggere un giorno pieno (5 per casella), non fermare chi e' dovuto
     assert R.MAX_SEGUITI_AL_GIORNO >= 5 * R.CASELLE_IN_CAMPAGNA >= 300, R.MAX_SEGUITI_AL_GIORNO
+    # e i giri nella finestra devono poterci arrivare davvero (revisione 7/10: era 5 x 24 = 120)
+    assert R.MAX_PER_GIRO_SEGUITI * R.GIRI_NELLA_FINESTRA >= R.MAX_SEGUITI_AL_GIORNO
     # la prima risposta automatica invece resta col suo tetto, deciso da Dre il 2/10
     assert R.MAX_AL_GIORNO == 15
 
@@ -1586,31 +1588,49 @@ def _():
 def _():
     # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
     # persona fuori target che prenotava una call avrebbe fatto cadere il giro, e l'avviso
-    # a Dre non sarebbe mai nato. Qui si controlla ogni copione: chi chiama una funzione
-    # della stanza per nome deve averla importata, o definita da se'.
+    # a Dre non sarebbe mai nato. Qui si controlla ogni copione, con lo scope vero (revisione
+    # 7/10): conta cio' che e' noto al modulo e alla funzione che usa il nome, e ogni uso del
+    # nome, non solo le chiamate dirette.
     import ast, pathlib
     qui = pathlib.Path(__file__).resolve().parent
     stanza_f = {n.name for n in ast.parse((qui / "stanza.py").read_text(encoding="utf-8")).body if isinstance(n, ast.FunctionDef)}
+
+    def noti_in(corpo):
+        out = set()
+        for n in corpo:
+            for m in ast.walk(n) if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) else [n]:
+                if isinstance(m, (ast.Import, ast.ImportFrom)):
+                    out |= {(a.asname or a.name).split(".")[0] for a in m.names}
+                elif isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    out.add(m.name)
+                elif isinstance(m, ast.Name) and isinstance(m.ctx, ast.Store):
+                    out.add(m.id)
+        return out
+
     mancano = []
     for f in sorted(list(qui.glob("*.py")) + list(qui.glob("strumenti/*.py"))):
         if f.name in ("stanza.py", "test_invarianti.py"):
             continue
         t = ast.parse(f.read_text(encoding="utf-8"))
-        noti = set()
-        for n in ast.walk(t):
-            if isinstance(n, (ast.Import, ast.ImportFrom)):
-                noti |= {(a.asname or a.name).split(".")[0] for a in n.names}
-            elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                noti.add(n.name)
-                noti |= {a.arg for a in n.args.args + n.args.kwonlyargs} if not isinstance(n, ast.ClassDef) else set()
-            elif isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store):
-                noti.add(n.id)
-            elif isinstance(n, ast.arg):
-                noti.add(n.arg)
-        for n in ast.walk(t):
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in stanza_f and n.func.id not in noti:
-                mancano.append(f"{f.name}:{n.lineno} {n.func.id}")
-    assert not mancano, "chiamate a funzioni della stanza mai importate: " + ", ".join(mancano[:8])
+        if any(isinstance(n, ast.ImportFrom) and n.module == "stanza" and any(a.name == "*" for a in n.names) for n in ast.walk(t)):
+            continue
+        del_modulo = noti_in(t.body)
+
+        def visita(nodo, noti):
+            for figlio in ast.iter_child_nodes(nodo):
+                if isinstance(figlio, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    args = figlio.args
+                    locali = noti | {a.arg for a in args.args + args.kwonlyargs + args.posonlyargs}
+                    if not isinstance(figlio, ast.Lambda):
+                        locali |= noti_in(figlio.body) | {m.id for m in ast.walk(figlio) if isinstance(m, ast.Name) and isinstance(m.ctx, ast.Store)}
+                        locali |= {(a.asname or a.name).split(".")[0] for m in ast.walk(figlio) if isinstance(m, (ast.Import, ast.ImportFrom)) for a in m.names}
+                    visita(figlio, locali)
+                elif isinstance(figlio, ast.Name) and isinstance(figlio.ctx, ast.Load) and figlio.id in stanza_f and figlio.id not in noti:
+                    mancano.append(f"{f.name}:{figlio.lineno} {figlio.id}")
+                else:
+                    visita(figlio, noti)
+        visita(t, del_modulo)
+    assert not mancano, "funzioni della stanza usate e mai importate: " + ", ".join(mancano[:8])
 
 
 def main():
