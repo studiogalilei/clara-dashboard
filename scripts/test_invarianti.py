@@ -1584,6 +1584,34 @@ def _():
     assert len(fermi) == 1 and "Fermo Srl" in fermi[0], righe
 
 
+@prova("un ripreso dall'archivio non torna in archivio in silenzio, nemmeno il giorno della scadenza (7/10)")
+def _():
+    import silenzi as S
+    import datetime as _dt
+    oggi = _dt.date.today().isoformat()
+    vecchia = (_dt.date.today() - _dt.timedelta(days=60)).isoformat()
+    seguito = (_dt.date.today() - _dt.timedelta(days=30)).isoformat()
+    p = {"id": "x", "company": "Prova", "analysis_sent_at": vecchia, "last_reply_at": None, "next_action_date": oggi, "ooo_until": None}
+    scritti, domande = [], []
+    vero = (S.sb, S.ultimo_seguito, S.ripreso_dopo, S.proponi_scaduto)
+    try:
+        def finto(m, path, corpo=None, h=None):
+            if m == "PATCH":
+                scritti.append(corpo)
+            return [p] if path.startswith("/rest/v1/prospects?select") else []
+        S.sb = finto
+        S.ultimo_seguito = lambda q: seguito
+        S.ripreso_dopo = lambda q, s: True
+        S.proponi_scaduto = lambda q: domande.append(q["id"])
+        S.main()
+        assert not scritti, "il giorno della scadenza l'ha riarchiviato"
+        p["next_action_date"] = None
+        S.main()
+        assert not scritti and domande == ["x"], "un ripreso scaduto deve diventare una domanda, non un archivio silenzioso"
+    finally:
+        S.sb, S.ultimo_seguito, S.ripreso_dopo, S.proponi_scaduto = vero
+
+
 @prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
 def _():
     # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
