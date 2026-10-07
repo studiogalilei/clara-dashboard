@@ -20,7 +20,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                      # noqa: E402
+from stanza import sb, di_clara                            # noqa: E402
 
 GIORNI = 10
 
@@ -45,6 +45,23 @@ def ultimo_seguito(p):
     return max(date) if date else None
 
 
+def ripreso_dopo(p, seguito):
+    """Dre l'ha ripreso dall'archivio dopo l'ultimo follow-up partito (la nota la scrive
+    percorso.riprendiDallArchivio)."""
+    r = sb("GET", f"/rest/v1/interactions?select=at&prospect_id=eq.{p['id']}&kind=eq.nota"
+                  "&body=ilike.Ripreso%20dall*&order=at.desc&limit=1") or []
+    return bool(r) and (not seguito or r[0]["at"][:10] > seguito)
+
+
+def proponi_scaduto(p):
+    from stanza import proponi
+    nome = p.get("company") or p.get("name") or "?"
+    proponi("umano", f"{nome}: l'avevi ripreso dall'archivio, e il giorno e' arrivato senza un messaggio",
+            prospect_id=p["id"], ref=f"ripreso-scaduto:{p['id']}:{p.get('next_action_date') or ''}",
+            perche="Dieci giorni fa l'hai rimesso fra i lead. Non e' partito niente. Fai cosi' = lo rimetto in archivio; "
+                   "Lascia stare = resta fra i lead e ci pensi tu.")
+
+
 def main():
     prova = "--prova" in sys.argv
     oggi = datetime.date.today()
@@ -58,9 +75,17 @@ def main():
         # ha risposto dopo l'analisi? allora non e' silenzio
         if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
             continue
-        # una data futura (rinvio, ferie): si aspetta quella
+        # una data futura (rinvio, ferie, la ripresa dall'archivio): si aspetta quella, e quel
+        # giorno compreso (revisione 7/10: il giorno della scadenza un ripreso tornava in
+        # archivio senza che nessuno vedesse il promemoria)
         futura = max([d for d in (p.get("next_action_date"), p.get("ooo_until")) if d] or [""])
-        if futura and futura > oggi.isoformat():
+        if futura and futura[:10] >= oggi.isoformat():
+            continue
+        # ripreso dall'archivio da Dre: non si riarchivia in silenzio. Si dice in Posta una volta,
+        # e decide lui (regola 4 del 28/9: niente attese che finiscono senza avviso)
+        if ripreso_dopo(p, ultimo_seguito(p)):
+            if not prova:
+                proponi_scaduto(p)
             continue
         # il silenzio si conta dal follow-up partito: senza follow-up non e' un silenzio, e' un debito nostro
         seguito = ultimo_seguito(p)

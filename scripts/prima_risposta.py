@@ -422,8 +422,11 @@ def main():
         if SEGUITI and fatte_oggi >= tetto:
             # l'ammortizzatore si e' svegliato: si dice, una volta al giorno e solo se qualcuno
             # aspetta davvero (regola 4 del 28/9; revisione 7/10: prima poteva tacere o mentire)
-            restano = [x for x in (sb("GET", "/rest/v1/proposte?select=azione->lettura->>gruppo&stato=eq.aperta&tipo=eq.risposta&limit=1000") or [])
-                       if x.get("gruppo") in seguiti_gruppi()]
+            # solo quelle che partirebbero davvero da sole: le altre restano a Dre comunque
+            # (revisione 7/10: contarle tutte faceva promettere «domattina» a chi non partira')
+            restano = [x for x in (sb("GET", "/rest/v1/proposte?select=id,tipo,titolo,prospect_id,azione&stato=eq.aperta&tipo=eq.risposta&limit=1000") or [])
+                       if ((x.get("azione") or {}).get("lettura") or {}).get("gruppo") in seguiti_gruppi()
+                       and not [m for m in perche_no_seguito(x, {"email": ""}) if m not in ("manca la scheda", "non e' piu' un lead")]]
             gia = sb("GET", f"/rest/v1/clara_messaggi?select=id&tipo=eq.controllo&testo=ilike.*ammortizzatore*&at=gte.{oggi.isoformat()}&limit=1") or []
             if restano and not gia:
                 di_clara("controllo", f"Follow-up: oggi ne sono partiti {fatte_oggi}, il massimo dell'ammortizzatore "
