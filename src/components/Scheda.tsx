@@ -1,3 +1,4 @@
+import { soloSuo } from '../lib/posta'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sonoCeo } from '../lib/accessi'
@@ -417,17 +418,47 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // IL PASSAGGIO AL DIPARTIMENTO (Dre, 5/10): dopo la tecnica il lead e' di Carlo.
   // Un click: avanza ad Avvio, l'owner diventa Carlo, e a Carlo arriva la task
   // (le task proposte arrivano sul suo telefono con l'operazione avvisi).
-  async function passaACarlo() {
+  // LA SCHEDA DI PASSAGGIO (gold, 6/10, dalla ricerca: «chi consegna ricostruisce sempre cosa e'
+  // stato promesso»). «Passa a Carlo» apre cinque campi gia' riempiti con quello che il sistema sa;
+  // Dre corregge e manda. Il testo viaggia nella task di Carlo, che lo legge prima di accettare.
+  type Passaggio = { promesso: string; perche: string; decide: string; non: string; accessi: string }
+  const [passaggio, setPassaggio] = useState<Passaggio | null>(null)
+  const [passando, setPassando] = useState(false)      // un clic solo: col doppio clic partivano due task a Carlo
+  function apriPassaggio() {
+    if (!p) return
+    setPassaggio({
+      promesso: '',
+      perche: '',
+      decide: p.name ?? '',
+      non: '',
+      accessi: 'Google Ads (dal nostro MCC), GA4, Tag Manager, Scheda Google, sito: da chiedere',
+    })
+  }
+  function testoPassaggio(x: Passaggio): string {
+    const righe = [
+      `Cosa abbiamo promesso: ${x.promesso.trim()}`,
+      x.perche.trim() && `Perché conta per lui: ${x.perche.trim()}`,
+      x.decide.trim() && `Chi decide: ${x.decide.trim()}`,
+      x.non.trim() && `Cosa NON abbiamo promesso: ${x.non.trim()}`,
+      x.accessi.trim() && `Accessi: ${x.accessi.trim()}`,
+      detto.length > 0 && `Cosa ci ha già detto:\n${detto.map((d) => `«${d.testo.slice(0, 200)}» (mail del ${fmtDateShort(d.at)})`).join('\n')}`,
+    ]
+    return righe.filter(Boolean).join('\n')
+  }
+
+  async function passaACarlo(dettagli?: string) {
     if (!p) return
     // il primo «Carlo» per nome (5/10: con maybeSingle due omonimi davano errore e l'owner diventava vuoto)
     const { data: carli } = await supabase.from('profili').select('id,nome').ilike('nome', 'carlo%').order('nome').limit(1)
     const idCarlo = ((carli ?? []) as Array<{ id: string }>)[0]?.id
     if (!idCarlo) { setErrore('Non trovo Carlo fra i profili della squadra: il passaggio non è partito.'); return }
     if (!(await aggiorna({ pipeline_stage: 'avvio', owner: idCarlo, next_action: null, next_action_date: null } as Partial<Prospect>))) return
-    await segna('nota', 'Tecnica fatta: il lead passa al dipartimento, responsabile Carlo.')
+    await segna('nota', `Tecnica fatta: il lead passa al dipartimento, responsabile Carlo.${dettagli ? `\n\nLa scheda di passaggio:\n${dettagli}` : ''}`)
     if (idCarlo) {
-      await creaTask({ titolo: `Prendi in carico ${p.company || p.name || p.email}: la tecnica è fatta, si parte`, prospect_id: p.id, perChi: idCarlo })
+      const { problema } = await creaTask({ titolo: `Prendi in carico ${p.company || p.name || p.email}: la tecnica è fatta, si parte`, prospect_id: p.id, perChi: idCarlo, dettagli: dettagli ?? null })
+      if (problema) { setErrore('Passato a Carlo, ma la sua task non è partita: ' + problema); return }
     }
+    setPassaggio(null)
   }
 
   // segna come perso: il motivo è obbligatorio e resta nella storia
@@ -609,19 +640,52 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
   // gli abbiamo mandato. La storia non mi serve cosi' visibile.» Un blocco solo:
   // dove eravamo, cosa ha in mano, il suo mercato. La storia sta dietro «Storia».
   const fitCall = ((p?.enriched ?? {}) as { google_fit?: Record<string, unknown> }).google_fit ?? {}
-  const ultimaSua = [...(timeline ?? [])].reverse().find((x) => x.kind === 'email_in' || x.kind === 'call' || x.kind === 'transcript')
+  const ultimaSua = [...(timeline ?? [])].reverse().find((x) => (x.kind === 'email_in' && soloSuo(x.body)) || x.kind === 'call' || x.kind === 'transcript')
+  // COSA CI HA GIA' DETTO (gold, 6/10): le sue parole, testuali, cosi' nessuno gliele rifa'
+  // chiedere in call. Solo quello che ha scritto lei: senza la nostra mail citata e la firma.
+  const detto = [...(timeline ?? [])].reverse()
+    .filter((x) => x.kind === 'email_in')
+    .map((x) => ({ at: x.at, testo: soloSuo(x.body).replace(/\s+/g, ' ') }))
+    .filter((x) => x.testo.length >= 12)
+    .slice(0, 3)
+  // la riga che dice qualcosa: salta i saluti («Buongiorno,», «Salve Lisa,»)
+  const rigaVera = (b: string) => b.split('\n').map((r) => r.trim()).find((r) => r.length > 25 && !/^(buongiorno|buonasera|salve|gentile|ciao|egregio)\b[^.!?]{0,30},?$/i.test(r)) ?? b.trim()
+  // se le sue parole stanno gia' sopra, «Dove eravamo» dice la nostra ultima mossa
+  const ultimaNostra = detto.length && ultimaSua?.kind === 'email_in'
+    ? [...(timeline ?? [])].reverse().find((x) => x.kind === 'email_out' && x.at > ultimaSua.at) ?? null
+    : null
   const recCall = fitCall.recensioni as { voto?: number; recensioni?: number } | undefined
   const scomode = (fitCall.due_cose_scomode as string[] | undefined) ?? []
   const cardCall = p && (
             <Card className="p-4">
               <TitoloCard>Per la call</TitoloCard>
               <div className="mt-1 space-y-3">
+                {detto.length > 0 && (
+                  <div className="rounded-xl bg-navy px-4 py-3 text-white">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-white/70">Cosa ci ha già detto</p>
+                    {detto.map((d) => (
+                      <p key={d.at} className="mt-2 text-[13px] leading-snug">
+                        «{d.testo.length > 200 ? d.testo.slice(0, 200).replace(/\s+\S*$/, '') + '…' : d.testo}»
+                        <span className="mt-0.5 block text-[11px] text-white/60">mail del {fmtDateShort(d.at)}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tenue">Dove eravamo</p>
-                  {ultimaSua ? (
+                  {ultimaNostra ? (
+                    <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
+                      <span className="font-semibold">La nostra ultima mail, {fmtDateShort(ultimaNostra.at)}:</span>{' '}
+                      {rigaVera(ultimaNostra.body ?? '').slice(0, 220)}
+                    </p>
+                  ) : ultimaSua && detto.length && ultimaSua.kind === 'email_in' ? (
+                    <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
+                      <span className="font-semibold">Aspetta una nostra risposta</span> dal {fmtDateShort(ultimaSua.at)}.
+                    </p>
+                  ) : ultimaSua ? (
                     <p className="mt-0.5 text-[13px] leading-relaxed text-inchiostro">
                       <span className="font-semibold">{ultimaSua.kind === 'email_in' ? 'La sua ultima mail' : 'L\u2019ultima call'}, {fmtDateShort(ultimaSua.at)}:</span>{' '}
-                      {((ultimaSua.body ?? '').split('\n').find((r) => r.trim().length > 10) ?? ultimaSua.body ?? '').slice(0, 220)}
+                      {rigaVera(ultimaSua.kind === 'email_in' ? soloSuo(ultimaSua.body) : (ultimaSua.body ?? '')).slice(0, 220)}
                     </p>
                   ) : <p className="mt-0.5 text-[13px] text-tenue">Niente di suo nel filo, ancora.</p>}
                   {p.next_action && (
@@ -704,7 +768,9 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
           ‹ Torna
         </button>
         {/* LE BRICIOLE (26/9): da dove vengo e dove sono, cliccabili */}
-        <nav aria-label="Dove sei" className="flex min-w-0 flex-1 items-center gap-1 truncate text-sm">
+        {/* gold (6/10): sul telefono le briciole uscivano tagliate («Pipeline / (»): li' basta Torna */}
+        <span className="flex-1 sm:hidden" />
+        <nav aria-label="Dove sei" className="hidden min-w-0 flex-1 items-center gap-1 truncate text-sm sm:flex">
           <button onClick={chiudi} className="shrink-0 text-tenue hover:text-navy hover:underline">{eCliente(p) ? 'Clienti' : 'Pipeline'}</button>
           <span className="text-spento">/</span>
           {p.fuori && !eCliente(p) && !ePerso(p) && p.pipeline_stage && (<>
@@ -1180,7 +1246,7 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
                 dipartimento: la responsabilita' va a Carlo, con la sua notifica. */}
             {p.fuori && p.pipeline_stage === 'tecnica' && !soppresso && (
               <button
-                onClick={() => void passaACarlo()}
+                onClick={apriPassaggio}
                 title="La tecnica e' fatta: il lead passa al dipartimento"
                 className="shrink-0 rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white hover:bg-blu-scuro"
               >
@@ -1192,7 +1258,34 @@ export default function Scheda({ id, sezione, onSezione, onClose, onApri }: Prop
             )}
           </div>
           )}
-          <CosaManca p={p} aggiorna={aggiorna} />
+          {passaggio && (
+            <div className="salta-su mt-3 rounded-xl border border-bordo bg-velo/40 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-navy">La scheda di passaggio a Carlo</p>
+              <p className="mt-0.5 text-[12px] text-tenue">La legge prima di accettare. Le sue parole ci vanno da sole.</p>
+              {([
+                ['promesso', 'Cosa abbiamo promesso', 'Numeri e tempi detti in call: budget, fee, risultati attesi e quando'],
+                ['perche', 'Perché conta per lui', 'Cosa gli cambia se funziona'],
+                ['decide', 'Chi decide', 'Nome e ruolo di chi firma e di chi segue'],
+                ['non', 'Cosa NON abbiamo promesso', 'Quello che Carlo non deve dare per scontato'],
+                ['accessi', 'Accessi', ''],
+              ] as Array<[keyof Passaggio, string, string]>).map(([k, nome, aiuto]) => (
+                <label key={k} className="mt-2.5 block">
+                  <span className="text-[12px] font-semibold text-inchiostro">{nome}{k === 'promesso' && <span className="text-red-600"> *</span>}</span>
+                  <textarea rows={k === 'promesso' ? 3 : 2} value={passaggio[k]} placeholder={aiuto} autoFocus={k === 'promesso'}
+                            onChange={(e) => setPassaggio({ ...passaggio, [k]: e.target.value })}
+                            className="mt-1 w-full resize-y rounded-lg border border-bordo bg-white px-3 py-2 text-[13px] outline-none focus:border-blu" />
+                </label>
+              ))}
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                {!passaggio.promesso.trim() && <span className="mr-auto text-[12px] text-tenue">Scrivi cosa abbiamo promesso: è la cosa che si perde di più.</span>}
+                <button onClick={() => setPassaggio(null)} className="min-h-[40px] rounded-full border border-bordo bg-white px-4 py-1.5 text-xs font-semibold text-tenue">Annulla</button>
+                <button onClick={() => { setPassando(true); void passaACarlo(testoPassaggio(passaggio)).finally(() => setPassando(false)) }} disabled={!passaggio.promesso.trim() || passando}
+                        className="min-h-[40px] rounded-full bg-navy px-4 py-1.5 text-xs font-bold text-white disabled:opacity-40">Passa a Carlo</button>
+              </div>
+            </div>
+          )}
+          {/* gold: sul telefono «Cosa manca» non sta sopra la bozza: e' lavoro da computer */}
+          <div className="hidden sm:block"><CosaManca p={p} aggiorna={aggiorna} /></div>
         </Card>
 
         {/* LE TAB DELLA SCHEDA (26/9) */}

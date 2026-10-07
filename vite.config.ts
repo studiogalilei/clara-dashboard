@@ -10,6 +10,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      // la copia di prova nel laboratorio (gold, 6/10) non installa un secondo service worker
+      disable: Boolean(process.env.SENZA_PWA),
       registerType: 'autoUpdate',
       // le notifiche le riceve public/push.js, importato dentro il service worker
       workbox: { importScripts: ['push.js'], globIgnores: ['**/brand/**', '**/lab/**', '**/documento-*.js', '**/CompilaPdf-*.js', '**/pdf.worker*'], navigateFallbackDenylist: [/\/lab\//] },   // i pezzi pesanti si scaricano quando servono, non all'installazione

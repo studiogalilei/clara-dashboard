@@ -1,4 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import Adesso from './Adesso'
+import Novita from './Novita'
 import { supabase } from '../lib/supabase'
 import { leggi as leggiPref, scrivi as scriviPref } from '../lib/preferenze'
 import type { Classificazione } from '../lib/types'
@@ -8,7 +10,7 @@ import { useVivo } from '../lib/vivo'
 import { oggi, giorno, codaDiOggi, creaTask, type VoceCoda } from '../lib/regole'
 import { chiSono } from '../lib/accessi'
 import { COLORE_STATO, type Tono } from '../lib/stato'
-import { useSchermoLargo } from '../lib/schermo'
+import { useSchermoLargo, useScorroGiu } from '../lib/schermo'
 
 // La sezione Task, ricalcata su Google Tasks (Dre, 31/8): cerchietti,
 // «Aggiungi un'attività», note sotto il titolo, trascina per riordinare,
@@ -183,25 +185,6 @@ function Cerchio({ fatta, mezzo, onClick }: { fatta: boolean; mezzo?: boolean; o
 }
 
 export default function Oggi({ onOpen, onCalendario }: Props) {
-  // le aziende con una bozza pronta, dalla piu' vecchia: la fila della mattina
-  const [bozzePronte, setBozzePronte] = useState<string[]>([])
-  useEffect(() => {
-    let vivo = true
-    // 29/9: bozza e' solo quella che ha un testo da mandare. I promemoria interni
-    // (cliente che nessuno sente, progetto in scadenza) venivano contati come bozze
-    supabase.from('proposte').select('prospect_id,at').in('tipo', ['risposta', 'umano']).eq('stato', 'aperta').not('azione->>bozza', 'is', null)
-      .order('at', { ascending: true }).limit(100)
-      .then(({ data }) => {
-        if (!vivo) return
-        const visti = new Set<string>()
-        const ids: string[] = []
-        for (const x of (data ?? []) as Array<{ prospect_id: string | null }>) {
-          if (x.prospect_id && !visti.has(x.prospect_id)) { visti.add(x.prospect_id); ids.push(x.prospect_id) }
-        }
-        setBozzePronte(ids)
-      })
-    return () => { vivo = false }
-  }, [])
   const [attivita, setAttivita] = useState<TaskDre[] | null>(null)
   const [gruppi, setGruppi] = useState<Gruppo[] | null>(null)
   const [fatteCoda, setFatteCoda] = useState<Set<string>>(new Set())
@@ -251,7 +234,8 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
   const [ioVero, setIoVero] = useState<string | null>(null)
   const [scadenze, setScadenze] = useState<ScadenzaAccount[]>([])
 
-  const largo = useSchermoLargo()          // 29/9: sul computer la call sta in testata, qui non si carica due volte
+  const largo = useSchermoLargo()
+  const scorroGiu = useScorroGiu()          // 29/9: sul computer la call sta in testata, qui non si carica due volte
   const [stretto, setStretto] = useState(false)
   useEffect(() => {
     try {
@@ -357,6 +341,24 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
 
   const nomeDi = (id: string | null) =>
     persone.find((p) => p.id === id)?.nome ?? 'qualcuno'
+
+  // SONO BLOCCATO (gold, 6/10, dalla V5 e dalla ricerca: «il blocco di Alex arriva subito a
+  // Carlo»). Su una task che ti ha mandato un altro: una riga su cosa ti blocca, e diventa una
+  // task per chi te l'aveva chiesta, per oggi. Prima il blocco restava nella testa di chi l'aveva.
+  const [blocco, setBlocco] = useState<{ id: number; testo: string } | null>(null)
+  const [bloccoEsito, setBloccoEsito] = useState<string | null>(null)
+  async function segnalaBlocco(t: TaskDre) {
+    const testo = (blocco?.testo ?? '').trim()
+    if (!testo || !t.da) return
+    const { problema } = await creaTask({
+      titolo: `${nomeDi(io)} è bloccato su «${t.titolo}»: ${testo}`,
+      perChi: t.da, scadenza: oggi(),
+      prospect_id: (t as TaskDre & { prospect_id?: string | null }).prospect_id ?? null,
+    })
+    if (problema) { setBloccoEsito(`Non è partito: ${problema}`); return }
+    setBlocco(null)
+    setBloccoEsito(`Mandato a ${nomeDi(t.da)}: lo trova in cima alla sua giornata.`)
+  }
 
   async function apriPersona(id: string | null) {
     setPossoVedere(true)
@@ -761,6 +763,12 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
         {proposte.map((t) => (
           <div key={t.id} className="border-b border-velo px-3 py-2.5 last:border-0">
             <p className="text-sm font-semibold">{t.titolo}</p>
+            {t.dettagli && (
+              <details className="mt-1 text-[12px]">
+                <summary className="cursor-pointer font-semibold text-blu">Leggi prima di accettare</summary>
+                <p className="mt-1 whitespace-pre-wrap leading-snug text-inchiostro">{t.dettagli}</p>
+              </details>
+            )}
             <p className="text-[11px] text-tenue">
               da <button onClick={() => apriPersona(t.da)} className="font-semibold text-navy hover:underline">{nomeDi(t.da)}</button>
               {t.scadenza ? `, per il ${fmtDateShort(t.scadenza)}` : ''}
@@ -823,18 +831,13 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
     <div className="space-y-4 pb-28 sm:pb-8">
       {/* la giornata (Dre, 9/9): la prossima call sta in testata (App), qui le task e in fondo gli avvisi;
           sul telefono la call resta qui sopra */}
-      {!largo && <Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" />}
 
-      {/* LE BOZZE PRIMA DI TUTTO (Dre, 25/9): la mattina la prima cosa e' approvare quello che Clara ha pronto */}
-      {bozzePronte.length > 0 && (
-        <button onClick={() => onOpen(bozzePronte[0])}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-blu/30 bg-blu/[0.05] px-5 py-3.5 text-left hover:bg-blu/10">
-          <span className="text-[15px] font-bold text-navy">
-            {bozzePronte.length === 1 ? 'Una bozza pronta da approvare' : `${bozzePronte.length} bozze pronte da approvare`}
-          </span>
-          <span className="shrink-0 rounded-full bg-blu px-4 py-1.5 text-xs font-bold text-white">Apri la prima ›</span>
-        </button>
-      )}
+      {/* LE BOZZE PRIMA DI TUTTO (Dre, 25/9), nel gold (6/10) una cosa sola: Adesso, poi Poi,
+          e il traguardo della giornata. Prima era la striscia «N bozze pronte da approvare». */}
+      <Adesso />
+      {/* gold: la call sul telefono viene dopo Adesso, non prima (una cosa sola in alto) */}
+      {!largo && <Radar onOpen={onOpen} onCalendario={onCalendario} parte="call" />}
+      <Novita />
 
       {problema && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800">
@@ -1041,6 +1044,21 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
                   onChange={(e) => aggiorna(t.id, { scadenza: e.target.value || null })}
                   className="rounded-full border border-bordo px-2.5 py-1 text-xs text-tenue outline-none focus:border-blu"
                 />
+                {t.da && t.da !== io && (blocco?.id === t.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input autoFocus value={blocco.testo} onChange={(e) => setBlocco({ id: t.id, testo: e.target.value })}
+                           onKeyDown={(e) => { if (e.key === 'Enter') void segnalaBlocco(t); if (e.key === 'Escape') setBlocco(null) }}
+                           placeholder={`Cosa ti blocca? Arriva a ${nomeDi(t.da)}`}
+                           className="min-w-0 flex-1 rounded-lg border border-bordo px-2.5 py-1.5 text-sm outline-none focus:border-blu" />
+                    <button onClick={() => void segnalaBlocco(t)} disabled={!blocco.testo.trim()}
+                            className="min-h-[36px] rounded-full bg-blu px-3 py-1 text-xs font-bold text-white disabled:opacity-40">Manda</button>
+                    <button onClick={() => setBlocco(null)} className="text-xs text-spento hover:text-inchiostro">Annulla</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setBloccoEsito(null); setBlocco({ id: t.id, testo: '' }) }}
+                          className="block text-xs font-semibold text-tenue hover:text-navy">Sono bloccato</button>
+                ))}
+                {bloccoEsito && apertaTask === t.id && <p className="text-xs font-semibold text-emerald-700">{bloccoEsito}</p>}
               </div>
             )}
           </div>
@@ -1194,7 +1212,7 @@ export default function Oggi({ onOpen, onCalendario }: Props) {
       <button
         onClick={() => { setAggiungo(true); setTimeout(() => nuovoRef.current?.focus(), 50) }}
         aria-label="Aggiungi un'attività"
-        className="fixed bottom-20 left-4 z-30 flex items-center justify-center rounded-2xl bg-blu p-3 text-white shadow-[0_6px_20px_rgba(16,24,40,0.25)] sm:hidden"
+        className={`fixed bottom-20 left-4 z-30 flex items-center justify-center rounded-2xl bg-blu p-3 text-white shadow-[0_6px_20px_rgba(16,24,40,0.25)] transition-transform duration-200 ease-out sm:hidden ${scorroGiu ? 'translate-y-[160%]' : ''}`}
       >
         <svg viewBox="0 0 24 24" className="h-7 w-7"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" /></svg>
       </button>

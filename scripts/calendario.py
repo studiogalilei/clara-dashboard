@@ -41,7 +41,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, di_clara, quando, sb_tutte                # noqa: E402
+from stanza import env, sb, di_clara, quando, sb_tutte, proponi       # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 INDIETRO = 400      # giorni di storia da tenere (il tracciato)
@@ -379,8 +379,13 @@ def fasi_dalle_call(prova):
                        f"&id=in.({','.join(prima)})") or []
     spostate = 0
     for p in schede:
+        # 6/10, Dre: «ogni persona che prenota finisce in workspace». Prima negativi e
+        # nervosi venivano saltati in silenzio: ora entrano anche loro, e se per noi sono
+        # fuori posto Dre riceve l'avviso con le tre scelte (tieni / sopprimi / rispondi e
+        # sopprimi). Restano fuori solo i soppressi: chi ha chiesto di sparire non rientra
+        # perche' ha cliccato un vecchio link.
         if (p.get("stage") not in PRIMA_DELLA_CALL or p.get("pipeline_stage") or p.get("fuori")
-                or p.get("no_followup") or p.get("classificazione") in ("soppresso", "negativo", "nervoso")):
+                or p.get("classificazione") == "soppresso"):
             continue
         c = prima[p["id"]]
         quando_roma = quando(c["at"]).astimezone(ROMA)
@@ -392,6 +397,12 @@ def fasi_dalle_call(prova):
            {"stage": "call_fissata", "next_action": "Call conoscitiva", "next_action_date": quando_roma.date().isoformat()})
         di_clara("controllo", f"{nome}: ha una call conoscitiva il {quando_roma:%d/%m alle %H:%M}, l'ho messa in «Call fissata».",
                  prospect_id=p["id"], letto=True)
+        if p.get("classificazione") in ("fuori_target", "negativo", "nervoso") or p.get("no_followup"):
+            proponi("umano", f"{nome} ha prenotato una call, ma per noi era {p.get('classificazione') or 'bloccato'}",
+                    prospect_id=p["id"], ref=f"call-fuori-posto:{p['id']}",
+                    perche=(f"Call il {quando_roma:%d/%m alle %H:%M}. Tre scelte (Dre, 6/10): Fai cosi = lo tieni, "
+                            "si lavora come gli altri. Oppure scrivi in chat «sopprimi» (sparisce senza risposta) o "
+                            "«rispondi e sopprimi» (bozza educata pronta, poi sparisce)."))
         spostate += 1
     return spostate
 

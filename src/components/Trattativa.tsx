@@ -96,6 +96,18 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
     return g
   }, [trovate])
 
+  // LA TRATTATIVA IN UNA RIGA (gold, 6/10, dalla V2): quanti sono e quanti chiedono te. Gli
+  // stessi colori delle carte: ambra aspetta te, rosso fermo da troppo. Nessun numero in piu'.
+  const riga = useMemo(() => {
+    const cols: Colonna[] = ['si', 'conoscitiva', 'tecnica']
+    const tutte = cols.flatMap((c) => gruppi[c].map((p) => statoDi(p, c).colore))
+    if (!tutte.length) return ''
+    const aTe = tutte.filter((c) => c === 'bg-amber-400').length
+    const fermi = tutte.filter((c) => c === 'bg-red-500').length
+    const pezzi = [aTe && `${aTe} ${aTe === 1 ? 'aspetta' : 'aspettano'} te`, fermi && `${fermi} ${fermi === 1 ? 'fermo' : 'fermi'} da troppo`].filter(Boolean)
+    return `${tutte.length} in trattativa${pezzi.length ? `: ${pezzi.join(', ')}` : ', nessuno aspetta te'}.`
+  }, [gruppi])
+
   // la mossa: prima lo schermo, poi il database (regola 17)
   const muovi = useCallback(async (p: Prospect, verso: Tappa | 'perso' | 'lead', mot?: string) => {
     setGuaio(null)
@@ -128,6 +140,7 @@ export default function Trattativa({ onOpen, q = '', onTutte }: { onOpen: (id: s
   return (
     <div>
       {guaio && <p className="mb-3 inline-block rounded-full bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700">{guaio}</p>}
+      {riga && !cerca && <p className="mb-3 text-[14px] text-tenue">{riga}</p>}
       {cerca && gruppi.si.length + gruppi.conoscitiva.length + gruppi.tecnica.length === 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-bordo bg-white px-4 py-3">
           <p className="text-[14px] text-inchiostro">«{q.trim()}» non è in trattativa{gruppi.persa.length ? ': è fra i lasciati andare, nel cassetto in fondo' : ''}.</p>

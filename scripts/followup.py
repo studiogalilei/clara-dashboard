@@ -25,9 +25,24 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte                                       # noqa: E402
+from stanza import sb, sb_tutte, giorno_scelto, colonna_c_e           # noqa: E402
 
 GIORNI = 5
+
+
+def _fu():
+    """«,follow_up_il» nelle select solo se la colonna c'e' (schema_v76)."""
+    return ",follow_up_il" if colonna_c_e("prospects", "follow_up_il") else ""
+
+
+def giorno_follow_up(inviata, p):
+    """Il timer del follow-up (Dre, 6/10): analisi + 5 giorni, MA il giorno lo puo'
+    spostare Dre dalla schermata (prospects.follow_up_il, stanza.giorno_scelto). La sua
+    data vince, sia sul calendario sia sulla coda. Torna (giorno, True se l'ha scelto lui)."""
+    scelto = giorno_scelto(p)
+    if scelto:
+        return scelto, True
+    return inviata + datetime.timedelta(days=GIORNI), False
 QUANTI = 50
 CLASSI = "positivo,tiepido,da_classificare"
 
@@ -67,7 +82,7 @@ def mini_followup(prova, oggi):
         pid = m["prospect_id"]
         if not pid or pid in gia:
             continue
-        p = (sb("GET", f"/rest/v1/prospects?select=id,name,company,email,last_reply_at,awaiting_us,no_followup,fuori,stage,classificazione,coda&id=eq.{pid}") or [None])[0]
+        p = (sb("GET", f"/rest/v1/prospects?select=id,name,company,email,last_reply_at,awaiting_us,no_followup,fuori,stage,classificazione,coda{_fu()}&id=eq.{pid}") or [None])[0]
         if not p or p.get("awaiting_us") or p.get("no_followup") or p.get("fuori") or p.get("stage") in ("perso", "cliente"):
             continue
         if p.get("last_reply_at") and p["last_reply_at"] > m["risposta_il"]:
@@ -76,6 +91,8 @@ def mini_followup(prova, oggi):
             continue
         if p.get("coda"):
             continue
+        if (giorno_scelto(p) or oggi) > oggi:
+            continue                                        # Dre l'ha spostato piu' avanti
         azienda = p.get("company") or p.get("email")
         print(f"  mini → in coda {azienda[:36]}")
         if not prova:
@@ -93,8 +110,15 @@ def calendario(prova, oggi):
     prossimi 21 giorni, con la data. Lo schermo legge questa tabella e non
     rifa' i conti: una verita' sola. Una riga per azienda, il prossimo che le spetta."""
     righe = {}
+    # 7/10: chi non e' piu' un lead (negativo, soppresso, nervoso, fuori target, «niente
+    # follow-up») non entra nel calendario da nessuna strada. CdB Avvocati, negativo, stava
+    # su «Oggi» per sempre: il passo del mini follow-up non guardava la classificazione.
+    morti = {x["id"] for x in (sb_tutte("/rest/v1/prospects?select=id"
+                                         "&or=(classificazione.in.(negativo,soppresso,nervoso,fuori_target,persona_sbagliata),no_followup.eq.true)") or [])}
 
     def metti(pid, gruppo, il, perche):
+        if pid in morti:
+            return
         if pid and (pid not in righe or il < righe[pid]["il"]):
             righe[pid] = {"prospect_id": pid, "gruppo": gruppo, "il": il, "perche": perche[:200]}
 
@@ -114,7 +138,7 @@ def calendario(prova, oggi):
     gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
     # 5/10: niente piu' finestra dei 30 giorni. Chi e' dovuto resta dovuto finche' il follow-up
     # non parte o non esce con un motivo: la finestra faceva sparire dal conto chi era indietro.
-    for p in sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda"
+    for p in sb_tutte(f"/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda{_fu()}"
                        f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                        f"&classificazione=in.({CLASSI})") or []:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
@@ -122,16 +146,25 @@ def calendario(prova, oggi):
         if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
-        il = inviata + datetime.timedelta(days=GIORNI)
+        il, scelto = giorno_follow_up(inviata, p)
         if il <= fine:
-            metti(p["id"], "FOLLOW UP 1", max(il, oggi), f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
+            metti(p["id"], "FOLLOW UP 1", max(il, oggi),
+                  "giorno scelto da Dre" if scelto else f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
+    # il giorno scelto da Dre vale per OGNI gruppo, non solo per il FOLLOW UP 1 (revisione 7/10:
+    # spostare un rinvio dallo schermo tornava indietro al ricalcolo orario)
+    scelti = ({x["id"]: giorno_scelto(x) for x in (sb_tutte("/rest/v1/prospects?select=id,follow_up_il&follow_up_il=not.is.null") or [])}
+              if _fu() else {})
+
+    def con_dre(pid, il):
+        return scelti.get(pid) or il
+
     # 3. MINI FOLLOW UP: sei giorni dopo la ripresa
     gia_mini = gia_avute("MINI%20FOLLOW%20UP")
     for m in sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta&azione->>intento=eq.RIPRESA"
                        "") or []:
         if not m.get("prospect_id") or m["prospect_id"] in gia_mini or not m.get("risposta_il"):
             continue
-        il = datetime.date.fromisoformat(m["risposta_il"][:10]) + datetime.timedelta(days=6)
+        il = con_dre(m["prospect_id"], datetime.date.fromisoformat(m["risposta_il"][:10]) + datetime.timedelta(days=6))
         if il <= fine:
             metti(m["prospect_id"], "MINI FOLLOW UP", max(il, oggi), f"ripresa mandata il {m['risposta_il'][8:10]}/{m['risposta_il'][5:7]}")
     # 4. RINVIO: la data che ci hanno dato
@@ -139,7 +172,9 @@ def calendario(prova, oggi):
                        f"&no_followup=eq.false&next_action_date=lte.{fine.isoformat()}&limit=1000") or []:
         if p.get("next_action_date") and not p.get("coda"):
             q = datetime.date.fromisoformat(p["next_action_date"][:10])
-            metti(p["id"], "RINVIO SCADUTO", max(q + datetime.timedelta(days=1), oggi), f"aveva detto di risentirci il {q:%d/%m}")
+            il = con_dre(p["id"], q + datetime.timedelta(days=1))
+            metti(p["id"], "RINVIO SCADUTO", max(il, oggi),
+                  "giorno scelto da Dre" if p["id"] in scelti else f"aveva detto di risentirci il {q:%d/%m}")
     print(f"calendario dei follow-up: {len(righe)} nei prossimi {ORIZZONTE} giorni")
     if prova:
         for r in sorted(righe.values(), key=lambda r: r["il"])[:15]:
@@ -162,7 +197,7 @@ def main():
         return
     mini_followup(prova, datetime.date.today())
     oggi = datetime.date.today()
-    righe = sb("GET", "/rest/v1/prospects?select=id,name,company,email,analysis_sent_at,last_reply_at,classificazione,analysis_pdf,coda"
+    righe = sb("GET", f"/rest/v1/prospects?select=id,name,company,email,analysis_sent_at,last_reply_at,classificazione,analysis_pdf,coda{_fu()}"
                       f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                       f"&classificazione=in.({CLASSI})&order=analysis_sent_at.desc&limit=500") or []
     gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
@@ -172,7 +207,9 @@ def main():
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
-        if (oggi - inviata).days < GIORNI:
+        # 7/10: la stessa regola del calendario. Prima qui contava solo analisi+5, e il
+        # giorno spostato da Dre governava lo schermo ma non la coda
+        if giorno_follow_up(inviata, p)[0] > oggi:
             continue
         if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
             continue                                        # ha scritto lui dopo l'analisi: non e' un silenzio

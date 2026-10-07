@@ -19,7 +19,6 @@ import Aggiornato from './components/Aggiornato'
 import Novita from './components/Novita'
 import Giro from './components/Giro'
 import Calendario from './components/Calendario'
-import { oggi as giornoOggi } from './lib/regole'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
 import Chat from './components/Chat'
@@ -270,7 +269,6 @@ export default function App() {
   // (Dre, 4/9). La larghezza e' una preferenza: ti segue sul telefono
   const [menuLargo, setMenuLargo] = useState(() => Number(leggiPref('menu-larghezza')) || 224)
   const tiroMenu = useRef(false)
-  const [salutoClara, setSalutoClara] = useState<string | null>(null)
   const cercaRef = useRef<HTMLInputElement>(null)
 
   function chiudiScheda() {
@@ -316,23 +314,7 @@ export default function App() {
     return () => sub?.subscription.unsubscribe()
   }, [])
 
-  // il buongiorno in testata è uno spazio di Clara: se oggi l'ha scritto,
-  // si mostra il suo
-  useEffect(() => {
-    if (!configured) return
-    const oggiIso = giornoOggi()
-    supabase
-      .from('clara_messaggi')
-      .select('*')
-      .eq('tipo', 'saluto')
-      .gte('at', oggiIso + 'T00:00:00')
-      .order('at', { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        const m = (data as Array<{ testo: string }> | null)?.[0]
-        if (m?.testo) setSalutoClara(m.testo)
-      })
-  }, [])
+  // gold (6/10): il saluto del mattino non si legge piu': la frase di Clara e' quella dal vivo in Adesso
 
   // LE SCORCIATOIE (Dre, 26/9: «il feel di un software professionale»).
   // ⌘K apre la palette; «/» fa lo stesso, per chi la conosce da prima.
@@ -411,6 +393,21 @@ export default function App() {
   const ruolo: Ruolo = demo ? mioRuolo() : ruoloDb
   const voci = menuDi(ruolo, 'menu', concessi)
   const vociSistema = menuDi(ruolo, 'sistema', concessi)
+  // LA BARRA DEL TELEFONO (gold, 6/10): Oggi e la Posta per prime, perche' sono le due cose
+  // che si fanno col pollice; poi le prime voci del menu di ognuno. Quello che non ci sta sale
+  // fra le icone in alto, dove prima stava la Posta: nessuna pagina diventa irraggiungibile.
+  const oggiW = widgetDi('pipeline')
+  const postaW = vociSistema.find((w) => w.chiave === 'clara')
+  const sotto = [
+    // Oggi col sole (come nella V1): l'icona della bacheca era la stessa di Aziende
+    ...(oggiW && !voci.some((w) => w.chiave === 'pipeline') ? [{ ...oggiW, immagine: undefined, icona: 'M12 3v1.5M12 19.5V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.5M19.5 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z' }] : []),
+    ...(postaW ? [{ ...postaW, nome: 'Posta' }] : []),
+    ...voci,
+  ].slice(0, 5)
+  const sopra = [
+    ...voci.filter((w) => !sotto.some((x) => x.chiave === w.chiave)),
+    ...vociSistema.filter((w) => w.chiave !== 'analytics' && w.chiave !== 'clara'),
+  ]
 
   return (
     <div className="min-h-dvh bg-fondo lg:flex">
@@ -625,7 +622,7 @@ export default function App() {
           {/* la Posta, i Documenti e le Impostazioni: dal telefono si
               raggiungevano solo dalla pallina, e una volta li' nessuna icona
               era accesa (QA Dre, 14/9) */}
-          {vociSistema.filter((w) => w.chiave !== 'analytics').map(({ chiave: t, nome, icona, immagine }) => (
+          {sopra.map(({ chiave: t, nome, icona, immagine }) => (
             <button key={t} onClick={() => { setTab(t); setOpenId(null) }} aria-label={nome} title={nome}
                     className={`relative shrink-0 rounded-full p-1.5 ${tab === t ? 'bg-velo text-navy' : 'text-tenue'}`}>
               <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
@@ -648,7 +645,9 @@ export default function App() {
           {!pieno && (<>
           {/* le novita', una volta, a chi rientra (Dre, 17/9) */}
           {/* le novita' solo sulla prima pagina (Dre, 25/9): su ogni pagina erano la prima cosa che vedevi, sempre */}
-          {(tab === 'prospect' || tab === 'pipeline') && !giro && <Novita />}
+          {/* gold (6/10): sulla prima pagina le novita' stanno sotto Adesso, dentro Oggi: prima erano la prima cosa che vedeva l'occhio */}
+          {/* gold: sulla Pipeline (prima pagina, 24/9) le novita' stanno sotto le colonne */}
+          {tab === 'prospect' && !giro && leggiPref('pipeline-vista', 'trattativa') === 'classica' && <Novita />}
           {/* testata */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="min-w-0 flex-1">
@@ -665,13 +664,8 @@ export default function App() {
                   || (tab === 'calendario' && <Aiuto di="calendario" />) || (tab === 'analytics' && <Aiuto di="numeri" />)
                   || (tab === 'metro' && <Aiuto di="metro" />) || (tab === 'prospect' && <Aiuto di="trattativa" />) || ((tab === 'tutti' || tab === 'aziende') && <Aiuto di="aziende" />)}
               </h1>
-              {tab === 'pipeline' && (salutoClara ? (
-                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">
-                  {salutoClara.replace(/^buon\w*[,.]?\s+dre[.,]?\s*/i, '')}
-                </p>
-              ) : ruolo === 'ceo' && saluto(utente)[1] ? (
-                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-tenue">{saluto(utente)[1]}</p>
-              ) : null)}
+              {/* gold (6/10): sotto il saluto non c'e' piu' la frase del mattino: la frase di Clara
+                  sta in cima ad Adesso ed e' calcolata dal vivo (quella del mattino invecchiava) */}
               {/* quanto e' fresco quello che stai guardando (Dre, 15/9) */}
               {(tab === 'pipeline' || tab === 'prospect') && <Aggiornato />}
             </div>
@@ -765,6 +759,7 @@ export default function App() {
                 <Trattativa onOpen={setOpenId} q={q} onTutte={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }} />
                 <button onClick={() => { scriviPref('pipeline-vista', 'classica'); setVersione((v) => v + 1) }}
                         className="mt-4 text-[11px] font-semibold text-tenue hover:text-navy">Vista classica</button>
+                {!giro && <div className="mt-6"><Novita /></div>}
               </>
             ) : tab === 'prospect' ? (
               <>
@@ -783,16 +778,19 @@ export default function App() {
       {/* navigazione mobile */}
       <nav className={`fixed inset-x-0 bottom-0 border-t border-bordo bg-white pb-[env(safe-area-inset-bottom)] lg:hidden ${pieno ? 'hidden' : ''}`}>
         <div className="flex">
-          {voci.map(({ chiave: t, nome: label, icona, immagine }) => (
+          {sotto.map(({ chiave: t, nome: label, icona, immagine }) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setOpenId(null) }}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${
-                tab === t ? 'text-navy' : 'text-spento'
+              onClick={() => { setTab(t); setOpenId(null); if (t === 'pipeline') window.scrollTo(0, 0) }}
+              className={`relative flex min-h-[48px] flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${
+                tab === t || (t === 'pipeline' && tab === 'oggi') ? 'text-navy' : 'text-spento'
               }`}
             >
               <Icona icona={icona} immagine={immagine} className="h-5 w-5" />
               {label}
+              {t === 'clara' && daDecidere > 0 && (
+                <span className="absolute left-1/2 top-1 ml-1.5 min-w-[16px] rounded-full bg-red-600 px-1 text-[9px] font-bold leading-4 text-white">{daDecidere}</span>
+              )}
             </button>
           ))}
         </div>

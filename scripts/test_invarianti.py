@@ -73,6 +73,10 @@ def _():
                "grazie per il messaggio, in realtà abbiamo già chi si occupa di queste cose"):
         assert S.classifica(no) == "negativo", no
     assert S.classe_da_sync("in realtà abbiamo già chi si occupa di queste cose", "Information Request", None, True) == "negativo"
+    # 6/10 pomeriggio: due consensi veri restavano «da classificare» e la prima risposta non partiva
+    assert S.classifica("Me la mandi, senza impegno") == "positivo"
+    assert S.classifica("Se vuole inviare a titolo gratuito faccia pure.") == "positivo"
+    assert S.classifica("mandatela pure, grazie") == "positivo"
 
 
 @prova("la rilettura blocca chi chiede la rimozione da qualunque strada passi (caso Panorama, 6/10)")
@@ -88,6 +92,57 @@ def _():
     assert scritti and scritti[0][1] == "/rest/v1/suppressions" and scritti[0][2][0]["email"] == "info@esempio.it"
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "rilettura.py")).read()
     assert src.count("blocca(p)") >= 2, "la strada «decisa da sola» non blocca chi chiede la rimozione"
+
+
+@prova("il sync non riapre un'attesa chiusa sulla stessa risposta, solo se il lead riscrive (6/10)")
+def _():
+    import sync_v2 as S
+    chiusa = {"awaiting_us": False}
+    assert S.attesa_da_sync(True, chiusa, False, "2026-10-05T13:17:15") is False, "la stessa risposta riapriva l'attesa di un no"
+    assert S.attesa_da_sync(True, chiusa, True, "2026-10-06T09:00:00") is True, "una risposta nuova deve riaprire"
+    assert S.attesa_da_sync(True, chiusa, True, "2020-01-01T00:00:00") is False, "oltre 30 giorni resta chiusa"
+    assert S.attesa_da_sync(True, {"awaiting_us": True}, False, "2026-10-05T13:17:15") is True
+    assert S.attesa_da_sync(True, None, True, "2026-10-06T09:00:00") is True, "un lead nuovo aspetta"
+    # e il sync deve avere awaiting_us nei lead che carica, se no ogni attesa sembra chiusa (6/10, 11:43)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py")).read()
+    sel = src[src.index('rows = sb("GET", f"/rest/v1/prospects?select='):][:300]
+    assert "awaiting_us" in sel, "il sync carica i lead senza awaiting_us: chiude le attese di chi aspetta noi"
+
+
+@prova("le categorie di Dre su Smartlead: dalla classe del Workspace, mai su soppressi, fuori o fuori target (6/10)")
+def _():
+    import categorie_smartlead as C
+    assert C.categoria_di({"classificazione": "positivo"}) == C.SI
+    assert C.categoria_di({"classificazione": "positivo"}, intento="INT-03") == C.DOMANDA
+    assert C.categoria_di({"classificazione": "tiepido"}) == C.DOMANDA
+    assert C.categoria_di({"classificazione": "rinvio"}) == C.AVANTI and C.categoria_di({"classificazione": "ooo"}) == C.AVANTI
+    assert C.categoria_di({"classificazione": "persona_sbagliata"}) == C.GIRATO
+    assert C.categoria_di({"classificazione": "tiepido"}, girato=True) == C.GIRATO
+    assert C.categoria_di({"classificazione": "negativo"}) == C.NO and C.categoria_di({"classificazione": "nervoso"}) == C.NO
+    for c in ("soppresso", "fuori_target", "da_classificare", None):
+        assert C.categoria_di({"classificazione": c}) is None, c
+    assert C.categoria_di({"classificazione": "positivo", "fuori": True}) is None, "pipeline e clienti senza call non si toccano"
+    # 6/10, Dre: «Meeting booked = quelli sul workspace». Chi ha una call vince su tutto...
+    assert C.categoria_di({"classificazione": "positivo", "fuori": True}, call=True) == C.MEETING
+    assert C.categoria_di({"classificazione": None}, call=True) == C.MEETING, "una call prenotata basta, anche senza classe"
+    assert C.categoria_di({"classificazione": "rinvio"}, call=True) == C.MEETING
+    # ...e vince anche su fuori target e sui no (Dre 6/10: «ogni persona che prenota finisce
+    # in workspace», poi decide lui); restano fuori solo soppressi e persi
+    assert C.categoria_di({"classificazione": "fuori_target"}, call=True) == C.MEETING
+    assert C.categoria_di({"classificazione": "negativo"}, call=True) == C.MEETING
+    assert C.categoria_di({"classificazione": "soppresso"}, call=True) is None
+    assert C.categoria_di({"classificazione": "negativo", "fuori": True, "pipeline_stage": "perso"}, call=True) is None
+    # chi chiede informazioni senza una classe prende la Information Request standard (Cadeddu)
+    assert C.categoria_di({"classificazione": "da_classificare"}, testo="non ho capito bene di cosa si tratta, e cio che ci state proponendo?") == C.INFO
+    assert C.categoria_di({"classificazione": "da_classificare"}, testo="Risposta ricevuta (Smartlead)") is None
+    assert C.categoria_di({"classificazione": "da_classificare"}, testo="Thank you for your email! Your message has been received and is being reviewed by our support staff. What is your WordPress login?") is None, "un autorisponditore non chiede informazioni"
+    # dal campione letto prima di scrivere (6/10)
+    assert C.categoria_di({"classificazione": "ooo"}, testo="Hello, my email address has recently changed") == C.GIRATO
+    assert C.categoria_di({"classificazione": "ooo"}, testo="questa casella di posta verra' dismessa in data 30.04") == C.GIRATO
+    assert C.categoria_di({"classificazione": "ooo"}, testo="sono fuori ufficio fino al 12") == C.AVANTI
+    assert C.categoria_di({"classificazione": "positivo"}, girato=True, testo="Ok grazie") == C.SI, "un si' con un inoltro resta un si'"
+    assert C.categoria_di({"classificazione": "tiepido"}, testo="la ringrazio ma non è di nostro interesse") is None, "un no scritto non si etichetta come domanda"
+    assert C.categoria_di({"classificazione": "tiepido"}, testo="mi occupo della parte commerciale, ho girato la vostra mail all'ufficio competente") == C.GIRATO
 
 
 @prova("analisi: senza fatti il cancello dei numeri non boccia (non inventa regole)")
@@ -616,8 +671,16 @@ def _():
         (con(az_mod={"bozza": "Salve,\nvolentieri la call: https://calendar.app.google/x"}), "una prima risposta senza l'analisi (Yachtspassion)"),
         (con(az_mod={"bozza": "Salve,\necco l'analisi, resto a disposizione."}), "una prima risposta senza call (Optima, Mason)"),
         (con(az_mod={"bozza": "Salve,\nin chiamata vediamo insieme l'analisi: https://calendar.app.google/x"}), "una mail che non dice che l'analisi e' allegata (Yachtspassion)"),
+        # 6/10, Dre: «se non supera il Google Fit mi scrive fuori target e decido io»
+        (con(p_mod={"enriched": {"google_fit_v2": {"verdetto": "NO", "motivo": "domanda sotto soglia"}}}), "un fuori target per il fit nuovo, senza decisione di Dre"),
+        (con(p_mod={"enriched": {"google_fit": {"verdetto": "NO"}}}), "un fuori target per il fit vecchio, senza decisione di Dre"),
     ):
         assert caso, f"la prima risposta automatica farebbe partire {motivo}"
+    # la decisione di Dre «invia comunque» riapre la corsia; quella del fit nuovo
+    # vince sul vecchio (un v2 SI con un v1 NO non e' bocciato)
+    assert R.perche_no(pr, {**p, "enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "invia"}}) == []
+    assert R.perche_no(pr, {**p, "enriched": {"google_fit_v2": {"verdetto": "SI"}, "google_fit": {"verdetto": "NO"}}}) == []
+    assert R.fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "soppresso"}})
     # la finestra: lun-ven 9-17 a Roma
     roma = R.ROMA
     assert R.finestra(datetime.datetime(2026, 9, 29, 10, 0, tzinfo=roma))       # martedi' 10:00
@@ -1313,6 +1376,98 @@ def _():
     assert R.conferma({"enriched": {}}, "soppresso") == "applica", "la richiesta di rimozione vale subito"
 
 
+@prova("il timer del follow-up: analisi + 5 giorni, ma il giorno di Dre vince, in un campo suo (6-7/10)")
+def _():
+    import followup as F
+    import datetime as _dt
+    inviata = _dt.date(2026, 10, 1)
+    assert F.giorno_follow_up(inviata, {}) == (_dt.date(2026, 10, 6), False)
+    assert F.giorno_follow_up(inviata, {"follow_up_il": "2026-10-20"}) == (_dt.date(2026, 10, 20), True)
+    # una data rotta non ferma il giro: si torna alla regola dei 5 giorni
+    assert F.giorno_follow_up(inviata, {"follow_up_il": "boh"}) == (_dt.date(2026, 10, 6), False)
+    # 7/10: la data detta dal LEAD (next_action_date, rinvio) non e' il giorno di Dre
+    assert F.giorno_follow_up(inviata, {"next_action_date": "2027-01-10"}) == (_dt.date(2026, 10, 6), False)
+
+
+@prova("il giorno di Dre ferma anche la CODA, non solo lo schermo (caccia ai bug 6/10)")
+def _():
+    import followup as F
+    import datetime as _dt
+    vecchia = (_dt.date.today() - _dt.timedelta(days=20)).isoformat()
+    lontano = (_dt.date.today() + _dt.timedelta(days=15)).isoformat()
+    p = {"id": "x", "company": "Prova", "email": "a@b.it", "analysis_sent_at": vecchia, "last_reply_at": None,
+         "coda": None, "follow_up_il": lontano}
+    messi = []
+    vero = (F.sb, F.sb_tutte, F.in_coda, F.calendario, F.mini_followup, F._fu)
+    try:
+        F._fu = lambda: ",follow_up_il"
+        F.sb = lambda m, path, corpo=None, h=None: [p] if path.startswith("/rest/v1/prospects?select") else []
+        F.sb_tutte = lambda path, **k: []
+        F.in_coda = lambda pid, gruppo: messi.append(pid)
+        F.calendario = lambda prova, oggi: None
+        F.mini_followup = lambda prova, oggi: 0
+        F.main()
+        assert not messi, "accodato prima del giorno scelto da Dre"
+        p["follow_up_il"] = None
+        F.main()
+        assert messi == ["x"], "senza giorno scelto, analisi+5 deve accodare"
+    finally:
+        F.sb, F.sb_tutte, F.in_coda, F.calendario, F.mini_followup, F._fu = vero
+
+
+@prova("il Google Fit si legge in un modo solo: il nuovo vince, la decisione di Dre riapre (7/10)")
+def _():
+    from stanza import fit_di, fit_bocciato
+    v1no = {"google_fit": {"verdetto": "NO", "motivo": "vecchio"}}
+    assert fit_di({"enriched": v1no})[:2] == ("NO", "vecchio")
+    assert fit_bocciato({"enriched": v1no})
+    # caso SAD Sanificazioni: v1 NO ma v2 FORSE -> non e' fuori target, per NESSUN copione
+    assert not fit_bocciato({"enriched": {**v1no, "google_fit_v2": {"verdetto": "FORSE"}}})
+    assert fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO", "motivo": "portale"}}})
+    assert not fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "invia"}})
+    assert fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "soppresso"}})
+    # bozze.py e prima_risposta usano QUESTA regola, non una copia
+    import pathlib
+    qui = pathlib.Path(__file__).parent
+    for f in ("bozze.py", "prima_risposta.py"):
+        t = qui.joinpath(f).read_text(encoding="utf-8")
+        assert 'get("google_fit") or {}).get("verdetto") == "NO"' not in t, f"{f} legge ancora solo il fit vecchio"
+
+
+@prova("«Invia comunque» passa sopra alle esclusioni dell'analisi, il sito illeggibile no (7/10)")
+def _():
+    import analisi_auto as A
+    agenzia = {"enriched": {"google_fit": {"verdetto": "NO", "sito_letto": True, "esclusione": "agenzia"}}}
+    assert not A.servita(agenzia)
+    assert A.servita({"enriched": {**agenzia["enriched"], "google_fit_decisione": "invia"}})
+    assert not A.servita({"enriched": {"google_fit": {"verdetto": "NO"}, "google_fit_decisione": "invia"}}), "senza sito letto non si genera"
+    # e la bozza non promette un'analisi che con «invia comunque» non puo' nascere
+    import bozze as B
+    assert B.analisi_impossibile({"enriched": {"google_fit": {"verdetto": "NO"}, "google_fit_decisione": "invia"}})
+    assert not B.analisi_impossibile({"enriched": {"google_fit": {"verdetto": "NO", "sito_letto": True}, "google_fit_decisione": "invia"}})
+    assert not B.analisi_impossibile({"analysis_pdf": "x.pdf", "enriched": {"google_fit": {"verdetto": "NO"}}})
+    # il fit nuovo vale come sito letto solo se ha capito cosa fanno (revisione 7/10)
+    assert A.servita({"enriched": {"google_fit_v2": {"verdetto": "SI", "cosa_fa": "serramenti"}}})
+    assert not A.servita({"enriched": {"google_fit_v2": {"verdetto": "FORSE", "cosa_fa": None, "motivo": "il sito non si legge"}}})
+    # Keyword Planner caduto ma sito letto: si genera lo stesso
+    assert A.servita({"enriched": {"google_fit_v2": {"verdetto": "FORSE", "cosa_fa": "serramenti", "errore": "planner giu'"}}})
+    # il brief dell'analisi legge il fit unito: il nuovo vince, il vecchio riempie
+    u = A.fit_unito({"enriched": {"google_fit": {"verdetto": "NO", "settore": "infissi", "cosa_fa": "vecchio"},
+                                  "google_fit_v2": {"verdetto": "FORSE", "cosa_fa": "nuovo", "motivo": "m"}}})
+    assert (u["verdetto"], u["cosa_fa"], u["settore"]) == ("FORSE", "nuovo", "infissi")
+
+
+@prova("una bozza di follow-up col giorno spostato da Dre non parte prima di quel giorno (caso Jaam, 7/10)")
+def _():
+    import prima_risposta as R
+    import datetime as _dt
+    domani = (_dt.date.today() + _dt.timedelta(days=1)).isoformat()
+    pr = {"tipo": "risposta", "titolo": "FU", "azione": {"parte_il": domani, "lettura": {"gruppo": "FOLLOW UP 1"}}}
+    assert any("giorno scelto da Dre" in m for m in R.perche_no_seguito(pr, {"email": "a@b.it"}))
+    pr["azione"]["parte_il"] = _dt.date.today().isoformat()
+    assert not any("giorno scelto da Dre" in m for m in R.perche_no_seguito(pr, {"email": "a@b.it"}))
+
+
 @prova("il FOLLOW UP 1 non si mette in coda a chi ha gia' una bozza aperta in Posta (caso SCUDO, 6/10)")
 def _():
     import followup as F
@@ -1396,6 +1551,86 @@ def _():
     assert not any("registro misto" in x for x in e), e
     e2 = Bz.cancello("Salve Mario,\n\nti scrivo e le propongo una chiamata giovedì: https://calendar.app.google/x\n\nUn saluto")
     assert any("registro misto" in x for x in e2), "un tu vero insieme al lei deve ancora essere bocciato"
+
+
+@prova("i follow-up non hanno un tetto, solo un ammortizzatore di 5 in piu' per casella (Dre, 6/10)")
+def _():
+    import prima_risposta as R
+    # «se tanti cadono nello stesso quinto giorno dovremmo aspettare?» No: il numero deve
+    # reggere un giorno pieno (5 per casella), non fermare chi e' dovuto
+    assert R.MAX_SEGUITI_AL_GIORNO >= 5 * R.CASELLE_IN_CAMPAGNA >= 300, R.MAX_SEGUITI_AL_GIORNO
+    # e i giri nella finestra devono poterci arrivare davvero (revisione 7/10: era 5 x 24 = 120)
+    assert R.MAX_PER_GIRO_SEGUITI * R.GIRI_NELLA_FINESTRA >= R.MAX_SEGUITI_AL_GIORNO
+    # la prima risposta automatica invece resta col suo tetto, deciso da Dre il 2/10
+    assert R.MAX_AL_GIORNO == 15
+
+
+@prova("il battito nomina il si' che nessuno prende (caso SOLPOWER, 7/10)")
+def _():
+    import battito as B
+    dati = {
+        "prospects": [{"id": "a", "company": "Fermo Srl", "email": "a@x.it", "coda": None},
+                      {"id": "b", "company": "Con Bozza", "email": "b@x.it", "coda": None},
+                      {"id": "c", "company": "In Coda", "email": "c@x.it", "coda": "RIPRESA"}],
+        "seguiti_calendario": [], "proposte": [{"prospect_id": "b", "stato": "aperta", "azione": {}}],
+    }
+    vero = B.sb_tutte
+    try:
+        B.sb_tutte = lambda path, **k: next((v for t, v in dati.items() if f"/rest/v1/{t}?" in path), [])
+        righe = B.giornata("2026-10-07")
+    finally:
+        B.sb_tutte = vero
+    fermi = [r for r in righe if "FERMO" in r]
+    assert len(fermi) == 1 and "Fermo Srl" in fermi[0], righe
+
+
+@prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
+def _():
+    # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
+    # persona fuori target che prenotava una call avrebbe fatto cadere il giro, e l'avviso
+    # a Dre non sarebbe mai nato. Qui si controlla ogni copione, con lo scope vero (revisione
+    # 7/10): conta cio' che e' noto al modulo e alla funzione che usa il nome, e ogni uso del
+    # nome, non solo le chiamate dirette.
+    import ast, pathlib
+    qui = pathlib.Path(__file__).resolve().parent
+    stanza_f = {n.name for n in ast.parse((qui / "stanza.py").read_text(encoding="utf-8")).body if isinstance(n, ast.FunctionDef)}
+
+    def noti_in(corpo):
+        out = set()
+        for n in corpo:
+            for m in ast.walk(n) if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) else [n]:
+                if isinstance(m, (ast.Import, ast.ImportFrom)):
+                    out |= {(a.asname or a.name).split(".")[0] for a in m.names}
+                elif isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    out.add(m.name)
+                elif isinstance(m, ast.Name) and isinstance(m.ctx, ast.Store):
+                    out.add(m.id)
+        return out
+
+    mancano = []
+    for f in sorted(list(qui.glob("*.py")) + list(qui.glob("strumenti/*.py"))):
+        if f.name in ("stanza.py", "test_invarianti.py"):
+            continue
+        t = ast.parse(f.read_text(encoding="utf-8"))
+        if any(isinstance(n, ast.ImportFrom) and n.module == "stanza" and any(a.name == "*" for a in n.names) for n in ast.walk(t)):
+            continue
+        del_modulo = noti_in(t.body)
+
+        def visita(nodo, noti):
+            for figlio in ast.iter_child_nodes(nodo):
+                if isinstance(figlio, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    args = figlio.args
+                    locali = noti | {a.arg for a in args.args + args.kwonlyargs + args.posonlyargs}
+                    if not isinstance(figlio, ast.Lambda):
+                        locali |= noti_in(figlio.body) | {m.id for m in ast.walk(figlio) if isinstance(m, ast.Name) and isinstance(m.ctx, ast.Store)}
+                        locali |= {(a.asname or a.name).split(".")[0] for m in ast.walk(figlio) if isinstance(m, (ast.Import, ast.ImportFrom)) for a in m.names}
+                    visita(figlio, locali)
+                elif isinstance(figlio, ast.Name) and isinstance(figlio.ctx, ast.Load) and figlio.id in stanza_f and figlio.id not in noti:
+                    mancano.append(f"{f.name}:{figlio.lineno} {figlio.id}")
+                else:
+                    visita(figlio, noti)
+        visita(t, del_modulo)
+    assert not mancano, "funzioni della stanza usate e mai importate: " + ", ".join(mancano[:8])
 
 
 def main():

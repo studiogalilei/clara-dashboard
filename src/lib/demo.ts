@@ -74,7 +74,8 @@ export const prospects: Prospect[] = [
     sector: 'serramenti', city: 'Belluno', campaign: 'Casa 1, serramenti',
     stage: 'call_fissata', classificazione: 'rinvio', awaiting_us: false,
     analysis_sent: true, analysis_sent_at: gg(45), last_reply_at: gg(29),
-    fuori: true, fuori_at: gg(28), pipeline_stage: 'conoscitiva',
+    // in tecnica (gold 6/10): senza, «Passa a Carlo» e la scheda di passaggio non si vedevano mai in demo
+    fuori: true, fuori_at: gg(28), pipeline_stage: 'tecnica',
     fuori_binario: 'si', updated_at: gg(5),
   },
   {
@@ -110,11 +111,20 @@ prospects.push(
     classificazione: 'tiepido', awaiting_us: false,
     analysis_sent: false, analysis_sent_at: null, last_reply_at: gg(11), updated_at: gg(11),
   },
+  // gold (6/10): un «non ora» senza data, per vedere come diventa una data
+  {
+    ...vuoto, id: 'p11', sg_id: 203, email: 'domenico@termoidraulicanord.it', name: 'Domenico Sala',
+    company: 'Termoidraulica Nord', sector: 'impianti', city: 'Bergamo',
+    campaign: 'Casa 2, impianti', chi_segue: 'Dre', stage: 'risposto',
+    classificazione: 'rinvio', awaiting_us: false,
+    analysis_sent: true, analysis_sent_at: gg(70), last_reply_at: gg(60), updated_at: gg(60),
+  },
 )
 
 export const interactions: Interaction[] = [
+  { id: 'i95', prospect_id: 'p11', at: gg(60), kind: 'email_in', body: 'Gentile Lorenzo,\nnon riesco a darle una risposta in questo momento, non escludo che si possa riparlarne più avanti.\nCordiali saluti' },
   { id: 'i90', prospect_id: 'p4', at: gg(3), kind: 'email_out', body: 'Salve, le avevo scritto riguardo a un\u2019analisi marketing su CER Italia che avevamo preparato.\nSe mi conferma che la mail e\u0300 corretta gliela invio subito.' },
-  { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui.\nGrazie, un saluto.' },
+  { id: 'i91', prospect_id: 'p4', at: gg(1), kind: 'email_in', body: 'Buongiorno,\ns\u00ec confermo, potete mandare qui. Ma poi quanto costa il vostro servizio?\nGrazie, un saluto.' },
   { id: 'i1', prospect_id: 'p1', at: gg(66), kind: 'email_out', body: 'Prima mail: chiediamo il permesso di mandare l’analisi' },
   { id: 'i2', prospect_id: 'p1', at: gg(64), kind: 'email_out', body: 'Secondo tentativo' },
   { id: 'i3', prospect_id: 'p1', at: gg(53), kind: 'email_out', body: '«Chiudo qui se non è il momento»' },
@@ -265,6 +275,8 @@ const sync_runs: Riga[] = [{ id: 1, finished_at: new Date(Date.now() - 13 * 6000
 
 const task: Riga[] = [
   { id: 1, at: gg(1), titolo: 'Mandare i 30 follow-up su Smartlead', dettagli: 'le bozze sono pronte', scadenza: data(-1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'demo', stato: 'accettata' },
+  // gold (6/10): una task mandata da un altro, per vedere «Sono bloccato»
+  { id: 7, at: gg(1), titolo: 'Firmare il contratto di prova di Klavzar', dettagli: 'manca la firma per la fattura', scadenza: data(1), ordine: 0, fatta: false, fatta_il: null, owner: 'demo', da: 'giacomo', stato: 'accettata', prospect_id: 'p7' },
   { id: 2, at: gg(2), titolo: 'Rispondere a Giacomo sul form', dettagli: null, scadenza: null, ordine: 1, fatta: true, fatta_il: gg(1), owner: 'demo', da: 'demo', stato: 'fatta' },
   // il pod di Carlo: due persone con roba in mano, una scaduta
   { id: 3, at: gg(3), titolo: 'Rifare il budget di Klavzar', dettagli: null, scadenza: data(2), ordine: 2, fatta: false, fatta_il: null, owner: 'salvatore', da: 'carlo', stato: 'accettata' },
@@ -360,8 +372,8 @@ const proposte: Riga[] = [
   {
     id: 1, at: oreFa(2), tipo: 'risposta', stato: 'aperta', prospect_id: 'p4', owner: null,
     titolo: 'CER Italia: risposta pronta',
-    perche: 'Ha chiesto quanto costa. Gli propongo la call conoscitiva di giovedì.',
-    azione: { bozza: 'Buongiorno,\n\ngrazie del riscontro. Le propongo una call giovedì alle 15, mezz\'ora: le mostro i numeri della sua zona e le dico cosa faremmo, senza impegno.\n\nSe le va bene, le mando l\'invito.\n\nUn saluto', template: 'INT-CALL' },
+    perche: 'Ha confermato e chiede quanto costa. Gli propongo la call conoscitiva di giovedì per parlarne.',
+    azione: { bozza: 'Buongiorno,\n\ngrazie, gliela mando oggi in una mail a parte. Sul costo: dipende da cosa le serve davvero, e glielo dico in mezz\'ora guardando insieme i numeri della sua zona, senza impegno. Le va bene giovedì alle 15?\n\nUn saluto', template: 'INT-CALL' },
   },
   {
     id: 2, at: oreFa(4), tipo: 'avanza', stato: 'aperta', prospect_id: 'p7', owner: null,
@@ -439,7 +451,7 @@ const TABELLE: Record<string, Riga[]> = {
   preparazioni: agenda.filter((a) => a.preparazione).map((a) => ({ agenda_id: a.id, prospect_id: a.prospect_id, testo: a.preparazione, preparata_il: a.preparata_il ?? a.at })) as unknown as Riga[],
   // il riservato di Dre (29/9): prezzo, bilancio e le preparazioni delle call
   riservato_clienti: [
-    { prospect_id: 'p5', prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [] },
+    { prospect_id: 'p5', prezzo: { fascia: [1400, 1700], punto: 1550, affidabilita: 'media', spesa_ads_mese: 2200, flag: [], formula: 'domanda', cluster: 'eventi', tetto_mese: 2100, tetto_fonte: 'dalla domanda della zona', il: gg(1), perche: ['Domanda nella zona: circa 2.900 ricerche al mese sul loro mestiere', 'Spesa pubblicitaria sostenibile stimata 2.200 € al mese', 'Il canone sta fra il 60 e il 75% della spesa, come dagli ultimi preventivi accettati'] },
       bilancio: { fatturato: 1850000, utile: 94000, anno: 2025, dipendenti: 14 }, valore: null },
   ] as unknown as Riga[],
   soldi_progetti: [] as unknown as Riga[],

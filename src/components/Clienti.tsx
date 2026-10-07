@@ -54,6 +54,10 @@ function Elenco({ onOpen }: Props) {
   const [incassi, setIncassi] = useState<Incasso[]>([])
   const [guaio, setGuaio] = useState('')
   const [aperto, setAperto] = useState<string | null>(null)
+  // 6/10, Dre: «mi e' venuto spontaneo assegnarlo a qualcuno e non sapevo come fare».
+  // I nomi del team, per dire chi segue un cliente: si clicca dove si legge.
+  const [nomi, setNomi] = useState<string[]>([])
+  const [salvoSegue, setSalvoSegue] = useState<string | null>(null)
 
   useEffect(() => {
     // 27/9: se la lettura falliva, la pagina scriveva «Nessun cliente ancora»,
@@ -73,6 +77,8 @@ function Elenco({ onOpen }: Props) {
     })
     supabase.from('preventivi').select('*').limit(2000).then(({ data }) => setPreventivi((data as Preventivo[]) ?? []))
     void sonoCeo().then(setVedoSoldi)
+    supabase.from('profili').select('nome').order('nome')
+      .then(({ data }) => setNomi(((data as Array<{ nome: string }>) ?? []).map((r) => r.nome.split(' ')[0]).filter(Boolean)))
     supabase.from('incassi').select('id,genere,importo,valuta,stato,quando,ricorrenza,metodo,prossimo_il,fine_il,cliente_nome,prospect_id')
       .order('quando', { ascending: false }).limit(1000).then(({ data }) => setIncassi((data as Incasso[]) ?? []))
   }, [])
@@ -139,6 +145,30 @@ function Elenco({ onOpen }: Props) {
 
             {apertoQui && (
               <div className="grid grid-cols-1 gap-4 border-t border-velo px-4 py-3 md:grid-cols-2">
+                {/* chi lo segue si cambia qui, dove lo si legge (Dre, 6/10) */}
+                <div className="flex flex-wrap items-center gap-1.5 md:col-span-2">
+                  <span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-tenue">La segue</span>
+                  {[...nomi, null].map((n) => {
+                    const attivo = (c.chi_segue ?? null) === n
+                    return (
+                      <button key={n ?? 'nessuno'} disabled={salvoSegue === c.id}
+                        onClick={() => {
+                          const prima = c.chi_segue ?? null
+                          if (prima === n) return
+                          setSalvoSegue(c.id)
+                          setClienti((l) => (l ?? []).map((x) => (x.id === c.id ? { ...x, chi_segue: n } : x)))
+                          void supabase.from('prospects').update({ chi_segue: n }).eq('id', c.id)
+                            .then(({ error }) => {
+                              if (error) { setClienti((l) => (l ?? []).map((x) => (x.id === c.id ? { ...x, chi_segue: prima } : x))); setGuaio(error.message) }
+                              setSalvoSegue(null)
+                            })
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${attivo ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue hover:border-navy hover:text-navy'} disabled:opacity-50`}>
+                        {n ?? 'Nessuno'}
+                      </button>
+                    )
+                  })}
+                </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wide text-tenue">Progetti</p>
                   {suoi.length === 0 ? <p className="py-1.5 text-sm text-spento">Nessun progetto ancora.</p> : (

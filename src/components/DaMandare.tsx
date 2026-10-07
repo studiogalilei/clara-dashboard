@@ -149,7 +149,7 @@ export default function DaMandare({ p, onStoria }: { p: Prospect; onStoria?: () 
       <header className="flex items-center justify-between gap-2 border-b border-velo px-4 py-2.5">
         <span data-tip="La bozza di Clara: leggi la sua mail, correggi se serve, Approva e manda. Parte da Smartlead in un paio di minuti" className="text-[11px] font-bold uppercase tracking-[0.06em] text-blu">Da mandare</span>
         <span className="flex items-center gap-3">
-          {pr?.azione?.template && <span className="text-[11px] text-tenue">{pr.azione.template}</span>}
+          {/* il codice del template (INT-CALL) non si mostra: mai codici a Dre (gold 6/10) */}
           {/* la Storia a un clic, vicino al testo (Dre, 25/9) */}
           {onStoria && <button onClick={onStoria} className="rounded-full border border-bordo px-3 py-0.5 text-[11px] font-bold text-navy hover:border-navy">Storia</button>}
         </span>
