@@ -143,7 +143,7 @@ export default function App() {
   // L'UTILIZZO (Dre, 7/10): un minuto contato per ogni minuto di lavoro vero, per persona e
   // per schermata. Invisibile; lo legge solo Dre in Impostazioni (schema_v77)
   const doveSono = useRef<string>('')
-  doveSono.current = openId ? 'vault' : tab
+  doveSono.current = openId ? 'vault' : tab          // sul ramo la scheda e' il Vault
   useEffect(() => avviaUtilizzo(() => doveSono.current, demo), [])
   const primoGiro = useRef(true)
   useEffect(() => {

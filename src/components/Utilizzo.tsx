@@ -17,7 +17,7 @@ interface Piattaforma { nome: string; unita: string | null; saldo: number | null
 
 const NOMI_SCHERMATA: Record<string, string> = {
   oggi: 'Oggi', prospect: 'Pipeline', pipeline: 'Pipeline', aziende: 'Aziende', clienti: 'Clienti', calendario: 'Calendario',
-  posta: 'Posta', clara: 'Posta', preventivi: 'Preventivi', chat: 'Chat', vault: 'Vault', impostazioni: 'Impostazioni',
+  posta: 'Posta', clara: 'Posta', scheda: 'Schede', preventivi: 'Preventivi', chat: 'Chat', vault: 'Vault', impostazioni: 'Impostazioni',
 }
 
 const durata = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`)
