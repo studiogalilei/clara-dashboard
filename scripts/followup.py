@@ -113,17 +113,22 @@ def calendario(prova, oggi):
     # 7/10: chi non e' piu' un lead (negativo, soppresso, nervoso, fuori target, «niente
     # follow-up») non entra nel calendario da nessuna strada. CdB Avvocati, negativo, stava
     # su «Oggi» per sempre: il passo del mini follow-up non guardava la classificazione.
+    # 7/10, dal controllo dal vivo: i filtri valgono per TUTTI i passi, non solo per i primi
+    # due. «Call fissata» stava nei rinvii scaduti (Views on Venice, CasaPro), chi aveva gia'
+    # la bozza in Posta era contato due volte (BBANDA, Zeni), e chi era in pipeline entrava
+    # dal passo del mini. Il filtro sta in metti(), cosi' un passo nuovo nasce gia' filtrato.
     morti = {x["id"] for x in (sb_tutte("/rest/v1/prospects?select=id"
-                                         "&or=(classificazione.in.(negativo,soppresso,nervoso,fuori_target,persona_sbagliata),no_followup.eq.true)") or [])}
+                                         "&or=(classificazione.in.(negativo,soppresso,nervoso,fuori_target,persona_sbagliata),no_followup.eq.true,"
+                                         "fuori.eq.true,stage.in.(cliente,perso,call_fissata,rinviato))") or [])}
+    aperte = con_bozza_aperta()            # chi ha gia' la bozza in Posta non e' «in arrivo»: e' gia' li'
 
     def metti(pid, gruppo, il, perche):
-        if pid in morti:
+        if pid in morti or pid in aperte:
             return
         if pid and (pid not in righe or il < righe[pid]["il"]):
             righe[pid] = {"prospect_id": pid, "gruppo": gruppo, "il": il, "perche": perche[:200]}
 
     fine = oggi + datetime.timedelta(days=ORIZZONTE)
-    aperte = con_bozza_aperta()            # chi ha gia' la bozza in Posta non e' «in arrivo»: e' gia' li'
     # 1. gia' in coda: la bozza arriva al prossimo giro delle bozze
     for p in sb("GET", "/rest/v1/prospects?select=id,coda,coda_il,analysis_pdf&coda=not.is.null&fuori=eq.false"
                        "&stage=not.in.(cliente,perso,call_fissata,rinviato)&limit=1000") or []:
@@ -143,7 +148,7 @@ def calendario(prova, oggi):
                        f"&classificazione=in.({CLASSI})") or []:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
             continue
-        if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
+        if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
         il, scelto = giorno_follow_up(inviata, p)
@@ -168,8 +173,13 @@ def calendario(prova, oggi):
         if il <= fine:
             metti(m["prospect_id"], "MINI FOLLOW UP", max(il, oggi), f"ripresa mandata il {m['risposta_il'][8:10]}/{m['risposta_il'][5:7]}")
     # 4. RINVIO: la data che ci hanno dato
+    onorati = {m["prospect_id"]: m["risposta_il"] for m in (sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il"
+               "&stato=eq.fatta&azione->>intento=eq.RIPRESA") or []) if m.get("prospect_id") and m.get("risposta_il")}
     for p in sb("GET", "/rest/v1/prospects?select=id,next_action_date,coda&classificazione=eq.rinvio&fuori=eq.false"
                        f"&no_followup=eq.false&next_action_date=lte.{fine.isoformat()}&limit=1000") or []:
+        # 7/10: un rinvio gia' onorato (la ripresa e' partita dopo la data) non e' scaduto
+        if onorati.get(p["id"], "") >= (p.get("next_action_date") or "~"):
+            continue
         if p.get("next_action_date") and not p.get("coda"):
             q = datetime.date.fromisoformat(p["next_action_date"][:10])
             il = con_dre(p["id"], q + datetime.timedelta(days=1))
@@ -211,7 +221,7 @@ def main():
         # giorno spostato da Dre governava lo schermo ma non la coda
         if giorno_follow_up(inviata, p)[0] > oggi:
             continue
-        if p.get("last_reply_at") and p["last_reply_at"][:10] > p["analysis_sent_at"][:10]:
+        if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
             continue                                        # ha scritto lui dopo l'analisi: non e' un silenzio
         dopo = sb("GET", f"/rest/v1/interactions?select=id&prospect_id=eq.{p['id']}&kind=in.(email_out,followup)"
                          f"&at=gt.{(inviata + datetime.timedelta(days=1)).isoformat()}&limit=1") or []

@@ -262,6 +262,15 @@ def main():
         # MAI A UN CLIENTE O A CHI E' IN PIPELINE (25/9, caso Zafferano): si controlla
         # anche qui, all'ultimo passo, con la scheda riletta adesso
         stato_p = (sb("GET", f"/rest/v1/prospects?select=fuori,stage,pipeline_stage,no_followup,classificazione&id=eq.{p['id']}") or [{}])[0]
+        gruppo_fu = any(k in ((az.get("template") or "") + (az.get("gruppo") or "")).upper()
+                        for k in ("FOLLOW", "MINI", "RICONTATTO", "RIPRESA"))
+        if gruppo_fu and stato_p.get("classificazione") in ("negativo", "persona_sbagliata"):
+            # 7/10, dal controllo dal vivo: la classe puo' cambiare DOPO che la bozza e' nata
+            # (Cisanova, EnergetiKa). Un no resta un no anche con la bozza approvata.
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "no", "risposta": f"non mandata: nel frattempo e' {stato_p.get('classificazione')} (controllo del 7/10)",
+                                                                 "risposta_il": datetime.datetime.now(ROMA).isoformat()})
+            print(f"  {azienda}: NON mando il follow-up, ora e' {stato_p.get('classificazione')}")
+            continue
         if not contattabile(stato_p):
             print(f"  {azienda}: NON mando, non è più un lead (pipeline/cliente/perso/no follow-up)")
             sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "no", "risposta": "non mandata: l'azienda è in pipeline, cliente, persa o senza follow-up (regola del 25/9)",
@@ -348,7 +357,10 @@ def main():
         # 1/10: gli allegati partivano (prima_risposta) ma il segno «analisi mandata» no,
         # e senza quel segno il segugio non programma i follow-up. Stessa condizione dell'allegato.
         elif prima_risposta or az.get("allega") or (p.get("analysis_pdf") and p["analysis_pdf"] in bozza):
-            agg.update({"analysis_sent": True, "analysis_sent_at": ora.isoformat()})
+            # 7/10: solo il PRIMO invio segna la data. La ripresa del 25/9 la riscriveva e il
+            # timer dei follow-up ripartiva: Rastan risultava «analisi del 25/9», e chi aveva
+            # avuto la ripresa si beccava FOLLOW UP 1 e MINI insieme (Renewal Italy)
+            agg.update({"analysis_sent": True} if p.get("analysis_sent") else {"analysis_sent": True, "analysis_sent_at": ora.isoformat()})
         agg.update(dopo_invio(az))
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", agg)
         sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "fatta", "risposta_il": ora.isoformat(),

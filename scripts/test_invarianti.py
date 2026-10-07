@@ -1651,6 +1651,19 @@ def _():
     assert all(tanti[e]["enriched"]["sl_riletto_il"] <= min(tanti[x]["enriched"]["sl_riletto_il"] for x in tanti if x not in scelti) for e in scelti)
 
 
+@prova("un follow-up non parte verso chi nel frattempo ha detto no o non e' la persona giusta, e il timer dell'analisi non riparte a ogni invio (controllo dal vivo del 7/10)")
+def _():
+    base = os.path.dirname(os.path.abspath(__file__))
+    m = open(os.path.join(base, "manda.py"), encoding="utf-8").read()
+    assert '("negativo", "persona_sbagliata")' in m, "manda deve fermare i follow-up ai negativi e alle persone sbagliate"
+    assert 'if p.get("analysis_sent") else' in m, "analysis_sent_at si scrive solo al primo invio"
+    f = open(os.path.join(base, "followup.py"), encoding="utf-8").read()
+    assert '[:10] > p["analysis_sent_at"][:10]' not in f, "il confronto va fatto sull'ora: chi risponde lo stesso giorno dell'analisi non e' muto"
+    assert "stage.in.(cliente,perso,call_fissata,rinviato)" in f, "il calendario esclude le call fissate da ogni passo"
+    assert "pid in morti or pid in aperte" in f, "i filtri del calendario valgono per tutti i passi, dentro metti()"
+    assert "onorati" in f, "un rinvio gia' onorato dalla ripresa non e' scaduto"
+
+
 @prova("il nome dell'azienda arriva anche dal campo «azienda» di Smartlead, e un nome scritto a mano non si sovrascrive (7/10, Studio Nigris)")
 def _():
     import sync_v2 as S
