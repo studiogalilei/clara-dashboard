@@ -55,7 +55,7 @@ export const WIDGET: Widget[] = [
   // (bacheca, foglio, preventivi). Task ('oggi') e Tutti ('tutti') non sono
   // piu' voci: vivono dentro Oggi e Aziende. Numeri e Widget stanno in
   // Impostazioni.
-  { chiave: 'pipeline', nome: 'Oggi', cosa: 'Cosa aspetta te, poi le tue task', zona: 'menu', fisso: true, base: true,
+  { chiave: 'pipeline', nome: 'Oggi', cosa: 'Va tutto bene, e cosa aspetta te', zona: 'menu', fisso: true, base: true,
     ruoli: ['ceo', 'coordinamento'],
     icona: 'M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z' },
   // Dre, 12/9: prima della vendita e dopo la vendita. Le chiavi restano
@@ -165,8 +165,8 @@ export function haAccesso(w: Widget, ruolo: Ruolo, concessi: ReadonlySet<Chiave>
 // Restano Pipeline, Clienti, Calendario, Posta, Preventivi. Oggi, Documenti,
 // Condividi, Cosa cambieresti e Numeri spariscono dal menu (le pagine restano,
 // si riaccendono da Impostazioni). Acceso di default.
-const FUORI_DAL_MENU_CORTO: Chiave[] = ['pipeline', 'vault', 'chat', 'feedback', 'analytics']
-const RESTANO_A_CHI_CONSEGNA: Chiave[] = ['pipeline', 'vault', 'feedback']
+const FUORI_DAL_MENU_CORTO: Chiave[] = ['vault', 'chat', 'feedback', 'analytics']
+const RESTANO_A_CHI_CONSEGNA: Chiave[] = ['vault', 'feedback']
 export function menuEssenziale(): boolean {
   return leggiPref('menu-essenziale', 'si') === 'si'
 }

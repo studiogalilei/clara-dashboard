@@ -5,6 +5,7 @@ import { scarica as scaricaPreferenze, leggi as leggiPref, scrivi as scriviPref 
 import { useVivo } from './lib/vivo'
 import Login from './components/Login'
 import Oggi from './components/Oggi'
+import SalaControllo from './components/SalaControllo'
 import Radar from './components/Radar'
 import Rete from './components/Rete'
 import Aziende from './components/Aziende'
@@ -19,6 +20,7 @@ import Aggiornato from './components/Aggiornato'
 import Novita from './components/Novita'
 import Giro from './components/Giro'
 import Calendario from './components/Calendario'
+import CalendarioClara from './components/CalendarioClara'
 import Impostazioni from './components/Impostazioni'
 import Clienti from './components/Clienti'
 import Chat from './components/Chat'
@@ -125,7 +127,7 @@ export default function App() {
   // vero: Carlo, Alex e Salvatore non arrivavano mai su Oggi (studio d'uso di Alex).
   const entrataSenzaIndirizzo = useRef(dIniziale === null)
   const largo = useSchermoLargo()
-  const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'prospect')   // 24/9 (Dre): senza indirizzo si entra sulla Pipeline
+  const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'pipeline')   // 7/10 (Dre): senza indirizzo si entra sulla sala di controllo
   const [openId, setOpenId] = useState<string | null>(dIniziale?.id ?? null)
   const [sezione, setSezione] = useState<string | null>(dIniziale?.sezione ?? null)
   // GLI INDIRIZZI (Dre, 26/9): quello che guardi ha un indirizzo suo, lo copi e
@@ -675,7 +677,7 @@ export default function App() {
               {/* quanto e' fresco quello che stai guardando (Dre, 15/9) */}
               {(tab === 'pipeline' || tab === 'prospect') && <Aggiornato />}
             </div>
-            {tab === 'pipeline' && largo && (
+            {tab === 'pipeline' && largo && ruolo !== 'ceo' && (
               <div className="w-[440px] shrink-0">
                 <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
               </div>
@@ -721,7 +723,7 @@ export default function App() {
           )}
           {/* in schermo intero la testata non c'e': la prossima call resta
               comunque, e' l'unica cosa che non si puo' perdere (QA Dre, 14/9) */}
-          {pieno && tab === 'pipeline' && largo && (
+          {pieno && tab === 'pipeline' && largo && ruolo !== 'ceo' && (
             <div className="mb-4">
               <Radar onOpen={setOpenId} onCalendario={() => setTab('calendario')} parte="call" />
             </div>
@@ -729,9 +731,9 @@ export default function App() {
           <div key={versione}>
             <Rete dove={tab}>
             {tab === 'oggi' || tab === 'pipeline' ? (
-              <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
+              ruolo === 'ceo' ? <SalaControllo onOpen={setOpenId} /> : <Oggi onOpen={setOpenId} onCalendario={() => setTab('calendario')} />
             ) : tab === 'calendario' ? (
-              <Calendario onOpen={setOpenId} pod={pod} />
+              ruolo === 'ceo' ? <CalendarioClara onOpen={setOpenId} /> : <Calendario onOpen={setOpenId} pod={pod} />
             ) : tab === 'analytics' ? (
               <Analytics onOpen={setOpenId} />
             ) : tab === 'vault' ? (
