@@ -80,7 +80,15 @@ def giornata(oggi):
     in_posta = sum(1 for m in dovuti.values() if m.startswith("bozza in Posta"))
     if in_posta:
         out.append(f"  {in_posta} follow-up sono bozze in Posta: si chiudono con Approva e manda.")
-    for p in si[:3]:
+    # 7/10: un sì senza analisi, senza coda e senza niente aperto in Posta non lo prende nessuno:
+    # resterebbe nel conto per sempre (caso SOLPOWER, positivo da luglio con una mail vuota).
+    # Si dice per nome, in cima: e' la regola 4 del 28/9, niente attese senza limite.
+    aperti = {x["prospect_id"] for x in (sb_tutte("/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)") or [])
+              if x.get("prospect_id")}
+    fermi = [p for p in si if not p.get("coda") and p["id"] not in aperti]
+    for p in fermi[:5]:
+        out.append(f"  FERMO, nessuno lo prende: {(p.get('company') or p.get('name') or p['email'])[:26]} (sì senza analisi, niente in coda ne' in Posta)")
+    for p in [x for x in si if x not in fermi][:3]:
         out.append(f"  sì senza analisi: {(p.get('company') or p.get('name') or p['email'])[:26]}" + (" (in coda)" if p.get("coda") else ""))
     return out
 
