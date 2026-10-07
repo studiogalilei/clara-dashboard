@@ -1563,6 +1563,25 @@ def _():
     assert R.MAX_AL_GIORNO == 15
 
 
+@prova("il battito nomina il si' che nessuno prende (caso SOLPOWER, 7/10)")
+def _():
+    import battito as B
+    dati = {
+        "prospects": [{"id": "a", "company": "Fermo Srl", "email": "a@x.it", "coda": None},
+                      {"id": "b", "company": "Con Bozza", "email": "b@x.it", "coda": None},
+                      {"id": "c", "company": "In Coda", "email": "c@x.it", "coda": "RIPRESA"}],
+        "seguiti_calendario": [], "proposte": [{"prospect_id": "b", "stato": "aperta", "azione": {}}],
+    }
+    vero = B.sb_tutte
+    try:
+        B.sb_tutte = lambda path, **k: next((v for t, v in dati.items() if f"/rest/v1/{t}?" in path), [])
+        righe = B.giornata("2026-10-07")
+    finally:
+        B.sb_tutte = vero
+    fermi = [r for r in righe if "FERMO" in r]
+    assert len(fermi) == 1 and "Fermo Srl" in fermi[0], righe
+
+
 @prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
 def _():
     # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
