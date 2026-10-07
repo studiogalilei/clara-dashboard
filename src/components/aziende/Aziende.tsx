@@ -53,8 +53,19 @@ export default function Aziende({ onScheda }: { onScheda: (id: string) => void }
 
   const carica = useCallback(async () => {
     const [pr, bz] = await Promise.all([
-      // 5/10: con un tetto serve un ordine, se no il taglio cade a caso: prima i piu' recenti
-      supabase.from('prospects').select('*').neq('tappa', 'nuovo').order('last_reply_at', { ascending: false, nullsFirst: false }).limit(1000),
+      // 7/10: a pagine, come la Trattativa: il database ne da' al massimo mille per volta e il
+      // taglio cadeva in silenzio sull'Archivio e sui persi piu' vecchi
+      (async () => {
+        const tutte: Prospect[] = []
+        for (let da = 0; da < 20000; da += 1000) {
+          const { data, error } = await supabase.from('prospects').select('*').neq('tappa', 'nuovo')
+            .order('last_reply_at', { ascending: false, nullsFirst: false }).order('id', { ascending: true }).range(da, da + 999)
+          if (error) { setAvviso(`Non riesco a leggere le aziende: ${error.message}`); break }
+          tutte.push(...((data as Prospect[]) ?? []))
+          if ((data ?? []).length < 1000) break
+        }
+        return { data: tutte }
+      })(),
       supabase.from('proposte').select('prospect_id').eq('stato', 'aperta').eq('tipo', 'risposta').limit(1000),
     ])
     setRighe(((pr.data as Prospect[]) ?? []).filter((p) => tappaDi(p) !== 'nuovo'))

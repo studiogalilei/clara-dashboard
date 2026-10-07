@@ -77,6 +77,11 @@ FIRMA_SEGUITI = "seguito-automatico (decisione Dre 29/9, strada A)"
 # mattino dopo, i piu' vecchi prima, e Clara lo scrive in Posta.
 CASELLE_IN_CAMPAGNA = 68
 MAX_SEGUITI_AL_GIORNO = 5 * CASELLE_IN_CAMPAGNA
+# revisione 7/10: col tetto per giro di 5 il tetto vero restava 5 x 24 giri = 120 al giorno.
+# Per i follow-up il giro ne prende abbastanza da poter arrivare all'ammortizzatore dentro
+# la finestra (24 giri da 20 minuti nelle 8 ore): il postino poi li spedisce a 12 per giro.
+GIRI_NELLA_FINESTRA = 24
+MAX_PER_GIRO_SEGUITI = -(-MAX_SEGUITI_AL_GIORNO // GIRI_NELLA_FINESTRA)
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 FIRMA = "prima-risposta-automatica (decisione Dre 29/9)"
 MAX_PER_GIRO = 5                 # per giro: la fila resta umana
@@ -164,6 +169,11 @@ def contatti_fuori(p, giorni=GIORNI_CONTATTO):
     if sb("GET", f"/rest/v1/task?select=id&prospect_id=eq.{pid}&fatta=eq.false&limit=1"):
         no.append("c'e' una task aperta su questa azienda")
     return no
+
+
+def seguiti_gruppi():
+    import seguiti
+    return set(seguiti.GRUPPI_DAL_CODICE)
 
 
 def perche_no_seguito(pr, p):
@@ -406,15 +416,18 @@ def main():
                      and quando(x["approvata_il"]).astimezone(ROMA).date() == oggi)
     # mai due prime risposte alla stessa persona; i seguiti hanno gia' la loro regola (followup.py non mette in coda due volte)
     gia_auto = set() if SEGUITI else {x["prospect_id"] for x in auto if x.get("approvata_da") == FIRMA}
-    posti = min(MAX_PER_GIRO, tetto - fatte_oggi)
+    posti = min(MAX_PER_GIRO_SEGUITI if SEGUITI else MAX_PER_GIRO, tetto - fatte_oggi)
     if posti <= 0 and not PROVA:
         print(f"  gia' {fatte_oggi} oggi: il tetto e' {tetto}, riprendo domani")
         if SEGUITI and fatte_oggi >= tetto:
-            # l'ammortizzatore si e' svegliato: si dice, una volta al giorno (regola 4 del 28/9)
+            # l'ammortizzatore si e' svegliato: si dice, una volta al giorno e solo se qualcuno
+            # aspetta davvero (regola 4 del 28/9; revisione 7/10: prima poteva tacere o mentire)
+            restano = [x for x in (sb("GET", "/rest/v1/proposte?select=azione->lettura->>gruppo&stato=eq.aperta&tipo=eq.risposta&limit=1000") or [])
+                       if x.get("gruppo") in seguiti_gruppi()]
             gia = sb("GET", f"/rest/v1/clara_messaggi?select=id&tipo=eq.controllo&testo=ilike.*ammortizzatore*&at=gte.{oggi.isoformat()}&limit=1") or []
-            if not gia:
+            if restano and not gia:
                 di_clara("controllo", f"Follow-up: oggi ne sono partiti {fatte_oggi}, il massimo dell'ammortizzatore "
-                                      f"(5 in piu' per casella). Gli altri partono domattina, i piu' vecchi per primi.")
+                                      f"(5 in piu' per casella). Ne restano {len(restano)}: partono domattina, i piu' vecchi per primi.")
         print("prima_risposta: 0 approvate")
         return
 

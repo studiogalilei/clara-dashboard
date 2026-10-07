@@ -80,18 +80,29 @@ export function mossa(p: Campi & Pick<Prospect, 'prova_inizio'>, verso: Tappa | 
   return m
 }
 
+/** L'ARCHIVIO: chi e' uscito per silenzio dopo analisi e follow-up (scripts/silenzi.py scrive
+ *  questo motivo). Una regola sola per tutte le viste che contano i persi. */
+export const ARCHIVIATO = /^Nessuna risposta dopo l'analisi/i
+export const eArchiviato = (p: Campi & Pick<Prospect, 'lost_reason'>) => tappaDi(p) === 'perso' && ARCHIVIATO.test(p.lost_reason ?? '')
+
 /** RIPRENDERE DALL'ARCHIVIO (Dre, 6/10: «l'archivio lo teniamo al sicuro, posso prendere
  *  se voglio»). Chi e' uscito per silenzio dopo analisi e follow-up torna fra i lead con
  *  l'analisi gia' ricevuta. Il motivo d'uscita si toglie, il «niente follow-up» del silenzio
  *  pure: da li' valgono le regole di sempre, e nessuna mail parte da sola. */
 export function riprendiDallArchivio(p: Campi & Pick<Prospect, 'prova_inizio' | 'classificazione' | 'lost_reason'>): Mossa {
-  if (tappaDi(p) !== 'perso' || !/^Nessuna risposta dopo l'analisi/i.test(p.lost_reason ?? '')) {
+  if (!eArchiviato(p)) {
     return { no: 'Si riprende dall\'archivio solo chi e\' uscito per silenzio.' }
   }
   if (['negativo', 'nervoso', 'soppresso', 'fuori_target', 'persona_sbagliata'].includes(p.classificazione ?? '')) {
     return { no: 'Ha detto di no o non e\' roba nostra: non si ricontatta.' }
   }
-  const patch: Partial<Prospect> & { tappa?: string } = { stage: 'analisi_inviata' as Stage, no_followup: false, lost_reason: null }
+  // il timer riparte (revisione 7/10): senza una data futura silenzi.py lo riarchiviava al giro
+  // dopo, perche' l'ultimo follow-up e' vecchio. Dieci giorni per decidere cosa mandargli.
+  const fra10 = new Date(); fra10.setDate(fra10.getDate() + 10)
+  const patch: Partial<Prospect> & { tappa?: string } = {
+    stage: 'analisi_inviata' as Stage, no_followup: false, lost_reason: null,
+    next_action: 'Ripreso dall\'archivio: un messaggio nuovo', next_action_date: giorno(fra10),
+  }
   patch.tappa = tappaDi({ ...p, ...patch, tappa: null })
   return { patch, nota: 'Ripreso dall\'archivio: torna fra i lead.' }
 }

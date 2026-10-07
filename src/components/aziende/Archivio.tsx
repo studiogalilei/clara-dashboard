@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Prospect } from '../../lib/types'
 import { CLS_LABEL } from '../../lib/types'
-import { tappaDi, riprendiDallArchivio } from '../../lib/percorso'
+import { riprendiDallArchivio, eArchiviato, ARCHIVIATO } from '../../lib/percorso'
 import { giorno } from '../../lib/regole'
 import { fmtDateShort } from '../ui'
 
@@ -14,8 +14,7 @@ import { fmtDateShort } from '../ui'
 // partito). Qui il posto dove ritrovarli: filtrabili, esportabili per una campagna,
 // e uno alla volta si rimettono fra i lead. Nessuna mail parte da qui.
 
-export const ARCHIVIATO = /^Nessuna risposta dopo l'analisi/i
-export const eArchiviato = (p: Prospect) => tappaDi(p) === 'perso' && ARCHIVIATO.test(p.lost_reason ?? '')
+export { eArchiviato, ARCHIVIATO }
 
 // chi non si ricontatta comunque: il no detto, i nervosi, i soppressi
 const MAI = new Set(['negativo', 'nervoso', 'soppresso', 'fuori_target', 'persona_sbagliata'])
@@ -31,12 +30,14 @@ function fitDi(p: Prospect): string | null {
 }
 
 function csv(righe: Prospect[]): string {
-  const q = (x: unknown) => `"${String(x ?? '').replace(/"/g, '""')}"`
+  // punto e virgola: l'Excel italiano apre la virgola tutta in una colonna. E un campo che
+  // comincia con = + - @ diventerebbe una formula: si neutralizza con l'apostrofo
+  const q = (x: unknown) => { const v = String(x ?? ''); return `"${(/^[=+\-@]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"` }
   const testa = ['azienda', 'email', 'referente', 'settore', 'citta', 'sito', 'analisi_del', 'aveva_detto', 'google_fit', 'codice']
-  return [testa.join(','), ...righe.map((p) => [
+  return [testa.join(';'), ...righe.map((p) => [
     nomeDi(p), p.email, p.name, settoreDi(p), p.city, p.website, (p.analysis_sent_at ?? '').slice(0, 10),
     p.classificazione ? CLS_LABEL[p.classificazione] : '', fitDi(p) ?? '', p.sg_id != null ? `SG-${p.sg_id}` : '',
-  ].map(q).join(','))].join('\n')
+  ].map(q).join(';'))].join('\r\n')
 }
 
 export default function Archivio({ righe, onScheda, onCambiato }: {

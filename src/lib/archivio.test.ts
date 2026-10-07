@@ -9,6 +9,11 @@ describe("riprendere dall'archivio", () => {
     const m = riprendiDallArchivio({ ...base, classificazione: 'positivo', lost_reason: "Nessuna risposta dopo l'analisi (10 giorni), uscito il 1/10" } as never)
     expect('patch' in m && m.patch).toMatchObject({ stage: 'analisi_inviata', no_followup: false, lost_reason: null, tappa: 'analisi' })
   })
+  it('fa ripartire il timer: una data futura, se no silenzi.py lo riarchivia al giro dopo', () => {
+    const m = riprendiDallArchivio({ ...base, classificazione: 'positivo', lost_reason: "Nessuna risposta dopo l'analisi" } as never)
+    const d = 'patch' in m ? m.patch.next_action_date : null
+    expect(d && d > new Date().toISOString().slice(0, 10)).toBe(true)
+  })
   it('non riprende chi ha detto no', () => {
     const m = riprendiDallArchivio({ ...base, classificazione: 'negativo', lost_reason: "Nessuna risposta dopo l'analisi" } as never)
     expect('no' in m).toBe(true)

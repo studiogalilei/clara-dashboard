@@ -8,6 +8,7 @@ import { eCliente, ePerso } from '../lib/regole'
 import { apriFile, caricaFile } from '../lib/file'
 import { linkDi } from '../lib/indirizzo'
 import { apriFascicolo } from '../lib/fascicolo'
+import { azzeraCanone } from '../lib/soldi'
 import Copia from './Copia'
 import Scheda from './Scheda'
 import { StoriaCompleta } from './Storia'
@@ -251,7 +252,7 @@ function SchedaReferente({ r, principale, onSalva, onChiudi }: {
                   className="w-full resize-y rounded-lg border border-bordo bg-white px-2.5 py-1.5 text-[14px] leading-snug outline-none focus:border-blu" />
       </label>
       <div className="flex gap-2">
-        <button disabled={!d.nome.trim() || salvo}
+        <button disabled={(!principale && !d.nome.trim()) || salvo}
                 onClick={async () => { setSalvo(true); if (await onSalva(d)) onChiudi(); setSalvo(false) }}
                 className="rounded-full bg-blu px-4 py-1.5 text-[12px] font-bold text-white hover:bg-navy disabled:opacity-40">
           Salva
@@ -294,7 +295,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
       .then(({ data, error }) => {
         if (!vivo) return
         // un errore non e' «nessun referente» (la tabella v75 puo' non essere ancora attiva)
-        if (error) setEsito(`I referenti in piu' non si leggono: ${error.message}`)
+        if (error) { setEsito(`I referenti in più non si leggono: ${error.message}`); setTimeout(() => setEsito(null), 6000) }
         setReferenti((data as Referente[]) ?? [])
       })
     supabase.from('preventivi').select('id,numero,titolo,importo,mensile,stato,pagato_il,inviato_il,accettato_il,rifiutato_il,pdf_path')
@@ -342,12 +343,18 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   // «Prospect» lo rimette in pipeline, in Conoscitiva.
   async function cambiaStato(s: 'prospect' | 'cliente') {
     if (!p) return
+    const cliente = eCliente(p)
     setStatoAperto(false)
     const adesso = new Date().toISOString()
+    // revisione 7/10, le stesse regole di percorso.ts: da Cliente a Prospect il contratto e il
+    // canone non restano appesi (riclicando Cliente tornavano in vita da soli), da Perso il
+    // motivo dell'uscita si toglie
     const patch = s === 'cliente'
-      ? { fuori: true, fuori_at: p.fuori_at ?? adesso, pipeline_stage: 'cliente', contratto: p.contratto ?? 'stable', awaiting_us: false, no_followup: true }
-      : { fuori: true, fuori_at: p.fuori_at ?? adesso, pipeline_stage: 'conoscitiva' }
+      ? { fuori: true, fuori_at: p.fuori_at ?? adesso, pipeline_stage: 'cliente', contratto: 'stable', awaiting_us: false, no_followup: true, lost_reason: null }
+      : { fuori: true, fuori_at: p.fuori_at ?? adesso, pipeline_stage: 'conoscitiva', contratto: null, lost_reason: null }
+    const eraCliente = cliente
     if (!(await aggiorna(patch as Partial<Prospect>))) return
+    if (s === 'prospect' && eraCliente) void azzeraCanone(id)
     await nota(s === 'cliente' ? 'DIVENTA CLIENTE.' : 'Torna prospect, in Conoscitiva.')
   }
 
@@ -375,7 +382,11 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
 
   async function salvaReferente(r: Referente): Promise<boolean> {
     if (r.id === 0 && p) {
-      const enriched = { ...(p.enriched ?? {}), referente: { decide: r.decide, nota: r.nota } } as unknown as Prospect['enriched']
+      // revisione 7/10: il pannello resta aperto a lungo, e intanto Clara riscrive enriched (il
+      // punto, il fit). Si rilegge adesso e si cambia solo la chiave del referente
+      const { data: fresco } = await supabase.from('prospects').select('enriched').eq('id', id).maybeSingle()
+      const base = ((fresco as { enriched?: Record<string, unknown> } | null)?.enriched ?? p.enriched ?? {}) as Record<string, unknown>
+      const enriched = { ...base, referente: { decide: r.decide, nota: r.nota } } as unknown as Prospect['enriched']
       return aggiorna({ name: r.nome.trim() || null, role: r.ruolo, phone: r.telefono, linkedin: r.linkedin, enriched } as Partial<Prospect>)
     }
     const riga = { nome: r.nome.trim(), ruolo: r.ruolo, email: r.email, telefono: r.telefono, linkedin: r.linkedin, decide: r.decide, nota: r.nota }
@@ -429,7 +440,10 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
         const fase = /^\[(.+?)\]/.exec(t.body ?? '')?.[1]
         if (fase) out.push({ chiave: t.id, at: t.at, titolo: fase, testo: (t.body ?? '').replace(/^\[.+?\]\s*/, '').slice(0, 160) })
         else if (/^DIVENTA CLIENTE/i.test(b)) out.push({ chiave: t.id, at: t.at, titolo: 'Diventa cliente' })
-        else if (/^(Passa a|Torna prospect|SOPPRESSO|Fuori target)/i.test(b)) out.push({ chiave: t.id, at: t.at, titolo: b.split('.')[0].slice(0, 80) })
+        // le note che scrivono le mosse vere (percorso.ts, triage, archivio): revisione 7/10
+        else if (/^(Passa a|Torna prospect|Torna in|Entra in|Riaperta|Segnato come perso|Uscita dalla pipeline|Ripreso dall'archivio|SOPPRESSO|Fuori target)/i.test(b)) {
+          out.push({ chiave: t.id, at: t.at, titolo: b.split(/[.:]/)[0].slice(0, 80), testo: b.includes(':') ? b.slice(b.indexOf(':') + 1).trim().slice(0, 160) : null })
+        }
       }
     }
     for (const c of chiamate) {
@@ -452,7 +466,8 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
       if (q.rifiutato_il) out.push({ chiave: `pr-${q.id}`, at: q.rifiutato_il, titolo: 'Preventivo rifiutato', testo: cosa })
       if (q.pagato_il) out.push({ chiave: `pp-${q.id}`, at: q.pagato_il, titolo: 'Pagato', testo: cosa })
     }
-    return out.sort((x, y) => y.at.localeCompare(x.at))
+    const chiave = (at: string) => (at.length === 10 ? `${at}T23:59:59` : at)
+    return out.sort((x, y) => chiave(y.at).localeCompare(chiave(x.at)))
   }, [p, timeline, chiamate, preventivi])   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (completa) return <Scheda key={id} id={id} sezione={sezione} onSezione={onSezione} onClose={onClose} onApri={onApri} />
@@ -565,10 +580,10 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
             )}
           </header>
 
-          <div className="grid gap-4 px-4 py-4 pb-16 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)]">
+          <div className="grid gap-4 px-4 py-4 pb-16 sm:px-6 lg:grid-cols-[272px_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
 
             {/* ── Adesso: cosa aspetta, la prossima call ── */}
-            <Card className="p-4 lg:col-start-2 lg:row-start-1">
+            <Card className="order-1 p-4 lg:order-none lg:col-start-2 lg:row-start-1 lg:self-start">
               <Titolo>Adesso</Titolo>
               {punto?.testo && <p className="text-[15px] leading-snug">{punto.testo}</p>}
               {!punto?.testo && p.next_action && <p className="text-[15px] leading-snug">{p.next_action}{p.next_action_date ? `, ${fmtDateShort(p.next_action_date)}` : ''}</p>}
@@ -604,7 +619,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
             </Card>
 
             {/* ── le cose ferme: referenti, preventivi, documenti ── */}
-            <div className="space-y-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            <div className="order-3 space-y-4 lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:self-start">
               <Card className="p-4">
                 <Titolo azione={<Link_ su={() => setApertoRef(apertoRef === 'nuovo' ? null : 'nuovo')}>+ Aggiungi</Link_>}>Referenti</Titolo>
                 <ul className="space-y-1">
@@ -692,7 +707,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
             </div>
 
             {/* ── il filo del rapporto, dalla tappa piu' recente ── */}
-            <section className="lg:col-start-2 lg:row-start-2">
+            <section className="order-2 lg:order-none lg:col-start-2 lg:row-start-2">
               <Micro className="mb-3 block">Il filo</Micro>
               {daMostrare.length === 0
                 ? <p className="text-[14px] text-tenue">Ancora nessuna tappa: le mail, le call e i preventivi arrivano qui da soli.</p>

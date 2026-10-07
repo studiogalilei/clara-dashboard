@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Prospect } from '../lib/types'
-import { tappaDi, mossa, type Tappa } from '../lib/percorso'
+import { tappaDi, mossa, eArchiviato, type Tappa } from '../lib/percorso'
 import { giorno, pedaggioPagato } from '../lib/regole'
 import type { PipelineStage } from '../lib/types'
 import { Spinner } from './ui'
@@ -25,7 +25,8 @@ const COLONNE: Array<{ k: Colonna; nome: string; vuoto: string }> = [
 
 function colonnaDi(p: Prospect): Colonna | 'persa' | null {
   const t = tappaDi(p)
-  if (t === 'perso') return 'persa'
+  // chi e' uscito per silenzio sta nell'Archivio (Aziende), non fra i lasciati andare (7/10)
+  if (t === 'perso') return eArchiviato(p) ? null : 'persa'
   if (t === 'conoscitiva') return 'conoscitiva'
   if (t === 'tecnica') return 'tecnica'
   // hanno detto si': prima della call, con una classificazione da si'
