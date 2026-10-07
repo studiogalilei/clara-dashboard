@@ -279,7 +279,7 @@ def main():
             continue
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
-        errori = controlla(bozza, p, gruppo=az.get("gruppo"), detto_no=bool((az.get("lettura") or {}).get("detto_no")))
+        errori = controlla(bozza, p, gruppo=az.get("gruppo") or az.get("template"), detto_no=bool((az.get("lettura") or {}).get("detto_no")))
         if errori:
             torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         cid, lid, ultima = thread(p)
