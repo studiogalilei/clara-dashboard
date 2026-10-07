@@ -271,7 +271,7 @@ CALDI_GIORNI = 30          # una conversazione dove abbiamo scritto noi da meno 
 CALDI_PER_GIRO = 40        # a rotazione: con ~100 fili caldi, ognuno si rilegge ogni 15 minuti circa
 
 
-def fili_caldi(known):
+def fili_caldi(known, mandate_di_recente=frozenset()):
     """LA SECONDA RISPOSTA (7/10, caso La Bottega del Legno). Smartlead, nell'export e nelle
     statistiche, conta solo la prima risposta alla sequenza: quando il lead risponde DI NUOVO
     dopo la nostra mail, il contatore resta uguale e il giro lo saltava come «invariato». Paola
@@ -284,7 +284,10 @@ def fili_caldi(known):
         if r.get("awaiting_us") or r.get("classificazione") in ("soppresso", "fuori_target"):
             continue                          # chi aspetta noi si rilegge gia'; i chiusi no
         recente = max((r.get("analysis_sent_at") or ""), (r.get("last_reply_at") or ""))
-        if recente < soglia:
+        # 7/10 (UNO Capital, Quisto): il follow-up di oggi a un filo di luglio non spostava
+        # ne' l'analisi ne' l'ultima risposta, e la loro risposta di oggi restava invisibile
+        # fino al giro di notte. Una nostra mail recente rende il filo caldo come un'analisi.
+        if recente < soglia and r.get("id") not in mandate_di_recente:
             continue
         cand.append(((r.get("enriched") or {}).get("sl_riletto_il") or "", em))
     cand.sort()
@@ -332,7 +335,10 @@ def main():
     known = db_prospects()
     print(f"  DB: {len(known)} prospects noti")
 
-    caldi = fili_caldi(known)
+    soglia_mandate = (datetime.now(timezone.utc) - timedelta(days=CALDI_GIORNI)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    mandate = frozenset(x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=eq.fatta"
+                        f"&tipo=in.(risposta,umano)&risposta_il=gte.{soglia_mandate}&prospect_id=not.is.null&limit=2000") or []))
+    caldi = fili_caldi(known, mandate)
     if caldi:
         print(f"  fili caldi da rileggere a rotazione: {len(caldi)}")
 

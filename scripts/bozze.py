@@ -952,6 +952,12 @@ def main():
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):
                 azione["allega"] = True
+            # 7/10 (UNO Capital, Quisto: «non ho ricevuto nessuna analisi»). L'analisi era
+            # allegata a maggio e luglio, ma un allegato di mesi fa non lo ritrova nessuno:
+            # se l'analisi ha piu' di 30 giorni, ogni follow-up la rimette dentro.
+            inviata = p.get("analysis_sent_at") or ""
+            if p.get("analysis_pdf") and inviata and inviata < (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)).isoformat():
+                azione["allega"] = True
             pid = proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche, azione=azione)
             if pid and gruppo:
                 sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None})

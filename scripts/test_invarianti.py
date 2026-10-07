@@ -1651,6 +1651,19 @@ def _():
     assert all(tanti[e]["enriched"]["sl_riletto_il"] <= min(tanti[x]["enriched"]["sl_riletto_il"] for x in tanti if x not in scelti) for e in scelti)
 
 
+@prova("una risposta a un follow-up di oggi su un filo vecchio si vede subito, e a mesi di distanza l'analisi si rialleg a (UNO Capital, Quisto, 7/10)")
+def _():
+    import sync_v2 as S
+    from datetime import datetime, timezone, timedelta
+    vecchio = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    known = {"luglio@x.it": {"id": "p1", "awaiting_us": False, "classificazione": "positivo",
+                             "analysis_sent_at": vecchio, "last_reply_at": vecchio, "enriched": {}}}
+    assert S.fili_caldi(known) == set(), "senza un nostro invio recente il filo vecchio resta freddo"
+    assert S.fili_caldi(known, frozenset({"p1"})) == {"luglio@x.it"}, "un nostro follow-up recente lo rende caldo"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py"), encoding="utf-8").read()
+    assert 'timedelta(days=30)).isoformat():\n                azione["allega"] = True' in src, "analisi di piu' di 30 giorni: si rialleg a"
+
+
 @prova("un rinvio con la data entra in coda da solo quando la data arriva, ma solo dal 7/10 in poi: il passato lo decide Dre (La Fonte, 7/10)")
 def _():
     import followup as F
