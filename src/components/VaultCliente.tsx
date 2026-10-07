@@ -7,6 +7,7 @@ import {
 import { eCliente, ePerso } from '../lib/regole'
 import { apriFile, caricaFile } from '../lib/file'
 import { linkDi } from '../lib/indirizzo'
+import { apriFascicolo } from '../lib/fascicolo'
 import Copia from './Copia'
 import Scheda from './Scheda'
 import { StoriaCompleta } from './Storia'
@@ -482,6 +483,26 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   const tutti = principale ? [principale, ...referenti] : referenti
   const daMostrare = tappe.slice(0, 8)
 
+  // IL FASCICOLO IN PDF (Dre, 6/10): lo stesso Vault, su un foglio pulito da mandare
+  function pdf() {
+    if (!p) return
+    const cifra = (q: Prev) => `${q.importo ? `${Number(q.importo).toLocaleString('it-IT')} €` : ''}${q.mensile ? `${q.importo ? ' + ' : ''}${Number(q.mensile).toLocaleString('it-IT')} €/mese` : ''}`
+    const ok = apriFascicolo({
+      nome: nome ?? '', codice: sgid(p.sg_id), stato: cliente ? 'Cliente' : perso ? 'Perso' : 'Prospect', fase,
+      chiSono: p.descrizione ? p.descrizione.split(/(?<=\.)\s/)[0].replace(/\.$/, '') : (p.sector?.replace(/_/g, ' ') ?? null),
+      citta: p.city, sito: p.website ? p.website.replace(/^https?:\/\//, '').replace(/\/$/, '') : null,
+      punto: punto?.testo ?? p.next_action ?? null,
+      prossima: prossima ? `${prossima.titolo}, ${new Date(prossima.at).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} alle ${fmtOra(prossima.at)}` : null,
+      referenti: tutti.map((r) => ({ nome: r.nome, ruolo: r.ruolo, email: r.email, telefono: r.telefono, decide: decideDi(r), nota: r.nota })),
+      preventivi: preventivi.map((q) => ({ numero: q.numero, titolo: q.titolo, cifra: cifra(q),
+        stato: q.pagato_il ? 'pagato' : q.stato === 'inviato' ? `in attesa${q.inviato_il ? ` dal ${fmtDateShort(q.inviato_il)}` : ''}` : q.stato })),
+      documenti: [...(p.analysis_pdf ? ["Analisi Google Ads"] : []), ...documenti.map((d) => d.nome)],
+      filo: tappe.map((t) => ({ at: t.at, titolo: t.titolo, testo: t.aperto ?? t.testo ?? null })),
+      logo: new URL(`${import.meta.env.BASE_URL}brand/SG_logo_blu.png`, location.href).href,
+    })
+    if (!ok) di(5, 'Il browser ha bloccato la finestra: consenti i popup per il Workspace e riprova')
+  }
+
   return (
     <div className="fixed inset-0 z-50">
       <div onClick={onClose} className="absolute inset-0 bg-inchiostro/15" />
@@ -491,6 +512,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
           <button onClick={onClose} className="shrink-0 text-sm font-semibold text-blu hover:underline">‹ Torna</button>
           <Micro>Vault</Micro>
           <span className="min-w-0 flex-1" />
+          <button onClick={pdf} data-tip="Il fascicolo su un foglio: lo salvi in PDF e lo mandi" className="shrink-0 text-[12px] font-semibold text-blu hover:underline">PDF</button>
           <Copia testo={linkDi({ tab: 'prospect', id: p.id, sezione: null })} cosa="il link di questo Vault, da mandare a qualcuno">
             <span className="shrink-0 text-[12px] font-semibold text-blu">Link</span>
           </Copia>
