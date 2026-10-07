@@ -33,6 +33,62 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, soldi_clienti, con_soldi          # noqa: E402
 import cervello                                            # noqa: E402
+import hashlib                                              # noqa: E402
+import urllib.parse                                         # noqa: E402
+from stanza import env                                      # noqa: E402
+from google_api import g                                   # noqa: E402
+
+# LA PREPARAZIONE SU GOOGLE CALENDAR (Dre, 7/10: «la preparazione me la deve mettere su
+# Google Calendar, non nel Workspace»). Era gia' la sua regola del 12/8, persa nel trasloco
+# in cloud. La cassaforte del 29/9 resta rispettata: l'evento vive in un calendario SOLO
+# SUO, «Clara Preparazioni», mai condiviso e senza invitati. Mezz'ora prima della call,
+# libero (non blocca il tempo), dentro la preparazione intera e il link alla scheda.
+CAL = "https://www.googleapis.com/calendar/v3"
+PADRONE = env("GOOGLE_UTENTE") or "dramane@studiogalilei.com"
+
+
+def calendario_prep(prova):
+    """Il calendario privato di Dre: si crea una volta, non si condivide MAI."""
+    r = sb("GET", "/rest/v1/istruzioni?select=testo&chiave=eq.calendario_preparazioni&limit=1") or []
+    if r:
+        return r[0]["testo"]
+    if prova:
+        return None
+    fatto = g("POST", f"{CAL}/calendars", {"summary": "Clara Preparazioni", "timeZone": "Europe/Rome",
+                                           "description": "Le preparazioni delle call, scritte da Clara. Solo per Dre."},
+              email=PADRONE)
+    sb("POST", "/rest/v1/istruzioni", {"chiave": "calendario_preparazioni", "titolo": "Il calendario delle preparazioni",
+                                        "testo": fatto["id"]}, {"Prefer": "resolution=merge-duplicates"})
+    print("calendario «Clara Preparazioni» creato (solo Dre)")
+    return fatto["id"]
+
+
+def su_google(cid, r, nome, testo, q, prova):
+    """L'evento «Prep»: stessa call, stesso evento, anche se l'agenda la vede doppia
+    (ICS di Dre + calendario di Carlo). La chiave e' azienda + ora della call."""
+    if not (cid and q):
+        return
+    eid = "prep" + hashlib.sha1(f"{r['prospect_id']}|{r['at'][:16]}".encode()).hexdigest()
+    inizio = q - datetime.timedelta(minutes=30)
+    corpo = {"id": eid, "summary": f"Prep {nome}"[:200],
+             "description": (testo + "\n\nLa scheda: https://studiogalilei.github.io/clara/#/azienda/" + r["prospect_id"])[:7500],
+             "start": {"dateTime": inizio.isoformat(), "timeZone": "Europe/Rome"},
+             "end": {"dateTime": q.isoformat(), "timeZone": "Europe/Rome"},
+             "transparency": "transparent", "colorId": "5",
+             "reminders": {"useDefault": False, "overrides": [{"method": "popup", "minutes": 0}]}}
+    if prova:
+        print(f"    [prova] evento Prep {nome} alle {inizio:%d/%m %H:%M}")
+        return
+    try:
+        g("POST", f"{CAL}/calendars/{urllib.parse.quote(cid)}/events", corpo, email=PADRONE)
+    except RuntimeError as e:
+        if "409" in str(e) or "duplicate" in str(e).lower():
+            try:
+                g("PUT", f"{CAL}/calendars/{urllib.parse.quote(cid)}/events/{eid}", corpo, email=PADRONE)
+            except RuntimeError as e2:
+                print(f"    l'evento Prep non si aggiorna: {str(e2)[:120]}")
+        else:
+            print(f"    l'evento Prep non si scrive: {str(e)[:120]}")
 
 CALL = ("conoscitiva", "tecnica", "avvio", "call", "prep")
 # se la scheda non e' cambiata, la preparazione di ieri va bene: non si
@@ -159,10 +215,21 @@ def main():
     call = [r for r in righe if r.get("prospect_id") and (r.get("tipo") or "") in CALL]
     print(f"{len(call)} call attaccate a un'azienda nelle prossime {ore} ore")
 
+    try:
+        cal_prep = calendario_prep(prova)
+    except Exception as e:                                    # noqa: BLE001
+        cal_prep = None
+        print(f"  Google non risponde, le preparazioni restano solo nel Workspace: {str(e)[:120]}")
+
     fatte = 0
     for r in call:
         fresca = quando(r.get("preparata_il"))
         if fresca and (adesso - fresca).total_seconds() < FRESCA_ORE * 3600:
+            # gia' preparata: ma l'evento su Google ci deve stare lo stesso (7/10)
+            vecchia = (sb("GET", f"/rest/v1/preparazioni?select=testo&agenda_id=eq.{r['id']}&limit=1") or [None])[0]
+            if vecchia and cal_prep:
+                n, _ = dati_di(r["prospect_id"])
+                su_google(cal_prep, r, n or "", vecchia["testo"], quando(r["at"]), prova)
             continue
         nome, dati = dati_di(r["prospect_id"])
         if not dati:
@@ -184,6 +251,7 @@ def main():
            {"agenda_id": r["id"], "prospect_id": r["prospect_id"], "testo": testo, "preparata_il": zulu(adesso)},
            {"Prefer": "resolution=merge-duplicates,return=minimal"})
         sb("PATCH", f"/rest/v1/agenda?id=eq.{r['id']}", {"preparata_il": zulu(adesso)})
+        su_google(cal_prep, r, nome, testo, q, prova)
         fatte += 1
 
     print(f"{'(prova) ' if prova else ''}preparate {fatte}")
