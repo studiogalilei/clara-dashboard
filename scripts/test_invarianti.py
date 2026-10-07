@@ -1612,6 +1612,24 @@ def _():
         S.sb, S.ultimo_seguito, S.ripreso_dopo, S.proponi_scaduto = vero
 
 
+@prova("chi ha gia' l'analisi e dice «piu' avanti»: niente riallegata, data a due settimane, follow-up dopo l'invio (Dre 7/10, La Bottega del Legno)")
+def _():
+    import seguiti as S
+    import manda as M
+    p = {"email": "acquisti@x.it", "name": "Paola", "analysis_sent": True}
+    t = S.risposta("INT-06", p, {}, "https://calendar.app.google/x", giorno="martedì 21 ottobre alle 15", testo_file="")
+    assert t and "analisi" in t and "inoltro" not in t.lower() and "allego" not in t.lower(), t
+    assert "martedì 21 ottobre alle 15" in t and "calendar.app.google" in t and "domani" not in t, t
+    # senza giorno lo scrive una persona; chi l'analisi non l'ha ancora resta sul modello di Dre
+    assert S.risposta("INT-06", p, {}, "c", giorno=None, testo_file="") is None
+    assert S.risposta("INT-06", {**p, "analysis_sent": False}, {}, "c", giorno="x", testo_file="") is None, "senza periodo e senza template non deve inventare"
+    # il postino applica solo i campi permessi, con valori sani
+    assert M.dopo_invio({"dopo_invio": {"classificazione": "rinvio", "next_action_date": "2026-10-22", "next_action": "x", "stage": "cliente"}}) == \
+        {"classificazione": "rinvio", "next_action_date": "2026-10-22", "next_action": "x"}
+    assert M.dopo_invio({"dopo_invio": {"classificazione": "soppresso", "next_action_date": "domani"}}) == {}
+    assert M.dopo_invio({}) == {}
+
+
 @prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
 def _():
     # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima

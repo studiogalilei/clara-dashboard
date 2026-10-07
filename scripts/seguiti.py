@@ -151,6 +151,20 @@ FRASE_GARANZIA = "Poi avremmo pronta anche una proposta con garanzia da farvi, m
 FRASE_GARANZIA_IN = "Avremmo pronta anche una proposta con garanzia da farvi, ma prima mi"
 
 
+# HA GIA' L'ANALISI E DICE «PIU' AVANTI» (Dre, 7/10, caso La Bottega del Legno: «e' un periodo
+# incasinato, la leggero' con calma piu' avanti»). Il modello SENTIAMOCI e' scritto per chi
+# l'analisi non l'ha ancora: gliela riallegava e proponeva una call «anche domani». Dre:
+# «sentirci tra 15 giorni, lasciare il calendario, proporre una data, follow-up a 15 giorni».
+DOPO_ANALISI = """Salve,
+
+nessun problema, capisco bene: ci risentiamo fra un paio di settimane, così ha il tempo di leggere l'analisi con calma.
+
+Le propongo {{GIORNO}}: se le va meglio un altro momento, qui trova il calendario per scegliere giorno e orario: {{CALENDARIO}}
+
+Un saluto"""
+GIORNI_DOPO_ANALISI = 15
+
+
 def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=None, testo_file=None, loro="", garanzia=None):
     """La risposta col testo di Dre, o None se per quell'intento non c'e' un suo template.
 
@@ -164,6 +178,14 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
         chiave = "QUAL E"
     if not chiave:
         return None
+    if chiave == "SENTIAMOCI" and (p or {}).get("analysis_sent"):
+        # l'analisi l'ha gia': niente riallegata, niente call domani. Il giorno e' quello a
+        # due settimane (bozze.testo_di_dre lo sceglie cosi'); senza giorno lo scrive una persona
+        if not giorno:
+            return None
+        righe = DOPO_ANALISI.splitlines()
+        righe[0] = saluto(p, letti)
+        return "\n".join(righe).replace("{{GIORNO}}", giorno).replace("{{CALENDARIO}}", calendario).strip()
     if testo_file is None:
         import bozze
         testo_file = bozze.template_verbatim()
