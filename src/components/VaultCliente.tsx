@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
-import { sonoCeo } from '../lib/accessi'
+import { sonoCeo, chiSono } from '../lib/accessi'
 import {
   PIPELINE_LABEL,
   type Prospect, type Interaction, type AgendaItem, type PipelineStage,
@@ -287,6 +287,9 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   const [squadra, setSquadra] = useState<Array<{ id: string; nome: string | null }>>([])
   const [passa, setPassa] = useState(false)
   const [passaNota, setPassaNota] = useState('')
+  // chi sono davvero (anche in «vedi come»): uid_eff, lo stesso che il database usa per la chat
+  const [io, setIo] = useState<string | null>(null)
+  useEffect(() => { void chiSono().then((c) => setIo(c.uid)) }, [])
   useEffect(() => {
     void supabase.from('profili').select('id,nome').order('nome').then(({ data }) => setSquadra((data as Array<{ id: string; nome: string | null }>) ?? []))
   }, [])
@@ -323,13 +326,14 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || completa || storiaAperta || document.body.dataset.sopra || e.defaultPrevented) return
+      if (passa) { setPassa(false); return }                   // prima il menu, poi il Vault
       const el = document.activeElement as HTMLElement | null
       if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) { el.blur(); return }
       onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, completa, storiaAperta])
+  }, [onClose, completa, storiaAperta, passa])
 
   const chiamate = useMemo(() => chiamateDi(timeline, agendaSua), [timeline, agendaSua])
 
@@ -375,7 +379,9 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
     if (!p) return
     const link = linkDi({ tab: 'prospect', id: p.id, sezione: null })
     const testo = `Ti passo il fascicolo di ${p.company || p.name || p.email}${passaNota.trim() ? `: ${passaNota.trim()}` : ''}\n${link}`
-    const { error } = await supabase.from('chat').insert({ da: utenteId, a: chi.id, testo, prospect_id: id, file_id: null })
+    // «da» lo mette il database (default uid_eff): con «vedi come» e prima che la sessione
+    // sia letta, mandarlo a mano faceva rifiutare il messaggio (revisione 7/10)
+    const { error } = await supabase.from('chat').insert({ a: chi.id, testo, prospect_id: id, file_id: null })
     if (error) { di(5, 'Non è partito: ' + error.message); return }
     setPassa(false); setPassaNota('')
     di(3, `Il fascicolo è nella chat di ${(chi.nome ?? 'qualcuno').split(' ')[0]}`)
@@ -384,7 +390,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   // condividere in chat: un messaggio nella stanza comune, taggato su di lui.
   // Il file e' GIA' nei Documenti: si passa il riferimento, non una copia.
   async function inChat(testo: string, file_id?: number) {
-    const { error } = await supabase.from('chat').insert({ da: utenteId, a: null, testo, prospect_id: id, file_id: file_id ?? null })
+    const { error } = await supabase.from('chat').insert({ a: null, testo, prospect_id: id, file_id: file_id ?? null })
     di(3, error ? 'Non è partito: ' + error.message : 'In chat, a tutta la squadra')
   }
 
@@ -552,12 +558,13 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
           <span className="min-w-0 flex-1" />
           <span className="relative shrink-0">
             <button onClick={() => setPassa(!passa)} aria-expanded={passa} className="text-[12px] font-semibold text-blu hover:underline">Passa a…</button>
+            {passa && <button aria-label="Chiudi" onClick={() => setPassa(false)} className="fixed inset-0 z-20 cursor-default" />}
             {passa && (
               <div className="absolute right-0 top-7 z-30 w-64 rounded-xl border border-bordo bg-white p-2 shadow-lg">
                 <input autoFocus value={passaNota} onChange={(e) => setPassaNota(e.target.value)} placeholder="Una riga per lui, se vuoi"
                        onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setPassa(false) } }}
                        className="mb-1.5 w-full rounded-lg border border-bordo px-2.5 py-1.5 text-[13px] outline-none focus:border-blu" />
-                {squadra.filter((x) => x.id !== utenteId).map((x) => (
+                {squadra.filter((x) => x.id !== (io ?? utenteId)).map((x) => (
                   <button key={x.id} onClick={() => void passaA(x)}
                           className="block w-full rounded-lg px-2.5 py-2 text-left text-[14px] hover:bg-velo/60">{x.nome ?? 'Senza nome'}</button>
                 ))}

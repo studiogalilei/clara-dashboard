@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { chiSono } from '../lib/accessi'
 import { Card, Micro, Spinner, ZonaFile, fmtNum } from './ui'
 import { useVivo } from '../lib/vivo'
 import { iniziali } from '../lib/profilo'
@@ -74,7 +75,11 @@ export default function Chat({ onOpen }: Props) {
   const scrivi = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setIo(data.session?.user?.id ?? null))
+    // chi sono davvero, anche in «vedi come»: lo stesso uid_eff che il database usa per la chat
+    // (7/10: con l'id della sessione, in «vedi come» i messaggi erano rifiutati e i thread sbagliati)
+    void chiSono().then((c) => setIo(c.uid)).catch(() => {
+      void supabase.auth.getSession().then(({ data }) => setIo(data.session?.user?.id ?? null))
+    })
     void supabase.from('profili').select('id,nome,ruolo').order('nome')
       .then(({ data }) => setSquadra((data as Persona[]) ?? []))
   }, [])
@@ -201,7 +206,7 @@ export default function Chat({ onOpen }: Props) {
     }
 
     const { data, error } = await supabase.from('chat').insert({
-      da: io,
+      // «da» lo mette il database (default uid_eff), come vuole la sua regola
       a: con === TUTTI ? null : con,
       testo: t || null,
       prospect_id: scelto ? cliente!.id : (cliente?.id ?? null),
