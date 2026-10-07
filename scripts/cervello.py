@@ -412,8 +412,7 @@ Chi sono: <una riga: cosa fanno, dove, da dove sono arrivati>
 A che punto siamo
 - <massimo quattro righe: cosa ci siamo detti finora, cosa aspetta chi>
 
-Cosa chiedere
-- <massimo tre domande vere, quelle che sbloccano la trattativa o il lavoro>
+{blocco_domande}
 
 Come parlargli
 - <una riga: la taglia dell'azienda dal bilancio (micro sotto 1 M€, piccola fino a 10, media oltre), il registro e le parole
@@ -428,10 +427,11 @@ Solo quello che c'e' nei dati che ti do: se una cosa non la sai, non la scrivi.
 Se c'e' il BILANCIO, le domande si adattano alla taglia: a una micro non chiedi il budget marketing,
 chiedi quanti clienti nuovi in un mese cambierebbero le cose; a una media chiedi chi decide e quanto
 spendono oggi. Il PREZZO SUGGERITO e' interno: serve a te per tarare le domande, non si nomina mai.
+{regola_domande}
 Niente introduzioni, niente commenti tuoi, niente consigli generici da manuale.
 Niente parole gonfie (innovativo, soluzioni, sinergia, a 360, ottimizzare, implementare).
 Niente punti esclamativi, niente trattini lunghi.
-Massimo quattordici righe in tutto.
+{righe_massime}
 
 CALL: {quando}, {tipo}
 AZIENDA: {azienda}
@@ -441,18 +441,48 @@ QUELLO CHE SAPPIAMO:
 """
 
 
+# LE DOMANDE DELLA CONOSCITIVA (regola di Dre del 12/8, scritta nel CLAUDE.md del vault e
+# persa quando e' nato questo prompt: «massimo tre domande». Dre, 7/10, call con Studio
+# Nigris: «sono domande del cazzo: si va dal generico al preciso per creare rapporto e
+# connessione, e allo stesso tempo dimostrare che si sa del settore e di loro, con la
+# terminologia del settore in modo naturale; minimo 8 domande»).
+DOMANDE_CONOSCITIVA = """Le domande
+1. <prima domanda>
+2. <seconda domanda>
+<...fino a 8, 9 o 10 domande numerate>"""
+REGOLA_CONOSCITIVA = """LE DOMANDE DELLA CONOSCITIVA (la regola di Dre): da 8 a 10 domande numerate, dal generico al preciso.
+L'ordine: le prime due o tre aprono e creano rapporto (la loro storia, il territorio, cosa li rende
+fieri); poi il loro mercato e i loro clienti; poi come lavorano oggi per trovarne di nuovi; poi i
+numeri; le ultime due arrivano al punto (cosa cambierebbe davvero per loro, chi decide).
+Servono a due cose insieme: creare rapporto e connessione, e far sentire che conosciamo il loro
+settore e la loro azienda. Quindi ogni domanda usa in modo naturale le parole del LORO mestiere
+(per un'agenzia immobiliare: incarichi, esclusive, acquisizioni, valutazioni, portali, provvigioni;
+per un installatore: sopralluoghi, preventivi, cantieri, detrazioni; e cosi' via per ogni settore),
+e dove puoi cita un dettaglio vero di loro (la zona, cosa vendono, cosa hanno scritto, l'analisi).
+Mai domande da questionario generico («quali sono i vostri obiettivi?»): una domanda che potrebbe
+andare a chiunque e' sbagliata. Una frase per domanda, scritta come la direbbe Dre a voce."""
+
+
 def preparo(dati, azienda="", quando="", tipo="", modello=None):
     """Il punto della situazione prima di una call. None se non ce la fa."""
     grezzo = " ".join((dati or "").split())
     if len(grezzo) < 120:
         return None
+    conoscitiva = "conoscitiva" in (tipo or "").lower()
+    blocco = DOMANDE_CONOSCITIVA if conoscitiva else """Cosa chiedere
+- <massimo tre domande vere, quelle che sbloccano la trattativa o il lavoro>"""
     try:
-        fuori = _chiedi(PREPARO.format(azienda=azienda or "?", quando=quando or "?", tipo=tipo or "call", dati=grezzo[:14000]) + istruzione("lettura"))
+        fuori = _chiedi(PREPARO.format(azienda=azienda or "?", quando=quando or "?", tipo=tipo or "call", dati=grezzo[:14000],
+                                       blocco_domande=blocco, regola_domande=REGOLA_CONOSCITIVA if conoscitiva else "",
+                                       righe_massime="Massimo trenta righe in tutto." if conoscitiva else "Massimo quattordici righe in tutto.")
+                        + istruzione("lettura"))
     except Exception:
         return None
     fuori = (fuori or "").strip()
     if len(fuori) < 50 or "Chi sono" not in fuori:
         return None
+    if conoscitiva and len(re.findall(r"(?m)^\s*\d{1,2}[.)]\s", fuori)) < 8:
+        return None                       # meno di 8 domande: la regola di Dre non e' rispettata, si riprova al giro dopo
     if re.search(r"prezzo suggerito|€/mese", fuori, re.I):
         fuori = "\n".join(r for r in fuori.splitlines() if not re.search(r"prezzo suggerito|€/mese", r, re.I))   # interno, non entra nella preparazione
     fuori = re.sub(r"\s*—\s*", ": ", fuori).replace("–", "-").replace("·", ",").replace("•", "-")

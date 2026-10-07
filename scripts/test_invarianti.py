@@ -1651,6 +1651,27 @@ def _():
     assert all(tanti[e]["enriched"]["sl_riletto_il"] <= min(tanti[x]["enriched"]["sl_riletto_il"] for x in tanti if x not in scelti) for e in scelti)
 
 
+@prova("la preparazione della conoscitiva chiede da 8 a 10 domande dal generico al preciso, col linguaggio del settore (regola di Dre del 12/8, ripresa il 7/10)")
+def _():
+    import cervello as C
+    # il prompt della conoscitiva porta la regola; le altre call restano corte
+    assert "dal generico al preciso" in C.REGOLA_CONOSCITIVA and "8" in C.REGOLA_CONOSCITIVA
+    assert "parole del LORO mestiere" in C.REGOLA_CONOSCITIVA
+    vero = C._chiedi
+    try:
+        tre = "Chi sono: x\n\nLe domande\n1. a\n2. b\n3. c\n"
+        C._chiedi = lambda prompt: tre
+        assert C.preparo("x" * 200, tipo="conoscitiva") is None, "con 3 domande la conoscitiva non deve passare"
+        otto = "Chi sono: x\n\nLe domande\n" + "\n".join(f"{i}. domanda {i}" for i in range(1, 9))
+        C._chiedi = lambda prompt: otto
+        assert C.preparo("x" * 200, tipo="conoscitiva"), "con 8 domande deve passare"
+        visto = {}
+        C._chiedi = lambda prompt: (visto.setdefault("p", prompt), "Chi sono: un'azienda di prova\n\nCosa chiedere\n- una domanda vera sul preventivo")[1]
+        assert C.preparo("x" * 200, tipo="tecnica") and "dal generico al preciso" not in visto["p"]
+    finally:
+        C._chiedi = vero
+
+
 @prova("ogni copione importa le funzioni della stanza che chiama (caso calendario.py, 7/10)")
 def _():
     # 6/10: in calendario.py «proponi» era finito dentro il commento dell'import. La prima
