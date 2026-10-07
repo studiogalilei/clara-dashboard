@@ -1651,6 +1651,20 @@ def _():
     assert all(tanti[e]["enriched"]["sl_riletto_il"] <= min(tanti[x]["enriched"]["sl_riletto_il"] for x in tanti if x not in scelti) for e in scelti)
 
 
+@prova("il nome dell'azienda arriva anche dal campo «azienda» di Smartlead, e un nome scritto a mano non si sovrascrive (7/10, Studio Nigris)")
+def _():
+    import sync_v2 as S
+    assert S.azienda_di({"company_name": "", "custom_fields": '{"azienda":"Studio Nigris","icebreaker":"x"}'}) == "Studio Nigris"
+    assert S.azienda_di({"company_name": "Vetrocom", "custom_fields": '{"azienda":"Altro"}'}) == "Vetrocom"
+    assert S.azienda_di({"company_name": None, "custom_fields": {"azienda": " Pircher "}}) == "Pircher"
+    assert S.azienda_di({"company_name": "", "custom_fields": "non json"}) == ""
+    assert S.azienda_di({}) == ""
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py"), encoding="utf-8").read()
+    assert '"company_name": azienda_di(r)' in src, "la sincronizzazione deve leggere il nome con azienda_di"
+    assert 'not (rec.get("company") or "").strip()' in src, "il nome si riempie solo se vuoto"
+    assert "select=id,email,company," in src, "senza company letto, il riempimento non sa se il nome c'e' gia'"
+
+
 @prova("la preparazione della conoscitiva chiede da 8 a 10 domande dal generico al preciso, col linguaggio del settore (regola di Dre del 12/8, ripresa il 7/10)")
 def _():
     import cervello as C

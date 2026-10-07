@@ -299,7 +299,7 @@ def db_prospects():
         # 6/10: awaiting_us mancava. La regola «chi aspetta noi si rilegge a ogni giro» (24/9) non
         # scattava mai, e attesa_da_sync leggeva ogni attesa come chiusa: il 6/10 tra le 11:43 e le
         # 11:55 il sync ha chiuso l'attesa a chi aspettava davvero noi (Oikos, Lucca Case, Grigna...)
-        rows = sb("GET", f"/rest/v1/prospects?select=id,email,stage,fuori,classificazione,enriched,awaiting_us,"
+        rows = sb("GET", f"/rest/v1/prospects?select=id,email,company,stage,fuori,classificazione,enriched,awaiting_us,"
                          f"analysis_sent,analysis_sent_at,no_followup,last_reply_at,followup_due"
                          f"&limit=1000&offset={offset}") or []
         for r in rows:
@@ -308,6 +308,22 @@ def db_prospects():
             break
         offset += 1000
     return out
+
+def azienda_di(r):
+    """Il nome dell'azienda di una riga di Smartlead. Le campagne del 22/9 lo mettono nel campo
+    personalizzato «azienda» e lasciano vuoto company_name: 129 schede senza nome il 7/10,
+    Studio Nigris introvabile in Workspace un'ora prima della call."""
+    nome = (r.get("company_name") or "").strip()
+    if nome:
+        return nome
+    cf = r.get("custom_fields") or {}
+    if isinstance(cf, str):
+        try:
+            cf = json.loads(cf or "{}")
+        except ValueError:
+            cf = {}
+    return (cf.get("azienda") or "").strip() if isinstance(cf, dict) else ""
+
 
 # ---------- il giro ----------
 def main():
@@ -367,7 +383,7 @@ def main():
                 lead = {
                     "id": r.get("id"),
                     "first_name": r.get("first_name"), "last_name": r.get("last_name"),
-                    "company_name": r.get("company_name"), "website": r.get("website"),
+                    "company_name": azienda_di(r), "website": r.get("website"),
                     "category": r.get("category"),
                     "is_unsubscribed": (r.get("is_unsubscribed") or "").lower() == "true",
                 }
@@ -424,6 +440,8 @@ def main():
                 "last_reply_at": (fresco.get("last_reply_at") if gmail_dopo else body_last_reply) or None,
                 "first_reply_at": body_first_reply or None,
             }
+            if rec and not (rec.get("company") or "").strip() and lead.get("company_name"):
+                patch["company"] = lead["company_name"]   # solo se vuoto: un nome messo a mano non si tocca
             if lead.get("is_unsubscribed"):
                 patch["no_followup"] = True   # unsubscribed su Smartlead: non si tocca piu'
             # classificazione: solo se non corretta a mano
