@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
+import { sonoCeo } from '../lib/accessi'
 import {
   PIPELINE_LABEL,
   type Prospect, type Interaction, type AgendaItem, type PipelineStage,
@@ -277,6 +278,10 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
   const [storiaAperta, setStoriaAperta] = useState(false)
   const [esito, setEsito] = useState<string | null>(null)
   const [apertoRef, setApertoRef] = useState<number | 'nuovo' | null>(null)
+  // i preventivi li vedono solo i ceo (il database lo fa gia', schema_v23): agli altri la
+  // sezione non si mostra, invece di dire «nessuno ancora» quando non e' vero (7/10)
+  const [ceo, setCeo] = useState(false)
+  useEffect(() => { void sonoCeo().then(setCeo) }, [])
 
   useEffect(() => {
     let vivo = true
@@ -655,7 +660,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
                 )}
               </Card>
 
-              <Card className="p-4">
+              {ceo && <Card className="p-4">
                 <Titolo azione={<Link_ su={() => { try { sessionStorage.setItem('preventivo:nuovo', id) } catch { /* niente */ } window.dispatchEvent(new CustomEvent('preventivo:nuovo', { detail: id })) }}>+ Nuovo</Link_>}>Preventivi</Titolo>
                 {preventivi.length === 0 ? <p className="text-[13px] text-tenue">Nessuno ancora.</p> : (
                   <ul className="space-y-2.5">
@@ -679,7 +684,7 @@ export default function VaultCliente({ id, sezione, onSezione, onClose, onApri }
                     ))}
                   </ul>
                 )}
-              </Card>
+              </Card>}
 
               <Card className="p-4">
                 <Titolo azione={<span className="text-[12px] font-semibold text-tenue">{documenti.length + (p.analysis_pdf ? 1 : 0) || ''}</span>}>Documenti</Titolo>
