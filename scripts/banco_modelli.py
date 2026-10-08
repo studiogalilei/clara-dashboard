@@ -33,13 +33,13 @@ from stanza import sb, sb_tutte                            # noqa: E402
 
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 36
 PROVA = "--prova" in sys.argv
-CANDIDATI = ["gpt-5-nano", "gpt-5-mini", "claude-haiku-4-5", "deepseek-chat", "grok-4.3"]
+CANDIDATI = ["gpt-5-nano", "gpt-5-mini", "claude-haiku-4-5", "deepseek-chat", "glm-5.3-flash", "grok-4.3"]
 MODELLI = (sys.argv[sys.argv.index("--modelli") + 1].split(",") if "--modelli" in sys.argv
            else CANDIDATI)
 # per milione di token (ingresso, uscita). Si aggiornano a mano: 8/10/2026.
 PREZZO = {"gpt-5": (1.25, 10.0), "gpt-5-mini": (0.25, 2.0), "gpt-5-nano": (0.05, 0.4),
           "deepseek-chat": (0.14, 0.28), "deepseek-reasoner": (0.435, 0.87),
-          "grok-4.3": (1.25, 2.50), "grok-4.7": (2.0, 6.0),
+          "grok-4.3": (1.25, 2.50), "grok-4.7": (2.0, 6.0), "glm-5.3-flash": (0.15, 0.50), "glm-5.3": (1.40, 4.40),
           "claude-haiku-4-5": (1.0, 5.0), "claude-sonnet-5-5": (2.0, 10.0)}
 # media misurata sul consumo vero di settembre-ottobre, per la stima a secco
 MEDIA_DENTRO, MEDIA_FUORI = 3108, 2355

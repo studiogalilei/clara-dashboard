@@ -185,6 +185,7 @@ COMPATIBILI = {
     "openai":   ("https://api.openai.com/v1/chat/completions", "OPENAI_API_KEY"),
     "deepseek": ("https://api.deepseek.com/chat/completions", "DEEPSEEK_API_KEY"),
     "xai":      ("https://api.x.ai/v1/chat/completions", "XAI_API_KEY"),
+    "zai":      ("https://api.z.ai/api/paas/v4/chat/completions", "ZAI_API_KEY"),   # GLM (Z.ai), 8/10: solo l'API a consumo, il Coding Plan vieta gli script
 }
 
 
@@ -198,6 +199,8 @@ def fornitore_di(modello):
         return "deepseek"
     if m.startswith("grok"):
         return "xai"
+    if m.startswith("glm"):
+        return "zai"
     if m.startswith("claude"):
         return "claude"
     return FORNITORE
