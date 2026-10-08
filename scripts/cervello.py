@@ -175,23 +175,66 @@ def _impronta(testo, modello=None):
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:24]
 
 
+# I FORNITORI CHE PARLANO COME OPENAI (8/10/2026).
+#
+# DeepSeek e xAI espongono lo stesso /chat/completions di OpenAI: cambia l'indirizzo
+# e la chiave, non il resto. Tenerli qui dentro evita tre copie della stessa funzione
+# con gli stessi tre tentativi e la stessa gestione del 429. Serve per il banco di
+# prova dei modelli: si sceglie il fornitore coi numeri, non a opinione.
+COMPATIBILI = {
+    "openai":   ("https://api.openai.com/v1/chat/completions", "OPENAI_API_KEY"),
+    "deepseek": ("https://api.deepseek.com/chat/completions", "DEEPSEEK_API_KEY"),
+    "xai":      ("https://api.x.ai/v1/chat/completions", "XAI_API_KEY"),
+}
+
+
+def fornitore_di(modello):
+    """Da che parte sta un modello, dal suo nome. Serve a provarne piu' di uno
+    nello stesso giro senza cambiare le variabili d'ambiente a mano."""
+    m = (modello or "").lower()
+    if m.startswith(("gpt", "o1", "o3", "o4")):
+        return "openai"
+    if m.startswith("deepseek"):
+        return "deepseek"
+    if m.startswith("grok"):
+        return "xai"
+    if m.startswith("claude"):
+        return "claude"
+    return FORNITORE
+
+
 def _chiedi(prompt, modello=None):
     """L'unico punto che parla con un modello. Cambiare fornitore = cambiare qui."""
-    if FORNITORE == "openai":
-        return _chiedi_openai(prompt, modello or MODELLO_OPENAI)
+    f = fornitore_di(modello) if modello else FORNITORE
+    if f in COMPATIBILI:
+        return _chiedi_openai(prompt, modello or MODELLO_OPENAI, fornitore=f)
     return _chiedi_claude(prompt, modello or MODELLO_CLAUDE)
 
 
-def _chiedi_openai(prompt, modello, formato=None):
-    chiave = _env("OPENAI_API_KEY")
+# IL TETTO ALL'USCITA (8/10/2026). Sul consumo misurato di settembre-ottobre l'uscita era
+# il 46% dei token e l'85% della spesa: 2.355 token medi di ragionamento per chiamata,
+# anche per una classificazione da dieci campi, e nessun limite da nessuna parte. Da qui
+# ogni chiamata porta un tetto e uno sforzo; chi non li passa prende questi. I valori veri
+# stanno nelle Regole del sistema nuovo; questi sono il massimo murato.
+TETTO_USCITA = {"lettura": 1500, "bozza": 4000, "default": 4000}
+SFORZO = {"lettura": "low", "bozza": "medium", "default": "medium"}
+
+
+def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sforzo=None):
+    fornitore = fornitore or (FORNITORE if FORNITORE in COMPATIBILI else "openai")
+    dove, nome_chiave = COMPATIBILI[fornitore]
+    chiave = _env(nome_chiave)
     if not chiave:
-        raise RuntimeError("manca OPENAI_API_KEY in .env.local")
-    richiesta = {"model": modello, "messages": [{"role": "user", "content": prompt}]}
+        raise RuntimeError(f"manca {nome_chiave} in .env.local")
+    richiesta = {"model": modello, "messages": [{"role": "user", "content": prompt}],
+                 "max_completion_tokens": int(tetto or TETTO_USCITA["default"])}
+    if fornitore == "openai" and modello.startswith(("gpt-5", "o")):
+        richiesta["reasoning_effort"] = sforzo or SFORZO["default"]   # solo i modelli che ragionano lo accettano
     if formato:
         richiesta["response_format"] = formato      # 29/9: la risposta in una forma fissa (il lettore unico)
     corpo = json.dumps(richiesta).encode()
     req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions", data=corpo, method="POST",
+        dove, data=corpo, method="POST",
         headers={"Authorization": "Bearer " + chiave, "Content-Type": "application/json"})
     # il 429 di OpenAI e' quasi sempre «vai troppo veloce», non «sei a secco»:
     # in cloud partono 24 richieste insieme e il limite scatta. Si aspetta e si
@@ -273,8 +316,10 @@ def classifica_risposta(testo, modello=None):
     if chiave_cache in cache:
         return dict(cache[chiave_cache])
     try:
-        if FORNITORE == "openai":
-            grezzo = _chiedi_openai(prompt, modello or MODELLO_OPENAI, formato=SCHEMA_LETTURA)
+        f = fornitore_di(modello) if modello else FORNITORE
+        if f in COMPATIBILI:
+            grezzo = _chiedi_openai(prompt, modello or MODELLO_OPENAI, formato=SCHEMA_LETTURA, fornitore=f,
+                                    tetto=TETTO_USCITA["lettura"], sforzo=SFORZO["lettura"])
         else:
             grezzo = _chiedi_claude(prompt + "\n\nRispondi SOLO con un oggetto JSON con esattamente quei campi.", modello or MODELLO_CLAUDE)
         m = re.search(r"\{.*\}", grezzo, re.S)

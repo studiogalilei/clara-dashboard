@@ -1294,6 +1294,10 @@ def _():
     import bozze as Bz
     import seguiti as S
     vero = Bz.template_verbatim()
+    # 8/10: se il bucket non risponde questo invariante cadeva dicendo «INT-23 e' rotto», che e'
+    # falso e manda a cercare nel posto sbagliato. Il template che manca e' un guasto suo, e lo dice.
+    assert vero and "INTERESSATO" in vero, \
+        "template di Dre non scaricato dal bucket (riservato/risposte-template.md): non e' INT-23 a essere rotto"
     t = S.risposta("INT-23", {}, {}, "https://cal/NUOVO", giorno="giovedì 8 ottobre alle 15:30", testo_file=vero, garanzia=True)
     assert t, "INT-23 deve avere il suo testo dal template di Dre"
     assert "Le propongo" not in t and "giovedì 8 ottobre" not in t, "INT-23 propone comunque un orario: il playbook dice di non farlo"
@@ -1311,8 +1315,12 @@ def _():
     import tempfile, urllib.request as U
     import bozze as Bz
     loc = os.path.join(tempfile.gettempdir(), "odyn-risposte-template.md")
-    c_era = os.path.exists(loc)
-    prima = open(loc, encoding="utf-8").read() if c_era else None
+    # 8/10: prima, se la cache non c'era, questo invariante la CANCELLAVA alla fine. Il giro dopo
+    # il test di INT-23 doveva riscaricare dal bucket e cadeva se la rete tossiva: un invariante
+    # che avvelena quelli dopo di se'. Ora la copia buona si prende prima e si rimette sempre.
+    if not os.path.exists(loc):
+        Bz.template_verbatim()
+    prima = open(loc, encoding="utf-8").read() if os.path.exists(loc) else None
     vero, vero_sleep = U.urlopen, Bz.time.sleep if hasattr(Bz, "time") else None
     try:
         open(loc, "w", encoding="utf-8").write("## INTERESSATO\n```\nSalve,\nciao\n```\n")
@@ -1331,7 +1339,7 @@ def _():
         U.urlopen = vero
         if prima is not None:
             open(loc, "w", encoding="utf-8").write(prima)
-        else:
+        elif os.path.exists(loc):
             os.remove(loc)
 
 
@@ -1769,6 +1777,47 @@ def _():
                     visita(figlio, noti)
         visita(t, del_modulo)
     assert not mancano, "funzioni della stanza usate e mai importate: " + ", ".join(mancano[:8])
+
+
+# ── il filo di Smartlead si registra, non si indovina (Dre, 7/10) ──
+@prova("il filo vero si prende da enriched.sl_thread, e l'ultima risposta si scegle per DATA (7/10)")
+def _():
+    import manda as M
+    # 1. l'ultima risposta del lead e' la piu' recente per data, non l'ultima della lista.
+    #    Smartlead non garantisce l'ordine: prima si citava un messaggio vecchio.
+    storia = {"history": [
+        {"type": "REPLY", "message_id": "vecchio", "time": "2026-06-01T10:00:00"},
+        {"type": "SENT",  "message_id": "nostro",  "time": "2026-07-01T10:00:00"},
+        {"type": "REPLY", "message_id": "NUOVO",   "time": "2026-09-30T18:00:00"},
+        {"type": "REPLY", "message_id": "mezzo",   "time": "2026-08-15T09:00:00"},
+    ]}
+    assert M._ultima_sua(storia)["message_id"] == "NUOVO", "l'ultima risposta del lead va scelta per data"
+    assert M._ultima_sua({"history": []}) is None, "senza risposte del lead non si inventa un filo"
+
+    # 2. l'ordine dei candidati: prima il filo segnato, poi il CRM, SOLO ALLORA la ricerca per email.
+    #    Il 7/10 un lead in piu' campagne poteva ricevere la risposta nel filo di un'altra conversazione.
+    chiamate, segnati = [], []
+    def finto(metodo, path, *a, **k):
+        chiamate.append(path)
+        if path.startswith("/leads/"):
+            return {"id": 999, "lead_campaign_data": [{"campaign_id": 777, "last_reply_at": "2026-10-01"}]}
+        if "/campaigns/111/leads/222/" in path:
+            return {"history": [{"type": "REPLY", "message_id": "giusto", "time": "2026-09-01T10:00:00"}]}
+        return {"history": []}
+    vecchio_sl, vecchio_segna = M._sl_riprova, M._segna_thread
+    M._sl_riprova = finto
+    M._segna_thread = lambda *a, **k: segnati.append(a)
+    try:
+        cid, lid, ultima = M.thread({"id": "p1", "email": "x@y.it", "campaign_id": 333, "lead_id": 444,
+                                     "enriched": {"sl_thread": {"campaign_id": 111, "lead_id": 222,
+                                                                "message_id": "giusto"}}})
+    finally:
+        M._sl_riprova, M._segna_thread = vecchio_sl, vecchio_segna
+    assert (cid, lid) == (111, 222), f"col filo segnato si parte da quello, non dall'email (preso {cid}/{lid})"
+    assert ultima["message_id"] == "giusto"
+    primo = next((c for c in chiamate if "/leads/" in c or "/campaigns/" in c), "")
+    assert "/campaigns/111/leads/222/" in primo, f"il filo segnato va provato PRIMO, invece: {primo}"
+    assert not segnati, "se il filo segnato e' ancora valido non lo si riscrive a ogni invio"
 
 
 def main():

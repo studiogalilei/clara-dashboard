@@ -56,3 +56,6 @@ data/campagne_*.csv
 
 # la cache di Python
 __pycache__/
+
+# impostazioni personali di Claude Code (permessi): mai nel repo
+.claude/settings.local.json

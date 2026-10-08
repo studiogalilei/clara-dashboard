@@ -34,6 +34,7 @@ USO
 
 import datetime
 import html
+import itertools
 import json
 import os
 import re
@@ -115,28 +116,88 @@ def _sl_riprova(metodo, percorso, volte=4):
             time.sleep(2 * (tentativo + 1) ** 2)
 
 
-def thread(p):
-    """La campagna dove ha risposto per ultimo, il lead e l'ultima sua risposta."""
-    candidati = []
+def _quando(m):
+    """L'ora di un messaggio, qualunque nome usi Smartlead. Serve per ordinare per DATA."""
+    for k in ("time", "sent_time", "email_sent_time", "timestamp", "date", "created_at"):
+        if m.get(k):
+            return str(m[k])
+    return ""
+
+
+def _ultima_sua(h):
+    """L'ultima risposta DEL LEAD, scelta per data e non per posizione nella lista.
+    7/10: prima era risposte[-1], cioe' l'ultima nell'ordine in cui l'API le passa.
+    Smartlead non garantisce quell'ordine: su un thread con piu' risposte si poteva
+    rispondere citando un messaggio vecchio, ed e' uno dei modi in cui Clara sbagliava filo."""
+    risposte = [m for m in (h.get("history") or []) if m.get("type") == "REPLY"]
+    if not risposte:
+        return None
+    return max(risposte, key=_quando)
+
+
+def _segna_thread(p, cid, lid, ultima):
+    """IL FILO VERO SI SCRIVE (Dre, 7/10: «che abbia sempre il reale thread id»).
+    Trovato una volta, si tiene: niente piu' deduzione dall'email a ogni invio.
+    Sta in enriched.sl_thread, quindi non serve toccare lo schema."""
     try:
-        d = _sl_riprova("GET", f"/leads/?email={urllib.parse.quote(p['email'])}")
-        if isinstance(d, dict):
-            for c in d.get("lead_campaign_data") or []:
-                if c.get("last_reply_at"):
-                    candidati.append((c["last_reply_at"], int(c["campaign_id"]), int(d["id"])))
+        fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{p['id']}") or [{}])[0]
+        arr = fresco.get("enriched") or {}
+        arr["sl_thread"] = {"campaign_id": int(cid), "lead_id": int(lid),
+                            "message_id": ultima.get("message_id"),
+                            "stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
+                            "quando": _quando(ultima), "visto_il": datetime.datetime.now().isoformat()}
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
     except Exception as e:                                        # noqa: BLE001
-        print(f"    lead non cercato ({str(e)[:60]})")
-    candidati.sort(reverse=True)
-    if not candidati and p.get("campaign_id") and p.get("lead_id"):
-        candidati = [("", int(p["campaign_id"]), int(p["lead_id"]))]
-    for _, cid, lid in candidati:
+        print(f"    filo non segnato ({str(e)[:60]})")
+
+
+def thread(p):
+    """La campagna dove ha risposto per ultimo, il lead e l'ultima sua risposta.
+    7/10: l'ordine dei candidati e' cambiato. Prima si deduceva il filo dall'email a ogni
+    invio e i dati del CRM erano l'ultima spiaggia: su un lead presente in piu' campagne
+    si poteva prendere il filo di un'altra conversazione. Ora, in ordine:
+      1. il filo gia' segnato in enriched.sl_thread (verificato dal vivo);
+      2. campaign_id e lead_id del CRM;
+      3. solo allora la ricerca per email.
+    Il filo trovato si scrive, cosi' la volta dopo si parte dal punto 1."""
+    visti = set()
+    filo = (p.get("enriched") or {}).get("sl_thread") or {}
+
+    def noti():
+        """I fili che conosciamo senza chiedere niente a nessuno."""
+        for cid, lid in ((filo.get("campaign_id"), filo.get("lead_id")),
+                         (p.get("campaign_id"), p.get("lead_id"))):
+            if cid and lid:
+                yield int(cid), int(lid)
+
+    def cercati():
+        """Solo se i fili noti non portano a nulla: si chiede a Smartlead per email."""
+        try:
+            d = _sl_riprova("GET", f"/leads/?email={urllib.parse.quote(p['email'])}")
+        except Exception as e:                                    # noqa: BLE001
+            print(f"    lead non cercato ({str(e)[:60]})"); return
+        if not isinstance(d, dict):
+            return
+        dati = [c for c in (d.get("lead_campaign_data") or []) if c.get("last_reply_at")]
+        dati.sort(key=lambda c: str(c.get("last_reply_at")), reverse=True)
+        for c in dati:
+            if c.get("campaign_id") and d.get("id"):
+                yield int(c["campaign_id"]), int(d["id"])
+
+    for cid, lid in itertools.chain(noti(), cercati()):
+        if (cid, lid) in visti:
+            continue
+        visti.add((cid, lid))
         try:
             h = _sl_riprova("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
         except Exception as e:                                    # noqa: BLE001
             print(f"    storico illeggibile in {cid} ({str(e)[:60]})"); continue
-        risposte = [m for m in (h.get("history") or []) if m.get("type") == "REPLY"]
-        if risposte:
-            return cid, lid, risposte[-1]
+        ultima = _ultima_sua(h)
+        if ultima:
+            if (filo.get("campaign_id"), filo.get("lead_id")) != (cid, lid) \
+               or filo.get("message_id") != ultima.get("message_id"):
+                _segna_thread(p, cid, lid, ultima)
+            return cid, lid, ultima
     return None, None, None
 
 
