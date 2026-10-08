@@ -41,6 +41,7 @@ import os
 import re
 import sys
 import urllib.request
+import zoneinfo
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -335,7 +336,10 @@ def proposta_giorno_ora(da_giorni=2):
     giorni = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
     mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
             "settembre", "ottobre", "novembre", "dicembre"]
-    roma = datetime.timezone(datetime.timedelta(hours=2))
+    # 6/10: il fuso vero di Roma, non +2 fisso. Dal 25/10 (ora solare) il +2 confrontava le
+    # call proposte col calendario di Dre spostate di un'ora, e una call alle 14:30 poteva
+    # finire proprio sopra un suo impegno alle 14:30.
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
     oggi = datetime.datetime.now(roma).date()
     d = oggi + datetime.timedelta(days=max(2, da_giorni))       # 7/10: «ci risentiamo fra 15 giorni»
     while d.weekday() >= 5:

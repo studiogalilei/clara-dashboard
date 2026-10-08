@@ -1343,6 +1343,28 @@ def _():
             os.remove(loc)
 
 
+@prova("dopo il 25 ottobre (ora solare) la call non si propone sopra un impegno di Dre (6/10)")
+def _():
+    import types
+    import bozze as Bz
+    vero_sb, vero_dt = Bz.sb, Bz.datetime
+
+    class Venerdi23(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.datetime(2026, 10, 23, 7, 0, tzinfo=datetime.timezone.utc).astimezone(tz)
+    try:
+        Bz.datetime = types.SimpleNamespace(datetime=Venerdi23, timedelta=datetime.timedelta,
+                                            timezone=datetime.timezone, date=datetime.date)
+        # martedi' 27 ottobre alle 14:30 di Roma, che in ora solare sono le 13:30 UTC
+        Bz.sb = lambda m, path, corpo=None, h=None: ([{"at": "2026-10-27T13:30:00+00:00", "fonte": "gcal"}] if "agenda" in path else [])
+        g = Bz.proposta_giorno_ora()
+        assert g != "martedì 27 ottobre alle 14:30", "proposta proprio sopra l'impegno di Dre: il fuso era fisso all'ora legale"
+        assert g == "martedì 27 ottobre alle 15:30", f"atteso il primo buco a un'ora dall'impegno, proposto {g}"
+    finally:
+        Bz.sb, Bz.datetime = vero_sb, vero_dt
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

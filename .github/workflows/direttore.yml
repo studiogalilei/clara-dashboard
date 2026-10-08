@@ -45,6 +45,10 @@ jobs:
           pip install -q weasyprint pillow
       - name: le operazioni dovute
         env:
+          # 6/10: il giorno degli script e' quello di Roma. Il runner e' in UTC, e fra mezzanotte
+          # e le 2 i 22 script con date.today() lavoravano su ieri (i silenzi dell'1 di notte
+          # scrivevano «uscito il 05/10»). Il direttore usa gia' ROMA in modo esplicito.
+          TZ: Europe/Rome
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

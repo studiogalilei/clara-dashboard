@@ -42,12 +42,13 @@ import sys
 import urllib.parse
 import time
 import urllib.request
+import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi  # noqa: E402
 
 BASE = "https://server.smartlead.ai/api/v1"
-ROMA = datetime.timezone(datetime.timedelta(hours=2))
+ROMA = zoneinfo.ZoneInfo("Europe/Rome")          # 6/10: non +2 fisso, se no d'inverno «mandata alle» e' un'ora indietro
 
 
 def chiave_smartlead():

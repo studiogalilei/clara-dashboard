@@ -18,13 +18,14 @@ import datetime
 import os
 import re
 import sys
+import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, sb_tutte, di_clara                  # noqa: E402
 
 PROVA = "--prova" in sys.argv
 ADESSO = datetime.datetime.now(datetime.timezone.utc)
-ROMA = datetime.timezone(datetime.timedelta(hours=2))
+ROMA = zoneinfo.ZoneInfo("Europe/Rome")          # 6/10: non +2 fisso (ora solare dal 25/10)
 MORTI = ("fuori_target", "soppresso", "nervoso")
 AUTO = ("INT-01", "INT-02", "INT-03", "INT-23", "INT-GB")
 # oltre queste ore di attesa, il lead si nomina col motivo (i no e gli ooo hanno piu' margine)
