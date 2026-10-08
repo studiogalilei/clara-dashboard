@@ -329,6 +329,33 @@ def azienda_di(r):
 
 
 # ---------- il giro ----------
+_FILO_INTERO = None
+
+
+def _filo_intero():
+    """Le colonne di v78 (message_id, casella) ci sono gia'? Si guarda una volta per giro.
+    Prima che Dre incolli v78 il sync scrive come prima: niente si rompe aspettando."""
+    global _FILO_INTERO
+    if _FILO_INTERO is None:
+        try:
+            sb("GET", "/rest/v1/interactions?select=message_id&limit=1")
+            _FILO_INTERO = True
+        except RuntimeError:
+            _FILO_INTERO = False
+    return _FILO_INTERO
+
+
+def _casella_di(m):
+    """Da quale casella e' partita una nostra mail, qualunque nome usi Smartlead."""
+    for k in ("from", "from_email", "sent_from", "email_account", "from_address"):
+        v = m.get(k)
+        if isinstance(v, dict):
+            v = v.get("from_email") or v.get("email")
+        if v and "@" in str(v):
+            return str(v)[:120]
+    return None
+
+
 def main():
     started = datetime.now(timezone.utc).isoformat()   # col fuso: sul Mac di Dre l'ora di Roma finiva nel database come UTC (6/10)
     print(f"SYNC V2 {'(DRY RUN)' if DRY else ''} — {started}")
@@ -503,14 +530,22 @@ def main():
                 # 24/9: quello che abbiamo mandato DOPO la sua ultima risposta (Dre da Smartlead,
                 # o una mini campagna di risposta) finisce nella storia come email_out, chiude
                 # la bozza aperta in Posta e, se dentro c'e' l'analisi, segna analysis_sent.
-                nostre = [m for m in msgs if m.get("type") == "SENT" and (m.get("time") or "") > (last_reply.get("time") or "")]
-                for m in nostre[-2:]:
+                # 8/10, v78: TUTTO il filo nostro, non le ultime due dopo l'ultima risposta. Con
+                # 933 risposte e 318 mail nostre nel database la verita' su cosa e' partito stava
+                # solo su Smartlead, e il sistema nuovo impara da li' (il 43% delle risposte vere
+                # e' scritto a mano da Lorenzo). message_id e casella entrano con v78: finche' le
+                # colonne non ci sono si scrive come prima, senza rompere il giro.
+                tutte_nostre = sorted([m for m in msgs if m.get("type") == "SENT"], key=lambda m: m.get("time") or "")
+                nostre = [m for m in tutte_nostre if (m.get("time") or "") > (last_reply.get("time") or "")]
+                for m in tutte_nostre:
                     body = corpo_pulito(m.get("email_body"))[:3000]
                     if not DRY:
+                        riga = {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19], "kind": "email_out", "body": body}
+                        if _filo_intero():
+                            riga["message_id"] = m.get("message_id") or m.get("stats_id")
+                            riga["casella"] = _casella_di(m)
                         try:
-                            sb("POST", "/rest/v1/interactions",
-                               {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19], "kind": "email_out", "body": body},
-                               headers={"Prefer": "resolution=ignore-duplicates"})
+                            sb("POST", "/rest/v1/interactions", riga, headers={"Prefer": "resolution=ignore-duplicates"})
                         except RuntimeError:
                             pass
                 if nostre and not DRY:

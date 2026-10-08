@@ -1842,6 +1842,30 @@ def _():
     assert not segnati, "se il filo segnato e' ancora valido non lo si riscrive a ogni invio"
 
 
+# ── la fase 0 del sistema nuovo (8/10): clienti, lock umano, filo intero ──
+@prova("fase 0 (v78): chi e' cliente lo dice una tabella, il lock umano e' nello schema, il filo si registra intero (8/10)")
+def _():
+    v78 = open(os.path.join(os.path.dirname(__file__), "..", "supabase", "schema_v78.sql"), encoding="utf-8").read()
+    # 1. la tabella clienti, e il cancello delle proposte la guarda
+    assert "create table if not exists clienti" in v78, "manca la tabella clienti"
+    assert "e_cliente(new.prospect_id)" in v78, "proposta_ammessa deve guardare anche clienti, non solo stage"
+    # 2. il lock umano: un trigger BEFORE UPDATE che rifiuta il ruolo di servizio sui campi decisi
+    assert "trg_lock_umano_prospects on prospects" in v78 and "before update" in v78, "il lock umano deve essere un trigger before update"
+    assert "e_servizio()" in v78 and "service_role" in v78, "il lock distingue il ruolo di servizio dal token"
+    assert "raise exception 'lock umano" in v78, "il lock deve RIFIUTARE, non avvisare"
+    assert "'manual'" in v78, "le classificazioni gia' segnate manual dal Workspace restano protette"
+    for c in ("classificazione", "stage", "no_followup", "fuori"):
+        assert f"'{c}'" in v78, f"il campo {c} deve essere fra i protetti"
+    # 3. il filo intero: message_id con indice unico, e il sync che scrive tutto
+    assert "message_id" in v78 and "create unique index" in v78, "serve message_id con indice unico per scrivere il filo senza doppioni"
+    src = open(os.path.join(os.path.dirname(__file__), "sync_v2.py"), encoding="utf-8").read()
+    assert "nostre[-2:]" not in src, "sync_v2 registrava solo le ultime due mail nostre: il filo va scritto intero"
+    assert "for m in tutte_nostre" in src and "def _filo_intero" in src, "sync_v2 scrive tutte le nostre, e aspetta v78 senza rompersi"
+    # 4. lo schema completo e' allineato (il hook lo pretende, ma qui si dice prima)
+    completo = open(os.path.join(os.path.dirname(__file__), "..", "supabase", "schema_completo.sql"), encoding="utf-8").read()
+    assert "-- v78" in completo and "trg_lock_umano_prospects" in completo, "schema_completo.sql non contiene v78"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
