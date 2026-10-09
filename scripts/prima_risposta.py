@@ -84,9 +84,16 @@ GIRI_NELLA_FINESTRA = 24
 MAX_PER_GIRO_SEGUITI = -(-MAX_SEGUITI_AL_GIORNO // GIRI_NELLA_FINESTRA)
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 FIRMA = "prima-risposta-automatica (decisione Dre 29/9)"
-MAX_PER_GIRO = 5                 # per giro: la fila resta umana
-MAX_AL_GIORNO = 15               # era 5 la prima settimana; alzato il 2/10 su ordine di Dre («tanti senza risposta»), dopo un 1/10 pulito          # Dre 29/9: 5 al giorno la prima settimana, poi si sale a 15 se va
-ORE = (9, 17)                              # dalle 9 alle 16:59, ora di Roma
+# 9/10 sera, REGOLA NUOVA (Dre: «cambia la regola, invia tutti in giornata finche' non
+# finiscono i si'»). Prima: lun-ven 9-17, 15 al giorno. Il 9/10 il sistema e' ripartito
+# alle 15:30 dopo un blocco, con decine di si' in attesa, e la finestra li avrebbe tenuti
+# fermi fino a lunedi'. Ora: tutti i giorni dalle 8 alle 21 (in giornata, ma non di notte:
+# un si' alle 3 sembra un robot), e nessun tetto operativo. Resta un FUSIBILE a 60 al
+# giorno che coi volumi veri (20-30 si' al giorno) non scatta: serve solo se il lettore
+# impazzisse e vedesse si' ovunque. Cancello, seconda testa e Revisore restano su ogni mail.
+MAX_PER_GIRO = 15                # per giro: il postino ne spedisce 12, il resto al giro dopo
+MAX_AL_GIORNO = 60               # fusibile, non tetto (vedi sopra)
+ORE = (8, 21)                              # dalle 8 alle 20:59, ora di Roma, TUTTI i giorni
 CLASSI_OK = ("positivo", "tiepido")
 # dal playbook: vuole l'analisi, vuole parlare, chi siete, vuole il materiale
 # ma non la call. Il resto (rinvii, inoltri, obiezioni, prezzo, «come ci avete
@@ -107,13 +114,13 @@ CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,f
 
 def finestra(ora, intento=None):
     """Quando puo' partire una risposta automatica, ora di Roma.
-    I SI' (interessati): lun-ven 9-17, cosi' sembrano una persona al lavoro.
+    I SI' (interessati): tutti i giorni 8-21, in giornata (regola di Dre del 9/10 sera).
     I NO gentili (INT-GB): e' cortesia senza fretta, puo' partire anche fuori orario e
     nel weekend, basta non troppo tardi la sera (fino alle 21:30, Dre 5/10)."""
     ora = ora.astimezone(ROMA)
     if intento == "INT-GB":
         return 7 <= ora.hour < 21 or (ora.hour == 21 and ora.minute <= 30)
-    return ora.weekday() < 5 and ORE[0] <= ora.hour < ORE[1]
+    return ORE[0] <= ora.hour < ORE[1]
 
 
 def interruttori(ops, ombra=False, chiave="prima_risposta"):

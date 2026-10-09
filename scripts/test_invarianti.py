@@ -683,10 +683,13 @@ def _():
     assert R.fit_bocciato({"enriched": {"google_fit_v2": {"verdetto": "NO"}, "google_fit_decisione": "soppresso"}})
     # la finestra: lun-ven 9-17 a Roma
     roma = R.ROMA
+    # regola del 9/10 sera: tutti i giorni 8-21 (in giornata, mai di notte)
     assert R.finestra(datetime.datetime(2026, 9, 29, 10, 0, tzinfo=roma))       # martedi' 10:00
-    assert not R.finestra(datetime.datetime(2026, 9, 29, 8, 59, tzinfo=roma))
-    assert not R.finestra(datetime.datetime(2026, 9, 29, 17, 0, tzinfo=roma))
-    assert not R.finestra(datetime.datetime(2026, 10, 3, 11, 0, tzinfo=roma))   # sabato
+    assert R.finestra(datetime.datetime(2026, 9, 29, 18, 30, tzinfo=roma))      # martedi' sera
+    assert R.finestra(datetime.datetime(2026, 10, 3, 11, 0, tzinfo=roma))       # sabato
+    assert not R.finestra(datetime.datetime(2026, 9, 29, 7, 59, tzinfo=roma)), "un si' non parte prima delle 8"
+    assert not R.finestra(datetime.datetime(2026, 9, 29, 21, 0, tzinfo=roma)), "un si' non parte dalle 21"
+    assert not R.finestra(datetime.datetime(2026, 10, 3, 3, 0, tzinfo=roma)), "un si' non parte di notte"
     # i due interruttori: tutti e due accesi, o niente
     assert R.interruttori([{"chiave": "prima_risposta", "attiva": True}, {"chiave": "manda", "attiva": True}]) is None
     assert R.interruttori([{"chiave": "prima_risposta", "attiva": True}, {"chiave": "manda", "attiva": False}])
@@ -697,7 +700,7 @@ def _():
     for r in ("STOP: prezzo", "", None, "Okay ma", "Direi OK", "NON OK"):
         assert R.verdetto_revisore(r)[0] == "STOP", f"il Revisore farebbe passare «{r}»"
     # i tetti, e la firma che manda.py pretende (approvata_da) con gli allegati
-    assert R.MAX_PER_GIRO <= 5 and R.MAX_AL_GIORNO <= 15
+    assert R.MAX_PER_GIRO <= 15 and R.MAX_AL_GIORNO <= 60, "il fusibile c'e' sempre: senza, un lettore impazzito manderebbe a tutti"
     # il primo invio in assoluto lo guarda Dre (28/9): finche' Clara non ha mai mandato niente, non si approva da sola
     assert "mai_mandato" in pathlib.Path(R.__file__).read_text(encoding="utf-8") and "primo invio da guardare" in pathlib.Path(R.__file__).read_text(encoding="utf-8")
     assert "prima-risposta-automatica" in R.FIRMA
@@ -1067,8 +1070,9 @@ def _():
     # possono partire anche fuori orario, basta non dopo le 21:30»
     lun = datetime.datetime(2026, 10, 6, tzinfo=PR.ROMA)
     sab = datetime.datetime(2026, 10, 10, tzinfo=PR.ROMA)
-    assert PR.finestra(lun.replace(hour=10)) and not PR.finestra(lun.replace(hour=20)), "la finestra dei si' non e' piu' 9-17"
-    assert not PR.finestra(sab.replace(hour=10)), "i si' partono di sabato"
+    assert PR.finestra(lun.replace(hour=10)) and PR.finestra(lun.replace(hour=20)), "la finestra dei si' e' 8-21 (9/10 sera)"
+    assert PR.finestra(sab.replace(hour=10)), "dal 9/10 i si' partono anche di sabato"
+    assert not PR.finestra(lun.replace(hour=22)), "un si' non parte dopo le 21"
     assert PR.finestra(lun.replace(hour=20), "INT-GB") and PR.finestra(sab.replace(hour=10), "INT-GB"), "i no non hanno la finestra larga"
     assert not PR.finestra(lun.replace(hour=22), "INT-GB"), "un no parte dopo le 21:30"
 
@@ -1591,8 +1595,9 @@ def _():
     assert R.MAX_SEGUITI_AL_GIORNO >= 5 * R.CASELLE_IN_CAMPAGNA >= 300, R.MAX_SEGUITI_AL_GIORNO
     # e i giri nella finestra devono poterci arrivare davvero (revisione 7/10: era 5 x 24 = 120)
     assert R.MAX_PER_GIRO_SEGUITI * R.GIRI_NELLA_FINESTRA >= R.MAX_SEGUITI_AL_GIORNO
-    # la prima risposta automatica invece resta col suo tetto, deciso da Dre il 2/10
-    assert R.MAX_AL_GIORNO == 15
+    # la prima risposta automatica: dal 9/10 sera niente tetto operativo («invia tutti in
+    # giornata finche' non finiscono i si'»), solo un fusibile che non deve sparire
+    assert 15 < R.MAX_AL_GIORNO <= 60, R.MAX_AL_GIORNO
 
 
 @prova("il battito nomina il si' che nessuno prende (caso SOLPOWER, 7/10)")
