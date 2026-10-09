@@ -1866,6 +1866,20 @@ def _():
     assert "-- v78" in completo and "trg_lock_umano_prospects" in completo, "schema_completo.sql non contiene v78"
 
 
+@prova("INT-23 passa il cancello della prima risposta SENZA calendario, e viene fermato se lo mette (9/10)")
+def _():
+    import prima_risposta as R
+    base = {"tipo": "risposta", "titolo": "Bozza", "azione": {
+        "intento": "INT-23", "lettura": {"coerenza": "COERENTE"},
+        "bozza": "Salve,\nVa bene perfetto, vi inoltro qui l'analisi che abbiamo fatto sulla vostra azienda.\nRestiamo a disposizione.\nA presto,"}}
+    motivi = R.perche_no(base, None)
+    assert not any("calendario" in m for m in motivi), f"INT-23 senza calendario veniva bocciato: {motivi}"
+    con = {**base, "azione": {**base["azione"], "bozza": base["azione"]["bozza"] + "\n📅 https://calendar.app.google/x"}}
+    assert any("INT-23 non deve spingere il calendario" in m for m in R.perche_no(con, None)), "INT-23 col calendario deve fermarsi"
+    int01 = {**base, "azione": {**base["azione"], "intento": "INT-01"}}
+    assert any("non lascia il calendario" in m for m in R.perche_no(int01, None)), "INT-01 senza calendario resta bocciato"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -237,8 +237,14 @@ def perche_no(pr, p):
     testo = (az.get("bozza") or "").lower()
     if not ALLEGA_ANALISI.search(testo):
         no.append("la bozza non dice che l'analisi e' allegata")
-    if "calendar.app.google" not in testo:
+    # 9/10: INT-23 («vuole il materiale, non la call», caso del 6/10) per regola NON mette
+    # il calendario, ed e' un invariante. Il cancello lo pretendeva lo stesso: due regole
+    # che si contraddicevano, e INT-23 non poteva mai partire da solo pur essendo fra gli
+    # INTENTI_OK. Trovato dal vivo il 9/10 su due bozze «senza impegno» ferme in Posta.
+    if "calendar.app.google" not in testo and az.get("intento") != "INT-23":
         no.append("la bozza non lascia il calendario")
+    if az.get("intento") == "INT-23" and "calendar.app.google" in testo:
+        no.append("INT-23 non deve spingere il calendario (vuole il materiale, non la call)")
     if az.get("approvata_da") or az.get("prima_risposta"):
         no.append("gia' passata di qui")
     if let.get("gruppo") and not (gb and let.get("gruppo") == "GIGANTE BUONO"):
