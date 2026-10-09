@@ -3673,9 +3673,21 @@ update prospects
          'no_followup', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'))
  where email = 'cosimo.storino@occasioneimmobiliare.com';
 
--- la prova, da leggere subito dopo: devono tornare 5 clienti, 2 in fila, 1 PDF, 1 perso
+-- 9/10: due falsi si' che la prima risposta automatica manderebbe appena il database riparte.
+-- morrica ha scritto «mandi», che in friulano e' un saluto (Decisione 20 del 6/10); plg.it ha
+-- risposto con l'autorisponditore dell'assistenza clienti («Gentile Cliente, per gestire la
+-- richiesta...»). Il lettore li legge come si'. Diventano «da classificare», fuori dalla fila,
+-- con il lock: li guarda Dre.
+update prospects
+   set classificazione = 'da_classificare', awaiting_us = false,
+       deciso = coalesce(deciso, '{}'::jsonb) || jsonb_build_object(
+         'classificazione', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'falso si'' 9/10'))
+ where email in ('giovanni.morrica00@gmail.com', 'assistenza@plg.it');
+
+-- la prova, da leggere subito dopo: devono tornare 5 clienti, 2 in fila, 1 PDF, 1 perso, 2 falsi si' fermi
 select 'clienti' as cosa, count(*)::text as quanti from clienti where stato = 'attivo'
 union all select 'in fila (B1)', count(*)::text from prospects where company in ('Twin System', 'SOLPOWER') and awaiting_us
 union all select 'pdf a francesco (B2)', count(*)::text from prospects where email = 'francesco@bankstation.it' and analysis_pdf is not null
 union all select 'stage=cliente per effetto', count(*)::text from prospects where id in (select prospect_id from clienti) and stage = 'cliente'
-union all select 'cosimo storino perso', count(*)::text from prospects where email = 'cosimo.storino@occasioneimmobiliare.com' and stage = 'perso';
+union all select 'cosimo storino perso', count(*)::text from prospects where email = 'cosimo.storino@occasioneimmobiliare.com' and stage = 'perso'
+union all select 'falsi si fermi', count(*)::text from prospects where email in ('giovanni.morrica00@gmail.com', 'assistenza@plg.it') and not awaiting_us;
