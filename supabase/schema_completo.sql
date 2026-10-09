@@ -3662,8 +3662,20 @@ update prospects f
          'perche', 'Francesco ha chiesto il reinvio; il PDF stava sui record di luca@ e aldo@. Domanda B2.'))
  where f.email = 'francesco@bankstation.it' and f.analysis_pdf is null;
 
--- la prova, da leggere subito dopo: devono tornare 5 clienti, 2 in fila, 1 PDF
+-- 9/10: Cosimo Storino (Occasione Immobiliare) perso dopo la call di triage di Dre.
+-- Su Smartlead e' gia' in pausa (fatto il 9/10 alle 13:40); qui lo stage e il blocco,
+-- deciso da Dre, cosi' nessuno script lo rimette in fila.
+update prospects
+   set stage = 'perso', awaiting_us = false, no_followup = true,
+       lost_reason = 'triage telefonico di Dre, 9/10',
+       deciso = coalesce(deciso, '{}'::jsonb) || jsonb_build_object(
+         'stage', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'),
+         'no_followup', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'))
+ where email = 'cosimo.storino@occasioneimmobiliare.com';
+
+-- la prova, da leggere subito dopo: devono tornare 5 clienti, 2 in fila, 1 PDF, 1 perso
 select 'clienti' as cosa, count(*)::text as quanti from clienti where stato = 'attivo'
 union all select 'in fila (B1)', count(*)::text from prospects where company in ('Twin System', 'SOLPOWER') and awaiting_us
 union all select 'pdf a francesco (B2)', count(*)::text from prospects where email = 'francesco@bankstation.it' and analysis_pdf is not null
-union all select 'stage=cliente per effetto', count(*)::text from prospects where id in (select prospect_id from clienti) and stage = 'cliente';
+union all select 'stage=cliente per effetto', count(*)::text from prospects where id in (select prospect_id from clienti) and stage = 'cliente'
+union all select 'cosimo storino perso', count(*)::text from prospects where email = 'cosimo.storino@occasioneimmobiliare.com' and stage = 'perso';
