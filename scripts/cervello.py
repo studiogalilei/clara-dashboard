@@ -219,7 +219,13 @@ def _chiedi(prompt, modello=None):
 # anche per una classificazione da dieci campi, e nessun limite da nessuna parte. Da qui
 # ogni chiamata porta un tetto e uno sforzo; chi non li passa prende questi. I valori veri
 # stanno nelle Regole del sistema nuovo; questi sono il massimo murato.
-TETTO_USCITA = {"lettura": 1500, "bozza": 4000, "default": 4000}
+# 9/10, CORRETTO: il default a 4.000 troncava le analisi (risposta JSON lunga + ragionamento):
+# dall'8/10 sera il cloud non generava piu' analisi, ogni risposta finiva «non in JSON». Il
+# tetto stretto vale solo dove e' misurato e sicuro, le letture (1.500, uscita reale 454,
+# 833 prove zero fallite): sono la grande maggioranza delle chiamate e il grosso del
+# risparmio. Le chiamate lunghe e rare (analisi, bozze, piani) hanno un tetto largo, che
+# ferma solo un ragionamento impazzito, non un testo legittimo.
+TETTO_USCITA = {"lettura": 1500, "bozza": 16000, "default": 16000}
 SFORZO = {"lettura": "low", "bozza": "medium", "default": "medium"}
 
 
