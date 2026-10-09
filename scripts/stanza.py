@@ -100,7 +100,14 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
                 print(f"  (attenzione: la lettura si e' fermata al tetto di 1000 righe, usa sb_tutte: {percorso[:80]})", file=sys.stderr)
             return dati
     except urllib.error.HTTPError as e:
-        raise RuntimeError(f"{e.code} {e.read()[:200].decode(errors='replace')}")
+        corpo = e.read()[:300].decode(errors="replace")
+        # 9/10: il 402 e' il database che non c'e' piu' (quota di traffico finita, piano
+        # bloccato). Stanotte e' scattato alle 4:50 e per cinque ore sessanta giri del
+        # direttore hanno fallito in silenzio, uno ogni cinque minuti, perche' questo
+        # errore era uguale a tutti gli altri. Un database spento si dice con parole sue.
+        if e.code == 402:
+            raise RuntimeError(f"SUPABASE BLOCCATO (402): il progetto e' limitato, serve Dre su Billing. {corpo}")
+        raise RuntimeError(f"{e.code} {corpo}")
 
 
 def sb_tutte(percorso, passo=1000, chiave="id"):

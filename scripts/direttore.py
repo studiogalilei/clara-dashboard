@@ -35,6 +35,7 @@ import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, quando                                      # noqa: E402
+DATABASE_BLOCCATO = False
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -80,6 +81,14 @@ def corri(op):
         esito, uscita = "errore", str(e)
     durata = int((time.time() - inizio) * 1000)
     dettaglio = uscita[-2000:]
+    # 9/10: un database bloccato (402, quota finita) non e' un errore come gli altri: si
+    # scrive in cima al run di GitHub con un'annotazione, cosi' si vede senza aprire i log.
+    # Stanotte sessanta giri falliti in silenzio per cinque ore.
+    if "SUPABASE BLOCCATO" in uscita:
+        print("::error title=SUPABASE BLOCCATO: il database e' limitato (quota o pagamento)::"
+              "Nessuna operazione puo' girare. Serve Dre su Supabase > Billing. " + uscita.split("SUPABASE BLOCCATO", 1)[1][:160].replace("\n", " "))
+        global DATABASE_BLOCCATO
+        DATABASE_BLOCCATO = True
     righe = None
     for riga in reversed(uscita.splitlines()):
         for pezzo in riga.replace(":", " ").split():
@@ -153,3 +162,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    if DATABASE_BLOCCATO:
+        sys.exit(2)     # il run fallisce con l'annotazione in cima, non in silenzio (9/10)
