@@ -2058,11 +2058,13 @@ def _():
     assert "svuota_coda_se_scrive" in v80 and "new.coda := null" in v80
 
 
-@prova("le categorie del manuale su Smartlead: un nome per gesto, stesse protezioni di prima (12/10)")
+@prova("i filtri del manuale su Smartlead: dodici nomi, stesse protezioni di prima, il follow-up ha il suo (12/10)")
 def _():
     import categorie_smartlead as C
     N = C.categoria_nuova
-    assert len(C.NUOVE) == len(set(C.NUOVE)) == 11
+    assert len(C.NUOVE) == len(set(C.NUOVE)) == 12
+    assert C.N_SI == "Analisi" and C.N_CALL == "Conoscitiva" and C.N_FU == "Follow-up"
+    assert N({"classificazione": "positivo", "stage": "in_follow_up"}) == C.N_FU, "chi ha avuto il follow-up sta in Follow-up"
     assert N({"classificazione": "positivo"}) == C.N_SI and N({"classificazione": "positivo"}, intento="INT-02") == C.N_CALL_CHIESTA
     assert N({"classificazione": "tiepido"}) == C.N_DRE and N({"classificazione": "positivo"}, intento="INT-03") == C.N_DRE
     assert N({"classificazione": "rinvio"}) == C.N_AVANTI and N({"classificazione": "ooo"}) == C.N_OOO
@@ -2078,6 +2080,21 @@ def _():
     # un'etichetta nostra non torna indietro come classe (niente giro chiuso col sync)
     import sync_v2
     assert not set(C.NUOVE) & set(sync_v2.CAT_HINT), "il sync non deve leggere le categorie del manuale come classi"
+
+
+@prova("chi prenota la conoscitiva si riconosce anche dal sito scritto nel modulo (12/10)")
+def _():
+    import calendario as K
+    P = {"email": {}, "dominio": {}, "aziende": [], "conta": {}, "nomi": set(),
+         "sito": {"rossi-ferramenta.it": "p1"}}
+    ev = {"titolo": "Chiamata Conoscitiva Studiogalilei - (Mario Rossi)", "invitati": ["lead1@esempio.invalid"],
+          "descrizione": "Prenotato da<br>Mario Rossi<br>lead1@esempio.invalid<br>Sito web<br>https://www.rossi-ferramenta.it/<br>"
+                         "Partecipa con Google Meet: https://meet.google.com/abc-defg-hij"}
+    assert K.riconosci(ev, P) == ("p1", "sito"), K.riconosci(ev, P)
+    # un evento che non e' una call non si aggancia dal sito
+    assert K.riconosci({**ev, "titolo": "Pranzo"}, P) == (None, None)
+    # Meet, Google e le mail non sono siti
+    assert K.siti_nella_descrizione(ev["descrizione"]) == ["rossi-ferramenta.it"]
 
 
 def main():

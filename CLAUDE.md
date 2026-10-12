@@ -68,6 +68,20 @@ esegue su dati veri e si legge l'output riga per riga. Compilare non è provare.
 **Il server di sviluppo** si avvia con lo strumento di anteprima, mai con Bash.
 La configurazione è in `.claude/launch.json`, il nome è `workspace`.
 
+## Due regole del 12/10 (il dettaglio nel CLAUDE.md del vault)
+
+1. **Quando Dre corregge, si ripara la fonte, non solo il caso**: il caso, poi la
+   decisione mia che l'ha prodotto, poi tutti i punti dove la stessa fonte agisce.
+   Esempio: due sì fermati come no per «cancellare il messaggio» nell'informativa.
+   Il caso era la lista di parole, la fonte era «basta che uno dei due dica no».
+2. **Il senso di quello che scrive una persona lo decide l'AI**, sul testo suo.
+   Le liste di parole solo come rete per i casi gravi; se discordano si rilegge e
+   il dubbio va a Dre, mai un blocco muto.
+
+E prima di dire «fatto»: il controllo del buon senso (funziona sul caso vero? una
+persona normale direbbe «che stronzata»? fonte o sintomo? le decisioni reggono?
+cosa ho assunto?). Un hook a fine turno lo ricorda.
+
 ## Le cinque regole nate il 28/9
 
 1. **Niente che non posso provare io.** Se una funzione che manda o cancella non

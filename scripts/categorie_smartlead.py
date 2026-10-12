@@ -64,18 +64,22 @@ NO_SCRITTO = _re.compile(r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) int
 # fare Dre), come nel documento 02 del Manuale di Clara. Le crea Dre su Smartlead
 # (Settings → Lead Categories: l'API non le crea). Finche' non ci sono tutte, il codice
 # usa le cinque del 6/10; appena ci sono, passa da solo a queste.
-N_SI = "Sì"                              # gesti 1, 3, 4: ha detto sì, l'analisi parte o è partita
-N_CALL_CHIESTA = "Vuole la call"         # gesti 2, 2b, 34: vuole parlare, si conferma o si propone il giorno
-N_CALL = "Call fissata"                  # la conoscitiva c'è in agenda: è nel Workspace (il viola del 6/10)
-N_DRE = "Tocca a Dre"                    # gesti 17, 22, 1c, 11b: una domanda, un caso speciale, una carta
-N_AVANTI = "Più avanti"                  # gesti 6, 7, 8, 23: rinvio, ha l'agenzia, niente budget
-N_OOO = "Fuori ufficio"                  # gesti 9, 9b: autorisposta
-N_GIRATO = "Girato a un collega"         # gesti 10, 10b, 10c, 11: un altro contatto, o non è lui
-N_NO = "No, grazie"                      # gesto 12: un no cortese, nessuna mail
-N_STOP = "Non scrivere più"              # gesti 13, 14: soppresso, per sempre
-N_FUORI = "Fuori target"                 # gesto 15: lo decide Dre
-N_MORTA = "Casella morta"                # gesto 10d: rimbalzo o casella chiusa
-NUOVE = (N_SI, N_CALL_CHIESTA, N_CALL, N_DRE, N_AVANTI, N_OOO, N_GIRATO, N_NO, N_STOP, N_FUORI, N_MORTA)
+# 12/10 sera, Dre: «devono essere nomi strategici», uguali su Smartlead e nel Workspace.
+# Il nome dice dove sta la persona nel cammino verso la call e di chi e' la mossa
+# (Manuale di Clara v2, documento 02, in fondo). Dre li crea in quest'ordine.
+N_SI = "Analisi"                         # casi 1, 2, 4, 6: ha detto sì, l'analisi è partita
+N_FU = "Follow-up"                       # caso 12: analisi ricevuta, silenzio, Clara lo segue
+N_CALL_CHIESTA = "Vuole sentirti"        # caso 13: numero, un giorno, «mi chiami»: tocca a Dre
+N_DRE = "Tocca a Dre"                    # casi 14-20: una domanda, il prezzo, un caso strano
+N_CALL = "Conoscitiva"                   # la conoscitiva è in agenda (anche prenotata dal calendario)
+N_AVANTI = "Da riprendere"               # casi 3, 5: rinvio, Clara riscrive alla data
+N_OOO = "Fuori ufficio"                  # casi 7, 24: autorisposta
+N_GIRATO = "Girato a un collega"         # casi 8, 9, 10: un altro contatto
+N_NO = "No, grazie"                      # casi 21, 22, 25: nessuna mail
+N_STOP = "Non scrivere più"              # caso 23: soppresso, per sempre
+N_FUORI = "Fuori target"                 # caso 27: lo decide Dre
+N_MORTA = "Casella morta"                # caso 26: rimbalzo o casella chiusa
+NUOVE = (N_SI, N_FU, N_CALL_CHIESTA, N_DRE, N_CALL, N_AVANTI, N_OOO, N_GIRATO, N_NO, N_STOP, N_FUORI, N_MORTA)
 INTENTI_CALL = {"INT-02", "INT-24"}
 MORTA = _re.compile(r"delivery (has )?failed|undeliverable|mancato recapito|impossibile recapitare|address not found|"
                     r"non (e'|è) pi[uù] attiv|casella\W+(\w+\W+){0,4}(chius|dismess|disattiv)", _re.I)
@@ -115,7 +119,10 @@ def categoria_nuova(p, intento=None, girato=False, testo="", call=False):
     if c == "tiepido" or intento in INTENTI_DOMANDA:
         return N_DRE
     if c == "positivo":
-        return N_CALL_CHIESTA if intento in INTENTI_CALL else N_SI
+        if intento in INTENTI_CALL:
+            return N_CALL_CHIESTA
+        # il follow-up e' partito e non ha risposto: Clara lo sta seguendo
+        return N_FU if p.get("stage") == "in_follow_up" else N_SI
     return None
 
 
@@ -215,7 +222,7 @@ DA_GUARDARE = []
 
 
 def da_allineare():
-    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,pipeline_stage,enriched"
+    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,pipeline_stage,stage,enriched"
                   "&last_reply_at=not.is.null&email=not.is.null")
     intenti, girati = {}, set()
     for x in sb_tutte("/rest/v1/proposte?select=prospect_id,at,azione&prospect_id=not.is.null"
@@ -273,7 +280,7 @@ def main():
     from revisore import controlla
     righe = controlla("scrivo la categoria di Dre su Smartlead (solo l'etichetta, nessuna mail)", righe,
                       chiave=lambda r: r["email"], irreversibile=False,
-                      motivo="Dre ha creato le 5 categorie il 6/10 e ha chiesto di categorizzare tutti")
+                      motivo="Dre ha creato i 12 filtri del manuale v2 il 12/10 e ha chiesto che chi prenota passi da solo a Conoscitiva")
     ids = id_categorie()
     fatti, saltati = 0, []
     for r in righe:

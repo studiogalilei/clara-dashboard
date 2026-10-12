@@ -167,6 +167,27 @@ def _dominio(email):
     return email.split("@")[-1].lower() if "@" in email else ""
 
 
+# 12/10: il sito che chi prenota scrive nel modulo della prenotazione (campo facoltativo
+# messo da Dre). Chi prenota con una mail diversa da quella della campagna si riconosce
+# dal sito: su 40 conoscitive, 23 non si agganciavano a nessun lead.
+NON_SITI = ("google.com", "meet.google", "tel.meet", "calendar.app.google", "goo.gl", "studiogalilei", "zoom.us")
+SITO = re.compile(r"(?:https?://)?(?:www\.)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})(?=[/\s<>\"'),;:.]|$)", re.I)
+
+
+def sito(testo):
+    """Il dominio di un sito scritto come capita: «https://www.rossi.it/chi-siamo», «rossi.it»."""
+    m = SITO.search((testo or "").strip().lower())
+    return m.group(1).rstrip(".") if m else ""
+
+
+def siti_nella_descrizione(descrizione):
+    """I siti scritti nella prenotazione, senza Meet, Google, noi e le mail (quelle hanno gia' la loro strada)."""
+    testo = re.sub(r"<[^>]+>", " ", descrizione or "")
+    testo = re.sub(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", " ", testo)
+    return [d for d in (m.group(1).lower().rstrip(".") for m in SITO.finditer(testo))
+            if not any(n in d for n in NON_SITI)]
+
+
 def esterni(invitati):
     return [i for i in invitati if _dominio(i) not in NOSTRI and i not in NOSTRE_EMAIL
             and not i.endswith("calendar.google.com")]
@@ -194,6 +215,12 @@ def riconosci(evento, prospects):
         d = _dominio(i)
         if d and d not in GENERICI and d in per_dominio:
             return per_dominio[d], "dominio"
+    # il sito del modulo di prenotazione, solo per le call: e solo se e' di UN lead
+    if tipo_di(evento["titolo"]) != "altro":
+        for d in siti_nella_descrizione(evento.get("descrizione")):
+            pid = prospects.get("sito", {}).get(d)
+            if pid:
+                return pid, "sito"
     titolo = _parole(evento["titolo"])
     if titolo:
         # una parola basta solo se e' lunga, di UNA sola azienda e non e' un
@@ -253,8 +280,17 @@ def tipo_di(titolo):
 
 
 def carica_prospects():
-    righe = sb_tutte("/rest/v1/prospects?select=id,name,company,email,email_alt&limit=10000") or []
+    righe = sb_tutte("/rest/v1/prospects?select=id,name,company,email,email_alt,website&limit=10000") or []
     per_email, per_dominio, aziende = {}, {}, []
+    per_sito, doppi = {}, set()
+    for p in righe:
+        d = sito(p.get("website"))
+        if d and d not in GENERICI:
+            if d in per_sito and per_sito[d] != p["id"]:
+                doppi.add(d)
+            per_sito[d] = p["id"]
+    for d in doppi:
+        del per_sito[d]
     for p in righe:
         mail = [p.get("email") or ""] + list(p.get("email_alt") or [])
         for m in mail:
@@ -275,7 +311,7 @@ def carica_prospects():
     for _, parole, _m in aziende:
         for w in parole:
             conta[w] = conta.get(w, 0) + 1
-    return {"email": per_email, "dominio": per_dominio, "aziende": aziende, "conta": conta, "nomi": nomi,
+    return {"email": per_email, "dominio": per_dominio, "sito": per_sito, "aziende": aziende, "conta": conta, "nomi": nomi,
             "cerca_nome": _cerca_nome}
 
 
