@@ -4,14 +4,14 @@ import type { Prospect } from '../lib/types'
 import { Card, TitoloCard } from './ui'
 
 // IL PREZZO SUGGERITO (Dre, 26/9): «il sistema propone, Dre decide». Lo calcola
-// scripts/prezzo.py per chi e' in pipeline: dalla domanda Google della zona,
-// corretto dal bilancio se c'e'. E' una fascia con l'affidabilita', non un numero
-// secco, e resta interno: non entra mai in una mail. Qui si vede, e si scrivono
+// scripts/prezzo.py per chi e' in pipeline. Dal 12/10 il canone e' il listino e il
+// budget Ads e' la regola di Carlo (10-25 €/giorno): prima la spesa veniva dalla
+// domanda di tutta la provincia e usciva 15.100 €/mese. Resta interno: mai in una mail. Qui si vede, e si scrivono
 // i numeri che il sistema non puo' sapere: il bilancio e, dopo la chiamata, i tre
 // numeri del valore (clienti extra, valore di un cliente, margine lordo).
 
 export type Prezzo = {
-  fascia: [number, number]; punto: number; spesa_ads_mese: number; formula: string; cluster: string
+  fascia: [number, number]; punto: number; prova?: number | null; spesa_ads_mese: number; budget_giorno?: number | null; fase?: string; formula: string
   tetto_mese: number | null; tetto_fonte: string; affidabilita: 'alta' | 'media' | 'bassa'; flag: string[]; perche: string[]; il: string
 }
 type Bilancio = { fatturato?: string; utile?: string; anno?: string; forma?: string; il?: string }
@@ -52,9 +52,12 @@ export default function PrezzoSuggerito({ p, onSalvato }: { p: Prospect; onSalva
       </div>
       {prezzo ? (
         <>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-navy">{euro(prezzo.fascia[0])} <span className="text-base font-semibold text-tenue">a</span> {euro(prezzo.fascia[1])} <span className="text-sm font-semibold text-tenue">al mese</span></p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-navy">
+            {euro(prezzo.fascia[0])}{prezzo.fascia[1] > prezzo.fascia[0] ? <> <span className="text-base font-semibold text-tenue">fino a</span> {euro(prezzo.fascia[1])}</> : null} <span className="text-sm font-semibold text-tenue">al mese</span>
+            {prezzo.prova ? <span className="ml-2 text-sm font-semibold text-tenue">(prova di 2 mesi: {euro(prezzo.prova)})</span> : null}
+          </p>
           <p className="mt-0.5 text-xs text-tenue">
-            affidabilità <b>{prezzo.affidabilita}</b>, dalla {prezzo.formula === 'domanda' ? 'domanda Google della zona' : 'capacità di spesa del bilancio'}; spesa Ads sostenibile ~{euro(prezzo.spesa_ads_mese)}/mese
+            budget Ads suggerito <b>{prezzo.budget_giorno ? `${prezzo.budget_giorno.toLocaleString('it-IT')} €/giorno` : 'non calcolabile'}</b> (~{euro(prezzo.spesa_ads_mese)}/mese{prezzo.formula === 'bilancio' ? ', tenuto dal bilancio' : ''}); affidabilità <b>{prezzo.affidabilita}</b>
             {prezzo.tetto_mese ? <>; tetto di valore ~{euro(prezzo.tetto_mese)} ({prezzo.tetto_fonte})</> : <>{prezzo.tetto_fonte ? <>; tetto di valore {prezzo.tetto_fonte}</> : null}</>}
           </p>
           {(prezzo.flag ?? []).length > 0 && (
@@ -63,7 +66,7 @@ export default function PrezzoSuggerito({ p, onSalvato }: { p: Prospect; onSalva
           <details className="mt-1 text-xs text-tenue">
             <summary className="cursor-pointer select-none font-semibold">com'è venuto fuori</summary>
             <ul className="mt-1 list-disc space-y-0.5 pl-4">{(prezzo.perche ?? []).map((r, i) => <li key={i}>{r}</li>)}</ul>
-            <p className="mt-1 text-spento">Tutte le percentuali sono ipotesi di lavoro (Impostazioni › Lo Studio): si tarano sui primi dieci preventivi veri. Il numero è interno, non entra mai in una mail.</p>
+            <p className="mt-1 text-spento">Il canone è il listino; sale solo con i numeri della chiamata. I paletti del budget stanno in Impostazioni › Lo Studio. Il numero è interno, non entra mai in una mail.</p>
           </details>
         </>
       ) : (

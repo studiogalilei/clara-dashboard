@@ -13,7 +13,7 @@ export default function Parametri() {
   const [esito, setEsito] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.from('parametri').select('chiave,valore,cosa').like('chiave', 'prezzo.%').order('chiave')
+    supabase.from('parametri').select('chiave,valore,cosa').or('chiave.like.prezzo.%,chiave.like.budget.%').order('chiave')
       .then(({ data }) => { const r = (data ?? []) as Parametro[]; setRighe(r); setTesti(Object.fromEntries(r.map((x) => [x.chiave, JSON.stringify(x.valore)]))) })
   }, [])
 

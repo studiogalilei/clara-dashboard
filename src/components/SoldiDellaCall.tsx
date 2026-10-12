@@ -9,7 +9,7 @@ import { soldiClienti, soldiProgetti } from '../lib/soldi'
 // preparazione, un riquadro che esiste solo per i ceo. Per gli altri non si
 // disegna nemmeno, e il database a loro risponde vuoto comunque (schema_v67).
 
-type Prezzo = { fascia?: [number, number]; punto?: number; affidabilita?: string; spesa_ads_mese?: number; flag?: string[] }
+type Prezzo = { fascia?: [number, number]; punto?: number; affidabilita?: string; spesa_ads_mese?: number; flag?: string[]; prova?: number | null; budget_giorno?: number | null }
 type Bilancio = { fatturato?: string | number; utile?: string | number; anno?: string | number; dipendenti?: string | number }
 
 const euro = (n: number | string | null | undefined) =>
@@ -62,9 +62,9 @@ export default function SoldiDellaCall({ prospectId, className = '' }: { prospec
           {canone != null && <li>Canone: <b>{euro(canone)}</b> al mese</li>}
           {prezzo?.fascia && (
             <li>
-              Prezzo suggerito: <b>{euro(prezzo.fascia[0])} - {euro(prezzo.fascia[1])}</b> al mese
-              {prezzo.affidabilita ? `, affidabilità ${prezzo.affidabilita}` : ''}
-              {prezzo.spesa_ads_mese ? `, spesa Ads sostenibile circa ${euro(prezzo.spesa_ads_mese)}` : ''}
+              Prezzo suggerito: <b>{euro(prezzo.fascia[0])}{prezzo.fascia[1] > prezzo.fascia[0] ? ` fino a ${euro(prezzo.fascia[1])}` : ''}</b> al mese
+              {prezzo.prova ? ` (prova ${euro(prezzo.prova)})` : ''}
+              {prezzo.budget_giorno ? `, budget Ads suggerito ${prezzo.budget_giorno.toLocaleString('it-IT')} €/giorno` : (prezzo.spesa_ads_mese ? `, spesa Ads circa ${euro(prezzo.spesa_ads_mese)}/mese` : '')}
             </li>
           )}
           {prezzo?.flag?.length ? <li className="text-amber-900">Attenzione: {prezzo.flag.join('; ')}</li> : null}

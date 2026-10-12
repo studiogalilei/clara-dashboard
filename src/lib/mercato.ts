@@ -1,5 +1,7 @@
 // Il mercato del prospect, dalla base precalcolata del Keyword Planner
-// (333 combinazioni settore x provincia, ODYN Cockpit/data/base_analisi.json).
+// (963 combinazioni settore x provincia). Dal 12/10 il file lo genera
+// scripts/mercato_json.py dallo STESSO numero pulito della mail e dell'analisi:
+// prima qui stava il grezzo col portale dentro (Milano agenzie: 1.345.300).
 // Se il prospect non ha p.market salvato a DB, si prova a ricavarlo da qui:
 // e' lo stesso dato, calcolato una volta per tutti.
 import base from './mercato.json'
@@ -14,12 +16,15 @@ interface Voce {
   fit: 'si' | 'no'
 }
 
-const BASE = base as unknown as Record<string, Voce>
+const TUTTO = base as unknown as Record<string, Voce | string | Record<string, string>>
+const ALIAS_PROV = (typeof TUTTO._alias === 'object' ? TUTTO._alias : {}) as Record<string, string>
+const MISURATO_IL = typeof TUTTO._misurato_il === 'string' ? TUTTO._misurato_il : '2026-08-24'
+const BASE = Object.fromEntries(Object.entries(TUTTO).filter(([k]) => !k.startsWith('_'))) as Record<string, Voce>
 
 // I nomi dei settori come stanno nella base
 const SETTORI = [
   'agenzie_immobiliari', 'carpenteria_metallica', 'case_legno', 'ferro_battuto',
-  'fotovoltaico_casa', 'pavimentazioni_esterne', 'pompe_calore_casa', 'serramenti',
+  'fotovoltaico_casa', 'pavimentazioni_esterne', 'pompe_calore_casa', 'serramenti', 'autonoleggio_lt',
 ]
 
 // alias: come il settore puo' comparire sul prospect -> nome nella base
@@ -56,11 +61,12 @@ export function mercatoDi(sector: string | null, city: string | null): Market | 
 
   // 1) combinazione esatta settore|provincia
   if (city) {
-    const chiave = `${settore}|${normalizza(city)}`
+    const c = normalizza(city)
+    const chiave = `${settore}|${ALIAS_PROV[c] ?? c}`
     for (const k of Object.keys(BASE)) {
       if (k.toLowerCase() === chiave) {
         const v = BASE[k]
-        return { ...v, misurato_il: '2026-08-24' }
+        return { ...v, misurato_il: MISURATO_IL }
       }
     }
   }
@@ -82,6 +88,6 @@ export function mercatoDi(sector: string | null, city: string | null): Market | 
     bars,
     zona: `media sulle ${voci.length} province misurate`,
     fit: media((v) => v.mesi_vivi) >= 9 ? 'si' : 'no',
-    misurato_il: '2026-08-24',
+    misurato_il: MISURATO_IL,
   }
 }

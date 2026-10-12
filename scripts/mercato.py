@@ -173,3 +173,61 @@ def settore_e_provincia(p):
 def dato_di(p):
     """Il dato forte di un lead, da quello che sappiamo di lui."""
     return dato_forte(*settore_e_provincia(p))
+
+
+# ── IL BUDGET SUGGERITO (12/10/2026) ───────────────────────────────────────────
+# Dre, 12/10: «nei consigli di quanto possiamo chiedere dice di spendere 15k in Ads, non
+# e' realistico, di solito facciamo 20/30 al giorno, poi dipende». Il 15.100 €/mese
+# veniva da prezzo.py: domanda di TUTTA la provincia × CPC × 3%. Carlo l'aveva gia'
+# scritto il 31/7 («l'errore da non rifare: calcolare il budget dalla domanda totale»),
+# ed era in sette documenti del vault; il codice non lo leggeva.
+# I clienti veri, letti dagli account Google Ads il 12/10: 10-21 € al giorno, mai sopra
+# 30 di media. La regola di Carlo, in un posto solo:
+#   clic disponibili al giorno = domanda pertinente × CTR 7% / 30 (il tetto fisico)
+#   budget al giorno = min(6 clic, clic disponibili) × CPC, pavimento 10, tetto 25 in
+#   prova e 30 in retainer; si sale del 30-50% alla volta, mai raddoppiando.
+# Il CPC della base e' l'offerta ALTA di cima pagina (prudente verso l'alto): i paletti
+# lo tengono dentro il reale. I numeri si cambiano dalla tabella parametri (budget.*).
+BUDGET = {"clic_giorno": 6, "ctr": 0.07, "pavimento": 10, "tetto_prova": 25, "tetto_retainer": 30}
+_PAR = None
+
+
+def parametri_budget():
+    """I paletti dalla tabella parametri (Dre li cambia da Impostazioni); i default se manca."""
+    global _PAR
+    if _PAR is None:
+        _PAR = dict(BUDGET)
+        try:
+            from stanza import sb
+            for r in sb("GET", "/rest/v1/parametri?select=chiave,valore&chiave=like.budget.*") or []:
+                _PAR[r["chiave"].split(".", 1)[1]] = float(r["valore"])
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  (parametri budget non letti, uso i default: {str(e)[:60]})")
+    return _PAR
+
+
+def regola_budget(domanda_mese, cpc, fase="prova"):
+    """Euro al giorno da domanda pertinente e CPC, con i paletti. None senza dati.
+    Torna (budget_giorno, perche')."""
+    P = parametri_budget()
+    if not domanda_mese or not cpc or cpc <= 0:
+        return None, "senza domanda o CPC"
+    disponibili = domanda_mese * P["ctr"] / 30
+    clic = min(P["clic_giorno"], disponibili)
+    grezzo = clic * cpc
+    tetto = P["tetto_retainer"] if fase == "retainer" else P["tetto_prova"]
+    b = max(P["pavimento"], min(tetto, grezzo))
+    perche = (f"{migliaia(int(domanda_mese))} ricerche/mese pertinenti → {disponibili:.0f} clic al giorno disponibili; "
+              f"{clic:.0f} clic × {cpc:.2f} € = {grezzo:.0f} €/giorno"
+              + (f", alzato al pavimento di {P['pavimento']:.0f}" if grezzo < P["pavimento"] else "")
+              + (f", fermato al tetto di {tetto:.0f} ({fase})" if grezzo > tetto else ""))
+    return round(b, 1), perche
+
+
+def budget_di(settore, prov, fase="prova"):
+    """Il budget al giorno per settore e provincia, dalla base pulita. (euro, perche') o (None, motivo)."""
+    d = domanda(settore, prov)
+    if not d:
+        return None, "nessun dato per settore e provincia"
+    n, _, v = d
+    return regola_budget(n, v.get("cpc_medio"), fase)

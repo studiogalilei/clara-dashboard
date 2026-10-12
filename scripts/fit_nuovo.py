@@ -38,8 +38,10 @@ import cervello                                                     # noqa: E402
 import googlefit                                                    # noqa: E402
 
 # ── il conto: ogni numero col suo perche' ─────────────────────────
-BUDGET_ADS = 1000         # euro/mese di pubblicita' in una prova
-FEE = 1200                # euro/mese, la nostra
+# 12/10: il budget non e' piu' un numero fisso (1.000 €/mese, 33 €/giorno, sopra i 10-21 reali):
+# e' la regola di Carlo in mercato.regola_budget (6 clic × CPC, fra 10 e 25 €/giorno), la stessa
+# del prezzo. La fee e' il listino (prezzo.listino_canone), non un 1.200 scritto qui.
+FEE = 1200                # euro/mese se il listino non si legge
 QUOTA_MAX = 0.30          # dei clic possibili non si prende mai piu' del 30%: il mercato non e' tutto nostro
 CONTATTO = (0.03, 0.06)   # clic che diventano un contatto: prudente, pieno
 CHIUSURA = (0.20, 0.35)   # contatti che diventano clienti: prudente, pieno
@@ -208,13 +210,32 @@ def conto(tenute, c, come_compra="contatto"):
     tmax = c.get("ticket_max") or c.get("ticket_min") or 0
     if not domanda or not cpc:
         return {"domanda": domanda, "cpc": cpc, "scenari": None}
-    clic = min(BUDGET_ADS / cpc, domanda * QUOTA_MAX)
+    import mercato
+    budget_giorno, _ = mercato.regola_budget(domanda, cpc, "prova")
+    budget_mese = round((budget_giorno or 10) * 30)
+    clic = min(budget_mese / cpc, domanda * QUOTA_MAX)
     scen = []
     for i, ticket in enumerate((tmin, tmax)):
         tasso = ACQUISTO[i] if come_compra == "online" else CONTATTO[i] * CHIUSURA[i]
         clienti = clic * tasso
         scen.append({"clic": round(clic), "clienti": round(clienti, 1), "valore": round(clienti * ticket), "ticket": ticket})
-    return {"domanda": domanda, "cpc": cpc, "scenari": scen, "costo": BUDGET_ADS + FEE, "imbuto": come_compra}
+    return {"domanda": domanda, "cpc": cpc, "scenari": scen, "budget_mese": budget_mese, "budget_giorno": budget_giorno,
+            "costo": budget_mese + _fee(), "imbuto": come_compra}
+
+
+_FEE = None
+
+
+def _fee():
+    """Il canone dal listino, letto una volta."""
+    global _FEE
+    if _FEE is None:
+        try:
+            import prezzo
+            _FEE = prezzo.listino_canone({"base": FEE})[0]
+        except Exception:                                     # noqa: BLE001
+            _FEE = FEE
+    return _FEE
 
 
 def giudica(c, misurato, dove, idee=None):

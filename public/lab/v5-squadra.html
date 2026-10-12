@@ -603,7 +603,7 @@ L.task.forEach(t => {
   const base = { id:t.id, tipo:'task', da:t.da, a:t.a, az:t.azienda, titolo:t.titolo, scadIso:SCAD[t.scadenza], stato: t.stato==='da accettare' ? 'da accettare' : 'accettato', mandato:'', accettatoIl:'' };
   if(t.id==='t1') Object.assign(base, { tipo:'cliente', titolo:'Impianti Solari Nord', mandato:'ieri alle 18:04', scade:'oggi alle 18:04',
     campi:{
-      promesso:'Campagne Google Ads su Bergamo, Brescia e Milano per impianti a casa. Budget pubblicitario 1.500 € al mese, fee 2.400 €. Prime richieste di preventivo entro 3 settimane dall’avvio, 25 al mese entro il secondo mese.',
+      promesso:'Campagne Google Ads su Bergamo, Brescia e Milano per impianti a casa. budget Ads di partenza 20 € al giorno, canone da listino. Prime richieste di preventivo entro 3 settimane dall’avvio, 25 al mese entro il secondo mese.',
       perche:'Ad aprile partono gli incentivi nuovi: per allora le campagne devono essere rodate. Oggi i contatti arrivano solo da passaparola e fiere.',
       decide:'Davide Conti, il titolare. Il budget lo conferma la moglie, Laura, che tiene i conti.',
       nonPromesso:'Niente social, niente sito nuovo. Nessun numero di contratti firmati: solo richieste di preventivo.',
@@ -623,7 +623,7 @@ S.passaggi.push({ id:'p2', tipo:'cliente', da:'dre', a:'carlo', az:'a2', titolo:
   domande:{manca:'',mantenere:''}, scambi:[], storia:[['clara','oggi 11:52','Ha preparato la scheda dalla conoscitiva']] });
 
 L.conversazioni.forEach(c => S.conv[c.id] = Object.assign({}, c, { fatto:false }));
-S.conv.c1.bozza = 'Salve Luca,\n\nle lascio qui l’analisi su Officina Moretti, la trova in allegato.\n\nSul costo le rispondo subito: per un’officina come la sua di solito siamo fra 600 e 900 € al mese, più quello che si decide di spendere su Google (si parte da 300 o 400 €).\nIl numero giusto dipende da quanti clienti nuovi le servono, ed è quello che vorrei capire con lei in venti minuti.\n\nLe va bene giovedì 8 ottobre alle 15? Se preferisce un altro momento, qui trova il calendario.\n\nUn saluto';
+S.conv.c1.bozza = 'Salve Luca,\n\nle lascio qui l’analisi su Officina Moretti, la trova in allegato.\n\nSul costo preferisco risponderle a voce, perché dipende da quanti clienti nuovi le servono, ed è quello che vorrei capire con lei in venti minuti.\n\nLe va bene giovedì 8 ottobre alle 15? Se preferisce un altro momento, qui trova il calendario.\n\nUn saluto';
 S.conv.c1.nota = 'Ha chiesto il prezzo: prima gli do la forchetta, poi la call. La forchetta (600-900 €) l’ho scritta io: controllala.';
 S.conv.c1.ore = 3;
 S.conv.c2.nota = 'Vuole il telefono, il numero è nel filo. Decide col socio Mario: chiedi se può esserci anche lui.';

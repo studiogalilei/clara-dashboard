@@ -234,8 +234,12 @@ def link_fresco(url):
 def controlla(bozza, p=None, gruppo=None, detto_no=False):
     if "{{" in bozza or "}}" in bozza or "[[" in bozza:
         return ["segnaposto lasciato nel testo"]
-    # IL PREZZO SUGGERITO E' INTERNO (Dre, 26/9): se il numero della scheda compare nel testo, non parte
+    # IL PREZZO SUGGERITO E' INTERNO (Dre, 26/9): se il numero della scheda compare nel testo, non parte.
+    # 12/10: vale fino alla conoscitiva compresa («mai un prezzo prima della conoscitiva»). Dopo,
+    # il canone e' il listino e puo' stare in una mail di preventivo: bloccarlo fermerebbe il lavoro vero.
     pz = ((p or {}).get("enriched") or {}).get("prezzo") or {}
+    if (p or {}).get("pipeline_stage") in ("tecnica", "avvio", "prova", "cliente"):
+        pz = {}
     for n in [pz.get("punto")] + list(pz.get("fascia") or []):
         if n and re.search(rf"\b{int(n):,}\b|\b{int(n)}\b|\b{int(n):,}\b".replace(",", r"[.,]"), bozza):
             return [f"il prezzo suggerito ({int(n)} €) e' interno: non entra in una mail"]

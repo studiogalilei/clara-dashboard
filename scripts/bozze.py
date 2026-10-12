@@ -193,6 +193,17 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
     return errori
 
 
+def listino_testo():
+    """I prezzi correnti, dalla tabella listino (12/10): prima stavano scritti in tre testi
+    diversi con tre numeri diversi (1.200, 1.500, 1.800). Si dicono solo dopo la conoscitiva."""
+    try:
+        rs = sb("GET", "/rest/v1/listino?select=nome,prezzo,ricorrenza&linea=eq.marketing&attivo=eq.true&order=ordine") or []
+        righe = [f"{r['nome']}: {int(float(r['prezzo'])):,} €".replace(",", ".") + (" al mese" if r.get("ricorrenza") == "mese" else "") for r in rs]
+        return "\n\nLISTINO (fonte unica, Impostazioni › Lo Studio; MAI un prezzo prima della chiamata conoscitiva):\n- " + "\n- ".join(righe) if righe else ""
+    except Exception:                                         # noqa: BLE001
+        return ""
+
+
 def template_verbatim():
     """I TEMPLATE DI DRE, PAROLA PER PAROLA (24/9: «Clara non scrive rispettando le bozze»).
     Stanno nel bucket privato (riservato/risposte-template.md), copia del file del vault
@@ -652,7 +663,7 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if gruppo:
         fatti["gruppo"] = gruppo
         fatti["template_da_usare"] = gruppo
-    prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI + casi.simili(ultimo) +
+    prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + listino_testo() + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI + casi.simili(ultimo) +
               f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:

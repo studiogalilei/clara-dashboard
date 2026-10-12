@@ -280,20 +280,41 @@ def _():
         assert '"coda"' in t
 
 
-@prova("prezzo: fascia dalla domanda, il bilancio corregge, mai sotto il floor, e non entra in una mail")
+@prova("prezzo: budget dalla regola di Carlo (10-25 €/giorno), canone dal listino, tetto non circolare, mai in una mail prima della call (12/10)")
 def _():
-    import prezzo as Z, manda as M
-    P = {"base": 1400, "soglia": 5000, "quota": 0.10, "floor": 1200, "fascia": 0.15, "quota_cattura": 0.03, "conversione": 0.02, "tetto_quota": 1 / 3,
+    import prezzo as Z, manda as M, mercato as K
+    P = {"base": 1400, "conversione": 0.006, "tetto_quota": 1 / 3,
          "scaglioni": [[1000000, 0.02], [3000000, 0.015], [10000000, 0.01], [None, 0.005]], "quota_agenzia": 0.25,
-         "margine": [[0, 0.5], [0.03, 0.7], [0.08, 1.0], [0.15, 1.2], [None, 1.4]], "cluster": {"A": 1.1, "B": 0.9}}
+         "margine": [[0, 0.5], [0.03, 0.7], [0.08, 1.0], [0.15, 1.2], [None, 1.4]]}
     assert Z.scaglioni(8_000_000, P["scaglioni"]) == 100000                    # a scaglioni, come l'IRPEF
-    vol = {"tam": 91020, "cpc_medio": 3.54}
-    b = Z.calcola({"enriched": {}}, P, vol, {}, {"fa_ads": True})
-    assert b["formula"] == "domanda" and b["fascia"][0] < b["punto"] < b["fascia"][1] and b["affidabilita"] == "media"
-    c = Z.calcola({"enriched": {"bilancio": {"fatturato": 2000000, "utile": -1, "anno": 2025}}}, P, vol, {}, {})
-    assert c["formula"] == "bilancio" and c["punto"] >= P["floor"] and any("rischio" in f for f in c["flag"])
-    assert Z.calcola({"enriched": {}}, P, None, {}, {}) is None                 # senza niente, niente numero
+    # il budget: mai fuori dai paletti, qualunque domanda gli si dia (il 15.100 nasceva da 179.720 ricerche)
+    for tam, cpc in ((179720, 3.11), (5960, 3.11), (1345300, 1.89), (550, 0.45), (1650, 19.09)):
+        bg, _ = K.regola_budget(tam, cpc, "prova")
+        assert 10 <= bg <= 25, f"budget {bg} €/giorno fuori dai paletti per {tam} × {cpc}"
+    assert K.regola_budget(1650, 19.09, "retainer")[0] == 30
+    # il caso di Dre: 15.100 €/mese e 2.000-2.800 di canone → ~19 €/giorno e il listino
+    b = Z.calcola({"enriched": {}}, P, {"tam": 179720, "cpc_medio": 3.11}, {"ticket_min": 300, "ticket_fonte": "stima"}, {}, (1400, 1800))
+    assert b["spesa_ads_mese"] <= 750 and b["punto"] == 1400 and b["fascia"] == [1400, 1400] and b["prova"] == 1800, b
+    assert b["tetto_mese"] is not None and b["tetto_mese"] < 1400 and any("supera" in f for f in b["flag"]), "il tetto non puo' piu' confermare una spesa gonfiata"
+    # col bilancio in perdita: il flag resta; con i numeri della chiamata: la fascia sale, mai oltre il doppio
+    c = Z.calcola({"enriched": {"bilancio": {"fatturato": 2000000, "utile": -1, "anno": 2025}}}, P, {"tam": 91020, "cpc_medio": 3.54}, {}, {}, (1400, 1800))
+    assert any("rischio" in f for f in c["flag"]) and c["punto"] == 1400
+    d = Z.calcola({"enriched": {"valore": {"clienti_extra_anno": 60, "valore_cliente": 5000, "margine_lordo": 0.4}}}, P, {"tam": 5960, "cpc_medio": 3.11}, {}, {}, (1400, 1800))
+    assert d["affidabilita"] == "alta" and d["fascia"][0] == 1400 and 1400 < d["fascia"][1] <= 2800, d["fascia"]
+    assert Z.calcola({"enriched": {}}, P, None, {}, {}, (1400, 1800)) is None                 # senza niente, niente numero
+    # la mail: il prezzo e' interno prima della chiamata; dopo la tecnica il listino puo' stare in un preventivo
     assert M.controlla("il canone sarebbe 2.000 € al mese", {"enriched": {"prezzo": {"punto": 2000, "fascia": [1700, 2300]}}})
+    assert M.controlla("il canone sarebbe 1.400 € al mese", {"pipeline_stage": "conoscitiva", "enriched": {"prezzo": {"punto": 1400, "fascia": [1400, 1400]}}})
+    dopo = M.controlla("come da preventivo, 1.400 € al mese", {"pipeline_stage": "tecnica", "enriched": {"prezzo": {"punto": 1400, "fascia": [1400, 1400]}}})
+    assert not any("interno" in x for x in dopo), dopo
+    # la card Mercato della scheda legge lo stesso numero pulito
+    import json
+    mj = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "lib", "mercato.json")))
+    assert mj["agenzie_immobiliari|milano"]["ricerche"] == K.domanda("agenzie_immobiliari", "Milano")[0] < 100000
+    assert mj["_alias"]["pesaro"] == "pesaro e urbino" and mj["_misurato_il"] >= "2026-10-12"
+    # il fit nuovo non ha piu' un budget fisso
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fit_nuovo.py")).read()
+    assert "BUDGET_ADS" not in src and "regola_budget" in src
 
 
 @prova("i promemoria interni non sono mail: la regola Zafferano colpisce solo chi porta un testo (26/9)")
