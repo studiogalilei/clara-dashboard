@@ -339,6 +339,26 @@ def rinfresca_orari():
         sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}&stato=eq.aperta", {"azione": a})
 
 
+def festivo(g):
+    """Le festivita' nazionali (Manuale di Clara 01 C, giorni_esclusi, 12/10). Prima il giorno
+    proposto saltava solo sabato, domenica e lunedi': martedi' 8 dicembre sarebbe uscito."""
+    if (g.month, g.day) in {(1, 1), (1, 6), (4, 25), (5, 1), (6, 2), (8, 15), (11, 1), (12, 8), (12, 25), (12, 26)}:
+        return True
+    # Pasquetta: il lunedi' dopo Pasqua (algoritmo di Gauss/Meeus)
+    a, b, c = g.year % 19, g.year // 100, g.year % 100
+    d, e = b // 4, b % 4
+    f_ = (b + 8) // 25
+    g_ = (b - f_ + 1) // 3
+    h = (19 * a + b - d - g_ + 15) % 30
+    i, k = c // 4, c % 4
+    l_ = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l_) // 451
+    mese = (h + l_ - 7 * m + 114) // 31
+    giorno = ((h + l_ - 7 * m + 114) % 31) + 1
+    pasqua = datetime.date(g.year, mese, giorno)
+    return g == pasqua + datetime.timedelta(days=1)
+
+
 def proposta_giorno_ora(da_giorni=2):
     """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
     stesso giorno; scritto sempre «giorno + data».
@@ -388,7 +408,7 @@ def proposta_giorno_ora(da_giorni=2):
     for quali, fascia in ((range(0, 7), pomeriggi), (range(0, 7), mattine), (range(7, 14), pomeriggi), (range(7, 14), mattine)):
       for salto in quali:
         g = d + datetime.timedelta(days=salto)
-        if g.weekday() >= 5 or g.weekday() == 0:
+        if g.weekday() >= 5 or g.weekday() == 0 or festivo(g):
             continue
         for ora, minuti in fascia:
             t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
@@ -396,7 +416,7 @@ def proposta_giorno_ora(da_giorni=2):
                 continue
             if all(abs((t - o).total_seconds()) >= 3600 for o in occupati):
                 return f"{giorni[g.weekday()]} {g.day} {mesi[g.month - 1]} alle {ora}" + (f":{minuti:02d}" if minuti else "")
-    while d.weekday() in (0, 5, 6):
+    while d.weekday() in (0, 5, 6) or festivo(d):
         d += datetime.timedelta(days=1)
     return f"{giorni[d.weekday()]} {d.day} {mesi[d.month - 1]} alle 15"
 

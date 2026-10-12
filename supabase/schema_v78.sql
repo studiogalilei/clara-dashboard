@@ -1,3 +1,4 @@
+-- 12/10/2026: gli indirizzi dei lead sono stati sostituiti con segnaposto (repo pubblico). Lo schema era gia' applicato.
 -- v78 (8/10): LA FASE 0 DEL SISTEMA NUOVO. Tre cose, e tre scritture che aspettavano.
 --
 -- Il design («Il sistema nuovo (8-10-2026)», Cervello Condiviso) parte da qui perche'
@@ -171,12 +172,12 @@ update prospects
 
 -- B2: Bank Station, il PDF di Luca e Aldo agganciato a Francesco, che l'ha chiesto
 update prospects f
-   set analysis_pdf = (select analysis_pdf from prospects where email in ('luca@bankstation.it', 'aldo@bankstation.it') and analysis_pdf is not null limit 1),
+   set analysis_pdf = (select analysis_pdf from prospects where email in ('lead1@esempio.invalid', 'lead2@esempio.invalid') and analysis_pdf is not null limit 1),
        awaiting_us = true,
        enriched = coalesce(f.enriched, '{}'::jsonb) || jsonb_build_object('pdf_riagganciato', jsonb_build_object(
          'quando', '2026-10-08', 'da', 'Dre (v78)',
          'perche', 'Francesco ha chiesto il reinvio; il PDF stava sui record di luca@ e aldo@. Domanda B2.'))
- where f.email = 'francesco@bankstation.it' and f.analysis_pdf is null;
+ where f.email = 'lead3@esempio.invalid' and f.analysis_pdf is null;
 
 -- 9/10: Cosimo Storino (Occasione Immobiliare) perso dopo la call di triage di Dre.
 -- Su Smartlead e' gia' in pausa (fatto il 9/10 alle 13:40); qui lo stage e il blocco,
@@ -187,7 +188,7 @@ update prospects
        deciso = coalesce(deciso, '{}'::jsonb) || jsonb_build_object(
          'stage', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'),
          'no_followup', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'))
- where email = 'cosimo.storino@occasioneimmobiliare.com';
+ where email = 'lead4@esempio.invalid';
 
 -- 9/10: due falsi si' che la prima risposta automatica manderebbe appena il database riparte.
 -- morrica ha scritto «mandi», che in friulano e' un saluto (Decisione 20 del 6/10); plg.it ha
@@ -198,12 +199,12 @@ update prospects
    set classificazione = 'da_classificare', awaiting_us = false,
        deciso = coalesce(deciso, '{}'::jsonb) || jsonb_build_object(
          'classificazione', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'falso si'' 9/10'))
- where email in ('giovanni.morrica00@gmail.com', 'assistenza@plg.it');
+ where email in ('lead5@esempio.invalid', 'lead6@esempio.invalid');
 
 -- la prova, da leggere subito dopo: devono tornare 5 clienti, 2 in fila, 1 PDF, 1 perso, 2 falsi si' fermi
 select 'clienti' as cosa, count(*)::text as quanti from clienti where stato = 'attivo'
 union all select 'in fila (B1)', count(*)::text from prospects where company in ('Twin System', 'SOLPOWER') and awaiting_us
-union all select 'pdf a francesco (B2)', count(*)::text from prospects where email = 'francesco@bankstation.it' and analysis_pdf is not null
+union all select 'pdf a francesco (B2)', count(*)::text from prospects where email = 'lead3@esempio.invalid' and analysis_pdf is not null
 union all select 'stage=cliente per effetto', count(*)::text from prospects where id in (select prospect_id from clienti) and stage = 'cliente'
-union all select 'cosimo storino perso', count(*)::text from prospects where email = 'cosimo.storino@occasioneimmobiliare.com' and stage = 'perso'
-union all select 'falsi si fermi', count(*)::text from prospects where email in ('giovanni.morrica00@gmail.com', 'assistenza@plg.it') and not awaiting_us;
+union all select 'cosimo storino perso', count(*)::text from prospects where email = 'lead4@esempio.invalid' and stage = 'perso'
+union all select 'falsi si fermi', count(*)::text from prospects where email in ('lead5@esempio.invalid', 'lead6@esempio.invalid') and not awaiting_us;

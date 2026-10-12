@@ -3482,6 +3482,7 @@ select 'schema v77 applicato: l''utilizzo del Workspace, per persona, solo per D
 
 -- ─── schema_v78.sql ────────────────────────────────────────────
 
+-- 12/10/2026: gli indirizzi dei lead sono stati sostituiti con segnaposto (repo pubblico). Lo schema era gia' applicato.
 -- v78 (8/10): LA FASE 0 DEL SISTEMA NUOVO. Tre cose, e tre scritture che aspettavano.
 --
 -- Il design («Il sistema nuovo (8-10-2026)», Cervello Condiviso) parte da qui perche'
@@ -3655,12 +3656,12 @@ update prospects
 
 -- B2: Bank Station, il PDF di Luca e Aldo agganciato a Francesco, che l'ha chiesto
 update prospects f
-   set analysis_pdf = (select analysis_pdf from prospects where email in ('luca@bankstation.it', 'aldo@bankstation.it') and analysis_pdf is not null limit 1),
+   set analysis_pdf = (select analysis_pdf from prospects where email in ('lead1@esempio.invalid', 'lead2@esempio.invalid') and analysis_pdf is not null limit 1),
        awaiting_us = true,
        enriched = coalesce(f.enriched, '{}'::jsonb) || jsonb_build_object('pdf_riagganciato', jsonb_build_object(
          'quando', '2026-10-08', 'da', 'Dre (v78)',
          'perche', 'Francesco ha chiesto il reinvio; il PDF stava sui record di luca@ e aldo@. Domanda B2.'))
- where f.email = 'francesco@bankstation.it' and f.analysis_pdf is null;
+ where f.email = 'lead3@esempio.invalid' and f.analysis_pdf is null;
 
 -- 9/10: Cosimo Storino (Occasione Immobiliare) perso dopo la call di triage di Dre.
 -- Su Smartlead e' gia' in pausa (fatto il 9/10 alle 13:40); qui lo stage e il blocco,
@@ -3671,7 +3672,7 @@ update prospects
        deciso = coalesce(deciso, '{}'::jsonb) || jsonb_build_object(
          'stage', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'),
          'no_followup', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'triage 9/10'))
- where email = 'cosimo.storino@occasioneimmobiliare.com';
+ where email = 'lead4@esempio.invalid';
 
 -- 9/10: due falsi si' che la prima risposta automatica manderebbe appena il database riparte.
 -- morrica ha scritto «mandi», che in friulano e' un saluto (Decisione 20 del 6/10); plg.it ha
@@ -3682,15 +3683,15 @@ update prospects
    set classificazione = 'da_classificare', awaiting_us = false,
        deciso = coalesce(deciso, '{}'::jsonb) || jsonb_build_object(
          'classificazione', jsonb_build_object('da', '43095060-b873-4d29-825b-55522f26af55', 'il', now(), 'via', 'falso si'' 9/10'))
- where email in ('giovanni.morrica00@gmail.com', 'assistenza@plg.it');
+ where email in ('lead5@esempio.invalid', 'lead6@esempio.invalid');
 
 -- la prova, da leggere subito dopo: devono tornare 5 clienti, 2 in fila, 1 PDF, 1 perso, 2 falsi si' fermi
 select 'clienti' as cosa, count(*)::text as quanti from clienti where stato = 'attivo'
 union all select 'in fila (B1)', count(*)::text from prospects where company in ('Twin System', 'SOLPOWER') and awaiting_us
-union all select 'pdf a francesco (B2)', count(*)::text from prospects where email = 'francesco@bankstation.it' and analysis_pdf is not null
+union all select 'pdf a francesco (B2)', count(*)::text from prospects where email = 'lead3@esempio.invalid' and analysis_pdf is not null
 union all select 'stage=cliente per effetto', count(*)::text from prospects where id in (select prospect_id from clienti) and stage = 'cliente'
-union all select 'cosimo storino perso', count(*)::text from prospects where email = 'cosimo.storino@occasioneimmobiliare.com' and stage = 'perso'
-union all select 'falsi si fermi', count(*)::text from prospects where email in ('giovanni.morrica00@gmail.com', 'assistenza@plg.it') and not awaiting_us;
+union all select 'cosimo storino perso', count(*)::text from prospects where email = 'lead4@esempio.invalid' and stage = 'perso'
+union all select 'falsi si fermi', count(*)::text from prospects where email in ('lead5@esempio.invalid', 'lead6@esempio.invalid') and not awaiting_us;
 
 -- ─── schema_v79.sql ────────────────────────────────────────────
 
@@ -3716,3 +3717,62 @@ update parametri set cosa = 'il canone se il listino non si legge: la fonte e'' 
   where chiave = 'prezzo.base';
 
 delete from parametri where chiave in ('prezzo.quota_cattura', 'prezzo.quota', 'prezzo.soglia', 'prezzo.floor', 'prezzo.fascia', 'prezzo.cluster');
+
+-- ─── schema_v80.sql ────────────────────────────────────────────
+
+-- v80 (12/10/2026): il Manuale di Clara entra nel database.
+--
+-- 1. LA TABELLA `regole`. Dre, 12/10: «scrivi tutti i documenti come li vuoi tu, poi io correggo»;
+--    la sera stessa: «letto, applica questo intanto». Il documento 01 del manuale («Le regole»)
+--    diventa una riga per regola: un valore, un posto. La carica scripts/regole_dal_manuale.py dal
+--    vault; quando Dre corregge il documento si ricarica. Il codice la legge un pezzo alla volta
+--    (prima le costanti che oggi vivono in 7 file con 9 valori diversi).
+--    stato: bozza = scritta da Achille; da_confermare = due versioni, scelta di Achille;
+--    da_decidere = manca una decisione di Dre («?»); approvata = Dre l'ha confermata.
+--    I prezzi e il budget (sezione B) li legge solo chi vede il riservato, come i parametri prezzo.*.
+--
+-- 2. UNA SUA MAIL NUOVA SVUOTA LA CODA (manuale, documento 02). Prima la coda dei follow-up restava
+--    anche dopo una risposta: chi scriveva «sì, sentiamoci» mentre era in coda poteva ricevere un
+--    FOLLOW UP 1 («volevo sapere se ha avuto occasione di leggerla»). Il trigger toglie la coda
+--    appena arriva una sua risposta piu' nuova dell'ingresso in coda; la risposta la prepara il
+--    giro normale, col gesto giusto.
+
+create table if not exists regole (
+  chiave         text primary key,
+  sezione        text not null,
+  valore         text not null,
+  perche         text,
+  stato          text not null default 'bozza' check (stato in ('bozza', 'da_confermare', 'da_decidere', 'approvata')),
+  fonte          text not null default 'Manuale di Clara, 01 · Le regole',
+  aggiornata_il  timestamptz not null default now(),
+  aggiornata_da  text
+);
+comment on table regole is 'Il documento 01 del Manuale di Clara, una riga per regola: un valore, un posto (v80, 12/10).';
+
+alter table regole enable row level security;
+drop policy if exists "regole: leggono tutti, i prezzi solo Dre" on regole;
+create policy "regole: leggono tutti, i prezzi solo Dre" on regole for select to authenticated
+  using (sezione not like 'B%' or (select vedo_riservato()));
+drop policy if exists "regole: cambiano i ceo" on regole;
+create policy "regole: cambiano i ceo" on regole for update to authenticated
+  using ((select sono_ceo()) and (sezione not like 'B%' or (select vedo_riservato())));
+
+create or replace function svuota_coda_se_scrive() returns trigger
+language plpgsql as $$
+begin
+  if new.coda is not null
+     and new.last_reply_at is distinct from old.last_reply_at
+     and new.last_reply_at > coalesce(new.coda_il, '-infinity'::timestamptz) then
+    new.coda := null;
+    new.coda_il := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists prospects_svuota_coda on prospects;
+create trigger prospects_svuota_coda
+  before update on prospects
+  for each row execute function svuota_coda_se_scrive();
+
+select 'schema v80 applicato: le regole del manuale, e una risposta svuota la coda' as esito;

@@ -1991,6 +1991,72 @@ def _():
     assert "schedule" in wf and "contents: read" in wf and "scripts/ispettore.py" in wf
 
 
+@prova("il Manuale di Clara applicato (12/10): niente indirizzi di lead nel repo, niente DELETE su Smartlead, festività, privacy, regole")
+def _():
+    import re, subprocess, datetime as dt
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 1. il repo e' pubblico: nessun indirizzo di lead nei file versionati (divieto 20)
+    EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[a-z]{2,}")
+    NOSTRI = re.compile(r"studiogalilei|galileistudio|galilei|esempio|example|\.invalid|noreply|anthropic|supabase|github|vercel|google|"
+                        r"gserviceaccount|stripe|smartlead|openai|sentry|w3\.org|schema\.org|carlo\.dprogetti|@x\.it|@y\.it|@b\.it|"
+                        r"@x\.com|altro-dominio|@cliente\.|@no\.|@ok\.|@pipe\.|@risp\.|@\d+x\b|@acme\.|@azienda\.it|mario\.b1980", re.I)
+    file = subprocess.run(["git", "ls-files"], cwd=radice, capture_output=True, text=True).stdout.split()
+    sporchi = {}
+    for f in file:
+        if re.search(r"\.(png|jpe?g|gif|pdf|woff2?|ico|zip|lock|mjs)$|package-lock|^\.agents/|OFL\.txt$", f):
+            continue
+        try:
+            t = open(os.path.join(radice, f), encoding="utf-8", errors="ignore").read()
+        except OSError:
+            continue
+        trovati = [e for e in EMAIL.findall(t) if not NOSTRI.search(e)]
+        if trovati:
+            sporchi[f] = len(trovati)
+    assert not sporchi, f"indirizzi che sembrano di lead nel repo pubblico: {sporchi}"
+    # 2. mai DELETE su Smartlead: si mette in pausa (divieto 16, il 24/9 la cancellazione ha tolto i thread)
+    for f in file:
+        if f.startswith("scripts/") and f.endswith(".py") and f != "scripts/test_invarianti.py":
+            t = open(os.path.join(radice, f), encoding="utf-8", errors="ignore").read()
+            assert not re.search(r"\bsl\(\s*[\"']DELETE", t), f"{f}: DELETE su Smartlead"
+    # 3. il giorno proposto salta le festività (01 C, giorni_esclusi)
+    import bozze
+    assert bozze.festivo(dt.date(2026, 12, 8)) and bozze.festivo(dt.date(2027, 3, 29)) and not bozze.festivo(dt.date(2026, 12, 9))
+    # 4. il freno «non contattare» non scatta sul disclaimer privacy (gesto 13)
+    import cervello
+    d = cervello.DOMANDE["non_contattare"]
+    assert "cita la privacy" not in d and "NON contano" in d, d
+    # 5. le regole del documento 01 stanno nel database, una per riga
+    from stanza import sb
+    rr = sb("GET", "/rest/v1/regole?select=chiave,stato&limit=200") or []
+    chiavi = {r["chiave"] for r in rr}
+    assert {"calendario", "budget_giorno", "followup_1", "archiviato_per_silenzio", "finestra_si"} <= chiavi, sorted(chiavi)[:10]
+    # 6. una risposta svuota la coda dei follow-up (trigger v80)
+    v80 = open(os.path.join(radice, "supabase", "schema_v80.sql")).read()
+    assert "svuota_coda_se_scrive" in v80 and "new.coda := null" in v80
+
+
+@prova("le categorie del manuale su Smartlead: un nome per gesto, stesse protezioni di prima (12/10)")
+def _():
+    import categorie_smartlead as C
+    N = C.categoria_nuova
+    assert len(C.NUOVE) == len(set(C.NUOVE)) == 11
+    assert N({"classificazione": "positivo"}) == C.N_SI and N({"classificazione": "positivo"}, intento="INT-02") == C.N_CALL_CHIESTA
+    assert N({"classificazione": "tiepido"}) == C.N_DRE and N({"classificazione": "positivo"}, intento="INT-03") == C.N_DRE
+    assert N({"classificazione": "rinvio"}) == C.N_AVANTI and N({"classificazione": "ooo"}) == C.N_OOO
+    assert N({"classificazione": "negativo"}) == C.N_NO and N({"classificazione": "soppresso"}) == C.N_STOP
+    assert N({"classificazione": "fuori_target"}) == C.N_FUORI
+    assert N({"classificazione": "da_classificare"}, testo="Delivery has failed to these recipients") == C.N_MORTA
+    assert N({"classificazione": "persona_sbagliata"}) == C.N_GIRATO
+    # le protezioni del 6/10 restano: pipeline senza call no; la call vince tranne soppressi e persi
+    assert N({"classificazione": "positivo", "fuori": True}) is None
+    assert N({"classificazione": "negativo"}, call=True) == C.N_CALL and N({"classificazione": "soppresso"}, call=True) == C.N_STOP
+    assert N({"classificazione": "negativo", "fuori": True, "pipeline_stage": "perso"}, call=True) is None
+    assert N({"classificazione": "positivo"}, testo="grazie ma non ci interessa") is None, "un si' con un no scritto non si etichetta"
+    # un'etichetta nostra non torna indietro come classe (niente giro chiuso col sync)
+    import sync_v2
+    assert not set(C.NUOVE) & set(sync_v2.CAT_HINT), "il sync non deve leggere le categorie del manuale come classi"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

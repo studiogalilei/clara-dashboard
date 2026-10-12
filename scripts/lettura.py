@@ -247,7 +247,7 @@ def ha_gia(p, righe):
     # rimando davanti. Vale per le pec (qualunque provider col «pec» nel dominio:
     # legalmail, interfreepec, arubapec... casi LuccaCase e vetrocom, 5/10) e per
     # l'indirizzo personale del mittente stesso (il suo cognome nel local-part:
-    # dimoreisontineRONCHI@gmail.com in firma di ronchi@gruppodimore, 5/10).
+    # lead1@esempio.invalid in firma di ronchi@gruppodimore, 5/10).
     PEC = ("@legalmail.it", "@postecert.it", "@cert.")
     _tok = {t for t in re.split(r"[^a-z]+", f"{p.get('name') or ''} {(p.get('email') or '').split('@')[0]}".lower()) if len(t) >= 4}
     def _rimando_vero(e, t):

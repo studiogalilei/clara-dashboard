@@ -58,6 +58,67 @@ NO_SCRITTO = _re.compile(r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) int
                          r"non fa per noi|non abbiamo (bisogno|necessit|interesse)|abbiamo gi[aà] chi", _re.I)
 
 
+# ── LE CATEGORIE DEL MANUALE (12/10/2026) ──────────────────────────────────────
+# Dre, 12/10: «reinventa anche i filtri che ci sono su Smartlead, che siano come nel
+# manuale, vedi te che nomi mettere». Un nome dice il gesto che Clara ha fatto (o deve
+# fare Dre), come nel documento 02 del Manuale di Clara. Le crea Dre su Smartlead
+# (Settings → Lead Categories: l'API non le crea). Finche' non ci sono tutte, il codice
+# usa le cinque del 6/10; appena ci sono, passa da solo a queste.
+N_SI = "Sì"                              # gesti 1, 3, 4: ha detto sì, l'analisi parte o è partita
+N_CALL_CHIESTA = "Vuole la call"         # gesti 2, 2b, 34: vuole parlare, si conferma o si propone il giorno
+N_CALL = "Call fissata"                  # la conoscitiva c'è in agenda: è nel Workspace (il viola del 6/10)
+N_DRE = "Tocca a Dre"                    # gesti 17, 22, 1c, 11b: una domanda, un caso speciale, una carta
+N_AVANTI = "Più avanti"                  # gesti 6, 7, 8, 23: rinvio, ha l'agenzia, niente budget
+N_OOO = "Fuori ufficio"                  # gesti 9, 9b: autorisposta
+N_GIRATO = "Girato a un collega"         # gesti 10, 10b, 10c, 11: un altro contatto, o non è lui
+N_NO = "No, grazie"                      # gesto 12: un no cortese, nessuna mail
+N_STOP = "Non scrivere più"              # gesti 13, 14: soppresso, per sempre
+N_FUORI = "Fuori target"                 # gesto 15: lo decide Dre
+N_MORTA = "Casella morta"                # gesto 10d: rimbalzo o casella chiusa
+NUOVE = (N_SI, N_CALL_CHIESTA, N_CALL, N_DRE, N_AVANTI, N_OOO, N_GIRATO, N_NO, N_STOP, N_FUORI, N_MORTA)
+INTENTI_CALL = {"INT-02", "INT-24"}
+MORTA = _re.compile(r"delivery (has )?failed|undeliverable|mancato recapito|impossibile recapitare|address not found|"
+                    r"non (e'|è) pi[uù] attiv|casella\W+(\w+\W+){0,4}(chius|dismess|disattiv)", _re.I)
+
+
+def categoria_nuova(p, intento=None, girato=False, testo="", call=False):
+    """La categoria del manuale per un lead, o None. Stesse protezioni di categoria_di:
+    pipeline e clienti senza call non si toccano; la call fissata vince su tutto tranne
+    soppressi e persi; un sì di classe con un no scritto non si etichetta (va corretta la classe)."""
+    c = p.get("classificazione")
+    if call and c != "soppresso" and p.get("pipeline_stage") != "perso":
+        return N_CALL
+    if p.get("fuori") or p.get("bloccato"):
+        return None
+    if c in ("soppresso", "nervoso"):
+        return N_STOP
+    if c == "fuori_target":
+        return N_FUORI
+    if testo and MORTA.search(testo):
+        return N_MORTA
+    if c in ("da_classificare", None):
+        return N_DRE if testo and "?" in testo and not AUTORISPOSTA.search(testo) else None
+    if c == "negativo":
+        return N_NO
+    if testo and CAMBIO.search(testo):
+        return N_GIRATO
+    if c == "ooo":
+        return N_OOO
+    if c == "rinvio":
+        return N_AVANTI
+    if c == "persona_sbagliata" or intento in INTENTI_GIRATO:
+        return N_GIRATO
+    if c in ("positivo", "tiepido") and testo and NO_SCRITTO.search(testo):
+        return None
+    if (girato or (testo and INOLTRATO.search(testo))) and c != "positivo":
+        return N_GIRATO
+    if c == "tiepido" or intento in INTENTI_DOMANDA:
+        return N_DRE
+    if c == "positivo":
+        return N_CALL_CHIESTA if intento in INTENTI_CALL else N_SI
+    return None
+
+
 def categoria_di(p, intento=None, girato=False, testo="", call=False):
     """La categoria di Dre per un lead, o None se non se ne mette una.
     `testo` e' la sua ultima risposta (solo la parte sua): corregge i casi che la classe
@@ -115,12 +176,28 @@ def _sl(metodo, percorso, corpo=None):
             time.sleep(2 * (tentativo + 1) ** 2)
 
 
+_NOMI = None
+
+
+def nomi_su_smartlead():
+    global _NOMI
+    if _NOMI is None:
+        _NOMI = {c["name"]: c["id"] for c in (_sl("GET", "/leads/fetch-categories") or [])}
+    return _NOMI
+
+
+def usa_nuove():
+    """Le categorie del manuale, appena Dre le ha create tutte su Smartlead."""
+    return all(n in nomi_su_smartlead() for n in NUOVE)
+
+
 def id_categorie():
-    nomi = {c["name"]: c["id"] for c in (_sl("GET", "/leads/fetch-categories") or [])}
-    mancano = [n for n in CATEGORIE if n not in nomi]
+    nomi = nomi_su_smartlead()
+    quali = NUOVE if usa_nuove() else CATEGORIE
+    mancano = [n for n in quali if n not in nomi]
     if mancano:
         sys.exit(f"categorie: su Smartlead mancano {mancano}, non scrivo niente")
-    return {n: nomi[n] for n in CATEGORIE}
+    return {n: nomi[n] for n in quali}
 
 
 def dove_ha_risposto(email):
@@ -158,11 +235,12 @@ def da_allineare():
     con_call = {a["prospect_id"] for a in sb_tutte("/rest/v1/agenda?select=prospect_id,tipo"
                                                    "&prospect_id=not.is.null&tipo=in.(conoscitiva,tecnica,avvio)") or []}
     righe, DA_GUARDARE[:] = [], []
+    nuove = usa_nuove()
     for p in ps:
         testo = lettura.solo_suo(ultima.get(p["id"], ""), con_firma=True) or ""
         if da_guardare(p, testo):
             DA_GUARDARE.append((p.get("company") or p["email"], p.get("classificazione"), testo[:90]))
-        voluta = categoria_di(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call)
+        voluta = (categoria_nuova if nuove else categoria_di)(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call)
         gia = ((p.get("enriched") or {}).get("sl_categoria") or {}).get("nome")
         if voluta and voluta != gia:
             # niente campo «fuori» nelle righe per il Revisore: la sua regola dura («mai

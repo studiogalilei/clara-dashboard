@@ -286,7 +286,9 @@ def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sf
 DOMANDE = {
     "autorisposta": "e' una risposta automatica (fuori ufficio, ferie, ticket, casella non presidiata)?",
     "detto_no": "la persona dice di no, che non le interessa, che ha gia' chi la segue?",
-    "non_contattare": "chiede di non essere piu' contattata, di essere cancellata, cita la privacy o minaccia?",
+    # 12/10 (Manuale di Clara, gesto 13): «cita la privacy» faceva scattare il freno sui disclaimer
+    # in firma; su 60 risposte vere tre si' sarebbero stati soppressi per sempre
+    "non_contattare": "chiede CON PAROLE SUE, nel messaggio, di non essere piu' contattata o di essere cancellata, oppure minaccia? Firme, disclaimer, note legali e informative privacy in fondo alla mail NON contano: non sono una richiesta",
     "vuole_analisi": "chiede o accetta di ricevere l'analisi o del materiale (anche solo «confermo la mail», «mandi pure»)?",
     "vuole_call": "chiede o accetta di sentirsi, una chiamata, un incontro?",
     "rinvio": "rimanda a piu' avanti (un mese, una data, «dopo l'estate»)?",

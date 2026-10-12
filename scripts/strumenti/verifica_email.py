@@ -139,8 +139,8 @@ def applica(prova=False):
         return
     # IL POLIZIOTTO (24/9): regole dure, seconda testa, ok di Dre sopra soglia
     from polizia import controlla
-    via = controlla("cancello lead dalle campagne Smartlead (email invalide/sconosciute/catch-all nominative)", via,
-                    chiave=lambda l: l["email"], irreversibile=True, motivo="il verificatore le ha bocciate: rimbalzano")
+    via = controlla("metto in pausa i lead nelle campagne Smartlead (email invalide/sconosciute/catch-all nominative)", via,
+                    chiave=lambda l: l["email"], irreversibile=False, motivo="il verificatore le ha bocciate: rimbalzano")
     n = 0
     for l in via:
         # 24/9: MAI cancellare chi ha risposto. Cancellare il lead cancella il thread
@@ -151,9 +151,11 @@ def applica(prova=False):
                 print(f"  tengo {l['email']}: ha risposto"); continue
         except Exception:
             pass
-        r = sl("DELETE", f"/campaigns/{l['campagna']}/leads/{l['lead_id']}")
-        n += r == "success"; time.sleep(0.2)
-    print(f"tolti {n}/{len(via)}. Le campagne restano in pausa: lo Start e' di Dre.")
+        # 12/10 (Manuale di Clara, divieto 16): mai DELETE su Smartlead, solo la pausa. Una
+        # pausa si toglie con un clic; una cancellazione si porta via anche il filo.
+        r = sl("POST", f"/campaigns/{l['campagna']}/leads/{l['lead_id']}/pause")
+        n += bool(r); time.sleep(0.2)
+    print(f"in pausa {n}/{len(via)}. Le campagne restano in pausa: lo Start e' di Dre.")
 
 
 if __name__ == "__main__":

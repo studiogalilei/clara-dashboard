@@ -94,21 +94,28 @@ def luogo(prov):
     return LUOGO.get(prov, f"nella provincia di {prov}")
 
 
+_FALLITO = 0.0
+
+
 def base():
-    """La base settore x provincia (Keyword Planner, precalcolata il 24/8). Sta nel bucket
-    riservato; si tiene un'ora in cache. Se non si legge, nessun numero: mai uno inventato."""
-    global _BASE
+    """La base settore x provincia (Keyword Planner). Sta nel bucket riservato; si tiene un'ora
+    in cache. Se non si legge, nessun numero: mai uno inventato.
+    12/10: tre tentativi, e un fallimento non si ricorda per tutto il giro (un colpo di rete perso
+    lasciava senza numero tutte le mail del giro); ma dopo un fallimento si aspettano 5 minuti
+    prima di riprovare, se no chi chiama cento volte si pianta (successo nelle invarianti)."""
+    global _BASE, _FALLITO
     if _BASE is not None:
         return _BASE
+    if time.time() - _FALLITO < 300:
+        return {}
     loc = os.path.join(tempfile.gettempdir(), "odyn-base_analisi.json")
-    # 12/10: tre tentativi, e un fallimento NON si ricorda. Prima un colpo di rete perso
-    # lasciava la base vuota per tutto il giro: ogni mail di quel giro partiva senza numero.
+    errore = None
     for tentativo in range(3):
         try:
             if not os.path.exists(loc) or time.time() - os.path.getmtime(loc) > 3600:
-                from stanza import env
-                req = urllib.request.Request(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/vault/riservato/base_analisi.json",
-                                             headers={"apikey": env("SUPABASE_SERVICE_KEY"), "Authorization": f"Bearer {env('SUPABASE_SERVICE_KEY')}"})
+                import stanza                     # lo stesso indirizzo e la stessa chiave di sb()
+                req = urllib.request.Request(f"{stanza.URL.rstrip('/')}/storage/v1/object/vault/riservato/base_analisi.json",
+                                             headers={"apikey": stanza.CHIAVE, "Authorization": f"Bearer {stanza.CHIAVE}"})
                 with urllib.request.urlopen(req, timeout=60) as r:
                     dati = r.read()
                 if dati.strip():
@@ -119,6 +126,7 @@ def base():
         except Exception as e:                                   # noqa: BLE001
             errore = e
             time.sleep(2 * (tentativo + 1))
+    _FALLITO = time.time()
     print(f"  (base dei volumi non letta: {str(errore)[:80]})")
     return {}
 

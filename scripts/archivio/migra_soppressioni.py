@@ -40,22 +40,22 @@ def sb(method, path, body=None, headers=None):
 # ============ i casi, con tipo e motivo ============
 CASI = [
     # GDPR / richieste di rimozione esplicite (blocco legale, per sempre)
-    ("gdpr", "mattia@filippinibusinessconsulting.com", "richiesta rimozione furiosa 3/7: 'rimuovete ogni dato, non contattatemi mai piu''", "mail 3/7"),
-    ("gdpr", "dan@buenaonda-holidays.com", "caso GDPR art.14 (dati da Apollo), chiuso 2/7 'siamo ok cosi'' — mai piu' contattare", "thread giu-lug"),
-    ("rimozione", "luana.arginelli@monitortheplanet.com", "'CANCELLAMI DALLE LISTE' 1/7 — unsubscribe fatto", "mail 1/7"),
-    ("rimozione", "info@centromedicoitaliano.com", "'cancellare il nostro indirizzo dalla mailing list' 2/7 — unsubscribe fatto", "mail 2/7"),
-    ("deceduto", "pierfelice.turrin@imecosrl.net", "il geom. Turrin e' venuto a mancare; l'azienda ha chiesto la rimozione — unsubscribe fatto", "mail 1/7"),
-    ("rimozione", "v.ferretti@fbsrl.biz", "'prego cancellare il mio contatto dalla vostra banca dati' 2/7 — unsubscribe fatto", "mail 2/7"),
+    ("gdpr", "lead1@esempio.invalid", "richiesta rimozione furiosa 3/7: 'rimuovete ogni dato, non contattatemi mai piu''", "mail 3/7"),
+    ("gdpr", "lead2@esempio.invalid", "caso GDPR art.14 (dati da Apollo), chiuso 2/7 'siamo ok cosi'' — mai piu' contattare", "thread giu-lug"),
+    ("rimozione", "lead3@esempio.invalid", "'CANCELLAMI DALLE LISTE' 1/7 — unsubscribe fatto", "mail 1/7"),
+    ("rimozione", "lead4@esempio.invalid", "'cancellare il nostro indirizzo dalla mailing list' 2/7 — unsubscribe fatto", "mail 2/7"),
+    ("deceduto", "lead5@esempio.invalid", "il geom. Turrin e' venuto a mancare; l'azienda ha chiesto la rimozione — unsubscribe fatto", "mail 1/7"),
+    ("rimozione", "lead6@esempio.invalid", "'prego cancellare il mio contatto dalla vostra banca dati' 2/7 — unsubscribe fatto", "mail 2/7"),
     # non-target: competitor / agenzie (decisione Dre)
-    ("non_target", "alessandro.vidotto@404scs.com", "404scs = agenzia marketing (competitor), lasciar cadere (Dre 2/7)", "followup_exclude"),
-    ("non_target", "room@motel409.com", "MOTEL 409 = agenzia", "followup_exclude"),
-    ("non_target", "s.biella@doublemalt.it", "BB Lions: ha un'agenzia di comunicazione propria", "followup_exclude"),
+    ("non_target", "lead7@esempio.invalid", "404scs = agenzia marketing (competitor), lasciar cadere (Dre 2/7)", "followup_exclude"),
+    ("non_target", "lead8@esempio.invalid", "MOTEL 409 = agenzia", "followup_exclude"),
+    ("non_target", "lead9@esempio.invalid", "BB Lions: ha un'agenzia di comunicazione propria", "followup_exclude"),
     # no espliciti (soft ma registrati: non ricontattare in liste future)
-    ("no_esplicito", "padova@habimmobiliare.it", "HAB Immobiliare: non interessati (2/7)", "followup_exclude"),
-    ("no_esplicito", "info@impresaitaliasnc.191.it", "Impresa Italia Pulizie: non interessati (2/7)", "followup_exclude"),
-    ("no_esplicito", "fabio@evoluzionebenefit.it", "gia' affidato ad altra azienda (3/7)", "followup_exclude"),
-    ("no_esplicito", "mariangela.bonatto@imagine.srl", "IMAGINE Media Center: non interessati (2/7)", "followup_exclude"),
-    ("no_esplicito", "i.morganti@itinerariparalleli.org", "Itinerari Paralleli: non interessati (2/7)", "followup_exclude"),
+    ("no_esplicito", "lead10@esempio.invalid", "HAB Immobiliare: non interessati (2/7)", "followup_exclude"),
+    ("no_esplicito", "lead11@esempio.invalid", "Impresa Italia Pulizie: non interessati (2/7)", "followup_exclude"),
+    ("no_esplicito", "lead12@esempio.invalid", "gia' affidato ad altra azienda (3/7)", "followup_exclude"),
+    ("no_esplicito", "lead13@esempio.invalid", "IMAGINE Media Center: non interessati (2/7)", "followup_exclude"),
+    ("no_esplicito", "lead14@esempio.invalid", "Itinerari Paralleli: non interessati (2/7)", "followup_exclude"),
 ]
 
 def main():
