@@ -2121,6 +2121,28 @@ def _():
         P.sb = vero
 
 
+@prova("una risposta gia' letta non si ripaga: la memoria delle letture sta nel database (13/10)")
+def _():
+    import cervello as C
+    import tempfile
+    salvato, chiamate = {}, []
+    vero = (C._dal_db, C._nel_db, C._chiedi_openai, C.CACHE, C._CACHE_VIVA)
+    C._dal_db = lambda chiavi: {k: salvato[k] for k in chiavi if k in salvato}
+    C._nel_db = lambda nuove: salvato.update(nuove)
+    def finto(*a, **k):
+        chiamate.append(1)
+        return '{' + ", ".join(f'"{d}": 0.9' if d == "vuole_analisi" else f'"{d}": 0.0' for d in C.DOMANDE) + ', "rinvio_quando": "", "girato_a": [], "domanda": "", "perche": "x"}'
+    C._chiedi_openai = finto
+    try:
+        for giro in range(2):                     # due runner nuovi del cloud: file vuoto ogni volta
+            C.CACHE = tempfile.mktemp(suffix=".json")
+            C._CACHE_VIVA = None
+            assert C.classifica_risposta("mandi pure l'analisi, grazie", modello="gpt-5")["vuole_analisi"] == 0.9
+        assert len(chiamate) == 1, f"la stessa risposta pagata {len(chiamate)} volte"
+    finally:
+        C._dal_db, C._nel_db, C._chiedi_openai, C.CACHE, C._CACHE_VIVA = vero
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

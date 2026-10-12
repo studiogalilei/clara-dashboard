@@ -147,6 +147,38 @@ def _cache():
         return {}
 
 
+def _dal_db(chiavi):
+    """13/10: le letture gia' pagate stanno anche nel database (memoria_letture), perche' il
+    file della cache nel cloud muore col runner. Torna {chiave: valore} per quelle che ci sono.
+    Mai un errore: senza database si legge come prima."""
+    trovate = {}
+    chiavi = [k for k in chiavi if k]
+    try:
+        from stanza import sb
+        for i in range(0, len(chiavi), 40):
+            pezzo = ",".join(f'"{k}"' for k in chiavi[i:i + 40])
+            for r in sb("GET", f"/rest/v1/memoria_letture?select=chiave,valore&chiave=in.({pezzo})") or []:
+                trovate[r["chiave"]] = r["valore"]
+    except Exception:                                            # noqa: BLE001
+        pass
+    return trovate
+
+
+def _nel_db(nuove):
+    """Salva le letture appena pagate; se non riesce, resta la cache su file."""
+    if not nuove:
+        return
+    try:
+        from stanza import sb, _a_secco
+        if _a_secco():
+            return
+        sb("POST", "/rest/v1/memoria_letture?on_conflict=chiave",
+           [{"chiave": k, "valore": v} for k, v in nuove.items()],
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    except Exception:                                            # noqa: BLE001
+        pass
+
+
 _BLOCCO = threading.Lock()
 _CACHE_VIVA = None      # 2/10: rileggere il file a OGNI salvataggio rendeva il giro O(n²)
 
@@ -326,6 +358,10 @@ def classifica_risposta(testo, modello=None):
     cache = _CACHE_VIVA
     if chiave_cache in cache:
         return dict(cache[chiave_cache])
+    dal_db = _dal_db([chiave_cache]).get(chiave_cache)
+    if isinstance(dal_db, dict):
+        cache[chiave_cache] = dal_db
+        return dict(dal_db)
     try:
         f = fornitore_di(modello) if modello else FORNITORE
         if f in COMPATIBILI:
@@ -344,6 +380,7 @@ def classifica_risposta(testo, modello=None):
         r[d] = max(0.0, min(1.0, float(r[d])))
     cache[chiave_cache] = r
     _salva_cache(cache)
+    _nel_db({chiave_cache: r})
     return r
 
 
@@ -679,6 +716,14 @@ def leggi(messaggi, quando_pronto=None, modello=None):
             fuori[m["id"]] = dict(cache[k])
             continue
         da_leggere.append((m["id"], testo, k))
+    # 13/10: quelle che il file non ha, si cercano nel database prima di pagarle di nuovo
+    dal_db = _dal_db([g[2] for g in da_leggere])
+    if dal_db:
+        for pid, _t, k in da_leggere:
+            if isinstance(dal_db.get(k), dict):
+                fuori[pid] = dict(dal_db[k])
+                cache[k] = dal_db[k]
+        da_leggere = [g for g in da_leggere if g[2] not in dal_db]
 
     for i in range(0, len(da_leggere), A_GRUPPI_DI):
         gruppo = da_leggere[i:i + A_GRUPPI_DI]
@@ -692,6 +737,7 @@ def leggi(messaggi, quando_pronto=None, modello=None):
             fuori[pid] = v
             cache[per_id[pid]] = v
         _salva_cache(cache)
+        _nel_db({per_id[pid]: v for pid, v in letti.items() if pid in per_id})
         if quando_pronto:
             quando_pronto(min(i + A_GRUPPI_DI, len(da_leggere)), len(da_leggere))
 
