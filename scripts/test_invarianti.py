@@ -9,6 +9,7 @@ passa (workflow `controlla`). Niente rete, niente modello: solo le regole.
   python3 scripts/test_invarianti.py
 """
 import datetime
+import json
 import os
 import sys
 import zoneinfo
@@ -1897,8 +1898,8 @@ def _():
     pb = M.dato_forte("porte_blindate", "Roma")[1]
     tot = M.domanda("serramenti", "Roma")[0]
     assert pb < tot, f"porte blindate {pb} non puo' essere il totale dei serramenti {tot}"
-    # 3. sotto soglia o senza dato, nessun numero
-    assert M.dato_forte("agenzie_immobiliari", "Pesaro")[0] is None
+    # 3. senza dato, nessun numero (un settore fuori dalla base, una provincia che non e' italiana)
+    assert M.dato_forte("altro", "Milano")[0] is None and M.dato_forte("agenzie_immobiliari", "London")[0] is None
     # 4. la mail dei si': il numero dal codice, la riga del potenziale, niente «pero'» ne' segnaposto
     vero = __import__("bozze").template_verbatim()
     p = {"name": "", "sector": "agenzie_immobiliari", "city": "Bologna", "enriched": {}}
@@ -1906,12 +1907,67 @@ def _():
     assert t and M.dato_forte("agenzie_immobiliari", "Bologna")[0] in t, "la mail dei si' deve portare il dato forte"
     assert "Pensiamo possa essere un canale molto interessante" in t and "però è centrata" not in t and "vasto range" not in t
     assert "{{" not in t and "[" not in t
-    senza = S.risposta("INT-01", {"name": "", "sector": "agenzie_immobiliari", "city": "Pesaro", "enriched": {}}, {}, "https://cal/x",
+    senza = S.risposta("INT-01", {"name": "", "sector": "altro", "city": "Pesaro", "enriched": {}}, {}, "https://cal/x",
                        giorno="martedì 13 ottobre alle 15:30", testo_file=vero, garanzia=False)
     assert senza and "su Google. Pensiamo possa essere" in senza and "ricerche al mese" not in senza, "senza dato: la riga senza numero"
     # 5. l'analisi riceve lo stesso numero, senza il portale
     v = A.volumi("agenzie_immobiliari", "Milano")
     assert v["tam"] == M.domanda("agenzie_immobiliari", "Milano")[0] and not any(x["k"] == "immobiliare" for x in v["top"])
+
+
+
+@prova("la provincia si riconosce da nome, sigla e comune, e la base le ha tutte (12/10)")
+def _():
+    import mercato as M
+    casi = {"Pesaro": "Pesaro e Urbino", "MI": "Milano", "Roma (RM)": "Roma", "Carbonia": "Sud Sardegna",
+            "Rovereto": "Trento", "Monza": "Monza e della Brianza", "Verbania": "Verbano-Cusio-Ossola",
+            "Provincia della Spezia": "La Spezia", "Spezia": "La Spezia", "Bolzano - Alto Adige": "Bolzano/Bozen",
+            "None": None, "": None, "London": None}
+    for t, atteso in casi.items():
+        assert M.provincia(t) == atteso, f"{t!r} -> {M.provincia(t)!r}, atteso {atteso!r}"
+    # le 107 province per i settori della base: un si' di Siracusa o di Pesaro riceve il numero
+    for st in ("serramenti", "agenzie_immobiliari", "fotovoltaico_casa", "pompe_calore_casa"):
+        manca = [p for p in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "province_it.json")))["province"]
+                 if not M.voce(st, p)]
+        assert not manca, f"{st}: mancano {len(manca)} province nella base ({manca[:5]})"
+    frase = M.dato_forte("serramenti", "Reggio Emilia")[0]
+    assert frase and frase.startswith("nella provincia di Reggio Emilia"), frase
+    # mail e analisi scelgono la stessa provincia
+    p = {"sector": "serramenti", "city": "Carbonia", "enriched": {"google_fit": {"settore": "serramenti", "provincia": ""}}}
+    assert M.settore_e_provincia(p) == ("serramenti", "Sud Sardegna")
+    assert "settore_e_provincia(p)" in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "analisi_auto.py")).read()
+
+
+@prova("l'Ispettore guarda e non tocca, e riconosce i guasti veri senza falsi allarmi (12/10)")
+def _():
+    import ispettore as I
+    src = open(I.__file__).read()
+    corpo_sl = src[src.index("def sl("):src.index("def campagne_attive")]
+    assert "method" not in corpo_sl and "data=" not in corpo_sl, "su Smartlead l'Ispettore fa solo GET: le campagne le tocca Dre"
+    assert src.count("server.smartlead.ai") == 1, "un solo punto che parla con Smartlead"
+    # testi rotti: si', le sigle no
+    for o, t in [("Analisi marketing su ", "x"), ("Ok", "ho dato un occhiata a , notando"), ("Ciao {{first_name}}", "x"), ("x", "Gentile None,")]:
+        assert I.testo_rotto(o, t), f"doveva vedere il guasto: {o!r} {t!r}"
+    for o, t in [("Analisi marketing per A.R. Living", "x"), ("x", "le campagne di C.D.A. Tecnologie"), ("x", "grazie a voi, a presto")]:
+        assert not I.testo_rotto(o, t), f"falso allarme: {o!r} {t!r} -> {I.testo_rotto(o, t)}"
+    # chi non doveva ricevere la sequenza
+    ieri = (I.ADESSO - I.datetime.timedelta(days=1)).isoformat()
+    adesso = I.ADESSO.isoformat()
+    per = {"c@cliente.example": {"id": 1, "company": "C", "_cliente": True},
+           "p@pipe.example": {"id": 2, "company": "P", "_cliente": False, "stage": "call_fissata"},
+           "n@no.example": {"id": 3, "company": "N", "_cliente": False, "classificazione": "negativo"},
+           "r@risp.example": {"id": 4, "company": "R", "_cliente": False, "last_reply_at": ieri},
+           "ok@ok.example": {"id": 5, "company": "OK", "_cliente": False}}
+    righe = [{"lead_email": m, "sent_time": adesso, "sequence_number": 2, "_campagna": "X", "_cid": 1,
+              "email_subject": "Analisi marketing su Azienda", "email_message": "Buongiorno", "stats_id": m}
+             for m in list(per) + ["collega@cliente.example"]]
+    gravi, attenzione = I.controlla_sequenze(righe, per, {"cliente.example"}, I.ADESSO - I.datetime.timedelta(hours=2))
+    g = " ".join(t for _, t in gravi)
+    assert "CLIENTE" in g and "stessa azienda di un cliente" in g and "pipeline" in g and "detto no" in g, g
+    assert any("DOPO che aveva risposto" in t for _, t in attenzione)
+    assert not any("OK" == t.split(":")[0] for _, t in gravi + attenzione), "il lead pulito non va segnalato"
+    wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".github", "workflows", "ispettore.yml")).read()
+    assert "schedule" in wf and "contents: read" in wf and "scripts/ispettore.py" in wf
 
 
 def main():

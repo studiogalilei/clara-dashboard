@@ -1,0 +1,37 @@
+# L'ISPETTORE (Dre, 12/10): rilegge quello che e' USCITO davvero da Smartlead (sequenze,
+# risposte scritte a mano, caselle, rimbalzi) e lo confronta col Workspace. Guarda e dice,
+# non tocca: su Smartlead solo letture, le campagne le cambia Dre. Ogni ora dalle 8 alle
+# 21 di Roma; dalle 18 la pagella del giorno, il lunedi' i consigli (scripts/ispettore.py).
+name: ispettore
+on:
+  schedule:
+    - cron: "41 5-19 * * *"
+  workflow_dispatch:
+    inputs:
+      cosa:
+        description: "vuoto = il giro normale; --pagella o --consigli per forzarli"
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: ispettore
+  cancel-in-progress: false
+jobs:
+  guarda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: l'ispettore rilegge gli inviati
+        env:
+          TZ: Europe/Rome
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COSA: ${{ github.event.inputs.cosa }}
+        run: python3 scripts/ispettore.py $COSA

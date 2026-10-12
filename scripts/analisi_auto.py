@@ -187,7 +187,8 @@ def scheda(p):
                       f"recensioni_testi,sito_testo,raccolto_il,tag_google_ads,tag_analytics,tag_tag_manager,tag_clarity,tag_meta_pixel"
                       f"&dominio=eq.{urllib.parse.quote(dom)}") or [{}])[0] if dom else {}
     ultime = sb("GET", f"/rest/v1/interactions?select=body,at&prospect_id=eq.{p['id']}&kind=eq.email_in&order=at.desc&limit=2") or []
-    provincia = fit.get("provincia") or p.get("city") or ""
+    import mercato
+    provincia = mercato.settore_e_provincia(p)[1] or ""      # 12/10: la stessa scelta della mail
     if not provincia:
         provincia = provincia_dal_testo(racc.get("azienda"), racc.get("sito_testo"),
                                         " ".join((t.get("testo") or "") for t in (racc.get("recensioni_testi") or []) if isinstance(t, dict)))

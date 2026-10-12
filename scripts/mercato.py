@@ -20,6 +20,11 @@ Tre cose che il test del 12/10 ha trovato e che qui sono murate:
 3. un mestiere piu' stretto del settore (porte blindate dentro serramenti) prende solo la
    sua parola, non il totale del settore: 3.600 a Roma, non 22.000.
 Sotto SOGLIA il numero non si mette: «50 ricerche al mese» non convince, smonta.
+
+Stesso giorno, la copertura: sui si' da settembre il numero c'era per 41 su 70. La base
+aveva 85 province su 107 e la provincia si cercava per nome esatto: «Pesaro» non trovava
+«Pesaro e Urbino», «Carbonia» e «Rovereto» (comuni) nessuna. Ora la base ha tutte le
+province per ogni settore, e provincia() riconosce nome, sigla e comune (ISTAT).
 """
 import json
 import os
@@ -41,10 +46,52 @@ COSA = {"agenzie_immobiliari": "cercano casa o un'agenzia immobiliare", "serrame
         "ferro_battuto": "cercano un fabbro o lavorazioni in ferro", "pavimentazioni_esterne": "cercano pavimentazioni esterne",
         "case_legno": "cercano una casa in legno", "carpenteria_metallica": "cercano lavorazioni di carpenteria metallica"}
 _BASE = None
+_PROV = None
+# i nomi con cui la base del 24/8 ha salvato alcune province, verso il nome ISTAT
+VECCHI = {"aquila": "L'Aquila", "bolzano - alto adige": "Bolzano/Bozen", "bolzano": "Bolzano/Bozen", "massa e carrara": "Massa-Carrara",
+          "spezia": "La Spezia", "reggio emilia": "Reggio nell'Emilia", "monza e brianza": "Monza e della Brianza",
+          "aosta": "Valle d'Aosta/Vallée d'Aoste", "valle d'aosta": "Valle d'Aosta/Vallée d'Aoste", "forli": "Forlì-Cesena",
+          "pesaro": "Pesaro e Urbino", "urbino": "Pesaro e Urbino", "barletta": "Barletta-Andria-Trani", "andria": "Barletta-Andria-Trani"}
+# come si dice nella mail: «nella provincia di Reggio Emilia», non «di Reggio nell'Emilia»
+LUOGO = {"Bolzano/Bozen": "nella provincia di Bolzano", "Valle d'Aosta/Vallée d'Aoste": "in Valle d'Aosta",
+         "Reggio nell'Emilia": "nella provincia di Reggio Emilia", "Monza e della Brianza": "nella provincia di Monza e Brianza",
+         "Sud Sardegna": "nella provincia del Sud Sardegna", "L'Aquila": "nella provincia dell'Aquila", "La Spezia": "nella provincia della Spezia"}
 
 
 def norm(s):
     return unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode().lower().strip()
+
+
+def _province():
+    """Le 107 province e i 7.900 comuni ISTAT (province_it.json, dato pubblico)."""
+    global _PROV
+    if _PROV is None:
+        d = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "province_it.json"), encoding="utf-8"))
+        per_sigla = {v: k for k, v in d["province"].items()}
+        _PROV = ({norm(k): k for k in d["province"]}, per_sigla, {norm(k): per_sigla.get(v) for k, v in d["comuni"].items()})
+    return _PROV
+
+
+def provincia(testo):
+    """Il nome ISTAT della provincia da come l'abbiamo scritta noi: «Milano», «MI»,
+    «Roma (RM)», «Provincia di Pesaro», «Carbonia» (un comune). None se non e' italiana."""
+    nomi, per_sigla, comuni = _province()
+    t = str(testo or "").strip()
+    m = re.search(r"\(([A-Za-z]{2})\)\s*$", t)
+    if m and m.group(1).upper() in per_sigla:
+        return per_sigla[m.group(1).upper()]
+    if re.fullmatch(r"[A-Z]{2}", t) and t in per_sigla:
+        return per_sigla[t]
+    n = re.sub(r"^(citta metropolitana d[i']|ente di decentramento regionale di|libero consorzio comunale di|"
+               r"provincia autonoma di|provincia (?:di|del|della|dell'))\s*", "", norm(t)).strip(" ,.-")
+    n = re.sub(r"\s+", " ", n)
+    if not n or n in ("none", "null", "nan", "n/a", "na", "italia", "italy"):   # «None» e' un comune del Torinese
+        return None
+    return nomi.get(n) or VECCHI.get(n) or comuni.get(n) or next((v for k, v in nomi.items() if k.startswith(n + " ")), None)
+
+
+def luogo(prov):
+    return LUOGO.get(prov, f"nella provincia di {prov}")
 
 
 def base():
@@ -54,31 +101,37 @@ def base():
     if _BASE is not None:
         return _BASE
     loc = os.path.join(tempfile.gettempdir(), "odyn-base_analisi.json")
-    try:
-        if not os.path.exists(loc) or time.time() - os.path.getmtime(loc) > 3600:
-            from stanza import env
-            req = urllib.request.Request(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/vault/riservato/base_analisi.json",
-                                         headers={"apikey": env("SUPABASE_SERVICE_KEY"), "Authorization": f"Bearer {env('SUPABASE_SERVICE_KEY')}"})
-            with urllib.request.urlopen(req, timeout=60) as r:
-                dati = r.read()
-            if dati.strip():
-                open(loc, "wb").write(dati)
-        _BASE = {(norm(v["settore"]), norm(v["provincia"])): v for v in json.load(open(loc, encoding="utf-8")).values()}
-    except Exception as e:                                       # noqa: BLE001
-        print(f"  (base dei volumi non letta: {str(e)[:80]})")
-        _BASE = {}
-    return _BASE
+    # 12/10: tre tentativi, e un fallimento NON si ricorda. Prima un colpo di rete perso
+    # lasciava la base vuota per tutto il giro: ogni mail di quel giro partiva senza numero.
+    for tentativo in range(3):
+        try:
+            if not os.path.exists(loc) or time.time() - os.path.getmtime(loc) > 3600:
+                from stanza import env
+                req = urllib.request.Request(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/vault/riservato/base_analisi.json",
+                                             headers={"apikey": env("SUPABASE_SERVICE_KEY"), "Authorization": f"Bearer {env('SUPABASE_SERVICE_KEY')}"})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    dati = r.read()
+                if dati.strip():
+                    open(loc, "wb").write(dati)
+            _BASE = {(norm(v["settore"]), provincia(v["provincia"]) or v["provincia"]): v
+                     for v in json.load(open(loc, encoding="utf-8")).values()}
+            return _BASE
+        except Exception as e:                                   # noqa: BLE001
+            errore = e
+            time.sleep(2 * (tentativo + 1))
+    print(f"  (base dei volumi non letta: {str(errore)[:80]})")
+    return {}
 
 
-def voce(settore, provincia):
+def voce(settore, prov):
     """La riga della base per un settore (anche col nome del fit) e una provincia, o None."""
-    return base().get((SINONIMI.get(norm(settore), norm(settore)), norm(provincia)))
+    return base().get((SINONIMI.get(norm(settore), norm(settore)), provincia(prov)))
 
 
-def domanda(settore, provincia):
+def domanda(settore, prov):
     """(ricerche al mese vere, parole che le fanno, riga della base) o None. Senza le parole
     generiche, e col solo mestiere quando e' piu' stretto del settore."""
-    v = voce(settore, provincia)
+    v = voce(settore, prov)
     if not v:
         return None
     parole = [t for t in (v.get("top") or []) if not GENERICHE.match(str(t.get("k", "")).strip())]
@@ -91,10 +144,10 @@ def migliaia(n):
     return f"{n:,}".replace(",", ".")
 
 
-def dato_forte(settore, provincia):
+def dato_forte(settore, prov):
     """(«nella provincia di X ci sono circa N ricerche al mese di persone che cercano Y», N)
     oppure (None, motivo). Il numero e' tondo e mai sotto SOGLIA."""
-    d = domanda(settore, provincia)
+    d = domanda(settore, prov)
     if not d:
         return None, "nessun dato per settore e provincia"
     n, _, v = d
@@ -104,10 +157,19 @@ def dato_forte(settore, provincia):
     if not cosa:
         return None, "settore senza descrizione"
     tondo = int(round(n, -2)) if n < 10000 else int(round(n, -3))
-    return f"nella provincia di {v['provincia']} ci sono circa {migliaia(tondo)} ricerche al mese di persone che {cosa}", tondo
+    return f"{luogo(provincia(v['provincia']) or v['provincia'])} ci sono circa {migliaia(tondo)} ricerche al mese di persone che {cosa}", tondo
+
+
+def settore_e_provincia(p):
+    """Settore e provincia di un lead, uguali per la mail e per l'analisi: i due fit uniti
+    (il nuovo vince, come analisi_auto.fit_unito), poi la citta' della scheda. La provincia
+    e' il nome ISTAT o None."""
+    e = (p or {}).get("enriched") or {}
+    v1, v2 = e.get("google_fit") or {}, e.get("google_fit_v2") or {}
+    fit = {**v1, **{k: v for k, v in v2.items() if v not in (None, "", [], {})}}
+    return fit.get("settore") or (p or {}).get("sector"), provincia(fit.get("provincia")) or provincia((p or {}).get("city"))
 
 
 def dato_di(p):
-    """Il dato forte di un lead, da quello che sappiamo di lui (fit, poi scheda)."""
-    fit = ((p or {}).get("enriched") or {}).get("google_fit") or {}
-    return dato_forte(fit.get("settore") or (p or {}).get("sector"), (fit.get("provincia") or (p or {}).get("city") or ""))
+    """Il dato forte di un lead, da quello che sappiamo di lui."""
+    return dato_forte(*settore_e_provincia(p))
