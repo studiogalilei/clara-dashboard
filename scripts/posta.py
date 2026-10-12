@@ -146,11 +146,18 @@ def trova(rubrica, mail_controparte, oggetto):
 
 # ---------- Gmail ----------
 
+# 12/10, Dre: «limita alla mia». Il team non usa piu' il Workspace e leggere sei caselle ogni
+# cinque minuti costava modello senza portare call: si legge solo la casella di Dre.
+CASELLE_LETTE = ("dramane@studiogalilei.com",)
+
+
 def caselle(chi=None):
-    """Chi ha dato il permesso su Gmail entrando nel Workspace."""
+    """Le caselle Gmail che Clara legge: solo quelle in CASELLE_LETTE, con il permesso dato."""
     righe = sb("GET", "/rest/v1/google_token?select=email,user_id,scopes") or []
     fuori = []
     for r in righe:
+        if r["email"] not in CASELLE_LETTE:
+            continue
         if chi and r["email"] != chi:
             continue
         if "gmail.readonly" not in (r.get("scopes") or ""):

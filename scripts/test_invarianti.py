@@ -2107,6 +2107,20 @@ def _():
     assert C.categoria_nuova({"classificazione": "positivo"}, intento="INT-02") == "Vuole sentirti"
 
 
+@prova("la posta legge solo la casella di Dre (12/10)")
+def _():
+    import posta as P
+    import stanza
+    vero = P.sb
+    P.sb = lambda *a, **k: [{"email": e, "user_id": "u", "scopes": "gmail.readonly"} for e in
+                            ("dramane@studiogalilei.com", "collega@studiogalilei.com", "altro@studiogalilei.com")]
+    try:
+        assert [r["email"] for r in P.caselle()] == ["dramane@studiogalilei.com"]
+        assert P.caselle("collega@studiogalilei.com") == []
+    finally:
+        P.sb = vero
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
