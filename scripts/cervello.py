@@ -380,9 +380,13 @@ def _chiedi_claude(prompt, modello):
 USO = os.path.expanduser("~/.odyn-uso-cervello.json")
 
 
+_USO_DB = {"vivo": True}
+
+
 def _conta_uso(modello, dentro, fuori):
     """Quanti token ha consumato il cervello, per modello: cosi' il costo si
-    misura invece di temerlo."""
+    misura invece di temerlo. 12/10: anche nel database (uso_modelli, schema_v84), perche'
+    il file muore col runner del direttore. Solo un contatore: se non scrive non si ferma niente."""
     try:
         d = json.load(open(USO, encoding="utf-8")) if os.path.exists(USO) else {}
         m = d.setdefault(modello, {"dentro": 0, "fuori": 0, "chiamate": 0})
@@ -390,6 +394,18 @@ def _conta_uso(modello, dentro, fuori):
         json.dump(d, open(USO, "w", encoding="utf-8"))
     except Exception:
         pass
+    if not _USO_DB["vivo"]:
+        return
+    try:
+        import sys
+        from stanza import sb, _a_secco
+        if _a_secco():
+            return
+        sb("POST", "/rest/v1/uso_modelli", {"script": os.path.basename(sys.argv[0] or "?")[:60], "modello": modello,
+                                             "token_in": int(dentro or 0), "token_out": int(fuori or 0)},
+           {"Prefer": "return=minimal"})
+    except Exception:                                            # noqa: BLE001
+        _USO_DB["vivo"] = False                  # tabella assente o rete giu': per questo giro solo il file
 
 
 RIGA = re.compile(r"^\s*(\d+)\s*\|\s*([a-z_]+)\s*\|\s*([\d-]{1,10})\s*\|\s*(.*?)\s*$")
