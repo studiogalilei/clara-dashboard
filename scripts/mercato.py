@@ -239,3 +239,42 @@ def budget_di(settore, prov, fase="prova"):
         return None, "nessun dato per settore e provincia"
     n, _, v = d
     return regola_budget(n, v.get("cpc_medio"), fase)
+
+
+# ── LA RIGA PER LA MAIL (12/10 sera) ───────────────────────────────────────────
+# Dre, 12/10: «ti avevo detto di mettere una particolarità, un dato impressionante».
+# Su 11 bozze col sì il numero c'era in 5: la mail cercava la provincia solo nella scheda,
+# l'analisi PDF anche nel sito e nelle recensioni (analisi_auto.scheda). Adesso la mail la
+# sceglie come il PDF. E se un numero di mercato non c'è (settore fuori dalla base, provincia
+# introvabile), entra UNA particolarità vera presa da quello che abbiamo raccolto su di loro:
+# mai inventata, mai un giudizio, sempre un fatto che si verifica guardando Google.
+def particolarita(r):
+    """Una frase da quello che abbiamo raccolto (tabella raccolta), o None."""
+    r = r or {}
+    try:
+        rec, voto = int(r.get("recensioni") or 0), float(r.get("voto") or 0)
+    except (TypeError, ValueError):
+        rec, voto = 0, 0.0
+    if r.get("fa_ads") and r.get("tag_google_ads") is False:
+        return "abbiamo visto che fate già pubblicità su Google, ma sul sito non risulta il tracciamento delle conversioni"
+    if not r.get("fa_ads") and rec >= 20 and voto >= 4.3:
+        return (f"avete {rec} recensioni con una media di {str(round(voto, 1)).replace('.', ',')} su Google, "
+                f"e oggi nessuna pubblicità le mette davanti a chi vi sta cercando")
+    return None
+
+
+def riga_per_mail(p):
+    """Il pezzo dopo «L'analisi è centrata sulla comunicazione su Google»: «: <dato>» o ""."""
+    sett, prov = settore_e_provincia(p)
+    racc = None
+    if not prov or not dato_forte(sett, prov)[0]:
+        try:
+            import analisi_auto
+            s = analisi_auto.scheda(p)
+            prov, racc = s.get("provincia") or prov, s.get("raccolta")
+        except Exception:                                        # noqa: BLE001
+            pass
+    frase = dato_forte(sett, prov)[0] if prov else None
+    frase = frase or particolarita(racc)
+    return (": " + frase) if frase else ""
+

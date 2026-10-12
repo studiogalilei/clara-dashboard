@@ -165,19 +165,16 @@ export function haAccesso(w: Widget, ruolo: Ruolo, concessi: ReadonlySet<Chiave>
 // Restano Pipeline, Clienti, Calendario, Posta, Preventivi. Oggi, Documenti,
 // Condividi, Cosa cambieresti e Numeri spariscono dal menu (le pagine restano,
 // si riaccendono da Impostazioni). Acceso di default.
-const FUORI_DAL_MENU_CORTO: Chiave[] = ['vault', 'chat', 'feedback', 'analytics']
-const RESTANO_A_CHI_CONSEGNA: Chiave[] = ['vault', 'feedback']
 export function menuEssenziale(): boolean {
   return leggiPref('menu-essenziale', 'si') === 'si'
 }
+// IL WORKSPACE A QUATTRO VOCI (Dre, 12/10 sera): «voglio solo la sezione pipeline, calendario,
+// preventivi, e basta». Clara resta perche' e' l'unico posto dove ti parla: i casi fuori binario
+// (ha lasciato il numero, propone lui la call, chiede un prezzo) arrivano li', e li' si approva.
+// Le altre pagine non stanno piu' nel menu per nessuno; il codice resta finche' non si fa pulizia.
+export const SOLO: Chiave[] = ['prospect', 'calendario', 'preventivi', 'clara']
+
 export function menuDi(ruolo: Ruolo, zona: 'menu' | 'sistema', concessi: ReadonlySet<Chiave> = new Set()): Widget[] {
-  const spenti = nascosti()
-  const corto = menuEssenziale()
   return inOrdine(WIDGET.filter((w) =>
-    w.zona === zona && haAccesso(w, ruolo, concessi) && ruoliDi(w).includes(ruolo) && (w.fisso || !spenti.includes(w.chiave))
-    // Oggi sparisce dal menu corto solo per il ceo: per chi consegna e' la prima pagina (Dre, 24/9).
-    // 29/9, studio d'uso: anche Documenti e «Cosa cambieresti» restano a chi non e' ceo.
-    // Lorenzo i documenti li usa ogni giorno (dal telefono non ci arrivava), e Salvatore
-    // non ha mai lasciato un feedback perche' non ha mai visto dove.
-    && !(corto && FUORI_DAL_MENU_CORTO.includes(w.chiave) && !(ruolo !== 'ceo' && RESTANO_A_CHI_CONSEGNA.includes(w.chiave)))))
+    w.zona === zona && SOLO.includes(w.chiave) && haAccesso(w, ruolo, concessi) && ruoliDi(w).includes(ruolo)))
 }

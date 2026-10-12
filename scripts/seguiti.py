@@ -231,12 +231,14 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
     if "{{DATO_FORTE}}" in t:
         # 12/10: la riga del potenziale col numero vero (mercato.py, mai il modello). Senza
         # un numero credibile la riga resta, senza numero: «...su Google. Pensiamo possa...»
+        # 12/10 sera: la provincia come la sceglie il PDF, e senza un numero una particolarita'
+        # vera dai dati raccolti (mercato.riga_per_mail). Mai inventata.
         try:
-            from mercato import dato_di
-            frase = dato_di(p)[0]
+            from mercato import riga_per_mail
+            riga = riga_per_mail(p)
         except Exception:                                    # noqa: BLE001
-            frase = None                                     # nel dubbio nessun numero, mai uno inventato
-        t = t.replace("{{DATO_FORTE}}", (": " + frase) if frase else "")
+            riga = ""                                        # nel dubbio niente, mai un dato inventato
+        t = t.replace("{{DATO_FORTE}}", riga)
     if "[" in t or "{{" in t:
         return None
     return t.strip()

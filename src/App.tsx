@@ -127,7 +127,7 @@ export default function App() {
   // vero: Carlo, Alex e Salvatore non arrivavano mai su Oggi (studio d'uso di Alex).
   const entrataSenzaIndirizzo = useRef(dIniziale === null)
   const largo = useSchermoLargo()
-  const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'pipeline')   // 7/10 (Dre): senza indirizzo si entra sulla sala di controllo
+  const [tab, setTab] = useState<Tab>(dIniziale?.tab ?? 'prospect')   // 12/10 sera (Dre): si entra sulla Pipeline, il Workspace e' a quattro voci
   const [openId, setOpenId] = useState<string | null>(dIniziale?.id ?? null)
   const [sezione, setSezione] = useState<string | null>(dIniziale?.sezione ?? null)
   // GLI INDIRIZZI (Dre, 26/9): quello che guardi ha un indirizzo suo, lo copi e
@@ -183,7 +183,8 @@ export default function App() {
   }, [])
   useEffect(() => {
     if (!prefPronte) return
-    const t = setTimeout(() => { if (!leggiPref('giro-fatto')) setGiro(true) }, 900)
+    // 12/10 sera: il giro parlava delle pagine di prima (Oggi, task, clienti): non parte piu' da solo
+    const t = setTimeout(() => {}, 900)
     return () => clearTimeout(t)
   }, [prefPronte])
 
@@ -373,7 +374,7 @@ export default function App() {
       // entra senza indirizzo: se no un link mandato a Carlo lo porta altrove.
       // 5/10: una volta sola. L'effetto riparte a ogni «versione» (chiusura della scheda,
       // preferenze), e senza spegnere il segnale riportava gli altri su Oggi ogni volta.
-      if (c.ruolo !== 'ceo' && entrataSenzaIndirizzo.current) setTab('pipeline')
+      if (c.ruolo !== 'ceo' && entrataSenzaIndirizzo.current) setTab('prospect')
       entrataSenzaIndirizzo.current = false
     })
   }, [session, versione])
@@ -404,13 +405,11 @@ export default function App() {
   // LA BARRA DEL TELEFONO (gold, 6/10): Oggi e la Posta per prime, perche' sono le due cose
   // che si fanno col pollice; poi le prime voci del menu di ognuno. Quello che non ci sta sale
   // fra le icone in alto, dove prima stava la Posta: nessuna pagina diventa irraggiungibile.
-  const oggiW = widgetDi('pipeline')
+  // 12/10 sera (Dre): il Workspace e' a quattro voci, anche sul telefono. Oggi non c'e' piu'.
   const postaW = vociSistema.find((w) => w.chiave === 'clara')
   const sotto = [
-    // Oggi col sole (come nella V1): l'icona della bacheca era la stessa di Aziende
-    ...(oggiW && !voci.some((w) => w.chiave === 'pipeline') ? [{ ...oggiW, immagine: undefined, icona: 'M12 3v1.5M12 19.5V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.5M19.5 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z' }] : []),
-    ...(postaW ? [{ ...postaW, nome: 'Posta' }] : []),
     ...voci,
+    ...(postaW ? [{ ...postaW, nome: 'Clara' }] : []),
   ].slice(0, 5)
   const sopra = [
     ...voci.filter((w) => !sotto.some((x) => x.chiave === w.chiave)),
