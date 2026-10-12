@@ -504,6 +504,29 @@ def _():
         assert A.NON_TOCCARE.search(L.solo_suo(no)), f"un no vero non viene riconosciuto: {no}"
 
 
+@prova("un si' con l'informativa in fondo non diventa un no, un no vero resta no (12/10)")
+def _():
+    import lettura as L
+    import sync_v2 as S
+    # 12/10: due si' approvati fermati dal postino come «ha detto no». Il «cancellare il
+    # messaggio» dell'informativa, e «Buongiorno, grazie» letto come «no, grazie».
+    si = ("Buongiorno, certamente potete inviarci la vs analisi.\nBuon lavoro\n"
+          "Restando a disposizione porgo i migliori saluti.\n"
+          "Il presente messaggio e gli eventuali allegati sono destinati esclusivamente ai destinatari indicati. "
+          "Se ha ricevuto questa e-mail per errore, La invitiamo a cancellare il messaggio.")
+    si2 = ("Buongiorno a lei,\nCerto che mi fa piacere riceverla, la ringrazio\nCordialità\nMario\n"
+           "Questa mail contiene informazioni riservate. Qualora fosse stato ricevuto per errore "
+           "si prega di cancellare la copia in proprio possesso.")
+    for t in (si, si2, "Buongiorno, grazie inviateci pure la presentazione"):
+        assert not L.DETTO_NO.search(L.solo_suo(t)), f"un si' letto come no: {t[:50]}"
+        assert S.classifica(S.testo_suo(t)) != "negativo", f"il sync lo fa no: {t[:50]}"
+    for no in ("cancellatemi dalla vostra lista", "vi prego di rimuovere il mio indirizzo",
+               "no grazie", "La ringraziamo ma non siamo  interessati.",
+               "Buongiorno, grazie per il suo servizio, siamo già seguiti da professionisti."):
+        assert L.DETTO_NO.search(L.solo_suo(no)), f"un no vero non si riconosce piu': {no}"
+        assert S.classifica(S.testo_suo(no)) == "negativo", f"il sync non lo fa no: {no}"
+
+
 @prova("il testo del sito si tiene, e la provincia ha una rete se il modello non la trova")
 def _():
     import googlefit as G

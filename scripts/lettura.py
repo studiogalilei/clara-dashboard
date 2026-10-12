@@ -39,11 +39,16 @@ AUTORISPOSTA = re.compile(r"out of (the )?office|fuori (ufficio|sede)|risposta a
                           r"abbiamo ricevuto la (sua|vostra) (mail|email|richiesta|comunicazione)|questo (e'|è) un messaggio automatico|do not reply|non rispondere a questa|"
                           r"presa in carico|(richiesta|ticket|segnalazione) (e'|è) stat[ao] (inoltrat|ricevut|registrat|apert)|ticket (id|nr|n\.|numero)|id nr|numero (della|di) pratica|"
                           r"^gentile cliente|per poter gestire la (sua|vostra )?richiesta|(le|ti) sar[àa] notificat|riceverai una risposta|will get back to you", re.I | re.M)
-DETTO_NO = re.compile(r"non (siamo|sono|siam) interessat|non (ci|mi) interessa|no,? grazie|non fa per noi|"
+# 12/10: lo spazio vale anche doppio o a capo («non siamo  interessati» passava per un si')
+DETTO_NO = re.compile((r"non (siamo|sono|siam) interessat|non (ci|mi) interessa|\bno,? grazie|non fa per noi|"
                       r"non (abbiamo|ho) (bisogno|necessit|interesse)|abbiamo gi[àa] (un|una|il|la|chi|qualcuno)|"
-                      r"non (vogliamo|voglio|desider)|non (ci|mi) contatt|rimuov|cancell(are|atemi|ami)|declin|"
+                      r"non (vogliamo|voglio|desider)|non (ci|mi) contatt|"
+                      r"rimuov(etemi|eteci|ermi|erci|a(mi|ci))|rimuov(ete|ere|a) (il|la|le|i|lo) (mio|mia|miei|mie|nostr)|"
+                      r"cancell(atemi|ateci|ami|aci|armi|arci)|cancell(ate|are|i) (il|la|le|i|lo) (mio|mia|miei|mie|nostr)|"
+                      r"(rimuov|cancell)\w* (dalla|dalle|dai|dal|dagli) (vostr|lista|list|mailing|database|elenc|contatt)|declin|"
                       r"non (e'|è) di (nostro|mio) interesse|non (rientra|ci rientra) nei (nostri|miei)|non (ne )?abbiamo (la )?necessit|"
-                      r"non (siamo|sono) alla ricerca|non (ci|mi) serve|non (e'|è) (il|un) (nostro|mio) (obiettivo|interesse)", re.I)
+                      r"(siamo|sono) gi[àa] (seguit|copert|a posto)|"
+                      r"non (siamo|sono) alla ricerca|non (ci|mi) serve|non (e'|è) (il|un) (nostro|mio) (obiettivo|interesse)").replace(" ", r"\s+"), re.I)
 GIA_LETTA = re.compile(r"(ho|abbiamo|avevo|avevamo) (letto|visto|ricevuto|guardato|dato un.occhiata|analizzato)[^.\n]{0,40}analisi|"
                        r"grazie (per|dell)[^.\n]{0,20}analisi|l.analisi (che|ricevuta|inviata)|"
                        r"(per il|del) materiale (che|ricevuto|inviato)|materiale che (mi|ci) ha (trasmesso|inviato|mandato)|"
@@ -122,7 +127,10 @@ def _intestazione(t):
 # sul nostro sito»). Misurato su 300 risposte: 45 portano un disclaimer legale.
 SALUTI = re.compile(
     r"\n\s*(?:cordiali saluti|distinti saluti|un cordiale saluto|cari saluti|"
-    r"in attesa di|best regards|kind regards|--\s*$|__+\s*$)", re.I | re.M)
+    r"in attesa di|best regards|kind regards|--\s*$|__+\s*$|"
+    # 12/10: «Cordialità», «porgo i migliori saluti», «Buon lavoro» chiudono il messaggio come gli altri
+    r"cordialit[àa]|(?:porg|invi)\w*\s[^\n]{0,20}saluti|buon lavoro|"
+    r"rest\w+ a (?:sua |vostra )?(?:completa )?disposizione)", re.I | re.M)
 DISCLAIMER = re.compile(
     r"informativa privacy|"
     r"(?:le |l')informazioni (?:incluse|contenute|trasmesse|presenti)|"
@@ -131,7 +139,13 @@ DISCLAIMER = re.compile(
     r"this (?:communication|message|e-?mail|document) is (?:confidential|intended|reserved)|"
     r"reg\.? ?ue ?2016/679|regolamento \(?ue\)? ?2016/679|\bgdpr\b|privacy:\s|"
     r"destinatario indicato|ai sensi dell|\*{6,}|"
-    r"se (?:avete|hai) ricevuto (?:questo|questa) (?:messaggio|documento|mail|comunicazione) per errore", re.I)
+    r"se (?:avete|hai) ricevuto (?:questo|questa) (?:messaggio|documento|mail|comunicazione) per errore|"
+    # 12/10: due si' veri fermati come no dal «cancellare il messaggio» dell'informativa:
+    # «Il presente messaggio e gli eventuali allegati sono destinati...», «Questa mail
+    # contiene informazioni riservate...», «Qualora fosse stato ricevuto per errore...»
+    r"(?:il )?presente (?:messaggio|e-?mail|comunicazione)[^.\n]{0,60}(?:destinat|riservat|confidenzial)|"
+    r"quest[ao] (?:mail|e-?mail|messaggio|comunicazione) (?:contiene|(?:e'|è) (?:riservat|confidenzial|destinat))|"
+    r"(?:se|qualora) (?:ha|avete|hai|abbia|aveste|fosse stat[oa]) ricevut\w* [^.\n]{0,40}per errore", re.I)
 
 
 def solo_suo(testo, con_firma=False):

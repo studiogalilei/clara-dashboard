@@ -148,8 +148,11 @@ def sb(method, path, body=None, headers=None):
         raise RuntimeError(f"Supabase {method} {path}: {e.code} {e.read().decode()[:300]}")
 
 # ---------- classificazione euristica (proposta, mai verita' assoluta) ----------
-NEG = re.compile(r"non (siamo|sono) interessat|non mi interessa|no,?\s*grazie|non interessa|basta spam|"
-                 r"cancellat|rimuov|non voglio|ci occupiamo (gia|già)|abbiamo gia|unsubscribe|non desidero|"
+NEG = re.compile(r"non (siamo|sono) interessat|non mi interessa|\bno,?\s*grazie|non interessa|basta spam|"
+                 r"cancellatemi|cancellarmi|cancellarci|rimuovetemi|rimuovermi|rimuoverci|non voglio|"
+                 # 12/10: «cancellare»/«rimuovere» solo quando parlano di loro (lo stesso taglio di lettura.DETTO_NO):
+                 # «cancellare il messaggio» dell'informativa faceva diventare no un si'
+                 r"(?:rimuov|cancell)\w* (?:il|la|le|i|lo) (?:mio|mia|miei|mie|nostr)|(?:rimuov|cancell)\w* (?:dalla|dalle|dai|dal|dagli) (?:vostr|lista|list|mailing|database|elenc|contatt)|ci occupiamo (gia|già)|abbiamo gia|unsubscribe|non desidero|"
                  r"togliet|non fa per noi|non abbiamo (intenzione|interesse|budget)|siamo (a posto|copert)|"
                  r"^\s*(stop|no|remove)\b|non contattarmi|non scriv|gia'? seguiti|già seguiti|"
                  r"non ci interessa|non ci contatt|abbiamo già|gi[aà] chi (ci|si)", re.I)   # 6/10: «non ci», l'accento
@@ -163,7 +166,8 @@ POS = re.compile(r"interessat[oa]|mi interessa|volentieri|va bene|invii pure|inv
                  r"me l[ae] mandi|mandatel[ae]|faccia pure|fate pure|invii? pure|procedete|proceda pure|"   # 6/10: «Me la mandi», «faccia pure» restavano da classificare e la bozza non partiva
                  r"mi mandi|puo' mandare|può mandare|sentiamo|chiamat|telefonat|fissiamo|"
                  r"disponibil|ci dica|quanto cost|come funziona|aspetto|attendo|ricevo|con piacere|"
-                 r"mi piacerebbe|me la invii|mandi pure|\bcall\b|videochiamata|ok\b", re.I)
+                 r"mi piacerebbe|me la invii|mandi pure|\bcall\b|videochiamata|ok\b|"
+                 r"inviatec\w* pure|mandatec\w* pure|possiamo sentirci", re.I)   # 12/10: «inviateci pure la presentazione»
 RINVIO = re.compile(r"(risentiamo|sentiamoci|riparliamone|ricontatt\w+|riprend\w+)\s*(ci|mi|pure)?\s*"
                     r"(a|dopo|verso|in|tra)\s*(\w+)|piu' avanti|più avanti|fine (mese|anno)|prossim[oa] (mese|settimana|anno)|"
                     r"a (settembre|ottobre|novembre|dicembre|gennaio)", re.I)
@@ -182,7 +186,8 @@ def corpo_pulito(body):
     return t.strip()
 
 def classifica(testo):
-    t = testo.lower()
+    # 12/10: gli spazi doppi («non siamo  interessati») facevano saltare il no
+    t = " ".join(testo.lower().split())
     if OOO.search(t) and not POS.search(t):
         return "ooo"
     if CAMBIO.search(t) and not POS.search(t):
