@@ -27,7 +27,7 @@ PROVA = "--prova" in sys.argv
 ADESSO = datetime.datetime.now(datetime.timezone.utc)
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")          # 6/10: non +2 fisso (ora solare dal 25/10)
 MORTI = ("fuori_target", "soppresso", "nervoso")
-AUTO = ("INT-01", "INT-02", "INT-03", "INT-23", "INT-GB")
+AUTO = ("INT-01", "INT-03", "INT-23", "INT-GB")   # 12/10: chi vuole parlare (INT-02) e' di Dre, non e' un ritardo di Clara
 # oltre queste ore di attesa, il lead si nomina col motivo (i no e gli ooo hanno piu' margine)
 SOGLIA_ORE = 4
 SOGLIA_ORE_NO = 48

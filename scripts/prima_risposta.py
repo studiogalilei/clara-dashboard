@@ -103,7 +103,11 @@ CLASSI_OK = ("positivo", "tiepido")
 # gigante buono e' la consegna della prima risposta. I suoi freni restano tutti:
 # mai una data (cancello detto_no), mai a chi chiede di non essere contattato.
 # INT-GB tolto il 5/10: niente piu' analisi ai no (decisione di Dre, costi OpenAI)
-INTENTI_OK = ("INT-01", "INT-02", "INT-03", "INT-23")
+# 12/10 sera, Dre: «quando chiedono di sentirsi la palla passa a me, faccio io»: chi vuole
+# parlare (INT-02, INT-24) non riceve mai la risposta automatica col NOSTRO giorno. Va a Dre,
+# che segna in calendario e risponde a mano (Manuale di Clara v2, caso 13).
+INTENTI_OK = ("INT-01", "INT-03", "INT-23")
+INTENTI_CALL = ("INT-02", "INT-24")
 # 2/10: il gigante buono dice «gliela lasciamo in allegato», e «le lascio» non bastava
 ALLEGA_ANALISI = re.compile(r"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*[^.\n]{0,60}\banalisi\b|"
                             r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"

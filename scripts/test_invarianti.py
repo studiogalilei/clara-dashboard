@@ -1060,7 +1060,8 @@ def _():
     # risposta, con l'analisi e la presentazione. Le conversazioni me le gestisco io».
     # INT-GB aggiunto il 2/10 e TOLTO il 5/10 su ordine di Dre («non inviamo piu' le
     # analisi ai no: sta spendendo tanti crediti anche per chi ha detto no»)
-    assert PR.INTENTI_OK == ("INT-01", "INT-02", "INT-03", "INT-23"), "la lista degli intenti automatici e' cambiata senza Dre"
+    # INT-02 TOLTO il 12/10 su ordine di Dre: «quando chiedono di sentirsi la palla passa a me»
+    assert PR.INTENTI_OK == ("INT-01", "INT-03", "INT-23"), "la lista degli intenti automatici e' cambiata senza Dre"
     t = pathlib.Path(PR.__file__).read_text(encoding="utf-8")
     assert "ALLEGA_ANALISI.search(testo)" in t, "l'automatico puo' partire senza consegnare l'analisi"
     assert "non e' una prima risposta" in t, "l'automatico non controlla piu' che sia la PRIMA risposta"
@@ -2095,6 +2096,15 @@ def _():
     assert K.riconosci({**ev, "titolo": "Pranzo"}, P) == (None, None)
     # Meet, Google e le mail non sono siti
     assert K.siti_nella_descrizione(ev["descrizione"]) == ["rossi-ferramenta.it"]
+
+
+@prova("chi chiede di sentirsi passa a Dre: mai la risposta automatica col nostro giorno (12/10)")
+def _():
+    import prima_risposta as R
+    import categorie_smartlead as C
+    assert not set(R.INTENTI_CALL) & set(R.INTENTI_OK), "una richiesta di call partirebbe da sola"
+    assert set(R.INTENTI_CALL) == set(C.INTENTI_CALL), "prima risposta e filtri devono dire la stessa cosa"
+    assert C.categoria_nuova({"classificazione": "positivo"}, intento="INT-02") == "Vuole sentirti"
 
 
 def main():
