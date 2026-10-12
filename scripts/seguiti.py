@@ -228,6 +228,15 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
         t = t.replace(FRASE_GARANZIA + " farebbe", "Mi farebbe", 1)
     elif FRASE_GARANZIA not in t and "Mi farebbe piacere confrontarmi" in t:
         t = t.replace("Mi farebbe piacere confrontarmi", FRASE_GARANZIA_IN + " farebbe piacere confrontarmi", 1)
+    if "{{DATO_FORTE}}" in t:
+        # 12/10: la riga del potenziale col numero vero (mercato.py, mai il modello). Senza
+        # un numero credibile la riga resta, senza numero: «...su Google. Pensiamo possa...»
+        try:
+            from mercato import dato_di
+            frase = dato_di(p)[0]
+        except Exception:                                    # noqa: BLE001
+            frase = None                                     # nel dubbio nessun numero, mai uno inventato
+        t = t.replace("{{DATO_FORTE}}", (": " + frase) if frase else "")
     if "[" in t or "{{" in t:
         return None
     return t.strip()

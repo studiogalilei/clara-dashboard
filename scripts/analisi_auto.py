@@ -127,11 +127,15 @@ def base_volumi():
 
 
 def volumi(settore, provincia):
-    for k, v in base_volumi().items():
-        s, p = k.split("|", 1)
-        if norm(s) == norm(settore) and norm(p) == norm(provincia):
-            return v
-    return None
+    """12/10: dal modulo unico (mercato.py), lo stesso numero della mail. Prima il «tam»
+    grezzo passava al modello gonfiato dal portale (agenzie di Milano: 1.345.300, di cui
+    1.220.000 la sola parola «immobiliare»), e i sinonimi del fit non trovavano la base."""
+    import mercato
+    d = mercato.domanda(settore, provincia)
+    if not d:
+        return None
+    n, parole, v = d
+    return {**v, "tam": n, "top": parole}
 
 
 def provincia_dal_testo(*testi):
@@ -221,9 +225,14 @@ def fatti_in_testo(s, p):
             righe.append("TESTO DEL SITO (estratto):\n" + r["sito_testo"][:3500])
     if vol:
         serie = vol.get("serie") or []
-        righe.append(f"VOLUMI (Keyword Planner, settore x provincia, precalcolati): domanda {vol.get('tam'):,} ricerche/mese nella provincia, "
+        # l'andamento come indice (100 = media): la serie grezza contiene le parole generiche,
+        # e un suo valore assoluto citato nell'analisi sarebbe il numero gonfiato (12/10)
+        media = (sum(serie) / len(serie)) if serie else 0
+        indice = [round(x / media * 100) for x in serie] if media else []
+        righe.append(f"VOLUMI (Keyword Planner, settore x provincia, precalcolati): domanda {vol.get('tam'):,} ricerche/mese nella provincia "
+                     f"(solo chi cerca davvero il servizio: e' lo stesso numero della mail, usalo cosi'), "
                      f"CPC medio cima pagina {vol.get('cpc_medio')} €, mesi vivi {vol.get('mesi_vivi')}/12. "
-                     f"Serie mensile da settembre a agosto: {serie}. Cluster con volumi: "
+                     f"Andamento mese per mese da settembre a agosto, 100 = media: {indice}. Cluster con volumi: "
                      + ", ".join(f"{t['k']} ({t['n']})" for t in (vol.get("top") or [])[:10]))
     else:
         righe.append("VOLUMI: non precalcolati per questa coppia settore/provincia. Non inventare numeri: parla di domanda in termini qualitativi e dichiara «valutazione di Studio Galilei sul settore».")

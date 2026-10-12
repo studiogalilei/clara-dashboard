@@ -1885,6 +1885,35 @@ def _():
     assert any("non lascia il calendario" in m for m in R.perche_no(int01, None)), "INT-01 senza calendario resta bocciato"
 
 
+@prova("il numero del mercato: uno solo, pulito dal portale, uguale in mail, analisi e no gentili (12/10)")
+def _():
+    import mercato as M, seguiti as S, analisi_auto as A
+    # 1. niente parole generiche: le agenzie di Milano non sono un milione (era 1.345.300, «immobiliare» = il portale)
+    frase, n = M.dato_forte("agenzie_immobiliari", "Milano")
+    assert frase and 10000 < n < 100000, f"Milano agenzie: {n}"
+    assert "ricerche al mese di persone che cercano" in frase, "si dice «ricerche», non «persone»: una persona ne fa piu' d'una"
+    # 2. i nomi del fit trovano la base; il mestiere stretto prende solo la sua parola
+    assert M.dato_forte("fotovoltaico", "Torino")[0], "fotovoltaico (fit) deve trovare fotovoltaico_casa (base)"
+    pb = M.dato_forte("porte_blindate", "Roma")[1]
+    tot = M.domanda("serramenti", "Roma")[0]
+    assert pb < tot, f"porte blindate {pb} non puo' essere il totale dei serramenti {tot}"
+    # 3. sotto soglia o senza dato, nessun numero
+    assert M.dato_forte("agenzie_immobiliari", "Pesaro")[0] is None
+    # 4. la mail dei si': il numero dal codice, la riga del potenziale, niente «pero'» ne' segnaposto
+    vero = __import__("bozze").template_verbatim()
+    p = {"name": "", "sector": "agenzie_immobiliari", "city": "Bologna", "enriched": {}}
+    t = S.risposta("INT-01", p, {}, "https://cal/x", giorno="martedì 13 ottobre alle 15:30", testo_file=vero, garanzia=False)
+    assert t and M.dato_forte("agenzie_immobiliari", "Bologna")[0] in t, "la mail dei si' deve portare il dato forte"
+    assert "Pensiamo possa essere un canale molto interessante" in t and "però è centrata" not in t and "vasto range" not in t
+    assert "{{" not in t and "[" not in t
+    senza = S.risposta("INT-01", {"name": "", "sector": "agenzie_immobiliari", "city": "Pesaro", "enriched": {}}, {}, "https://cal/x",
+                       giorno="martedì 13 ottobre alle 15:30", testo_file=vero, garanzia=False)
+    assert senza and "su Google. Pensiamo possa essere" in senza and "ricerche al mese" not in senza, "senza dato: la riga senza numero"
+    # 5. l'analisi riceve lo stesso numero, senza il portale
+    v = A.volumi("agenzie_immobiliari", "Milano")
+    assert v["tam"] == M.domanda("agenzie_immobiliari", "Milano")[0] and not any(x["k"] == "immobiliare" for x in v["top"])
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -101,7 +101,8 @@ NOTA: una riga su cosa hai usato dell'analisi
 Il testo: registro «lei», 5-7 righe, mai il trattino lungo, niente firma.
 1) ringrazia della risposta e prendi atto del no senza discuterlo;
 2) di' che l'analisi della loro zona era gia' pronta e gliela lasciamo in
-   allegato, con UN numero vero se c'e' (le ricerche al mese nella provincia);
+   allegato, con UN numero vero se c'e': SOLO il «dato_forte» della scheda, parola per
+   parola; se dice «nessuno», nessun numero (12/10: il numero lo sceglie il codice);
 3) chiudi con la porta aperta (Dre, 30/9 e 1/10): se un giorno vorranno piu'
    clienti, o migliorare i loro processi con AI e software su misura (la finanza
    agevolata e' la leva del software, mai un servizio a parte), noi ci siamo.
@@ -1063,8 +1064,15 @@ def main():
         if ultimo_no and (datetime.date.today() - datetime.date.fromisoformat(ultimo_no)).days > GIORNI_GB:
             mai_gb(p, f"il suo no ha piu' di {GIORNI_GB} giorni"); continue
         nome = (p.get("company") or p.get("name") or mail)[:34]
+        try:
+            from mercato import dato_di
+            dato = dato_di(p)[0]
+        except Exception:                                    # noqa: BLE001
+            dato = None
         fatti = {"nome": p.get("name") or "", "azienda": p.get("company") or "", "settore": p.get("sector"), "citta": p.get("city"),
-                 "google_fit": {"provincia": fit.get("provincia"), "zona": fit.get("zona"), "cosa_fa": fit.get("cosa_fa")} if fit else None}
+                 "google_fit": {"provincia": fit.get("provincia"), "cosa_fa": fit.get("cosa_fa")} if fit else None,
+                 # 12/10: il numero lo sceglie il codice, lo stesso della mail dei si' e dell'analisi
+                 "dato_forte": dato or "nessuno: non scrivere nessun numero"}
         prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa") + "\n\n" + ISTRUZIONE_GB + cervello.istruzione("chat") + cervello.istruzione("bozze") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
                   + casi.simili(testo)
                   + f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
