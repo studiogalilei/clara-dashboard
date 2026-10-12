@@ -27,6 +27,16 @@ MAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 def nuovo_indirizzo(p):
     mio = (p.get("email") or "").lower()
+    import lettura
+    if lettura.senso_acceso():
+        # 12/10, senso_v2: l'indirizzo giusto e' quello che l'AI ha letto nel testo SUO e che il
+        # codice ha verificato (senso.verifica: c'e' nel testo, non e' nostro, non e' una pec in firma).
+        # Prima si prendeva il primo indirizzo di tutta la mail, firme e informative comprese.
+        ult = sb("GET", f"/rest/v1/interactions?select=id,body,ref&prospect_id=eq.{p['id']}&kind=eq.email_in&order=at.desc&limit=1") or []
+        if not ult:
+            return None
+        dec = (lettura.senso(p, ult[0], attuale=p.get("classificazione")) or {}).get("decisione") or {}
+        return next((g.lower() for g in dec.get("girato_a") or [] if "@" in g and g.lower() != mio), None)
     testi = [((p.get("enriched") or {}).get("lettura") or {}).get("perche") or ""]
     ult = sb("GET", f"/rest/v1/interactions?select=body&prospect_id=eq.{p['id']}&kind=eq.email_in&order=at.desc&limit=1") or []
     if ult:

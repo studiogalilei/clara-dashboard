@@ -178,6 +178,11 @@ def contatti_fuori(p, giorni=GIORNI_CONTATTO):
     return no
 
 
+def cervello_versione():
+    import cervello
+    return cervello.VERSIONE
+
+
 def seguiti_gruppi():
     import seguiti
     return set(seguiti.GRUPPI_DAL_CODICE)
@@ -196,7 +201,7 @@ def perche_no_seguito(pr, p):
         no.append("gia' passata di qui")
     if gruppo not in seguiti.GRUPPI_DAL_CODICE:
         no.append(f"non e' un follow-up col template ({gruppo or 'prima risposta'})")
-    # 7/10: il giorno spostato da Dre sulla bozza gia' pronta (caso Jaam Italia): prima
+    # 7/10: il giorno spostato da Dre sulla bozza gia' pronta: prima
     # di quel giorno non parte da sola, anche se tutto il resto e' in ordine
     if str(az.get("parte_il") or "")[:10] > datetime.date.today().isoformat():
         no.append(f"parte il {str(az['parte_il'])[8:10]}/{str(az['parte_il'])[5:7]}, il giorno scelto da Dre")
@@ -236,11 +241,10 @@ def perche_no(pr, p):
         no.append("manca la bozza")
     # DAL BANCO DI PROVA (29/9, 70 risposte vere di Dre): alla prima risposta Dre
     # manda SEMPRE l'analisi, anche a chi chiede solo «una chiacchierata»
-    # (Yachtspassion), e propone SEMPRE la call col calendario, anche a chi dice
-    # «niente budget quest'anno» (Optima, Mason). Le bozze che non lo fanno non
+    # (un caso vero), e propone SEMPRE la call col calendario, anche a chi dice
+    # «niente budget quest'anno» (due casi veri). Le bozze che non lo fanno non
     # partono da sole: il PDF partirebbe allegato a una mail che non lo nomina.
-    # Non basta nominarla: «vediamo insieme l'analisi in call» (Yachtspassion,
-    # Abiovet) con il PDF attaccato e' una mail che non sa cosa porta.
+    # Non basta nominarla: «vediamo insieme l'analisi in call» (due casi veri) con il PDF attaccato e' una mail che non sa cosa porta.
     testo = (az.get("bozza") or "").lower()
     if not ALLEGA_ANALISI.search(testo):
         no.append("la bozza non dice che l'analisi e' allegata")
@@ -309,7 +313,7 @@ def verdetto_revisore(testo):
 
 def _template_approvati():
     """Le prime risposte del file dei template di Dre (29/9, dal banco di prova: il
-    Revisore fermava La Baita Case per «una proposta con garanzia non verificata»,
+    Revisore fermava un lead immobiliare per «una proposta con garanzia non verificata»,
     che e' una frase del template di Dre. Chi giudica deve sapere cosa e' gia' approvato)."""
     try:
         import bozze
@@ -390,7 +394,7 @@ Rispondi SOLO con una riga: «OK» oppure «STOP: motivo in venti parole»."""
 
 def segna(pr, az, patch_extra=None, solo_se_aperta=True, prima_decisione=False):
     """Scrive sulla proposta solo se e' ancora aperta: se Dre l'ha toccata nel frattempo, vince lui.
-    Con prima_decisione, scrive solo se nessun altro giro ha gia' deciso (6/10, casainromagna:
+    Con prima_decisione, scrive solo se nessun altro giro ha gia' deciso (6/10:
     alle 10:56 un giro l'ha fermata, «siamo gia' in contatto fuori da Smartlead», e alle 10:58
     un giro parallelo, partito prima con una copia vecchia, l'ha approvata e spedita, cancellando
     lo stop. Lampo e il direttore fanno girare la prima risposta insieme: vince chi decide per primo.)"""
@@ -512,6 +516,13 @@ def main():
                 or (letti.get("autorisposta") and not SEGUITI):
             # per il gigante buono il no E' il caso (Dre, 2/10); «non scrivetemi» ferma sempre
             cambiato = "rileggendo il filo adesso, non e' piu' un caso semplice"
+        elif lettura.senso_acceso() and not SEGUITI and (pr.get("azione") or {}).get("intento") != "INT-GB" \
+                and not (letti.get("si_sicuro") and (letti.get("versione") == cervello_versione() or letti.get("fonte") == "dre")):
+            # 12/10, senso_v2: parte da sola solo con un si' sicuro dell'AI sul testo suo, senza grave
+            # e senza dubbio, letto dal lettore di adesso. Il motivo dice la frase e la fonte.
+            # (12/10 sera: una scelta di Dre vale a qualunque versione del lettore: riguarda il testo)
+            cambiato = ("l'AI non ha letto questa risposta" if letti.get("lettura_stato") in ("senza_ai", "senza_regole", None)
+                        else f"la lettura non e' un si' sicuro: «{(letti.get('frase') or '')[:120]}» ({letti.get('fonte')}, {letti.get('lettura_stato')})")
         # «Via libera» dal calendario dei follow-up (29/9): Dre ha visto la traccia e sa che e' innocua
         if not cambiato and not az.get("via_libera"):
             fuori = contatti_fuori(p)

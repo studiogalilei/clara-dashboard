@@ -74,6 +74,8 @@ function perRiga(p: { classificazione: string | null }, pr: PropostaMin | null):
   }
   const esito = pr.azione?.prima_risposta
   if (pr.tipo === 'umano') return { daTe: true, perche: pr.perche?.split('.')[0] ?? 'serve una tua decisione' }
+  // 12/10: un dubbio sul senso della sua risposta: lo sciogli tu, con un tocco
+  if (pr.tipo === 'senso') return { daTe: true, perche: 'non sono sicura di cosa ha risposto: dimmelo tu' }
   if (esito?.esito === 'resta a Dre') return { daTe: true, perche: esito.motivo?.split('.')[0] ?? 'la bozza aspetta te' }
   if (pr.azione?.bozza && !AUTO.includes(pr.azione?.intento ?? '')) return { daTe: true, perche: 'c’è una risposta pronta, la approvi tu' }
   return { daTe: false, perche: 'risposta in corsia automatica' }

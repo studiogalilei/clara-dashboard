@@ -14,6 +14,7 @@ import { useVivo } from '../lib/vivo'
 import { CLS_LABEL } from '../lib/types'
 import { pulisci, creaTask } from '../lib/regole'
 import { conSoldi, soldiClienti } from '../lib/soldi'
+import { SCELTE_RISPOSTE } from '../lib/metro'
 
 // Clara volante: pannello allargabile (trascina il bordo sinistro), la
 // conversazione stile Claude, e i COMANDI RAPIDI. Regola del workflow
@@ -28,6 +29,20 @@ export interface Lettura {
   ultima_loro?: string; ultima_loro_il?: string; ultima_nostra?: string; ultima_nostra_il?: string
   scritto_dopo_di_lei?: number; analisi_ricevuta?: boolean; detto_no?: boolean; autorisposta?: boolean; girato_a?: string[]
   coerenza?: string; coerenza_motivo?: string; gruppo?: string | null; letta_da_clara?: string
+  // 12/10, il senso: chi l'ha deciso (l'AI, l'AI dopo la seconda lettura, la lista + Dre, Dre) e la frase
+  fonte?: string | null; frase?: string; lettura_stato?: string | null
+}
+
+// la fonte della lettura in parole, sotto la bozza: chi approva vede chi ha deciso il senso
+function fonteInParole(l: Lettura): string | null {
+  if (l.lettura_stato === 'senza_ai') return 'non letto: AI ferma'
+  if (l.lettura_stato === 'dubbio_a_dre') return 'in dubbio: te l’ho chiesto'
+  const frase = l.frase ? `: «${l.frase.slice(0, 120)}»` : ''
+  if (l.fonte === 'dre') return 'deciso da te'
+  if (l.fonte === 'ai+seconda') return `letto dall’AI dopo la seconda lettura${frase}`
+  if (l.fonte === 'ai+rete') return `letto dall’AI, e la lista lo conferma${frase}`
+  if (l.fonte === 'ai') return `letto dall’AI${frase}`
+  return null
 }
 
 /** Loro / noi / seconda testa, sotto ogni bozza: quello che si e' letto prima di scrivere. */
@@ -43,6 +58,7 @@ export function LetturaBox({ l }: { l: Lettura }) {
         {l.detto_no && <span className="text-red-700">ha detto no</span>}
         {l.autorisposta && <span className="text-amber-700">autorisposta</span>}
         {l.girato_a && l.girato_a.length > 0 && <span>ci gira a {l.girato_a.join(', ')}</span>}
+        {fonteInParole(l) && <span>{fonteInParole(l)}</span>}
         <span className={ok ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>{ok ? 'Controllata: regge' : `Fermata dal controllo${l.coerenza_motivo ? `: ${l.coerenza_motivo}` : ''}`}</span>
       </p>
     </div>
@@ -71,6 +87,8 @@ interface Proposta {
     // «questa mail e' di X?»: riconosciuta solo dal nome nell'oggetto, quindi
     // la scheda la tocca una persona (scripts/posta.py)
     interazione?: Record<string, unknown>
+    // «non sono sicura di cosa ha risposto» (12/10, schema_v81): la lettura in dubbio e i bottoni del Metro
+    senso?: { lettura_id: number | null; grave?: boolean; frase?: string; etichetta?: string; fonte?: string; tre_righe?: string }
   }
   stato: 'aperta' | 'si' | 'no' | 'fatta'
 }
@@ -97,7 +115,7 @@ const CHIP: Record<string, [string, string]> = {
 const GRUPPO: Record<string, string> = {
   risposta: 'Bozze da approvare', umano: 'Da guardare tu', richiesta: 'Richieste',
   tornato: 'Tornati', avanza: 'Dalle call', classifica: 'Classificazioni',
-  data: 'Date', scarta: 'Da scartare', collega: 'Mail da attaccare',
+  data: 'Date', scarta: 'Da scartare', collega: 'Mail da attaccare', senso: 'Da capire',
 }
 
 // Rispondere a tutto il gruppo in un colpo, ma SOLO dove sbagliare non costa
@@ -426,7 +444,9 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                   <span className="block max-h-72 overflow-y-auto whitespace-pre-wrap">{c.ultimo}</span>
                                 </blockquote>
                               )}
-                              {pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
+                              {pr.azione?.senso?.tre_righe
+                                ? <p className="whitespace-pre-line text-[13px] leading-snug text-inchiostro">{pr.azione.senso.tre_righe}</p>
+                                : pr.perche && <p className="text-xs text-tenue">Clara: {pr.perche}</p>}
                               {pr.azione?.lettura && <LetturaBox l={pr.azione.lettura} />}
                               {pr.azione?.bozza !== undefined && (
                                 <div className="mt-2">
@@ -452,6 +472,21 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                               )}
                             </div>
                           )}
+                          {pr.tipo === 'senso' && pr.azione?.senso?.lettura_id ? (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              {/* 12/10: il dubbio si scioglie con le scelte del Metro; la scelta scrive la lettura
+                                  (decidi_lettura) e da li' vale per bozze, prima risposta e postino */}
+                              {SCELTE_RISPOSTE.map(([chiave, nome]) => (
+                                <button key={chiave} onClick={() => void decidiSenso(pr, chiave, nome)} disabled={rispondo === pr.id || lavoro !== null}
+                                        className="rounded-full border border-navy px-3 py-1.5 text-xs font-bold text-navy hover:bg-velo disabled:opacity-40">
+                                  {nome}
+                                </button>
+                              ))}
+                              {pr.prospect_id && (
+                                <button onClick={() => vaiAllaStoria(pr)} className="ml-auto text-xs font-bold text-blu hover:underline">Apri la scheda</button>
+                              )}
+                            </div>
+                          ) : (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             {/* il giro vero e' «leggi, manda, torna e conferma»: la mail
                                 si apre gia' scritta, cosi' dal telefono non e' un
@@ -495,6 +530,7 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
                                         className="ml-auto text-xs font-bold text-blu hover:underline">Apri la scheda</button>
                             )}
                           </div>
+                          )}
                         </div>
                       )}
       </>
@@ -704,6 +740,22 @@ export default function ClaraVolante({ onOpen, modo = 'volante', compatta = fals
     // 29/9: fatta una, si apre la prossima, come dopo «Approva» (la fila del 25/9)
     inFila(p)
     await scriviMessaggio('controllo', `Mandata a mano: ${p.titolo}`, p.prospect_id)
+    setRispondo(null)
+  }
+
+  // IL DUBBIO SUL SENSO (12/10): la scelta di Dre scrive la lettura e chiude la domanda (RPC decidi_lettura)
+  async function decidiSenso(p: Proposta, scelta: string, nome: string) {
+    const id = p.azione?.senso?.lettura_id
+    if (!id) return
+    setRispondo(p.id)
+    setGuaio(null)
+    const { error } = await supabase.rpc('decidi_lettura', { p_id: id, p_scelta: scelta })
+    if (error) setGuaio(`Non sono riuscita a scriverlo: ${error.message}`)
+    else {
+      setProposte((l) => l.filter((x) => x.id !== p.id))
+      inFila(p)
+      await scriviMessaggio('controllo', `Deciso da te: «${nome}». ${p.titolo.split(':')[0]}: da qui vale la tua lettura.`, p.prospect_id)
+    }
     setRispondo(null)
   }
 

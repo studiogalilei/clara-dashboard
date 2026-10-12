@@ -138,7 +138,21 @@ def misura():
     print(f"IL METRO: {len(righe)} risposte etichettate da Dre {dict(Counter(r['etichetta'] for r in righe))}\n")
     for r in righe:      # se il giorno della preparazione la rete era giu', la lettura si fa adesso
         r["proposta"] = r.get("proposta") or cervello.classifica_risposta(r["testo"])
-    for nome, chi in (("lettore unico (GPT, soglie asimmetriche)", lambda r: cervello.decisioni(r.get("proposta"))),
+    # 12/10: anche il senso nuovo (senso.giudica con le soglie del Manuale). Senza le chiavi nuove
+    # nel Manuale non si misura: lo dice, invece di inventare soglie
+    import lettura
+    import senso as S
+    soglie = lettura.soglie_lettore()
+    if not soglie:
+        print("  (senso nuovo: le soglie della sezione F del Manuale non sono complete, non lo misuro)\n")
+
+    def nuovo(r):
+        d = S.giudica(r.get("proposta"), S.rete(r["testo"]), soglie)
+        e = "non_scrivere" if d["grave"] else {"auto": "fuori_ufficio"}.get(d["etichetta"], d["etichetta"])
+        return {"etichetta": e if e in ("si", "no", "non_scrivere", "fuori_ufficio", "rinvio") else "altro",
+                "dubbio": d["dubbio"] or d["serve_seconda"] or d["stato"] != "letta"}
+    for nome, chi in ((("senso nuovo (AI sul testo suo, lista solo per i gravi)", nuovo),) if soglie else ()) + (
+                      ("lettore unico (GPT, soglie asimmetriche)", lambda r: cervello.decisioni(r.get("proposta"))),
                       # quando nessuna regola scatta la mail va a una persona: e' un dubbio, non una decisione
                       ("regole di oggi (regex)", lambda r: {"etichetta": regex_di_oggi(r["testo"]), "dubbio": regex_di_oggi(r["testo"]) == "altro"})):
         giusti = si_per_no = no_per_si = ns_mancati = decide = decide_giusti = 0

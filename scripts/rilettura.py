@@ -41,6 +41,10 @@ PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else None
 
 INTOCCABILI = ("cliente", "perso", "call_fissata", "rinviato")
+# il recupero notturno con senso_v2 acceso (12/10 sera): solo le risposte recenti, con un tetto alle
+# letture pagate. Lo storico passa dal poliziotto (piano del 12/10, passo 6)
+GIORNI_RECUPERO = 14
+TETTO_RECUPERO = 40
 SICURE = {"ooo", "negativo", "rinvio", "tiepido", "persona_sbagliata", "nervoso", "soppresso"}
 AUTOMATICA = re.compile(r"automatic|autorispo|auto-?repl|out of office|fuori ufficio|assen|ferie|vacan|rientr|chius", re.I)
 ETICHETTA = {"positivo": "positivo", "tiepido": "parziale", "negativo": "negativo",
@@ -51,7 +55,7 @@ ETICHETTA = {"positivo": "positivo", "tiepido": "parziale", "negativo": "negativ
 
 def ultima_risposta_per_persona():
     righe = sb_tutte("/rest/v1/interactions?kind=eq.email_in"
-                      "&select=prospect_id,body,at&order=at.desc&limit=3000") or []
+                      "&select=id,prospect_id,body,ref,at&order=at.desc&limit=3000") or []
     ultima = {}
     for r in righe:
         pid = r.get("prospect_id")
@@ -63,14 +67,14 @@ def ultima_risposta_per_persona():
 def segnaposto(testo):
     """La notifica di Smartlead al posto della risposta vera. Si decide col codice, non con le
     parole del modello (5/10: «messaggio di sistema», «testo non disponibile», «automatico
-    senza contenuto» passavano il controllo e la classe cambiava ogni notte: Efficasa da
-    positivo a «da capire», Bank Station fuori target col blocco dei follow-up acceso)."""
-    t = " ".join((testo or "").split()).lower()
-    return len(t) < 60 or t.startswith("risposta ricevuta") or "smartlead" in t[:80]
+    senza contenuto» passavano il controllo e la classe cambiava ogni notte).
+    12/10: una regola, un posto: e' quella della lettura (lettura._segnaposto)."""
+    import lettura
+    return lettura._segnaposto(testo)
 
 
 def parte_sua(testo):
-    """Solo quello che ha scritto la persona, senza la nostra mail citata sotto (6/10: WATER WAY
+    """Solo quello che ha scritto la persona, senza la nostra mail citata sotto (6/10: un lead
     aveva risposto a vuoto, col nostro messaggio citato; il modello ha letto la NOSTRA frase «se le
     fa piacere riceverla, gliela mando subito» come sua e l'ha fatto passare da fuori target a
     positivo). Lo stesso taglio che usa la lettura delle risposte nuove (lettura.solo_suo)."""
@@ -102,7 +106,7 @@ def illeggibile(v):
 def blocca(p):
     """RICHIESTA DI RIMOZIONE (25/9): chi la chiede finisce nella lista di blocco, cosi'
     nessuna lista futura lo ricarica. Da qualunque strada passi la classe (6/10: la strada
-    «decisa da sola» scriveva soppresso senza bloccare, caso Panorama)."""
+    «decisa da sola» scriveva soppresso senza bloccare, un caso del 6/10)."""
     try:
         sb("POST", "/rest/v1/suppressions", [{"kind": "email", "email": e.lower(), "reason": "richiesta di rimozione", "source": "rilettura"}
                                              for e in [p.get("email")] if e], {"Prefer": "resolution=merge-duplicates"})
@@ -110,8 +114,83 @@ def blocca(p):
         print(f"    (blocco non scritto: {str(e2)[:60]})")
 
 
+def recupero():
+    """CON senso_v2 ACCESO la rilettura diventa il recupero notturno (12/10): le risposte senza
+    lettura, quelle rimaste «senza AI», e quelle lette da un lettore di una versione vecchia.
+    Niente piu' cervello.leggi con le classi nel prompt, niente isteresi: la lettura e' salvata,
+    e la classe la da' senso.classe. Il blocco (suppressions) solo con l'AI sicura o con Dre."""
+    import lettura
+    import senso as S
+    persone = sb_tutte("/rest/v1/prospects?last_reply_at=not.is.null"
+                       "&select=id,email,email_alt,company,name,classificazione,stage,fuori,pipeline_stage,enriched,next_action_date"
+                       "&order=last_reply_at.desc&limit=2000") or []
+    # 12/10 sera, dagli scettici: il recupero rileggeva a pagamento TUTTI quelli che hanno risposto (circa
+    # 900 letture la prima notte, e di nuovo a ogni versione del lettore), senza tetto, riscrivendo classi.
+    # Lo storico e' un'azione di massa: passa dal poliziotto, non da qui. Qui solo le risposte recenti
+    # senza una lettura buona, al massimo TETTO letture pagate a notte.
+    dal = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=GIORNI_RECUPERO)).isoformat()
+    ultima = {k: v for k, v in ultima_risposta_per_persona().items() if (v.get("at") or "") >= dal[:19]}
+    tetto = QUANTI or TETTO_RECUPERO
+    guardate, pagate, cambiate = 0, 0, 0
+    for p in persone:
+        msg = ultima.get(p["id"])
+        a_mano = (p.get("enriched") or {}).get("classificazione") == "manual"
+        if not msg or a_mano or p.get("stage") in INTOCCABILI or p.get("fuori") or segnaposto(msg.get("body")):
+            continue
+        gia = lettura.lettura_salvata(p, msg)
+        if gia and gia.get("stato") in ("letta", "seconda", "deciso_dre", "dubbio_a_dre"):
+            # gia' letta (dal sync, dalle bozze): la classe l'ha gia' data chi l'ha letta. Restano due cose
+            # gratis: un dubbio mai arrivato a Dre (nato in ombra, o la domanda non riuscita) e la data
+            # di un rinvio o di un rientro che manca ancora sulla scheda
+            if gia.get("stato") == "dubbio_a_dre" and not gia.get("proposta_id") and not gia.get("decisione_dre"):
+                lettura.senso(p, msg, attuale=p.get("classificazione"))
+            riga, nuova_lettura = None, False
+            if not p.get("next_action_date") and p.get("classificazione") in ("rinvio", "ooo"):
+                riga = lettura.senso(p, msg, attuale=p.get("classificazione"))
+            if not riga:
+                continue
+        else:
+            if pagate >= tetto:
+                continue
+            riga, nuova_lettura = lettura.senso(p, msg, attuale=p.get("classificazione")), True
+            pagate += 1
+        guardate += 1
+        dec = riga.get("decisione") or {}
+        nuova = S.classe(dec, p.get("classificazione"))
+        patch = {}
+        # la data detta dalla persona vale anche se la classe non cambia (com'era nella rilettura di prima)
+        effettiva = nuova if nuova_lettura else p.get("classificazione")
+        if effettiva in ("rinvio", "ooo") and not p.get("next_action_date") and (dec.get("quando") or effettiva == "rinvio"):
+            if effettiva == "ooo":
+                patch["next_action_date"], patch["next_action"] = dec["quando"], "Rientra"
+            else:
+                patch["next_action_date"], patch["next_action"] = S.ripresa(dec.get("quando"))
+        if nuova != p.get("classificazione") and nuova_lettura:
+            cambiate += 1
+            arr = dict(p.get("enriched") or {})
+            arr["lettura"] = {"classe": nuova, "perche": dec.get("motivo"), "quando": dec.get("quando"), "da": "senso",
+                              "fonte": dec.get("fonte"), "lettura_id": riga.get("id"), "prima": p.get("classificazione"),
+                              "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            patch.update({"enriched": arr, "classificazione": nuova})
+            if nuova == "soppresso" and S.permanente_ok(dec) and not PROVA:
+                blocca(p)
+        if not patch:
+            continue
+        nome = (p.get("company") or p.get("name") or p.get("email") or "")[:40]
+        print(f"  {nome:40} {str(p.get('classificazione')):14} -> {nuova:14} {dec.get('fonte')}: «{(dec.get('frase') or '')[:60]}»"
+              + (f" (data {patch['next_action_date']})" if patch.get("next_action_date") else ""))
+        if PROVA:
+            continue
+        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
+    print(f"  recupero: {guardate} risposte degli ultimi {GIORNI_RECUPERO} giorni guardate, {pagate} letture pagate "
+          f"(tetto {tetto}), {cambiate} classi cambiate")
+
+
 def main():
     print("LA RILETTURA" + (" (prova: non scrive niente)" if PROVA else ""))
+    import lettura
+    if lettura.senso_acceso():
+        return recupero()
     if not cervello.disponibile():
         sys.exit("il cervello non risponde: serve Claude Code sul Mac (prova: claude -p)")
 
@@ -232,7 +311,7 @@ def main():
         if tipo == "scarta":
             patch["no_followup"] = True
         if patch["classificazione"] == "soppresso":
-            blocca(p)                                    # 6/10: Panorama era soppressa ma non bloccata
+            blocca(p)                                    # 6/10: una lead era soppressa ma non bloccata
         if v["quando"]:
             patch["next_action_date"] = v["quando"]
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)

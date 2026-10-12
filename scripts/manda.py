@@ -206,8 +206,8 @@ def prendi(pr):
     """IL LUCCHETTO VERO (6/10). La bozza passa a «in invio» solo se e' ancora «approvata», e si
     guarda se la scrittura e' riuscita. Prima il passaggio non controllava niente: l'1/10 alle 9:11
     lampo e il direttore hanno fatto girare il postino insieme, tutti e due hanno letto
-    «approvata», tutti e due hanno scritto «in invio», tutti e due hanno spedito. Christian Pircher
-    e Maura (Studio M) hanno ricevuto la stessa mail due volte, a due secondi di distanza."""
+    «approvata», tutti e due hanno scritto «in invio», tutti e due hanno spedito. due lead
+    hanno ricevuto la stessa mail due volte, a due secondi di distanza."""
     r = sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}&stato=eq.approvata", {"stato": "in_invio"},
            {"Prefer": "return=representation"}) or []
     return bool(r)
@@ -332,7 +332,7 @@ def main():
                         for k in ("FOLLOW", "MINI", "RICONTATTO", "RIPRESA"))
         if gruppo_fu and stato_p.get("classificazione") in ("negativo", "persona_sbagliata"):
             # 7/10, dal controllo dal vivo: la classe puo' cambiare DOPO che la bozza e' nata
-            # (Cisanova, EnergetiKa). Un no resta un no anche con la bozza approvata.
+            # (due casi). Un no resta un no anche con la bozza approvata.
             sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "no", "risposta": f"non mandata: nel frattempo e' {stato_p.get('classificazione')} (controllo del 7/10)",
                                                                  "risposta_il": datetime.datetime.now(ROMA).isoformat()})
             print(f"  {azienda}: NON mando il follow-up, ora e' {stato_p.get('classificazione')}")
@@ -345,12 +345,34 @@ def main():
             continue
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
-        errori = controlla(bozza, p, gruppo=az.get("gruppo") or az.get("template"), detto_no=bool((az.get("lettura") or {}).get("detto_no")))
-        if errori:
-            torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         cid, lid, ultima = thread(p)
         if not ultima:
             torna_aperta(pr, azienda, "non trovo il suo thread su Smartlead", prova); continue
+        # 12/10: il «ha detto no» non si prende piu' congelato nella bozza: lo dice la lettura, riletta
+        # adesso (lettura.per_il_postino). Il 12/10 due si' veri sono tornati indietro per un no che
+        # una lista di parole aveva letto nell'informativa privacy.
+        # 12/10 sera: la lettura si rifa' DOPO aver letto il filo vivo, e riceve la sua ultima risposta
+        # su Smartlead: un «cancellatemi» arrivato dopo la bozza, anche lo stesso giorno e anche se il
+        # sync non l'ha ancora portato nel CRM, ferma l'invio.
+        segna = {}
+        try:
+            import lettura
+            from sync_v2 import corpo_pulito
+            viva = {"at": ultima.get("time"), "body": corpo_pulito(ultima.get("email_body") or "")}
+            detto_no, blocco = lettura.per_il_postino(az, {**p, "classificazione": stato_p.get("classificazione")},
+                                                      viva=viva, nata_il=pr.get("at"), segna=segna)
+        except Exception as e:                                    # noqa: BLE001
+            detto_no, blocco = True, f"la lettura non si rilegge ({str(e)[:60]}): non mando alla cieca"
+        if blocco:
+            if segna.get("impronta") and not prova:
+                # la mail nuova che ha fermato la bozza: se Dre la riapprova dopo, l'ha vista
+                lett = {**(az.get("lettura") or {}), "riletta": {"impronta": segna["impronta"],
+                                                                  "il": datetime.datetime.now(datetime.timezone.utc).isoformat()}}
+                sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"azione": {**az, "lettura": lett}})
+            torna_aperta(pr, azienda, blocco, prova); continue
+        errori = controlla(bozza, p, gruppo=az.get("gruppo") or az.get("template"), detto_no=detto_no)
+        if errori:
+            torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         a = (p.get("email_alt") or [None])[0] or p["email"]
         corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
                  "email_body": in_html(bozza),
@@ -366,7 +388,7 @@ def main():
         if (prima_risposta or az.get("allega")) and not p.get("analysis_pdf"):
             # l'analisi non c'e' ancora (la sta facendo l'operazione «analisi»): si aspetta,
             # senza rimbalzare la bozza e senza domande a ogni giro
-            # 28/9: l'attesa non e' infinita. Istituto Flegreo era approvato dal 25
+            # 28/9: l'attesa non e' infinita. Un istituto era approvato dal 25
             # e a ogni giro, ogni cinque minuti, si scriveva «aspetto l'analisi»:
             # ma l'analisi non poteva arrivare, perche' il loro sito rispondeva 500
             # e senza sito letto non si fa. Nessuno lo diceva. Dopo un giorno di
@@ -424,8 +446,8 @@ def main():
         # e senza quel segno il segugio non programma i follow-up. Stessa condizione dell'allegato.
         elif prima_risposta or az.get("allega") or (p.get("analysis_pdf") and p["analysis_pdf"] in bozza):
             # 7/10: solo il PRIMO invio segna la data. La ripresa del 25/9 la riscriveva e il
-            # timer dei follow-up ripartiva: Rastan risultava «analisi del 25/9», e chi aveva
-            # avuto la ripresa si beccava FOLLOW UP 1 e MINI insieme (Renewal Italy)
+            # timer dei follow-up ripartiva: un lead risultava «analisi del 25/9», e chi aveva
+            # avuto la ripresa si beccava FOLLOW UP 1 e MINI insieme
             agg.update({"analysis_sent": True} if p.get("analysis_sent") else {"analysis_sent": True, "analysis_sent_at": ora.isoformat()})
         agg.update(dopo_invio(az))
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", agg)

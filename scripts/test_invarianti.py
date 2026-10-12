@@ -2097,6 +2097,565 @@ def _():
     assert K.siti_nella_descrizione(ev["descrizione"]) == ["rossi-ferramenta.it"]
 
 
+# ── IL SENSO LO DECIDE L'AI (12/10) ───────────────────────────────
+# Il 12/10 due si' veri fermati come «ha detto no»: «cancellare il messaggio» nell'informativa e
+# «Buongiorno, grazie» letto come «no, grazie». La fonte era «basta che UNO dei due dica no».
+# Le soglie delle prove sono quelle proposte per il Manuale (sezione F): stanno qui come dati.
+SOGLIE_PROVA = {
+    "lettore_non_contattare": "≥ 0,20", "lettore_non_contattare_per_sempre": "≥ 0,80", "lettore_dice_no": "≥ 0,50",
+    "lettore_dice_no_sicuro": "≥ 0,80", "autorisposta": "≥ 0,70", "rimanda": "≥ 0,60",
+    "lettore_vuole_analisi_o_call": "≥ 0,80 e dice no < 0,20", "lettore_vuole_analisi_o_call_dubbio": "0,50-0,80",
+    "lettore_seconda_netta": "≥ 0,80 conferma, ≤ 0,20 scarta", "lettore_illeggibile": "≥ 0,70", "lettore_fuori_target": "≥ 0,70",
+    "lettore_non_e_lui": "≥ 0,70", "lettore_ha_gia_analisi": "≥ 0,70", "lettore_tutto_vicino_a": "",
+}
+LETTURA_VUOTA = {"autorisposta": 0.0, "detto_no": 0.0, "non_contattare": 0.0, "ostile": 0.0, "vuole_analisi": 0.0, "vuole_call": 0.0,
+                 "rinvio": 0.0, "ha_gia_analisi": 0.0, "non_e_lui": 0.0, "fuori_target": 0.0, "illeggibile": 0.0,
+                 "rinvio_quando": "", "girato_a": [], "domanda": "", "frase": "", "perche": "", "taglio_sporco": False}
+SI_DEL_12 = ("Buongiorno, certamente potete inviarci la vs analisi.\nBuon lavoro\n"
+             "Restando a disposizione porgo i migliori saluti.\n"
+             "Il presente messaggio e gli eventuali allegati sono destinati esclusivamente ai destinatari indicati. "
+             "Se ha ricevuto questa e-mail per errore, La invitiamo a cancellare il messaggio.")
+SI2_DEL_12 = ("Buongiorno a lei,\nCerto che mi fa piacere riceverla, la ringrazio\nCordialità\nMario\n"
+              "Questa mail contiene informazioni riservate. Qualora fosse stato ricevuto per errore "
+              "si prega di cancellare la copia in proprio possesso.")
+
+
+class _Finto:
+    """Il mondo finto per le prove del senso: un lettore che risponde quello che gli si dice, una
+    tabella `letture` in memoria, le proposte contate. Niente rete."""
+    def __init__(self, lettura=None, seconda=None, tabella=True, acceso=True):
+        import lettura as L
+        import cervello as C
+        import stanza
+        self.L, self.C, self.st = L, C, stanza
+        self.risposta, self.seconda, self.chiamate, self.seconde, self.proposte, self.righe = lettura, seconda, 0, 0, [], {}
+        self.tabella, self.acceso, self.interazioni = tabella, acceso, []
+
+    def __enter__(self):
+        import senso as S
+        L, C = self.L, self.C
+        self.vecchi = (C.classifica_risposta, C.rileggi, L.sb, L._a_secco, self.st.proponi, dict(L._STATO))
+        L._MEMO.clear()
+        L._STATO.update({"tabella": None if self.tabella else False, "soglie": S.soglie(SOGLIE_PROVA), "acceso": self.acceso})
+
+        def leggi(*a, **k):
+            self.chiamate += 1
+            return dict(self.risposta) if self.risposta else None
+
+        def rileggi(suo, contesa, prima=None, modello=None):
+            self.seconde += 1
+            return {"campo": contesa.get("campo"), **self.seconda} if self.seconda else None
+
+        def sb(metodo, percorso, corpo=None, h=None):
+            if "/letture" in percorso and metodo == "GET":
+                if not self.tabella:
+                    raise RuntimeError("404 PGRST205")
+                return [r for r in self.righe.values() if (f"impronta=eq.{r['impronta']}" in percorso and f"prospect_id=eq.{r['prospect_id']}" in percorso)
+                        or f"id=eq.{r.get('id')}&" in percorso + "&"][:20]
+            if "/letture" in percorso and metodo == "POST":
+                k = (corpo["prospect_id"], corpo["impronta"], corpo["versione"])
+                riga = {**self.righe.get(k, {"id": len(self.righe) + 1}), **corpo}
+                self.righe[k] = riga
+                return [riga]
+            if "/letture" in percorso and metodo == "PATCH":
+                for r in self.righe.values():
+                    if f"id=eq.{r.get('id')}" == percorso.split("?", 1)[1]:
+                        r.update(corpo)
+                return []
+            if "/interactions" in percorso and metodo == "GET":
+                return list(self.interazioni)
+            if "/proposte" in percorso and metodo == "GET":
+                return [{"id": i + 1} for i, x in enumerate(self.proposte) if x["ref"] and f"ref=eq.{x['ref']}" in percorso][:1]
+            return []
+        C.classifica_risposta, C.rileggi, L.sb, L._a_secco = leggi, rileggi, sb, (lambda: False)
+
+        def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None, ref=None):
+            if ref and any(x["ref"] == ref for x in self.proposte):
+                return None                                     # come la vera: lo stesso ref non nasce due volte
+            self.proposte.append({"tipo": tipo, "titolo": titolo, "ref": ref, "perche": perche, "prospect_id": prospect_id})
+            return [{"id": len(self.proposte)}]
+        self.st.proponi = proponi
+        return self
+
+    def __exit__(self, *a):
+        L, C = self.L, self.C
+        C.classifica_risposta, C.rileggi, L.sb, L._a_secco, self.st.proponi, stato = self.vecchi
+        L._STATO.clear(); L._STATO.update(stato)
+        L._MEMO.clear()
+
+
+def _filo(testo):
+    return [{"id": "o1", "kind": "email_out", "at": "2026-10-10T09:00:00", "body": "Salve, le preparo un'analisi gratuita?"},
+            {"id": "i1", "kind": "email_in", "at": "2026-10-12T09:00:00", "body": testo}]
+
+
+@prova("il caso del 12/10: l'informativa e «Buongiorno, grazie» non fermano un si' (decide l'AI sul testo suo)")
+def _():
+    import lettura as L
+    import senso as S
+    for t in (SI_DEL_12, SI2_DEL_12, "Buongiorno, grazie, mandatemi pure l'analisi"):
+        suo = L.solo_suo(t)
+        assert not S.rete(suo), f"la lista grave scatta su un si': {S.rete(suo)}"
+        # e anche se l'informativa restasse attaccata, «cancellare il messaggio» non e' un grave
+        assert not S.rete(suo + " La invitiamo a cancellare il messaggio e a darne notizia."), "l'informativa e' un grave"
+        with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.95, "frase": suo[:40]}):
+            f = L.ha_gia({"id": "p1", "email": "lead1@esempio.invalid", "classificazione": "positivo"}, _filo(t))
+            assert f["detto_no"] is False and f["non_scrivere"] is False and f["si_sicuro"], f
+            assert L.regola_dura(None, f, "positivo") is None, L.regola_dura(None, f, "positivo")
+    # e con l'interruttore spento la lista di prima non scavalca piu' il senso? Il vecchio resta com'era
+    # (e' l'ombra): ma il sì del 12/10 non cade nemmeno li', grazie alla toppa del mattino
+    assert not L.DETTO_NO.search(L.solo_suo(SI_DEL_12))
+
+
+@prova("un «cancellatemi» vero ferma sempre, anche se l'AI sbaglia; e non decide per sempre da solo")
+def _():
+    import lettura as L
+    import senso as S
+    no = "Cancellatemi dalla vostra lista, grazie."
+    sbaglia = {**LETTURA_VUOTA, "vuole_analisi": 0.9, "non_contattare": 0.05, "frase": "grazie"}
+    for seconda in ({"p": 0.5, "dove": "suo", "perche": "x"}, None):          # la seconda resta a meta', o non risponde
+        with _Finto(sbaglia, seconda) as F:
+            p = {"id": "p2", "email": "lead2@esempio.invalid", "classificazione": "positivo", "company": "Azienda B"}
+            f = L.ha_gia(p, _filo(no))
+            assert f["non_scrivere"] and f["lettura_stato"] == "dubbio_a_dre", f
+            assert not f["si_sicuro"] and not f["permanente_ok"], "un grave in dubbio non puo' essere un si'"
+            for g in (None,) + L.GRUPPI:
+                d = L.regola_dura(g, f, "positivo")
+                assert d and d[0] == "fermati", (g, d)
+            assert F.seconde == 1 and len(F.proposte) == 1 and F.proposte[0]["ref"].startswith("senso:"), F.proposte
+            dec = next(iter(F.righe.values()))["decisione"]
+            assert S.classe(dec, "positivo") == "positivo" and not S.permanente_ok(dec), "la sola lista ha deciso per sempre"
+    # con la seconda lettura che conferma (>= 0,80) e nessun si' in vista, il grave e' sicuro: permanente e soppresso
+    # (se la prima vedeva anche un si' pieno, «non scrivetemi» e «mandate pure» insieme li decide Dre)
+    with _Finto({**sbaglia, "vuole_analisi": 0.1}, {"p": 0.95, "dove": "suo", "perche": "x"}) as F:
+        f = L.ha_gia({"id": "p3", "email": "lead3@esempio.invalid", "classificazione": "positivo"}, _filo(no))
+        dec = next(iter(F.righe.values()))["decisione"]
+        assert S.permanente_ok(dec) and S.classe(dec, "positivo") == "soppresso" and f["detto_no_sicuro"]
+        assert L.regola_dura("RIPRESA", f, "positivo")[0] == "salta"
+
+
+@prova("AI giu' = non si manda, non si chiude niente, e il caso si dice (una volta al giorno)")
+def _():
+    import lettura as L
+    import senso as S
+    with _Finto(None) as F:
+        p = {"id": "p4", "email": "lead4@esempio.invalid", "classificazione": "positivo"}
+        f = L.ha_gia(p, _filo("Va bene, mandatela pure"))
+        assert f["lettura_stato"] == "senza_ai" and not f["si_sicuro"] and not f["permanente_ok"], f
+        for g in (None,) + L.GRUPPI:
+            d = L.regola_dura(g, f, "positivo")
+            assert d and d[0] == "fermati" and "l'AI non ha letto" in d[1], (g, d)
+        dec = next(iter(F.righe.values()))["decisione"]
+        assert S.classe(dec, "positivo") == "positivo" and S.classe(dec, None) == "da_classificare"
+        # dopo tre tentativi (o un'ora) l'avviso, con lo stesso ref per tutto il giorno
+        for _ in range(3):
+            L._MEMO.clear()
+            L.ha_gia(p, _filo("Va bene, mandatela pure"))
+        refs = {x["ref"] for x in F.proposte}
+        assert refs and all(r.startswith("senso:giu:") for r in refs) and len(refs) == 1, F.proposte
+    # il postino: con la lettura senza AI non manda e dice perche'
+    with _Finto(None) as F:
+        F.interazioni = [{"id": "i9", "at": "2026-10-12T09:00:00", "body": "va bene"}]
+        no, blocco = L.per_il_postino({"lettura": {"ultima_loro_il": "2026-10-12"}}, {"id": "p5", "classificazione": "positivo"},
+                                      nata_il="2026-10-12T09:05:00+00:00")
+        assert blocco and "l'AI non ha letto" in blocco, blocco
+
+
+@prova("una lettura salvata non si paga due volte, e il dubbio va a Dre una volta sola")
+def _():
+    import lettura as L
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.9, "non_contattare": 0.05}, {"p": 0.5, "dove": "suo", "perche": "x"}) as F:
+        p = {"id": "p6", "email": "lead6@esempio.invalid", "classificazione": "positivo"}
+        for _ in range(3):
+            L._MEMO.clear()                                    # un giro nuovo del direttore
+            L.senso(p, "Rimuovetemi dai vostri contatti, grazie", attuale="positivo", chiedi=True)
+        assert F.chiamate == 1 and F.seconde == 1, (F.chiamate, F.seconde)
+        assert len(F.proposte) == 1, F.proposte
+
+
+@prova("le regole del senso: la lista grave ferma ma non decide, un no cortese non e' «non scrivere», l'automatismo prima")
+def _():
+    import senso as S
+    s = S.soglie(SOGLIE_PROVA)
+    v = LETTURA_VUOTA
+    assert S.soglie({**SOGLIE_PROVA, "lettore_dice_no_sicuro": ""}) is None, "una soglia mancante deve dire «senza regole»"
+    assert S.giudica(dict(v), [], None)["stato"] == "senza_regole" and S.giudica(dict(v), [], None)["freno"]
+    # il si' con «in ferie» resta un si'
+    d = S.giudica({**v, "autorisposta": 0.2, "vuole_analisi": 0.9}, S.rete("si' grazie, la leggo al rientro dalle ferie"), s)
+    assert d["etichetta"] == "si" and not d["freno"] and d["sicuro"]
+    # l'autorisposta si guarda prima del grave se la lista tace
+    assert S.giudica({**v, "autorisposta": 0.9, "non_contattare": 0.5}, [], s)["etichetta"] == "auto"
+    # un no cortese: seconda lettura, e con la seconda a 0,1 e' un no sicuro, mai soppresso
+    d = S.giudica({**v, "non_contattare": 0.25, "detto_no": 0.9}, [], s)
+    assert d["serve_seconda"] and d["contesa"]["campo"] == "non_contattare"
+    d = S.giudica({**v, "non_contattare": 0.25, "detto_no": 0.9}, [], s, seconda={"campo": "non_contattare", "p": 0.1, "dove": "suo"})
+    assert d["etichetta"] == "no" and d["sicuro"] and S.classe(d, "positivo") == "negativo"
+    # «come spam» con la sola lista non fa niente di permanente (e «finita nello spam» non e' grave)
+    assert not S.rete("la sua mail era finita nello spam, mandi pure") and not S.rete("segnalata come spam dal filtro")
+    d = S.giudica({**v, "vuole_analisi": 0.9}, S.rete("questo e' spam"), s)
+    assert d["serve_seconda"] and not S.permanente_ok(d)
+    # la seconda lettura dice che la frase sta nell'informativa: il grave si scarta, decide il resto
+    d = S.giudica({**v, "vuole_analisi": 0.9}, ["cancellate i miei dati"], s, seconda={"campo": "non_contattare", "p": 0.05, "dove": "informativa"})
+    assert d["etichetta"] == "si" and d["stato"] == "seconda" and not d["grave"]
+    # dalla misura del 12/10 sul Metro: «niente budget quest'anno, ma lieti di ricevere l'analisi» e' un si'
+    # (in dubbio), mai un no sicuro; e l'ostilita' senza una richiesta esplicita non sopprime per sempre
+    d = S.giudica({**v, "detto_no": 0.6, "vuole_analisi": 1.0, "rinvio": 0.7}, [], s)
+    assert d["etichetta"] == "si" and d["dubbio"] and not S.permanente_ok(d) and S.classe(d, "positivo") == "positivo", d["etichetta"]
+    d = S.giudica({**v, "ostile": 0.8, "non_contattare": 0.2, "detto_no": 0.6}, ["spam"], s)
+    assert d["grave"] and d["stato"] == "dubbio_a_dre" and not S.permanente_ok(d) and S.va_a_dre(d, "positivo")
+    d = S.giudica({**v, "non_contattare": 0.9, "vuole_analisi": 0.6}, [], s)
+    assert d["stato"] == "dubbio_a_dre" and not S.permanente_ok(d), "«non scrivetemi» e «mandate pure» insieme li decide Dre"
+    # senza AI non si sblocca e non si chiude niente
+    d = S.giudica(None, [], s)
+    assert d["stato"] == "senza_ai" and d["freno"] and not S.permanente_ok(d) and S.classe(d, "positivo") == "positivo"
+    # una frase inventata e' un dubbio (seconda lettura)
+    r, problemi = S.verifica({**v, "vuole_analisi": 0.9, "frase": "mandatemi tutto"}, "si', grazie", s)
+    assert "frase" in problemi and S.giudica(r, [], s, problemi=problemi)["serve_seconda"]
+    # un girato_a che non sta nel testo suo si scarta; una pec senza «scrivete a» pure
+    r, _p = S.verifica({**v, "girato_a": ["altro@esempio.invalid", "mario@esempio.invalid", "x@pec.esempio.invalid"]},
+                       "scrivete a mario@esempio.invalid. x@pec.esempio.invalid", s)
+    assert r["girato_a"] == ["mario@esempio.invalid"], r["girato_a"]
+    # una data passata o oltre 12 mesi non vale
+    oggi = datetime.date(2026, 10, 12)
+    assert S.verifica({**v, "rinvio_quando": "2026-09-01"}, "x", s, oggi=oggi)[0]["rinvio_quando"] == ""
+    assert S.verifica({**v, "rinvio_quando": "2028-01-10"}, "x", s, oggi=oggi)[0]["rinvio_quando"] == ""
+    assert S.verifica({**v, "rinvio_quando": "2027-01-10"}, "x", s, oggi=oggi)[0]["rinvio_quando"] == "2027-01-10"
+    # la classe a mano non si tocca
+    assert S.classe(S.giudica({**v, "detto_no": 0.95}, [], s), "positivo", manuale=True) == "positivo"
+    # il fuori target lo decide Dre
+    assert S.classe(S.giudica({**v, "fuori_target": 0.9}, [], s), "tiepido") == "tiepido"
+    # nessuna soglia scritta in senso.py: stanno nel Manuale
+    import re as _re
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "senso.py"), encoding="utf-8").read()
+    codice = "\n".join(r.split("#")[0] for r in src.splitlines() if not r.strip().startswith(("#", '"""', "«")))
+    codice = _re.sub(r'""".*?"""', "", codice, flags=_re.S)
+    assert not _re.search(r"\b0\.[1-9]", codice), _re.findall(r".{30}\b0\.[1-9].{10}", codice)[:3]
+
+
+@prova("il lettore: le domande nella versione, frase e taglio nello schema, solo le sue parole in ogni domanda")
+def _():
+    import cervello as C
+    altre = {**C.DOMANDE, "detto_no": C.DOMANDE["detto_no"] + " (prova)"}
+    assert C._versione(C.PROMPT_LETTURA, altre, C.SCHEMA_LETTURA, "gpt-5") != C._versione(C.PROMPT_LETTURA, C.DOMANDE, C.SCHEMA_LETTURA, "gpt-5")
+    req = C.SCHEMA_LETTURA["json_schema"]["schema"]["required"]
+    assert "frase" in req and "taglio_sporco" in req and "ostile" in req and "illeggibile" in req
+    assert all(C.CONTANO_SOLO_LE_SUE_PAROLE in d for d in C.DOMANDE.values())
+    assert "GDPR. Mai" not in C.REGOLE and "GDPR" not in C.PROMPT_LETTURA, "«GDPR = soppresso» e' ancora in un prompt"
+    assert "QUELLO CHE HA SCRITTO LUI" in C.PROMPT_LETTURA and "LA NOSTRA ULTIMA MAIL" in C.PROMPT_LETTURA
+
+
+@prova("cosa legge: l'intestazione senza due punti e quella polacca si tagliano, il nostro oggetto non e' suo, un si' corto non e' un segnaposto")
+def _():
+    import lettura as L
+    t = 'Va bene, mandatela pure.\n\nDa "Lorenzo" <noi@studiogalilei.it>\nData: 3 ott\nOggetto Analisi\nSalve, ecco la nostra analisi gratuita'
+    assert L.solo_suo(t) == "Va bene, mandatela pure.", L.solo_suo(t)
+    t = 'Se vuole inviare faccia pure.\n Da "Lorenzo" noi@studiogalilei.it \n\n A x@esempio.invalid \n\n Oggetto Analisi\nAlla cortese attenzione'
+    assert L.solo_suo(t) == "Se vuole inviare faccia pure.", L.solo_suo(t)
+    assert L.solo_suo("Dziekuje, prosze wyslac.\nOd: Lorenzo <noi@studiogalilei.it>\nWysłane: 3\nTemat: analisi") == "Dziekuje, prosze wyslac."
+    # «Da domani scrivete a ...» e' suo: senza l'oggetto dopo non e' un'intestazione
+    assert "Da domani" in L.solo_suo("Ok.\nDa domani scrivete a Mario <mario@esempio.invalid> per tutto.")
+    assert L.solo_suo("Re: Analisi per voi\n\nok grazie, mandatela") == "ok grazie, mandatela"
+    assert L.solo_suo("Analisi per voi\nok va bene", nostri_oggetti=["Re: Analisi per voi"]) == "ok va bene"
+    # l'oggetto si stacca solo se e' davvero un oggetto: vuoto, una risposta («Re:»), o un nostro oggetto noto.
+    # Un oggetto nuovo scritto da lui, o il suo primo paragrafo in una riga vecchia, resta parola sua (12/10 sera)
+    assert L.corpo_e_oggetto({"ref": "gmail:1", "body": "Re: Ho dato un'occhiata a voi\n\nAttendo l'analisi"}) == ("Attendo l'analisi", "Re: Ho dato un'occhiata a voi")
+    assert L.corpo_e_oggetto({"ref": "gmail:1", "body": "Ho dato un'occhiata a voi\n\nAttendo l'analisi"}, ["Ho dato un'occhiata a voi"]) == ("Attendo l'analisi", "Ho dato un'occhiata a voi")
+    assert L.corpo_e_oggetto({"ref": "gmail:1", "body": "\n\nSì, mandatemela pure.\n\nMario Rossi"}) == ("Sì, mandatemela pure.\n\nMario Rossi", "")
+    assert L.corpo_e_oggetto({"ref": "gmail:1", "body": "Sì, mandatemela pure.\n\nMario Rossi"})[0].startswith("Sì, mandatemela")
+    assert "Il giorno" in L.resto("ok\n\nIl giorno lun 5 ott 2026 alle 11:02 Lorenzo <noi@studiogalilei.it> ha scritto:\nSalve")
+    assert not L._segnaposto("mandali pure grazie") and L._segnaposto("Risposta ricevuta (Smartlead)") and L._segnaposto("  ")
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "rilettura.py"), encoding="utf-8").read()
+    assert "lettura._segnaposto" in src and "len(t) < 60" not in src, "rilettura e lettura non usano lo stesso segnaposto"
+
+
+@prova("senso_v2 acceso: il sync non fa negativo un consenso con la firma GDPR, il postino rilegge, il gigante buono non esclude per sempre su un dubbio")
+def _():
+    import sync_v2 as SY
+    import senso as S
+    s = S.soglie(SOGLIE_PROVA)
+    consenso = ("Le diamo il consenso, ci mandi pure l'analisi.\nCordiali saluti\nInformativa ai sensi del GDPR: "
+                "per cancellare i suoi dati scriva a privacy.")
+    si = {"decisione": S.giudica({**LETTURA_VUOTA, "vuole_analisi": 0.95}, S.rete(""), s)}
+    assert SY.classe_da_sync(consenso, "", None, True, lettura=si) == "positivo"
+    assert SY.classe_da_sync(consenso, "", None, True, lettura={"decisione": {"stato": "senza_ai"}}) == "da_classificare"
+    assert SY.classe_da_sync(consenso, "", "negativo", False, lettura=si) == "negativo", "un no non si ribalta sullo stesso messaggio"
+    radice = os.path.dirname(os.path.abspath(__file__))
+    manda = open(os.path.join(radice, "manda.py"), encoding="utf-8").read()
+    assert '.get("lettura") or {}).get("detto_no")' not in manda and "per_il_postino" in manda, "manda usa il detto_no congelato"
+    bozze = open(os.path.join(radice, "bozze.py"), encoding="utf-8").read()
+    pezzo = bozze[bozze.index("if lettura.senso_acceso():\n            # il freno grave"):][:900]
+    assert 'if letti.get("permanente_ok"):\n                    mai_gb(' in pezzo, "il gigante buono esclude per sempre su un dubbio"
+
+
+# ── LA FONTE, OVUNQUE (12/10 sera, dagli scettici) ─────────────────────────────
+# Le prove qui sotto difendono le riparazioni fatte dopo il giro degli scettici. Frasi anonime.
+FRASI_GRAVI = ("Non contattateci più.", "Non scrivetemi più, grazie.", "Non scriveteci più", "Vi prego di non contattarmi più",
+               "Toglietemi dalla vostra lista", "Eliminate i miei dati", "Please remove me from your list", "Do not contact me again",
+               "Stop emailing me", "Take me off your mailing list", "Mi oppongo al trattamento dei miei dati", "Revoco il consenso",
+               "Non disturbateci più", "Le chiedo di non inviarmi ulteriori mail", "No thanks, you can remove me.")
+
+
+@prova("la rete dei gravi vede le richieste vere (pronome in coda, GDPR, inglese), e con l'AI che sbaglia non diventano mai «tiepido»")
+def _():
+    import lettura as L
+    import senso as S
+    for t in FRASI_GRAVI:
+        assert S.rete(L.solo_suo(t)), f"la rete non vede «{t}»"
+    for t in ("Buongiorno, grazie", "Buongiorno, grazie, mandatemi pure l'analisi", "non ci interessa", "la mail era finita nello spam",
+              "non mancherò di contattarvi", SI_DEL_12, SI2_DEL_12):
+        assert not S.rete(L.solo_suo(t)), f"la rete scatta su «{t}»: {S.rete(L.solo_suo(t))}"
+    sbaglia = {**LETTURA_VUOTA, "detto_no": 0.3}
+    for t in FRASI_GRAVI:
+        with _Finto(sbaglia, {"p": 0.5, "dove": "suo", "perche": "x"}) as F:
+            riga = L.senso({"id": "pg", "email": "lead@esempio.invalid"}, t, attuale="positivo", chiedi=True)
+            dec = riga["decisione"]
+            assert dec["grave"] and dec["stato"] == "dubbio_a_dre" and S.classe(dec, None) != "tiepido", (t, dec["stato"])
+            assert L.regola_dura("FOLLOW UP 1", L._campi_dalla_lettura(riga, S.soglie(SOGLIE_PROVA)) | {"ultima_loro": t, "scritto_dopo_di_lei": 0,
+                                 "analisi_ricevuta": False, "casella_di_servizio": False}, "positivo")[0] == "fermati"
+
+
+@prova("la rete guarda anche firma e informativa: il GDPR in testa, il P.S. dopo i saluti e il «buon lavoro e non contattateci» fermano")
+def _():
+    import lettura as L
+    import senso as S
+    casi = ("Privacy: non ho mai dato il consenso, cancellatemi subito.",
+            "GDPR: vi chiedo di cancellare i miei dati e di non scrivermi più.",
+            "Grazie per la mail, al momento non ci serve nulla.\nCordiali saluti\nMario Rossi\n\nP.S. cancellatemi dalla vostra mailing list",
+            "Buongiorno, abbiamo già un'agenzia che ci segue.\nBuon lavoro e non contattateci più.")
+    for t in casi:
+        with _Finto({**LETTURA_VUOTA, "detto_no": 0.6}, {"p": 0.5, "dove": "suo", "perche": "x"}) as F:
+            riga = L.senso({"id": "pr", "email": "lead@esempio.invalid"}, t, attuale="positivo", chiedi=True)
+            dec = riga["decisione"]
+            assert riga["rete"], f"la rete non vede il grave in «{t[:40]}»"
+            assert F.chiamate == 1, "mai «sicuro» senza una lettura: con il testo suo vuoto l'AI legge la mail intera"
+            assert dec["grave"] and not S.permanente_ok(dec) and len(F.proposte) == 1, (t[:40], dec["stato"], F.proposte)
+    # la seconda lettura dice che la frase sta nell'informativa (netta): il grave si scarta, decide l'AI
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.95}, {"p": 0.05, "dove": "informativa", "perche": "x"}):
+        t = "Sì, mandate pure.\nCordiali saluti\nMario\nAi sensi del GDPR potete esercitare il diritto alla cancellazione."
+        dec = L.senso({"id": "pi"}, t, chiedi=False)["decisione"]
+        assert dec["etichetta"] == "si" and not dec["grave"], dec
+
+
+@prova("due letture dell'AI d'accordo non perdono contro una parola: la seconda netta scarta il grave anche se la frase e' sua")
+def _():
+    import senso as S
+    s = S.soglie(SOGLIE_PROVA)
+    r = {**LETTURA_VUOTA, "vuole_analisi": 0.95, "detto_no": 0.1, "non_contattare": 0.02}
+    rete = S.rete("Non vogliamo più spendere in pubblicità, però mandate pure l'analisi")
+    assert rete
+    d = S.giudica(r, rete, s, seconda={"campo": "non_contattare", "p": 0.03, "dove": "suo"})
+    assert d["etichetta"] == "si" and not d["grave"] and d["stato"] == "seconda", d
+    d = S.giudica(r, rete, s, seconda={"campo": "non_contattare", "p": 0.5, "dove": "suo"})
+    assert d["stato"] == "dubbio_a_dre" and d["grave"], "il dubbio che resta va a Dre"
+
+
+@prova("il postino: una mail nuova dello STESSO giorno della bozza ferma l'invio, anche se il sync non l'ha ancora portata nel CRM")
+def _():
+    import lettura as L
+    sicuro_no = {**LETTURA_VUOTA, "non_contattare": 0.95, "frase": "cancellatemi"}
+    si = {**LETTURA_VUOTA, "vuole_analisi": 0.95, "frase": "mandate pure"}
+    p = {"id": "pp", "email": "lead@esempio.invalid", "classificazione": "positivo"}
+    for come in ("crm", "viva"):
+        with _Finto(si) as F:
+            prima = L.senso(p, {"id": "i1", "at": "2026-10-12T09:00:00", "body": "Sì, mandate pure l'analisi."})
+            az = {"lettura": {"lettura_id": prima["id"], "ultima_loro_il": "2026-10-12", "ultima_loro_at": "2026-10-12T09:00:00"}}
+            nuova = {"id": "i2", "at": "2026-10-12T15:00:00", "body": "Ci ho ripensato, cancellatemi dalla vostra lista."}
+            F.risposta = sicuro_no
+            L._MEMO.clear()
+            if come == "crm":
+                F.interazioni = [nuova]
+                esito = L.per_il_postino(az, p, nata_il="2026-10-12T09:05:00+00:00")
+            else:
+                F.interazioni = [{"id": "i1", "at": "2026-10-12T09:00:00", "body": "Sì, mandate pure l'analisi."}]
+                esito = L.per_il_postino(az, p, viva={"at": "2026-10-12T15:00:00.000Z", "body": nuova["body"]}, nata_il="2026-10-12T09:05:00+00:00")
+            assert esito[1] and "riscritto" in esito[1], (come, esito)
+    # la stessa mail della bozza (stessa impronta) non ferma niente; e un si' chiaro scritto dopo nemmeno
+    with _Finto(si) as F:
+        prima = L.senso(p, {"id": "i1", "at": "2026-10-12T09:00:00", "body": "Sì, mandate pure l'analisi."})
+        F.interazioni = [{"id": "i1", "at": "2026-10-12T09:00:00", "body": "Sì, mandate pure l'analisi."}]
+        L._MEMO.clear()
+        assert L.per_il_postino({"lettura": {"lettura_id": prima["id"], "ultima_loro_at": "2026-10-12T09:00:00"}}, p) == (False, None)
+        F.interazioni = [{"id": "i3", "at": "2026-10-12T11:00:00", "body": "Anzi, mandatela anche al mio socio, grazie."}]
+        F.risposta = {**si, "frase": "mandatela anche al mio socio"}
+        assert L.per_il_postino({"lettura": {"lettura_id": prima["id"], "ultima_loro_at": "2026-10-12T09:00:00"}}, p) == (False, None)
+    # Dre l'ha vista (la bozza e' tornata indietro) e l'ha riapprovata dopo: parte, ma mai su un grave
+    with _Finto({**LETTURA_VUOTA, "detto_no": 0.6, "frase": "forse"}) as F:
+        F.interazioni = [{"id": "i4", "at": "2026-10-12T15:00:00", "body": "Mah, forse non ci serve."}]
+        segna = {}
+        az = {"lettura": {"ultima_loro_at": "2026-10-12T09:00:00"}}
+        assert L.per_il_postino(az, p, segna=segna)[1] and segna.get("impronta")
+        az = {"approvata_il": "2026-10-12T16:00:00+00:00", "lettura": {"ultima_loro_at": "2026-10-12T09:00:00",
+              "riletta": {"impronta": segna["impronta"], "il": "2026-10-12T15:30:00+00:00"}}}
+        assert L.per_il_postino(az, p)[1] is None
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "manda.py"), encoding="utf-8").read()
+    assert src.index("cid, lid, ultima = thread(p)") < src.index("lettura.per_il_postino(") and "viva=viva" in src, \
+        "il postino deve rileggere DOPO il filo vivo di Smartlead, e passargli l'ultima risposta"
+
+
+@prova("Gmail: con l'oggetto vuoto il primo paragrafo resta suo, e tutti leggono la stessa mail con la stessa impronta (una porta sola)")
+def _():
+    import lettura as L
+    radice = os.path.dirname(os.path.abspath(__file__))
+    posta = open(os.path.join(radice, "posta.py"), encoding="utf-8").read()
+    assert '"body": f"{oggetto}\\n\\n{corpo}"[:1500].rstrip()' in posta, "posta.py non deve togliere la riga vuota dell'oggetto"
+    riga = {"id": "g1", "ref": "gmail:x", "body": f"{''}\n\n{'Sì, mandatemela pure, la leggo volentieri.'}\n\nMario Rossi\nTitolare"[:1500].rstrip()}
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.95}) as F:
+        a = L.senso({"id": "pg2"}, riga, chiedi=False)
+        assert "mandatemela" in a["testo_suo"], a["testo_suo"]
+        L._MEMO.clear()
+        b = L.senso({"id": "pg2"}, dict(riga), chiedi=False)
+        assert a["impronta"] == b["impronta"] and F.chiamate == 1
+    # chi chiama senso() con una riga del CRM passa la riga, non il corpo: un posto solo prepara il testo
+    for f in ("rilettura.py", "analisi_auto.py", "posta.py", os.path.join("strumenti", "nuovo_contatto.py")):
+        t = open(os.path.join(radice, f), encoding="utf-8").read()
+        assert 'senso(p, msg.get("body")' not in t and 'senso(p, ul.get("body")' not in t and 'senso(p, ult[0].get("body")' not in t \
+            and "corpo_e_oggetto(riga)[0]" not in t, f"{f} prepara il testo a modo suo"
+
+
+@prova("un dubbio nato in ombra (o una domanda non riuscita) arriva a Dre al primo passaggio con l'interruttore acceso")
+def _():
+    import lettura as L
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.6}, {"p": 0.5, "dove": "suo", "perche": "x"}, acceso=False) as F:
+        p = {"id": "pd", "email": "lead@esempio.invalid"}
+        L.senso(p, "Vi diffido dallo scrivermi, ma mandate pure l'analisi", attuale="positivo")
+        assert not F.proposte, "in ombra non si chiede niente"
+        L._MEMO.clear(); L._STATO["acceso"] = True
+        f = L.ha_gia(p | {"classificazione": "positivo"}, _filo("Vi diffido dallo scrivermi, ma mandate pure l'analisi"))
+        assert len(F.proposte) == 1 and F.chiamate == 1 and f["chiesto_a_dre"], (F.proposte, F.chiamate)
+        assert "te l'ho chiesto in Posta" in L.regola_dura("FOLLOW UP 1", f, "positivo")[1]
+    # un dubbio non grave su chi ha gia' una bozza (caso c): niente domanda, e la bozza non dice «te l'ho chiesto»
+    f = {"ultima_loro": "x", "lettura_stato": "dubbio_a_dre", "chiesto_a_dre": False}
+    assert "te l'ho chiesto" not in L.regola_dura(None, f, "positivo")[1]
+
+
+@prova("la scelta di Dre resta anche se cambia la versione del lettore, e una soglia cambiata nel Manuale vale subito sulle letture salvate")
+def _():
+    import lettura as L
+    import senso as S
+    import cervello as C
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.6, "frase": "va bene"}, {"p": 0.5, "dove": "suo", "perche": "x"}) as F:
+        p = {"id": "pv"}
+        riga = L.senso(p, "Cancellatemi, anzi no, mandate pure", attuale="positivo")
+        assert riga["stato"] == "dubbio_a_dre" and len(F.proposte) == 1
+        next(iter(F.righe.values())).update({"decisione_dre": "si", "deciso_il": "2026-10-12T10:00:00", "stato": "deciso_dre"})
+        vecchia = C.VERSIONE
+        try:
+            C.VERSIONE = "versione-nuova"
+            L._MEMO.clear()
+            riga = L.senso(p, "Cancellatemi, anzi no, mandate pure", attuale="positivo")
+            assert riga["decisione"]["fonte"] == "dre" and F.chiamate == 1 and len(F.proposte) == 1, (riga["decisione"]["fonte"], F.chiamate)
+        finally:
+            C.VERSIONE = vecchia
+    with _Finto({**LETTURA_VUOTA, "detto_no": 0.85}) as F:
+        p = {"id": "ps"}
+        assert S.permanente_ok(L.senso(p, "No grazie, non ci interessa")["decisione"])
+        L._MEMO.clear(); L._STATO["soglie"] = S.soglie({**SOGLIE_PROVA, "lettore_dice_no_sicuro": "≥ 0,90"})
+        dec = L.senso(p, "No grazie, non ci interessa")["decisione"]
+        assert not S.permanente_ok(dec) and F.chiamate == 1, "la soglia nuova del Manuale non arriva alla lettura salvata"
+    # il segnale di Smartlead (disiscritto) lo vede solo il sync: resta anche quando la lettura la rifa' un altro
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.95}) as F:
+        a = L.senso({"id": "pu"}, "Va bene, mandatela", segnali=["Smartlead: disiscritto"], chiedi=False)
+        L._MEMO.clear()
+        b = L.senso({"id": "pu"}, "Va bene, mandatela", chiedi=False)
+        assert "Smartlead: disiscritto" in b["rete"] and b["decisione"]["grave"] == a["decisione"]["grave"], b["rete"]
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.9}) as F:
+        L._STATO["soglie"] = None
+        for _ in range(3):
+            L._MEMO.clear()
+            assert L.senso({"id": "pn"}, "Va bene, mandatela")["stato"] == "senza_regole"
+        assert F.chiamate == 0, "senza regole non si paga una lettura che non si sa usare"
+
+
+@prova("chi ci gira a un indirizzo nuovo o a un collega resta fra i positivi (un si' in dubbio che vede Dre), non diventa fuori ufficio")
+def _():
+    import senso as S
+    s = S.soglie(SOGLIE_PROVA)
+    for testo, r in (("Questa casella non è più attiva, scrivetemi su mario@nuova.invalid", {"autorisposta": 0.9, "non_e_lui": 0.8}),
+                     ("Scriva a mario@nuova.invalid, se ne occupa lui", {"non_e_lui": 0.9})):
+        rv, _p = S.verifica({**LETTURA_VUOTA, **r, "girato_a": ["mario@nuova.invalid"]}, testo, s)
+        d = S.giudica(rv, [], s, problemi=_p)
+        assert d["etichetta"] == "si" and d["dubbio"] and d["freno"] and S.classe(d, None) == "positivo", (testo, d["etichetta"])
+    # un fuori ufficio temporaneo con «per urgenze scrivete a» resta un fuori ufficio: si riprende al rientro
+    rv, _p = S.verifica({**LETTURA_VUOTA, "autorisposta": 0.95, "girato_a": ["mario@x.invalid"]},
+                        "Sono fuori ufficio fino al 20, per urgenze scrivete a mario@x.invalid", s)
+    assert S.giudica(rv, [], s)["etichetta"] == "auto"
+    # un no con un rimando resta un no
+    rv, _p = S.verifica({**LETTURA_VUOTA, "detto_no": 0.9, "girato_a": ["info@x.invalid"]}, "non ci interessa, per altro info@x.invalid", s)
+    assert S.giudica(rv, [], s)["etichetta"] == "no"
+
+
+@prova("le date: l'autorisposta tiene il rientro, il rinvio porta una data (anche di ripiego), il recupero la scrive anche a classe invariata")
+def _():
+    import senso as S
+    import cervello as C
+    radice = os.path.dirname(os.path.abspath(__file__))
+    assert "{oggi}" in C.PROMPT_LETTURA and "primo giorno di rientro" in C.PROMPT_LETTURA
+    sync = open(os.path.join(radice, "sync_v2.py"), encoding="utf-8").read()
+    assert "_S.rientro(q or data_ooo(testo)) if cls == \"ooo\"" in sync and "_S.ripresa(q)" in sync
+    oggi = datetime.date(2026, 10, 12)
+    assert S.rientro("", oggi) == "2026-10-26" and S.rientro("2026-11-03", oggi) == "2026-11-03"
+    assert S.ripresa("2027-01-15", oggi)[0] == "2027-01-15" and S.ripresa("", oggi)[0] == "2026-11-11"
+    import rilettura as R
+    import lettura as L
+    with _Finto({**LETTURA_VUOTA, "rinvio": 0.9, "rinvio_quando": "2027-01-15"}) as F:
+        msg = {"id": "ir", "prospect_id": "prr", "at": datetime.datetime.now(datetime.timezone.utc).isoformat()[:19],
+               "body": "Ci sentiamo con l'anno nuovo"}
+        p = {"id": "prr", "classificazione": "rinvio", "stage": "risposto", "enriched": {}}
+        L.senso(p, msg)                                          # gia' letta dal sync
+        patch, chiamate = [], F.chiamate
+        vecchi = (R.sb_tutte, R.ultima_risposta_per_persona, R.sb, R.PROVA)
+        R.sb_tutte = lambda *a, **k: [p]
+        R.ultima_risposta_per_persona = lambda: {"prr": msg}
+        R.sb = lambda m, path, c=None, h=None: patch.append(c) or []
+        R.PROVA = False
+        try:
+            L._MEMO.clear()
+            R.recupero()
+        finally:
+            R.sb_tutte, R.ultima_risposta_per_persona, R.sb, R.PROVA = vecchi
+        assert patch and patch[0].get("next_action_date") == "2027-01-15" and "classificazione" not in patch[0], patch
+        assert F.chiamate == chiamate, "una risposta gia' letta non si ripaga nel recupero"
+
+
+@prova("il recupero notturno non rilegge lo storico: solo le risposte recenti senza lettura, con un tetto alle letture pagate")
+def _():
+    import rilettura as R
+    import lettura as L
+    adesso = datetime.datetime.now(datetime.timezone.utc)
+    persone = [{"id": f"r{i}", "classificazione": "positivo", "stage": "risposto", "enriched": {}} for i in range(60)]
+    ultime = {f"r{i}": {"id": f"m{i}", "prospect_id": f"r{i}", "body": f"Va bene, mandate pure {i}",
+                        "at": (adesso - datetime.timedelta(days=1 if i < 50 else 40)).isoformat()[:19]} for i in range(60)}
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.95}) as F:
+        vecchi = (R.sb_tutte, R.ultima_risposta_per_persona, R.sb, R.PROVA)
+        R.sb_tutte = lambda *a, **k: persone
+        R.ultima_risposta_per_persona = lambda: ultime
+        R.sb = lambda *a, **k: []
+        R.PROVA = True
+        try:
+            R.recupero()
+            assert F.chiamate == R.TETTO_RECUPERO, F.chiamate
+            L._MEMO.clear()
+            R.recupero()                                         # la notte dopo: le 40 lette non si ripagano
+            assert F.chiamate == 50, F.chiamate                  # le altre 10 recenti; le 10 vecchie mai
+        finally:
+            R.sb_tutte, R.ultima_risposta_per_persona, R.sb, R.PROVA = vecchi
+
+
+@prova("una regola, un posto: niente codice morto del vecchio lettore, NOSTRI e PEC definiti una volta, e in ombra una lettura sola")
+def _():
+    import lettura as L
+    radice = os.path.dirname(os.path.abspath(__file__))
+    tutto = "".join(open(os.path.join(radice, f), encoding="utf-8").read() for f in os.listdir(radice) if f.endswith(".py") and f != "test_invarianti.py")
+    assert "def _l_ha_chiesta" not in tutto and "secondo_lettore(" not in tutto
+    assert tutto.count('NOSTRI = ("studiogalilei"') == 1 and tutto.count('PEC = ("@legalmail.it"') == 1
+    with _Finto({**LETTURA_VUOTA, "vuole_analisi": 0.95}, acceso=False) as F:
+        p = {"id": "po", "email": "lead@esempio.invalid"}
+        righe = _filo("Va bene, mandatela pure")
+        L.ha_gia(p, righe)
+        L.vecchio_lettore(p, righe[-1])                          # il gigante buono e l'analisi, col vecchio ancora acceso
+        assert F.chiamate == 1, F.chiamate
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -31,6 +31,7 @@ comprare. In cambio funziona solo col suo Mac acceso. Le letture gia' fatte
 restano in cache su disco, quindi rileggere la stessa cosa e' gratis.
 """
 
+import datetime
 import hashlib
 import json
 import os
@@ -94,8 +95,10 @@ negativo      chiude: «non interessati», «abbiamo gia' un'agenzia» detto com
               («guardi i contatti sul sito»). Calmo, non ostile.
 nervoso       infastidito o ostile: «smettetela», «come avete avuto la mia mail»,
               minacce, sarcasmo, insulti. Si lascia stare per sempre, come un no.
-soppresso     RICHIESTA DI RIMOZIONE esplicita: «rimuovetemi», «cancellate i
-              miei dati», «non contattatemi piu'», GDPR. Mai piu' una mail.
+soppresso     RICHIESTA DI RIMOZIONE esplicita, CON PAROLE SUE: «rimuovetemi», «cancellate
+              i miei dati», «non contattatemi piu'». Mai piu' una mail. Una firma, un
+              disclaimer o un'informativa privacy in fondo alla mail NON sono una richiesta
+              (12/10: «GDPR = soppresso» faceva leggere un no nell'informativa di un si').
 persona_sbagliata  chi risponde non c'entra o non decide: «non sono io la persona»,
               «ha sbagliato indirizzo», «non lavoro piu' qui», «siamo un privato».
               Se pero' indica CHI contattare per approfondire, e' positivo.
@@ -225,11 +228,11 @@ def _chiedi(prompt, modello=None):
 # 833 prove zero fallite): sono la grande maggioranza delle chiamate e il grosso del
 # risparmio. Le chiamate lunghe e rare (analisi, bozze, piani) hanno un tetto largo, che
 # ferma solo un ragionamento impazzito, non un testo legittimo.
-TETTO_USCITA = {"lettura": 1500, "bozza": 16000, "default": 16000}
-SFORZO = {"lettura": "low", "bozza": "medium", "default": "medium"}
+TETTO_USCITA = {"lettura": 1500, "seconda": 4000, "bozza": 16000, "default": 16000}
+SFORZO = {"lettura": "low", "seconda": "medium", "bozza": "medium", "default": "medium"}
 
 
-def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sforzo=None):
+def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sforzo=None, scopo=None):
     fornitore = fornitore or (FORNITORE if FORNITORE in COMPATIBILI else "openai")
     dove, nome_chiave = COMPATIBILI[fornitore]
     chiave = _env(nome_chiave)
@@ -270,7 +273,7 @@ def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sf
                 continue
             raise RuntimeError(ultimo)
     uso = d.get("usage", {})
-    _conta_uso(modello, uso.get("prompt_tokens", 0), uso.get("completion_tokens", 0))
+    _conta_uso(modello, uso.get("prompt_tokens", 0), uso.get("completion_tokens", 0), scopo)
     return d["choices"][0]["message"]["content"] or ""
 
 
@@ -279,58 +282,105 @@ def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sf
 # bozze), e ognuna sbagliava a modo suo: misurate il 29/9 sulle 435 risposte che Dre
 # ha classificato a mano, «ha detto no» ne prendeva 1 su 3 e «non scrivetemi piu'» 5 su
 # 45. Qui una lettura sola risponde a tutte le domande secche, ognuna con la sua
-# probabilita' (l'idea di Jev/TypeSafe, fatta col modello che abbiamo gia'). Chi usa
-# la risposta decide con soglie ASIMMETRICHE (decisioni()): un dubbio puo' fermare,
-# mai sbloccare. Non va in produzione prima di essere misurata sul metro di Dre.
+# probabilita' (l'idea di Jev/TypeSafe, fatta col modello che abbiamo gia').
+# 12/10: chi decide con queste probabilita' e' senso.giudica, con le soglie del Manuale.
+# Le domande sono diventate undici: con ostile, ha_gia_analisi, non_e_lui, fuori_target e
+# illeggibile la classe si calcola dalle probabilita', senza un secondo prompt con le classi.
 
-DOMANDE = {
-    "autorisposta": "e' una risposta automatica (fuori ufficio, ferie, ticket, casella non presidiata)?",
+# 12/10: la frase sta in OGNI domanda. Il 12/10 l'informativa in fondo alla mail
+# («cancellare il messaggio») faceva leggere un no a chi aveva detto si'.
+CONTANO_SOLO_LE_SUE_PAROLE = "(contano solo le sue parole: firme, disclaimer, informative e la nostra mail citata NON contano)"
+DOMANDE = {k: f"{v} {CONTANO_SOLO_LE_SUE_PAROLE}" for k, v in {
+    "autorisposta": "e' una risposta automatica (fuori ufficio, ferie, ticket, casella chiusa, rimbalzo, casella non presidiata)?",
     "detto_no": "la persona dice di no, che non le interessa, che ha gia' chi la segue?",
     # 12/10 (Manuale di Clara, gesto 13): «cita la privacy» faceva scattare il freno sui disclaimer
     # in firma; su 60 risposte vere tre si' sarebbero stati soppressi per sempre
-    "non_contattare": "chiede CON PAROLE SUE, nel messaggio, di non essere piu' contattata o di essere cancellata, oppure minaccia? Firme, disclaimer, note legali e informative privacy in fondo alla mail NON contano: non sono una richiesta",
+    "non_contattare": "chiede CON PAROLE SUE, nel messaggio, di non essere piu' contattata o di essere cancellata dalle liste?",
+    "ostile": "e' infastidita od ostile con noi: insulti, sarcasmo, «come avete avuto la mia mail», minaccia di segnalarci o denunciarci?",
     "vuole_analisi": "chiede o accetta di ricevere l'analisi o del materiale (anche solo «confermo la mail», «mandi pure»)?",
     "vuole_call": "chiede o accetta di sentirsi, una chiamata, un incontro?",
     "rinvio": "rimanda a piu' avanti (un mese, una data, «dopo l'estate»)?",
-}
+    "ha_gia_analisi": "dice di aver gia' ricevuto, letto o guardato la nostra analisi o il nostro materiale?",
+    "non_e_lui": "dice che non e' la persona giusta, che non lavora piu' li', che l'indirizzo e' sbagliato, o che e' un privato?",
+    "fuori_target": "e' un'agenzia o un concorrente, una casella legale o privacy, o un'azienda che non puo' essere cliente?",
+    "illeggibile": "non c'e' un messaggio leggibile scritto da una persona (vuoto, solo firma, solo disclaimer, solo la nostra mail)?",
+}.items()}
 SCHEMA_LETTURA = {
     "type": "json_schema",
     "json_schema": {"name": "lettura", "strict": True, "schema": {
         "type": "object", "additionalProperties": False,
-        "required": list(DOMANDE) + ["rinvio_quando", "girato_a", "domanda", "perche"],
+        "required": list(DOMANDE) + ["rinvio_quando", "girato_a", "domanda", "frase", "perche", "taglio_sporco"],
         "properties": {**{k: {"type": "number"} for k in DOMANDE},
                        "rinvio_quando": {"type": "string"}, "girato_a": {"type": "array", "items": {"type": "string"}},
-                       "domanda": {"type": "string"}, "perche": {"type": "string"}}}},
+                       "domanda": {"type": "string"}, "frase": {"type": "string"}, "perche": {"type": "string"},
+                       "taglio_sporco": {"type": "boolean"}}}},
 }
+PROMPT_LETTURA = (
+    "Sei il lettore delle risposte alle mail di Studio Galilei (agenzia di Treviso, marketing e Google Ads). "
+    "Oggi e' {oggi}. Ti do la mail in tre blocchi. Il senso lo decide SOLO il primo blocco, quello che ha scritto la persona: "
+    "il secondo (firma, informativa, mail citate) e il terzo (la nostra ultima mail e il nostro oggetto) servono "
+    "a capire il contesto, e se ritrovi il loro testo dentro il primo blocco non e' suo. "
+    "Rispondi a ogni domanda con una probabilita' da 0 a 1. Se il testo non basta per capire, dai valori vicini "
+    "a 0.5: meglio un dubbio dichiarato che una certezza falsa.\n\nLE DOMANDE:\n{domande}\n\n"
+    "Poi: rinvio_quando (AAAA-MM-GG: la data da cui ha senso riscrivergli; per un fuori ufficio il primo giorno di "
+    "rientro; le date relative, come «la settimana prossima», «dopo l'estate», «con l'anno nuovo», calcolale da oggi; "
+    "se non dice niente sul quando, vuoto), girato_a (indirizzi o nomi a cui "
+    "ci rimanda, scritti come li scrive lui, altrimenti lista vuota), domanda (la domanda che ci fa, altrimenti vuoto), "
+    "frase (la frase SUA che decide il senso, copiata alla lettera dal primo blocco, massimo 140 caratteri, altrimenti "
+    "vuoto), perche (dieci parole), taglio_sporco (true se nel primo blocco c'e' testo che non e' suo: la nostra mail, "
+    "una firma, un'informativa).\n\n"
+    "QUELLO CHE HA SCRITTO LUI (conta solo questo):\n«{suo}»\n\n"
+    "IL RESTO DELLA MAIL (serve a capire, non conta):\n«{resto}»\n\n"
+    "LA NOSTRA ULTIMA MAIL E IL NOSTRO OGGETTO (se li ritrovi sopra, non sono suoi):\noggetto: {oggetto}\n«{nostra}»")
 
 
-def classifica_risposta(testo, modello=None):
-    """Legge UNA risposta (gia' senza firma e citazione: lettura.solo_suo) e torna le
-    probabilita' per ogni domanda secca, piu' quando rinvia, a chi ci gira e cosa chiede.
-    Mai un'eccezione: se non risponde torna None, e chi chiama tratta None come dubbio."""
-    t = " ".join((testo or "").split())[:2500]
+def _modello_lettura(modello=None):
+    return modello or (MODELLO_OPENAI if FORNITORE == "openai" else MODELLO_CLAUDE)
+
+
+# LA VERSIONE DEL LETTORE (12/10). La cache e le letture salvate si riconoscono da qui: prima
+# l'impronta conteneva REGOLE e non DOMANDE (il cambio del 12/10 a non_contattare non aveva
+# invalidato niente). Cambiare una domanda, lo schema, il prompt o il modello = versione nuova.
+def _versione(prompt, domande, schema, modello):
+    return hashlib.sha256(json.dumps([prompt, domande, schema, modello], ensure_ascii=False, sort_keys=True)
+                          .encode("utf-8")).hexdigest()[:12]
+
+
+VERSIONE = _versione(PROMPT_LETTURA, DOMANDE, SCHEMA_LETTURA, _modello_lettura())
+
+
+def _blocco(t, quanto):
+    return " ".join((t or "").split())[:quanto]
+
+
+def classifica_risposta(testo, resto="", nostra="", oggetto="", modello=None):
+    """Legge UNA risposta e torna le probabilita' per ogni domanda secca, piu' quando rinvia, a
+    chi ci gira, cosa chiede e la frase che decide. `testo` e' gia' il testo suo (lettura.solo_suo);
+    `resto` e' quello che il taglio ha tolto, `nostra` e `oggetto` la nostra ultima mail: arrivano
+    in blocchi separati, cosi' se il taglio sbaglia l'AI non legge la nostra mail come sua (12/10).
+    Mai un'eccezione: se non risponde torna None, e chi chiama tratta None come «senza AI»."""
+    t = _blocco(testo, 2500)
     if len(t) < 3:
         return None
     domande = "\n".join(f"- {k}: {v}" for k, v in DOMANDE.items())
-    prompt = (f"Sei il lettore delle risposte alle mail di Studio Galilei (agenzia di Treviso, marketing e Google Ads). "
-              f"Leggi SOLO quello che ha scritto la persona qui sotto e rispondi a ogni domanda con una probabilita' da 0 a 1. "
-              f"Se il testo non basta per capire, dai valori vicini a 0.5: meglio un dubbio dichiarato che una certezza falsa.\n\n"
-              f"LE DOMANDE:\n{domande}\n\nPoi: rinvio_quando (AAAA-MM-GG se dice una data o un mese, altrimenti vuoto), "
-              f"girato_a (indirizzi o nomi a cui ci rimanda, altrimenti lista vuota), domanda (la domanda che ci fa, altrimenti vuoto), "
-              f"perche (dieci parole).\n\nLA RISPOSTA:\n«{t}»")
+    # 12/10 sera: la data di oggi nel prompt. Senza, il modello lasciava vuota quasi ogni data relativa
+    # («ci sentiamo con l'anno nuovo») e quasi ogni rientro dal fuori ufficio (54 su 59 nella misura)
+    prompt = PROMPT_LETTURA.format(oggi=datetime.date.today().isoformat(), domande=domande, suo=t, resto=_blocco(resto, 1500) or "(niente)",
+                                   nostra=_blocco(nostra, 1200) or "(non la so)", oggetto=_blocco(oggetto, 200) or "(non lo so)")
     global _CACHE_VIVA
     with _BLOCCO:
         if _CACHE_VIVA is None:
             _CACHE_VIVA = _cache()
-    chiave_cache = _impronta("lettore1|" + t, modello)
+    # 12/10: l'impronta porta la VERSIONE (domande, schema, prompt, modello) e tutti e tre i blocchi
+    chiave_cache = _impronta("lettore2|" + VERSIONE + "|" + datetime.date.today().isoformat() + "|" + t + "|" + _blocco(resto, 1500) + "|" + _blocco(nostra, 1200) + "|" + _blocco(oggetto, 200), modello)
     cache = _CACHE_VIVA
     if chiave_cache in cache:
         return dict(cache[chiave_cache])
     try:
         f = fornitore_di(modello) if modello else FORNITORE
         if f in COMPATIBILI:
-            grezzo = _chiedi_openai(prompt, modello or MODELLO_OPENAI, formato=SCHEMA_LETTURA, fornitore=f,
-                                    tetto=TETTO_USCITA["lettura"], sforzo=SFORZO["lettura"])
+            grezzo = _chiedi_openai(prompt, _modello_lettura(modello), formato=SCHEMA_LETTURA, fornitore=f,
+                                    tetto=TETTO_USCITA["lettura"], sforzo=SFORZO["lettura"], scopo="lettura")
         else:
             grezzo = _chiedi_claude(prompt + "\n\nRispondi SOLO con un oggetto JSON con esattamente quei campi.", modello or MODELLO_CLAUDE)
         m = re.search(r"\{.*\}", grezzo, re.S)
@@ -338,13 +388,63 @@ def classifica_risposta(testo, modello=None):
     except Exception as e:                                       # noqa: BLE001
         print(f"  (il lettore non ha risposto: {str(e)[:80]})")
         return None
-    if not isinstance(r, dict) or any(not isinstance(r.get(k), (int, float)) for k in DOMANDE):
+    if not isinstance(r, dict) or any(not isinstance(r.get(k), (int, float)) or isinstance(r.get(k), bool) for k in DOMANDE):
         return None
     for d in DOMANDE:
         r[d] = max(0.0, min(1.0, float(r[d])))
+    r["versione"] = VERSIONE
     cache[chiave_cache] = r
     _salva_cache(cache)
     return r
+
+
+# LA SECONDA LETTURA (12/10). Quando la lista dei gravi e l'AI non sono d'accordo, o la
+# lettura non torna (frase inventata, no e si' insieme, taglio sporco), non ci si blocca in
+# silenzio: si rilegge UNA domanda, con piu' ragionamento. Se e' netta decide lei
+# (senso.giudica), se resta a meta' il caso va a Dre.
+SCHEMA_SECONDA = {
+    "type": "json_schema",
+    "json_schema": {"name": "seconda", "strict": True, "schema": {
+        "type": "object", "additionalProperties": False, "required": ["p", "dove", "perche"],
+        "properties": {"p": {"type": "number"},
+                       "dove": {"type": "string", "enum": ["suo", "firma", "informativa", "citazione", "nessuno"]},
+                       "perche": {"type": "string"}}}},
+}
+
+
+def rileggi(testo_suo, contesa, prima=None, modello=None):
+    """Una domanda sola, rifatta con piu' ragionamento. contesa = {campo, frase, da, direbbe}.
+    Torna {campo, p, dove, perche} o None se non risponde (per chi chiama: dubbio a Dre)."""
+    campo = (contesa or {}).get("campo") or "detto_no"
+    domanda = DOMANDE.get(campo, DOMANDE["detto_no"])
+    chi = "Una lista di parole" if (contesa or {}).get("da") == "lista" else "Una prima lettura"
+    frase = (contesa or {}).get("frase") or ""
+    perche = ((prima or {}).get("perche") or "").strip()
+    prompt = (f"Sei la seconda lettura delle risposte alle mail di Studio Galilei. {chi} "
+              + (f"ha trovato «{frase}» in questa risposta" if frase else "ha letto questa risposta")
+              + f" e direbbe di si' a questa domanda: {domanda}\n"
+              + (f"La prima lettura diceva: «{perche}».\n" if perche else "")
+              + "Leggi SOLO quello che ha scritto la persona qui sotto. Dimmi:\n"
+              f"- p: la probabilita' da 0 a 1 che la risposta alla domanda sia davvero si';\n"
+              f"- dove: dove sta la frase trovata (suo = scritta da lei nel messaggio; firma; informativa = note legali "
+              f"o privacy; citazione = la nostra mail citata; nessuno = non c'e');\n- perche: dieci parole.\n\n"
+              f"LA RISPOSTA:\n«{_blocco(testo_suo, 2500)}»")
+    try:
+        f = fornitore_di(modello) if modello else FORNITORE
+        if f in COMPATIBILI:
+            grezzo = _chiedi_openai(prompt, _modello_lettura(modello), formato=SCHEMA_SECONDA, fornitore=f,
+                                    tetto=TETTO_USCITA["seconda"], sforzo=SFORZO["seconda"], scopo="seconda")
+        else:
+            grezzo = _chiedi_claude(prompt + "\n\nRispondi SOLO con un oggetto JSON {p, dove, perche}.", modello or MODELLO_CLAUDE)
+        m = re.search(r"\{.*\}", grezzo, re.S)
+        r = json.loads(m.group(0)) if m else None
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (la seconda lettura non ha risposto: {str(e)[:80]})")
+        return None
+    if not isinstance(r, dict) or not isinstance(r.get("p"), (int, float)) or isinstance(r.get("p"), bool):
+        return None
+    return {"campo": campo, "p": max(0.0, min(1.0, float(r["p"]))), "dove": r.get("dove") or "nessuno",
+            "perche": str(r.get("perche") or "")[:200]}
 
 
 def decisioni(r):
@@ -378,11 +478,15 @@ def _chiedi_claude(prompt, modello):
 
 
 USO = os.path.expanduser("~/.odyn-uso-cervello.json")
+_USO_DB = {"vivo": True}
 
 
-def _conta_uso(modello, dentro, fuori):
+def _conta_uso(modello, dentro, fuori, scopo=None):
     """Quanti token ha consumato il cervello, per modello: cosi' il costo si
-    misura invece di temerlo."""
+    misura invece di temerlo. 12/10: anche nel database (tabella uso_modelli, schema_v81):
+    il file muore col runner del direttore, e il costo di un giorno non si poteva dire.
+    E' solo un contatore: se la scrittura non riesce non si ferma niente, e in prova a secco
+    (PROVA=1, --prova) non si scrive."""
     try:
         d = json.load(open(USO, encoding="utf-8")) if os.path.exists(USO) else {}
         m = d.setdefault(modello, {"dentro": 0, "fuori": 0, "chiamate": 0})
@@ -390,6 +494,18 @@ def _conta_uso(modello, dentro, fuori):
         json.dump(d, open(USO, "w", encoding="utf-8"))
     except Exception:
         pass
+    if not _USO_DB["vivo"]:
+        return
+    try:
+        import sys
+        from stanza import sb, _a_secco
+        if _a_secco():
+            return
+        sb("POST", "/rest/v1/uso_modelli", {"script": os.path.basename(sys.argv[0] or "?")[:60], "scopo": scopo or "altro",
+                                             "modello": modello, "token_in": int(dentro or 0), "token_out": int(fuori or 0)},
+           {"Prefer": "return=minimal"})
+    except Exception:                                            # noqa: BLE001
+        _USO_DB["vivo"] = False                  # tabella assente o rete giu': per questo giro solo il file
 
 
 RIGA = re.compile(r"^\s*(\d+)\s*\|\s*([a-z_]+)\s*\|\s*([\d-]{1,10})\s*\|\s*(.*?)\s*$")
@@ -498,8 +614,8 @@ QUELLO CHE SAPPIAMO:
 
 
 # LE DOMANDE DELLA CONOSCITIVA (regola di Dre del 12/8, scritta nel CLAUDE.md del vault e
-# persa quando e' nato questo prompt: «massimo tre domande». Dre, 7/10, call con Studio
-# Nigris: «sono domande del cazzo: si va dal generico al preciso per creare rapporto e
+# persa quando e' nato questo prompt: «massimo tre domande». Dre, 7/10, dopo una
+# conoscitiva: «sono domande del cazzo: si va dal generico al preciso per creare rapporto e
 # connessione, e allo stesso tempo dimostrare che si sa del settore e di loro, con la
 # terminologia del settore in modo naturale; minimo 8 domande»).
 DOMANDE_CONOSCITIVA = """Le domande

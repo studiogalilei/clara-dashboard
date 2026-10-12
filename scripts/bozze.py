@@ -153,14 +153,14 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
         errori.append("chiude «a disposizione»: cosi' nessuno torna e poi servono pipeline di recupero; serve un prossimo punto di contatto (Dre 30/9)")
     if not seguito_programmato and not re.search(r"calendar\.app\.google|\{\{calendario\}\}|le scrivo io|la ricontatto io|vi ricontatto io|la richiamo io|scrivo (?:direttamente )?a lui|scrivo (?:direttamente )?a lei|appena ho il contatto|appena mi gira|ci sentiamo (?:il|dopo|a |luned|marted|mercoled|gioved|venerd|sabato)|risentir\w+ (?:a |dopo|il |in )|le propongo|confermo[^.!?\n]{0,45}\balle\b|ci vediamo|trova il nostro calendario|sono disponibile (?:anche )?(?:domani|gi)", low):
         errori.append("chiusa a volo: manca il prossimo punto di contatto (una data proposta, il calendario, o «le scrivo io il …»), se no la persona non torna (Dre 30/9)")
-    # AL MESSAGGERO NON SI PROPONE LA CALL (Dre, 1/10, caso Daniel/EnergetiKa: «a noi
+    # AL MESSAGGERO NON SI PROPONE LA CALL (Dre, 1/10, caso di un messaggero: «a noi
     # interessa il meeting con la persona. Al messaggero si chiede al massimo un favore:
     # l'email, o inoltrare la conversazione»). Se la bozza chiede il contatto di un altro,
     # la call e il calendario aspettano di parlare con quello giusto.
     if (re.search(r"(?:indirizzo|l.email|la mail|il contatto)\s[^.!?\n]{0,30}\bdi\b|pu[oò] inoltrar|mi gira (?:il contatto|la conversazione)", low)
             and re.search(r"calendar\.app\.google|\{\{calendario\}\}|chiamata conoscitiva|breve call|videochiamata", low)):
         errori.append("chiede il contatto di un altro E propone la call: il meeting si propone alla persona giusta, al messaggero si chiede solo il favore (Dre 1/10)")
-    # A CHI DICE NO, MAI UNA DATA (Dre, 1/10, sul caso Matteo: «inviamo l'analisi ma
+    # A CHI DICE NO, MAI UNA DATA (Dre, 1/10, su un caso vero: «inviamo l'analisi ma
     # non proponiamo l'appuntamento con una data. Porta aperta vuol dire consegnare,
     # salutare cordiali, dire che in futuro ci siamo, anche per altri servizi, e AL
     # MASSIMO lasciare il calendario lì sotto»). Proporre una data a un no e' ignorare
@@ -402,7 +402,7 @@ def proposta_giorno_ora(da_giorni=2):
     # che lo propongano loro. Quindi prima i pomeriggi della settimana, poi le mattine.
     # 6/10: prima la settimana (pomeriggi, poi mattine), poi la seguente. Cercando tutti i pomeriggi
     # di due settimane prima delle mattine, con molte bozze aperte si saltava a una settimana dopo
-    # (Cosimo, appena detto si', finiva a martedi' 13) mentre giovedi' mattina era libero.
+    # (un lead, appena detto si', finiva a martedi' 13) mentre giovedi' mattina era libero.
     pomeriggi = ((14, 30), (15, 0), (15, 30), (16, 0), (16, 30))
     mattine = ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))
     for quali, fascia in ((range(0, 7), pomeriggi), (range(0, 7), mattine), (range(7, 14), pomeriggi), (range(7, 14), mattine)):
@@ -642,7 +642,7 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
                                "provincia": fit.get("provincia"), "zona": fit.get("zona")}
     # LA SCRIVANIA: TUTTA LA SEQUENZA, NON DUE MESSAGGI (Dre, 28/9). Fino a oggi
     # la storia si prendeva dal CRM, che NON ha le mail partite da Smartlead: su
-    # Istituto Flegreo il CRM conosceva due righe su sei, e tutte e due in arrivo.
+    # un istituto il CRM conosceva due righe su sei, e tutte e due in arrivo.
     # Il modello scriveva senza sapere nemmeno cosa gli avevamo gia' mandato.
     # Il filo completo lo costruisce gia' lettura.filo() unendo CRM e Smartlead:
     # si usa quello. Dre: «una scrivania per lead, con le sequenze in ordine e il
@@ -885,20 +885,26 @@ def main():
         # 2. LE REGOLE DURE
         dura = lettura.regola_dura(gruppo, letti, p.get("classificazione"))
         if dura and dura[0] == "fermati" and "ma la classe non lo dice" in dura[1] and letti.get("detto_no_sicuro"):
-            # 5/10, casainromagna (Donatella): «abbiamo gia' chi ci fornisce questo servizio»
-            # con la classe ferma a positivo. Le due teste concordi su un no non si
-            # scaricano su Dre: la classe si aggiorna e il gigante buono la serve.
+            # 5/10: «abbiamo gia' chi ci fornisce questo servizio» con la classe ferma a
+            # positivo. Un no sicuro non si scarica su Dre: la classe si aggiorna.
+            # 12/10, senso_v2 acceso: «sicuro» vuol dire l'AI sicura sul testo suo (permanente_ok),
+            # non piu' «regex e modello concordi». E' l'unico effetto permanente fatto senza Dre:
+            # la nota porta la frase, e la riga di ogni mattina li conta (senso_ombra.py).
+            if PROVA:
+                return (p, gruppo, nome, None, [], letti, ("salta", "no sicuro: riclassificherei negativo (prova)"))
             sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}",
                {"classificazione": "negativo"}, {"Prefer": "return=minimal"})
+            nota = (f"Riclassificata negativo da Clara: l'AI legge un no sicuro: «{(letti.get('frase') or '')[:160]}» ({letti.get('fonte')})."
+                    if letti.get("lettura_stato") else
+                    "Riclassificata negativo da Clara: le due teste concordi su un no gentile (regex e modello sicuro). Va al gigante buono.")
             sb("POST", "/rest/v1/interactions", {"prospect_id": p["id"], "kind": "nota",
-               "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-               "body": "Riclassificata negativo da Clara: le due teste concordi su un no gentile (regex e modello sicuro). Va al gigante buono."}, {"Prefer": "return=minimal"})
-            return (p, gruppo, nome, None, [], letti, ("salta", "no concorde: riclassificata negativo, ci pensa il gigante buono"))
+               "at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "body": nota}, {"Prefer": "return=minimal"})
+            return (p, gruppo, nome, None, [], letti, ("salta", "no sicuro: riclassificata negativo"))
         if dura and dura[0] == "salta":
             return (p, gruppo, nome, None, [], letti, dura)
         if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO") and not p.get("analysis_pdf"):
             # L'ATTESA NON E' INFINITA (Dre, 28/9: «se è ferma deve avvisarmi in
-            # qualche modo»). Istituto Flegreo ha aspettato l'analisi per giorni
+            # qualche modo»). Un istituto ha aspettato l'analisi per giorni
             # senza che nessuno lo dicesse: il loro sito rispondeva 500, quindi
             # l'analisi non poteva proprio nascere. Dopo due giorni si smette di
             # aspettare in silenzio e si chiede a una persona, con il motivo vero.
@@ -988,7 +994,7 @@ def main():
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):
                 azione["allega"] = True
-            # 7/10 (UNO Capital, Quisto: «non ho ricevuto nessuna analisi»). L'analisi era
+            # 7/10 (due lead: «non ho ricevuto nessuna analisi»). L'analisi era
             # allegata a maggio e luglio, ma un allegato di mesi fa non lo ritrova nessuno:
             # se l'analisi ha piu' di 30 giorni, ogni follow-up la rimette dentro.
             inviata = p.get("analysis_sent_at") or ""
@@ -1051,7 +1057,7 @@ def main():
         """Il gigante buono non arrivera' mai: se aspettava, l'attesa si chiude (29/9).
         E il motivo si scrive sul prospect (5/10): senza il marchio, lo stesso caso
         veniva riesaminato ogni giro e consumava i 15 posti, e i vecchi in coda
-        (spaziocasa, 143 ore) non arrivavano mai al loro turno."""
+        (un caso, 143 ore) non arrivavano mai al loro turno."""
         if p.get("awaiting_us"):
             chiudi_attesa(p, f"ha detto no, niente gigante buono: {motivo}")
         enr = dict(p.get("enriched") or {})
@@ -1077,14 +1083,29 @@ def main():
             mai_gb(p, "e' nella lista di chi non va contattato"); continue
         # anche il gigante buono legge (25/9): il suo no vero, dal filo
         try:
-            _, letti = lettura.leggi(p)
+            righe_gb, letti = lettura.leggi(p)
         except Exception as e:                                # noqa: BLE001
             print(f"  [GB] salto {(p.get('company') or mail)[:34]}: lettura non riuscita ({str(e)[:60]})"); continue
-        testo = letti["ultima_loro"]
+        # 12/10: il corpo VERO della sua ultima mail, non letti["ultima_loro"] schiacciato a 600
+        # caratteri: sul testo schiacciato la citazione (che vuole un a capo) non si tagliava, e
+        # la stessa mail si pagava una seconda volta con un'impronta diversa
+        sue = [r for r in righe_gb if r["kind"] == "email_in" and not lettura._segnaposto(r.get("body"))]
+        testo = (sue[-1].get("body") or "") if sue else ""
+        if lettura.senso_acceso():
+            # il freno grave lo decide la lettura: mai_gb (che e' per sempre) solo con l'AI sicura;
+            # con un grave in dubbio si salta il giro, senza marchio (la domanda a Dre l'ha fatta senso)
+            if len(lettura.solo_suo(testo).strip()) < 3:
+                mai_gb(p, "non ha scritto niente di suo"); continue
+            if letti.get("non_scrivere"):
+                if letti.get("permanente_ok"):
+                    mai_gb(p, f"ha chiesto di non essere contattato: «{(letti.get('frase') or '')[:80]}»")
+                else:
+                    print(f"  [GB] salto {(p.get('company') or mail)[:34]}: la lettura e' in dubbio, aspetto Dre")
+                continue
         # 28/9: NON_TOCCARE sulle sue righe soltanto (il caso dell'immobiliare del 28/9: «cancellarlo»
         # stava nella nostra firma GDPR citata sotto la sua risposta positiva)
-        if len(testo.strip()) < 20 or lettura.frena(NON_TOCCARE.search(lettura.solo_suo(testo)),
-                                                    lettura.secondo_lettore(testo), ("non_scrivere",)):
+        elif len(testo.strip()) < 20 or lettura.frena(NON_TOCCARE.search(lettura.solo_suo(testo)),
+                                                      lettura.vecchio_lettore(p, sue[-1]) if sue else None, ("non_scrivere",)):
             mai_gb(p, "ha chiesto di non essere contattato o non ha scritto niente"); continue
         if letti["scritto_dopo_di_lei"]:
             mai_gb(p, "gli abbiamo gia' scritto dopo il suo no"); continue
@@ -1105,8 +1126,8 @@ def main():
                  # 12/10: il numero lo sceglie il codice, lo stesso della mail dei si' e dell'analisi
                  "dato_forte": dato or "nessuno: non scrivere nessun numero"}
         prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa") + "\n\n" + ISTRUZIONE_GB + cervello.istruzione("chat") + cervello.istruzione("bozze") + f"\n\nVALORI: {{{{CALENDARIO}}}} = {CALENDARIO}"
-                  + casi.simili(testo)
-                  + f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{testo[:1500]}")
+                  + casi.simili(lettura.solo_suo(testo, con_firma=True))
+                  + f"\n\nLA SCHEDA:\n{fatti}\n\nIL SUO NO:\n{lettura.solo_suo(testo, con_firma=True)[:1500]}")
         try:
             grezzo = cervello._chiedi(prompt) or ""
         except Exception as e:                      # noqa: BLE001
@@ -1134,7 +1155,7 @@ def main():
                             perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
                             azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB", "lettura": lett})
             if esito is None and not sb("GET", f"/rest/v1/proposte?select=id&stato=eq.aperta&tipo=eq.risposta&prospect_id=eq.{p['id']}&limit=1"):
-                # 5/10, spaziocasa: il database rifiutava la proposta (no_followup, trigger
+                # 5/10: il database rifiutava la proposta (no_followup, trigger
                 # del 25/9) e il giro la riscriveva all'infinito. Il caso esce dalla coda
                 # col marchio, e Dre riceve UNA domanda: decide lui se sbloccare.
                 enr = dict(p.get("enriched") or {})

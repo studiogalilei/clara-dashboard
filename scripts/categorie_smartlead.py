@@ -50,7 +50,7 @@ CAMBIO = _re.compile(r"(indirizzo|address|e-?mail)\W+(\w+\W+){0,4}(cambiat|chang
                      r"non collabora pi|non fa pi[uù] parte|no longer (with|works)|inoltrare la (mail|comunicazione)", _re.I)
 # «ho girato la vostra mail all'ufficio competente» (6/10, secondo campione): e' un inoltro
 INOLTRATO = _re.compile(r"(ho|abbiamo) (girato|inoltrato|passato) (la (vostra|sua|tua) (mail|email|richiesta)|al (collega|responsabile|ufficio))", _re.I)
-# un autorisponditore non e' una persona che chiede informazioni (caso Tangible Design, 6/10)
+# un autorisponditore non e' una persona che chiede informazioni (6/10)
 AUTORISPOSTA = _re.compile(r"your message has been received|support (staff|team)|ticket|thank you for (your|contacting)|"
                            r"risposta automatica|messaggio automatico|automatic reply|out of (the )?office|fuori ufficio|do not reply", _re.I)
 # un no scritto chiaro dentro un si' di classe: non si etichetta, si segnala (la classe e' sbagliata)
@@ -85,10 +85,16 @@ MORTA = _re.compile(r"delivery (has )?failed|undeliverable|mancato recapito|impo
                     r"non (e'|è) pi[uù] attiv|casella\W+(\w+\W+){0,4}(chius|dismess|disattiv)", _re.I)
 
 
-def categoria_nuova(p, intento=None, girato=False, testo="", call=False):
+def categoria_nuova(p, intento=None, girato=False, testo="", call=False, lettura=None):
     """La categoria del manuale per un lead, o None. Stesse protezioni di categoria_di:
     pipeline e clienti senza call non si toccano; la call fissata vince su tutto tranne
-    soppressi e persi; un sì di classe con un no scritto non si etichetta (va corretta la classe)."""
+    soppressi e persi; un sì di classe con un no scritto non si etichetta (va corretta la classe).
+
+    12/10, senso_v2: con `lettura` (la decisione di lettura.senso) il senso lo dice l'AI, non le
+    liste CAMBIO, INOLTRATO, AUTORISPOSTA, NO_SCRITTO e il «?». Resta MORTA: un rimbalzo e' un
+    messaggio di sistema, non una persona."""
+    if lettura is not None:
+        return _categoria_dal_senso(p, intento, girato, testo, call, lettura)
     c = p.get("classificazione")
     if call and c != "soppresso" and p.get("pipeline_stage") != "perso":
         return N_CALL
@@ -126,6 +132,42 @@ def categoria_nuova(p, intento=None, girato=False, testo="", call=False):
     return None
 
 
+def _categoria_dal_senso(p, intento, girato, testo, call, dec):
+    c = p.get("classificazione")
+    e = (dec or {}).get("etichetta")
+    if call and c != "soppresso" and p.get("pipeline_stage") != "perso":
+        return N_CALL
+    if p.get("fuori") or p.get("bloccato"):
+        return None
+    if c in ("soppresso", "nervoso"):
+        return N_STOP
+    if c == "fuori_target":
+        return N_FUORI
+    if testo and MORTA.search(testo):
+        return N_MORTA
+    if c in ("da_classificare", None):
+        return N_DRE if (dec or {}).get("domanda") and e != "auto" else None
+    if c == "negativo":
+        return N_NO
+    if e == "persona_sbagliata" or c == "persona_sbagliata" or intento in INTENTI_GIRATO:
+        return N_GIRATO
+    if c == "ooo":
+        return N_OOO
+    if c == "rinvio":
+        return N_AVANTI
+    if c in ("positivo", "tiepido") and e in ("no", "non_scrivere"):
+        return None                       # la classe dice si', l'AI legge un no: lo decide la lettura o Dre
+    if (girato or (dec or {}).get("girato_a")) and c != "positivo":
+        return N_GIRATO
+    if c == "tiepido" or intento in INTENTI_DOMANDA:
+        return N_DRE
+    if c == "positivo":
+        if intento in INTENTI_CALL:
+            return N_CALL_CHIESTA
+        return N_FU if p.get("stage") == "in_follow_up" else N_SI
+    return None
+
+
 def categoria_di(p, intento=None, girato=False, testo="", call=False):
     """La categoria di Dre per un lead, o None se non se ne mette una.
     `testo` e' la sua ultima risposta (solo la parte sua): corregge i casi che la classe
@@ -144,7 +186,7 @@ def categoria_di(p, intento=None, girato=False, testo="", call=False):
     if c in ("soppresso", "fuori_target"):
         return None
     if c in ("da_classificare", None):
-        # 6/10, Dre: chi chiede informazioni prende la Information Request standard (caso Cadeddu)
+        # 6/10, Dre: chi chiede informazioni prende la Information Request standard
         return INFO if testo and "?" in testo and not AUTORISPOSTA.search(testo) else None
     if c in ("negativo", "nervoso"):
         return NO
@@ -243,11 +285,21 @@ def da_allineare():
                                                    "&prospect_id=not.is.null&tipo=in.(conoscitiva,tecnica,avvio)") or []}
     righe, DA_GUARDARE[:] = [], []
     nuove = usa_nuove()
+    # 12/10, senso_v2: la lettura salvata di ogni lead (la piu' recente), gratis dal database
+    letture = {}
+    if lettura.senso_acceso() and nuove:
+        for x in sb_tutte("/rest/v1/letture?select=id,prospect_id,decisione,decisione_dre,letta_il&order=letta_il.asc") or []:
+            letture[x["prospect_id"]] = x
     for p in ps:
         testo = lettura.solo_suo(ultima.get(p["id"], ""), con_firma=True) or ""
-        if da_guardare(p, testo):
+        lett = letture.get(p["id"])
+        if lett is None and da_guardare(p, testo) and not letture:
             DA_GUARDARE.append((p.get("company") or p["email"], p.get("classificazione"), testo[:90]))
-        voluta = (categoria_nuova if nuove else categoria_di)(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call)
+        if letture:
+            dec = (lett or {}).get("decisione") or {}
+            voluta = categoria_nuova(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call, lettura=dec)
+        else:
+            voluta = (categoria_nuova if nuove else categoria_di)(p, intenti.get(p["id"]), p["id"] in girati, testo, call=p["id"] in con_call)
         gia = ((p.get("enriched") or {}).get("sl_categoria") or {}).get("nome")
         if voluta and voluta != gia:
             # niente campo «fuori» nelle righe per il Revisore: la sua regola dura («mai

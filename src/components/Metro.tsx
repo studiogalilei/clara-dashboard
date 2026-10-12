@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card } from './ui'
+import { SCELTE_RISPOSTE } from '../lib/metro'
 
 // IL METRO, LA PAGINA DEGLI ESAMI (Dre, 29/9 e 1/10: «così tiriamo fuori le robe
 // del mio cervello»). Un caso alla volta: Dre risponde con un tocco o coi tasti,
@@ -12,10 +13,6 @@ import { Card } from './ui'
 // Il contesto (29/9, su sua richiesta): la storia PRIMA del caso, mai il dopo,
 // se no si etichetta com'è finita invece di cosa dice il caso.
 
-const SCELTE_RISPOSTE: Array<[string, string]> = [
-  ['si', 'Sì, vuole'], ['no', 'No'], ['non_scrivere', 'Non scrivetemi più'],
-  ['fuori_ufficio', 'Fuori ufficio'], ['rinvio', 'Più avanti'], ['altro', 'Altro'],
-]
 
 interface Blocco { eti?: string; testo: string }
 interface Caso {

@@ -203,14 +203,16 @@ def classifica(testo):
 CLASSI_NO = ("negativo", "soppresso", "nervoso", "fuori_target", "persona_sbagliata")
 
 
-def testo_suo(body):
+def testo_suo(body, con_firma=False):
     """Solo la parte scritta dal lead: lo stesso taglio della rilettura (lettura.solo_suo).
     6/10: corpo_pulito a volte non trovava l'inizio della citazione, e la nostra mail
-    («mi piacerebbe condividerle») faceva diventare positivo chi aveva detto no."""
+    («mi piacerebbe condividerle») faceva diventare positivo chi aveva detto no.
+    12/10: per leggere il senso, senza firma e informativa (con_firma=False): con la firma
+    dentro, il «cancellare» dell'informativa GDPR arrivava alle regole del sync."""
     t = strip_html(body)
     try:
         import lettura
-        suo = lettura.solo_suo(t, con_firma=True)
+        suo = lettura.solo_suo(t, con_firma=con_firma)
         if suo is not None:
             return suo.strip()
     except Exception:                                        # noqa: BLE001
@@ -230,18 +232,44 @@ def attesa_da_sync(awaiting, rec, risposta_nuova, ultima_risposta):
     return awaiting
 
 
-def classe_da_sync(body, categoria, attuale, risposta_nuova):
+def classe_da_sync(body, categoria, attuale, risposta_nuova, lettura=None):
     """La classe che il sync propone. UN NO NON SI RIBALTA SULLO STESSO MESSAGGIO (6/10):
     il sync completo delle 5 ha riletto risposte gia' classificate e ha fatto diventare
-    positivo La Bussola («Grazie non ci interessa»), casainromagna, Madaprojects e Panorama
-    («non ci contatti piu»). Una classe gia' decisa (dalla rilettura, da Dre, dalle bozze)
-    cambia solo se il lead scrive di nuovo: le regole del sync sono piu' grezze di chi l'ha letta."""
+    positivi quattro no gentili («Grazie non ci interessa», «non ci contatti piu»). Una classe
+    gia' decisa (dalla rilettura, da Dre, dalle bozze) cambia solo se il lead scrive di nuovo.
+
+    12/10, senso_v2: con `lettura` (la riga di lettura.senso) la classe la da' l'AI sul testo
+    suo (senso.classe), mai una lista di parole. Un messaggio nuovo che l'AI non ha letto resta
+    «da_classificare» (e l'attesa resta aperta): niente classe scritta senza AI."""
     if attuale and attuale != "da_classificare" and not risposta_nuova:
         return attuale                                   # stesso messaggio: decide chi lo ha gia' letto meglio
+    if lettura is not None:
+        import senso as S
+        dec = lettura.get("decisione") or {}
+        if dec.get("stato") in ("senza_ai", "senza_regole") and risposta_nuova:
+            return "da_classificare"
+        cls = S.classe(dec, None if risposta_nuova else attuale)
+        # la categoria di Smartlead suggerisce solo se l'AI non decide; «Information Request» no
+        # (e' una nostra etichetta che tornava indietro come classe), «Do Not Contact» sta nella rete
+        if cls == "da_classificare" and categoria in CAT_HINT and categoria not in ("Information Request", "Do Not Contact"):
+            cls = CAT_HINT[categoria]
+        return cls
     cls = classifica(testo_suo(body))
     if cls == "da_classificare" and categoria in CAT_HINT:
         cls = CAT_HINT[categoria]
     return cls
+
+
+def lettura_sync(rec, body, categoria, disiscritto, attuale):
+    """La lettura del senso di una risposta nuova (12/10): il sync e' il primo che la legge,
+    e la salva in `letture`. Bozze, prima risposta e postino la rileggono gratis."""
+    try:
+        import lettura
+        segnali = (["Smartlead: disiscritto"] if disiscritto else []) + (["Smartlead: Do Not Contact"] if categoria == "Do Not Contact" else [])
+        return lettura.senso(rec, corpo_pulito(body), segnali=segnali, attuale=attuale)
+    except Exception as e:                                   # noqa: BLE001
+        print(f"    (lettura del senso non riuscita: {str(e)[:80]})")
+        return None
 
 
 def data_ooo(testo):
@@ -277,9 +305,9 @@ CALDI_PER_GIRO = 40        # a rotazione: con ~100 fili caldi, ognuno si rilegge
 
 
 def fili_caldi(known, mandate_di_recente=frozenset()):
-    """LA SECONDA RISPOSTA (7/10, caso La Bottega del Legno). Smartlead, nell'export e nelle
+    """LA SECONDA RISPOSTA (7/10, una falegnameria). Smartlead, nell'export e nelle
     statistiche, conta solo la prima risposta alla sequenza: quando il lead risponde DI NUOVO
-    dopo la nostra mail, il contatore resta uguale e il giro lo saltava come «invariato». Paola
+    dopo la nostra mail, il contatore resta uguale e il giro lo saltava come «invariato». La lead
     ha risposto alle 9:11 e il sistema non l'avrebbe vista fino al giro completo della notte.
     Qui i fili dove l'ultima mossa e' nostra (analisi o risposta mandata di recente, l'attesa
     chiusa) si rileggono comunque, a rotazione: i meno riletti per primi."""
@@ -289,7 +317,7 @@ def fili_caldi(known, mandate_di_recente=frozenset()):
         if r.get("awaiting_us") or r.get("classificazione") in ("soppresso", "fuori_target"):
             continue                          # chi aspetta noi si rilegge gia'; i chiusi no
         recente = max((r.get("analysis_sent_at") or ""), (r.get("last_reply_at") or ""))
-        # 7/10 (UNO Capital, Quisto): il follow-up di oggi a un filo di luglio non spostava
+        # 7/10 (due lead): il follow-up di oggi a un filo di luglio non spostava
         # ne' l'analisi ne' l'ultima risposta, e la loro risposta di oggi restava invisibile
         # fino al giro di notte. Una nostra mail recente rende il filo caldo come un'analisi.
         if recente < soglia and r.get("id") not in mandate_di_recente:
@@ -306,7 +334,7 @@ def db_prospects():
     while True:
         # 6/10: awaiting_us mancava. La regola «chi aspetta noi si rilegge a ogni giro» (24/9) non
         # scattava mai, e attesa_da_sync leggeva ogni attesa come chiusa: il 6/10 tra le 11:43 e le
-        # 11:55 il sync ha chiuso l'attesa a chi aspettava davvero noi (Oikos, Lucca Case, Grigna...)
+        # 11:55 il sync ha chiuso l'attesa a chi aspettava davvero noi (tre lead e altri)
         rows = sb("GET", f"/rest/v1/prospects?select=id,email,company,stage,fuori,classificazione,enriched,awaiting_us,"
                          f"analysis_sent,analysis_sent_at,no_followup,last_reply_at,followup_due"
                          f"&limit=1000&offset={offset}") or []
@@ -320,7 +348,7 @@ def db_prospects():
 def azienda_di(r):
     """Il nome dell'azienda di una riga di Smartlead. Le campagne del 22/9 lo mettono nel campo
     personalizzato «azienda» e lasciano vuoto company_name: 129 schede senza nome il 7/10,
-    Studio Nigris introvabile in Workspace un'ora prima della call."""
+    un'azienda introvabile in Workspace un'ora prima della call."""
     nome = (r.get("company_name") or "").strip()
     if nome:
         return nome
@@ -446,9 +474,27 @@ def main():
             testo = testo_suo(last_reply.get("email_body"))
             rec = known.get(em)
             nuova = (last_reply.get("time") or "")[:19] > ((rec or {}).get("last_reply_at") or "")[:19]
+            # 12/10: una risposta nuova la legge l'AI (lettura.senso), una volta, e la lettura si
+            # salva. Con senso_v2 spento il sync decide come prima e la classe nuova va in ombra.
+            import lettura as _lettura
+            lett = lettura_sync(rec, last_reply.get("email_body"), lead.get("category"), lead.get("is_unsubscribed"),
+                                (rec or {}).get("classificazione")) if (nuova and rec and not DRY) else None
+            acceso = _lettura.senso_acceso()
             # se il testo non decide, la categoria Smartlead suggerisce; un no resta no (6/10)
-            cls = classe_da_sync(last_reply.get("email_body"), lead.get("category"), (rec or {}).get("classificazione"), nuova)
-            ooo_until = data_ooo(testo) if cls == "ooo" else None
+            cls = classe_da_sync(last_reply.get("email_body"), lead.get("category"), (rec or {}).get("classificazione"), nuova,
+                                 lettura=(lett or {"decisione": {"stato": "senza_ai"}}) if acceso else None)
+            ripresa = None
+            if acceso and lett:
+                # 12/10 sera: la data la dice il lettore (rinvio_quando, verificata); se la lascia vuota,
+                # la data scritta nell'autorisposta («fuori fino al 21 agosto») vale ancora: e' una data,
+                # non un senso. Senza, un fuori ufficio restava fermo per sempre (clara.py «rientri»)
+                import senso as _S
+                q = (lett.get("decisione") or {}).get("quando")
+                ooo_until = _S.rientro(q or data_ooo(testo)) if cls == "ooo" else None
+                if cls == "rinvio":
+                    ripresa = _S.ripresa(q)                  # un rinvio senza data non resta muto
+            else:
+                ooo_until = data_ooo(testo) if cls == "ooo" else None
 
             # se Dre ha classificato a mano ooo/rinvio/negativo/fuori_target/soppresso,
             # l'autoreply non rimette il lead in coda risposta
@@ -470,8 +516,12 @@ def main():
 
             # 3. (25/9) enriched si rilegge ADESSO, non dall'elenco letto all'avvio: nel
             # frattempo fit, analisi, rilettura e punto possono averci scritto
-            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
+            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,classificazione,awaiting_us,last_reply_at,next_action_date&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
             enr = dict(fresco.get("enriched") or {})
+            if lett and not acceso:
+                import senso as _S
+                enr["ombra_sync"] = {"classe": _S.classe(lett.get("decisione"), None), "oggi": cls,
+                                     "lettura_id": lett.get("id"), "il": started}
             patch = {
                 "enriched": {**enr, "sl_firma": wrap.get("_firma"), "sl_riletto_il": started},
                 "awaiting_us": awaiting,
@@ -490,6 +540,9 @@ def main():
                 patch["classificazione"] = cls
                 if ooo_until:
                     patch["ooo_until"] = ooo_until
+                if ripresa and nuova and not fresco.get("next_action_date"):
+                    # 12/10 sera: il rinvio porta la sua data (RINVIO SCADUTO la vuole), o quella di ripiego
+                    patch["next_action_date"], patch["next_action"] = ripresa
             # stage: mai toccare i bloccati o i fuori
             cur = rec or {}
             if not cur.get("fuori") and cur.get("stage") not in LOCKED_STAGES:

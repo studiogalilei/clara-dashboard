@@ -12,7 +12,7 @@ modello non scrive niente.
 COSA FA
 Prende il template dal file di Dre («Risposte (template verbatim)», nel bucket),
 mette il saluto giusto e il calendario, e basta. Il saluto:
-  1. il nome con cui NOI gli abbiamo scritto l'ultima volta («Salve Maura,»):
+  1. il nome con cui NOI gli abbiamo scritto l'ultima volta («Salve Nome,»):
      l'ha scelto Dre, e' quello giusto;
   2. altrimenti il nome della scheda, solo se e' un nome vero e compare nella
      sua ultima mail (la firma);
@@ -151,7 +151,7 @@ FRASE_GARANZIA = "Poi avremmo pronta anche una proposta con garanzia da farvi, m
 FRASE_GARANZIA_IN = "Avremmo pronta anche una proposta con garanzia da farvi, ma prima mi"
 
 
-# HA GIA' L'ANALISI E DICE «PIU' AVANTI» (Dre, 7/10, caso La Bottega del Legno: «e' un periodo
+# HA GIA' L'ANALISI E DICE «PIU' AVANTI» (Dre, 7/10, una falegnameria: «e' un periodo
 # incasinato, la leggero' con calma piu' avanti»). Il modello SENTIAMOCI e' scritto per chi
 # l'analisi non l'ha ancora: gliela riallegava e proponeva una call «anche domani». Dre:
 # «sentirci tra 15 giorni, lasciare il calendario, proporre una data, follow-up a 15 giorni».
@@ -174,7 +174,9 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
     frase di Dre si AGGIUNGE quando lo score passa («quella linea ci sta in realta'»).
     """
     chiave = RISPOSTE.get((intento or "").strip())
-    if chiave == "CHI SEI" and CHIEDE_SOCIETA.search(loro or ""):
+    # 12/10, senso_v2: con la lettura dell'AI, «chiede che societa' siamo?» si guarda sulla domanda
+    # che l'AI ha letto nel testo suo (letti["domanda"]), non su tutta la mail con firma e citazione
+    if chiave == "CHI SEI" and CHIEDE_SOCIETA.search(((letti or {}).get("domanda") if (letti or {}).get("lettura_stato") else loro) or ""):
         chiave = "QUAL E"
     if not chiave:
         return None
@@ -201,7 +203,7 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
     if (intento or "").strip() == "INT-23":
         # INT-23, VUOLE IL MATERIALE MA NON LA CALL (playbook: «mandi, dici che resti a
         # disposizione, non proponi orari; chi lo ha chiesto si irrigidisce»). Il template e'
-        # INTERESSATO senza la proposta di call: il 6/10 Oikos («valuteremo l'eventuale call»)
+        # INTERESSATO senza la proposta di call: il 6/10 un lead («valuteremo l'eventuale call»)
         # stava per ricevere uno slot alle 9, in automatico.
         righe = [r for r in t.splitlines() if not re.match(r"\s*(Le propongo\b|📅|Calendario:)", r)]
         t = "\n".join("Se dopo averla letta volesse approfondire, resto a disposizione." if "confrontarmi" in r else r

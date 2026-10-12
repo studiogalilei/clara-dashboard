@@ -296,7 +296,9 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
         kind = "email_out" if nostra else "email_in"
         corpo = ripulisci(testo_di(d.get("payload"))) or (d.get("snippet") or "")[:300]
         riga = {"prospect_id": pid, "at": at, "kind": kind,
-                "body": f"{oggetto}\n\n{corpo}".strip()[:1500], "ref": f"gmail:{m['id']}"}
+                # 12/10 sera: niente strip a sinistra. Con l'oggetto vuoto lo strip toglieva la riga vuota, e
+                # il primo paragrafo della persona diventava «l'oggetto» (lettura.corpo_e_oggetto)
+                "body": f"{oggetto}\n\n{corpo}"[:1500].rstrip(), "ref": f"gmail:{m['id']}"}
         nome = p.get("company") or p.get("name") or p.get("email")
         print(f"    {'->' if nostra else '<-'} {nome} ({come}): {oggetto[:50]}")
 
@@ -339,9 +341,18 @@ def macina(persona, rubrica, giorni, prova, limite_domande):
             fatte["saltate"] += 1
             continue
         try:
-            sb("POST", "/rest/v1/interactions", riga)
+            scritta = sb("POST", "/rest/v1/interactions", riga, {"Prefer": "return=representation"}) or []
             fatte["scritte"] += 1
             TOCCATI.add(pid)
+            if kind == "email_in":
+                # 12/10: la risposta arrivata da Gmail la legge l'AI qui, una volta, e la lettura si
+                # salva (lettura.senso). L'oggetto va a parte: se e' il nostro («Re: ...»), non e' suo
+                try:
+                    import lettura
+                    # la porta sola: la riga, come la leggono tutti gli altri (stessa impronta, una lettura)
+                    lettura.senso(p, {**riga, "id": (scritta[0].get("id") if scritta else None)}, attuale=p.get("classificazione"))
+                except Exception as e2:                       # noqa: BLE001
+                    print(f"    (lettura del senso non riuscita: {str(e2)[:60]})")
         except RuntimeError as e:
             if "409" in str(e) or "duplicate" in str(e).lower():
                 fatte["saltate"] += 1

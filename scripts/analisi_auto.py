@@ -73,7 +73,7 @@ NON_TOCCARE = re.compile(
     r"non (?:ci|mi) contatt|non (?:ci|mi) (?:scriv|invi|mand)|"
     r"diffid\w*|denunc\w*|garante (?:della )?privacy|"
     # «spam» solo come accusa (1/10): «la mail era finita nello spam» e' un SI che ci
-    # avvisa del filtro, non una lamentela. Nigris e UG Rent bloccati per questo.
+    # avvisa del filtro, non una lamentela. Due lead bloccati per questo.
     r"(?<!nello )(?<!in )(?<!nella cartella )\bspam\b(?! folder)|molest\w*|"
     r"smett\w*\s+(?:di |con )(?:scriver|mandar|inviar|contattar|disturbar)|"
     r"la smetta|smettila|"
@@ -186,7 +186,7 @@ def scheda(p):
     racc = (sb("GET", f"/rest/v1/raccolta?select=azienda,fa_ads,annunci,giorni_ads,inserzionista,maps_trovato,recensioni,voto,tipo_maps,"
                       f"recensioni_testi,sito_testo,raccolto_il,tag_google_ads,tag_analytics,tag_tag_manager,tag_clarity,tag_meta_pixel"
                       f"&dominio=eq.{urllib.parse.quote(dom)}") or [{}])[0] if dom else {}
-    ultime = sb("GET", f"/rest/v1/interactions?select=body,at&prospect_id=eq.{p['id']}&kind=eq.email_in&order=at.desc&limit=2") or []
+    ultime = sb("GET", f"/rest/v1/interactions?select=id,body,ref,at&prospect_id=eq.{p['id']}&kind=eq.email_in&order=at.desc&limit=2") or []
     import mercato
     provincia = mercato.settore_e_provincia(p)[1] or ""      # 12/10: la stessa scelta della mail
     if not provincia:
@@ -458,12 +458,20 @@ def lavora(p):
     # mail, firma e disclaimer compresi, e la parola «cancellarlo» dentro la
     # NOSTRA firma sul GDPR bloccava chi aveva appena detto di si'.
     # 30/9: leggono in due. Per PREPARARE l'analisi (che non contatta nessuno) il freno
-    # della regex cede solo davanti a un modello SICURO del si' (1/10, Nigris e UG Rent:
+    # della regex cede solo davanti a un modello SICURO del si' (1/10, due lead:
     # «era finita nello spam» e' un si' che ci avvisa del filtro, e la regex lo bloccava).
     # Per MANDARE, i freni restano duri: basta che uno dei due dica fermo.
-    if s["ultime"]:
+    if s["ultime"] and lettura.senso_acceso():
+        # 12/10, senso_v2: si salta solo con il freno grave della lettura. Con un grave in dubbio
+        # non si salta in silenzio: la domanda a Dre l'ha gia' fatta lettura.senso (caso a)
+        dec = (lettura.senso(p, s["ultime"][0], attuale=p.get("classificazione")) or {}).get("decisione") or {}
+        if dec.get("grave"):
+            print(f"  salto {nome}: " + ("ha chiesto di non essere contattato" if dec.get("permanente_ok") else "forse chiede di non essere contattato: l'ho chiesto a Dre"))
+            return False
+    elif s["ultime"]:
         corpo = s["ultime"][0].get("body") or ""
-        d = lettura.secondo_lettore(corpo)
+        # 12/10 sera: la stessa lettura del senso (gratis se gia' fatta), non una seconda pagata
+        d = lettura.vecchio_lettore(p, s["ultime"][0])
         si_sicuro = bool(d and d.get("etichetta") == "si" and not d.get("dubbio"))
         if lettura.frena(False, d, ("non_scrivere",)) or (NON_TOCCARE.search(lettura.solo_suo(corpo)) and not si_sicuro):
             print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
@@ -523,21 +531,10 @@ CHIEDE_ANALISI = re.compile(
     r"la legger(?:o|ò|emo)|la valuter(?:o|ò|emo)|"
     r"(?:sono|siamo) curios\w+|"
     # «volentieri» da solo e' troppo largo: «ben volentieri se qualcuno riprende
-    # il progetto» non e' una richiesta (caso Cit by Subway, 29/9). Vale solo
+    # il progetto» non e' una richiesta (un franchising, 29/9). Vale solo
     # accanto a un verbo di ricezione.
     r"(?:legg\w+|ricev\w+|vedr\w+|guard\w+|grazie|attend\w+)\W{0,3}(?:\w{1,6}\W{0,3}){0,2}volentieri|"
     r"volentieri\W{0,12}(?:la legg|ricev|grazie)", re.I)
-
-
-def _l_ha_chiesta(p):
-    """La persona ha chiesto esplicitamente l'analisi nella sua ultima mail?"""
-    try:
-        t = (sb("GET", f"/rest/v1/interactions?select=body&prospect_id=eq.{p['id']}"
-                       "&kind=eq.email_in&order=at.desc&limit=1") or [{}])[0].get("body") or ""
-    except Exception:                                        # noqa: BLE001
-        return False
-    # 30/9: il sì si accende anche col modello sicuro (le regex mancavano tanti sì), mai da un dubbio
-    return lettura.si_acceso(CHIEDE_ANALISI.search(lettura.solo_suo(t)), lettura.secondo_lettore(t))
 
 
 def servita(p):
