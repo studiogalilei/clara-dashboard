@@ -47,7 +47,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import casi
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato  # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile  # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
 
@@ -809,8 +809,15 @@ def main():
     # si lavora in ordine di freschezza, il resto al giro dopo.
     MAX_LAVORI = 10
     candidate = []
+    # 13/10: chi la regola unica non lascia contattare (stanza.contattabile) non si scrive:
+    # prima la bozza si pagava e poi il database la rifiutava, ogni 15 minuti per sempre
+    # (Bank Station, «niente follow-up»: circa 8 $ al giorno buttati).
+    non_contattabili = []
     for p in persone:
         if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
+            continue
+        if not contattabile(p):
+            non_contattabili.append(p)
             continue
         candidate.append((p, None))
     # 29/9: chi e' in coda ma nel frattempo e' diventato perso, cliente o ha la call
@@ -827,6 +834,9 @@ def main():
         # questo motore lo riprendeva a ogni giro, in silenzio
         if p.get("classificazione") in ("soppresso", "negativo", "nervoso", "fuori_target", "persona_sbagliata"):
             fuori_coda.append((p, f"non si ricontatta: nel frattempo e' «{p.get('classificazione')}»"))
+            continue
+        if not contattabile(p):
+            fuori_coda.append((p, "non si ricontatta: per la regola unica non e' contattabile (niente follow-up, cliente o bloccato)"))
             continue
         if p["id"] in aperte or p.get("coda") not in lettura.GRUPPI:
             continue
@@ -873,6 +883,9 @@ def main():
     for p, motivo in fuori_coda:
         print(f"  {(p.get('coda') or ''):15} {(p.get('company') or p.get('email') or '')[:34]:34} esce dalla coda: {motivo}")
         esito_coda(p, motivo)
+    for p in non_contattabili:
+        print(f"  {'':15} {(p.get('company') or p.get('email') or '')[:34]:34} non si scrive: la regola unica non lo lascia contattare")
+        esito_coda(p, "non si scrive: per la regola unica non e' contattabile (niente follow-up, cliente o bloccato)")
 
     def lavora(coppia):
         p, gruppo = coppia
@@ -997,6 +1010,10 @@ def main():
             pid = proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche, azione=azione)
             if pid and gruppo:
                 sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None})
+            if not pid and not PROVA:
+                # 13/10: la bozza non e' nata (rifiutata dal database o gia' una proposta): si scrive
+                # perche', e si riprende solo a una sua mail nuova. Mai piu' un riprovo pagato ogni giro.
+                esito_coda(p, "la bozza non e' nata: il database l'ha rifiutata o c'era gia' una proposta")
             PRONTE.append((p["id"], (p.get("company") or p.get("name") or "")[:30], bool(p.get("analysis_pdf"))))
         if ferma: ferme += 1
         else: fatte += 1

@@ -676,7 +676,9 @@ def _():
     pr = {"id": 1, "tipo": "risposta", "titolo": "Bozza per Rossi, INT-01",
           "azione": {"bozza": "Salve,\n\necco l'analisi.\nIl calendario: https://calendar.app.google/x", "intento": "INT-01", "lettura": let}}
     p = {"id": "x", "email": "a@b.it", "classificazione": "positivo", "stage": "risposto",
-         "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf"}
+         "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf",
+         # 13/10: la scheda completa per la regola unica (che ora va a prendere i campi mancanti)
+         "fuori": False, "pipeline_stage": None, "no_followup": False}
     assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
     # 2/10: l'alias dello stesso dominio (info@ per commerciale@) non e' un rimbalzo
     assert R.perche_no({**pr, "azione": {**pr["azione"], "lettura": {**let, "girato_a": ["c@b.it"]}}}, p) == []
@@ -2141,6 +2143,34 @@ def _():
         assert len(chiamate) == 1, f"la stessa risposta pagata {len(chiamate)} volte"
     finally:
         C._dal_db, C._nel_db, C._chiedi_openai, C.CACHE, C._CACHE_VIVA = vero
+
+
+@prova("niente giri pagati in tondo: regola unica con schede parziali, Google Fit a tentativi, Revisore che ricorda (13/10)")
+def _():
+    import stanza as St
+    vero_sb = St.sb
+    # una scheda parziale (senza no_followup) non deve passare per contattabile
+    St.sb = lambda m, path, *a, **k: ([{"fuori": False, "stage": "in_follow_up", "pipeline_stage": None,
+                                        "no_followup": True, "classificazione": "positivo"}]
+                                       if path.startswith("/rest/v1/prospects") else False)
+    try:
+        assert St.contattabile({"id": "x", "classificazione": "positivo"}) is False, "una scheda parziale passa la regola"
+    finally:
+        St.sb = vero_sb
+    # un cliente della tabella clienti non e' contattabile anche se i campi del lead non lo dicono
+    St.sb = lambda m, path, *a, **k: (True if "e_cliente" in path else [])
+    try:
+        assert St.contattabile({"id": "x", "fuori": False, "stage": "nuovo", "pipeline_stage": None,
+                                "no_followup": False, "classificazione": None}) is False
+    finally:
+        St.sb = vero_sb
+    import pathlib
+    g = pathlib.Path(__file__).with_name("googlefit.py").read_text(encoding="utf-8")
+    assert "tentativi" in g and ">= 3" in g, "Google Fit deve smettere dopo tre tentativi su un sito che non si scarica"
+    r = pathlib.Path(__file__).with_name("revisore.py").read_text(encoding="utf-8")
+    assert "_dal_db" in r and "ref=ref_piano" in r, "il Revisore deve ricordare il giudizio e fare una card sola per piano"
+    b = pathlib.Path(__file__).with_name("bozze.py").read_text(encoding="utf-8")
+    assert "if not contattabile(p):" in b and "la bozza non e' nata" in b, "le bozze devono chiedere alla regola prima di pagare"
 
 
 def main():

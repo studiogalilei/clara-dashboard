@@ -45,6 +45,7 @@ USO, dentro uno script:
 Prova a secco: REVISORE_PROVA=1 (vale ancora POLIZIA_PROVA=1) fa i controlli e non ferma.
 Ok di Dre gia' dato (stessa azione, dopo la proposta in Posta): REVISORE_OK=<id proposta>.
 """
+import datetime
 import json
 import os
 import re
@@ -129,7 +130,16 @@ non si toccano. Valuta il rischio vero di QUESTA azione, non di un'altra.
 
 Rispondi SOLO con una riga: «OK» oppure «STOP: motivo in venti parole»."""
         modello = "gpt-5" if cervello.FORNITORE == "openai" else None
+        # 13/10: la stessa domanda non si ripaga. Il giro dei filtri chiedeva lo stesso giudizio
+        # ogni 15 minuti (54 chiamate al giorno): si ricorda per 24 ore nella memoria delle letture.
+        import hashlib
+        chiave = "revisore|" + datetime.date.today().isoformat() + "|" + hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        gia = cervello._dal_db([chiave]).get(chiave)
+        if isinstance(gia, dict) and gia.get("giudizio"):
+            return gia["giudizio"]
         r = (cervello._chiedi(prompt, modello) or "").strip()
+        if r:
+            cervello._nel_db({chiave: {"giudizio": r}})
         return r
     except Exception as e:                                   # noqa: BLE001
         return f"STOP: il Revisore non ha potuto leggere il piano ({str(e)[:60]})"
@@ -160,7 +170,10 @@ def controlla(azione, righe, chiave=lambda r: r.get("email"), irreversibile=True
     # 3. l'ok di Dre, se serve
     serve_ok = (len(tenute) > SOGLIA) or (irreversibile and len(tenute) > 50)
     if serve_ok and not ok_dre and not prova:
-        pid = proponi("umano", f"Il Revisore chiede il tuo ok: {azione} ({len(tenute)} righe)",
+        # 13/10: una card sola per lo stesso piano (prima ne nasceva una nuova ogni 15 minuti)
+        import hashlib
+        ref_piano = "revisore:" + hashlib.sha256(f"{azione}|{len(tenute)}".encode("utf-8")).hexdigest()[:24]
+        pid = proponi("umano", f"Il Revisore chiede il tuo ok: {azione} ({len(tenute)} righe)", ref=ref_piano,
                       perche=("\n".join(verbale) + "\nPer far partire: REVISORE_OK=<id di questa proposta>")[:280],
                       azione={"revisore": {"azione": azione, "righe": len(tenute), "esclusi": esclusi, "campione": campione[:5]}})
         verbale.append(f"  serve l'ok di Dre: proposta {pid} in Posta. Mi fermo.")

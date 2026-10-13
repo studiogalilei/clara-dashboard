@@ -495,7 +495,17 @@ def main():
         # letto e' un fit incompleto, e si rifa'.
         def _da_rifare(x):
             f = (x.get("enriched") or {}).get("google_fit")
-            return (not f) or (not f.get("sito_letto"))
+            if not f:
+                return True
+            if f.get("sito_letto"):
+                return False
+            # 13/10: un sito che non si scarica si riprova al massimo TRE volte, a sei ore di
+            # distanza. Prima si riprovava a ogni giro per sempre, pagando il modello ogni volta
+            # (un'azienda valutata ogni 15 minuti per giorni). Dopo, decide Dre (bozze lo chiede).
+            if int(f.get("tentativi") or 1) >= 3:
+                return False
+            ultimo = f.get("valutato_il") or ""
+            return not ultimo or ultimo < (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=6)).isoformat()
         righe = [p for p in righe if _da_rifare(p)]
         # anche i negativi cortesi degli ultimi 45 giorni: il gigante buono (bozze.py)
         # lascia loro l'analisi, quindi l'analisi deve esistere
@@ -516,6 +526,9 @@ def main():
         print(f"  {fit['verdetto']:8} {nome[:34]:34} {fit.get('settore') or '?':24} {fit.get('provincia') or '?':14} {fit['motivo'][:70]}")
         if prova:
             continue
+        prima = (p.get("enriched") or {}).get("google_fit") or {}
+        fit["valutato_il"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        fit["tentativi"] = 1 if fit.get("sito_letto") else int(prima.get("tentativi") or 0) + 1
         patch = {"enriched": {**(p.get("enriched") or {}), "google_fit": fit}}
         if not p.get("sector") and fit.get("settore") and fit["settore"] != "altro":
             patch["sector"] = fit["settore"]
