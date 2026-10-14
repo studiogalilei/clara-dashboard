@@ -721,8 +721,16 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if riprova:
         prompt += f"\n\nLA BOZZA PRECEDENTE NON E' PASSATA IL CANCELLO PER: {riprova}. Riscrivila correggendo solo quello."
     grezzo = cervello._chiedi(prompt)
-    m = re.search(r"\n\s*(?:-{3,}|\*{3,})\s*\n", grezzo)
+    m = re.search(r"\n\s*(?:-{3,}|\*{3,}|_{3,}|—{2,})\s*\n", grezzo)
+    if not m and not riprova:
+        # 14/10 (Accomodando): a volte il modello non scrive il separatore fra le note e la mail,
+        # e la bozza spariva come «non leggibile» senza traccia. Una seconda volta, con la regola
+        # ricordata; e l'inizio della risposta nel registro, per capire cosa scrive
+        print(f"    risposta senza separatore, riprovo una volta: {(grezzo or '')[:200]!r}")
+        grezzo = cervello._chiedi(prompt + "\n\nRICORDA: prima i campi (LETTURA, HA_GIA, INTENTO, PREFLIGHT, FERMATI, NOTA, ATTACCO, PERIODO), poi una riga con solo ---, poi la mail.")
+        m = re.search(r"\n\s*(?:-{3,}|\*{3,}|_{3,}|—{2,})\s*\n", grezzo)
     if not m:
+        print(f"    risposta ancora senza separatore: {(grezzo or '')[:200]!r}")
         return None
     testa, bozza = grezzo[:m.start()], grezzo[m.end():]
     campi = {}

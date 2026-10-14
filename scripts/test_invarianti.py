@@ -1585,6 +1585,25 @@ def _():
         "la nostra frase ipotetica citata fa diventare no un si'"
 
 
+@prova("una bozza senza separatore si riprova una volta, non sparisce in silenzio (14/10, Accomodando)")
+def _():
+    import bozze as Bz, cervello as C, io, contextlib
+    risposte = ["LETTURA: x\nINTENTO: INT-01\nSalve,\nla mail senza separatore", "LETTURA: x\nINTENTO: INT-01\nFERMATI: no\n---\nSalve,\nla mail"]
+    chiamate = []
+    vero = C._chiedi
+    try:
+        C._chiedi = lambda prompt, modello=None: (chiamate.append(1), risposte[len(chiamate) - 1])[1]
+        Bz.proposta_giorno_ora, vero_g = (lambda *a, **k: "giovedì 15 ottobre alle 16"), Bz.proposta_giorno_ora
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                b = Bz.chiedi_bozza({"company": "X", "email": "x@x.it", "enriched": {}}, "ok, me la mandi")
+        finally:
+            Bz.proposta_giorno_ora = vero_g
+        assert len(chiamate) == 2 and b and b["bozza"].startswith("Salve"), (len(chiamate), b)
+    finally:
+        C._chiedi = vero
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
