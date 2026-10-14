@@ -1523,6 +1523,14 @@ def _():
         C.urllib.request.urlopen, C.time.sleep, C._env = vero_open, vero_sleep, vera_chiave
 
 
+@prova("la presentazione: alla prima risposta si', salvo un no esplicito; nei follow-up solo se chiesta (14/10, Accomodando)")
+def _():
+    import manda as M
+    assert M.con_presentazione(True, {}) is True, "la prima risposta porta la presentazione"
+    assert M.con_presentazione(True, {"allega_presentazione": False}) is False, "un no esplicito non si rispetta"
+    assert M.con_presentazione(False, {}) is False and M.con_presentazione(False, {"allega_presentazione": True}) is True
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

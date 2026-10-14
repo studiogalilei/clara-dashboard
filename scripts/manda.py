@@ -231,6 +231,13 @@ def link_fresco(url):
         return url
 
 
+def con_presentazione(prima_risposta, az):
+    """La presentazione va allegata? Alla prima risposta si', salvo un «no» esplicito (14/10);
+    nei follow-up solo se la bozza la chiede."""
+    scelta = (az or {}).get("allega_presentazione")
+    return bool(scelta) or (prima_risposta and scelta is not False)
+
+
 def controlla(bozza, p=None, gruppo=None, detto_no=False):
     if "{{" in bozza or "}}" in bozza or "[[" in bozza:
         return ["segnaposto lasciato nel testo"]
@@ -391,7 +398,9 @@ def main():
             else:
                 torna_aperta(pr, azienda, "il PDF dell'analisi non si apre: non la mando senza", prova); continue
         # LA PRESENTAZIONE (FOLLOW UP 1: «le allego anche una breve presentazione»)
-        if prima_risposta or az.get("allega_presentazione"):
+        # 14/10: un «niente presentazione» esplicito vale anche alla prima risposta (a chi ha
+        # appena detto no ma «me la mandi», la presentazione dei servizi suona come vendita)
+        if con_presentazione(prima_risposta, az):
             from stanza import env as _env
             url_p = link_fresco(f"{_env('VITE_SUPABASE_URL')}/storage/v1/object/sign/vault/modelli/sg-presentazione.pdf")
             try:
