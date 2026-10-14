@@ -158,13 +158,18 @@ def data_it(iso):
 
 
 def persona(p):
-    if p.get("name"):
-        return p["name"].strip()
-    mail = (p.get("email") or "").lower()
-    if GENERICHE.match(mail):
+    """Il nome in copertina. 14/10 (rapporto sulle analisi): «all'attenzione di» col nome
+    dell'azienda o con un nome indovinato dall'indirizzo e' peggio di nessun nome. Si usa
+    solo il nome della scheda, e mai se e' il nome dell'azienda o un pezzo dell'indirizzo."""
+    nome = (p.get("name") or "").strip()
+    if not nome or "@" in nome or any(c.isdigit() for c in nome):
         return ""
-    m = re.match(r"^([a-z]+)\.([a-z]+)@", mail)
-    return f"{m.group(1).capitalize()} {m.group(2).capitalize()}" if m else ""
+    def piatto(x):
+        return re.sub(r"[^a-z]", "", (x or "").lower())
+    n, az = piatto(nome), piatto(p.get("company"))
+    if len(n) < 2 or (az and (n in az or az in n)) or n == piatto((p.get("email") or "").split("@")[0]):
+        return ""
+    return nome
 
 
 def fit_unito(p):
@@ -200,28 +205,36 @@ def fatti_in_testo(s, p):
     r, fit, vol = s["raccolta"], s["fit"], s["volumi"]
     righe = [f"Azienda: {p.get('company') or r.get('azienda') or s['dominio']}",
              f"Sito: {s['dominio']}",
-             f"Persona: {persona(p) or 'non nota (mail generica)'}",
-             f"Settore (dal fit): {fit.get('settore')} | Provincia: {s['provincia'] or '?'} | Raggio: {fit.get('raggio')} | Tipo: {fit.get('tipo')}",
-             f"Cosa fa (dal fit): {fit.get('cosa_fa')}",
+             f"Persona: {persona(p) or 'non nota: non scrivere nessun nome di persona'}",
+             f"Settore: {fit.get('settore')} | Provincia: "
+             + (s['provincia'] or "NON NOTA: non nominare provincia, citta' o comuni e non scrivere segnaposto come [comune]")
+             + f" | Raggio: {fit.get('raggio')}",
+             f"Cosa fa: {fit.get('cosa_fa')}",
              f"Ticket stimato: {fit.get('ticket')} | Vendita possibile online: {fit.get('vendita_possibile_online')}",
-             f"Due cose scomode (dal fit): {fit.get('due_cose_scomode')}",
-             f"Da sistemare (dal fit): {fit.get('da_sistemare')}",
-             f"Verdetto fit: {fit.get('verdetto')} ({fit.get('motivo')})"]
+             f"Punti deboli visti da noi: {fit.get('due_cose_scomode')}",
+             f"Da sistemare: {fit.get('da_sistemare')}",
+             f"Nostra valutazione interna, da NON citare: {fit.get('verdetto')} ({fit.get('motivo')})",
+             "NOTA: le etichette di questi fatti sono nostre. Nel testo per il cliente non scrivere mai «Tipo A», «Tipo B», "
+             "«fit», «verdetto», «cose scomode», «education», «Keyword Planner», ne' parole tra parentesi quadre."]
     if r:
         quando = data_it(r.get("raccolto_il"))
+        if not raccolta_fresca(r):
+            # 14/10: «verificato dal vivo il 21 settembre» in un PDF di ottobre. Una raccolta di
+            # piu' di una settimana fa non si chiama «verificata»
+            quando = quando + " (PIU' DI UNA SETTIMANA FA: nel testo non scrivere «verificato» ne' «dal vivo», scrivi «da quanto abbiamo visto»)"
         if r.get("fa_ads"):
-            righe.append(f"ANNUNCI GOOGLE (Transparency Center, verificato il {quando}): {r.get('annunci')} annunci attivi, "
-                         f"il piu' vecchio da {r.get('giorni_ads')} giorni, inserzionista «{r.get('inserzionista')}». TIPO A: fanno gia' pubblicita'.")
+            righe.append(f"ANNUNCI GOOGLE (Transparency Center, visto il {quando}): {r.get('annunci')} annunci attivi, "
+                         f"il piu' vecchio da {r.get('giorni_ads')} giorni, inserzionista «{r.get('inserzionista')}». Fanno gia' pubblicita'.")
         else:
-            righe.append(f"ANNUNCI GOOGLE (Transparency Center, verificato il {quando}): nessun annuncio attribuibile con certezza. TIPO B (assenza non vuol dire no).")
+            righe.append(f"ANNUNCI GOOGLE (Transparency Center, visto il {quando}): nessun annuncio attribuibile con certezza (assenza non vuol dire che non ne facciano).")
         if r.get("maps_trovato"):
-            righe.append(f"GOOGLE MAPS (verificato il {quando}): {r.get('recensioni')} recensioni, voto {r.get('voto')}, categoria «{r.get('tipo_maps')}».")
+            righe.append(f"GOOGLE MAPS (visto il {quando}): {r.get('recensioni')} recensioni, voto {r.get('voto')}, categoria «{r.get('tipo_maps')}».")
             testi = [t for t in (r.get("recensioni_testi") or [])[:4] if isinstance(t, dict)]
             if testi:
                 righe.append("Recensioni (estratti): " + " | ".join(f"[{t.get('voto')}★] {(t.get('testo') or '')[:160]}" for t in testi))
         tag = [n for n, k in (("Google Ads", "tag_google_ads"), ("Analytics", "tag_analytics"), ("Tag Manager", "tag_tag_manager"),
                               ("Clarity", "tag_clarity"), ("Meta Pixel", "tag_meta_pixel")) if r.get(k)]
-        righe.append(f"TAG SUL SITO (verificato il {quando}): {', '.join(tag) if tag else 'nessuno rilevato'}.")
+        righe.append(f"TAG SUL SITO (visto il {quando}): {', '.join(tag) if tag else 'nessuno rilevato'}.")
         if r.get("sito_testo"):
             righe.append("TESTO DEL SITO (estratto):\n" + r["sito_testo"][:3500])
     if vol:
@@ -261,12 +274,15 @@ ISTRUZIONE = """
 Scrivi l'ANALISI GOOGLE ADS per questa azienda, seguendo il playbook e le linee
 guida qui sopra e la qualita' dell'esempio. Registro «voi», tono da lettura
 esterna competente: specifica su di loro, onesta, mai generica. Ogni sezione
-aggiunge qualcosa, niente ripetizioni. Tipo A/B coerente coi fatti: se fanno
-gia' annunci, il margine sta nella selezione; se no, di' che non si vede
-pubblicita' attribuibile con certezza. I FATTI VERIFICATI vanno USATI nel testo
-con le parole «verificato dal vivo il <data>» o «abbiamo controllato» (annunci,
-recensioni, tag). I numeri li usi solo se stanno nei fatti: i volumi vanno
-dichiarati «stima da Keyword Planner per il settore nella provincia». Niente
+aggiunge qualcosa, niente ripetizioni. Coerente coi fatti: se fanno gia'
+annunci, il margine sta nella selezione; se no, di' che non si vede pubblicita'
+attribuibile con certezza. I fatti che abbiamo visto (annunci, recensioni, tag)
+vanno USATI nel testo: «abbiamo controllato» o «da quanto abbiamo visto»; la data
+solo se il fatto non dice che e' di piu' di una settimana fa. I numeri li usi solo
+se stanno nei fatti: i volumi vanno dichiarati come stima sulle ricerche Google
+del settore nella provincia. Scrivi al titolare, non a un tecnico: niente gergo
+(query, landing, CTA, SERP, cluster, funnel, lead, ROAS, Performance Max, bid,
+copy): di' la cosa in italiano. Niente
 prima persona («io e Lorenzo», «insieme al mio collega»). MAI il trattino
 lungo. Niente firma ne' inviti finali: la pagina finale la mette il guscio.
 Apostrofi negli attributi HTML: singoli. Testo in italiano corretto con gli
@@ -372,7 +388,7 @@ def numeri_non_nei_fatti(tutto, fatti):
     return fuori
 
 
-def cancello(an, fatti=""):
+def cancello(an, fatti="", fresca=True):
     errs = []
     intro, body = an.get("intro") or "", an.get("body") or ""
     tutto = intro + " " + body
@@ -399,12 +415,53 @@ def cancello(an, fatti=""):
         errs.append("nella tabella mancano i <span class='tag'> di priorità")
     if "<table" not in body:
         errs.append("manca la tabella della sezione 2 (Domanda)")
-    if not re.search(r"verificat|controllo dal vivo|rilevat|abbiamo controllato", tutto, re.I):
-        errs.append("i fatti verificati vanno citati nel testo («verificato dal vivo il ...», «abbiamo controllato»)")
+    visibile = re.sub(r"<[^>]+>", " ", tutto).replace("[[SEASON]]", " ")
+    if not re.search(r"verificat|controllo dal vivo|rilevat|abbiamo controllato|abbiamo visto", visibile, re.I):
+        errs.append("i fatti che abbiamo visto vanno citati nel testo («abbiamo controllato», «da quanto abbiamo visto»)")
+    nomi = re.findall(r"^(?:Azienda|Sito): (.+)$", fatti or "", re.M)
+    errs += errori_visibili(visibile, fresca, [n.strip() for n in nomi])
     if "class='bomba'" not in body:
         errs.append("manca <div class='bomba'> nella sezione 8")
     if len(re.sub(r"<[^>]+>", "", body)) < 4500:
         errs.append("troppo corta: servono 3-4 pagine di testo denso come l'esempio")
+    return errs
+
+
+# 14/10 (rapporto «Perche' si prenota meno»): gli errori che il cliente vede nel PDF.
+ETICHETTE = re.compile(r"\btipo\s*[ab]\b|\bfit\b|\bverdett|cose scomode|\beducation\b|keyword planner|"
+                       r"\bTAM\b|\bINT-\d|\bcluster\b", re.I)
+SEGNAPOSTO = re.compile(r"\[[^\]\n]{1,40}\]|\{\{|\}\}|\bX{3,}\b|\?{2,}|\b(?:None|null|undefined)\b")
+GERGO = re.compile(r"\b(?:quer(?:y|ies)|landing(?:\s*page)?|CTA|SERP|funnel|leads?|ROAS|Performance\s*Max|PMax|bid(?:ding)?|copy|"
+                   r"CPA|CTR|retargeting|remarketing|conversion rate|keyword)\b", re.I)
+DAL_VIVO = re.compile(r"verificat\w*|dal vivo", re.I)
+
+
+def raccolta_fresca(r, giorni=7):
+    try:
+        quando = datetime.datetime.fromisoformat(str((r or {}).get("raccolto_il")).replace("Z", "+00:00"))
+        if quando.tzinfo is None:
+            quando = quando.replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.now(datetime.timezone.utc) - quando <= datetime.timedelta(days=giorni)
+    except (TypeError, ValueError):
+        return False
+
+
+def errori_visibili(testo, fresca=True, nomi=()):
+    """Le parole che non devono arrivare al cliente: etichette nostre, segnaposto, gergo,
+    e «verificato» quando la raccolta e' vecchia. Testo gia' senza HTML. `nomi` (azienda,
+    sito) si tolgono prima: «Energy Fit» o «Copy Service» sono nomi, non gergo."""
+    for n in nomi:
+        if n and len(n) > 2:
+            testo = re.sub(re.escape(n), " ", testo, flags=re.I)
+    errs = []
+    for nome, rx, cosa in (("etichette interne", ETICHETTE, "sono parole nostre, non del cliente: riformula senza"),
+                           ("segnaposto", SEGNAPOSTO, "scrivi il dato vero o togli la frase"),
+                           ("gergo", GERGO, "di' la cosa in italiano, per un titolare")):
+        trovate = sorted({m.group(0) for m in rx.finditer(testo)})
+        if trovate:
+            errs.append(f"{nome}: {', '.join(trovate[:6])}. {cosa}")
+    if not fresca and DAL_VIVO.search(testo):
+        errs.append("«verificato»/«dal vivo» con una raccolta di piu' di una settimana fa: scrivi «da quanto abbiamo visto»")
     return errs
 
 
@@ -479,11 +536,12 @@ def lavora(p):
             print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
     an = _ripulisci(chiedi(p, s))
     fatti = fatti_in_testo(s, p)
-    errori = cancello(an, fatti) if an else ["risposta non in JSON"]
+    fresca = raccolta_fresca(s.get("raccolta"))
+    errori = cancello(an, fatti, fresca) if an else ["risposta non in JSON"]
     if errori:
         print(f"    bocciata una volta: {'; '.join(errori)[:160]}")
         an = _ripulisci(chiedi(p, s, errori))
-        errori = cancello(an, fatti) if an else ["risposta non in JSON"]
+        errori = cancello(an, fatti, fresca) if an else ["risposta non in JSON"]
     if errori:
         # TRATTENUTA CON MOTIVO (da Galileo): non si pubblica, e il motivo resta
         # nella scheda, cosi' nessuno aspetta un PDF che non arriva

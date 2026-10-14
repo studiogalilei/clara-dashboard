@@ -1442,6 +1442,42 @@ def _():
         Bz.sb, Bz.datetime = vero_sb, vero_dt
 
 
+@prova("analisi: il cliente non vede etichette nostre, segnaposto, gergo, ne' «verificato» di settimane fa; il nome solo se e' una persona (14/10)")
+def _():
+    import analisi_auto as A
+    E = A.errori_visibili
+    assert any("etichette" in e for e in E("Siete un Tipo B: il fit è buono.")), "etichette interne passano"
+    assert any("etichette" in e for e in E("Stima da Keyword Planner per il settore.")), "Keyword Planner passa"
+    assert any("segnaposto" in e for e in E("Chi vuole vendere casa a [comune] cerca una valutazione.")), "[comune] passa"
+    assert any("gergo" in e for e in E("Una landing page con CTA chiara porta lead.")), "il gergo passa"
+    assert any("verificato" in e for e in E("Verificato dal vivo il 21 settembre 2026.", fresca=False)), "verificato vecchio passa"
+    assert not E("Verificato il 13 ottobre 2026: tre annunci attivi.", fresca=True), "una verifica fresca si puo' dire"
+    pulito = ("Da quanto abbiamo visto non si notano vostri annunci su Google. Chi cerca un installatore a Savona "
+              "scrive «caldaia a condensazione prezzo»: e' la domanda che porta a un sopralluogo. Napoli (NA), 2026.")
+    assert not E(pulito), E(pulito)
+    assert not E("Energy Fit e Copy Service a Treviso", nomi=["Energy Fit", "Copy Service"]), "un nome d'azienda non e' gergo"
+    # il nome in copertina
+    assert A.persona({"name": "Pietro Palermo", "company": "RE/MAX Stella Polare"}) == "Pietro Palermo"
+    assert A.persona({"name": "Termocalor", "company": "Termocalor Srl"}) == "", "il nome dell'azienda come persona"
+    assert A.persona({"name": "", "email": "mario.rossi@x.it"}) == "", "un nome indovinato dall'indirizzo"
+    assert A.persona({"name": "info@x.it"}) == ""
+    # la raccolta
+    oggi = datetime.datetime.now(datetime.timezone.utc)
+    assert A.raccolta_fresca({"raccolto_il": (oggi - datetime.timedelta(days=2)).isoformat()})
+    assert not A.raccolta_fresca({"raccolto_il": "2026-09-21T10:00:00+00:00"}) or oggi.date() < datetime.date(2026, 9, 29)
+    assert not A.raccolta_fresca({}), "senza data non e' fresca"
+    # i fatti che legge il modello: niente etichette ne' «?»
+    s = {"raccolta": {"raccolto_il": "2026-09-21T10:00:00+00:00", "fa_ads": False}, "ultime": [], "dominio": "x.it", "provincia": None,
+         "fit": {"settore": "caldaie", "verdetto": "SI", "due_cose_scomode": "sito lento"}, "volumi": None}
+    f = A.fatti_in_testo(s, {"company": "X"})
+    assert "TIPO" not in f and "Provincia: ?" not in f and "(dal fit)" not in f, f[:400]
+    assert "NON NOTA" in f and "da NON citare" in f and "PIU' DI UNA SETTIMANA FA" in f
+    # il controllo finale usa tutto questo e boccia (le due bocciature portano alla domanda, come prima)
+    an = {"intro": A.CHIUSURA, "body": "<p>Una landing per [comune]. Verificato dal vivo il 21 settembre.</p>", "bars": []}
+    errs = " ".join(A.cancello(an, "Azienda: X", fresca=False))
+    assert "gergo" in errs and "segnaposto" in errs and "verificato" in errs, errs
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
