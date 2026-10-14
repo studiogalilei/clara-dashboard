@@ -1478,6 +1478,24 @@ def _():
     assert "gergo" in errs and "segnaposto" in errs and "verificato" in errs, errs
 
 
+@prova("segnale provvisorio: il tetto del giorno conta solo i giri veri in cloud, non le prove (14/10, il collaudo aveva mangiato 143 letture su 150)")
+def _():
+    import segnale_provvisorio as SP
+    vero = os.environ.get("GITHUB_ACTIONS")
+    try:
+        os.environ.pop("GITHUB_ACTIONS", None)
+        assert not SP._vero(), "una prova sul Mac conta nel tetto dei giri veri"
+        os.environ["GITHUB_ACTIONS"] = "true"
+        assert SP._vero() or SP._a_secco()
+    finally:
+        if vero is None:
+            os.environ.pop("GITHUB_ACTIONS", None)
+        else:
+            os.environ["GITHUB_ACTIONS"] = vero
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "segnale_provvisorio.py")).read()
+    assert "scopo=eq." in src, "il tetto deve contare solo lo scopo dei giri veri"
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

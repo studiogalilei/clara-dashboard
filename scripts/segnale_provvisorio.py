@@ -236,13 +236,23 @@ def _chiave(azienda, testo):
     return "segnale:" + hashlib.sha256(base.encode("utf-8")).hexdigest()[:24]
 
 
+# 14/10 (critico): le prove del collaudo avevano mangiato 143 delle 150 letture del giorno, e il
+# giorno dopo i caldi sarebbero arrivati come «da guardare». Il tetto conta solo i giri veri,
+# quelli del direttore in cloud; le prove si contano a parte (i soldi restano registrati).
+SCOPO = "segnale provvisorio"
+
+
+def _vero():
+    return os.environ.get("GITHUB_ACTIONS") == "true" and not _a_secco()
+
+
 def _conta(modello, dentro, fuori):
     """Il contatore della spesa (uso_modelli), anche in prova: i soldi spesi sono veri."""
     SPESA["in"] += int(dentro or 0)
     SPESA["out"] += int(fuori or 0)
     SPESA["chiamate"] += 1
     try:
-        sb("POST", "/rest/v1/uso_modelli", {"script": "segnale_provvisorio.py", "scopo": "segnale provvisorio",
+        sb("POST", "/rest/v1/uso_modelli", {"script": "segnale_provvisorio.py", "scopo": SCOPO if _vero() else SCOPO + " (prova)",
                                             "modello": modello, "token_in": int(dentro or 0), "token_out": int(fuori or 0)},
            {"Prefer": "return=minimal"})
     except Exception:                                            # noqa: BLE001
@@ -292,7 +302,7 @@ def _restano_oggi():
     if GIRO["giorno_restano"] is None:
         try:
             da = _z(adesso() - datetime.timedelta(hours=24))
-            fatte = sb("GET", f"/rest/v1/uso_modelli?select=id&script=eq.segnale_provvisorio.py&il=gte.{da}"
+            fatte = sb("GET", f"/rest/v1/uso_modelli?select=id&script=eq.segnale_provvisorio.py&scopo=eq.{urllib.parse.quote(SCOPO)}&il=gte.{da}"
                               f"&limit={PAGATE_AL_GIORNO + 1}") or []
             GIRO["giorno_restano"] = max(0, PAGATE_AL_GIORNO - len(fatte))
         except Exception:                                        # noqa: BLE001
