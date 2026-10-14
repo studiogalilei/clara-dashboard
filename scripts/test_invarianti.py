@@ -1084,6 +1084,12 @@ def _():
     # in copia la persona giusta c'e': la call si puo' proporre
     cc = "Metto in copia manuel@azienda.it così proseguiamo lì. Le propongo martedì alle 14:30: https://calendar.app.google/x"
     assert B.cancello(cc) == [], B.cancello(cc)
+    # 14/10, Urbis: scrivere all'indirizzo giusto e dirlo non e' chiedere il contatto di un altro
+    giusto = ("Vi scrivo qui perché mi è stato indicato come l'indirizzo di riferimento per Urbis. "
+              "Vi propongo una breve videochiamata conoscitiva giovedì alle 16: https://calendar.app.google/x")
+    assert not any("persona giusta" in e for e in B.cancello(giusto)), B.cancello(giusto)
+    chiesta = "Potrebbe girarmi l'email di Manuel? Le propongo una breve videochiamata conoscitiva martedì: https://calendar.app.google/x"
+    assert any("persona giusta" in e for e in B.cancello(chiesta)), "una richiesta col «potrebbe» passa"
 
 
 @prova("il ritmo umano ha i denti: punto-spazio-e-continua tre volte blocca, l'a capo no")

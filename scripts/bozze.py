@@ -157,7 +157,12 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
     # interessa il meeting con la persona. Al messaggero si chiede al massimo un favore:
     # l'email, o inoltrare la conversazione»). Se la bozza chiede il contatto di un altro,
     # la call e il calendario aspettano di parlare con quello giusto.
-    if (re.search(r"(?:indirizzo|l.email|la mail|il contatto)\s[^.!?\n]{0,30}\bdi\b|pu[oò] inoltrar|mi gira (?:il contatto|la conversazione)", low)
+    # 14/10 (Urbis): «l'indirizzo di riferimento per Urbis» e' un fatto, non una richiesta. La
+    # rete scatta solo se la stessa frase CHIEDE il contatto (domanda o verbo di richiesta).
+    chiede = any(re.search(r"(?:indirizzo|l.email|la mail|il contatto)\s[^.!?\n]{0,30}\bdi\b", f)
+                 and re.search(r"\?|\b(?:mi|ci) (?:lascia|lasci|da|dà|indica|passa|gira|scrive)|potrebbe|pu[oò] (?:darmi|girarmi|indicarmi|passarmi)", f)
+                 for f in re.split(r"(?<=[.!?])\s+|\n", low))
+    if ((chiede or re.search(r"pu[oò] inoltrar|mi gira (?:il contatto|la conversazione)", low))
             and re.search(r"calendar\.app\.google|\{\{calendario\}\}|chiamata conoscitiva|breve call|videochiamata", low)):
         errori.append("chiede il contatto di un altro E propone la call: il meeting si propone alla persona giusta, al messaggero si chiede solo il favore (Dre 1/10)")
     # A CHI DICE NO, MAI UNA DATA (Dre, 1/10, sul caso Matteo: «inviamo l'analisi ma
