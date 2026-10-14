@@ -359,9 +359,11 @@ def festivo(g):
     return g == pasqua + datetime.timedelta(days=1)
 
 
-def proposta_giorno_ora(da_giorni=2):
-    """Playbook 1.0, cap. 2: futuro, feriale, almeno 48 ore avanti, mai lo
-    stesso giorno; scritto sempre «giorno + data».
+def proposta_giorno_ora(da_giorni=1):
+    """Playbook 1.0, cap. 2: futuro, feriale, mai lo stesso giorno; scritto sempre «giorno + data».
+    14/10 (Dre: «la velocita' e' tutto... il giorno successivo oppure max 2/3 giorni dopo,
+    sempre in settimana»): non piu' 48 ore avanti, ma il primo giorno lavorativo utile da
+    domani, e dentro i primi tre giorni vince il giorno piu' vicino, non il pomeriggio.
     24/9 (Dre: «per decidere l'ora ha guardato il mio calendario?»): adesso si'.
     Il primo buco libero di Dre nei prossimi giorni feriali, fra le 10 e le
     16:30, saltando la pausa pranzo, a un'ora di distanza da ogni evento suo."""
@@ -373,7 +375,7 @@ def proposta_giorno_ora(da_giorni=2):
     # finire proprio sopra un suo impegno alle 14:30.
     roma = zoneinfo.ZoneInfo("Europe/Rome")
     oggi = datetime.datetime.now(roma).date()
-    d = oggi + datetime.timedelta(days=max(2, da_giorni))       # 7/10: «ci risentiamo fra 15 giorni»
+    d = oggi + datetime.timedelta(days=max(1, da_giorni))       # 7/10: «ci risentiamo fra 15 giorni»
     while d.weekday() >= 5:
         d += datetime.timedelta(days=1)
     occupati = []
@@ -405,7 +407,10 @@ def proposta_giorno_ora(da_giorni=2):
     # (Cosimo, appena detto si', finiva a martedi' 13) mentre giovedi' mattina era libero.
     pomeriggi = ((14, 30), (15, 0), (15, 30), (16, 0), (16, 30))
     mattine = ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))
-    for quali, fascia in ((range(0, 7), pomeriggi), (range(0, 7), mattine), (range(7, 14), pomeriggi), (range(7, 14), mattine)):
+    # 14/10: nei primi tre giorni un giorno alla volta (pomeriggio, poi mattina), cosi' domani mattina
+    # batte giovedi' pomeriggio; solo se sono pieni si torna alla ricerca larga.
+    vicini = [((salto,), pomeriggi + mattine) for salto in range(0, 3)]
+    for quali, fascia in (*vicini, (range(3, 7), pomeriggi), (range(3, 7), mattine), (range(7, 14), pomeriggi), (range(7, 14), mattine)):
       for salto in quali:
         g = d + datetime.timedelta(days=salto)
         if g.weekday() >= 5 or g.weekday() == 0 or festivo(g):
@@ -721,7 +726,7 @@ def testo_di_dre(b, p, letti):
         return b
     # chi ha gia' l'analisi e dice «piu' avanti»: la data a due settimane (Dre, 7/10)
     dopo_analisi = b.get("intento") in ("INT-05", "INT-06") and bool((p or {}).get("analysis_sent"))
-    giorno = proposta_giorno_ora(seguiti.GIORNI_DOPO_ANALISI if dopo_analisi else 2)
+    giorno = proposta_giorno_ora(seguiti.GIORNI_DOPO_ANALISI if dopo_analisi else 1)
     comp = seguiti.risposta(b.get("intento"), p, letti, CALENDARIO, giorno=giorno, attacco=b.get("attacco"),
                             periodo=b.get("periodo"), loro=(letti or {}).get("ultima_loro") or "")
     if comp:

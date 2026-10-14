@@ -45,6 +45,10 @@ COSA = {"agenzie_immobiliari": "cercano casa o un'agenzia immobiliare", "serrame
         "pompe_calore_casa": "cercano pompe di calore, caldaie o climatizzazione",
         "ferro_battuto": "cercano un fabbro o lavorazioni in ferro", "pavimentazioni_esterne": "cercano pavimentazioni esterne",
         "case_legno": "cercano una casa in legno", "carpenteria_metallica": "cercano lavorazioni di carpenteria metallica"}
+# 14/10 (Dre: «le agenzie vogliono chi vende»; rapporto sulle analisi): per le agenzie la domanda
+# della base e' chi cerca casa o un portale, cioe' chi compra. Detto a un'agenzia come «il suo
+# potenziale» e' il numero sbagliato: nella mail non si scrive, e l'analisi lo sa (analisi_auto).
+CHI_COMPRA = {"agenzie_immobiliari"}
 _BASE = None
 _PROV = None
 # i nomi con cui la base del 24/8 ha salvato alcune province, verso il nome ISTAT
@@ -164,6 +168,8 @@ def dato_forte(settore, prov):
     cosa = COSA.get(norm(settore)) or COSA.get(SINONIMI.get(norm(settore), norm(settore)))
     if not cosa:
         return None, "settore senza descrizione"
+    if SINONIMI.get(norm(settore), norm(settore)) in CHI_COMPRA:
+        return None, "il numero e' di chi compra, non del cliente che vale all'agenzia (chi vende)"
     tondo = int(round(n, -2)) if n < 10000 else int(round(n, -3))
     return f"{luogo(provincia(v['provincia']) or v['provincia'])} ci sono circa {migliaia(tondo)} ricerche al mese di persone che {cosa}", tondo
 
@@ -266,6 +272,9 @@ def particolarita(r):
 def riga_per_mail(p):
     """Il pezzo dopo «L'analisi è centrata sulla comunicazione su Google»: «: <dato>» o ""."""
     sett, prov = settore_e_provincia(p)
+    if SINONIMI.get(norm(sett or ""), norm(sett or "")) in CHI_COMPRA:
+        # 14/10: niente numero di chi compra, ma la mail dice a chi parla l'analisi (63 PDF su 67 lo fanno)
+        return ", in particolare su chi vuole vendere casa o farla valutare" + (" " + luogo(prov) if prov else "")
     racc = None
     if not prov or not dato_forte(sett, prov)[0]:
         try:

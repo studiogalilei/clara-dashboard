@@ -215,7 +215,8 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
     if re.search(r"Le propongo domani alle \d", t):
         if not giorno:
             return None                  # il giorno lo decide il calendario di Dre
-        t = re.sub(r"Le propongo domani alle \d{1,2}(?::\d{2})?", f"Le propongo {giorno}", t)
+        # 14/10 (Dre): la call si chiama per nome, «breve videochiamata conoscitiva»
+        t = re.sub(r"Le propongo domani alle \d{1,2}(?::\d{2})?", f"Le propongo una breve videochiamata conoscitiva {giorno}", t)
         t = t.replace("nel caso domani non abbia disponibilità", "nel caso quel giorno non abbia disponibilità")
     t = re.sub(r"https://calendar\.app\.google/[A-Za-z0-9]+", calendario, t).replace("{{CALENDARIO}}", calendario)
     if garanzia is None:

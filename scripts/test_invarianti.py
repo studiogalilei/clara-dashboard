@@ -965,7 +965,7 @@ def _():
     t = S.risposta("INT-01", {}, {"ultima_nostra": "Buongiorno Maura, le avevo scritto"}, "https://cal/NUOVO",
                    giorno="giovedì 1 ottobre alle 14:30", attacco="Grazie per la conferma", testo_file=finto)
     assert t.startswith("Salve Maura,\nGrazie per la conferma, vi inoltro qui l'analisi."), t[:80]
-    assert "Le propongo giovedì 1 ottobre alle 14:30" in t and "nel caso quel giorno" in t and "https://cal/NUOVO" in t and "VECCHIO" not in t
+    assert "Le propongo una breve videochiamata conoscitiva giovedì 1 ottobre alle 14:30" in t and "nel caso quel giorno" in t and "https://cal/NUOVO" in t and "VECCHIO" not in t
     # l'attacco del modello non puo' promettere niente: se ci prova, resta quello di Dre
     t = S.risposta("INT-01", {}, {}, "x", giorno="g", attacco="Le allego l'analisi con 30% di sconto", testo_file=finto)
     assert "Va bene perfetto, vi inoltro" in t
@@ -1359,7 +1359,7 @@ def _():
     # senza giorno dal calendario INT-23 si scrive lo stesso (non serve un orario)
     assert S.risposta("INT-23", {}, {}, "x", giorno=None, testo_file=vero, garanzia=False)
     # INT-01 resta com'era: propone l'orario
-    assert "Le propongo giovedì 8 ottobre alle 15:30" in S.risposta("INT-01", {}, {}, "x", giorno="giovedì 8 ottobre alle 15:30", testo_file=vero)
+    assert "Le propongo una breve videochiamata conoscitiva giovedì 8 ottobre alle 15:30" in S.risposta("INT-01", {}, {}, "x", giorno="giovedì 8 ottobre alle 15:30", testo_file=vero)
 
 
 @prova("i template di Dre: se il bucket non risponde si usa l'ultima copia buona, non il vuoto (6/10)")
@@ -1413,6 +1413,31 @@ def _():
         g = Bz.proposta_giorno_ora()
         assert g != "martedì 27 ottobre alle 14:30", "proposta proprio sopra l'impegno di Dre: il fuso era fisso all'ora legale"
         assert g == "martedì 27 ottobre alle 15:30", f"atteso il primo buco a un'ora dall'impegno, proposto {g}"
+    finally:
+        Bz.sb, Bz.datetime = vero_sb, vero_dt
+
+
+@prova("il giorno proposto e' il primo giorno lavorativo utile da domani, non 48 ore dopo (Dre, 14/10: «la velocita' e' tutto»)")
+def _():
+    import bozze as Bz, types
+    vero_sb, vero_dt = Bz.sb, Bz.datetime
+
+    def giorno_da(anno, mese, giorno):
+        class Finto(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.datetime(anno, mese, giorno, 8, 0, tzinfo=datetime.timezone.utc).astimezone(tz)
+        Bz.datetime = types.SimpleNamespace(datetime=Finto, timedelta=datetime.timedelta,
+                                            timezone=datetime.timezone, date=datetime.date)
+        return Bz.proposta_giorno_ora()
+    try:
+        Bz.sb = lambda m, path, corpo=None, h=None: []
+        assert giorno_da(2026, 10, 14).startswith("giovedì 15 ottobre"), "mercoledi': si propone giovedi', il giorno dopo"
+        assert giorno_da(2026, 10, 16).startswith("martedì 20 ottobre"), "venerdi': niente weekend, niente lunedi', quindi martedi'"
+        # domani pieno di impegni: si va al giorno dopo, non alla settimana dopo
+        pieno = [{"at": f"2026-10-15T{h:02d}:00:00+00:00", "fonte": "gcal"} for h in range(7, 16)]
+        Bz.sb = lambda m, path, corpo=None, h=None: (pieno if "agenda" in path else [])
+        assert giorno_da(2026, 10, 14).startswith("venerdì 16 ottobre"), "giovedi' pieno: venerdi', non piu' avanti"
     finally:
         Bz.sb, Bz.datetime = vero_sb, vero_dt
 
@@ -1937,9 +1962,12 @@ def _():
 def _():
     import mercato as M, seguiti as S, analisi_auto as A
     # 1. niente parole generiche: le agenzie di Milano non sono un milione (era 1.345.300, «immobiliare» = il portale)
-    frase, n = M.dato_forte("agenzie_immobiliari", "Milano")
-    assert frase and 10000 < n < 100000, f"Milano agenzie: {n}"
-    assert "ricerche al mese di persone che cercano" in frase, "si dice «ricerche», non «persone»: una persona ne fa piu' d'una"
+    n = M.domanda("agenzie_immobiliari", "Milano")[0]
+    assert 10000 < n < 100000, f"Milano agenzie: {n}"
+    frase = M.dato_forte("serramenti", "Milano")[0]
+    assert frase and "ricerche al mese di persone che cercano" in frase, "si dice «ricerche», non «persone»: una persona ne fa piu' d'una"
+    # 14/10: alle agenzie il numero di chi compra non si da' (vogliono chi vende)
+    assert M.dato_forte("agenzie_immobiliari", "Milano")[0] is None, "alle agenzie il numero di chi cerca casa"
     # 2. i nomi del fit trovano la base; il mestiere stretto prende solo la sua parola
     assert M.dato_forte("fotovoltaico", "Torino")[0], "fotovoltaico (fit) deve trovare fotovoltaico_casa (base)"
     pb = M.dato_forte("porte_blindate", "Roma")[1]
@@ -1949,9 +1977,16 @@ def _():
     assert M.dato_forte("altro", "Milano")[0] is None and M.dato_forte("agenzie_immobiliari", "London")[0] is None
     # 4. la mail dei si': il numero dal codice, la riga del potenziale, niente «pero'» ne' segnaposto
     vero = __import__("bozze").template_verbatim()
-    p = {"name": "", "sector": "agenzie_immobiliari", "city": "Bologna", "enriched": {}}
+    p = {"name": "", "sector": "serramenti", "city": "Bologna", "enriched": {}}
     t = S.risposta("INT-01", p, {}, "https://cal/x", giorno="martedì 13 ottobre alle 15:30", testo_file=vero, garanzia=False)
-    assert t and M.dato_forte("agenzie_immobiliari", "Bologna")[0] in t, "la mail dei si' deve portare il dato forte"
+    assert t and M.dato_forte("serramenti", "Bologna")[0] in t, "la mail dei si' deve portare il dato forte"
+    ag = S.risposta("INT-01", {"name": "", "sector": "agenzie_immobiliari", "city": "Bologna", "enriched": {}}, {}, "https://cal/x",
+                    giorno="martedì 13 ottobre alle 15:30", testo_file=vero, garanzia=False)
+    assert ag and "cercano casa" not in ag and "ricerche al mese" not in ag, "a un'agenzia il numero di chi compra (14/10)"
+    assert "su chi vuole vendere casa o farla valutare nella provincia di Bologna" in ag, "la mail dell'agenzia dice a chi parla l'analisi"
+    fatti = A.fatti_in_testo({"raccolta": {}, "ultime": [], "fit": {"settore": "agenzie_immobiliari"}, "dominio": "x.it", "provincia": "Bologna",
+                              "volumi": A.volumi("agenzie_immobiliari", "Bologna")}, {"company": "X"})
+    assert "chi COMPRA" in fatti and "solo chi cerca davvero il servizio" not in fatti, "l'analisi deve sapere che quel numero e' chi compra"
     assert "Pensiamo possa essere un canale molto interessante" in t and "però è centrata" not in t and "vasto range" not in t
     assert "{{" not in t and "[" not in t
     senza = S.risposta("INT-01", {"name": "", "sector": "altro", "city": "Pesaro", "enriched": {}}, {}, "https://cal/x",

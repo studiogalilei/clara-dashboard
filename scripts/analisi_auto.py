@@ -230,8 +230,18 @@ def fatti_in_testo(s, p):
         # e un suo valore assoluto citato nell'analisi sarebbe il numero gonfiato (12/10)
         media = (sum(serie) / len(serie)) if serie else 0
         indice = [round(x / media * 100) for x in serie] if media else []
+        import mercato
+        chiave = mercato.norm(fit.get("settore") or "")
+        if mercato.SINONIMI.get(chiave, chiave) in mercato.CHI_COMPRA:
+            # 14/10: per un'agenzia questo numero e' chi compra, non il cliente che vale (chi vende)
+            come = ("ATTENZIONE: e' chi cerca casa o un portale, cioe' chi COMPRA. Non e' il cliente che vale per "
+                    "un'agenzia, che e' il proprietario che vuole vendere o far valutare casa: non scriverlo come numero "
+                    "dei venditori e non metterlo in testa all'analisi; per i venditori usa solo le ricerche di vendita e "
+                    "valutazione fra i cluster qui sotto, se ci sono, altrimenti niente numero")
+        else:
+            come = "solo chi cerca davvero il servizio: e' lo stesso numero della mail, usalo cosi'"
         righe.append(f"VOLUMI (Keyword Planner, settore x provincia, precalcolati): domanda {vol.get('tam'):,} ricerche/mese nella provincia "
-                     f"(solo chi cerca davvero il servizio: e' lo stesso numero della mail, usalo cosi'), "
+                     f"({come}), "
                      f"CPC medio cima pagina {vol.get('cpc_medio')} €, mesi vivi {vol.get('mesi_vivi')}/12. "
                      f"Andamento mese per mese da settembre a agosto, 100 = media: {indice}. Cluster con volumi: "
                      + ", ".join(f"{t['k']} ({t['n']})" for t in (vol.get("top") or [])[:10]))
