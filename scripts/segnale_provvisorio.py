@@ -36,8 +36,23 @@ vuol dire 5-10 minuti dalla risposta)
    arriva di nuovo come caldo; due caldi dello stesso lead fanno una mail sola.
    Piu' di 3 nello stesso giro: una mail sola con l'elenco.
 
+5. LE PRENOTAZIONI DELLE CALL (14/10, schema_v89). Dre vedeva chi prenotava la conoscitiva solo
+   per caso in Gmail. A ogni giro si guarda il suo calendario (e, come rete, le mail «Appuntamento
+   prenotato» / «annullato» con l'invito .ics dentro: la chiave e' l'id dell'evento, uguale dalle due
+   parti, quindi una prenotazione suona una volta sola anche se la si vede due volte):
+     PRENOTATO   una call nuova con qualcuno di fuori     «Prenotato: <azienda>, <giorno> alle <ora>»
+                 con la SCHEDA: chi e' (nome e ruolo dalla firma), i telefoni dal piu' diretto
+                 (cellulare della firma, fisso della firma, la scheda, il centralino del sito), cosa
+                 fa, l'ultima cosa che ci ha scritto, l'analisi mandata col punto chiave, «Appunti:».
+                 Se non si abbina a nessun lead parte lo stesso, con quello che dice la prenotazione.
+     MATTINA     il giorno della call dalle 8:30 di Roma  «Oggi alle <ora>: <azienda>», la stessa scheda
+     SPOSTATA    un orario nuovo (anche preso dalla pagina)  una riga
+     CANCELLATA  annullata, o l'invito rifiutato         una riga
+   Il lead si trova dall'agenda (il calendario ce l'ha gia' attaccato) o con calendario.riconosci.
+   Il registro e' prenotazioni_segnalate (chiave unica). Solo lettura su calendario e posta.
+
 COSA NON FA
-Mai una mail ai lead. Mai un riprovo pagato: una lettura fallita si scrive in memoria
+Mai una mail ai lead. Niente scritto sul calendario, niente su Smartlead. Mai un riprovo pagato: una lettura fallita si scrive in memoria
 come fallita e diventa «da guardare», non si rilegge al giro dopo. Se Google dice di no
 (un errore col codice), il segnale non si segna e riparte al giro dopo, gratis. Se invece
 la risposta di Gmail si perde (rete, timeout) la mail potrebbe essere partita: il segnale
@@ -55,6 +70,13 @@ USO
                                    UNA mail a Dre con l'elenco, oggetto «Prova del segnale
                                    provvisorio», e i segnalati si segnano (non tornano doppi).
                                    Manda davvero: insieme a --prova (o PROVA=1) si rifiuta.
+  python3 scripts/segnale_provvisorio.py --prova --solo-prenotazioni
+                                   solo le prenotazioni, com'e' adesso
+  python3 scripts/segnale_provvisorio.py --prova --alle 2026-10-15T08:31
+                                   le prenotazioni come le vedrebbe il giro a quell'ora di Roma
+  python3 scripts/segnale_provvisorio.py --semina [--tranne <testo>]
+                                   la prima accensione: le prenotazioni gia' in calendario si segnano
+                                   come note, senza mail (tranne quelle col testo nel titolo o nella mail)
 """
 
 import base64
@@ -259,13 +281,13 @@ def _conta(modello, dentro, fuori):
         pass
 
 
-def _chiedi_ai(prompt):
+def _chiedi_ai(prompt, formato=None):
     """La porta OpenAI di sempre (cervello._chiedi_openai), col contatore di questo script."""
     import cervello
     vero = cervello._conta_uso
     cervello._conta_uso = _conta
     try:
-        return cervello._chiedi_openai(prompt, MODELLO, formato=SCHEMA, fornitore="openai", tetto=TETTO, sforzo=SFORZO)
+        return cervello._chiedi_openai(prompt, MODELLO, formato=formato or SCHEMA, fornitore="openai", tetto=TETTO, sforzo=SFORZO)
     finally:
         cervello._conta_uso = vero
 
@@ -697,6 +719,770 @@ def _mail(segnali, ore, prova_mail):
     return [(*componi([s]), [s]) for s in segnali]
 
 
+# ── LE PRENOTAZIONI DELLE CALL (14/10) ─────────────────────────────
+# Dre, 14/10: chi prenota la videochiamata conoscitiva dalla sua pagina di Google Calendar
+# lo vedeva solo per caso in Gmail. Qui si guarda il suo calendario (e, come rete, le mail
+# «Appuntamento prenotato» / «Appuntamento annullato») e gli si manda la scheda per la call.
+# Solo lettura: niente si scrive sul calendario, niente su Smartlead, nessuna mail ai lead.
+
+CAL_EVENTI = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+MATTINA = datetime.time(8, 30)                  # la scheda della mattina della call, ora di Roma
+AVANTI_GIORNI = 120
+VERSIONE_SCHEDA = "scheda1"
+GIORNI = ("lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica")
+MESI = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre",
+        "ottobre", "novembre", "dicembre")
+OGGETTO_PREN = {"prenotato": "Prenotato", "spostata": "Spostata", "cancellata": "Cancellata"}
+
+DOMANDA_SCHEDA = """Prepari a Dre, titolare di Studio Galilei (agenzia di marketing e Google Ads), la scheda
+per una videochiamata conoscitiva con un'azienda che l'ha appena prenotata. Qui sotto: chi ha prenotato,
+le mail che ci ha scritto (con la firma) e cosa sappiamo dell'azienda dal Google Fit e dal suo sito.
+
+Rispondi con questi campi:
+- nome: nome e cognome della persona, come nella firma, senza titoli (Dott., Arch., Ing.); se la firma
+  non c'e' quello di chi ha prenotato; vuoto se non lo sai.
+- ruolo: il suo ruolo COPIATO dalla firma (es. «Amministratore Unico», «Marketing Manager»). Vuoto se la
+  firma non lo dice. Mai dedurlo, mai inventarlo.
+- attivita: 2-3 righe, al massimo 50 parole, su cosa fa l'azienda, per chi e dove, piu' un dettaglio utile
+  per la call se c'e' (da quando esiste, chi la guida, il punto forte). SOLO da quello che c'e' qui sotto.
+- ultima_frase: la frase che conta del suo ULTIMO messaggio, copiata parola per parola (al massimo 25
+  parole, senza saluti ne' firma). Vuota se non ci ha mai scritto.
+
+CHI HA PRENOTATO: {prenotato}
+L'AZIENDA: {azienda}
+LE SUE MAIL (dalla piu' vecchia; l'ultima e' in fondo):
+{mail}
+
+COSA SAPPIAMO DELL'AZIENDA:
+{azienda_dati}"""
+
+SCHEMA_SCHEDA = {"type": "json_schema", "json_schema": {"name": "scheda_call", "strict": True, "schema": {
+    "type": "object", "additionalProperties": False, "required": ["nome", "ruolo", "attivita", "ultima_frase"],
+    "properties": {"nome": {"type": "string"}, "ruolo": {"type": "string"}, "attivita": {"type": "string"},
+                   "ultima_frase": {"type": "string"}}}}}
+
+
+def _evento_id(uid):
+    """L'id dell'evento: lo stesso dal calendario (id) e dalla mail (UID dell'invito .ics, «id@google.com»)."""
+    return (uid or "").split("@")[0].strip()
+
+
+def _giorno_ora(dt):
+    r = dt.astimezone(ROMA)
+    return f"{GIORNI[r.weekday()]} {r.day} {MESI[r.month - 1]} alle {r:%H:%M}"
+
+
+def _iso(dt):
+    return dt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00") if dt else None
+
+
+def _da_google(it):
+    """Un evento dell'API di Calendar nella forma di qui (solo i campi che servono)."""
+    inizio = (it.get("start") or {}).get("dateTime")
+    return {"evento": it.get("id") or _evento_id(it.get("iCalUID")),
+            "inizio": quando(inizio) if inizio else None,
+            "titolo": (it.get("summary") or "").strip(), "descrizione": it.get("description") or "",
+            "invitati": [(a.get("email") or "").lower() for a in it.get("attendees") or [] if a.get("email")],
+            "rifiutati": [(a.get("email") or "").lower() for a in it.get("attendees") or []
+                          if a.get("email") and a.get("responseStatus") == "declined"],
+            "stato": (it.get("status") or "confirmed").lower(), "meet": it.get("hangoutLink") or "",
+            "link": it.get("htmlLink") or "", "fonte": "calendario"}
+
+
+def _eventi_calendario(ora):
+    """Gli eventi del calendario di Dre da ieri a 120 giorni, cancellati compresi. Solo lettura."""
+    from google_api import g
+    eventi, pagina = [], None
+    for _ in range(10):
+        p = {"timeMin": _z(ora - datetime.timedelta(days=1)), "timeMax": _z(ora + datetime.timedelta(days=AVANTI_GIORNI)),
+             "singleEvents": "true", "showDeleted": "true", "maxResults": 250}
+        if pagina:
+            p["pageToken"] = pagina
+        d = g("GET", f"{CAL_EVENTI}?{urllib.parse.urlencode(p)}", email=DRE) or {}
+        eventi += [_da_google(it) for it in d.get("items") or []]
+        pagina = d.get("nextPageToken")
+        if not pagina:
+            break
+    return eventi
+
+
+def _parti(p):
+    yield p
+    for q in p.get("parts") or []:
+        yield from _parti(q)
+
+
+def _prenotazioni_mail(ora):
+    """La rete: le mail «Appuntamento prenotato» e «Appuntamento annullato» degli ultimi 3 giorni
+    nella Gmail di Dre. L'invito .ics dentro porta l'id dell'evento: la stessa prenotazione vista
+    dal calendario ha la stessa chiave e non suona due volte. Solo lettura."""
+    from google_api import g
+    from calendario import da_ics
+    q = 'subject:("Appuntamento prenotato" OR "Appuntamento annullato") newer_than:3d'
+    eventi = []
+    for m in (g("GET", f"{GMAIL}?q={urllib.parse.quote(q)}&maxResults=25", email=DRE) or {}).get("messages") or []:
+        d = g("GET", f"{GMAIL}/{m['id']}?format=full", email=DRE) or {}
+        for parte in _parti(d.get("payload") or {}):
+            if parte.get("mimeType") != "text/calendar":
+                continue
+            b = parte.get("body") or {}
+            dati = b.get("data")
+            if not dati and b.get("attachmentId"):
+                dati = (g("GET", f"{GMAIL}/{m['id']}/attachments/{b['attachmentId']}", email=DRE) or {}).get("data")
+            if not dati:
+                continue
+            ics = base64.urlsafe_b64decode(dati + "=" * (-len(dati) % 4)).decode("utf-8", "replace")
+            annullato = "METHOD:CANCEL" in ics
+            for e in da_ics(ics):
+                if e.get("giornata"):
+                    continue
+                eventi.append({"evento": _evento_id(e.get("uid")), "inizio": e["at"].astimezone(datetime.timezone.utc),
+                               "titolo": e.get("titolo") or "", "descrizione": e.get("descrizione") or "",
+                               "invitati": e.get("invitati") or [], "rifiutati": [],
+                               "stato": "cancelled" if annullato or (e.get("stato") or "").upper() == "CANCELLED" else "confirmed",
+                               "meet": e.get("meet") or "", "link": "", "fonte": "mail"})
+            break
+    return eventi
+
+
+def raccogli(ora):
+    """Le prenotazioni viste dal calendario e dalla posta, una per evento: il calendario vince
+    (e' lo stato di adesso), la mail copre quello che il calendario non ha dato. Torna
+    (eventi per chiave, calendario letto?, posta letta?)."""
+    eventi, cal_ok, mail_ok = {}, True, True
+    try:
+        for e in _eventi_calendario(ora):
+            if e["evento"]:
+                eventi[e["evento"]] = e
+    except Exception as ex:                                      # noqa: BLE001
+        cal_ok = False
+        print(f"  (il calendario di Dre non si legge: {str(ex)[:120]})")
+    try:
+        for e in _prenotazioni_mail(ora):
+            vista = eventi.get(e["evento"])
+            if not e["evento"]:
+                continue
+            if not vista:
+                eventi[e["evento"]] = e
+            elif vista.get("fonte") == "mail" and e["stato"] == "cancelled":
+                eventi[e["evento"]] = e                          # due mail della stessa: l'annullamento vince
+    except Exception as ex:                                      # noqa: BLE001
+        mail_ok = False
+        print(f"  (la posta di Dre non si legge: {str(ex)[:120]})")
+    return eventi, cal_ok, mail_ok
+
+
+def _esterni(ev):
+    from calendario import esterni
+    return esterni(ev.get("invitati") or [])
+
+
+def e_prenotazione(ev):
+    """Una call prenotata con qualcuno di fuori: dalla pagina delle prenotazioni («Prenotato da»,
+    o la mail «Appuntamento prenotato»), o una conoscitiva messa in calendario a mano."""
+    if not _esterni(ev):
+        return False
+    return (ev.get("fonte") == "mail" or "prenotato da" in (ev.get("descrizione") or "").lower()
+            or "conoscitiv" in (ev.get("titolo") or "").lower())
+
+
+def _annullata(ev):
+    if ev.get("stato") == "cancelled":
+        return "annullata"
+    fuori = _esterni(ev)
+    if fuori and all(x in (ev.get("rifiutati") or []) for x in fuori):
+        return "rifiutata"
+    return ""
+
+
+def _noti(righe):
+    """Quello che e' gia' stato segnalato, per evento: prenotato? cancellato? l'ultimo orario, le mattine."""
+    noti = {}
+    for r in sorted(righe, key=lambda r: (r.get("quando") or "", r.get("tipo") != "prenotato")):
+        n = noti.setdefault(r["evento"], {"prenotato": False, "cancellata": False, "inizio": None, "mattine": set(),
+                                          "invitato": "", "azienda": "", "prospect_id": None, "prenotato_il": None,
+                                          "come_prenotato": ""})
+        for k in ("invitato", "azienda", "prospect_id"):
+            n[k] = r.get(k) or n[k]
+        if r["tipo"] in ("prenotato", "spostata"):
+            n["inizio"] = quando(r["inizio"]) if r.get("inizio") else n["inizio"]
+            if r["tipo"] == "prenotato":
+                n["prenotato"], n["come_prenotato"] = True, r.get("come") or ""
+                n["prenotato_il"] = quando(r["quando"]) if r.get("quando") else None
+        elif r["tipo"] == "cancellata":
+            n["cancellata"] = True
+        elif r["tipo"] == "mattina":
+            n["mattine"].add(r["chiave"])
+    return noti
+
+
+def _alle_830(giorno):
+    return datetime.datetime.combine(giorno, MATTINA, tzinfo=ROMA)
+
+
+def decidi(eventi, righe, ora, calendario_ok=True):
+    """I segnali da dare adesso, senza toccare niente (si prova da sola). Una prenotazione nuova
+    -> «prenotato»; un orario cambiato -> «spostata» (anche quando dalla pagina si prende un altro
+    orario: e' una prenotazione nuova e quella vecchia si annulla, ma per Dre e' uno spostamento);
+    annullata o rifiutata -> «cancellata»; la mattina della call dalle 8:30 -> «mattina»."""
+    noti = _noti(righe)
+    segnali, assorbite = [], set()
+    attivi = {}                                          # chi ha prenotato -> le sue prenotazioni ancora in piedi
+    for k, n in noti.items():
+        if n["prenotato"] and not n["cancellata"] and n["invitato"] and n["inizio"] and n["inizio"] > ora - datetime.timedelta(hours=1):
+            attivi.setdefault(n["invitato"], []).append(k)
+    for ev in sorted(eventi.values(), key=lambda e: e.get("inizio") or ora):
+        k, n = ev["evento"], noti.get(ev["evento"])
+        if _annullata(ev) or not ev.get("inizio") or ev["inizio"] <= ora:
+            continue
+        chi = (_esterni(ev) or [""])[0]
+        base = {"evento": k, "ev": ev, "inizio": ev["inizio"], "invitato": chi or (n or {}).get("invitato", ""),
+                "nota": n}
+        if not n or not n["prenotato"]:
+            if not e_prenotazione(ev):
+                continue
+            altre = [a for a in attivi.get(chi, []) if a != k] if chi else []
+            if altre:
+                vecchia = noti[altre[0]]
+                assorbite.add(altre[0])
+                segnali.append({**base, "tipo": "spostata", "prima": vecchia["inizio"], "da_evento": altre[0],
+                                "chiave": f"spostata:{k}:{_iso(ev['inizio'])}",
+                                "nota": vecchia})
+            else:
+                segnali.append({**base, "tipo": "prenotato", "chiave": f"prenotato:{k}"})
+        elif n["inizio"] and abs((ev["inizio"] - n["inizio"]).total_seconds()) >= 60:
+            segnali.append({**base, "tipo": "spostata", "prima": n["inizio"], "chiave": f"spostata:{k}:{_iso(ev['inizio'])}"})
+    for ev in eventi.values():
+        k, n = ev["evento"], noti.get(ev["evento"])
+        perche = _annullata(ev)
+        if not perche or not n or not n["prenotato"] or n["cancellata"] or k in assorbite:
+            continue
+        inizio = n["inizio"] or ev.get("inizio")
+        if inizio and inizio <= ora:
+            continue                                     # una call gia' passata: non serve dirlo
+        segnali.append({"evento": k, "ev": ev, "inizio": inizio, "invitato": n["invitato"], "nota": n,
+                        "tipo": "cancellata", "perche": perche, "chiave": f"cancellata:{k}"})
+    # la mattina della call, dalle 8:30 di Roma
+    oggi = ora.astimezone(ROMA).date()
+    if ora.astimezone(ROMA).time() >= MATTINA:
+        orari = {k: n["inizio"] for k, n in noti.items() if n["prenotato"] and not n["cancellata"] and k not in assorbite}
+        for s in segnali:
+            if s["tipo"] == "spostata":
+                orari[s["evento"]] = s["inizio"]
+            elif s["tipo"] == "cancellata":
+                orari.pop(s["evento"], None)
+        appena = {s["evento"] for s in segnali if s["tipo"] == "prenotato"}
+        for k in list(orari):
+            ev = eventi.get(k)
+            if ev:
+                if _annullata(ev):
+                    orari.pop(k)
+                else:
+                    orari[k] = ev.get("inizio")
+            elif calendario_ok:
+                orari.pop(k)                             # il calendario risponde e l'evento non c'e' piu'
+        for k, inizio in sorted(orari.items(), key=lambda kv: kv[1] or ora):
+            if not inizio or k in appena or inizio <= ora or inizio.astimezone(ROMA).date() != oggi:
+                continue
+            n = noti.get(k) or {}
+            chiave = f"mattina:{k}:{oggi.isoformat()}"
+            if chiave in n.get("mattine", ()):
+                continue
+            # la scheda e' gia' arrivata stamattina con la prenotazione: non la si rimanda
+            if n.get("come_prenotato") == "segnale" and n.get("prenotato_il") and n["prenotato_il"] >= _alle_830(oggi):
+                continue
+            ev = eventi.get(k)
+            segnali.append({"evento": k, "ev": ev, "inizio": inizio, "invitato": n.get("invitato") or ((_esterni(ev) or [""])[0] if ev else ""),
+                            "nota": n or None, "tipo": "mattina", "chiave": chiave})
+    return segnali
+
+
+# ── la scheda per la call ──────────────────────────────────────────
+
+def _nazionale(c):
+    if c.startswith("0039"):
+        return c[4:]
+    if c.startswith("39") and len(c) > 10:
+        return c[2:]
+    return c
+
+
+def telefoni_in(testo, fonte, esclusi=frozenset()):
+    """Tutti i numeri di un testo, con il tipo: cellulare (3...) o fisso (0...). Via la partita IVA
+    (la regola di sempre), i fax e i numeri nostri (`esclusi`: le ultime 9 cifre)."""
+    out, fine = [], 0
+    for m in TELEFONO.finditer(testo or ""):
+        c = _cifre(m.group(0))
+        if not 9 <= len(c) <= 13 or _non_telefono(testo, m):
+            continue
+        prima = testo[max(fine, m.start() - 30, testo.rfind("\n", 0, m.start()) + 1):m.start()]
+        fine = m.end()
+        if re.search(r"fax", prima, re.I) and not re.search(r"tel|cell|mob", prima, re.I):
+            continue
+        naz = _nazionale(c)
+        if naz[-9:] in esclusi:
+            continue
+        tipo = "cellulare" if naz.startswith("3") else "fisso"
+        out.append({"numero": " ".join(m.group(0).split()), "tipo": tipo, "fonte": fonte, "cifre": naz})
+    return out
+
+
+RANGO_TEL = {("cellulare", "firma"): 0, ("cellulare", "scheda"): 1, ("fisso", "firma"): 2, ("fisso", "scheda"): 3,
+             ("cellulare", "sito"): 4, ("fisso", "sito"): 5}
+DA_DOVE = {"firma": "dalla firma", "scheda": "dalla scheda del Workspace", "sito": "dal sito"}
+
+
+def in_gerarchia(numeri):
+    """Il piu' diretto in alto: il cellulare della firma, poi il fisso della firma, poi quello che
+    sta nella scheda, poi il centralino del sito. Lo stesso numero una volta sola, al posto piu' alto."""
+    visti, out = set(), []
+    for t in sorted(numeri, key=lambda t: RANGO_TEL.get((t["tipo"], t["fonte"]), 9)):
+        if t["cifre"][-9:] in visti:
+            continue
+        visti.add(t["cifre"][-9:])
+        tipo = "centralino" if (t["tipo"], t["fonte"]) == ("fisso", "sito") else t["tipo"]
+        out.append({**t, "etichetta": f"{tipo}, {DA_DOVE.get(t['fonte'], t['fonte'])}"})
+    return out
+
+
+def _frase_pulita(t):
+    return " ".join((t or "").replace("«", "").replace("»", "").split())
+
+
+SALUTO = re.compile(r"^\s*(buongiorno|buonasera|salve|gentil\w*|egregi\w*|caro|cara|ciao|spett\w*)\b[^\n]{0,40}$", re.I)
+CHIUSA = re.compile(r"^\s*(cordiali saluti|distinti saluti|saluti|un saluto|grazie(,| e)? (mille|ancora)?|a presto)\b", re.I)
+
+
+def ultima_frase_semplice(testo):
+    """Senza AI: il suo messaggio senza saluto, firma e chiusa, corto."""
+    righe = [r.strip() for r in (solo_suo(testo) or "").split("\n") if r.strip()]
+    righe = [r for r in righe if not SALUTO.match(r)]
+    tenute = []
+    for r in righe:
+        if CHIUSA.match(r):
+            break
+        tenute.append(r)
+    t = " ".join(tenute) or " ".join(righe)
+    return (t[:197] + "...") if len(t) > 200 else t
+
+
+def _leggi_scheda(prompt):
+    """Una lettura per la scheda, con la memoria e il tetto del giorno della casa. None se non c'e'."""
+    chiave = "scheda:" + hashlib.sha256("\x00".join((VERSIONE_SCHEDA, MODELLO, prompt)).encode("utf-8")).hexdigest()[:24]
+    if GIRO["memoria_rotta"]:
+        return None
+    try:
+        r = sb("GET", f"/rest/v1/memoria_letture?select=valore&chiave=eq.{chiave}") or []
+    except Exception:                                            # noqa: BLE001
+        GIRO["memoria_rotta"] = True
+        return None
+    if r and isinstance(r[0].get("valore"), dict):
+        SPESA["dalla_memoria"] += 1
+        v = r[0]["valore"]
+        return None if v.get("fallita") else v
+    if not GIRO["sonda"]:
+        if not _ricorda("segnale:sonda", {"il": _z(adesso())}):
+            return None
+        GIRO["sonda"] = True
+    if _restano_oggi() <= 0:
+        GIRO["tetto_giorno"] = True
+        return None
+    GIRO["pagate"] += 1
+    GIRO["giorno_restano"] -= 1
+    v = None
+    try:
+        grezzo = _chiedi_ai(prompt, SCHEMA_SCHEDA)
+        m = re.search(r"\{.*\}", grezzo or "", re.S)
+        v = json.loads(m.group(0)) if m else None
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (l'AI non ha letto la scheda: {str(e)[:100]})")
+    if not isinstance(v, dict) or not all(isinstance(v.get(k), str) for k in ("nome", "ruolo", "attivita", "ultima_frase")):
+        v = {"fallita": True}
+    _ricorda(chiave, v)
+    return None if v.get("fallita") else v
+
+
+def _dentro(pezzo, testo):
+    """Il pezzo sta davvero nel testo? (spazi e maiuscole a parte)"""
+    norm = lambda s: " ".join(re.sub(r"[«»\"“”]", " ", s or "").lower().split())  # noqa: E731
+    return bool(norm(pezzo)) and norm(pezzo) in norm(testo)
+
+
+def _attivita_semplice(p):
+    """Senza AI: le righe del Google Fit, cosi' come sono."""
+    e = p.get("enriched") or {}
+    fit = e.get("google_fit") or e.get("google_fit_v2") or {}
+    pezzi = [(fit.get("cosa_fa") or p.get("descrizione") or "").rstrip(".")]
+    if fit.get("tipo") or fit.get("ticket"):
+        pezzi.append(", ".join(x for x in (f"clienti {fit['tipo']}" if fit.get("tipo") else "",
+                                            f"valore di un cliente {fit['ticket']} (stima)" if fit.get("ticket") else "") if x).capitalize())
+    rec = fit.get("recensioni") or {}
+    if isinstance(rec, dict) and rec.get("recensioni"):
+        pezzi.append(f"{rec['recensioni']} recensioni su Google" + (f", voto {rec['voto']}" if rec.get("voto") else ""))
+    return ". ".join(x for x in pezzi if x) + ("." if any(pezzi) else "")
+
+
+def _riconosci(ev):
+    """Il lead della prenotazione: l'agenda prima (il calendario ce l'ha gia' attaccato, o l'ha
+    scelto Dre a mano), poi il riconoscimento di calendario.py (mail, dominio, sito, titolo, nome)."""
+    meet = (ev.get("meet") or "").split("?")[0]
+    if meet:
+        r = sb("GET", f"/rest/v1/agenda?select=prospect_id&link=eq.{urllib.parse.quote(meet, safe='')}"
+                      f"&prospect_id=not.is.null&limit=1") or []
+        if r:
+            return r[0]["prospect_id"]
+    import calendario as C
+    if "prospects" not in _CACHE:
+        _CACHE["prospects"] = C.carica_prospects()
+    pid, _ = C.riconosci({"invitati": ev.get("invitati") or [], "titolo": ev.get("titolo") or "",
+                          "descrizione": ev.get("descrizione") or ""}, _CACHE["prospects"])
+    return pid
+
+
+_CACHE = {}
+
+
+def _chi_ha_prenotato(ev):
+    from calendario import prenotato_da
+    return prenotato_da({"descrizione": re.sub(r"<[^>]+>", "\n", (ev or {}).get("descrizione") or ""),
+                         "titolo": (ev or {}).get("titolo") or ""}) or ""
+
+
+def _sito_della_prenotazione(ev):
+    from calendario import siti_nella_descrizione
+    s = siti_nella_descrizione((ev or {}).get("descrizione") or "")
+    return s[0] if s else ""
+
+
+def scheda(pid, ev, invitato=""):
+    """Tutto quello che serve per la call, da quello che c'e' gia'. Senza lead: quello che dice
+    la prenotazione (mai silenzio)."""
+    chi = _chi_ha_prenotato(ev)
+    sc = {"abbinata": False, "nome": chi, "ruolo": "", "email": invitato, "telefoni": [], "attivita": "",
+          "ultima": "", "ultima_il": None, "analisi": None, "sito": _sito_della_prenotazione(ev),
+          "azienda": "", "meet": ((ev or {}).get("meet") or "").split("?")[0], "link": (ev or {}).get("link") or ""}
+    p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,email,role,phone,website,descrizione,analysis_sent,"
+                   f"analysis_sent_at,analysis_pdf,enriched&id=eq.{pid}") or [None])[0] if pid else None
+    if not p:
+        sc["azienda"] = sc["sito"] or chi or invitato or "?"
+        return sc
+    sc["abbinata"] = True
+    sc["azienda"] = " ".join((p.get("company") or p.get("name") or sc["sito"] or chi or "?").split())
+    sc["email"] = invitato or p.get("email") or ""
+    e = p.get("enriched") or {}
+    fit = e.get("google_fit") or e.get("google_fit_v2") or {}
+    righe = sb("GET", f"/rest/v1/interactions?select=at,kind,body&prospect_id=eq.{pid}"
+                      f"&kind=in.(email_in,email_out)&order=at.asc&limit=80") or []
+    sue = [r for r in righe if r.get("kind") == "email_in" and (r.get("body") or "").strip() and not automatica(r["body"])]
+    nostri = set()
+    for r in righe:
+        if r.get("kind") == "email_out":
+            nostri |= {_nazionale(_cifre(m.group(0)))[-9:] for m in TELEFONO.finditer(r.get("body") or "")}
+    # i numeri: la firma (tutte le sue mail, la parte sua), la scheda, il sito gia' letto
+    numeri = []
+    for r in sue:
+        numeri += telefoni_in(solo_suo(r["body"], con_firma=True), "firma", nostri)
+    for t in (p.get("phone"), e.get("phone")):
+        if isinstance(t, str) and t.strip():
+            numeri += telefoni_in(t, "scheda", nostri)
+    numeri += telefoni_in(fit.get("sito_testo") or "", "sito", nostri)
+    sc["telefoni"] = in_gerarchia(numeri)
+    # l'analisi
+    an = e.get("analisi") or {}
+    sc["analisi"] = {"mandata": bool(p.get("analysis_sent")), "il": quando(p["analysis_sent_at"]) if p.get("analysis_sent_at") else None,
+                     "link": p.get("analysis_pdf") or "", "punto": _frase_pulita(an.get("frase_forte"))}
+    # chi e', cosa fa, l'ultima frase: una lettura AI (dalla memoria se c'e'), con la rete senza AI
+    ultima = sue[-1] if sue else None
+    if ultima:
+        sc["ultima_il"] = quando(ultima["at"]) if ultima.get("at") else None
+        sc["ultima"] = ultima_frase_semplice(ultima["body"])
+    sc["nome"] = chi or " ".join((p.get("name") or "").split())
+    sc["ruolo"] = p.get("role") or ""
+    sc["attivita"] = _attivita_semplice(p)
+    materiale = "\n\n".join(f"[{(r.get('at') or '')[:10]}] «{solo_suo(r['body'], con_firma=True)[:1800]}»" for r in sue[-3:])
+    dati = "\n".join(x for x in (
+        f"- dal Google Fit: {fit.get('cosa_fa')}" if fit.get("cosa_fa") else "",
+        f"- settore: {fit.get('settore') or p.get('sector') or ''}; clienti {fit.get('tipo') or '?'}; zone: {', '.join(fit.get('zone_servite') or []) or '?'}"
+        if fit else "",
+        f"- descrizione nel Workspace: {p.get('descrizione')}" if p.get("descrizione") else "",
+        f"- sito: {p.get('website')}" if p.get("website") else "",
+        f"- dal sito: {(fit.get('sito_testo') or '')[:2500]}" if fit.get("sito_testo") else "") if x)
+    if materiale or dati:
+        v = _leggi_scheda(DOMANDA_SCHEDA.format(prenotato=f"{chi or '?'} <{invitato or '?'}>", azienda=sc["azienda"],
+                                                mail=materiale or "(nessuna)", azienda_dati=dati or "(niente)"))
+        if v:
+            tutto = materiale + "\n" + chi
+            if v.get("nome") and all(_dentro(w, tutto) for w in v["nome"].split()):
+                sc["nome"] = " ".join(v["nome"].split())
+            # il ruolo deve stare scritto nella firma: un ruolo dedotto e' peggio di nessun ruolo
+            sc["ruolo"] = " ".join(v["ruolo"].split()) if v.get("ruolo") and _dentro(v["ruolo"], materiale) else sc["ruolo"]
+            if v.get("attivita", "").strip():
+                sc["attivita"] = " ".join(v["attivita"].split())
+            if ultima and v.get("ultima_frase") and _dentro(v["ultima_frase"], ultima["body"]):
+                sc["ultima"] = _frase_pulita(v["ultima_frase"])
+    return sc
+
+
+# ── la mail delle prenotazioni ─────────────────────────────────────
+
+def _pezzi_scheda(sc, s):
+    """La scheda, in testo e html. Un numero per riga, il piu' diretto in alto, cliccabile."""
+    e = html.escape
+    grigio = "color:#666"
+    t, h = [], []
+    quando_t = _giorno_ora(s["inizio"]) if s.get("inizio") else ""
+    t.append(f"{sc['azienda']}, {quando_t}")
+    h.append(f"<p style='margin:0 0 4px;font-size:17px'><b>{e(sc['azienda'])}</b></p>"
+             f"<p style='margin:0 0 16px;{grigio}'>{e(quando_t)}"
+             + (f" · <a href='{e(sc['meet'])}'>entra nel Meet</a>" if sc.get("meet") else "") + "</p>")
+    if sc.get("meet"):
+        t.append(f"Meet: {sc['meet']}")
+    # chi e'
+    chi = ", ".join(x for x in (sc.get("nome"), sc.get("ruolo")) if x) or "?"
+    t += ["", "CHI E'", f"{chi}" + (f"  {sc['email']}" if sc.get("email") else "")]
+    h.append(f"<p style='margin:0 0 12px'><b>Chi è</b><br>{e(chi)}"
+             + (f"<br><span style='{grigio}'>{e(sc['email'])}</span>" if sc.get("email") else "") + "</p>")
+    if not sc["abbinata"]:
+        nota = "Non l'ho trovato fra i lead del Workspace: qui sotto c'è solo quello che dice la prenotazione."
+        if sc.get("sito"):
+            nota += f" Sito scritto nella prenotazione: {sc['sito']}."
+        t.append(nota)
+        h.append(f"<p style='margin:0 0 12px'>{e(nota)}</p>")
+    # i numeri
+    t += ["", "TELEFONI"]
+    if sc["telefoni"]:
+        righe_h = []
+        for x in sc["telefoni"]:
+            t.append(f"{x['numero']}  ({x['etichetta']})  tel:{_tel_link(x['numero'])}")
+            righe_h.append(f"<a href='tel:{e(_tel_link(x['numero']))}'>{e(x['numero'])}</a> <span style='{grigio}'>{e(x['etichetta'])}</span>")
+        h.append("<p style='margin:0 0 12px'><b>Telefoni</b><br>" + "<br>".join(righe_h) + "</p>")
+    else:
+        t.append("Nessun numero: né nella firma né nel Workspace.")
+        h.append("<p style='margin:0 0 12px'><b>Telefoni</b><br>Nessun numero: né nella firma né nel Workspace.</p>")
+    # cosa fa
+    if sc.get("attivita"):
+        t += ["", "COSA FA", sc["attivita"]]
+        h.append(f"<p style='margin:0 0 12px'><b>Cosa fa</b><br>{e(sc['attivita'])}</p>")
+    # l'ultima cosa che ci ha scritto
+    if sc.get("ultima"):
+        il = sc["ultima_il"].astimezone(ROMA).strftime("%d/%m") if sc.get("ultima_il") else ""
+        t += ["", f"L'ULTIMA COSA CHE CI HA SCRITTO" + (f" ({il})" if il else ""), f"«{sc['ultima']}»"]
+        h.append(f"<p style='margin:0 0 12px'><b>L'ultima cosa che ci ha scritto</b>"
+                 + (f" <span style='{grigio}'>({e(il)})</span>" if il else "") + f"<br>«{e(sc['ultima'])}»</p>")
+    elif sc["abbinata"]:
+        t += ["", "L'ULTIMA COSA CHE CI HA SCRITTO", "Non ci ha mai scritto."]
+        h.append("<p style='margin:0 0 12px'><b>L'ultima cosa che ci ha scritto</b><br>Non ci ha mai scritto.</p>")
+    # cosa gli abbiamo mandato
+    if sc["abbinata"]:
+        a = sc.get("analisi") or {}
+        if a.get("mandata"):
+            il = a["il"].astimezone(ROMA).strftime("%d/%m") if a.get("il") else ""
+            riga = "Sì, l'analisi" + (f" il {il}" if il else "")
+            t += ["", "COSA GLI ABBIAMO MANDATO", riga + (f": {a['link']}" if a.get("link") else "")]
+            hh = e(riga) + (f": <a href='{e(a['link'])}'>apri l'analisi</a>" if a.get("link") else "")
+            if a.get("punto"):
+                t.append(f"Il punto chiave: {a['punto']}")
+                hh += f"<br>Il punto chiave: {e(a['punto'])}"
+            h.append(f"<p style='margin:0 0 12px'><b>Cosa gli abbiamo mandato</b><br>{hh}</p>")
+        else:
+            t += ["", "COSA GLI ABBIAMO MANDATO", "No, l'analisi non gli è ancora arrivata."]
+            h.append("<p style='margin:0 0 12px'><b>Cosa gli abbiamo mandato</b><br>No, l'analisi non gli è ancora arrivata.</p>")
+    t += ["", "Appunti:", ""]
+    h.append("<p style='margin:16px 0 28px'><b>Appunti:</b></p>")
+    return t, h
+
+
+def componi_prenotazione(s):
+    """Oggetto, testo e html della mail per un segnale di prenotazione."""
+    az = s.get("azienda") or "?"
+    quando_t = _giorno_ora(s["inizio"]) if s.get("inizio") else "orario sconosciuto"
+    t, h = [], []
+    e = html.escape
+    if s["tipo"] == "prenotato":
+        oggetto = f"Prenotato: {az}, {quando_t}"
+        t, h = _pezzi_scheda(s["scheda"], s)
+    elif s["tipo"] == "mattina":
+        oggetto = f"Oggi alle {s['inizio'].astimezone(ROMA):%H:%M}: {az}"
+        t, h = _pezzi_scheda(s["scheda"], s)
+    elif s["tipo"] == "spostata":
+        oggetto = f"Spostata: {az}, ora {quando_t}"
+        prima = _giorno_ora(s["prima"]) if s.get("prima") else "l'orario di prima"
+        riga = (f"La call con {az} era {prima}: adesso è {quando_t}"
+                + (" (ha preso un altro orario dalla tua pagina)." if s.get("da_evento") else ".")
+                + " La scheda te la rimando la mattina della call.")
+        t, h = [riga], [f"<p>{e(riga)}</p>"]
+    else:
+        oggetto = f"Cancellata: {az}, {quando_t}"
+        riga = (f"{az} ha rifiutato l'invito per la call di {quando_t}." if s.get("perche") == "rifiutata"
+                else f"La call con {az} di {quando_t} è stata annullata.")
+        t, h = [riga], [f"<p>{e(riga)}</p>"]
+    testo = "\n".join(t) + "\n\n(il segnale provvisorio: scrive solo a te)"
+    corpo = ("<div style='font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.45;max-width:560px'>"
+             + "".join(h) + "<p style='color:#999;font-size:12px'>Il segnale provvisorio: scrive solo a te.</p></div>")
+    return " ".join(oggetto.split()), testo, corpo
+
+
+def prepara(segnali, con_scheda=True):
+    """Per ogni segnale: il lead, il nome dell'azienda, e la scheda dove serve (prenotato, mattina)."""
+    for s in segnali:
+        n = s.get("nota") or {}
+        ev = s.get("ev") or {}
+        pid = n.get("prospect_id")
+        if not pid and ev:
+            try:
+                pid = _riconosci(ev)
+            except Exception as e:                               # noqa: BLE001
+                print(f"  (non riesco ad abbinare la prenotazione a un lead: {str(e)[:100]})")
+        s["prospect_id"] = pid
+        if con_scheda and s["tipo"] in ("prenotato", "mattina"):
+            try:
+                s["scheda"] = scheda(pid, ev, s.get("invitato") or "")
+            except Exception as e:                               # noqa: BLE001
+                print(f"  (la scheda non si compone tutta: {str(e)[:100]})")
+                chi = _chi_ha_prenotato(ev)
+                s["scheda"] = {"abbinata": False, "nome": chi, "ruolo": "", "email": s.get("invitato") or "", "telefoni": [],
+                               "attivita": "", "ultima": "", "ultima_il": None, "analisi": None, "sito": "",
+                               "azienda": n.get("azienda") or chi or s.get("invitato") or "?", "meet": "", "link": ""}
+            s["azienda"] = s["scheda"]["azienda"]
+        else:
+            s["azienda"] = n.get("azienda") or ""
+            if not s["azienda"] and pid:
+                p = (sb("GET", f"/rest/v1/prospects?select=company,name&id=eq.{pid}") or [{}])[0]
+                s["azienda"] = " ".join((p.get("company") or p.get("name") or "").split())
+            s["azienda"] = s["azienda"] or _chi_ha_prenotato(ev) or s.get("invitato") or "?"
+    return segnali
+
+
+def _righe_di(s, come):
+    """Le righe del registro per un segnale (la prima e' quella che decide se e' nostro)."""
+    base = {"evento": s["evento"], "inizio": _iso(s.get("inizio")), "invitato": s.get("invitato") or None,
+            "azienda": s.get("azienda") or None, "prospect_id": s.get("prospect_id"), "come": come}
+    righe = [{**base, "chiave": s["chiave"], "tipo": s["tipo"]}]
+    if s["tipo"] == "spostata" and s.get("da_evento"):
+        # un altro orario preso dalla pagina: la prenotazione nuova e' nota, quella vecchia e' chiusa
+        righe.append({**base, "chiave": f"prenotato:{s['evento']}", "tipo": "prenotato"})
+        righe.append({**base, "evento": s["da_evento"], "chiave": f"cancellata:{s['da_evento']}", "tipo": "cancellata",
+                      "inizio": _iso(s.get("prima")), "come": "assorbita"})
+    return righe
+
+
+def segna_prenotazioni(segnali, come="segnale"):
+    """Si segna PRIMA di mandare (al peggio un segnale manca, mai doppio). La chiave e' unica
+    nel database: torna solo i segnali segnati da questo giro."""
+    righe = [r for s in segnali for r in _righe_di(s, come)]
+    if not righe:
+        return []
+    fatti = sb("POST", "/rest/v1/prenotazioni_segnalate?on_conflict=chiave", righe,
+               {"Prefer": "resolution=ignore-duplicates,return=representation"}) or []
+    nuove = {x.get("chiave") for x in fatti}
+    return [s for s in segnali if s["chiave"] in nuove]
+
+
+def _chiavi_in(chiavi):
+    return "chiave=in.(" + ",".join(urllib.parse.quote(f'"{c}"', safe="") for c in chiavi) + ")"
+
+
+def togli_prenotazioni(s):
+    try:
+        sb("DELETE", f"/rest/v1/prenotazioni_segnalate?{_chiavi_in([r['chiave'] for r in _righe_di(s, '')])}")
+    except Exception:                                            # noqa: BLE001
+        pass
+
+
+def incerte_prenotazioni(s, oggetto):
+    try:
+        sb("PATCH", f"/rest/v1/prenotazioni_segnalate?{_chiavi_in([r['chiave'] for r in _righe_di(s, '')])}",
+           {"come": "incerto", "oggetto": oggetto}, {"Prefer": "return=minimal"})
+    except Exception:                                            # noqa: BLE001
+        pass
+
+
+def risolvi_incerte_prenotazioni():
+    """Come per le risposte: una mail forse partita si cerca nella posta inviata prima di rimandarla."""
+    righe = sb("GET", "/rest/v1/prenotazioni_segnalate?select=chiave,oggetto,quando&come=eq.incerto") or []
+    gruppi = {}
+    for x in righe:
+        gruppi.setdefault((x.get("oggetto") or "", x.get("quando") or ""), []).append(x["chiave"])
+    dubbi = 0
+    for (oggetto, il), chiavi in gruppi.items():
+        try:
+            partita = bool(oggetto) and _gmail_inviata(oggetto, quando(il))
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  (non riesco a guardare la posta inviata: {str(e)[:100]})")
+            dubbi += 1
+            continue
+        try:
+            if partita:
+                sb("PATCH", f"/rest/v1/prenotazioni_segnalate?{_chiavi_in(chiavi)}", {"come": "segnale"}, {"Prefer": "return=minimal"})
+            else:
+                sb("DELETE", f"/rest/v1/prenotazioni_segnalate?{_chiavi_in(chiavi)}")
+        except Exception:                                        # noqa: BLE001
+            dubbi += 1
+        print(f"  incerto «{oggetto}»: " + ("era partita, non la rimando" if partita else "non era partita, la rimando"))
+    if dubbi:
+        avvisa_ogni("incerti-prenotazioni", "Il segnale provvisorio non sa se una mail su una prenotazione ti è arrivata: guarda il calendario")
+    return dubbi
+
+
+def giro_prenotazioni(prova=None, ora=None, semina=False, tranne=""):
+    """Il giro delle prenotazioni. Torna i segnali (mandati, o che si manderebbero in prova).
+    `semina`: la prima accensione. Le prenotazioni che ci sono gia' si segnano come note senza
+    mandare niente (Dre le conosce), tranne quelle che contengono `tranne`."""
+    prova = _a_secco() if prova is None else prova
+    ora = ora or adesso()
+    if not prova and not semina:
+        risolvi_incerte_prenotazioni()
+    eventi, cal_ok, mail_ok = raccogli(ora)
+    if not cal_ok:
+        avvisa_ogni("calendario", "Il segnale provvisorio non riesce a leggere il tuo calendario: le prenotazioni "
+                                  "le vedo solo dalle mail «Appuntamento prenotato»" + ("" if mail_ok else ", e anche la posta è ferma"))
+    da = _z(ora - datetime.timedelta(days=2))
+    righe = sb("GET", f"/rest/v1/prenotazioni_segnalate?select=chiave,tipo,evento,inizio,invitato,azienda,prospect_id,quando,come"
+                      f"&or=(inizio.gte.{da},quando.gte.{_z(ora - datetime.timedelta(days=30))})&limit=2000") or []
+    segnali = decidi(eventi, righe, ora, calendario_ok=cal_ok)
+    if semina:
+        if prova:
+            raise SystemExit("--semina scrive: non va insieme a --prova")
+        nuove = [s for s in segnali if s["tipo"] == "prenotato"
+                 and not (tranne and tranne.lower() in ((s["ev"] or {}).get("titolo", "") + " " + (s.get("invitato") or "")).lower())]
+        prepara(nuove, con_scheda=False)
+        fatte = segna_prenotazioni(nuove, "semina")
+        print(f"semina: {len(fatte)} prenotazioni gia' in calendario segnate come note (nessuna mail)")
+        return []
+    if not segnali:
+        print("prenotazioni: niente da segnalare")
+        return []
+    prepara(segnali)
+    if prova:
+        for s in segnali:
+            oggetto, testo, _ = componi_prenotazione(s)
+            print(f"\n(prova) A: {DRE}\n(prova) Oggetto: {oggetto}\n{testo}")
+        print(f"\n(prova) prenotazioni: {len(segnali)} segnali: niente mandato, niente segnato")
+        return segnali
+    segnali = segna_prenotazioni(segnali)
+    falliti, dubbi = [], []
+    for s in segnali:
+        oggetto, testo, corpo = componi_prenotazione(s)
+        try:
+            manda_mail(DRE, oggetto, testo, corpo)
+            print(f"mandata a Dre: {oggetto}")
+        except Exception as e:                                   # noqa: BLE001
+            if non_partita(e):
+                print(f"MAIL NON MANDATA ({oggetto}): {str(e)[:160]}")
+                togli_prenotazioni(s)
+                falliti.append(s)
+            else:
+                print(f"MAIL FORSE MANDATA ({oggetto}), Gmail non ha risposto: {str(e)[:160]}")
+                incerte_prenotazioni(s, oggetto)
+                dubbi.append(s)
+    if falliti:
+        avvisa_ogni("gmail", f"Il segnale provvisorio non riesce a mandarti la mail: {len(falliti)} prenotazioni da guardare nel calendario")
+    if falliti or dubbi:
+        raise SystemExit(1)
+    return segnali
+
+
 def costo():
     a, b = PREZZO.get(MODELLO, (0, 0))
     return SPESA["in"] / 1e6 * a + SPESA["out"] / 1e6 * b
@@ -710,10 +1496,41 @@ def main():
         raise SystemExit("--storico e' una prova sul passato: va con --prova")
     if prova_mail and _a_secco():
         raise SystemExit("--prova-mail manda davvero: non va insieme a --prova (o PROVA=1)")
-    segnali = giro(ore=ore, prova=None if not prova_mail else False, prova_mail=prova_mail, storico=storico)
+    semina = "--semina" in sys.argv
+    alle = quando(sys.argv[sys.argv.index("--alle") + 1]) if "--alle" in sys.argv else None
+    if alle and not alle.tzinfo:
+        alle = alle.replace(tzinfo=ROMA)
+    if alle and not _a_secco():
+        raise SystemExit("--alle sposta l'orologio: si usa solo con --prova")
+    if semina and _a_secco():
+        raise SystemExit("--semina scrive: non va insieme a --prova")
+    solo_pren = "--solo-prenotazioni" in sys.argv or semina or alle is not None
+    uscita, segnali, prenotazioni = 0, [], []
+    if not solo_pren:
+        try:
+            segnali = giro(ore=ore, prova=None if not prova_mail else False, prova_mail=prova_mail, storico=storico)
+        except SystemExit as e:
+            uscita = e.code if isinstance(e.code, int) else 1
+            if isinstance(e.code, str):
+                print(e.code)
+    if not prova_mail and not storico:
+        # le prenotazioni delle call: un guasto qui non ferma le risposte, e viceversa
+        try:
+            prenotazioni = giro_prenotazioni(ora=alle, semina=semina, tranne=sys.argv[sys.argv.index("--tranne") + 1]
+                                             if "--tranne" in sys.argv else "")
+        except SystemExit as e:
+            uscita = uscita or (e.code if isinstance(e.code, int) else 1)
+            if isinstance(e.code, str):
+                print(e.code)
+        except Exception as e:                                   # noqa: BLE001
+            print(f"PRENOTAZIONI FERME: {str(e)[:200]}")
+            avvisa_ogni("prenotazioni", f"Il segnale provvisorio non riesce a guardare le prenotazioni: {str(e)[:80]}")
+            uscita = uscita or 1
     print(f"letture: {GIRO['pagate']} pagate ({SPESA['in']} token dentro, {SPESA['out']} fuori), "
           f"{SPESA['dalla_memoria']} dalla memoria; costo del giro {costo():.4f} $")
-    print(f"segnali: {len(segnali)}")
+    print(f"segnali: {len(segnali)}, prenotazioni: {len(prenotazioni)}")
+    if uscita:
+        raise SystemExit(uscita)
 
 
 if __name__ == "__main__":

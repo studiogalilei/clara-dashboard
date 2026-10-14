@@ -2637,6 +2637,227 @@ def _():
         sys.argv = vero
 
 
+# ── le prenotazioni delle call (14/10): la scheda a Dre, una volta sola, la mattina di nuovo ──
+_ROMA = zoneinfo.ZoneInfo("Europe/Rome")
+_FIRMA = ("Buongiorno Lorenzo,\nvolentieri, ci sentiamo in call.\nCordiali saluti\nMario Rossi\nDirettore commerciale\n"
+          "Rossi Finta srl - P.IVA 01234567890\nTel. 0422 123456 - Cell. 333 1234567\nFax 0422 654321")
+
+
+class _PrenotazioniFinte:
+    """Calendario, posta e database finti per il giro delle prenotazioni. Ogni giro ha il suo orologio."""
+
+    def __init__(self, abbinata=True):
+        self.cal, self.posta, self.righe, self.mail, self.ai, self.avvisi = {}, {}, [], [], [], []
+        self.cal_rotto, self.abbinata = False, abbinata
+        self.scheda = {"id": "p1", "company": "Rossi Finta", "name": "Mario", "email": "mario@rossi.invalid", "role": None,
+                       "phone": "0422 999888", "website": "https://rossi.invalid", "descrizione": "Fa porte blindate a Treviso.",
+                       "analysis_sent": True, "analysis_sent_at": "2026-10-13T09:00:00+00:00",
+                       "analysis_pdf": "https://finto.local/analisi.pdf",
+                       "enriched": {"analisi": {"frase_forte": "Le ricerche di chi deve cambiare la porta valgono piu' di tutto."},
+                                    "google_fit": {"cosa_fa": "Porte blindate per privati", "tipo": "B2C",
+                                                   "sito_testo": "Contatti: centralino 0422 777666, oppure 0422 123456"}}}
+        self.storia = [{"at": "2026-10-12T09:00:00+00:00", "kind": "email_out", "body": "Lorenzo, t. +39 371 000 0000"},
+                       {"at": "2026-10-13T09:00:00+00:00", "kind": "email_in", "body": _FIRMA},
+                       {"at": "2026-10-13T10:00:00+00:00", "kind": "email_in", "body": "Accettato: StudioGalilei - Chiamata conoscitiva"}]
+
+    def evento(self, eid, giorno, ora_, chi="mario@rossi.invalid", stato="confirmed", dove="cal", rifiutato=False):
+        inizio = datetime.datetime.fromisoformat(f"{giorno}T{ora_}").replace(tzinfo=_ROMA).astimezone(datetime.timezone.utc)
+        e = {"evento": eid, "inizio": inizio, "titolo": "StudioGalilei - Chiamata conoscitiva  (Mario Rossi)",
+             "descrizione": f"<b>Prenotato da</b>\nMario Rossi\n{chi}", "invitati": ["dramane@studiogalilei.com", chi],
+             "rifiutati": [chi] if rifiutato else [], "stato": stato, "meet": f"https://meet.google.com/{eid}", "link": "",
+             "fonte": "calendario" if dove == "cal" else "mail"}
+        (self.cal if dove == "cal" else self.posta)[eid] = e
+        return e
+
+    def sb(self, m, path, corpo=None, *a, **k):
+        import urllib.parse as up
+        if path.startswith("/rest/v1/prenotazioni_segnalate"):
+            if m == "GET":
+                return [dict(r) for r in self.righe if "come=eq.incerto" not in path or r.get("come") == "incerto"]
+            if m == "POST":
+                fatte = []
+                for r in corpo:
+                    if not any(x["chiave"] == r["chiave"] for x in self.righe):
+                        x = {**r, "quando": self.ora.strftime("%Y-%m-%dT%H:%M:%S+00:00")}
+                        self.righe.append(x)
+                        fatte.append(dict(x))
+                return fatte
+            chiavi = [c.strip('"') for c in up.unquote(path.split("chiave=in.(")[1].rsplit(")", 1)[0]).split('","')]
+            if m == "DELETE":
+                self.righe[:] = [x for x in self.righe if x["chiave"] not in chiavi]
+            if m == "PATCH":
+                for x in self.righe:
+                    if x["chiave"] in chiavi:
+                        x.update(corpo)
+            return None
+        if path.startswith("/rest/v1/prospects"):
+            return [dict(self.scheda)] if self.abbinata and "id=eq.p1" in path else []
+        if path.startswith("/rest/v1/interactions"):
+            return [dict(r) for r in self.storia] if "prospect_id=eq.p1" in path else []
+        if path.startswith("/rest/v1/memoria_letture") or path.startswith("/rest/v1/uso_modelli"):
+            return [] if m == "GET" else None
+        return None
+
+    def chiedi(self, prompt, formato=None):
+        self.ai.append(prompt)
+        return json.dumps({"nome": "Mario Rossi", "ruolo": "Direttore commerciale", "attivita": "Fa porte blindate a Treviso.",
+                           "ultima_frase": "volentieri, ci sentiamo in call."})
+
+    def manda(self, grezzo):
+        import base64
+        import email
+        from email.header import decode_header, make_header
+        m = email.message_from_bytes(base64.urlsafe_b64decode(grezzo))
+        corpo = "".join(p.get_payload(decode=True).decode() for p in m.walk() if p.get_content_type() == "text/html")
+        self.mail.append({"a": m["To"], "cc": m["Cc"], "bcc": m["Bcc"], "oggetto": str(make_header(decode_header(m["Subject"]))),
+                          "html": corpo})
+        return {"id": "x"}
+
+    def giro(self, giorno, ora_):
+        import segnale_provvisorio as S
+        import stanza as St
+        self.ora = datetime.datetime.fromisoformat(f"{giorno}T{ora_}").replace(tzinfo=_ROMA).astimezone(datetime.timezone.utc)
+        prima = len(self.mail)
+
+        def cal(ora):
+            if self.cal_rotto:
+                raise RuntimeError("Google 500 su calendar")
+            return [dict(e) for e in self.cal.values()]
+        vero = (S.sb, St.sb, S._eventi_calendario, S._prenotazioni_mail, S._riconosci, S._chiedi_ai, S._gmail_send,
+                S._gmail_inviata, S._avvisa, S.adesso)
+        S.sb = St.sb = self.sb
+        S._eventi_calendario, S._prenotazioni_mail = cal, lambda ora: [dict(e) for e in self.posta.values()]
+        S._riconosci = lambda ev: "p1" if self.abbinata else None
+        S._chiedi_ai, S._gmail_send, S._gmail_inviata, S._avvisa = self.chiedi, self.manda, lambda o, d: False, self.avvisi.append
+        S.adesso = lambda: self.ora
+        S.GIRO.update(pagate=0, memoria_rotta=False, sonda=False, giorno_restano=None, tetto_giorno=False)
+        try:
+            S.giro_prenotazioni(prova=False, ora=self.ora)
+        finally:
+            (S.sb, St.sb, S._eventi_calendario, S._prenotazioni_mail, S._riconosci, S._chiedi_ai, S._gmail_send,
+             S._gmail_inviata, S._avvisa, S.adesso) = vero
+        return [x["oggetto"] for x in self.mail[prima:]]
+
+
+@prova("prenotazioni: la mail va solo a Dre, e dal calendario e da Smartlead non si scrive niente")
+def _():
+    import re as _re
+    f = _PrenotazioniFinte()
+    f.evento("ev1", "2026-10-23", "11:00")
+    f.giro("2026-10-14", "15:00")
+    f.cal["ev1"]["stato"] = "cancelled"
+    f.giro("2026-10-15", "10:00")
+    assert len(f.mail) == 2 and all(x["a"] == "dramane@studiogalilei.com" and not x["cc"] and not x["bcc"] for x in f.mail), f.mail
+    t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "segnale_provvisorio.py"), encoding="utf-8").read()
+    metodi = _re.findall(r'\bg\("(\w+)"', t)
+    assert metodi.count("POST") == 1 and set(metodi) == {"GET", "POST"}, f"verso Google solo letture, e la mail: {metodi}"
+    assert "smartlead.ai/api" not in t and "calendars/primary/events/" not in t, "il segnale non tocca Smartlead ne' gli eventi"
+
+
+@prova("prenotazioni: una prenotazione da' un segnale solo, anche vista dal calendario e dalla mail")
+def _():
+    f = _PrenotazioniFinte()
+    f.evento("ev1", "2026-10-23", "11:00")
+    f.evento("ev1", "2026-10-23", "11:00", dove="posta")
+    assert f.giro("2026-10-14", "15:00") == ["Prenotato: Rossi Finta, venerdì 23 ottobre alle 11:00"], f.mail
+    assert f.giro("2026-10-14", "15:05") == [], "la stessa prenotazione ha suonato due volte"
+    f.cal_rotto = True                                    # il calendario si ferma: resta la mail, ma e' gia' nota
+    assert f.giro("2026-10-14", "15:10") == [] and f.avvisi, "con il calendario fermo: doppione, o nessun avviso"
+    # solo dalla mail (il calendario fermo dall'inizio): parte, e quando il calendario torna non si ripete
+    g = _PrenotazioniFinte()
+    g.cal_rotto = True
+    g.evento("ev2", "2026-10-23", "11:00", dove="posta")
+    assert len(g.giro("2026-10-14", "15:00")) == 1
+    g.cal_rotto = False
+    g.evento("ev2", "2026-10-23", "11:00")
+    assert g.giro("2026-10-14", "15:05") == []
+    assert len(g.ai) == 1, f"la scheda si e' letta {len(g.ai)} volte"
+
+
+@prova("prenotazioni: la mattina della call alle 8:30 la scheda torna, una volta (e non se e' arrivata stamattina)")
+def _():
+    f = _PrenotazioniFinte()
+    f.evento("ev1", "2026-10-23", "11:00")
+    f.giro("2026-10-14", "15:00")
+    assert f.giro("2026-10-23", "08:25") == [], "la scheda della mattina e' partita prima delle 8:30"
+    assert f.giro("2026-10-23", "08:31") == ["Oggi alle 11:00: Rossi Finta"], f.mail[-1]["oggetto"]
+    h = f.mail[-1]["html"]
+    assert "Appunti:" in h and "tel:+393331234567" in h and "Direttore commerciale" in h and "apri l'analisi" in h, h[:400]
+    assert f.giro("2026-10-23", "08:40") == [] and f.giro("2026-10-23", "10:00") == [], "la scheda della mattina e' tornata due volte"
+    assert f.giro("2026-10-23", "11:30") == []
+    # prenotata stamattina alle 9 per le 15: la scheda e' appena arrivata, la mattina non la rimanda
+    g = _PrenotazioniFinte()
+    g.evento("ev2", "2026-10-23", "15:00")
+    assert g.giro("2026-10-23", "09:00") == ["Prenotato: Rossi Finta, venerdì 23 ottobre alle 15:00"]
+    assert g.giro("2026-10-23", "09:05") == []
+    # una prenotazione gia' nota prima dell'accensione (semina): la mattina la scheda arriva
+    s = _PrenotazioniFinte()
+    s.evento("ev3", "2026-10-23", "15:00")
+    s.righe.append({"chiave": "prenotato:ev3", "tipo": "prenotato", "evento": "ev3", "inizio": "2026-10-23T13:00:00+00:00",
+                    "invitato": "mario@rossi.invalid", "azienda": "", "prospect_id": None, "come": "semina",
+                    "quando": "2026-10-23T07:00:00+00:00"})
+    assert s.giro("2026-10-23", "09:00") == ["Oggi alle 15:00: Rossi Finta"]
+
+
+@prova("prenotazioni: se non si abbina a nessun lead la mail parte lo stesso, con quello che c'e'")
+def _():
+    f = _PrenotazioniFinte(abbinata=False)
+    f.evento("ev1", "2026-10-23", "11:00", chi="anna@altra.invalid")
+    assert f.giro("2026-10-14", "15:00") == ["Prenotato: Mario Rossi, venerdì 23 ottobre alle 11:00"], [x["oggetto"] for x in f.mail]
+    h = f.mail[0]["html"]
+    assert "trovato fra i lead" in h and "anna@altra.invalid" in h and "Appunti:" in h, h[:400]
+    # anche se il riconoscimento si rompe
+    import segnale_provvisorio as S
+    g = _PrenotazioniFinte()
+    g.evento("ev2", "2026-10-23", "11:00")
+    vero = g.sb
+    g.sb = lambda m, path, *a, **k: (_ for _ in ()).throw(RuntimeError("500")) if path.startswith("/rest/v1/prospects") else vero(m, path, *a, **k)
+    assert len(g.giro("2026-10-14", "15:00")) == 1, "con la scheda rotta la prenotazione e' rimasta muta"
+    assert S.componi_prenotazione  # noqa: B018
+
+
+@prova("prenotazioni: i numeri in gerarchia (cellulare della firma, fisso, scheda, centralino), senza fax ne' partita IVA")
+def _():
+    f = _PrenotazioniFinte()
+    f.evento("ev1", "2026-10-23", "11:00")
+    f.giro("2026-10-14", "15:00")
+    h = f.mail[0]["html"]
+    ordine = [h.find(f"tel:{n}") for n in ("+393331234567", "+390422123456", "+390422999888", "+390422777666")]
+    assert all(i > 0 for i in ordine) and ordine == sorted(ordine), ordine
+    assert "cellulare, dalla firma" in h and "fisso, dalla firma" in h and "dalla scheda del Workspace" in h and "centralino, dal sito" in h
+    assert "654321" not in h and "01234567890" not in h and "3710000000" not in h, "un fax, una partita IVA o un numero nostro tra i telefoni"
+    assert h.count("tel:+390422123456") == 1, "lo stesso numero due volte"
+    assert "1." not in h.split("Telefoni")[1].split("</p>")[0], "i numeri non si numerano"
+
+
+@prova("prenotazioni: spostata e cancellata, una riga sola (anche quando dalla pagina si prende un altro orario)")
+def _():
+    f = _PrenotazioniFinte()
+    f.evento("ev1", "2026-10-23", "11:00")
+    f.giro("2026-10-14", "15:00")
+    f.evento("ev1", "2026-10-23", "15:00")
+    assert f.giro("2026-10-14", "16:00") == ["Spostata: Rossi Finta, ora venerdì 23 ottobre alle 15:00"]
+    assert f.giro("2026-10-14", "16:05") == []
+    f.cal["ev1"]["stato"] = "cancelled"
+    assert f.giro("2026-10-14", "17:00") == ["Cancellata: Rossi Finta, venerdì 23 ottobre alle 15:00"]
+    assert f.giro("2026-10-14", "17:05") == []
+    # dalla pagina: nuova prenotazione e la vecchia annullata -> una «spostata», niente «cancellata»
+    g = _PrenotazioniFinte()
+    g.evento("ev1", "2026-10-23", "11:00")
+    g.giro("2026-10-14", "15:00")
+    g.evento("ev2", "2026-10-26", "10:00")
+    g.cal["ev1"]["stato"] = "cancelled"
+    assert g.giro("2026-10-14", "16:00") == ["Spostata: Rossi Finta, ora lunedì 26 ottobre alle 10:00"], [x["oggetto"] for x in g.mail]
+    assert g.giro("2026-10-14", "16:05") == []
+    assert g.giro("2026-10-26", "08:31") == ["Oggi alle 10:00: Rossi Finta"]
+    # l'invito rifiutato e' una cancellazione
+    r = _PrenotazioniFinte()
+    r.evento("ev1", "2026-10-23", "11:00")
+    r.giro("2026-10-14", "15:00")
+    r.evento("ev1", "2026-10-23", "11:00", rifiutato=True)
+    assert r.giro("2026-10-14", "16:00") == ["Cancellata: Rossi Finta, venerdì 23 ottobre alle 11:00"]
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
