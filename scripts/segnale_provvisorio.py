@@ -10,27 +10,39 @@ sistema nuovo non c'e', questo guarda le risposte e gli scrive. E' PROVVISORIO:
 piccolo, separato, si butta (file, riga in `operazioni`, tabella segnali_provvisori)
 quando arriva il nuovo. Non tocca niente del sistema vecchio: legge e basta.
 
-COSA FA, a ogni giro (il direttore, ordine 4: dopo sync, prima risposta, bozze e manda)
-1. Le risposte dei lead delle ultime 24 ore (interactions email_in) non ancora segnalate.
+COSA FA, a ogni giro (il direttore, ordine 4: dopo sync, prima risposta, bozze e manda;
+il direttore lo fa partire il database ogni 5 minuti, il sync passa ogni 5-10: «subito»
+vuol dire 5-10 minuti dalla risposta)
+1. Le risposte dei lead delle ultime 24 ore (interactions email_in) non ancora segnalate:
+   TUTTE, non solo l'ultima (due risposte tra un giro e l'altro: si leggono tutte e due).
 2. Salta: clienti, pipeline, persi, soppressi, nervosi (stanza.contattabile, la regola
    unica), e le autorisposte ovvie (la regex collaudata di lettura.py, piu' rimbalzi e
    accettazioni del calendario) quando non c'e' un numero di telefono nel testo.
 3. Una lettura AI breve per risposta (cervello: la porta OpenAI, gpt-5, sforzo basso;
    la memoria delle letture nel database: la stessa risposta non si ripaga mai).
    Dice: e' CALDO? e' un SI'? la frase chiave, il telefono, un consiglio se serve.
+   Al massimo 10 letture pagate per giro (le altre al giro dopo) e 150 al giorno (oltre:
+   «da guardare» senza pagare). Prima di pagare si prova a scrivere la memoria: se non si
+   scrive non si paga (si ripagherebbe a ogni giro), la risposta arriva «da guardare» e avvisa.
+   Di piu' risposte nuove della stessa azienda vince la piu' forte: caldo, da guardare, si'.
 4. Una MAIL A DRE, solo a lui (il controllo e' in manda_mail: qualunque altro
    destinatario fa un'eccezione prima di toccare Gmail):
      CALDO       subito                      «Vuole sentirti: <azienda>»
      SI'         dopo 10 minuti, se non c'e' una nostra risposta ne' una bozza approvata
                                              «Sì da servire: <azienda>»
      DA GUARDARE l'AI non ha risposto: si segnala lo stesso, mai silenzio
-   Una volta sola per lead (segnali_provvisori, unica per risposta e per azienda).
+   Una volta sola per lead e per tipo (segnali_provvisori: unica per risposta, e per
+   azienda e tipo): un lead gia' segnalato come si' che poi chiede di essere chiamato
+   arriva di nuovo come caldo; due caldi dello stesso lead fanno una mail sola.
    Piu' di 3 nello stesso giro: una mail sola con l'elenco.
 
 COSA NON FA
-Mai una mail ai lead. Mai un riprovo pagato: una lettura fallita diventa «da guardare»
-e si segna, non si rilegge al giro dopo. Se Gmail non manda, il segnale non si segna
-(riparte al giro dopo, gratis: la lettura e' in memoria) e il giro esce in errore.
+Mai una mail ai lead. Mai un riprovo pagato: una lettura fallita si scrive in memoria
+come fallita e diventa «da guardare», non si rilegge al giro dopo. Se Google dice di no
+(un errore col codice), il segnale non si segna e riparte al giro dopo, gratis. Se invece
+la risposta di Gmail si perde (rete, timeout) la mail potrebbe essere partita: il segnale
+resta «incerto» e al giro dopo si cerca nella posta inviata di Dre prima di rimandarlo.
+Se Gmail resta ferma, la notifica sul telefono arriva al massimo ogni 2 ore.
 
 USO
   python3 scripts/segnale_provvisorio.py                  il giro vero
@@ -41,7 +53,8 @@ USO
                                    + il giro del direttore) conta come segnalato
   python3 scripts/segnale_provvisorio.py --prova-mail --ore 48
                                    UNA mail a Dre con l'elenco, oggetto «Prova del segnale
-                                   provvisorio», e i segnalati si segnano (non tornano doppi)
+                                   provvisorio», e i segnalati si segnano (non tornano doppi).
+                                   Manda davvero: insieme a --prova (o PROVA=1) si rifiuta.
 """
 
 import base64
@@ -52,6 +65,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import zoneinfo
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -67,7 +81,10 @@ MODELLO = "gpt-5"
 SFORZO = "low"
 TETTO = 2500                                # token d'uscita (ragionamento compreso) per lettura
 ATTESA_SI = datetime.timedelta(minutes=10)
-OROLOGIO = datetime.timedelta(minutes=20)   # il direttore passa ogni 20 minuti (direttore.yml)
+OROLOGIO = datetime.timedelta(minutes=10)   # il direttore parte ogni 5 minuti (cron del database), il sync ogni 5-10
+PAGATE_PER_GIRO = 10                        # letture pagate al massimo in un giro: le altre al giro dopo
+PAGATE_AL_GIORNO = 150                      # e in 24 ore (uso_modelli): oltre, «da guardare» senza pagare
+AVVISO_OGNI = datetime.timedelta(hours=2)   # la stessa notifica di guasto non piu' spesso di cosi'
 FINESTRA_ORE = 24
 TANTI = 3                                   # oltre questo, una mail sola con l'elenco
 PREZZO = {"gpt-5": (1.25, 10.0)}            # dollari per milione di token (dentro, fuori): banco_modelli.py
@@ -83,6 +100,9 @@ AUTOMATICHE = re.compile(r"^\s*(accettato|accepted|rifiutato|declined)\s*:|recap
                          r"delivery status notification|mail delivery (failed|subsystem)|mancata consegna|"
                          r"indirizzo[^.\n]{0,60}(dismess|disattivat)|verr[àa] (dismess|disattivat)", re.I | re.M)
 TELEFONO = re.compile(r"(?<![\w\d])(?:\+|00)?(?:39[\s.\-]?)?(?:3\d{2}|0\d{1,3})(?:[\s.\-/]?\d){6,8}(?![\d])")
+# un numero dopo queste parole non e' un telefono: partita IVA, codice fiscale, IBAN, REA
+NON_TELEFONO = re.compile(r"(p\.?\s*i\.?\s*v\.?\s*a\.?|partita\s+iva|\bc\.?\s*f\.?|codice\s+fiscale|cod\.?\s*fisc\w*\.?|"
+                          r"\bvat\b|\biban\b|\brea\b)[\s.:#°/-]*(?:n[°r.]?\s*)?(?:it\s*)?$", re.I)
 
 DOMANDA = """Sei l'occhio di Dre, il titolare di Studio Galilei (agenzia di Treviso: marketing e Google Ads).
 Lorenzo ha scritto a freddo a questa azienda offrendo un'analisi gratuita del loro marketing online e
@@ -117,6 +137,13 @@ SCHEMA = {"type": "json_schema", "json_schema": {"name": "segnale", "strict": Tr
                    "frase": {"type": "string"}, "telefono": {"type": "string"}, "consiglio": {"type": "string"}}}}}
 
 SPESA = {"in": 0, "out": 0, "chiamate": 0, "dalla_memoria": 0}
+# lo stato del giro: quante letture pagate, la memoria rotta, il tetto del giorno (None = da leggere)
+GIRO = {"pagate": 0, "memoria_rotta": False, "sonda": False, "giorno_restano": None, "tetto_giorno": False}
+RIMANDATA = "rimandata"                     # leggi(): non letta in questo giro (il tetto del giro)
+
+
+class NonPartita(ValueError):
+    """La mail non e' uscita di qui: destinatario sbagliato o mail che non si compone."""
 
 
 def adesso():
@@ -133,20 +160,73 @@ def manda_mail(a, oggetto, testo, html_corpo):
     """L'UNICA strada verso Gmail. Il destinatario puo' essere solo Dre: qualunque altro
     indirizzo (un lead, un collega, una lista) si ferma qui, prima di chiamare Google."""
     if (a or "").strip().lower() != DRE:
-        raise ValueError(f"il segnale provvisorio scrive solo a Dre, non a {a!r}")
-    m = MIMEMultipart("alternative")
-    m["To"] = DRE
-    m["From"] = DRE
-    m["Subject"] = str(Header(oggetto, "utf-8"))
-    m.attach(MIMEText(testo, "plain", "utf-8"))
-    m.attach(MIMEText(html_corpo, "html", "utf-8"))
-    grezzo = base64.urlsafe_b64encode(m.as_bytes()).decode()
+        raise NonPartita(f"il segnale provvisorio scrive solo a Dre, non a {a!r}")
+    try:
+        m = MIMEMultipart("alternative")
+        m["To"] = DRE
+        m["From"] = DRE
+        m["Subject"] = str(Header(" ".join((oggetto or "").split()), "utf-8"))
+        m.attach(MIMEText(testo, "plain", "utf-8"))
+        m.attach(MIMEText(html_corpo, "html", "utf-8"))
+        grezzo = base64.urlsafe_b64encode(m.as_bytes()).decode()
+    except Exception as e:                                       # noqa: BLE001
+        raise NonPartita(f"la mail non si compone: {str(e)[:120]}") from e
     return _gmail_send(grezzo)
 
 
 def _gmail_send(grezzo):
     from google_api import g
     return g("POST", "https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {"raw": grezzo}, email=DRE)
+
+
+def non_partita(e):
+    """Siamo SICURI che la mail non e' partita? Si' se non e' uscita di qui, o se Google ha
+    risposto con un codice (o non ha dato il token). Un errore di rete o un timeout no:
+    Gmail puo' averla consegnata e perso la risposta."""
+    if isinstance(e, NonPartita):
+        return True
+    s = str(e)
+    return isinstance(e, RuntimeError) and (s.startswith("Google ") or "google_token" in s or "GOOGLE_OAUTH" in s)
+
+
+def _gmail_inviata(oggetto, dal):
+    """C'e' nella posta inviata di Dre una mail con questo oggetto, partita dopo `dal`?
+    (Solo lettura: gmail.readonly.) Un errore sale: chi chiama decide."""
+    from google_api import g
+    pulito = " ".join((oggetto or "").replace('"', " ").split())
+    q = f'in:sent subject:"{pulito}" after:{int(dal.timestamp()) - 120}'
+    base = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+    for m in (g("GET", f"{base}?q={urllib.parse.quote(q)}&maxResults=5", email=DRE) or {}).get("messages") or []:
+        d = g("GET", f"{base}/{m['id']}?format=metadata&metadataHeaders=Subject", email=DRE) or {}
+        for h in (d.get("payload") or {}).get("headers") or []:
+            if h.get("name", "").lower() == "subject" and " ".join(h.get("value", "").split()) == pulito:
+                return True
+    return False
+
+
+def _avvisa(testo):
+    from avvisa import avvisa
+    return avvisa(testo, titolo="Segnale provvisorio")
+
+
+def avvisa_ogni(motivo, testo):
+    """La notifica di un guasto, non piu' di una ogni 2 ore per lo stesso motivo (Gmail ferma
+    non deve suonare a ogni giro). Se la memoria non risponde si avvisa lo stesso."""
+    chiave = "segnale:avviso:" + motivo
+    try:
+        r = sb("GET", f"/rest/v1/memoria_letture?select=valore&chiave=eq.{chiave}") or []
+        il = (r[0].get("valore") or {}).get("il") if r and isinstance(r[0].get("valore"), dict) else None
+        if il and adesso() - quando(il) < AVVISO_OGNI:
+            return False
+        sb("POST", "/rest/v1/memoria_letture?on_conflict=chiave", [{"chiave": chiave, "valore": {"il": _z(adesso())}}],
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    except Exception:                                            # noqa: BLE001
+        pass
+    try:
+        _avvisa(testo)
+    except Exception:                                            # noqa: BLE001
+        pass
+    return True
 
 
 # ── la lettura AI, con memoria e contatore ─────────────────────────
@@ -184,46 +264,104 @@ def _cifre(t):
     return re.sub(r"\D", "", t or "")
 
 
+def _non_telefono(testo, m):
+    """Un numero che sembra un telefono ma non lo e': dopo «P.IVA», «C.F.», «IBAN»..., oppure
+    11 cifre attaccate che iniziano con 0 (la forma della partita IVA)."""
+    if NON_TELEFONO.search((testo or "")[max(0, m.start() - 30):m.start()]):
+        return True
+    grezzo = m.group(0).strip()
+    return grezzo.isdigit() and len(grezzo) == 11 and grezzo.startswith("0")
+
+
 def telefono_nel_testo(testo):
     """Il primo numero di telefono plausibile nel testo (rete per quando l'AI non c'e')."""
     for m in TELEFONO.finditer(testo or ""):
         c = _cifre(m.group(0))
-        if 9 <= len(c) <= 13:
+        if 9 <= len(c) <= 13 and not _non_telefono(testo, m):
             return m.group(0).strip()
     return ""
 
 
+def _numeri_esclusi(testo):
+    return {_cifre(m.group(0)) for m in TELEFONO.finditer(testo or "") if _non_telefono(testo, m)}
+
+
+def _restano_oggi():
+    """Quante letture si possono ancora pagare nelle ultime 24 ore (uso_modelli). Se il
+    contatore non si legge, zero: senza sapere quanto si e' speso non si spende."""
+    if GIRO["giorno_restano"] is None:
+        try:
+            da = _z(adesso() - datetime.timedelta(hours=24))
+            fatte = sb("GET", f"/rest/v1/uso_modelli?select=id&script=eq.segnale_provvisorio.py&il=gte.{da}"
+                              f"&limit={PAGATE_AL_GIORNO + 1}") or []
+            GIRO["giorno_restano"] = max(0, PAGATE_AL_GIORNO - len(fatte))
+        except Exception:                                        # noqa: BLE001
+            GIRO["giorno_restano"] = 0
+    return GIRO["giorno_restano"]
+
+
+def _ricorda(chiave, v):
+    """La memoria si scrive anche in prova: e' una lettura gia' pagata, non un gesto.
+    Se non si scrive, il giro smette di pagare: la prossima volta la si ripagherebbe."""
+    try:
+        sb("POST", "/rest/v1/memoria_letture?on_conflict=chiave", [{"chiave": chiave, "valore": v}],
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+        return True
+    except Exception as e:                                       # noqa: BLE001
+        GIRO["memoria_rotta"] = True
+        print(f"  (la memoria delle letture non si scrive: smetto di pagare in questo giro. {str(e)[:100]})")
+        return False
+
+
 def leggi(azienda, testo):
-    """Una lettura per risposta, una volta sola nella vita. None = l'AI non ha risposto."""
+    """Una lettura per risposta, una volta sola nella vita. Torna la lettura, oppure
+    {"fallita": True} («da guardare»: l'AI non ha risposto, il tetto del giorno, o la memoria
+    che non funziona: senza memoria non si paga, la si ripagherebbe a ogni giro), oppure
+    RIMANDATA (il tetto del giro: al giro dopo)."""
     chiave = _chiave(azienda, testo)
+    senza_memoria = {"fallita": True, "senza_memoria": True}
+    if GIRO["memoria_rotta"]:
+        return senza_memoria
     try:
         r = sb("GET", f"/rest/v1/memoria_letture?select=valore&chiave=eq.{chiave}") or []
-        if r and isinstance(r[0].get("valore"), dict):
-            SPESA["dalla_memoria"] += 1
-            return r[0]["valore"]
     except Exception:                                            # noqa: BLE001
-        pass
+        GIRO["memoria_rotta"] = True
+        return senza_memoria
+    if r and isinstance(r[0].get("valore"), dict):
+        SPESA["dalla_memoria"] += 1
+        return r[0]["valore"]
+    if GIRO["pagate"] >= PAGATE_PER_GIRO:
+        return RIMANDATA
+    if not GIRO["sonda"]:                    # prima di pagare: la memoria si scrive? se no, non si paga
+        if not _ricorda("segnale:sonda", {"il": _z(adesso())}):
+            return senza_memoria
+        GIRO["sonda"] = True
+    if _restano_oggi() <= 0:
+        GIRO["tetto_giorno"] = True
+        return {"fallita": True, "tetto": True}                 # non si memorizza: domani si potra' leggere
+    GIRO["pagate"] += 1
+    GIRO["giorno_restano"] -= 1
+    v = None
     try:
         grezzo = _chiedi_ai(DOMANDA.format(azienda=azienda or "?", testo=(testo or "")[:3000]))
         m = re.search(r"\{.*\}", grezzo or "", re.S)
         v = json.loads(m.group(0)) if m else None
     except Exception as e:                                       # noqa: BLE001
         print(f"  (l'AI non ha risposto: {str(e)[:100]})")
-        return None
     if not isinstance(v, dict) or not all(isinstance(v.get(k), bool) for k in ("autorisposta", "caldo", "si")):
-        return None
+        v = {"fallita": True}                # si ricorda anche questa: una lettura fallita non si ripaga
+        _ricorda(chiave, v)
+        return v
     # il telefono deve stare davvero nel testo: un numero inventato e' peggio di nessun numero
     tel = (v.get("telefono") or "").strip()
     primo = TELEFONO.search(tel)              # «Tel. 0422 918652 - Tel. 0422 1847161»: il primo e basta
     tel = primo.group(0).strip() if primo else tel
-    if tel and (len(_cifre(tel)) < 8 or _cifre(tel)[-8:] not in _cifre(testo)):
+    c = _cifre(tel)
+    if tel and (len(c) < 8 or c[-8:] not in _cifre(testo) or c in _numeri_esclusi(testo)
+                or (tel.isdigit() and len(tel) == 11 and tel.startswith("0"))):
         tel = ""
     v["telefono"] = tel
-    try:                     # la memoria si scrive anche in prova: e' una lettura gia' pagata, non un gesto
-        sb("POST", "/rest/v1/memoria_letture?on_conflict=chiave", [{"chiave": chiave, "valore": v}],
-           {"Prefer": "resolution=merge-duplicates,return=minimal"})
-    except Exception:                                            # noqa: BLE001
-        pass
+    _ricorda(chiave, v)
     return v
 
 
@@ -251,65 +389,94 @@ def automatica(testo):
 # ── il giro ────────────────────────────────────────────────────────
 
 def candidati(ore):
-    """Le risposte della finestra, una per azienda (l'ultima), con la scheda e i gia' segnalati tolti."""
+    """Le risposte della finestra non ancora segnalate, raggruppate per azienda, con la scheda
+    e i tipi gia' segnalati a quell'azienda. Prima le aziende con la risposta piu' recente."""
     da = _z(adesso() - datetime.timedelta(hours=ore))
     righe = sb("GET", f"/rest/v1/interactions?select=id,prospect_id,at,created_at,body&kind=eq.email_in"
                       f"&at=gte.{da}&prospect_id=not.is.null&order=at.asc&limit=1000") or []
     if not righe:
         return []
     pids = sorted({r["prospect_id"] for r in righe})
-    gia = set()
+    gia_risposte, tipi = set(), {}
     schede = {}
     for i in range(0, len(pids), 80):
         pezzo = ",".join(pids[i:i + 80])
-        for s in sb("GET", f"/rest/v1/segnali_provvisori?select=prospect_id&prospect_id=in.({pezzo})") or []:
-            gia.add(s["prospect_id"])
+        for s in sb("GET", f"/rest/v1/segnali_provvisori?select=prospect_id,interaction_id,tipo&prospect_id=in.({pezzo})") or []:
+            gia_risposte.add(s.get("interaction_id"))
+            tipi.setdefault(s["prospect_id"], set()).add(s.get("tipo"))
         for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,email,phone,fuori,stage,pipeline_stage,"
                            f"no_followup,classificazione&id=in.({pezzo})") or []:
             schede[p["id"]] = p
     per_azienda = {}
     for r in righe:
-        if r["prospect_id"] in gia or r["prospect_id"] not in schede:
+        if r["id"] in gia_risposte or r["prospect_id"] not in schede:
             continue
         per_azienda.setdefault(r["prospect_id"], []).append(r)
-    return [(schede[pid], rr) for pid, rr in per_azienda.items()]
+    ultima = lambda pid: max(x.get("at") or "" for x in per_azienda[pid])  # noqa: E731
+    return [(schede[pid], rr, tipi.get(pid, set())) for pid, rr in sorted(per_azienda.items(), key=lambda kv: ultima(kv[0]), reverse=True)]
 
 
-def valuta(p, risposte, ora, storico=False):
-    """Il segnale per un'azienda, o None. Legge dalla piu' recente: la prima che dice qualcosa vince.
+def permesso(tipo, gia):
+    """Un tipo si segnala una volta sola per azienda; un si' non serve piu' se c'e' gia' stato il caldo."""
+    return tipo not in gia and not (tipo == "si" and "caldo" in gia)
+
+
+def valuta(p, risposte, ora, gia=frozenset(), storico=False):
+    """Il segnale per un'azienda, o None. Legge TUTTE le risposte nuove (dalla memoria, una volta
+    sola) e tiene la piu' forte: caldo, poi da guardare, poi si'. Il si' decide per ultimo.
+    `gia`: i tipi gia' segnalati a quest'azienda.
     `storico`: la prova sul passato. Un si' conta come servito solo se lo e' stato entro il giro
-    che l'avrebbe segnalato (10 minuti di attesa + 20 di orologio del direttore), non dopo."""
+    che l'avrebbe segnalato (10 minuti di attesa + l'orologio del direttore), non dopo."""
     if not contattabile(p):
         return None
+    azienda = " ".join((p.get("company") or p.get("name") or "?").split())
+    trovati, rimandate = [], False
     for r in sorted(risposte, key=lambda x: x.get("at") or "", reverse=True):
         corpo = r.get("body") or ""
         if automatica(corpo):
             continue
         testo = solo_suo(corpo, con_firma=True) or corpo
-        letto = leggi(p.get("company") or p.get("name"), testo) if testo.strip() and not testo.lower().startswith("risposta ricevuta") else None
-        base = {"interaction_id": r["id"], "prospect_id": p["id"], "azienda": p.get("company") or p.get("name") or "?",
-                "persona": p.get("name") or "", "email": p.get("email") or "", "at": r.get("at")}
-        if letto is None:
-            return {**base, "tipo": "da_guardare", "frase": " ".join(solo_suo(corpo).split())[:160],
-                    "telefono": telefono_nel_testo(testo), "consiglio": "L'AI non ha letto questa risposta: aprila tu."}
+        if not testo.strip() or testo.lower().startswith("risposta ricevuta"):
+            letto = {"fallita": True, "vuota": True}
+        else:
+            letto = leggi(azienda, testo)
+        if letto == RIMANDATA:
+            rimandate = True
+            continue
+        base = {"interaction_id": r["id"], "prospect_id": p["id"], "azienda": azienda,
+                "persona": " ".join((p.get("name") or "").split()), "email": p.get("email") or "", "at": r.get("at"), "_r": r}
+        if letto.get("fallita"):
+            trovati.append({**base, "tipo": "da_guardare", "frase": " ".join(solo_suo(corpo).split())[:160],
+                            "telefono": telefono_nel_testo(testo),
+                            "consiglio": "L'AI non ha letto questa risposta: aprila tu."})
+            continue
         if letto.get("autorisposta"):
             continue
         dati = {**base, "frase": letto.get("frase") or "", "telefono": letto.get("telefono") or "",
                 "consiglio": letto.get("consiglio") or ""}
         if letto.get("caldo"):
-            return {**dati, "tipo": "caldo"}
-        if letto.get("si"):
-            visto = max(quando(r["at"]), quando(r.get("created_at") or r["at"]))
-            if ora - visto < ATTESA_SI:
-                return {**dati, "tipo": "attesa"}            # il sistema ha ancora qualche minuto
-            if p.get("stage") == "call_fissata":
-                return None                                  # la call c'e' gia': un si' qui non e' da servire (visto il 13/10)
-            servito = primo_servizio(p["id"], quando(r["at"]))
-            if servito and (not storico or servito <= visto + ATTESA_SI + OROLOGIO):
-                return None
-            return {**dati, "tipo": "si", "servito_il": servito}
-        return None                                          # un no, un rinvio, una domanda: il resto lo fa il sistema
-    return None
+            trovati.append({**dati, "tipo": "caldo"})
+        elif letto.get("si"):
+            trovati.append({**dati, "tipo": "si"})
+        # un no, un rinvio, una domanda: il resto lo fa il sistema (e si guarda la risposta prima)
+    buoni = sorted((s for s in trovati if permesso(s["tipo"], gia)), key=lambda s: ORDINE_TIPO[s["tipo"]])
+    if not buoni:
+        return None
+    s = buoni[0]                                         # a parita' di tipo, la piu' recente
+    r = s.pop("_r")
+    if rimandate and s["tipo"] != "caldo":
+        return None                                      # una risposta non ancora letta potrebbe essere un caldo
+    if s["tipo"] != "si":
+        return s
+    visto = max(quando(r["at"]), quando(r.get("created_at") or r["at"]))
+    if ora - visto < ATTESA_SI:
+        return {**s, "tipo": "attesa"}                   # il sistema ha ancora qualche minuto
+    if p.get("stage") == "call_fissata":
+        return None                                      # la call c'e' gia': un si' qui non e' da servire (visto il 13/10)
+    servito = primo_servizio(p["id"], quando(r["at"]))
+    if servito and (not storico or servito <= visto + ATTESA_SI + OROLOGIO):
+        return None
+    return {**s, "servito_il": servito}
 
 
 def _tel_link(tel):
@@ -387,10 +554,13 @@ def componi(segnali, oggetto=None, intro=""):
 
 
 def segna(segnali, come):
-    """Una volta sola per risposta e per azienda: il database lo garantisce (unique)."""
-    return sb("POST", "/rest/v1/segnali_provvisori?on_conflict=prospect_id",
-              [{"interaction_id": s["interaction_id"], "prospect_id": s["prospect_id"], "tipo": s["tipo"], "come": come}
-               for s in segnali], {"Prefer": "resolution=ignore-duplicates,return=minimal"})
+    """Una volta sola per risposta, e per azienda e tipo: il database lo garantisce (unique).
+    Torna i segnali segnati DA QUESTO giro: uno gia' segnato da un altro giro non si rimanda."""
+    fatti = sb("POST", "/rest/v1/segnali_provvisori?on_conflict=prospect_id,tipo",
+               [{"interaction_id": s["interaction_id"], "prospect_id": s["prospect_id"], "tipo": s["tipo"], "come": come}
+                for s in segnali], {"Prefer": "resolution=ignore-duplicates,return=representation"}) or []
+    nuovi = {x.get("interaction_id") for x in fatti}
+    return [s for s in segnali if s["interaction_id"] in nuovi]
 
 
 def togli(segnali):
@@ -401,60 +571,120 @@ def togli(segnali):
             pass
 
 
+def incerti(segnali, oggetto):
+    """Gmail non ha risposto: la mail forse e' partita. Il segnale resta segnato come «incerto»
+    con l'oggetto, e il giro dopo guarda nella posta inviata prima di rimandarlo."""
+    for s in segnali:
+        try:
+            sb("PATCH", f"/rest/v1/segnali_provvisori?interaction_id=eq.{s['interaction_id']}",
+               {"come": "incerto", "oggetto": oggetto}, {"Prefer": "return=minimal"})
+        except Exception:                                        # noqa: BLE001
+            pass
+
+
+def risolvi_incerti():
+    """A inizio giro: i segnali «incerti» del giro prima. Partiti (nella posta inviata di Dre)
+    -> segnati per davvero; non partiti -> tolti, e questo giro li rimanda. Se non si puo'
+    guardare restano segnati (mai un doppione) e Dre viene avvisato. Torna quanti restano in dubbio."""
+    righe = sb("GET", "/rest/v1/segnali_provvisori?select=interaction_id,oggetto,quando&come=eq.incerto") or []
+    gruppi = {}
+    for x in righe:
+        gruppi.setdefault((x.get("oggetto") or "", x.get("quando") or ""), []).append(x)
+    dubbi = 0
+    for (oggetto, il), xx in gruppi.items():
+        try:
+            partita = bool(oggetto) and _gmail_inviata(oggetto, quando(il))
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  (non riesco a guardare la posta inviata: {str(e)[:100]})")
+            dubbi += len(xx)
+            continue
+        for x in xx:
+            try:
+                if partita:
+                    sb("PATCH", f"/rest/v1/segnali_provvisori?interaction_id=eq.{x['interaction_id']}",
+                       {"come": "segnale"}, {"Prefer": "return=minimal"})
+                else:
+                    sb("DELETE", f"/rest/v1/segnali_provvisori?interaction_id=eq.{x['interaction_id']}")
+            except Exception:                                    # noqa: BLE001
+                dubbi += 1
+        print(f"  incerto «{oggetto}»: " + ("era partita, non la rimando" if partita else "non era partita, la rimando"))
+    if dubbi:
+        avvisa_ogni("incerti", f"Il segnale provvisorio non sa se {dubbi} segnali ti sono arrivati: guarda la Master Inbox")
+    return dubbi
+
+
 def giro(ore=FINESTRA_ORE, prova=None, prova_mail=False, storico=False):
     """Il giro intero. Torna i segnali (mandati, o che si manderebbero in prova)."""
     prova = _a_secco() if prova is None else prova
+    if prova and prova_mail:
+        raise SystemExit("--prova-mail manda davvero: non va insieme a --prova")
+    GIRO.update(pagate=0, memoria_rotta=False, sonda=False, giorno_restano=None, tetto_giorno=False)
+    if not prova:
+        risolvi_incerti()
     ora = adesso()
     segnali, attese = [], 0
-    for p, risposte in candidati(ore):
-        s = valuta(p, risposte, ora, storico=storico)
+    for p, risposte, gia in candidati(ore):
+        s = valuta(p, risposte, ora, gia=gia, storico=storico)
         if not s:
             continue
         if s["tipo"] == "attesa":
             attese += 1
             continue
         segnali.append(s)
+    if GIRO["memoria_rotta"]:
+        avvisa_ogni("memoria", "Il segnale provvisorio non riesce a usare la memoria delle letture: non paga "
+                               "letture e le risposte nuove ti arrivano come «da guardare»")
+    if GIRO["tetto_giorno"]:
+        avvisa_ogni("tetto", f"Il segnale provvisorio ha finito le {PAGATE_AL_GIORNO} letture del giorno: "
+                             "le risposte nuove ti arrivano come «da guardare»")
     segnali.sort(key=_ordine)
     if not segnali:
         print(f"niente da segnalare ({attese} si' ancora nei 10 minuti)" if attese else "niente da segnalare")
         return []
-    if prova_mail:
-        aperti = sum(1 for s in segnali if not s.get("servito_il"))
-        mail = [componi(segnali, oggetto="Prova del segnale provvisorio", intro=(
-            f"La prova: ecco cosa ti avrei segnalato nelle ultime {ore} ore. {aperti} sono ancora aperti, in cima; "
-            "quelli con «servito dopo» erano già sistemati e servono solo a vedere quando ti sarebbe arrivata la mail. "
-            "Da adesso arriva da sola: subito per chi vuole sentirti, dopo 10 minuti per un sì rimasto senza risposta. "
-            "Questi non te li rimando."))]
-    elif len(segnali) > TANTI:
-        mail = [componi(segnali)]
-    else:
-        mail = [componi([s]) for s in segnali]
     if prova:
-        for oggetto, testo, _ in mail:
+        mail = _mail(segnali, ore, prova_mail)
+        for oggetto, testo, _, _ in mail:
             print(f"\n(prova) A: {DRE}\n(prova) Oggetto: {oggetto}\n{testo}")
         print(f"\n(prova) {len(segnali)} segnali, {len(mail)} mail: niente mandato, niente segnato")
         return segnali
     # si segna PRIMA di mandare: se il giro muore a meta', al peggio un segnale manca, mai doppio
-    segna(segnali, "prova" if prova_mail else "segnale")
-    gruppi = [segnali] if (prova_mail or len(segnali) > TANTI) else [[s] for s in segnali]
-    falliti = []
-    for (oggetto, testo, corpo), gruppo in zip(mail, gruppi):
+    segnali = segna(segnali, "prova" if prova_mail else "segnale")
+    if not segnali:
+        print("niente da segnalare (gia' segnati da un altro giro)")
+        return []
+    falliti, dubbi = [], []
+    for oggetto, testo, corpo, gruppo in _mail(segnali, ore, prova_mail):
         try:
             manda_mail(DRE, oggetto, testo, corpo)
             print(f"mandata a Dre: {oggetto}")
         except Exception as e:                                   # noqa: BLE001
-            print(f"MAIL NON MANDATA ({oggetto}): {str(e)[:160]}")
-            togli(gruppo)                                        # al giro dopo riparte, la lettura e' in memoria
-            falliti += gruppo
+            if non_partita(e):
+                print(f"MAIL NON MANDATA ({oggetto}): {str(e)[:160]}")
+                togli(gruppo)                                    # al giro dopo riparte, la lettura e' in memoria
+                falliti += gruppo
+            else:
+                print(f"MAIL FORSE MANDATA ({oggetto}), Gmail non ha risposto: {str(e)[:160]}")
+                incerti(gruppo, oggetto)                         # il giro dopo guarda nella posta inviata
+                dubbi += gruppo
     if falliti:
-        try:
-            from avvisa import avvisa
-            avvisa(f"Il segnale provvisorio non riesce a mandarti la mail: {len(falliti)} lead da guardare in Master Inbox",
-                   titolo="Segnale provvisorio")
-        except Exception:                                        # noqa: BLE001
-            pass
+        avvisa_ogni("gmail", f"Il segnale provvisorio non riesce a mandarti la mail: {len(falliti)} lead da guardare in Master Inbox")
+    if falliti or dubbi:
         raise SystemExit(1)
     return segnali
+
+
+def _mail(segnali, ore, prova_mail):
+    """Le mail del giro, ognuna col suo gruppo di segnali: (oggetto, testo, html, gruppo)."""
+    if prova_mail:
+        aperti = sum(1 for s in segnali if not s.get("servito_il"))
+        return [(*componi(segnali, oggetto="Prova del segnale provvisorio", intro=(
+            f"La prova: ecco cosa ti avrei segnalato nelle ultime {ore} ore. {aperti} sono ancora aperti, in cima; "
+            "quelli con «servito dopo» erano già sistemati e servono solo a vedere quando ti sarebbe arrivata la mail. "
+            "Da adesso arriva da sola: subito per chi vuole sentirti, dopo 10 minuti per un sì rimasto senza risposta. "
+            "Questi non te li rimando.")), segnali)]
+    if len(segnali) > TANTI:
+        return [(*componi(segnali), segnali)]
+    return [(*componi([s]), [s]) for s in segnali]
 
 
 def costo():
@@ -468,8 +698,10 @@ def main():
     storico = prova_mail or "--storico" in sys.argv
     if storico and not prova_mail and not _a_secco():
         raise SystemExit("--storico e' una prova sul passato: va con --prova")
+    if prova_mail and _a_secco():
+        raise SystemExit("--prova-mail manda davvero: non va insieme a --prova (o PROVA=1)")
     segnali = giro(ore=ore, prova=None if not prova_mail else False, prova_mail=prova_mail, storico=storico)
-    print(f"letture: {SPESA['chiamate']} pagate ({SPESA['in']} token dentro, {SPESA['out']} fuori), "
+    print(f"letture: {GIRO['pagate']} pagate ({SPESA['in']} token dentro, {SPESA['out']} fuori), "
           f"{SPESA['dalla_memoria']} dalla memoria; costo del giro {costo():.4f} $")
     print(f"segnali: {len(segnali)}")
 
