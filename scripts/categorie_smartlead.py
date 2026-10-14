@@ -54,7 +54,8 @@ INOLTRATO = _re.compile(r"(ho|abbiamo) (girato|inoltrato|passato) (la (vostra|su
 AUTORISPOSTA = _re.compile(r"your message has been received|support (staff|team)|ticket|thank you for (your|contacting)|"
                            r"risposta automatica|messaggio automatico|automatic reply|out of (the )?office|fuori ufficio|do not reply", _re.I)
 # un no scritto chiaro dentro un si' di classe: non si etichetta, si segnala (la classe e' sbagliata)
-NO_SCRITTO = _re.compile(r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) interessa|non (siamo|sono) interessat|"
+from lettura import NO_INTERESSATO as _NO_INTERESSATO       # noqa: E402  la regola unica (14/10)
+NO_SCRITTO = _re.compile(_NO_INTERESSATO + "|" + r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) interessa|non (siamo|sono) interessat|"
                          r"non fa per noi|non abbiamo (bisogno|necessit|interesse)|abbiamo gi[aà] chi", _re.I)
 
 

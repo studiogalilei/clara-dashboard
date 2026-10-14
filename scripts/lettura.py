@@ -40,7 +40,12 @@ AUTORISPOSTA = re.compile(r"out of (the )?office|fuori (ufficio|sede)|risposta a
                           r"presa in carico|(richiesta|ticket|segnalazione) (e'|è) stat[ao] (inoltrat|ricevut|registrat|apert)|ticket (id|nr|n\.|numero)|id nr|numero (della|di) pratica|"
                           r"^gentile cliente|per poter gestire la (sua|vostra )?richiesta|(le|ti) sar[àa] notificat|riceverai una risposta|will get back to you", re.I | re.M)
 # 12/10: lo spazio vale anche doppio o a capo («non siamo  interessati» passava per un si')
-DETTO_NO = re.compile((r"non (siamo|sono|siam) interessat|non (ci|mi) interessa|\bno,? grazie|non fa per noi|"
+# 14/10 (Piergentili, Mia Immobiliare, I Service, Zanetti Bignami): il no con parole in mezzo,
+# «non sono al momento interessato», «al momento non son interessato». UNA regola, usata anche
+# da sync_v2 (la classe) e da categorie_smartlead (le etichette): prima erano tre copie.
+NO_INTERESSATO = (r"\bnon\s+(?:[\w']+\s+){0,2}(?:siamo|sono|son|siam)\s+(?:[\w'.]+\s+){0,3}interessat|"
+                  r"\bnon\s+(?:mi|ci)\s+(?:[\w']+\s+){0,2}interessa\b")
+DETTO_NO = re.compile(NO_INTERESSATO + "|" + (r"non (siamo|sono|siam) interessat|non (ci|mi) interessa|\bno,? grazie|non fa per noi|"
                       r"non (abbiamo|ho) (bisogno|necessit|interesse)|abbiamo gi[àa] (un|una|il|la|chi|qualcuno)|"
                       r"non (vogliamo|voglio|desider)|non (ci|mi) contatt|"
                       r"rimuov(etemi|eteci|ermi|erci|a(mi|ci))|rimuov(ete|ere|a) (il|la|le|i|lo) (mio|mia|miei|mie|nostr)|"

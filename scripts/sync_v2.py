@@ -151,8 +151,8 @@ def sb(method, path, body=None, headers=None):
 # 14/10: «non sono al momento interessato», «al momento non son interessato», «non siamo
 # momentaneamente interessati»: con parole in mezzo il no non si vedeva, e «interessato»
 # faceva diventare positivo un no (Piergentili, Mia Immobiliare, I Service, Zanetti Bignami).
-NEG = re.compile(r"\bnon\s+(?:[\w']+\s+){0,2}(?:siamo|sono|son)\s+(?:[\w'.]+\s+){0,3}interessat|"
-                 r"\bnon\s+(?:mi|ci)\s+(?:[\w']+\s+){0,2}interessa\b|"
+from lettura import NO_INTERESSATO                      # noqa: E402  la regola unica (14/10)
+NEG = re.compile(NO_INTERESSATO + "|" +
                  r"non (siamo|sono) interessat|non mi interessa|\bno,?\s*grazie|non interessa|basta spam|"
                  r"cancellatemi|cancellarmi|cancellarci|rimuovetemi|rimuovermi|rimuoverci|non voglio|"
                  # 12/10: «cancellare»/«rimuovere» solo quando parlano di loro (lo stesso taglio di lettura.DETTO_NO):

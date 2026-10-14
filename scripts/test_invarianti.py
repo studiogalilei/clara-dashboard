@@ -1580,6 +1580,8 @@ def _():
                "la ringrazio ma non siamo momentamente interessati al servizio .",
                "al momento non son interessato in quanto collaboro gia'"):
         assert S.classifica(no) == "negativo", f"un no letto come {S.classifica(no)}: {no}"
+        import lettura as L, categorie_smartlead as CS
+        assert L.DETTO_NO.search(no) and CS.NO_SCRITTO.search(no), f"la stessa regola manca in lettura o nelle etichette: {no}"
     assert S.classifica("Sì, sono interessato, me la mandi") == "positivo"
     assert S.classifica("Buongiorno, valutiamo certo. Mi faccia sapere, se invece non fosse interessato non c'è alcun problema") != "negativo", \
         "la nostra frase ipotetica citata fa diventare no un si'"
