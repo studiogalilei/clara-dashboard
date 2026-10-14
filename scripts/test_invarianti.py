@@ -1572,6 +1572,19 @@ def _():
         Bz.sb, Bz.datetime, Bz.occupato_google = vero_sb, vero_dt, vero_occ
 
 
+@prova("un no con parole in mezzo resta un no, e la nostra frase citata «se non fosse interessato» non conta (14/10, Piergentili)")
+def _():
+    import sync_v2 as S
+    for no in ("Grazie Lorenzo, non sono al momento interessato. Buona serata.",
+               "Non sono momentaneamente interessato a questo servizio da voi offerto",
+               "la ringrazio ma non siamo momentamente interessati al servizio .",
+               "al momento non son interessato in quanto collaboro gia'"):
+        assert S.classifica(no) == "negativo", f"un no letto come {S.classifica(no)}: {no}"
+    assert S.classifica("Sì, sono interessato, me la mandi") == "positivo"
+    assert S.classifica("Buongiorno, valutiamo certo. Mi faccia sapere, se invece non fosse interessato non c'è alcun problema") != "negativo", \
+        "la nostra frase ipotetica citata fa diventare no un si'"
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

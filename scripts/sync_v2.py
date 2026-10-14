@@ -148,7 +148,12 @@ def sb(method, path, body=None, headers=None):
         raise RuntimeError(f"Supabase {method} {path}: {e.code} {e.read().decode()[:300]}")
 
 # ---------- classificazione euristica (proposta, mai verita' assoluta) ----------
-NEG = re.compile(r"non (siamo|sono) interessat|non mi interessa|\bno,?\s*grazie|non interessa|basta spam|"
+# 14/10: «non sono al momento interessato», «al momento non son interessato», «non siamo
+# momentaneamente interessati»: con parole in mezzo il no non si vedeva, e «interessato»
+# faceva diventare positivo un no (Piergentili, Mia Immobiliare, I Service, Zanetti Bignami).
+NEG = re.compile(r"\bnon\s+(?:[\w']+\s+){0,2}(?:siamo|sono|son)\s+(?:[\w'.]+\s+){0,3}interessat|"
+                 r"\bnon\s+(?:mi|ci)\s+(?:[\w']+\s+){0,2}interessa\b|"
+                 r"non (siamo|sono) interessat|non mi interessa|\bno,?\s*grazie|non interessa|basta spam|"
                  r"cancellatemi|cancellarmi|cancellarci|rimuovetemi|rimuovermi|rimuoverci|non voglio|"
                  # 12/10: «cancellare»/«rimuovere» solo quando parlano di loro (lo stesso taglio di lettura.DETTO_NO):
                  # «cancellare il messaggio» dell'informativa faceva diventare no un si'
@@ -185,9 +190,13 @@ def corpo_pulito(body):
                  r"^Da:\s|^From:\s|-----Original|Messaggio originale", t, flags=re.M)[0]
     return t.strip()
 
+# la nostra frase ipotetica, quando la citazione non si stacca bene: non e' ne' un si' ne' un no loro
+IPOTESI_NOSTRA = re.compile(r"se (?:invece )?(?:lei |voi )?non (?:fosse|foste|fossi) interessat\w*[^.!?]*")
+
+
 def classifica(testo):
     # 12/10: gli spazi doppi («non siamo  interessati») facevano saltare il no
-    t = " ".join(testo.lower().split())
+    t = IPOTESI_NOSTRA.sub(" ", " ".join(testo.lower().split()))
     if OOO.search(t) and not POS.search(t):
         return "ooo"
     if CAMBIO.search(t) and not POS.search(t):
