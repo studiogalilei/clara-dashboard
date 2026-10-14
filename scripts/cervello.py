@@ -33,6 +33,7 @@ restano in cache su disco, quindi rileggere la stessa cosa e' gratis.
 
 import hashlib
 import json
+import socket
 import os
 import re
 import subprocess
@@ -71,6 +72,11 @@ MODELLO_OPENAI = _env("MODELLO_OPENAI") or "gpt-5-mini"
 MODELLO_CLAUDE = "claude-sonnet-5"
 A_GRUPPI_DI = 18          # quanti messaggi per volta: piu' su, meno precisione
 ATTESA_MAX = 180          # secondi per gruppo
+# 14/10: un'analisi con gpt-5 (8-9 mila token in uscita) puo' superare i 3 minuti. OpenAI la
+# finisce e la fa pagare, il client la perdeva; e in cloud (Python 3.12, dove il timeout del
+# socket e' un TimeoutError) la riprovava fino a tre volte: tre pagate, tre perse. Le chiamate
+# lunghe aspettano di piu' e, se scadono lo stesso, non si ripetono.
+ATTESA_LUNGA = 480
 
 CLASSI = ("positivo", "tiepido", "negativo", "ooo", "rinvio",
           "fuori_target", "da_classificare", "persona_sbagliata", "nervoso", "soppresso")
@@ -281,9 +287,11 @@ def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sf
     # in cloud partono 24 richieste insieme e il limite scatta. Si aspetta e si
     # riprova, a passi piu' lunghi; solo dopo tre tentativi si molla (22/9/2026).
     ultimo = None
+    lunga = int(tetto or TETTO_USCITA["default"]) > TETTO_USCITA["lettura"]
+    attesa = ATTESA_LUNGA if lunga else ATTESA_MAX
     for tentativo in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=ATTESA_MAX) as r:
+            with urllib.request.urlopen(req, timeout=attesa) as r:
                 d = json.load(r)
             break
         except urllib.error.HTTPError as e:
@@ -295,8 +303,12 @@ def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sf
                 time.sleep(5 * (tentativo + 1))
                 continue
             raise RuntimeError(ultimo)
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, TimeoutError, socket.timeout) as e:
             ultimo = f"OpenAI rete: {str(e)[:120]}"
+            scaduta = isinstance(e, (TimeoutError, socket.timeout)) or isinstance(getattr(e, "reason", None), (TimeoutError, socket.timeout))
+            if lunga and scaduta:
+                # la risposta l'ha probabilmente scritta e fatta pagare: riprovare paga di nuovo
+                raise RuntimeError(f"OpenAI: nessuna risposta in {attesa} s su una chiamata lunga, non la ripeto")
             if tentativo < 2:
                 time.sleep(5 * (tentativo + 1))
                 continue

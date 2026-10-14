@@ -1496,6 +1496,33 @@ def _():
     assert "scopo=eq." in src, "il tetto deve contare solo lo scopo dei giri veri"
 
 
+@prova("una chiamata lunga che scade non si ripete: pagata una volta, non tre (14/10, analisi oltre i 3 minuti)")
+def _():
+    import cervello as C, socket as so
+    chiamate = []
+    vero_open, vero_sleep, vera_chiave = C.urllib.request.urlopen, C.time.sleep, C._env
+
+    def scade(req, timeout=None):
+        chiamate.append(timeout)
+        raise so.timeout("timed out")
+    try:
+        C.urllib.request.urlopen, C.time.sleep = scade, (lambda s: None)
+        C._env = lambda n: "chiave-finta"
+        try:
+            C._chiedi_openai("x", "gpt-5", fornitore="openai")
+        except RuntimeError as e:
+            assert "non la ripeto" in str(e), e
+        assert chiamate == [C.ATTESA_LUNGA], f"la chiamata lunga e' partita {len(chiamate)} volte: {chiamate}"
+        chiamate.clear()
+        try:
+            C._chiedi_openai("x", "gpt-5", fornitore="openai", tetto=C.TETTO_USCITA["lettura"])
+        except RuntimeError:
+            pass
+        assert chiamate == [C.ATTESA_MAX] * 3, f"una lettura corta riprova come prima: {chiamate}"
+    finally:
+        C.urllib.request.urlopen, C.time.sleep, C._env = vero_open, vero_sleep, vera_chiave
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
