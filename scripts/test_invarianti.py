@@ -2208,6 +2208,127 @@ def _():
     assert "if not contattabile(p):" in b and "la bozza non e' nata" in b, "le bozze devono chiedere alla regola prima di pagare"
 
 
+# ── il segnale provvisorio (14/10): scrive solo a Dre, una volta sola, mai ai clienti ──
+def _segnale_finto(scheda, testo, lettura, gia=(), servito=False, minuti_fa=60):
+    """Un database finto per segnale_provvisorio: una risposta, una scheda, la memoria vuota.
+    Torna (modulo, mail mandate, righe segnate, chiamate all'AI)."""
+    import segnale_provvisorio as S
+    ora = datetime.datetime.now(datetime.timezone.utc)
+    at = (ora - datetime.timedelta(minutes=minuti_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    segnati, mail, ai = list(gia), [], []
+    def sb(m, path, corpo=None, *a, **k):
+        if path.startswith("/rest/v1/interactions") and "kind=eq.email_in" in path:
+            return [{"id": "i1", "prospect_id": "p1", "at": at, "created_at": at, "body": testo}]
+        if path.startswith("/rest/v1/interactions"):
+            return [{"id": "o1", "at": ora.strftime("%Y-%m-%dT%H:%M:%S+00:00")}] if servito else []
+        if path.startswith("/rest/v1/proposte"):
+            return []
+        if path.startswith("/rest/v1/segnali_provvisori") and m == "GET":
+            return [{"prospect_id": r["prospect_id"]} for r in segnati]
+        if path.startswith("/rest/v1/segnali_provvisori") and m == "POST":
+            for r in corpo:
+                if not any(x["prospect_id"] == r["prospect_id"] for x in segnati):
+                    segnati.append(r)
+            return None
+        if path.startswith("/rest/v1/prospects"):
+            return [{"id": "p1", "company": "Azienda Finta", "name": "Mario", "email": "m@finta.invalid", **scheda}]
+        if "e_cliente" in path:
+            return scheda.get("_cliente", False)
+        if path.startswith("/rest/v1/memoria_letture") and m == "GET":
+            return []
+        return None
+    def chiedi(prompt):
+        ai.append(prompt)
+        if lettura is None:
+            raise RuntimeError("OpenAI 429: insufficient_quota")
+        return json.dumps(lettura)
+    return S, sb, chiedi, mail, segnati, ai
+
+
+def _segnale_giro(S, sb, chiedi, mail):
+    import stanza as St
+    vero = (S.sb, St.sb, S._chiedi_ai, S._gmail_send)
+    S.sb = St.sb = sb
+    S._chiedi_ai = chiedi
+    S._gmail_send = lambda grezzo: mail.append(grezzo) or {"id": "x"}
+    try:
+        return S.giro(ore=24, prova=False)
+    finally:
+        S.sb, St.sb, S._chiedi_ai, S._gmail_send = vero
+
+
+SCHEDA_LEAD = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}
+CALDO = {"autorisposta": False, "caldo": True, "si": True, "frase": "mi chiami domani", "telefono": "333 1234567", "consiglio": ""}
+
+
+@prova("segnale provvisorio: il destinatario e' solo Dre, qualunque altro indirizzo si ferma prima di Gmail")
+def _():
+    import base64
+    import email
+    import segnale_provvisorio as S
+    partite = []
+    vero = S._gmail_send
+    S._gmail_send = lambda grezzo: partite.append(grezzo)
+    try:
+        for altro in ("m@finta.invalid", "lorenzo@studiogalilei.com", "dramane@studiogalilei.com, m@finta.invalid", "", None):
+            try:
+                S.manda_mail(altro, "x", "x", "<p>x</p>")
+                raise AssertionError(f"ha accettato {altro!r}")
+            except ValueError:
+                pass
+        assert partite == [], "una mail e' partita verso un destinatario che non e' Dre"
+        S.manda_mail("dramane@studiogalilei.com", "Vuole sentirti: X", "t", "<p>t</p>")
+        m = email.message_from_bytes(base64.urlsafe_b64decode(partite[0]))
+        assert m["To"] == "dramane@studiogalilei.com" and not m["Cc"] and not m["Bcc"], (m["To"], m["Cc"])
+    finally:
+        S._gmail_send = vero
+    t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "segnale_provvisorio.py"), encoding="utf-8").read()
+    assert t.count("_gmail_send(") == 2, "Gmail si chiama solo da manda_mail"
+
+
+@prova("segnale provvisorio: un caldo produce un segnale una volta sola, col numero cliccabile")
+def _():
+    S, sb, chiedi, mail, segnati, ai = _segnale_finto(SCHEDA_LEAD, "Buongiorno, mi chiami domani al 333 1234567", CALDO)
+    primo = _segnale_giro(S, sb, chiedi, mail)
+    assert [s["tipo"] for s in primo] == ["caldo"] and len(mail) == 1 and len(segnati) == 1, (primo, len(mail), segnati)
+    import base64
+    import email
+    m = email.message_from_bytes(base64.urlsafe_b64decode(mail[0]))
+    corpo = "".join(p.get_payload(decode=True).decode() for p in m.walk() if p.get_content_type() == "text/html")
+    assert "tel:+393331234567" in corpo and "master-inbox" in corpo, corpo[:300]
+    secondo = _segnale_giro(S, sb, chiedi, mail)
+    assert secondo == [] and len(mail) == 1, "lo stesso caldo e' stato segnalato due volte"
+
+
+@prova("segnale provvisorio: un cliente, chi e' in pipeline o soppresso non produce segnali (e non si paga la lettura)")
+def _():
+    for scheda in ({**SCHEDA_LEAD, "_cliente": True}, {**SCHEDA_LEAD, "fuori": True, "pipeline_stage": "conoscitiva"},
+                   {**SCHEDA_LEAD, "classificazione": "soppresso"}, {**SCHEDA_LEAD, "stage": "cliente"}):
+        S, sb, chiedi, mail, segnati, ai = _segnale_finto(scheda, "Mi chiami domani al 333 1234567", CALDO)
+        assert _segnale_giro(S, sb, chiedi, mail) == [] and mail == [] and segnati == [] and ai == [], scheda
+
+
+@prova("segnale provvisorio: senza AI c'e' comunque il segnale («da guardare»), e non si ripaga al giro dopo")
+def _():
+    S, sb, chiedi, mail, segnati, ai = _segnale_finto(SCHEDA_LEAD, "Buongiorno, valutiamo volentieri", None)
+    r = _segnale_giro(S, sb, chiedi, mail)
+    assert [s["tipo"] for s in r] == ["da_guardare"] and len(mail) == 1 and len(segnati) == 1, r
+    _segnale_giro(S, sb, chiedi, mail)
+    assert len(ai) == 1 and len(mail) == 1, "una lettura fallita si e' ripagata o rimandata"
+
+
+@prova("segnale provvisorio: un si' aspetta 10 minuti, e se l'abbiamo gia' servito tace")
+def _():
+    SI = {**CALDO, "caldo": False, "telefono": "", "frase": "la mail e' corretta"}
+    S, sb, chiedi, mail, segnati, ai = _segnale_finto(SCHEDA_LEAD, "La mail e' corretta", SI, minuti_fa=3)
+    assert _segnale_giro(S, sb, chiedi, mail) == [] and mail == [], "un si' di 3 minuti fa non deve ancora suonare"
+    S, sb, chiedi, mail, segnati, ai = _segnale_finto(SCHEDA_LEAD, "La mail e' corretta", SI, servito=True)
+    assert _segnale_giro(S, sb, chiedi, mail) == [] and mail == [], "un si' gia' servito ha suonato"
+    S, sb, chiedi, mail, segnati, ai = _segnale_finto(SCHEDA_LEAD, "La mail e' corretta", SI)
+    r = _segnale_giro(S, sb, chiedi, mail)
+    assert [s["tipo"] for s in r] == ["si"] and len(mail) == 1, r
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
