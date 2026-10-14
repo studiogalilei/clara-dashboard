@@ -364,6 +364,21 @@ def festivo(g):
     return g == pasqua + datetime.timedelta(days=1)
 
 
+DRE_CALENDARIO = "dramane@studiogalilei.com"
+
+
+def occupato_google(da, a):
+    """Gli intervalli occupati di Dre dal suo calendario Google (freeBusy), [] se non risponde."""
+    try:
+        from google_api import g
+        r = g("POST", "https://www.googleapis.com/calendar/v3/freeBusy",
+              {"timeMin": da.isoformat(), "timeMax": a.isoformat(), "items": [{"id": DRE_CALENDARIO}]}, email=DRE_CALENDARIO) or {}
+        uno = lambda x: datetime.datetime.fromisoformat(x.replace("Z", "+00:00"))
+        return [(uno(b["start"]), uno(b["end"])) for b in ((r.get("calendars") or {}).get(DRE_CALENDARIO) or {}).get("busy") or []]
+    except Exception:                                        # noqa: BLE001
+        return []
+
+
 def proposta_giorno_ora(da_giorni=1):
     """Playbook 1.0, cap. 2: futuro, feriale, mai lo stesso giorno; scritto sempre «giorno + data».
     14/10 (Dre: «la velocita' e' tutto... il giorno successivo oppure max 2/3 giorni dopo,
@@ -402,9 +417,15 @@ def proposta_giorno_ora(da_giorni=1):
         for ev in sb("GET", f"/rest/v1/agenda?select=at,fonte,owner&at=gte.{da}&at=lte.{a}&limit=300") or []:
             # il calendario di Dre entra come fonte «gcal» secca (gli altri hanno la mail nella fonte)
             if (ev.get("fonte") or "gcal") == "gcal" or "dramane" in (ev.get("fonte") or ""):
-                occupati.append(datetime.datetime.fromisoformat(ev["at"].replace("Z", "+00:00")).astimezone(roma))
+                inizio = datetime.datetime.fromisoformat(ev["at"].replace("Z", "+00:00")).astimezone(roma)
+                occupati.append((inizio, inizio + datetime.timedelta(hours=1)))
     except Exception:
         occupati = []
+    # 14/10: la riunione di venerdi' 16 con Lorenzo (Dre invitato) stava in agenda solo come
+    # evento di Lorenzo, e lo slot delle 16:30 le finiva sopra. La fonte vera e' il calendario
+    # di Dre: Google dice quando e' occupato, inviti compresi. L'agenda resta come riserva.
+    occupati += occupato_google(datetime.datetime(d.year, d.month, d.day, tzinfo=roma) - datetime.timedelta(days=1),
+                                datetime.datetime(d.year, d.month, d.day, tzinfo=roma) + datetime.timedelta(days=15))
     # Documento Gold (Dre): pomeriggio preferito, mai weekend, mai lunedi' a meno
     # che lo propongano loro. Quindi prima i pomeriggi della settimana, poi le mattine.
     # 6/10: prima la settimana (pomeriggi, poi mattine), poi la seguente. Cercando tutti i pomeriggi
@@ -424,7 +445,8 @@ def proposta_giorno_ora(da_giorni=1):
             t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
             if offerti.get(t, 0) >= MAX_PER_ORARIO:
                 continue
-            if all(abs((t - o).total_seconds()) >= 3600 for o in occupati):
+            # libero se la call (fino a un'ora) finisce prima dell'impegno o comincia dopo che e' finito
+            if all(t >= fine or t + datetime.timedelta(hours=1) <= inizio for inizio, fine in occupati):
                 return f"{giorni[g.weekday()]} {g.day} {mesi[g.month - 1]} alle {ora}" + (f":{minuti:02d}" if minuti else "")
     while d.weekday() in (0, 5, 6) or festivo(d):
         d += datetime.timedelta(days=1)

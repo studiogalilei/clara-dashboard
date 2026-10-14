@@ -1335,6 +1335,8 @@ def _():
 def _():
     import bozze as Bz
     vero = Bz.sb
+    vero_occ = Bz.occupato_google
+    Bz.occupato_google = lambda da, a: []     # la prova non guarda il calendario vero
     try:
         Bz.sb = lambda m, path, corpo=None, h=None: []
         primo = Bz.proposta_giorno_ora()
@@ -1345,6 +1347,7 @@ def _():
         assert Bz.proposta_giorno_ora() == primo, "con due bozze l'ora resta libera"
     finally:
         Bz.sb = vero
+        Bz.occupato_google = vero_occ
 
 
 @prova("INT-23, vuole il materiale ma non la call: si manda l'analisi e non si propone nessun orario (caso Oikos, 6/10)")
@@ -1406,6 +1409,8 @@ def _():
     import types
     import bozze as Bz
     vero_sb, vero_dt = Bz.sb, Bz.datetime
+    vero_occ = Bz.occupato_google
+    Bz.occupato_google = lambda da, a: []     # la prova non guarda il calendario vero
 
     class Venerdi23(datetime.datetime):
         @classmethod
@@ -1421,12 +1426,15 @@ def _():
         assert g == "martedì 27 ottobre alle 15:30", f"atteso il primo buco a un'ora dall'impegno, proposto {g}"
     finally:
         Bz.sb, Bz.datetime = vero_sb, vero_dt
+        Bz.occupato_google = vero_occ
 
 
 @prova("il giorno proposto e' il primo giorno lavorativo utile da domani, non 48 ore dopo (Dre, 14/10: «la velocita' e' tutto»)")
 def _():
     import bozze as Bz, types
     vero_sb, vero_dt = Bz.sb, Bz.datetime
+    vero_occ = Bz.occupato_google
+    Bz.occupato_google = lambda da, a: []     # la prova non guarda il calendario vero
 
     def giorno_da(anno, mese, giorno):
         class Finto(datetime.datetime):
@@ -1446,6 +1454,7 @@ def _():
         assert giorno_da(2026, 10, 14).startswith("venerdì 16 ottobre"), "giovedi' pieno: venerdi', non piu' avanti"
     finally:
         Bz.sb, Bz.datetime = vero_sb, vero_dt
+        Bz.occupato_google = vero_occ
 
 
 @prova("analisi: il cliente non vede etichette nostre, segnaposto, gergo, ne' «verificato» di settimane fa; il nome solo se e' una persona (14/10)")
@@ -1535,6 +1544,32 @@ def _():
     assert M.con_presentazione(True, {}) is True, "la prima risposta porta la presentazione"
     assert M.con_presentazione(True, {"allega_presentazione": False}) is False, "un no esplicito non si rispetta"
     assert M.con_presentazione(False, {}) is False and M.con_presentazione(False, {"allega_presentazione": True}) is True
+
+
+@prova("il giorno proposto rispetta il calendario vero di Dre, inviti compresi (14/10, riunione di venerdi' con Lorenzo)")
+def _():
+    import bozze as Bz, types, zoneinfo
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    vero_sb, vero_dt, vero_occ = Bz.sb, Bz.datetime, Bz.occupato_google
+
+    class Mercoledi(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.datetime(2026, 10, 14, 8, 0, tzinfo=datetime.timezone.utc).astimezone(tz)
+    try:
+        Bz.datetime = types.SimpleNamespace(datetime=Mercoledi, timedelta=datetime.timedelta, timezone=datetime.timezone,
+                                            date=datetime.date, time=datetime.time)
+        Bz.sb = lambda m, path, corpo=None, h=None: []
+        # giovedi' 15 occupato dalle 14 alle 17 (un invito, che l'agenda non vede): la call non ci finisce sopra
+        Bz.occupato_google = lambda da, a: [(datetime.datetime(2026, 10, 15, 14, 0, tzinfo=roma), datetime.datetime(2026, 10, 15, 17, 0, tzinfo=roma))]
+        g = Bz.proposta_giorno_ora()
+        assert g.startswith("giovedì 15 ottobre alle 1") and not any(f"alle {o}" in g for o in ("14:30", "15", "15:30", "16", "16:30")), g
+        assert g in ("giovedì 15 ottobre alle 10", "giovedì 15 ottobre alle 10:30", "giovedì 15 ottobre alle 11", "giovedì 15 ottobre alle 11:30", "giovedì 15 ottobre alle 12"), g
+        # finito l'impegno alle 15:45, alle 16 si puo'
+        Bz.occupato_google = lambda da, a: [(datetime.datetime(2026, 10, 15, 13, 0, tzinfo=roma), datetime.datetime(2026, 10, 15, 15, 45, tzinfo=roma))]
+        assert Bz.proposta_giorno_ora() == "giovedì 15 ottobre alle 16", Bz.proposta_giorno_ora()
+    finally:
+        Bz.sb, Bz.datetime, Bz.occupato_google = vero_sb, vero_dt, vero_occ
 
 
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
