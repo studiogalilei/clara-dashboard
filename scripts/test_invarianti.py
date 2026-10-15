@@ -2911,6 +2911,35 @@ def _():
     assert r.giro("2026-10-14", "16:00") == ["Cancellata: Rossi Finta, venerdì 23 ottobre alle 11:00"]
 
 
+@prova("versione snella: schede.py legge e basta (scrive solo snella_*, su Smartlead solo GET) e non paga letture")
+def _():
+    import re as _re
+    sorgente = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "schede.py"), encoding="utf-8").read()
+    # ogni scrittura nel database va nelle tabelle della versione snella
+    for metodo, percorso in _re.findall(r'sb\(\s*"(POST|PATCH|DELETE|PUT)"\s*,\s*f?"([^"]+)"', sorgente):
+        assert percorso.startswith("/rest/v1/{tabella}") or percorso.startswith("/rest/v1/snella_"), (metodo, percorso)
+    assert 'scrivi("snella_schede"' in sorgente and 'scrivi("snella_numeri"' in sorgente
+    assert len(_re.findall(r"\bscrivi\(", sorgente)) == 3, "scrivi() usata fuori dalle due tabelle snella"
+    # su Smartlead una sola porta, in sola lettura; niente manda.py, niente postino
+    assert 'method="GET"' in sorgente and not _re.search(r'method="(POST|PATCH|DELETE|PUT)"', sorgente)
+    assert "import manda" not in sorgente and "from manda" not in sorgente
+    import schede
+    assert schede.S._restano_oggi() == 0, "le schede non devono mai pagare una lettura AI"
+    import categorie_smartlead as C
+    assert set(schede.NOME_DI) == set(C.NUOVE), "una categoria del manuale senza il nome di Dre"
+    import direttore
+    assert direttore.corsia_di("schede") == "leggera"
+
+
+@prova("versione snella: il testo citato si separa, l'html diventa testo, le righe vuote non si accumulano")
+def _():
+    import schede
+    suo, citato = schede.dividi("Va bene, mi chiami domani.\n\n\n\nMario\n\nIl giorno lun 12 ott 2026 alle 10:00 Lorenzo <x@esempio.it> ha scritto:\n> la nostra mail")
+    assert suo == "Va bene, mi chiami domani.\n\nMario", suo
+    assert citato.startswith("Il giorno lun 12 ott") and "la nostra mail" in citato
+    assert schede.dividi("<div>Ciao<br>a presto</div><style>p{color:red}</style>")[0] == "Ciao\na presto"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
