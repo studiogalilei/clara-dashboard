@@ -1636,6 +1636,23 @@ def _():
     assert M.chi_ha_risposto({"type": "SENT", "from": "a@azienda.it"}, "info@azienda.it") is None
 
 
+@prova("il postino risponde nel filo dove il lead ha risposto per ultimo, non nel primo che trova (15/10, EnergetiKa)")
+def _():
+    import manda as M
+    storie = {(100, 7): {"history": [{"type": "REPLY", "time": "2026-05-27T09:28:00Z", "message_id": "vecchio"}]},
+              (200, 7): {"history": [{"type": "SENT", "time": "2026-09-28T08:00:00Z"},
+                                     {"type": "REPLY", "time": "2026-10-01T10:00:00Z", "message_id": "nuovo"}]}}
+    vero_sl, vero_segna = M._sl_riprova, M._segna_thread
+    try:
+        M._sl_riprova = lambda m, path: (storie.get((int(path.split("/")[2]), int(path.split("/")[4]))) if "message-history" in path
+                                        else {"id": 7, "lead_campaign_data": [{"campaign_id": 100, "last_reply_at": "2026-05-27"}, {"campaign_id": 200, "last_reply_at": "2026-10-01"}]})
+        M._segna_thread = lambda *a: None
+        cid, lid, ultima = M.thread({"email": "x@azienda.it", "campaign_id": 100, "lead_id": 7, "enriched": {}})
+        assert (cid, ultima["message_id"]) == (200, "nuovo"), f"filo sbagliato: {cid}"
+    finally:
+        M._sl_riprova, M._segna_thread = vero_sl, vero_segna
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

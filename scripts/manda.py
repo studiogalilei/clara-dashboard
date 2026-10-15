@@ -172,7 +172,8 @@ def thread(p):
                 yield int(cid), int(lid)
 
     def cercati():
-        """Solo se i fili noti non portano a nulla: si chiede a Smartlead per email."""
+        """Gli altri fili del lead, chiesti a Smartlead per email (15/10: sempre, non solo se i noti
+        non portano a nulla: il filo vivo puo' essere in un'altra campagna)."""
         try:
             d = _sl_riprova("GET", f"/leads/?email={urllib.parse.quote(p['email'])}")
         except Exception as e:                                    # noqa: BLE001
@@ -185,6 +186,11 @@ def thread(p):
             if c.get("campaign_id") and d.get("id"):
                 yield int(c["campaign_id"]), int(d["id"])
 
+    # 15/10 (EnergetiKa): si fermava al PRIMO filo con una risposta. Il lead era in due campagne:
+    # il «siamo a posto» di maggio veniva prima del filo vivo di ottobre, e la mail e' partita nel
+    # filo vecchio. Ora si leggono tutti i fili del lead e vince la risposta piu' recente, come dice
+    # il nome della funzione («dove ha risposto per ultimo»).
+    migliore = None
     for cid, lid in itertools.chain(noti(), cercati()):
         if (cid, lid) in visti:
             continue
@@ -194,11 +200,14 @@ def thread(p):
         except Exception as e:                                    # noqa: BLE001
             print(f"    storico illeggibile in {cid} ({str(e)[:60]})"); continue
         ultima = _ultima_sua(h)
-        if ultima:
-            if (filo.get("campaign_id"), filo.get("lead_id")) != (cid, lid) \
-               or filo.get("message_id") != ultima.get("message_id"):
-                _segna_thread(p, cid, lid, ultima)
-            return cid, lid, ultima
+        if ultima and (migliore is None or _quando(ultima) > _quando(migliore[2])):
+            migliore = (cid, lid, ultima)
+    if migliore:
+        cid, lid, ultima = migliore
+        if (filo.get("campaign_id"), filo.get("lead_id")) != (cid, lid) \
+           or filo.get("message_id") != ultima.get("message_id"):
+            _segna_thread(p, cid, lid, ultima)
+        return cid, lid, ultima
     return None, None, None
 
 
