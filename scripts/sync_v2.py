@@ -384,9 +384,11 @@ def main():
         print(f"  fili caldi da rileggere a rotazione: {len(caldi)}")
 
     camps = sl_get("/campaigns") or []
+    # 15/10 (EnergetiKa): le campagne archiviate si leggono lo stesso. Un lead puo' rispondere in
+    # un filo vecchio (Daniel ha risposto nella campagna di maggio, archiviata, con il contatto
+    # giusto), e saltandole la sua risposta non entrava mai. Sono poche: tre in tutto il 15/10.
     camps = [c for c in camps
-             if c.get("status") != "ARCHIVED"
-             and "best campaign" not in (c.get("name") or "").lower()]
+             if "best campaign" not in (c.get("name") or "").lower()]
     print(f"  campagne da controllare: {len(camps)}")
 
     tot_scanned = 0

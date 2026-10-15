@@ -1653,6 +1653,12 @@ def _():
         M._sl_riprova, M._segna_thread = vero_sl, vero_segna
 
 
+@prova("il sync legge anche le campagne archiviate: una risposta in un filo vecchio deve entrare (15/10, EnergetiKa)")
+def _():
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py")).read()
+    assert '!= "ARCHIVED"' not in src, "il sync salta di nuovo le campagne archiviate"
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
