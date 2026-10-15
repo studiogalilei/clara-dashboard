@@ -1659,6 +1659,21 @@ def _():
     assert '!= "ARCHIVED"' not in src, "il sync salta di nuovo le campagne archiviate"
 
 
+@prova("l'approvazione rifa' la seconda testa sul testo che parte: una riscrittura incoerente si ferma (15/10, Maori Group)")
+def _():
+    import approva as A, lettura as L
+    vero_leggi, vera_coer = L.leggi, L.coerenza
+    try:
+        L.leggi = lambda p: (None, {"ultima_loro": "ho girato la sua mail a chi se ne occupa"})
+        L.coerenza = lambda letti, testo, gruppo=None: ("INCOERENTE", "nessun collega ha girato il contatto") if "collega mi ha girato" in testo else ("COERENTE", "")
+        assert A.seconda_testa({}, "il suo collega mi ha girato il suo contatto")[0] == "INCOERENTE"
+        assert A.seconda_testa({}, "mi può dire a chi ha girato la mia mail?")[0] == "COERENTE"
+        L.leggi = lambda p: (_ for _ in ()).throw(RuntimeError("smartlead giu'"))
+        assert A.seconda_testa({}, "x")[0] == "NON LETTA", "se la lettura cade, si approva lo stesso"
+    finally:
+        L.leggi, L.coerenza = vero_leggi, vera_coer
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
