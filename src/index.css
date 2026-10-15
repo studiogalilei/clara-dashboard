@@ -118,6 +118,8 @@ h1, h2 {
   line-height: 1.15;
   color: var(--color-navy);   /* i titoli sono in navy SG: e' il blu dei titoli */
 }
+/* la versione snella (15/10): titoli neri, una tinta sola (il blu scuro) per quello che si tocca */
+.snella h1, .snella h2, .snella h3 { color: var(--color-inchiostro); }
 /* focus visibile, sempre: mai outline none senza sostituto */
 :focus-visible { outline: 2px solid var(--color-blu); outline-offset: 2px; }
 button, a, select, input[type=checkbox] { cursor: pointer; }

@@ -1,0 +1,95 @@
+// CAMPAGNE: come vanno le campagne attive, ultimi 7 o 30 giorni.
+// Mail mandate, aziende scritte e risposte le dice Smartlead (solo lettura, una volta all'ora);
+// si', call e no vengono dalle risposte che il sistema ha letto. Un numero che non c'e' non si
+// inventa: si scrive «non disponibile».
+import { useState } from 'react'
+import { leggiNumeri, type Finestra } from './dati'
+import { numero, quando, tasso } from './regole'
+import { Carico, Errore, Vuoto } from './pezzi'
+import { useDati } from './uso'
+
+type Periodo = '7' | '30'
+
+function ricordaPeriodo(v?: Periodo): Periodo {
+  try {
+    if (v) localStorage.setItem('snella-periodo', v)
+    return (localStorage.getItem('snella-periodo') as Periodo) || '7'
+  } catch { return v ?? '7' }
+}
+
+export default function Campagne() {
+  const { dati, errore, caricando, rifai } = useDati(leggiNumeri)
+  const [periodo, setPeriodo] = useState<Periodo>(() => ricordaPeriodo())
+
+  if (caricando) return <Carico righe={4} etichetta="Carico le campagne" />
+  if (errore && !dati) return <Errore testo={errore} riprova={() => void rifai()} />
+  const c = dati?.campagne
+  if (!c) return <Vuoto>I numeri delle campagne non sono ancora pronti: arrivano entro un'ora.</Vuoto>
+
+  return (
+    <div>
+      <div role="radiogroup" aria-label="Periodo" className="inline-flex rounded-full border border-bordo bg-white p-1">
+        {(['7', '30'] as const).map((p) => (
+          <button key={p} role="radio" aria-checked={periodo === p} onClick={() => setPeriodo(ricordaPeriodo(p))}
+                  className={`min-h-10 rounded-full px-4 text-[14px] font-semibold ${periodo === p ? 'bg-blu-scuro text-white' : 'text-inchiostro hover:bg-velo'}`}>
+            Ultimi {p} giorni
+          </button>
+        ))}
+      </div>
+
+      {c.dati.errore && (
+        <p role="alert" className="mt-3 text-[14px] font-semibold text-amber-900">
+          Smartlead non ha dato tutti i numeri ({c.dati.errore}): dove manca c'è scritto «non disponibile».
+        </p>
+      )}
+
+      {!c.dati.campagne.length ? (
+        <div className="mt-4"><Vuoto>Nessuna campagna attiva su Smartlead.</Vuoto></div>
+      ) : (
+        <>
+          <Riquadro titolo="Tutte le campagne attive" f={c.dati.totale[periodo]} forte />
+          <h2 className="mb-2 mt-7 text-[17px] font-bold text-inchiostro">Per campagna <span className="font-semibold text-tenue">{c.dati.campagne.length}</span></h2>
+          <ul className="space-y-3">
+            {[...c.dati.campagne]
+              .sort((a, b) => (b.finestre[periodo].risposte ?? b.finestre[periodo].risposte_lette) - (a.finestre[periodo].risposte ?? a.finestre[periodo].risposte_lette))
+              .map((x) => <li key={x.id}><Riquadro titolo={x.nome} f={x.finestre[periodo]} /></li>)}
+          </ul>
+        </>
+      )}
+
+      <p className="mt-6 text-[13px] leading-relaxed text-tenue">
+        Mail mandate, aziende scritte e risposte: i numeri di Smartlead. Il tasso è risposte ogni 100 aziende scritte nel periodo.
+        Sì, call prenotate e no: dalle risposte lette dal sistema, per chi ha risposto nel periodo.
+        Aggiornati {quando(c.il)}.
+      </p>
+    </div>
+  )
+}
+
+function Riquadro({ titolo, f, forte = false }: { titolo: string; f: Finestra | undefined; forte?: boolean }) {
+  const t = tasso(f?.risposte, f?.aziende)
+  const voci: Array<[string, string | null, string?]> = [
+    ['Mail mandate', numero(f?.mandate), f?.aziende != null ? `a ${numero(f.aziende)} aziende` : undefined],
+    ['Risposte', numero(f?.risposte)],
+    ['Tasso di risposta', t],
+    ['Sì', numero(f?.si)],
+    ['Call prenotate', numero(f?.call)],
+    ['No', numero(f?.no)],
+  ]
+  return (
+    <section className={`mt-4 rounded-2xl border bg-white p-4 ${forte ? 'border-blu-scuro/40' : 'border-bordo'}`}>
+      <h3 className={`${forte ? 'text-[17px]' : 'text-[15px]'} font-bold leading-snug text-inchiostro`}>{titolo}</h3>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+        {voci.map(([nome, v, sotto]) => (
+          <div key={nome}>
+            <dt className="text-[13px] text-tenue">{nome}</dt>
+            <dd className={v == null ? 'text-[14px] font-semibold text-tenue' : 'text-[22px] font-bold leading-tight text-inchiostro'}>
+              {v ?? 'non disponibile'}
+            </dd>
+            {sotto && v != null && <dd className="text-[12.5px] text-tenue">{sotto}</dd>}
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
