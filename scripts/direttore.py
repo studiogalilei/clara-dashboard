@@ -46,6 +46,19 @@ def adesso():
     return datetime.datetime.now(datetime.timezone.utc)
 
 
+# LE DUE CORSIE (15/10). Un giro solo faceva tutto in fila: sync 4 minuti, lampo 6, analisi 7,
+# bozze 2. Un giro durava 15-20 minuti, i giri dopo venivano annullati, e il segnale a Dre e le
+# mail gia' approvate aspettavano dietro le analisi (Dre: «la velocita' e' tutto, 2-3 minuti»).
+# Ora due corsie girano in parallelo, ognuna mai due volte insieme: la pesante (quello che usa il
+# modello a lungo) e la leggera (tutto il resto, ogni 5 minuti). Il postino ha il lucchetto vero
+# (manda.prendi), quindi lampo e la corsia leggera possono girarlo insieme senza doppi invii.
+PESANTI = {"analisi", "lampo", "bozze", "googlefit", "sync_completo", "silenzi", "lezioni", "battito", "salute"}
+
+
+def corsia_di(chiave):
+    return "pesante" if chiave in PESANTI else "leggera"
+
+
 def dovuta(op):
     """Tocca a lei? Accesa, e o «fai ora», o mai girata, o e' passato il tempo."""
     if not op.get("attiva") or not op.get("comando"):
@@ -111,9 +124,13 @@ def corri(op):
 
 def main():
     ops = sb("GET", "/rest/v1/operazioni?select=*&order=ordine.asc") or []
+    corsia = sys.argv[sys.argv.index("--corsia") + 1] if "--corsia" in sys.argv else None
+    if corsia not in (None, "leggera", "pesante"):
+        sys.exit(f"corsia sconosciuta: {corsia}")
+    nella_corsia = lambda chiave: corsia is None or corsia_di(chiave) == corsia      # noqa: E731
     if "--stato" in sys.argv:
         for op in ops:
-            print(f"  {op['chiave']:16} {'acceso' if op['attiva'] else 'spento':7} ogni {op['cadenza_minuti']:5} min  "
+            print(f"  {op['chiave']:16} {corsia_di(op['chiave']):8} {'acceso' if op['attiva'] else 'spento':7} ogni {op['cadenza_minuti']:5} min  "
                   f"ultima {str(op.get('ultima_corsa') or 'mai')[:16]}  {op.get('ultimo_esito') or ''}")
         return
     # --forza accetta anche una catena: sync_smartlead,googlefit,bozze
@@ -137,6 +154,7 @@ def main():
             for dopo in ("prima_risposta", "manda"):
                 if dopo not in catena:
                     catena.append(dopo)
+        catena = [c for c in catena if nella_corsia(c)]      # ogni corsia fa la sua parte della catena
         for chiave in catena:
             op = per_chiave.get(chiave)
             if not op:
@@ -149,6 +167,7 @@ def main():
                 corri(op); fatte += 1
         print(f"{fatte} operazioni fatte (forzate)")
         return
+    ops = [op for op in ops if nella_corsia(op["chiave"])]
     for op in ops:
         if op.get("richiesta_ora") and not op.get("comando"):
             # «Fai ora» su una che parte da GitHub: si spegne la richiesta e si dice perche'

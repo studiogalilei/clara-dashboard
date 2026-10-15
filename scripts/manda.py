@@ -208,9 +208,26 @@ def prendi(pr):
     lampo e il direttore hanno fatto girare il postino insieme, tutti e due hanno letto
     «approvata», tutti e due hanno scritto «in invio», tutti e due hanno spedito. Christian Pircher
     e Maura (Studio M) hanno ricevuto la stessa mail due volte, a due secondi di distanza."""
-    r = sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}&stato=eq.approvata", {"stato": "in_invio"},
+    # 15/10: l'ora del lucchetto (risposta_il, che a invio fatto diventa l'ora della risposta). Il
+    # recupero dei lucchetti appesi la misurava da «at», la nascita della bozza: una bozza di ieri
+    # appena presa da un altro postino sembrava appesa, e con la cronologia di Smartlead in
+    # ritardo di 5-20 minuti sarebbe ripartita. Con due corsie del direttore in parallelo conta.
+    r = sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}&stato=eq.approvata",
+           {"stato": "in_invio", "risposta_il": datetime.datetime.now(ROMA).isoformat()},
            {"Prefer": "return=representation"}) or []
     return bool(r)
+
+
+def eta_lucchetto(b, adesso=None):
+    """Minuti da quando la bozza e' stata presa (risposta_il); senza, dalla nascita (at)."""
+    adesso = adesso or datetime.datetime.now(ROMA)
+    quando_preso = b.get("risposta_il") or b.get("at")
+    if not quando_preso:
+        return 999
+    return (adesso - datetime.datetime.fromisoformat(quando_preso)).total_seconds() / 60
+
+
+LUCCHETTO_APPESO_MIN = 30      # la cronologia di Smartlead arriva anche 20 minuti dopo l'invio
 
 
 def link_fresco(url):
@@ -297,10 +314,10 @@ def main():
     # 2/10: una bozza «in invio» da piu' di 10 minuti e' un lucchetto appeso (rete caduta
     # fra il lucchetto e Smartlead). Si guarda il thread vero: se la mail NON e' partita,
     # torna «approvata» e riparte; se e' partita, si chiude. Niente resta appeso in silenzio.
-    bloccate = sb("GET", "/rest/v1/proposte?select=id,titolo,at,prospect_id,azione&stato=eq.in_invio") or []
+    bloccate = sb("GET", "/rest/v1/proposte?select=id,titolo,at,risposta_il,prospect_id,azione&stato=eq.in_invio") or []
     for b in bloccate:
-        eta = (datetime.datetime.now(ROMA) - datetime.datetime.fromisoformat(b["at"])).total_seconds() / 60 if b.get("at") else 999
-        if eta < 10 or prova:
+        eta = eta_lucchetto(b)
+        if eta < LUCCHETTO_APPESO_MIN or prova:
             print(f"  in invio dal {b['at'][:16]}: {b['titolo'][:60]} (la lascio, e' appena partita)"); continue
         pr = (sb("GET", f"/rest/v1/prospects?select=email,campaign_id,lead_id&id=eq.{b['prospect_id']}") or [None])[0] if b.get("prospect_id") else None
         partita = False

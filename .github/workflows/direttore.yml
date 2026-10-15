@@ -22,15 +22,63 @@ on:
         required: false
         default: ""
 
-concurrency:
-  # 2/10: il gruppo «direttore» e' rimasto chiuso dal fantasma di una corsa cancellata
-  # (ogni nuova nasceva pending e moriva cancellata: 2 ore di filiera ferma). Nome nuovo
-  # per liberare il lucchetto; mai due direttori insieme resta vero.
-  group: direttore-v2
-  cancel-in-progress: false
-
 jobs:
-  direttore:
+  # 15/10: due corsie in parallelo (scripts/direttore.py, PESANTI). Prima un giro solo faceva
+  # tutto in fila e durava 15-20 minuti: il segnale a Dre e le mail approvate aspettavano le
+  # analisi. Ogni corsia ha il suo lucchetto: mai due giri della stessa corsia insieme (il
+  # vecchio gruppo «direttore-v2» del 2/10 diventa uno per corsia).
+  leggera:
+    concurrency:
+      group: direttore-leggera
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pywebpush
+      # l'analisi in PDF (23/9): weasyprint vuole pango e cairo di sistema, pillow legge i loghi
+      - run: |
+          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null
+          pip install -q weasyprint pillow
+      - name: le operazioni dovute
+        env:
+          # 6/10: il giorno degli script e' quello di Roma. Il runner e' in UTC, e fra mezzanotte
+          # e le 2 i 22 script con date.today() lavoravano su ieri (i silenzi dell'1 di notte
+          # scrivevano «uscito il 05/10»). Il direttore usa gia' ROMA in modo esplicito.
+          TZ: Europe/Rome
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAPI_KEY: ${{ secrets.OPENAPI_KEY }}
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
+          WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
+          GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
+          # il playbook outbound non sta nel repo (22/9): arriva da qui
+          PLAYBOOK_OUTBOUND: ${{ secrets.PLAYBOOK_OUTBOUND }}
+          FORNITORE: openai
+          MODELLO_OPENAI: gpt-5
+          MODELLO_ANALISI: gpt-5
+        run: |
+          if [ -n "${{ github.event.inputs.forza }}" ]; then
+            python3 scripts/direttore.py --corsia leggera --forza "${{ github.event.inputs.forza }}"
+          else
+            python3 scripts/direttore.py --corsia leggera
+          fi
+
+  pesante:
+    concurrency:
+      group: direttore-pesante
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -70,7 +118,7 @@ jobs:
           MODELLO_ANALISI: gpt-5
         run: |
           if [ -n "${{ github.event.inputs.forza }}" ]; then
-            python3 scripts/direttore.py --forza "${{ github.event.inputs.forza }}"
+            python3 scripts/direttore.py --corsia pesante --forza "${{ github.event.inputs.forza }}"
           else
-            python3 scripts/direttore.py
+            python3 scripts/direttore.py --corsia pesante
           fi

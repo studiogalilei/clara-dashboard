@@ -1606,6 +1606,25 @@ def _():
         C._chiedi = vero
 
 
+@prova("il direttore in due corsie: ogni operazione in una sola, e il postino misura il lucchetto da quando e' preso (15/10)")
+def _():
+    import direttore as D, manda as M, datetime as dt
+    tutte = [op["chiave"] for op in (D.sb("GET", "/rest/v1/operazioni?select=chiave") or [])]
+    assert tutte, "nessuna operazione letta"
+    for c in tutte:
+        assert D.corsia_di(c) in ("leggera", "pesante")
+    for c in ("segnale", "manda", "prima_risposta", "sync_smartlead"):
+        assert D.corsia_di(c) == "leggera", f"{c} non deve aspettare le analisi"
+    for c in ("analisi", "lampo", "bozze", "googlefit"):
+        assert D.corsia_di(c) == "pesante"
+    ora = dt.datetime(2026, 10, 15, 12, 0, tzinfo=M.ROMA)
+    vecchia_appena_presa = {"at": "2026-10-14T09:00:00+02:00", "risposta_il": "2026-10-15T11:58:00+02:00"}
+    assert M.eta_lucchetto(vecchia_appena_presa, ora) < M.LUCCHETTO_APPESO_MIN, "una bozza di ieri appena presa sembra appesa"
+    assert M.eta_lucchetto({"at": "2026-10-15T11:00:00+02:00"}, ora) >= M.LUCCHETTO_APPESO_MIN
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".github", "workflows", "direttore.yml")).read()
+    assert "--corsia leggera" in src and "--corsia pesante" in src and "group: direttore-leggera" in src
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz
@@ -1784,7 +1803,7 @@ def _():
         M.sb = lambda m, path, corpo=None, h=None: (chiamate.append((m, path, corpo, h)) or [])
         assert M.prendi({"id": 9}) is False, "se un altro postino l'ha gia' presa non si manda"
         m, path, corpo, h = chiamate[-1]
-        assert m == "PATCH" and "stato=eq.approvata" in path and corpo == {"stato": "in_invio"}
+        assert m == "PATCH" and "stato=eq.approvata" in path and corpo.get("stato") == "in_invio" and corpo.get("risposta_il"), corpo
         assert h and "return=representation" in h.get("Prefer", ""), "senza la risposta non si sa se la presa e' riuscita"
         M.sb = lambda m, path, corpo=None, h=None: [{"id": 9}]
         assert M.prendi({"id": 9}) is True
