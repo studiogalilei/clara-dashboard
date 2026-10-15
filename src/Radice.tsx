@@ -32,7 +32,12 @@ export default function Radice() {
   const [quale, setQuale] = useState<Quale>(() => inSnella(window.location.hash) ? 'snella' : entrataNuda() ? null : 'completo')
 
   useEffect(() => {
-    const cambia = () => setQuale(inSnella(window.location.hash) ? 'snella' : 'completo')
+    // un indirizzo vuoto non decide niente: e' anche il login di Google che si pulisce il token
+    // dall'indirizzo (15/10, visto sul Workspace pubblicato: mandava Dre sul completo a meta' strada)
+    const cambia = () => {
+      if (inSnella(window.location.hash)) setQuale('snella')
+      else if (!entrataNuda()) setQuale('completo')
+    }
     window.addEventListener('hashchange', cambia)
     window.addEventListener('popstate', cambia)
     return () => { window.removeEventListener('hashchange', cambia); window.removeEventListener('popstate', cambia) }
@@ -45,6 +50,7 @@ export default function Radice() {
       try {
         const { data } = await supabase.auth.getSession()
         if (data.session && (await chiSono()).ruolo === 'ceo') {
+          if (!vivo) return
           window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/oggi')
           if (vivo) setQuale('snella')
           return
