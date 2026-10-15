@@ -1625,6 +1625,17 @@ def _():
     assert "--corsia leggera" in src and "--corsia pesante" in src and "group: direttore-leggera" in src
 
 
+@prova("il postino risponde a chi ha scritto, se e' della stessa azienda da un altro indirizzo (15/10, Techno Pool)")
+def _():
+    import manda as M
+    r = lambda fr: {"type": "REPLY", "from": fr}
+    assert M.chi_ha_risposto(r("Mario Rossi <mario@azienda.it>"), "info@azienda.it") == "mario@azienda.it"
+    assert M.chi_ha_risposto(r("info@azienda.it"), "info@azienda.it") is None, "stesso indirizzo: niente da cambiare"
+    assert M.chi_ha_risposto(r("x@altro-dominio.it"), "info@azienda.it") is None, "un altro dominio non si segue da solo"
+    assert M.chi_ha_risposto(r("noreply@azienda.it"), "info@azienda.it") is None
+    assert M.chi_ha_risposto({"type": "SENT", "from": "a@azienda.it"}, "info@azienda.it") is None
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

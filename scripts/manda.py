@@ -248,6 +248,25 @@ def link_fresco(url):
         return url
 
 
+def chi_ha_risposto(ultima, email_lead):
+    """A chi rispondere quando ha scritto una persona della stessa azienda da un altro indirizzo.
+    15/10 (Techno Pool): il lead era la casella generica, il responsabile ha risposto dalla sua; il
+    postino rispondeva alla generica. Come «Rispondi» di Gmail: si risponde a chi ha scritto, ma
+    solo se e' lo stesso dominio del lead (un dominio diverso puo' essere un'agenzia o un inoltro:
+    li' decide email_alt) e non e' un indirizzo automatico."""
+    if not ultima or ultima.get("type") != "REPLY":
+        return None
+    m = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", ultima.get("from") or "")
+    if not m or not email_lead or "@" not in email_lead:
+        return None
+    mittente = m.group(0).lower()
+    if mittente == email_lead.lower() or mittente.split("@")[1] != email_lead.lower().split("@")[1]:
+        return None
+    if re.match(r"(no-?reply|mailer-daemon|postmaster|notifiche|notification)", mittente.split("@")[0]):
+        return None
+    return mittente
+
+
 def con_presentazione(prima_risposta, az):
     """La presentazione va allegata? Alla prima risposta si', salvo un «no» esplicito (14/10);
     nei follow-up solo se la bozza la chiede."""
@@ -375,7 +394,7 @@ def main():
         cid, lid, ultima = thread(p)
         if not ultima:
             torna_aperta(pr, azienda, "non trovo il suo thread su Smartlead", prova); continue
-        a = (p.get("email_alt") or [None])[0] or p["email"]
+        a = (p.get("email_alt") or [None])[0] or chi_ha_risposto(ultima, p["email"]) or p["email"]
         corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
                  "email_body": in_html(bozza),
                  "reply_message_id": ultima.get("message_id"),
