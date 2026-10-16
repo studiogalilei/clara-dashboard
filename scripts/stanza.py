@@ -83,7 +83,9 @@ def sb(metodo, percorso, corpo=None, intestazioni=None):
         raise RuntimeError("manca VITE_SUPABASE_URL o la service key in .env.local")
     req = urllib.request.Request(
         URL.rstrip("/") + percorso, method=metodo,
-        data=json.dumps(corpo).encode() if corpo is not None else None,
+        # 16/10: un sito con un carattere nullo (\u0000) faceva cadere ogni giro del Google Fit:
+        # Postgres non accetta il nullo nel testo, quindi qui, in un punto solo, non entra mai
+        data=json.dumps(corpo).replace("\\u0000", "").encode() if corpo is not None else None,
         headers={"apikey": CHIAVE, "Authorization": "Bearer " + CHIAVE,
                  "Content-Type": "application/json",
                  # IL REGISTRO (25/9): ogni scrittura porta il nome dello script; il database

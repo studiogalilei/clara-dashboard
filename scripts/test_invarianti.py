@@ -3042,6 +3042,15 @@ def _():
     assert any("registro misto" in e for e in bozze.cancello("Se vuoi ne parliamo.\n" + base))
 
 
+@prova("stanza: il carattere nullo non arriva mai al database (16/10)")
+def _():
+    import json
+    corpo = {"t": "sito\x00 con nullo"}
+    assert "\\u0000" in json.dumps(corpo)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "stanza.py")).read()
+    assert 'json.dumps(corpo).replace("\\\\u0000", "")' in src
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

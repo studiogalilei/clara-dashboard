@@ -534,7 +534,12 @@ def main():
             patch["sector"] = fit["settore"]
         if not p.get("provincia_fit") and fit.get("provincia"):
             pass    # la provincia sta dentro enriched.google_fit: «city» e' la citta', non la provincia
-        sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
+        try:
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", patch)
+        except RuntimeError as e:
+            # 16/10: una scheda che non si scrive non ferma il giro degli altri
+            print(f"  {'?':8} {str(nome)[:34]:34} non scritta: {str(e)[:90]}")
+            continue
         fatti += 1
     print(f"google fit: {fatti} valutati, {len(righe)} nel giro")
 
