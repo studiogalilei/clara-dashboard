@@ -3033,6 +3033,14 @@ def _():
     assert manda.chi_ha_risposto(vera, "info@azienda.it") == "domenico@azienda.it"
 
 
+@prova("cancello: «fai da te» non e' un tu, «puoi» si' (16/10)")
+def _():
+    import bozze
+    base = "Buongiorno Enea, le propongo una breve videochiamata conoscitiva: https://calendar.app.google/x\nA presto,"
+    assert not any("registro misto" in e for e in bozze.cancello("Vale la domanda dei progetti, non il fai da te.\n" + base))
+    assert any("registro misto" in e for e in bozze.cancello("Se vuoi ne parliamo.\n" + base))
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

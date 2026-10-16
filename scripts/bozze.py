@@ -181,7 +181,9 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
     if "—" in testo:
         errori.append("trattino lungo")
     # 5/10: «TI» dentro TI.EMME.TI non e' un tu: le parole tutte maiuscole sono sigle e nomi
-    tu, lei = [w for w in TU.findall(testo) if not w.isupper()], [w for w in LEI.findall(testo) if not w.isupper()]
+    # 16/10 (Dre): «fai da te» e' un modo di dire, non un tu
+    senza_modi = re.sub(r"\bfai[\s\u2011-]+da[\s\u2011-]+te\b", " ", testo, flags=re.I)
+    tu, lei = [w for w in TU.findall(senza_modi) if not w.isupper()], [w for w in LEI.findall(senza_modi) if not w.isupper()]
     if tu and lei:
         errori.append(f"registro misto tu/lei ({', '.join(sorted(set(w.lower() for w in tu))[:3])})")
     righe = [r.strip() for r in testo.splitlines() if r.strip()]
