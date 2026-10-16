@@ -1674,6 +1674,13 @@ def _():
         L.leggi, L.coerenza = vero_leggi, vera_coer
 
 
+@prova("le bozze: l'errore di un lead non fa crollare il giro, e una classe decisa da una persona non si tocca (16/10, 68 $ in una notte)")
+def _():
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py")).read()
+    assert "pool.map(lavora_sicuro, candidate)" in src, "un errore su un lead fa di nuovo crollare tutto il giro dopo aver pagato"
+    assert '"lock umano" in str(e)' in src, "la classe decisa da una persona fa crollare il giro"
+
+
 @prova("le analisi ferme: una domanda sola aperta, quelle dei giorni prima si chiudono (6/10)")
 def _():
     import bozze as Bz

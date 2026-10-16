@@ -941,8 +941,15 @@ def main():
             # 5/10, casainromagna (Donatella): «abbiamo gia' chi ci fornisce questo servizio»
             # con la classe ferma a positivo. Le due teste concordi su un no non si
             # scaricano su Dre: la classe si aggiorna e il gigante buono la serve.
-            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}",
-               {"classificazione": "negativo"}, {"Prefer": "return=minimal"})
+            try:
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}",
+                   {"classificazione": "negativo"}, {"Prefer": "return=minimal"})
+            except RuntimeError as e:
+                # 16/10 (Wow Eventi): la classe l'ha decisa una persona e il database la protegge
+                # («lock umano»). Si rispetta: niente bozza, si salta col motivo, e il giro continua.
+                if "lock umano" in str(e):
+                    return (p, gruppo, nome, None, [], letti, ("salta", "classe decisa da una persona: non la cambio, niente bozza"))
+                raise
             sb("POST", "/rest/v1/interactions", {"prospect_id": p["id"], "kind": "nota",
                "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "body": "Riclassificata negativo da Clara: le due teste concordi su un no gentile (regex e modello sicuro). Va al gigante buono."}, {"Prefer": "return=minimal"})
@@ -1000,8 +1007,18 @@ def main():
         candidate = candidate[:MAX_LAVORI]
     fatte, ferme, bocciate, saltate = 0, 0, 0, 0
     ferme_da_dire = []                  # chi aspetta da troppo: una domanda sola alla fine
+    def lavora_sicuro(coppia):
+        # 16/10: un errore su UN lead faceva crollare tutto il giro dopo aver pagato le bozze degli
+        # altri, senza salvarle; il giro dopo le ripagava tutte. 68 $ in una notte. Ora l'errore resta
+        # di quel lead (va in coda col motivo) e le bozze pagate degli altri si salvano.
+        try:
+            return lavora(coppia)
+        except Exception as e:                                # noqa: BLE001
+            p, gruppo = coppia
+            nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
+            return (p, gruppo, nome, None, [], None, ("salta", f"errore su questo lead, il giro continua: {str(e)[:120]}"))
     with ThreadPoolExecutor(max_workers=IN_PARALLELO) as pool:
-        esiti = list(pool.map(lavora, candidate))
+        esiti = list(pool.map(lavora_sicuro, candidate))
     for p, gruppo, nome, b, errori, letti, dura in esiti:
         if dura:
             print(f"  {(gruppo or 'risposta'):15} {nome:34} {dura[0]}: {dura[1]}")
