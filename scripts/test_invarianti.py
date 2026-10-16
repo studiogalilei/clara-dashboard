@@ -3051,6 +3051,12 @@ def _():
     assert 'json.dumps(corpo).replace("\\\\u0000", "")' in src
 
 
+@prova("orari offerti: contano anche le mail gia' partite (16/10)")
+def _():
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py")).read()
+    assert "and(stato.eq.fatta,risposta_il.gte.{dieci})" in src
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

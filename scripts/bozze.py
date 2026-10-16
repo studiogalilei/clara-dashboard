@@ -407,7 +407,11 @@ def proposta_giorno_ora(da_giorni=1):
     # (o approvate e non ancora partite) conta come occupato.
     offerti = {}
     try:
-        for x in sb("GET", "/rest/v1/proposte?select=azione->>giorno_proposto&stato=in.(aperta,approvata,in_invio)"
+        # 16/10: anche le mail gia' partite negli ultimi 10 giorni. Prima un orario offerto smetteva
+        # di contare appena la mail partiva, e la bozza dopo poteva riproporlo come libero.
+        dieci = (oggi - datetime.timedelta(days=10)).isoformat()
+        for x in sb("GET", "/rest/v1/proposte?select=azione->>giorno_proposto"
+                           f"&or=(stato.in.(aperta,approvata,in_invio),and(stato.eq.fatta,risposta_il.gte.{dieci}))"
                            "&azione->>giorno_proposto=not.is.null&limit=1000") or []:
             t = quando_proposto(x.get("giorno_proposto"), oggi.year, roma)
             if t:
