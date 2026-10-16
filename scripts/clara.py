@@ -53,7 +53,7 @@ def api(percorso, dati=None, metodo="GET"):
     mattino: prima un errore qui moriva dentro launchd senza che si vedesse."""
     req = urllib.request.Request(
         f"{URL}/rest/v1/{percorso}",
-        data=json.dumps(dati).encode() if dati is not None else None,
+        data=json.dumps(dati).replace("\\u0000", "").encode() if dati is not None else None,
         headers={
             "apikey": KEY, "Authorization": f"Bearer {KEY}",
             "Content-Type": "application/json", "Prefer": "return=representation",
@@ -155,7 +155,7 @@ def chiave_smartlead():
 def http_json(url, dati=None):
     req = urllib.request.Request(
         url,
-        data=json.dumps(dati).encode() if dati is not None else None,
+        data=json.dumps(dati).replace("\\u0000", "").encode() if dati is not None else None,
         headers={"Content-Type": "application/json",
                  "User-Agent": "clara/1.0"},
         method="POST" if dati is not None else "GET")

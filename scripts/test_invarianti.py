@@ -3049,6 +3049,10 @@ def _():
     assert "\\u0000" in json.dumps(corpo)
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "stanza.py")).read()
     assert 'json.dumps(corpo).replace("\\\\u0000", "")' in src
+    # anche chi scrive sul database senza passare da stanza (sync delle mail, clara)
+    qui = os.path.dirname(os.path.abspath(__file__))
+    assert 'json.dumps(body).replace("\\\\u0000", "")' in open(os.path.join(qui, "sync_v2.py")).read()
+    assert open(os.path.join(qui, "clara.py")).read().count('json.dumps(dati).replace("\\\\u0000", "")') >= 1
 
 
 @prova("orari offerti: contano anche le mail gia' partite (16/10)")

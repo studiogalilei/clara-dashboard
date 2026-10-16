@@ -132,7 +132,7 @@ CAT_HINT = {
 def sb(method, path, body=None, headers=None):
     req = urllib.request.Request(
         SB_URL + path,
-        data=json.dumps(body).encode() if body is not None else None,
+        data=json.dumps(body).replace("\\u0000", "").encode() if body is not None else None,
         method=method,
     )
     req.add_header("apikey", SB_KEY)
