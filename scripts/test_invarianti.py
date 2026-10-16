@@ -3022,6 +3022,17 @@ def _():
     assert "mandata a ' + f['ultima_nostra_a']" in src and "scritta da ' + f['ultima_loro_da']" in src
 
 
+@prova("postino: il fuori ufficio di un collega non cambia il destinatario (16/10)")
+def _():
+    import manda
+    ooo = {"type": "REPLY", "from": "Claudia <claudia@azienda.it>",
+           "email_body": "<p>Grazie per il messaggio. Sono fuori ufficio fino al 19 agosto.</p>"}
+    assert manda.chi_ha_risposto(ooo, "servizi@azienda.it") is None
+    vera = {"type": "REPLY", "from": "Domenico <domenico@azienda.it>",
+            "email_body": "Buongiorno, sono io che seguo il marketing: mi mandi pure l'analisi, sentiamoci mercoledi'."}
+    assert manda.chi_ha_risposto(vera, "info@azienda.it") == "domenico@azienda.it"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -273,6 +273,12 @@ def chi_ha_risposto(ultima, email_lead):
         return None
     if re.match(r"(no-?reply|mailer-daemon|postmaster|notifiche|notification)", mittente.split("@")[0]):
         return None
+    # 16/10: un fuori ufficio di un collega non e' «una persona che ha risposto». Il postino aveva
+    # scritto «Buongiorno Giuseppe» alla collega che aveva mandato solo l'automatico di assenza.
+    import lettura
+    corpo = re.sub(r"<[^>]+>", " ", ultima.get("email_body") or "")
+    if lettura.AUTORISPOSTA.search(" ".join(corpo.split())[:1200]):
+        return None
     return mittente
 
 
