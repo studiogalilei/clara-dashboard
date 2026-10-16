@@ -86,8 +86,11 @@ def _smartlead(p):
     out = []
     for m in h.get("history") or []:
         corpo = corpo_pulito(m.get("email_body"))
+        # 16/10 (un distributore che ci aveva risposto dal suo indirizzo): chi ha scritto e a chi. Senza, la seconda testa non sa che la
+        # nostra risposta era partita all'indirizzo generale e non a chi ci aveva scritto.
         out.append({"kind": "email_in" if m.get("type") == "REPLY" else "email_out",
-                    "at": (m.get("time") or "")[:19], "body": corpo[:3000], "da": "smartlead"})
+                    "at": (m.get("time") or "")[:19], "body": corpo[:3000], "da": "smartlead",
+                    "mittente": str(m.get("from") or "")[:120], "a": str(m.get("to") or "")[:200]})
     return out
 
 
@@ -208,6 +211,12 @@ def filo(p):
                             pass
             # le mail che il CRM non ha (nostre o loro) entrano nel filo in lettura, non nel CRM
             noti = {(r["kind"] if r["kind"] == "email_in" else "email_out", (r.get("at") or "")[:16]) for r in righe}
+            # le righe del CRM prendono mittente e destinatario dalla stessa mail su Smartlead
+            chi = {(v["kind"], v["at"][:16]): v for v in vere}
+            for r in righe:
+                v = chi.get((r["kind"] if r["kind"] == "email_in" else "email_out", (r.get("at") or "")[:16]))
+                if v and not r.get("a"):
+                    r["mittente"], r["a"] = v.get("mittente", ""), v.get("a", "")
             for v in vere:
                 if (v["kind"], v["at"][:16]) not in noti:
                     righe.append(v)
@@ -287,7 +296,10 @@ def ha_gia(p, righe):
                     {e.lower() for e in EMAIL.findall(suo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
     return {
         "ultima_loro": " ".join(testo.split())[:600], "ultima_loro_il": (ultima_loro or {}).get("at", "")[:10],
-        "ultima_nostra": " ".join(((ultima_nostra or {}).get("body") or "").split())[:400], "ultima_nostra_il": (ultima_nostra or {}).get("at", "")[:10],
+        # 16/10 (un rinvio a settembre): a 400 caratteri la seconda testa non vedeva il giorno proposto in fondo
+        # alla nostra mail («mercoledì 14 alle 15:30») e bocciava come inventato un rimando vero.
+        "ultima_nostra": " ".join(((ultima_nostra or {}).get("body") or "").split())[:1500], "ultima_nostra_il": (ultima_nostra or {}).get("at", "")[:10],
+        "ultima_loro_da": (ultima_loro or {}).get("mittente") or "", "ultima_nostra_a": (ultima_nostra or {}).get("a") or "",
         "scritto_dopo_di_lei": len(dopo),
         "analisi_ricevuta": bool(p.get("analysis_sent")) or bool(GIA_LETTA.search(testo)) or ("analisi" in nostre_testo and bool(dopo)),
         "analisi_gia_letta": bool(GIA_LETTA.search(testo)),
@@ -351,15 +363,18 @@ Il tuo lavoro e' UNO: dire se la bozza e' coerente con quello che l'azienda ci h
 e con quello che noi le abbiamo gia' scritto. Non correggi, non riscrivi: giudichi.
 {"REGOLA DEL GIGANTE BUONO (decisa da Dre, 1-2/10): a chi ha detto no si lascia comunque l'analisi gia' pronta, un saluto cordiale, la porta aperta e il LINK del calendario in fondo, SENZA proporre una data ne' chiedere una call. Questo NON e' ignorare il no: e' la regola voluta. Boccia solo se la bozza propone una data, insiste, o ignora quello che hanno detto." if (gruppo or '').upper().startswith('GIGANTE') or gruppo == 'INT-GB' else ''}
 
-L'ULTIMA MAIL LORO ({f['ultima_loro_il'] or 'data ignota'}):
+L'ULTIMA MAIL LORO ({f['ultima_loro_il'] or 'data ignota'}{', scritta da ' + f['ultima_loro_da'] if f.get('ultima_loro_da') else ''}):
 {f['ultima_loro'] or '(nessuna)'}
 
-L'ULTIMA MAIL NOSTRA ({f['ultima_nostra_il'] or 'mai'}), {'mandata DOPO la loro' if f['scritto_dopo_di_lei'] else 'mandata PRIMA della loro'}:
+L'ULTIMA MAIL NOSTRA ({f['ultima_nostra_il'] or 'mai'}{', mandata a ' + f['ultima_nostra_a'] if f.get('ultima_nostra_a') else ''}), {'mandata DOPO la loro' if f['scritto_dopo_di_lei'] else 'mandata PRIMA della loro'}:
 {f['ultima_nostra'] or '(nessuna)'}
 
 FATTI CHE IL CODICE HA VERIFICATO: analisi gia' ricevuta={f['analisi_ricevuta']}, dice di averla letta={f['analisi_gia_letta']},
 ha detto no={f['detto_no']}, autorisposta={f['autorisposta']}, ci ha girato a={f['girato_a'] or 'nessuno'}, gruppo={gruppo or 'risposta normale'},
 la mail parte a={f.get('destinatario') or 'lo stesso indirizzo del thread'}.
+Guarda gli indirizzi: se la nostra ultima mail e' partita a un indirizzo diverso da quello di chi ci ha scritto, dire
+che non gli era arrivata direttamente e' vero. Un messaggio che dice «questo indirizzo verra' disattivato» o «scrivete
+d'ora in poi a ...», mandato subito dopo la nostra, e' la risposta automatica di quella casella.
 
 LA BOZZA CHE STIAMO PER MANDARE:
 {bozza}

@@ -2996,6 +2996,32 @@ def _():
     assert schede.dividi("<div>Ciao<br>a presto</div><style>p{color:red}</style>")[0] == "Ciao\na presto"
 
 
+@prova("seconda testa: vede a chi era partita la nostra ultima mail e chi ha scritto la loro (16/10)")
+def _():
+    import lettura
+    vero = lettura.secondo_lettore
+    lettura.secondo_lettore = lambda t: None
+    try:
+        righe = [{"kind": "email_out", "at": "2026-10-12T07:02", "body": "prima mail", "a": "info@azienda.it"},
+                 {"kind": "email_in", "at": "2026-10-12T07:32", "body": "Buongiorno, le confermo che l'indirizzo e' giusto. Mi invii pure l'analisi, grazie. Mario",
+                  "mittente": "mario@azienda.it"},
+                 {"kind": "email_out", "at": "2026-10-12T08:00", "body": "ecco l'analisi", "a": "info@azienda.it"}]
+        f = lettura.ha_gia({"email": "info@azienda.it", "email_alt": ["mario@azienda.it"]}, righe)
+    finally:
+        lettura.secondo_lettore = vero
+    assert f["ultima_nostra_a"] == "info@azienda.it" and f["ultima_loro_da"] == "mario@azienda.it", f
+    # la nostra ultima mail intera: il giorno proposto sta spesso in fondo (16/10)
+    lettura.secondo_lettore = lambda t: None
+    try:
+        lunga = "a fine luglio mi aveva risposto di risentirci a settembre. " * 8 + "Le propongo mercoledì 14 ottobre alle 15:30."
+        f = lettura.ha_gia({"email": "info@azienda.it"}, righe[:2] + [{"kind": "email_out", "at": "2026-10-13T08:00", "body": lunga}])
+    finally:
+        lettura.secondo_lettore = vero
+    assert "mercoledì 14 ottobre alle 15:30" in f["ultima_nostra"], f["ultima_nostra"][-80:]
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lettura.py")).read()
+    assert "mandata a ' + f['ultima_nostra_a']" in src and "scritta da ' + f['ultima_loro_da']" in src
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
