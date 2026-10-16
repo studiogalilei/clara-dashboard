@@ -385,7 +385,10 @@ un'autorisposta come a una persona (salvo il gruppo RICONTATTO OOO, che e' fatto
 sbaglia nome o azienda; usa un indirizzo email come se fosse il nome di una persona; dice «metto in copia»
 o «grazie per il passaggio» quando la mail parte direttamente al contatto nuovo; ripete parola per parola una
 cosa che avevamo gia' scritto; risponde a una domanda precisa senza rispondere; nei gruppi (ripresa, rinvio,
-dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. E' COERENTE se un lettore attento, che vede tutto il filo, la troverebbe naturale.
+dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. REGOLA DEI COSTI (Dre, 12/10): prima della videochiamata conoscitiva non si da' mai un prezzo. Se chiedono i costi,
+rispondere che dipendono da cosa ha senso fare per loro e che i numeri precisi si danno in call e' la risposta giusta,
+non un'elusione: non bocciare per questo.
+E' COERENTE se un lettore attento, che vede tutto il filo, la troverebbe naturale.
 
 Rispondi SOLO con una riga: «COERENTE» oppure «INCOERENTE: motivo in venti parole»."""
         modello = "gpt-5" if cervello.FORNITORE == "openai" else None

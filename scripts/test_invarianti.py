@@ -3020,6 +3020,7 @@ def _():
     assert "mercoledì 14 ottobre alle 15:30" in f["ultima_nostra"], f["ultima_nostra"][-80:]
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lettura.py")).read()
     assert "mandata a ' + f['ultima_nostra_a']" in src and "scritta da ' + f['ultima_loro_da']" in src
+    assert "REGOLA DEI COSTI" in src, "la seconda testa deve sapere che i costi si danno in call (16/10)"
 
 
 @prova("postino: il fuori ufficio di un collega non cambia il destinatario (16/10)")
