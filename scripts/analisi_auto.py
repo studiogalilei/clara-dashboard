@@ -566,7 +566,10 @@ def lavora(p):
     link = carica_pdf(pdf, s["dominio"])
     bomba = re.search(r"class='bomba'>\s*<p>(.*?)</p>", an.get("body") or "", re.S)
     arr = dict(p.get("enriched") or {})
+    # 17/10 (esame): anche il testo dell'analisi, perche' la seconda testa possa riconoscere come veri
+    # i fatti che la bozza prende dal PDF (prima li bocciava come inventati)
     arr["analisi"] = {"intro": re.sub(r"<[^>]+>", "", an.get("intro") or "")[:600], "frase_forte": re.sub(r"<[^>]+>", "", bomba.group(1) if bomba else "")[:300],
+                      "testo": " ".join(re.sub(r"<[^>]+>", " ", an.get("body") or "").split())[:4000],
                       "tipo": an.get("type"), "fatta_il": datetime.date.today().isoformat()}
     sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"analysis_pdf": link, "enriched": arr})
     # la proposta aperta in Posta: il PDF sta accanto alla bozza

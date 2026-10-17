@@ -311,8 +311,11 @@ def _scheda_breve(p):
     fit, an = e.get("google_fit") or {}, e.get("analisi") or {}
     pezzi = [f"azienda: {p.get('company') or ''}", f"persona: {p.get('name') or ''}",
              f"citta'/provincia: {p.get('city') or fit.get('provincia') or ''}", f"settore: {p.get('sector') or fit.get('settore') or ''}",
-             f"cosa fa: {fit.get('cosa_fa') or ''}", f"l'analisi dice: {an.get('intro') or ''} {an.get('frase_forte') or ''}"]
-    return " | ".join(x for x in pezzi if not x.endswith(": ") and not x.endswith(":  "))[:1200]
+             f"cosa fa: {fit.get('cosa_fa') or ''}", f"descrizione: {e.get('descrizione') or ''}",
+             f"l'analisi dice: {an.get('intro') or ''} {an.get('frase_forte') or ''} {an.get('testo') or ''}",
+             # il loro sito (17/10, esame): «Livorno», «Cavallino-Treporti», i loro prodotti stanno qui
+             f"dal loro sito: {' '.join((fit.get('sito_testo') or '').split())[:1800]}"]
+    return " | ".join(x for x in pezzi if not x.rstrip().endswith(":"))[:6000]
 
 
 def _messaggio_e_firma(testo):
@@ -550,9 +553,12 @@ un'autorisposta come a una persona (salvo il gruppo RICONTATTO OOO, che e' fatto
 sbaglia nome o azienda; usa un indirizzo email come se fosse il nome di una persona; dice «metto in copia»
 o «grazie per il passaggio» quando la mail parte direttamente al contatto nuovo; ripete parola per parola una
 cosa che avevamo gia' scritto; risponde a una domanda precisa senza rispondere; nei gruppi (ripresa, rinvio,
-dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. FATTI INVENTATI (17/10): se la bozza afferma un fatto sull'azienda o sulla storia del contatto (una sede,
-un premio, un magazzino, una telefonata fatta, un collega che ha detto qualcosa, un giorno proposto da loro)
-che non sta ne' nel filo ne' in QUELLO CHE SAPPIAMO, e' INCOERENTE: fatto inventato. Le osservazioni su
+dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. FATTI INVENTATI (17/10): e' INCOERENTE una bozza che racconta un AVVENIMENTO che non sta ne' nel filo ne' in
+QUELLO CHE SAPPIAMO: una novita' dell'azienda (sede aperta, premio vinto, magazzino chiuso, assunzione,
+fiera) o un fatto della storia del contatto (una telefonata fatta, un incontro, un collega che ha detto o
+indicato qualcosa, un giorno proposto da loro). NON e' inventata una DESCRIZIONE dell'azienda (dove lavora,
+cosa fa o vende, a chi si rivolge, cosa cercano i loro clienti su Google): viene dall'analisi che abbiamo
+fatto su di loro, che qui vedi solo in parte. Nel dubbio su una descrizione, e' COERENTE. Le osservazioni su
 Google e sulle ricerche (cosa conviene, cosa cercano le persone) vengono dall'analisi e sono normali. Se
 loro hanno proposto dei giorni, una bozza che ne propone un altro senza dirlo e' INCOERENTE.
 REGOLA DEI COSTI (Dre, 12/10): prima della videochiamata conoscitiva non si da' mai un prezzo. Se chiedono i costi,
