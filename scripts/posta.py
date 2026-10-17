@@ -54,13 +54,7 @@ NOSTRO_DOMINIO = "studiogalilei.com"
 GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 # i domini di chiunque: da questi non si deduce l'azienda
-GENERICI = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.it", "yahoo.com", "yahoo.it",
-            "libero.it", "outlook.com", "outlook.it", "icloud.com", "live.it", "live.com",
-            "pec.it", "tiscali.it", "virgilio.it", "alice.it", "me.com", "aol.com",
-            # 17/10: un rapporto DMARC da Aruba.it era finito su un lead con la casella @aruba.it.
-            # Sono servizi di posta come gmail: da questi domini non si deduce l'azienda.
-            "aruba.it", "arubapec.it", "pec.aruba.it", "legalmail.it", "tin.it", "inwind.it", "email.it",
-            "fastwebnet.it", "interfree.it", "teletu.it", "libero.com", "protonmail.com", "proton.me"}
+from stanza import SERVIZI_POSTA as GENERICI   # 17/10: un elenco solo, in stanza
 
 # quello che non e' una conversazione con un'azienda
 AUTOMATICI = re.compile(

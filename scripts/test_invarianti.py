@@ -3069,6 +3069,11 @@ def _():
     trovato = posta.trova(rubrica, ["dmarc-report" + "@" + servizio], "Report Domain: esempio.it")
     assert not trovato or trovato[0] != "lead-aruba", trovato
     assert posta.AUTOMATICI.search("dmarc" + "@" + servizio)
+    # e un servizio di posta non e' mai il sito dell'azienda (Google Fit e analisi)
+    import stanza
+    assert stanza.sito_vero({"website": "https://www." + servizio, "email": "x" + "@" + servizio}) == ""
+    assert stanza.sito_vero({"website": "", "email": "x" + "@" + "azienda.it"}) == "https://azienda.it"
+    assert stanza.sito_vero({"website": "", "email": "x" + "@" + "gmail.com"}) == ""
 
 
 def main():

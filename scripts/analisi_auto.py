@@ -186,7 +186,8 @@ def fit_unito(p):
 
 
 def scheda(p):
-    dom = dominio(p.get("website"))
+    from stanza import sito_vero
+    dom = dominio(sito_vero(p))                          # 17/10: un servizio di posta non e' il loro sito
     fit = fit_unito(p)
     racc = (sb("GET", f"/rest/v1/raccolta?select=azienda,fa_ads,annunci,giorni_ads,inserzionista,maps_trovato,recensioni,voto,tipo_maps,"
                       f"recensioni_testi,sito_testo,raccolto_il,tag_google_ads,tag_analytics,tag_tag_manager,tag_clarity,tag_meta_pixel"

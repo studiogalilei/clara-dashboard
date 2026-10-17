@@ -410,7 +410,8 @@ def _zona_sul_raggio(c, zone):
 
 def valuta(p, zone, settori):
     azienda = p.get("company") or p.get("name") or p.get("email")
-    sito = p.get("website") or ("https://" + p["email"].split("@")[-1] if "@" in (p.get("email") or "") else "")
+    from stanza import sito_vero
+    sito = sito_vero(p)                                  # 17/10: mai aruba.it o gmail.com come sito
     testo = leggi_sito(sito)
     c = capisci(azienda, testo, settori)
     zona = _zona_sul_raggio(c, zone)

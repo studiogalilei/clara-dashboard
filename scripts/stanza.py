@@ -170,6 +170,27 @@ def soldi_progetti():
     return {int(r["progetto_id"]): r.get("valore") for r in sb_tutte("/rest/v1/soldi_progetti?select=progetto_id,valore")}
 
 
+# I SERVIZI DI POSTA (17/10): da questi domini non si capisce l'azienda. Un lead con la casella
+# @aruba.it aveva come «sito» aruba.it: il Google Fit e l'analisi hanno studiato Aruba.
+SERVIZI_POSTA = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.it", "yahoo.com", "yahoo.it",
+                 "libero.it", "outlook.com", "outlook.it", "icloud.com", "live.it", "live.com",
+                 "pec.it", "tiscali.it", "virgilio.it", "alice.it", "me.com", "aol.com",
+                 "aruba.it", "arubapec.it", "pec.aruba.it", "legalmail.it", "tin.it", "inwind.it", "email.it",
+                 "fastwebnet.it", "interfree.it", "teletu.it", "libero.com", "protonmail.com", "proton.me"}
+
+
+def sito_vero(p):
+    """Il sito dell'azienda, o «» se manca o e' un servizio di posta (mai dedotto da gmail, aruba...)."""
+    sito = ((p or {}).get("website") or "").strip()
+    dom = re.sub(r"^www\.", "", re.sub(r"^https?://", "", sito.lower()).split("/")[0])
+    if dom and dom not in SERVIZI_POSTA:
+        return sito
+    mail_dom = ((p or {}).get("email") or "").split("@")[-1].lower() if "@" in ((p or {}).get("email") or "") else ""
+    if not sito and mail_dom and mail_dom not in SERVIZI_POSTA:
+        return "https://" + mail_dom
+    return ""
+
+
 def contattabile(p):
     """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
     (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa
