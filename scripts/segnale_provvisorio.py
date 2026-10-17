@@ -151,9 +151,17 @@ Rispondi con questi campi:
 - consiglio: una riga per Dre SOLO se serve qualcosa di non ovvio (es. «propone mercoledi' mattina:
   chiamalo prima delle 10», «ci rimanda a un altro indirizzo: scrivi li'»); altrimenti stringa vuota.
 
+Il messaggio e la firma ti arrivano gia' separati (17/10, Dre: leggere la firma come messaggio fa
+capire il contrario). «caldo», «si» e «frase» si decidono SOLO sul MESSAGGIO. La FIRMA dice chi
+scrive, il suo ruolo e i suoi numeri: un nome, un ruolo o un cellulare nella firma sono di CHI
+SCRIVE, non di qualcuno a cui ci rimanda, e da soli non rendono caldo nessuno. Il telefono puoi
+prenderlo dalla firma.
+
 L'AZIENDA: {azienda}
-LA RISPOSTA:
-«{testo}»"""
+IL MESSAGGIO:
+«{messaggio}»
+LA SUA FIRMA (non fa parte del messaggio):
+«{firma}»"""
 
 SCHEMA = {"type": "json_schema", "json_schema": {"name": "segnale", "strict": True, "schema": {
     "type": "object", "additionalProperties": False,
@@ -378,7 +386,10 @@ def leggi(azienda, testo):
     GIRO["giorno_restano"] -= 1
     v = None
     try:
-        grezzo = _chiedi_ai(DOMANDA.format(azienda=azienda or "?", testo=(testo or "")[:3000]))
+        from lettura import dividi
+        messaggio, firma = dividi(testo or "")
+        grezzo = _chiedi_ai(DOMANDA.format(azienda=azienda or "?", messaggio=(messaggio or testo or "")[:2500],
+                                           firma=(firma or "(nessuna)")[:800]))
         m = re.search(r"\{.*\}", grezzo or "", re.S)
         v = json.loads(m.group(0)) if m else None
     except Exception as e:                                       # noqa: BLE001

@@ -156,6 +156,137 @@ DISCLAIMER = re.compile(
     r"(?:se|qualora) (?:ha|avete|hai|abbia|aveste|fosse stat[oa]) ricevut\w* [^.\n]{0,40}per errore", re.I)
 
 
+# LA FIRMA SENZA «SALUTI» (17/10, Dre: «prende i messaggi insieme alla firma e fa fatica a
+# suddividere il messaggio reale dalla firma»). Maori Group: «Ho girato la sua mail a chi se ne
+# occupa» + «Daniele Notaro / Brand Sales Manager / Mobile: 340...» era letto tutto come
+# messaggio, e il nome e il cellulare di chi scriveva sono diventati «chiama lui». La firma
+# comincia dalla prima riga da cui in giu' e' tutto firma: nome da solo, ruolo, telefoni,
+# indirizzo, sito, partita IVA. Una riga di messaggio vero (frase lunga, minuscole) la ferma.
+_SEGNI_FIRMA = re.compile(
+    r"(?:\btel\b|\btel\.|telefono|\bcell\b|cell\.|cellulare|mobile|\bfax\b|\bph\.?\b|phone|whatsapp|"
+    r"e-?mail\s*:|\bmail\s*:|www\.|https?://|@[\w-]+\.[a-z]|p\.?\s*iva|partita iva|\bc\.?\s*f\.|"
+    r"codice fiscale|\brea\b|cod\.? univoco|sede (?:legale|operativa)|"
+    r"\b(?:via|viale|piazza|piazzale|corso|strada|str\.|loc\.|localit[àa]|largo|vicolo|contrada|frazione)\s+\S|"
+    r"\b\d{5}\b|\bs\.?\s?r\.?\s?l\.?s?\b|\bs\.?p\.?a\.?\b|\bs\.?a\.?s\.?\b|\bs\.?n\.?c\.?\b)", re.I)
+_RUOLO = re.compile(
+    r"\b(?:manager|responsabile|titolare|amministrat\w*|direttor\w*|direzione|ceo|cfo|cto|coo|founder|"
+    r"co-?founder|fondat\w*|soci[oa]|ufficio|marketing|sales|commercial\w*|segreteria|specialist|engineer|"
+    r"consulente|agente|account|owner|presidente|dipartimento|reparto|amministrazione|realtor)\b", re.I)
+_TITOLO = r"(?:dott\.?(?:ssa)?|ing\.?|arch\.?|avv\.?|geom\.?|rag\.?|sig\.?(?:ra)?|prof\.?(?:ssa)?|p\.?\s?i\.?)"
+_NOME = re.compile(rf"^(?:{_TITOLO}\s+)?[A-ZÀ-Ý][\w'’.\-]*(?:\s+(?:{_TITOLO}|[A-ZÀ-Ý][\w'’.\-]*|di|de|del|della|la|lo|da))*\.?$")
+_CHIUSA = re.compile(r"^(?:cordiali saluti|distinti saluti|saluti|cordialmente|cordialit[àa]|un cordiale saluto|"
+                     r"un saluto|cari saluti|best regards|kind regards|regards|a presto)[.,!]?$", re.I)
+_SEPARATORE = re.compile(r"^[-_=*~.]{2,}$")
+# l'oggetto della nostra mail che certi client mettono in cima alla risposta. Gli oggetti fissi si
+# tolgono come prefisso; quelli col nome dell'azienda solo se la riga non contiene altro (niente
+# virgole, punti, domande): «Ho dato un occhiata ad Studio Canova Ok la invii, grazie» resta intera.
+_OGGETTO_FISSO = re.compile(r"^\s*(?:buongiorno,?\s*)?(?:aspetto solo conferma mail|ultima mail da parte mia)\s*", re.I)
+_OGGETTO_VARIABILE = re.compile(r"^(?:analisi marketing (?:per|su)\b|ho dato un occhiata ad?\b|r[ei]:\s)[^,.;!?]{0,90}$", re.I)
+_CIFRE = re.compile(r"\d")
+# le parole di una frase vera: minuscole, lunghe, non da firma. Da cinque in su la riga e' messaggio
+# («Le comunicazioni vanno inviate esclusivamente all'indirizzo...» non e' firma anche con l'email dentro)
+_NON_FRASE = {"via", "viale", "piazza", "corso", "strada", "sede", "legale", "operativa", "produttiva", "tel", "cell",
+              "mob", "fax", "mail", "email", "www", "srl", "srls", "spa", "sas", "snc", "unipersonale", "studio",
+              "ufficio", "mobile", "phone", "web", "sito", "pec", "iva", "codice", "fiscale", "univoco", "capitale",
+              "sociale", "euro", "italy", "italia", "and", "the", "for", "del", "della", "dei", "degli", "delle"}
+_STOP_FINE = {"ma", "non", "siamo", "sono", "e", "di", "che", "per", "il", "la", "lo", "le", "gli", "a", "da", "in",
+              "con", "ci", "vi", "ne", "al", "del", "della", "un", "una", "se", "o", "anche", "mi", "ti", "si", "piu", "più"}
+
+
+def _frase(r):
+    parole = [w.strip("()[],.;:!?«»\"'’").lower() for w in r.split()]
+    vere = [w for w in parole if len(w) >= 3 and w.isalpha() and w not in _NON_FRASE]
+    return len(vere) >= 5
+
+
+def _riga_di_firma(r):
+    r = r.strip()
+    if not r:
+        return True
+    parole = r.split()
+    if _SEPARATORE.match(r) or _CHIUSA.match(r):
+        return True
+    if _frase(r):
+        return False
+    if len(_CIFRE.findall(r)) >= 8 and len(parole) <= 8:          # un numero di telefono, una P.IVA
+        return True
+    if _SEGNI_FIRMA.search(r) and len(parole) <= 12:
+        return True
+    if len(parole) <= 6 and _RUOLO.search(r) and r[:1].isupper():
+        return True
+    if len(parole) <= 5 and _NOME.match(r):                       # un nome, un'azienda
+        return True
+    if len(parole) <= 6 and r.isupper():                          # «IMMOBILIARE NORD OVEST SRL»
+        return True
+    return False
+
+
+def _riga_che_apre_la_firma(r, prima=""):
+    """La prima riga della firma: un nome, un ruolo, un recapito, un saluto, un separatore.
+    Mai una frase qualunque corta («va bene.», «grazie»), che e' ancora messaggio; mai la riga
+    che continua la precedente: dopo i due punti («scrivete a:») o dopo una frase rimasta a meta'
+    («ma non siamo» / «Interessati.»)."""
+    r, prima = r.strip(), prima.strip()
+    parole = r.split()
+    if prima.endswith(":") or (prima and prima.split()[-1].lower().strip(",") in _STOP_FINE):
+        return False
+    if _frase(r):
+        return False
+    if len(parole) == 1 and r.endswith(".") and len(r) > 4:          # «Interessati.» non e' un nome
+        return False
+    return bool(_SEPARATORE.match(r) or _CHIUSA.match(r)
+                or (_SEGNI_FIRMA.search(r) and len(parole) <= 12)
+                or (len(_CIFRE.findall(r)) >= 8 and len(parole) <= 8)
+                or (len(parole) <= 6 and _RUOLO.search(r) and r[:1].isupper())
+                or (len(parole) <= 5 and _NOME.match(r) and not r.endswith(("?", "!")))
+                or (len(parole) <= 6 and r.isupper()))
+
+
+def dividi(testo):
+    """(messaggio, firma) di una risposta: la nostra mail citata e l'oggetto nostro tolti; la
+    firma separata riga per riga. Il messaggio non resta mai vuoto per colpa del taglio."""
+    t = solo_suo(testo, con_firma=True).replace("\xa0", " ")
+    righe = [r.rstrip() for r in t.split("\n")]
+    piene = [i for i, r in enumerate(righe) if r.strip()]
+    if piene:
+        senza = _OGGETTO_FISSO.sub("", righe[piene[0]], count=1)
+        if senza.strip() and senza != righe[piene[0]]:
+            righe[piene[0]] = senza                                  # l'oggetto fisso via, il resto della riga resta
+        elif not senza.strip() and len(piene) >= 2:
+            righe[piene[0]] = ""
+        elif len(piene) >= 2 and _OGGETTO_VARIABILE.match(righe[piene[0]].strip()):
+            righe[piene[0]] = ""
+        piene = [i for i, r in enumerate(righe) if r.strip()]
+    if not piene:
+        return "", ""
+    taglio = None
+    for k, i in enumerate(piene[1:], start=1):                      # la prima riga resta messaggio
+        prima = righe[piene[k - 1]]
+        if _riga_che_apre_la_firma(righe[i], prima) and all(_riga_di_firma(r) for r in righe[i:]):
+            taglio = i
+            break
+    messaggio = "\n".join(righe[:taglio] if taglio is not None else righe).strip()
+    firma = "\n".join(righe[taglio:]).strip() if taglio is not None else ""
+    # il disclaimer legale e la firma dopo i saluti (le regole di prima) valgono ancora
+    d = DISCLAIMER.search(messaggio)
+    if d and len(messaggio[:d.start()].strip()) >= 2:
+        firma = (messaggio[d.start():] + "\n" + firma).strip()
+        messaggio = messaggio[:d.start()].strip()
+    f = SALUTI.search(messaggio)
+    if f and len(messaggio[:f.start()].strip()) >= 25:
+        firma = (messaggio[f.start():] + "\n" + firma).strip()
+        messaggio = messaggio[:f.start()].strip()
+    return messaggio, firma
+
+
+def _messaggio_e_firma(testo):
+    """La risposta come la leggono i modelli: il messaggio, poi la firma etichettata a parte."""
+    messaggio, firma = dividi(testo)
+    messaggio = " ".join(messaggio.split()) or " ".join(solo_suo(testo, con_firma=True).split())
+    righe_firma = [r.strip() for r in firma.split("\n") if r.strip()]
+    return messaggio + (f"  [firma di chi scrive, non fa parte del messaggio: {' · '.join(righe_firma)}]" if righe_firma else "")
+
+
 def solo_suo(testo, con_firma=False):
     """Quello che ha scritto la persona: senza la nostra mail citata sotto e,
     se non si chiede il contrario, senza la sua firma e il disclaimer legale.
@@ -176,15 +307,8 @@ def solo_suo(testo, con_firma=False):
     t = "\n".join(r for r in t.split("\n") if not r.lstrip().startswith(">")).strip()
     if con_firma:
         return t
-    # il disclaimer legale: si taglia da dove comincia
-    d = DISCLAIMER.search(t)
-    if d:
-        t = t[:d.start()]
-    # la firma: si taglia dopo i saluti, ma solo se resta abbastanza messaggio
-    f = SALUTI.search(t)
-    if f and len(t[:f.start()].strip()) >= 25:
-        t = t[:f.start()]
-    return t.strip()
+    # 17/10: la firma riga per riga (anche senza «saluti») e l'oggetto nostro in cima: dividi()
+    return dividi(t)[0]
 
 
 def filo(p):
@@ -295,7 +419,9 @@ def ha_gia(p, righe):
                      if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI) and e.lower().split("@")[-1] != dom} |
                     {e.lower() for e in EMAIL.findall(suo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
     return {
-        "ultima_loro": " ".join(testo.split())[:600], "ultima_loro_il": (ultima_loro or {}).get("at", "")[:10],
+        # 17/10 (Dre): il messaggio e la firma separati, senza la nostra mail citata sotto. Prima era
+        # un blocco solo, e chi lo leggeva (seconda testa, bozze) prendeva la firma per messaggio.
+        "ultima_loro": _messaggio_e_firma(testo)[:900], "ultima_loro_il": (ultima_loro or {}).get("at", "")[:10],
         # 16/10 (un rinvio a settembre): a 400 caratteri la seconda testa non vedeva il giorno proposto in fondo
         # alla nostra mail («mercoledì 14 alle 15:30») e bocciava come inventato un rimando vero.
         "ultima_nostra": " ".join(((ultima_nostra or {}).get("body") or "").split())[:1500], "ultima_nostra_il": (ultima_nostra or {}).get("at", "")[:10],

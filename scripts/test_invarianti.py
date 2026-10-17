@@ -3105,6 +3105,31 @@ def _():
     assert stanza.sito_vero({"website": "", "email": "x" + "@" + "gmail.com"}) == ""
 
 
+@prova("lettura: il messaggio si separa dalla firma anche senza «saluti», e non perde parole (Dre, 17/10)")
+def _():
+    import lettura as L
+    at = "@"
+    m, f = L.dividi("Ho girato la sua mail a chi all'interno dell azienda se ne occupa\n\nDaniele Rossi\nBrand Sales Manager\n"
+                    "Mobile: 3401234567\nEmail:daniele" + at + "azienda.it\nStrada di Busseto 18, Siena - 53100")
+    assert m == "Ho girato la sua mail a chi all'interno dell azienda se ne occupa" and "Mobile" in f, (m, f)
+    m, _ = L.dividi("Buonasera,\nLa ringraziamo ma non siamo\nInteressati.\nCordialmente.\nSabrina")
+    assert "Interessati" in m, m
+    m, _ = L.dividi("Gentile mittente,\nPer future comunicazioni la preghiamo di inviare un messaggio al seguente indirizzo:\n"
+                    "roberta" + at + "azienda.it\n______\nDear sender")
+    assert "roberta" + at + "azienda.it" in m, m
+    m, _ = L.dividi("Gentile mittente, presa in carico.\nLa informiamo che per argomenti amministrativi e' necessario scrivere ad "
+                    "amministrazione" + at + "azienda.it .\nGrazie")
+    assert "amministrazione" + at in m, m
+    m, _ = L.dividi("Ho dato un occhiata ad Studio Rossi Ok la invii, grazie\n\nCordiali saluti\nMirco Rossi Geometra\nSTUDIO ROSSI")
+    assert "Ok la invii" in m, m
+    m, _ = L.dividi("Buongiorno, aspetto solo conferma mail\n\nSe vuole possiamo sentirci mercoledi'.\nSaluti\nD. Rossi\ncell 3290000000")
+    assert m.startswith("Se vuole possiamo sentirci") and "cell" not in m, m
+    m, _ = L.dividi("Buongiorno, mi chiami pure domani al 347 1234567 dopo le 15\nMario Rossi")
+    assert "347 1234567" in m, m
+    m, f = L.dividi("Buongiorno,\nva bene.\nMario Rossi")
+    assert "va bene" in m and f == "Mario Rossi", (m, f)
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
