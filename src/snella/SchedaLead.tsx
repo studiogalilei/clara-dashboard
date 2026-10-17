@@ -307,7 +307,7 @@ function Filo({ filo, lui }: { filo: Messaggio[]; lui: string }) {
     <div>
       {nascosti > 0 && (
         <div className="mb-3">
-          <Bottone onClick={() => setTutto(true)}>Mostra le {nascosti} mail prima</Bottone>
+          <Bottone onClick={() => setTutto(true)}>{nascosti === 1 ? 'Mostra la mail prima' : `Mostra le ${nascosti} mail prima`}</Bottone>
         </div>
       )}
       <ol className="space-y-3">
