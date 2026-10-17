@@ -3061,6 +3061,16 @@ def _():
     assert "and(stato.eq.fatta,risposta_il.gte.{dieci})" in src
 
 
+@prova("posta: un servizio di posta (aruba.it) non indica un'azienda, un rapporto DMARC non e' una mail (17/10)")
+def _():
+    import posta
+    servizio = "aruba.it"
+    rubrica = {"email": {}, "dominio": {servizio: "lead-aruba"}, "aziende": [], "conta": {}, "indice": {}}
+    trovato = posta.trova(rubrica, ["dmarc-report" + "@" + servizio], "Report Domain: esempio.it")
+    assert not trovato or trovato[0] != "lead-aruba", trovato
+    assert posta.AUTOMATICI.search("dmarc" + "@" + servizio)
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

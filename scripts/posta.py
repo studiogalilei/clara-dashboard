@@ -56,12 +56,16 @@ GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
 # i domini di chiunque: da questi non si deduce l'azienda
 GENERICI = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.it", "yahoo.com", "yahoo.it",
             "libero.it", "outlook.com", "outlook.it", "icloud.com", "live.it", "live.com",
-            "pec.it", "tiscali.it", "virgilio.it", "alice.it", "me.com", "aol.com"}
+            "pec.it", "tiscali.it", "virgilio.it", "alice.it", "me.com", "aol.com",
+            # 17/10: un rapporto DMARC da Aruba.it era finito su un lead con la casella @aruba.it.
+            # Sono servizi di posta come gmail: da questi domini non si deduce l'azienda.
+            "aruba.it", "arubapec.it", "pec.aruba.it", "legalmail.it", "tin.it", "inwind.it", "email.it",
+            "fastwebnet.it", "interfree.it", "teletu.it", "libero.com", "protonmail.com", "proton.me"}
 
 # quello che non e' una conversazione con un'azienda
 AUTOMATICI = re.compile(
     r"(no-?reply|do-?not-?reply|nonrispondere|notification|notifiche|notify|mailer-daemon|postmaster|"
-    r"bounce|newsletter|mailing|unsubscribe|@smartlead|@stripe\.|@google\.com|@docs\.google|@calendar-notification|"
+    r"bounce|newsletter|mailing|unsubscribe|dmarc|@smartlead|@stripe\.|@google\.com|@docs\.google|@calendar-notification|"
     r"@github\.com|@linkedin\.com|@facebookmail|@youtube|@apple\.com|@paypal|@amazon|@microsoft|@slack|"
     r"@notion\.so|@figma\.com|@vercel\.com|@supabase)", re.I)
 
