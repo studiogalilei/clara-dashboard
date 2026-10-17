@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("VITE_SUPABASE_URL", "http://finto.local")
 os.environ.setdefault("SUPABASE_SERVICE_KEY", "finto")
 os.environ["POLIZIA_PROVA"] = "1"
+os.environ["SENZA_PUSH"] = "1"          # le prove non mandano mai una notifica vera (avvisa.py)
 
 ESITI = []
 
@@ -2458,6 +2459,7 @@ class _SegnaleFinto:
         self.memoria_rotta, self.gmail = memoria_rotta, gmail      # gmail: None=ok, "no"=Google 500, "timeout"
         self.risposte, self.segnati, self.memoria, self.mail, self.ai, self.avvisi = [], [], {}, [], [], []
         self.uso, self.inviate, self.n_aziende = 0, [], n_aziende
+        self.notifiche, self.push_rotta = [], False
 
     def scrive(self, testo, minuti_fa=60, pid="p1"):
         at = (self.ora - datetime.timedelta(minutes=minuti_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
@@ -2542,16 +2544,23 @@ class _SegnaleFinto:
     def giro(self):
         import segnale_provvisorio as S
         import stanza as St
-        vero = (S.sb, St.sb, S._chiedi_ai, S._gmail_send, S._gmail_inviata, S._avvisa)
+        vero = (S.sb, St.sb, S._chiedi_ai, S._gmail_send, S._gmail_inviata, S._avvisa, S._push)
         S.sb = St.sb = self.sb
         S._chiedi_ai, S._gmail_send, S._gmail_inviata = self.chiedi, self.manda, self.inviata
         S._avvisa = self.avvisi.append
+        S._push = self.push
         try:
             return [s["tipo"] for s in S.giro(ore=24, prova=False)]
         except SystemExit:
             return "uscito"
         finally:
-            S.sb, St.sb, S._chiedi_ai, S._gmail_send, S._gmail_inviata, S._avvisa = vero
+            S.sb, St.sb, S._chiedi_ai, S._gmail_send, S._gmail_inviata, S._avvisa, S._push = vero
+
+    def push(self, titolo, testo, url, tag):
+        if self.push_rotta:
+            raise RuntimeError("push.apple.com 500: servizio giu'")
+        self.notifiche.append({"titolo": titolo, "testo": testo, "url": url, "mail_prima": len(self.mail)})
+        return 1
 
 
 SCHEDA_LEAD = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}
@@ -2758,6 +2767,7 @@ class _PrenotazioniFinte:
     def __init__(self, abbinata=True):
         self.cal, self.posta, self.righe, self.mail, self.ai, self.avvisi = {}, {}, [], [], [], []
         self.cal_rotto, self.abbinata = False, abbinata
+        self.notifiche, self.push_rotta = [], False
         self.scheda = {"id": "p1", "company": "Rossi Finta", "name": "Mario", "email": "mario@rossi.invalid", "role": None,
                        "phone": "0422 999888", "website": "https://rossi.invalid", "descrizione": "Fa porte blindate a Treviso.",
                        "analysis_sent": True, "analysis_sent_at": "2026-10-13T09:00:00+00:00",
@@ -2833,7 +2843,8 @@ class _PrenotazioniFinte:
                 raise RuntimeError("Google 500 su calendar")
             return [dict(e) for e in self.cal.values()]
         vero = (S.sb, St.sb, S._eventi_calendario, S._prenotazioni_mail, S._riconosci, S._chiedi_ai, S._gmail_send,
-                S._gmail_inviata, S._avvisa, S.adesso)
+                S._gmail_inviata, S._avvisa, S.adesso, S._push)
+        S._push = self.push
         S.sb = St.sb = self.sb
         S._eventi_calendario, S._prenotazioni_mail = cal, lambda ora: [dict(e) for e in self.posta.values()]
         S._riconosci = lambda ev: "p1" if self.abbinata else None
@@ -2844,8 +2855,14 @@ class _PrenotazioniFinte:
             S.giro_prenotazioni(prova=False, ora=self.ora)
         finally:
             (S.sb, St.sb, S._eventi_calendario, S._prenotazioni_mail, S._riconosci, S._chiedi_ai, S._gmail_send,
-             S._gmail_inviata, S._avvisa, S.adesso) = vero
+             S._gmail_inviata, S._avvisa, S.adesso, S._push) = vero
         return [x["oggetto"] for x in self.mail[prima:]]
+
+    def push(self, titolo, testo, url, tag):
+        if self.push_rotta:
+            raise TimeoutError("web.push.apple.com: timed out")
+        self.notifiche.append({"titolo": titolo, "testo": testo, "url": url, "mail_prima": len(self.mail)})
+        return 1
 
 
 @prova("prenotazioni: la mail va solo a Dre, e dal calendario e da Smartlead non si scrive niente")
@@ -3166,6 +3183,166 @@ def _():
             os.environ.pop("PROVA", None)
         else:
             os.environ["PROVA"] = prova_
+
+
+# ── le notifiche sul telefono (17/10): accanto alla mail, mai al posto suo ──
+def _con_letture(f):
+    """schede.py, importato da una prova prima, azzera le letture pagabili del segnale (e' voluto:
+    le schede non pagano). Qui servono le letture vere del segnale."""
+    def dentro():
+        import segnale_provvisorio as S
+        vero = S._restano_oggi
+
+        def restano():
+            if S.GIRO["giorno_restano"] is None:
+                S.GIRO["giorno_restano"] = S.PAGATE_AL_GIORNO
+            return S.GIRO["giorno_restano"]
+        S._restano_oggi = restano
+        try:
+            return f()
+        finally:
+            S._restano_oggi = vero
+    dentro.__name__ = f.__name__
+    return dentro
+
+
+@prova("notifica: ogni mail del segnale porta la sua notifica, DOPO la mail, che apre la scheda del lead")
+@_con_letture
+def _():
+    f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO})
+    f.scrive("Buongiorno, mi chiami domani al 333 1234567")
+    assert f.giro() == ["caldo"] and len(f.mail) == 1 and len(f.notifiche) == 1, (f.mail, f.notifiche)
+    n = f.notifiche[0]
+    assert n["titolo"] == "Vuole sentirti" and n["mail_prima"] == 1, n
+    assert "Azienda Finta 1" in n["testo"] and "mi chiami domani" in n["testo"], n
+    assert n["url"].endswith("#/s/lead/p1"), n["url"]
+    assert f.giro() == [] and len(f.notifiche) == 1, "la stessa notifica e' partita due volte"
+    p = _PrenotazioniFinte()
+    p.evento("ev1", "2026-10-23", "11:00")
+    assert p.giro("2026-10-14", "15:00") and len(p.notifiche) == 1, p.notifiche
+    assert p.notifiche[0]["titolo"] == "Prenotato" and p.notifiche[0]["url"].endswith("#/s/lead/p1"), p.notifiche
+    assert p.notifiche[0]["mail_prima"] == 1, "la notifica e' partita prima della mail"
+    p.cal["ev1"]["stato"] = "cancelled"
+    p.giro("2026-10-15", "10:00")
+    assert [x["titolo"] for x in p.notifiche] == ["Prenotato", "Cancellata"], p.notifiche
+
+
+@prova("notifica: la push rotta non blocca la mail, non la segna come fallita e non ferma il giro")
+@_con_letture
+def _():
+    f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO, "La mail e' corretta": SI}, n_aziende=1)
+    f.push_rotta = True
+    f.scrive("Buongiorno, mi chiami domani al 333 1234567")
+    assert f.giro() == ["caldo"], "con la push rotta il giro e' uscito con errore"
+    assert len(f.mail) == 1 and f.notifiche == [], (f.mail, f.notifiche)
+    assert [x.get("come") for x in f.segnati] == ["segnale"], f"la mail partita e' stata segnata male: {f.segnati}"
+    assert f.avvisi == [], "una push rotta non e' un guasto della mail"
+    p = _PrenotazioniFinte()
+    p.push_rotta = True
+    p.evento("ev1", "2026-10-23", "11:00")
+    p.giro("2026-10-14", "15:00")
+    assert len(p.mail) == 1 and all(r.get("come") == "segnale" for r in p.righe), p.righe
+    # anche una notifica che si compone male (un campo che manca) resta fuori dalla mail
+    import segnale_provvisorio as S
+    assert S.notifica_segnali("Vuole sentirti: X", [{"tipo": "caldo"}]) == 0
+    assert S.notifica_prenotazione("Prenotato: X", {}) == 0
+
+
+@prova("notifica: un indirizzo morto (410 o 404) si toglie, un errore qualunque no, e gli altri dispositivi ricevono")
+def _():
+    import avvisa as A
+
+    class Rifiuto(Exception):
+        def __init__(self, codice):
+            super().__init__(f"Push failed: {codice}")
+            self.response = type("R", (), {"status_code": codice})()
+    mandate = []
+
+    def webpush(subscription_info, **k):
+        e = subscription_info["endpoint"]
+        if "morto" in e:
+            raise Rifiuto(410 if "410" in e else 404)
+        if "giu" in e:
+            raise Rifiuto(500)
+        mandate.append((e, json.loads(k["data"])))
+    lista = [{"endpoint": "https://push.finto/vivo", "keys": {}}, {"endpoint": "https://push.finto/morto-410", "keys": {}},
+             {"endpoint": "https://push.finto/morto-404", "keys": {}}, {"endpoint": "https://push.finto/giu", "keys": {}}]
+    scritte = []
+
+    def sb(m, path, corpo=None, *a, **k):
+        if m == "GET" and "preferenze" in path:
+            return [{"owner": "u1", "valore": [dict(x) for x in lista]}]
+        if m == "PATCH":
+            scritte.append((path, corpo))
+        return None
+    vero = (A._libreria, A.sb, A.env, os.environ.pop("SENZA_PUSH", None))
+    A._libreria, A.sb = (lambda: (webpush, Rifiuto)), sb
+    A.env = lambda n: "finta" if n == "VAPID_PRIVATE" else None
+    try:
+        n = A.avvisa("Rossi Finta: «mi chiami»", titolo="Vuole sentirti", url="https://x/#/s/lead/p1", a=["u1"], tag="lead:p1")
+    finally:
+        A._libreria, A.sb, A.env = vero[:3]
+        os.environ["SENZA_PUSH"] = "1"
+    assert n == 1 and [e for e, _ in mandate] == ["https://push.finto/vivo"], mandate
+    assert mandate[0][1] == {"titolo": "Vuole sentirti", "testo": "Rossi Finta: «mi chiami»", "url": "https://x/#/s/lead/p1", "tag": "lead:p1"}
+    assert len(scritte) == 1, scritte
+    rimaste = [x["endpoint"] for x in scritte[0][1]["valore"]]
+    assert rimaste == ["https://push.finto/vivo", "https://push.finto/giu"], f"dovevano restare il vivo e quello giu': {rimaste}"
+    # e le prove non mandano mai: SENZA_PUSH spegne tutto prima di leggere le iscrizioni
+    assert A.avvisa("x") == 0
+
+
+@prova("notifica: la prova va solo al dispositivo appena attivato, una volta, e dopo tre errori si ferma")
+def _():
+    import avvisa as A
+    lista = [{"endpoint": "https://push.finto/vecchio", "keys": {}},
+             {"endpoint": "https://push.finto/nuovo", "keys": {}, "benvenuto": "da-mandare"},
+             {"endpoint": "https://push.finto/giu", "keys": {}, "benvenuto": "da-mandare"}]
+    mandate = []
+
+    def manda_a(i, testo, **k):
+        if "giu" in i["endpoint"]:
+            raise RuntimeError("500")
+        mandate.append(i["endpoint"])
+        return True
+
+    def sb(m, path, corpo=None, *a, **k):
+        if m == "GET":
+            return [{"owner": "u1", "valore": [dict(x) for x in lista]}]
+        lista[:] = corpo["valore"]
+    vero = (A.manda_a, A.sb, A.env, os.environ.pop("SENZA_PUSH", None))
+    A.manda_a, A.sb = manda_a, sb
+    A.env = lambda n: "finta" if n == "VAPID_PRIVATE" else None
+    try:
+        for _giro in range(4):
+            A.benvenuti()
+    finally:
+        A.manda_a, A.sb, A.env = vero[:3]
+        os.environ["SENZA_PUSH"] = "1"
+    assert mandate == ["https://push.finto/nuovo"], f"la prova doveva partire una volta sola, al nuovo: {mandate}"
+    stati = {x["endpoint"].rsplit("/", 1)[1]: x.get("benvenuto") for x in lista}
+    assert stati["vecchio"] is None and stati["giu"] == "fallito" and stati["nuovo"].startswith("20"), stati
+
+
+@prova("web app: l'icona sulla Home apre la versione snella su Oggi, e il tocco su una notifica apre il suo indirizzo")
+def _():
+    import re as _re
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    leggi = lambda *p: open(os.path.join(radice, *p), encoding="utf-8").read()   # noqa: E731
+    v = leggi("vite.config.ts")
+    start = _re.search(r"start_url:\s*'([^']+)'", v).group(1)
+    scope = _re.search(r"scope:\s*'([^']+)'", v).group(1)
+    assert start == "./#/s/oggi" and scope == "./", (start, scope)
+    assert "display: 'standalone'" in v, "senza standalone l'iPhone non da' le notifiche"
+    uso = leggi("src", "snella", "uso.tsx")
+    rx = _re.search(r"return /(.+)/\.test\(hash\)", uso).group(1)
+    assert _re.match(rx.replace("\\/", "/"), "#" + start.split("#", 1)[1]), "lo start_url non e' un indirizzo della versione snella"
+    h = leggi("index.html")
+    for meta in ("apple-mobile-web-app-capable", "apple-mobile-web-app-title", "viewport-fit=cover", 'sizes="180x180"'):
+        assert meta in h, f"manca {meta} in index.html"
+    assert os.path.exists(os.path.join(radice, "public", "apple-touch-icon.png")), "manca l'icona per l'iPhone"
+    sw = leggi("public", "push.js")
+    assert "notificationclick" in sw and "data.url" in sw.replace("dati.url", "data.url"), "il tocco sulla notifica non apre il suo indirizzo"
 
 
 def main():

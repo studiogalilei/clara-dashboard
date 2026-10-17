@@ -99,7 +99,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
         {s.campagna && <>Campagna: {s.campagna}<br /></>}
         Scheda aggiornata {quando(sc.aggiornata_il)}.{' '}
-        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-9 items-center font-semibold text-blu-scuro hover:underline">
+        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">
           Apri nel Workspace completo
         </a>
       </p>
@@ -173,7 +173,7 @@ function Decidi({ id, scheda, decisione, onSalvato }: { id: string; scheda: Sche
       <div>
         <label htmlFor="stato" className="mb-1 block text-[14px] font-semibold text-inchiostro">Stato</label>
         <select id="stato" value={stato} onChange={(e) => setStato(e.target.value)}
-                className="h-11 w-full rounded-xl border border-bordo bg-white px-3 text-[15px] text-inchiostro outline-none focus:border-blu-scuro">
+                className="h-11 w-full rounded-xl border border-bordo bg-white px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro">
           <option value="">Come dicono le mail: {scheda.stato ?? 'In conversazione'}</option>
           {STATI.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -182,12 +182,12 @@ function Decidi({ id, scheda, decisione, onSalvato }: { id: string; scheda: Sche
         <label htmlFor="mossa" className="mb-1 block text-[14px] font-semibold text-inchiostro">Prossima mossa</label>
         <input id="mossa" value={mossa} onChange={(e) => setMossa(e.target.value)} maxLength={200}
                placeholder={suggerita.mossa ? `Suggerita: ${suggerita.mossa}${suggerita.il ? ` (${dataCorta(suggerita.il)})` : ''}` : 'Cosa fare'}
-               className="h-11 w-full rounded-xl border border-bordo px-3 text-[15px] text-inchiostro outline-none placeholder:text-spento focus:border-blu-scuro" />
+               className="h-11 w-full rounded-xl border border-bordo px-3 text-[16px] text-inchiostro outline-none placeholder:text-spento focus:border-blu-scuro" />
       </div>
       <div>
         <label htmlFor="quando" className="mb-1 block text-[14px] font-semibold text-inchiostro">Quando</label>
         <input id="quando" type="date" value={il} onChange={(e) => setIl(e.target.value)}
-               className="h-11 rounded-xl border border-bordo px-3 text-[15px] text-inchiostro outline-none focus:border-blu-scuro" />
+               className="h-11 rounded-xl border border-bordo px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro" />
       </div>
       {!decisione?.prossima_mossa && suggerita.mossa && (
         <p className="text-[14px] text-tenue">Per ora vale quella suggerita: {suggerita.mossa}{suggerita.il ? `, ${dataCorta(suggerita.il)}` : ''}.</p>
@@ -243,7 +243,7 @@ function Note({ id, note, onNota, onTolta, mostra }: {
         <label htmlFor="nuova-nota" className="sr-only">Nuova nota</label>
         <textarea id="nuova-nota" value={testo} onChange={(e) => setTesto(e.target.value)} rows={3} maxLength={4000}
                   placeholder="Scrivi una nota: cosa vi siete detti, cosa fare"
-                  className="w-full rounded-xl border border-bordo px-3 py-2 text-[15px] text-inchiostro outline-none placeholder:text-spento focus:border-blu-scuro" />
+                  className="w-full rounded-xl border border-bordo px-3 py-2 text-[16px] text-inchiostro outline-none placeholder:text-spento focus:border-blu-scuro" />
         <div className="mt-2 flex items-center gap-2">
           <Bottone tipo="primo" type="submit" disabled={lavoro || !testo.trim()}>{lavoro ? 'Salvo…' : 'Aggiungi la nota'}</Bottone>
         </div>
@@ -347,14 +347,14 @@ function Mail({ m, lui: nome }: { m: Messaggio; lui: string }) {
         : <p className="text-[14px] italic text-tenue">Solo testo citato.</p>}
       {lunga && (
         <button onClick={() => setIntera(!intera)} aria-expanded={intera}
-                className="mt-1 inline-flex min-h-9 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
+                className="mt-1 inline-flex min-h-11 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
           {intera ? 'Mostra meno' : 'Mostra tutta la mail'}
         </button>
       )}
       {m.citato && (
         <div className="mt-2">
           <button onClick={() => setCitato(!citato)} aria-expanded={citato}
-                  className="inline-flex min-h-9 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
+                  className="inline-flex min-h-11 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
             {citato ? 'Nascondi il testo citato' : 'Mostra il testo citato'}
           </button>
           {citato && <p className="mt-1 whitespace-pre-wrap break-words border-l-2 border-bordo pl-3 text-[14px] leading-relaxed text-tenue">{m.citato}</p>}

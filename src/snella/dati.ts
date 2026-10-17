@@ -59,6 +59,10 @@ function entro(ms = ATTESA_MS): AbortSignal {
 
 function guasto(e: { message?: string } | null): never {
   if (/abort/i.test(e?.message ?? '')) throw new Error('La connessione non risponde. Controlla la rete e riprova.')
+  // 17/10: senza rete il browser dice «Failed to fetch» / «Load failed» (l'iPhone): a parole nostre
+  if (!navigator.onLine || /failed to fetch|load failed|networkerror|network request failed/i.test(e?.message ?? '')) {
+    throw new Error('Sei senza connessione: riprovo da solo appena torna.')
+  }
   throw new Error(e?.message || 'Il database non ha risposto')
 }
 

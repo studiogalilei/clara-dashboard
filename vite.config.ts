@@ -15,18 +15,25 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // le notifiche le riceve public/push.js, importato dentro il service worker
       workbox: { importScripts: ['push.js'], globIgnores: ['**/brand/**', '**/lab/**', '**/documento-*.js', '**/CompilaPdf-*.js', '**/pdf.worker*'], navigateFallbackDenylist: [/\/lab\//] },   // i pezzi pesanti si scaricano quando servono, non all'installazione
+      // LA WEB APP SUL TELEFONO (17/10): l'icona sulla Home apre la versione snella su Oggi
+      // (chi non e' ceo viene portato da li' al Workspace completo, src/snella/Snella.tsx).
+      // Bianca come la snella: la barra in alto e lo schermo d'apertura non lampeggiano di blu.
       manifest: {
-        start_url: './',
+        id: './',
+        start_url: './#/s/oggi',
         scope: './',
-        name: 'SG Workspace',
-        short_name: 'SG Workspace',
-        description: 'Il workspace di Studio Galilei, con Clara',
-        theme_color: '#061773',
-        background_color: '#061773',
+        name: 'SG Oggi · Studio Galilei',
+        short_name: 'SG Oggi',
+        description: 'Il Workspace di Studio Galilei: chi chiamare, le call, i lead, le campagne',
+        lang: 'it',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
         display: 'standalone',
+        orientation: 'any',
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
         ],
       },
     }),

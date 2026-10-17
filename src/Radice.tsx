@@ -9,6 +9,7 @@ import { supabase, demo } from './lib/supabase'
 import { chiSono } from './lib/accessi'
 import Snella from './snella/Snella'
 import { inSnella } from './snella/uso'
+import { ascoltaNotifiche } from './lib/notifiche'
 
 // dopo un aggiornamento il pezzo vecchio non esiste piu': si ricarica una volta sola (come in App)
 const App = lazy(() => import('./App').catch((e) => {
@@ -30,6 +31,9 @@ function entrataNuda(): boolean {
 
 export default function Radice() {
   const [quale, setQuale] = useState<Quale>(() => inSnella(window.location.hash) ? 'snella' : entrataNuda() ? null : 'completo')
+
+  // il tocco su una notifica con l'app gia' aperta: si va al suo indirizzo (public/push.js)
+  useEffect(() => ascoltaNotifiche(), [])
 
   useEffect(() => {
     // un indirizzo vuoto non decide niente: e' anche il login di Google che si pulisce il token

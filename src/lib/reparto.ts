@@ -43,8 +43,8 @@ export function vestiIlTelefono(r: Reparto) {
   const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
   const icona = `${base}/reparti/icona-${r}-512.png`
   const link = document.querySelectorAll('link[rel="apple-touch-icon"]')
-  if (link.length) link.forEach((l) => l.setAttribute('href', `${base}/reparti/icona-${r}-192.png`))
-  else { const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = `${base}/reparti/icona-${r}-192.png`; document.head.appendChild(l) }
+  if (link.length) link.forEach((l) => l.setAttribute('href', `${base}/reparti/icona-${r}-180.png`))
+  else { const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = `${base}/reparti/icona-${r}-180.png`; document.head.appendChild(l) }
   document.querySelectorAll('link[rel="icon"]').forEach((l) => l.setAttribute('href', `${base}/reparti/albero-${r}.svg`))
   let tema = document.querySelector('meta[name="theme-color"]')
   if (!tema) { tema = document.createElement('meta'); tema.setAttribute('name', 'theme-color'); document.head.appendChild(tema) }
@@ -52,10 +52,16 @@ export function vestiIlTelefono(r: Reparto) {
   // il manifest si riscrive al volo: cosi' «Aggiungi a Home» prende l'icona giusta
   const vecchio = document.querySelector('link[rel="manifest"]')
   if (vecchio) {
-    fetch(vecchio.getAttribute('href') || '').then((x) => x.json()).then((m) => {
-      const nuovo = { ...m, theme_color: REPARTI[r].colore, background_color: REPARTI[r].colore,
-                      icons: [{ src: `reparti/icona-${r}-192.png`, sizes: '192x192', type: 'image/png' },
-                              { src: `reparti/icona-${r}-512.png`, sizes: '512x512', type: 'image/png' }] }
+    // 17/10: il manifest nuovo sta in un blob, e dentro un blob un indirizzo relativo non vale
+    // niente: l'apertura sulla versione snella (start_url), lo scope e le icone si fanno assoluti
+    // rispetto al manifest vero, se no «Aggiungi a Home» apriva la pagina in cui ti trovavi.
+    const vero = new URL(vecchio.getAttribute('href') || 'manifest.webmanifest', document.baseURI).href
+    if (vero.startsWith('blob:')) return icona
+    fetch(vero).then((x) => x.json()).then((m: Record<string, unknown>) => {
+      const ass = (u: unknown) => typeof u === 'string' ? new URL(u, vero).href : u
+      const nuovo = { ...m, id: ass(m.id ?? m.start_url), start_url: ass(m.start_url), scope: ass(m.scope),
+                      icons: [{ src: ass(`reparti/icona-${r}-192.png`), sizes: '192x192', type: 'image/png' },
+                              { src: ass(`reparti/icona-${r}-512.png`), sizes: '512x512', type: 'image/png' }] }
       const url = URL.createObjectURL(new Blob([JSON.stringify(nuovo)], { type: 'application/manifest+json' }))
       vecchio.setAttribute('href', url)
     }).catch(() => { /* niente: resta il manifest di partenza */ })

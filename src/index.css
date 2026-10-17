@@ -153,6 +153,13 @@ h1, h2 {
 }
 /* la versione snella (15/10): titoli neri, una tinta sola (il blu scuro) per quello che si tocca */
 .snella h1, .snella h2, .snella h3 { color: var(--color-inchiostro); }
+/* il telefono (17/10): sotto i 16px l'iPhone ingrandisce la pagina quando tocchi un campo, e
+   non torna indietro. Su schermo a tocco nessun campo scende sotto, in tutto il Workspace. */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: max(16px, 1em); }
+}
+/* la web app sulla Home: niente lampo grigio al tocco (il premuto lo disegnano i bottoni) */
+html { -webkit-tap-highlight-color: transparent; }
 /* focus visibile, sempre: mai outline none senza sostituto */
 :focus-visible { outline: 2px solid var(--color-blu); outline-offset: 2px; }
 button, a, select, input[type=checkbox] { cursor: pointer; }

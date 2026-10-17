@@ -20,7 +20,7 @@ export function useAvviso() {
           <span>{avviso.testo}</span>
           {avviso.annulla && (
             <button onClick={() => { avviso.annulla?.(); setAvviso(null) }}
-                    className="min-h-9 shrink-0 rounded-full px-2 font-bold text-blue-200 underline-offset-2 hover:underline focus-visible:outline-white">
+                    className="min-h-11 shrink-0 rounded-full px-2 font-bold text-blue-200 underline-offset-2 hover:underline focus-visible:outline-white">
               Annulla
             </button>
           )}
@@ -54,8 +54,11 @@ export function useDati<T>(carica: () => Promise<T>, dipende: unknown[] = []) {
     void rifai()
     const vis = () => { if (document.visibilityState === 'visible') void rifai() }
     document.addEventListener('visibilitychange', vis)
+    // la rete che torna (il telefono esce dalla galleria, il wifi si riaggancia): si ricarica subito
+    const torna = () => void rifai()
+    window.addEventListener('online', torna)
     const t = window.setInterval(() => { if (document.visibilityState === 'visible') void rifai() }, 120_000)
-    return () => { document.removeEventListener('visibilitychange', vis); window.clearInterval(t) }
+    return () => { document.removeEventListener('visibilitychange', vis); window.removeEventListener('online', torna); window.clearInterval(t) }
   }, [rifai])
   return { dati, setDati, errore, caricando: carica_ && dati === null, rifai }
 }

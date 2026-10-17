@@ -21,7 +21,10 @@ export async function sonoCeo(): Promise<boolean> {
 export interface Persona { id: string; nome: string | null; ruolo: string }
 export interface ChiSono { uid: string | null; nome: string | null; ruolo: 'ceo' | 'coordinamento'; ruoloVero: string; reparto: string | null; pod: Persona[]; concessi: Chiave[]; vista: { id: string; nome: string | null } | null }
 export async function chiSono(): Promise<ChiSono> {
-  const { data } = await supabase.rpc('chi_sono')
+  const { data, error } = await supabase.rpc('chi_sono')
+  // 17/10: senza rete la risposta vuota diventava «non sei ceo» e Dre, aperta l'app in galleria,
+  // finiva nel Workspace completo. Un errore e' un errore: chi chiama decide cosa fare.
+  if (error) throw new Error(error.message || 'chi_sono non ha risposto')
   const d = (data ?? {}) as Partial<ChiSono> & { ruolo?: string }
   // per i widget contano due ruoli (ceo, o non ceo); il ruolo vero (manager, specialist, frontend) serve al pod
   return { uid: d.uid ?? null, nome: d.nome ?? null, ruolo: d.ruolo === 'ceo' ? 'ceo' : 'coordinamento', ruoloVero: d.ruolo ?? 'coordinamento',

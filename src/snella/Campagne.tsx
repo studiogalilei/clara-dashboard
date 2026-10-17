@@ -32,7 +32,7 @@ export default function Campagne() {
       <div role="radiogroup" aria-label="Periodo" className="inline-flex rounded-full border border-bordo bg-white p-1">
         {(['7', '30'] as const).map((p) => (
           <button key={p} role="radio" aria-checked={periodo === p} onClick={() => setPeriodo(ricordaPeriodo(p))}
-                  className={`min-h-10 rounded-full px-4 text-[14px] font-semibold ${periodo === p ? 'bg-blu-scuro text-white' : 'text-inchiostro hover:bg-velo'}`}>
+                  className={`min-h-11 rounded-full px-4 text-[14px] font-semibold ${periodo === p ? 'bg-blu-scuro text-white' : 'text-inchiostro hover:bg-velo'}`}>
             Ultimi {p} giorni
           </button>
         ))}
@@ -97,7 +97,7 @@ function Riquadro({ titolo, f, forte = false }: { titolo: string; f: Finestra | 
               : `${forte ? 'text-[26px]' : 'text-[22px]'} font-bold leading-tight ${tono === 'neutro' || v === '0' ? 'text-inchiostro' : TONO[tono].testo}`}>
               {v ?? vuoto ?? 'non disponibile'}
             </dd>
-            {sotto && v != null && <dd className="text-[12.5px] text-tenue">{sotto}</dd>}
+            {sotto && v != null && <dd className="text-[13px] text-tenue">{sotto}</dd>}
           </div>
         ))}
       </dl>

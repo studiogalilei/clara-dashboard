@@ -328,14 +328,14 @@ function CartaChiamata({ x, tardi, apri, mostra, onCambio }: {
           <div className="flex flex-wrap gap-2">
             {scelte.map((c) => (
               <button key={c.g} onClick={() => setGiorno(c.g)} aria-pressed={giorno === c.g}
-                      className={`min-h-10 rounded-full border px-3 text-[14px] font-semibold ${giorno === c.g ? 'border-blu-scuro bg-white text-blu-scuro' : 'border-bordo bg-white text-inchiostro'}`}>
+                      className={`min-h-11 rounded-full border px-3 text-[14px] font-semibold ${giorno === c.g ? 'border-blu-scuro bg-white text-blu-scuro' : 'border-bordo bg-white text-inchiostro'}`}>
                 {c.n}
               </button>
             ))}
-            <label className="flex min-h-10 items-center gap-2 rounded-full border border-bordo bg-white px-3 text-[14px]">
+            <label className="flex min-h-11 items-center gap-2 rounded-full border border-bordo bg-white px-3 text-[14px]">
               <span className="text-tenue">Il</span>
               <input type="date" value={giorno} min={piuGiorni(oggi, 1)} onChange={(e) => setGiorno(e.target.value)}
-                     className="bg-transparent font-semibold text-inchiostro outline-none" aria-label="Giorno in cui richiamare" />
+                     className="bg-transparent text-[16px] font-semibold text-inchiostro outline-none" aria-label="Giorno in cui richiamare" />
             </label>
           </div>
           <div className="mt-2.5 flex gap-2">
@@ -350,7 +350,7 @@ function CartaChiamata({ x, tardi, apri, mostra, onCambio }: {
           <label htmlFor={`nota-${id}`} className="sr-only">Nota su {r.azienda}</label>
           <textarea id={`nota-${id}`} value={nota} onChange={(e) => setNota(e.target.value)} rows={3} autoFocus
                     placeholder="Cosa ti ha detto, cosa fare dopo"
-                    className="w-full rounded-xl border border-bordo px-3 py-2 text-[15px] outline-none focus:border-blu-scuro" />
+                    className="w-full rounded-xl border border-bordo px-3 py-2 text-[16px] outline-none focus:border-blu-scuro" />
           <div className="mt-2 flex gap-2">
             <Bottone tipo="primo" type="submit" disabled={lavoro || !nota.trim()}>Salva la nota</Bottone>
             <Bottone tipo="piatto" onClick={() => { setQuale(null); setNota('') }}>Annulla</Bottone>

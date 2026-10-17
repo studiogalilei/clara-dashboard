@@ -5,10 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/sg-simbolo.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#061773" />
+    <!-- la web app sull'iPhone (17/10): si apre a tutto schermo dalla Home, la barra in alto
+         resta quella di sistema (testo scuro su bianco), il nome sotto l'icona e' corto -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="SG Workspace" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-title" content="SG Oggi" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -34,7 +38,7 @@
     <style>
       /* l'apertura (Dre, 26/9): il fondo del reparto e l'albero bianco, come
          Smartlead. Il colore si ricorda dall'ultimo ingresso, cosi' c'e' subito. */
-      #root .avvio { display: flex; min-height: 100dvh; align-items: center; justify-content: center; background: var(--reparto, #061773); }
+      #root .avvio { display: flex; min-height: 100dvh; align-items: center; justify-content: center; background: var(--avvio, var(--reparto, #061773)); }
       #root .avvio img { height: min(40vh, 40vw, 340px); width: auto; }
     </style>
   </head>
@@ -49,7 +53,16 @@
         document.querySelector('meta[name=theme-color]').setAttribute('content', r)
         // l'icona in home e' quella del reparto, subito: iOS la legge al momento del «Aggiungi a Home»
         var n = localStorage.getItem('sg:reparto') || 'direzione'
-        document.querySelectorAll('link[rel=apple-touch-icon]').forEach(function (l) { l.setAttribute('href', 'reparti/icona-' + n + '-192.png') })
+        if (!C[n]) n = 'direzione'
+        document.querySelectorAll('link[rel=apple-touch-icon]').forEach(function (l) { l.setAttribute('href', 'reparti/icona-' + n + '-180.png') })
+        // la versione snella (17/10) e' bianca: l'apertura e la barra in alto anche, l'albero a colori
+        if (/^#\/s(\/|$)/.test(location.hash)) {
+          document.documentElement.style.setProperty('--avvio', '#ffffff')
+          document.querySelector('meta[name=theme-color]').setAttribute('content', '#ffffff')
+          var img = document.querySelector('#root .avvio img')
+          img.setAttribute('src', 'reparti/albero-' + n + '.svg')
+          img.setAttribute('style', 'height:88px;border-radius:20px')
+        }
       } catch (e) {}
     </script>
     <script type="module" src="/src/main.tsx"></script>

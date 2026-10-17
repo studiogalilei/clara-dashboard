@@ -58,7 +58,7 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
           const su = filtro === s
           return (
             <button key={s} onClick={() => scegli(s)} aria-pressed={su}
-                    className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-semibold transition-colors ${su ? 'border-blu-scuro bg-blu-scuro text-white' : 'border-bordo bg-white text-inchiostro hover:border-tenue'}`}>
+                    className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-semibold transition-colors ${su ? 'border-blu-scuro bg-blu-scuro text-white' : 'border-bordo bg-white text-inchiostro hover:border-tenue'}`}>
               {/* 17/10: il pallino ha il colore della pillola di quello stato, cosi' filtro e lista si riconoscono */}
               {s !== 'Tutti' && tonoStato(s) !== 'neutro' && <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONO[tonoStato(s)].segno} ${su ? 'ring-2 ring-white' : ''}`} />}
               {s}{n != null && <span className={su ? 'text-white/85' : 'text-tenue'}>{n}</span>}

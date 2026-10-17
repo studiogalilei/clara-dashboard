@@ -94,7 +94,7 @@ from email.mime.text import MIMEText
 from email.header import Header
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, contattabile, quando, _a_secco           # noqa: E402
+from stanza import sb, contattabile, quando, _a_secco, env      # noqa: E402
 from lettura import AUTORISPOSTA, solo_suo                       # noqa: E402
 
 DRE = "dramane@studiogalilei.com"           # mittente e UNICO destinatario, sempre
@@ -244,6 +244,79 @@ def _gmail_inviata(oggetto, dal):
 def _avvisa(testo):
     from avvisa import avvisa
     return avvisa(testo, titolo="Segnale provvisorio")
+
+
+# ── la notifica sul telefono (17/10) ───────────────────────────────
+# Dre, 17/10: «se possibile che mi invii anche notifiche». Ogni mail del segnale porta anche una
+# notifica alla web app (aggiunta alla Home dell'iPhone, o installata sul computer): titolo corto,
+# l'azienda e la frase, e al tocco si apre la scheda del lead nella versione snella. La mail resta
+# la strada sicura: la notifica parte DOPO la mail, e un suo errore si scrive nel registro e basta.
+_IO = {}
+
+
+def _dre_id():
+    if "id" not in _IO:
+        from avvisa import utente
+        _IO["id"] = utente(DRE)
+    return _IO["id"]
+
+
+def _push(titolo, testo, url, tag):
+    """La strada vera verso il telefono di Dre (solo lui: le mail del segnale sono sue)."""
+    from avvisa import avvisa
+    chi = _dre_id()
+    return avvisa(testo, titolo=titolo, url=url, a=[chi], tag=tag) if chi else 0
+
+
+def link_snella(pid=None):
+    """Dove porta il tocco: la scheda del lead nella versione snella, o Oggi."""
+    base = (env("DASHBOARD_URL") or "https://studiogalilei.github.io/clara/").split("#")[0]
+    return base + (f"#/s/lead/{urllib.parse.quote(str(pid))}" if pid else "#/s/oggi")
+
+
+def notifica(titolo, testo, pid=None):
+    """Una notifica a Dre. Non alza MAI: la mail e' gia' partita e il giro va avanti."""
+    try:
+        n = _push(" ".join(titolo.split())[:60], " ".join((testo or "").split())[:178], link_snella(pid),
+                  f"lead:{pid}" if pid else "oggi")
+        print(f"  notifica sul telefono: {titolo} ({n} dispositivi)")
+        return n
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (notifica non partita, la mail si': {str(e)[:120]})")
+        return 0
+
+
+def _mai_alza(f):
+    """Una notifica che si compone male non diventa un errore della mail (che e' gia' partita)."""
+    def dentro(*a, **k):
+        try:
+            return f(*a, **k)
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  (notifica non partita, la mail si': {str(e)[:120]})")
+            return 0
+    return dentro
+
+
+@_mai_alza
+def notifica_segnali(oggetto, gruppo):
+    """La notifica di una mail del segnale: uno solo (titolo, azienda e frase, apre la scheda)
+    o l'elenco (apre Oggi)."""
+    if len(gruppo) == 1:
+        s = gruppo[0]
+        frase = s.get("frase") or ""
+        return notifica(OGGETTO[s["tipo"]], f"{s['azienda']}: «{frase}»" if frase else f"{s['azienda']}: {cosa_fare(s)}",
+                        s.get("prospect_id"))
+    titolo, _, _ = oggetto.partition(": ")
+    return notifica(titolo or "Segnali", oggetto.partition(": ")[2] + " · " + ", ".join(s["azienda"] for s in gruppo[:4])
+                    + ("…" if len(gruppo) > 4 else ""))
+
+
+@_mai_alza
+def notifica_prenotazione(oggetto, s):
+    titolo, _, resto = oggetto.partition(": ")
+    if s["tipo"] in ("prenotato", "mattina"):
+        resto += " · la scheda per la call è nella mail"
+    return notifica(titolo, resto, s.get("prospect_id"))
 
 
 def avvisa_ogni(motivo, testo):
@@ -707,6 +780,8 @@ def giro(ore=FINESTRA_ORE, prova=None, prova_mail=False, storico=False):
         try:
             manda_mail(DRE, oggetto, testo, corpo)
             print(f"mandata a Dre: {oggetto}")
+            if not prova_mail:
+                notifica_segnali(oggetto, gruppo)                # dopo la mail, e non alza mai
         except Exception as e:                                   # noqa: BLE001
             if non_partita(e):
                 print(f"MAIL NON MANDATA ({oggetto}): {str(e)[:160]}")
@@ -1485,6 +1560,7 @@ def giro_prenotazioni(prova=None, ora=None, semina=False, tranne=""):
         try:
             manda_mail(DRE, oggetto, testo, corpo)
             print(f"mandata a Dre: {oggetto}")
+            notifica_prenotazione(oggetto, s)                    # dopo la mail, e non alza mai
         except Exception as e:                                   # noqa: BLE001
             if non_partita(e):
                 print(f"MAIL NON MANDATA ({oggetto}): {str(e)[:160]}")
@@ -1524,6 +1600,13 @@ def main():
         raise SystemExit("--semina scrive: non va insieme a --prova")
     solo_pren = "--solo-prenotazioni" in sys.argv or semina or alle is not None
     uscita, segnali, prenotazioni = 0, [], []
+    if not _a_secco():
+        # la notifica di prova a chi ha appena attivato le notifiche (17/10): un guasto qui non ferma niente
+        try:
+            from avvisa import benvenuti
+            benvenuti()
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  (prova di notifica ferma: {str(e)[:120]})")
     if not solo_pren:
         try:
             segnali = giro(ore=ore, prova=None if not prova_mail else False, prova_mail=prova_mail, storico=storico)
