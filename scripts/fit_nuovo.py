@@ -272,7 +272,8 @@ def giudica(c, misurato, dove, idee=None):
 
 def valuta(p, kp=None):
     azienda = p.get("company") or p.get("name") or p.get("email")
-    sito = p.get("website") or ("https://" + p["email"].split("@")[-1] if "@" in (p.get("email") or "") else "")
+    from stanza import sito_vero
+    sito = sito_vero(p)                                  # 17/10: mai aruba.it o gmail.com come sito
     vecchio = (p.get("enriched") or {}).get("google_fit") or {}
     testo = vecchio.get("sito_testo") or googlefit.leggi_sito(sito)
     c = googlefit.capisci(azienda, testo, googlefit.carica_fogli()[1]) if testo else {}

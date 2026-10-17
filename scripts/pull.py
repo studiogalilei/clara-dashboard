@@ -228,6 +228,9 @@ def lotto(campione, massimo):
             righe += [p for p in presi if p["dominio"] not in gia]
     else:
         righe = sb("GET", f"/rest/v1/raccolta?select=dominio,azienda&raccolto_il=is.null&order=dominio&limit={massimo}")
+    # 17/10: un servizio di posta (gmail, aruba...) non e' il sito di un'azienda: non si raccoglie
+    from stanza import SERVIZI_POSTA
+    righe = [r for r in righe if (r.get("dominio") or "").lower().replace("www.", "") not in SERVIZI_POSTA]
     if not righe:
         print("pull: niente da fare"); return 0
 
