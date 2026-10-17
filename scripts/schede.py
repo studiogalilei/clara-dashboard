@@ -69,7 +69,7 @@ import categorie_smartlead as C                                # noqa: E402
 PROVA = "--prova" in sys.argv or _a_secco()
 TUTTE = "--tutte" in sys.argv
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
-VERSIONE = "schede3"                     # cambia la forma della scheda -> si rifanno tutte
+VERSIONE = "schede4"                     # cambia la forma della scheda -> si rifanno tutte
 GIORNI_ATTIVI = 60
 VECCHIE_PER_GIRO = 30
 FRESCA = datetime.timedelta(hours=1)     # una risposta piu' giovane di cosi': la scheda si rifa' a ogni giro
@@ -147,7 +147,9 @@ def leggi_contesto(ora):
     # fonte «gcal» e' il calendario di Dre, «gcal:<mail>» quello di un collega
     agenda = sb_tutte(f"/rest/v1/agenda?select=id,at,titolo,tipo,prospect_id,link,fonte,creato_il"
                       f"&fonte=like.gcal*&at=gte.{_z(ora - datetime.timedelta(days=60))}")
+    # chi Dre ha toccato: una decisione o una nota (17/10: anche solo una nota tiene viva la scheda)
     toccati = {r["prospect_id"] for r in sb_tutte("/rest/v1/snella_lead?select=prospect_id", chiave="prospect_id")}
+    toccati |= {r["prospect_id"] for r in sb_tutte("/rest/v1/snella_note?select=id,prospect_id")}
     vicine = {a["prospect_id"] for a in agenda if a.get("prospect_id") and quando(a["at"]) >= ora - datetime.timedelta(days=1)}
     mancano = (toccati | vicine) - set(ps)
     for pezzo in a_pezzi(mancano):
@@ -160,11 +162,14 @@ def leggi_contesto(ora):
         for r in sb_tutte(f"/rest/v1/interactions?select=id,prospect_id,at,kind&kind=in.(email_in,email_out)"
                           f"&prospect_id=in.({pezzo})"):
             mail.setdefault(r["prospect_id"], []).append(r)
-    segnali = {}
+    segnali, caldi = {}, {}
     for pezzo in a_pezzi(ids):
-        for s in sb("GET", f"/rest/v1/segnali_provvisori?select=prospect_id,tipo,quando,come&prospect_id=in.({pezzo})") or []:
+        for s in sb("GET", f"/rest/v1/segnali_provvisori?select=prospect_id,interaction_id,tipo,quando,come"
+                           f"&prospect_id=in.({pezzo})") or []:
             if s.get("come") != "prova":
                 segnali.setdefault(s["prospect_id"], set()).add(s["tipo"])
+                if s["tipo"] == "caldo":
+                    caldi.setdefault(s["prospect_id"], set()).add(s.get("interaction_id"))
     # l'ultimo intento delle bozze (domanda o si') e chi ci ha girato a un collega
     intenti, girati = {}, set()
     for pezzo in a_pezzi(ids):
@@ -177,7 +182,7 @@ def leggi_contesto(ora):
     clienti = {r["prospect_id"] for r in sb_tutte("/rest/v1/clienti?select=prospect_id", chiave="prospect_id")}
     gia = {r["prospect_id"]: r for r in sb_tutte("/rest/v1/snella_schede?select=prospect_id,impronta,aggiornata_il",
                                                  chiave="prospect_id")}
-    return {"ps": ps, "agenda": agenda, "mail": mail, "segnali": segnali, "intenti": intenti,
+    return {"ps": ps, "agenda": agenda, "mail": mail, "segnali": segnali, "caldi": caldi, "intenti": intenti,
             "girati": girati, "clienti": clienti, "gia": gia}
 
 
@@ -303,6 +308,16 @@ def prossima_mossa(stato, p, call):
     return ("Rispondergli", None) if aspetta else ("Aspetta la sua risposta", None)
 
 
+def vale_il_caldo(tipi, caldi, ultima_id, lettura):
+    """Il segnale «caldo» vale ancora? Si', se e' nato sulla sua ultima mail, o se la sua ultima
+    mail non e' stata letta. No, se l'ultima, letta, dice non caldo (17/10)."""
+    if "caldo" not in tipi:
+        return False
+    if ultima_id and lettura is not None and not lettura.get("caldo") and ultima_id not in caldi:
+        return False
+    return True
+
+
 def costruisci(ctx, pid, ora):
     p = ctx["ps"][pid]
     sc = S.scheda(pid, {}, "")                 # la scheda della mail pre-call, com'e'
@@ -325,13 +340,18 @@ def costruisci(ctx, pid, ora):
     azienda = " ".join((p.get("company") or p.get("name") or "?").split())
     lettura = lettura_segnale(azienda, ultima["body"]) if ultima else None
     tipi = ctx["segnali"].get(pid, set())
-    caldo = "caldo" in tipi or bool(lettura and lettura.get("caldo"))
+    # 17/10: il segnale «caldo» era sulla mail di prima («l'ho girata a chi se ne
+    # occupa»); poi ha riscritto «io non mi occupo di questa parte» e la lettura di quella dice
+    # non caldo. Il caldo vale per la mail su cui e' nato: se la sua ultima mail, letta, non lo
+    # e', lui non si chiama. Senza lettura dell'ultima il segnale resta (meglio una chiamata in piu').
+    segnalato = vale_il_caldo(tipi, ctx.get("caldi", {}).get(pid, set()), ultima and ultima["id"], lettura)
+    caldo = segnalato or bool(lettura and lettura.get("caldo"))
     if caldo and stato in ("Analisi mandata", "Follow-up", "In conversazione"):
         stato = "Vuole sentirti"
     # da chiamare (il senso lo decide l'AI, non una regex): segnalato caldo dal segnale, la lettura
     # del segnale che dice caldo (col numero se l'ha lasciato), o la categoria «Vuole sentirti»
     perche = []
-    if "caldo" in tipi:
+    if segnalato:
         perche.append("Segnalato caldo")
     if lettura and lettura.get("caldo") and (lettura.get("telefono") or "").strip():
         perche.append("Ha lasciato il numero")
@@ -614,12 +634,30 @@ def main():
     if len(numeri) > 2:
         cc = numeri[2]["dati"]
         print(f"campagne: {len(cc['campagne'])} attive" + (f" ({cc['errore']})" if cc.get("errore") else ""))
+    print(f"schede: {len(set(ctx['gia']) - set(ctx['ps']))} schede di chi non e' piu' attivo da togliere")
     if PROVA:
         print("(prova: non scrivo niente)")
         return
     scrivi("snella_schede", fatte, "prospect_id")
     scrivi("snella_numeri", numeri, "chiave")
     print(f"schede: scritte {len(fatte)} in {int(time.time() - t0)}s")
+    togli_spente(ctx)
+
+
+def togli_spente(ctx):
+    """Le schede di chi non e' piu' un lead attivo se ne vanno (17/10: una mail tolta dal lead,
+    come un rapporto DMARC attaccato per sbaglio, lasciava la sua scheda nella lista per 60
+    giorni con la frase del rapporto). Chi ha una decisione, una nota o una call resta attivo.
+    Se ne andrebbero piu' di meta' (una lettura andata storta), non si tocca niente."""
+    via = sorted(set(ctx["gia"]) - set(ctx["ps"]))
+    if not via:
+        return
+    if len(via) > max(50, len(ctx["gia"]) // 2):
+        print(f"schede: {len(via)} schede da togliere su {len(ctx['gia'])}: troppe, non tolgo niente")
+        return
+    for pezzo in a_pezzi(via):
+        sb("DELETE", f"/rest/v1/snella_schede?prospect_id=in.({pezzo})")
+    print(f"schede: tolte {len(via)} schede di chi non e' piu' attivo")
     if rotte and len(rotte) > len(fatte):
         sys.exit("schede: piu' schede rotte che fatte, guardare l'errore qui sopra")
 

@@ -58,7 +58,7 @@ export default function Campagne() {
       )}
 
       <p className="mt-6 text-[13px] leading-relaxed text-tenue">
-        Mail mandate, aziende scritte e risposte: i numeri di Smartlead. Il tasso è risposte ogni 100 aziende scritte nel periodo.
+        Mail mandate, aziende scritte e risposte: i numeri di Smartlead. Il tasso è risposte ogni 100 aziende scritte nel periodo (sotto le 30 aziende non si calcola).
         Sì, call prenotate e no: dalle risposte lette dal sistema, per chi ha risposto nel periodo.
         Aggiornati {quando(c.il)}.
       </p>
@@ -66,12 +66,16 @@ export default function Campagne() {
   )
 }
 
+const POCHE_AZIENDE = 30
+
 function Riquadro({ titolo, f, forte = false }: { titolo: string; f: Finestra | undefined; forte?: boolean }) {
-  const t = tasso(f?.risposte, f?.aziende)
-  const voci: Array<[string, string | null, string?]> = [
+  // 17/10: 4 risposte su 9 aziende faceva «44,4%»: sotto le 30 aziende scritte un tasso non dice niente
+  const pochi = f?.aziende != null && f.aziende < POCHE_AZIENDE
+  const t = pochi ? null : tasso(f?.risposte, f?.aziende)
+  const voci: Array<[string, string | null, string?, string?]> = [
     ['Mail mandate', numero(f?.mandate), f?.aziende != null ? `a ${numero(f.aziende)} aziende` : undefined],
     ['Risposte', numero(f?.risposte)],
-    ['Tasso di risposta', t],
+    ['Tasso di risposta', t, undefined, pochi ? 'troppe poche aziende scritte' : undefined],
     ['Sì', numero(f?.si)],
     ['Call prenotate', numero(f?.call)],
     ['No', numero(f?.no)],
@@ -80,11 +84,11 @@ function Riquadro({ titolo, f, forte = false }: { titolo: string; f: Finestra | 
     <section className={`mt-4 rounded-2xl border bg-white p-4 ${forte ? 'border-blu-scuro/40' : 'border-bordo'}`}>
       <h3 className={`${forte ? 'text-[17px]' : 'text-[15px]'} font-bold leading-snug text-inchiostro`}>{titolo}</h3>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-        {voci.map(([nome, v, sotto]) => (
+        {voci.map(([nome, v, sotto, vuoto]) => (
           <div key={nome}>
             <dt className="text-[13px] text-tenue">{nome}</dt>
             <dd className={v == null ? 'text-[14px] font-semibold text-tenue' : 'text-[22px] font-bold leading-tight text-inchiostro'}>
-              {v ?? 'non disponibile'}
+              {v ?? vuoto ?? 'non disponibile'}
             </dd>
             {sotto && v != null && <dd className="text-[12.5px] text-tenue">{sotto}</dd>}
           </div>

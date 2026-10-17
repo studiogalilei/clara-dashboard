@@ -2,10 +2,10 @@
 // stato e prossima mossa (solo Workspace: non va su Smartlead), l'analisi e tutto il filo.
 import { useEffect, useState } from 'react'
 import {
-  STATI, aggiungiNota, leggiScheda, linkAnalisi, salvaDecisione,
-  type Decisione, type Messaggio, type Nota, type Scheda,
+  STATI, aggiungiNota, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
+  type Call, type Decisione, type Messaggio, type Nota, type Scheda,
 } from './dati'
-import { dataCorta, quando, statoDi } from './regole'
+import { dataCorta, giornoRoma, nomeGiorno, ora, quando, statoDi } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
 
@@ -46,6 +46,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           <Pillola testo={stato} forte={stato === 'Vuole sentirti'} />
           {sc.ultima_risposta && <span className="text-[14px] text-tenue">ultima risposta {quando(sc.ultima_risposta)}</span>}
         </div>
+        <ProssimaCall call={dati.call} />
       </header>
 
       <Blocco titolo="Telefoni">
@@ -82,7 +83,9 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       </Blocco>
 
       <Blocco titolo="Note">
-        <Note id={id} note={dati.note} onNota={(n) => setDati((x) => x ? { ...x, note: [n, ...x.note] } : x)} />
+        <Note id={id} note={dati.note} mostra={mostra}
+              onNota={(n) => setDati((x) => x ? { ...x, note: [n, ...x.note] } : x)}
+              onTolta={(nid) => setDati((x) => x ? { ...x, note: x.note.filter((n) => n.id !== nid) } : x)} />
       </Blocco>
 
       <Blocco titolo="Analisi">
@@ -90,7 +93,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       </Blocco>
 
       <Blocco titolo={`Le mail · ${sc.filo.length}`}>
-        <Filo filo={sc.filo} />
+        <Filo filo={sc.filo} lui={(s.nome || sc.persona || '').trim().split(/\s+/)[0] || 'Lui'} />
       </Blocco>
 
       <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
@@ -102,6 +105,28 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       </p>
       {avviso}
     </article>
+  )
+}
+
+/** La prossima call con lui (17/10: la scheda di chi aveva la call lunedi' non la diceva). */
+function ProssimaCall({ call }: { call: Call[] }) {
+  const adesso = Date.now()
+  const c = [...call].sort((a, b) => a.at.localeCompare(b.at)).find((x) => new Date(x.at).getTime() > adesso - 90 * 60_000)
+  if (!c) return null
+  const giorno = nomeGiorno(giornoRoma(new Date(c.at)))
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-blu-scuro/30 bg-blu-scuro/[0.05] px-4 py-3">
+      <p className="text-[15px] text-inchiostro">
+        <b>Call {giorno === 'Oggi' || giorno === 'Domani' ? giorno.toLowerCase() : giorno.charAt(0).toLowerCase() + giorno.slice(1)} alle {ora(c.at)}</b>
+        {c.di_chi && <span className="text-tenue"> · nel calendario di {c.di_chi}</span>}
+      </p>
+      {c.meet && (
+        <a href={c.meet} target="_blank" rel="noreferrer"
+           className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-blu-scuro px-4 text-[14px] font-semibold text-white hover:bg-navy">
+          <Icona nome="video" className="h-4 w-4" /> Apri il Meet
+        </a>
+      )}
+    </div>
   )
 }
 
@@ -175,10 +200,28 @@ function Decidi({ id, scheda, decisione, onSalvato }: { id: string; scheda: Sche
   )
 }
 
-function Note({ id, note, onNota }: { id: string; note: Nota[]; onNota: (n: Nota) => void }) {
+function Note({ id, note, onNota, onTolta, mostra }: {
+  id: string; note: Nota[]; onNota: (n: Nota) => void; onTolta: (id: number) => void; mostra: (a: { testo: string }) => void
+}) {
   const [testo, setTesto] = useState('')
   const [lavoro, setLavoro] = useState(false)
   const [sbaglio, setSbaglio] = useState<string | null>(null)
+  const [io, setIo] = useState<string | null>(null)
+  useEffect(() => { void ioSono().then(setIo) }, [])
+
+  // 17/10: una nota scritta sul lead sbagliato o con un errore non si poteva togliere.
+  // Chi l'ha scritta la cancella (il database non lascia cancellare quelle degli altri).
+  async function togli(n: Nota) {
+    if (!window.confirm('Cancellare questa nota?')) return
+    setSbaglio(null)
+    try {
+      await togliNota(n.id)
+      onTolta(n.id)
+      mostra({ testo: 'Nota cancellata' })
+    } catch (e) {
+      setSbaglio(`Nota non cancellata: ${e instanceof Error ? e.message : e}`)
+    }
+  }
 
   async function aggiungi() {
     if (!testo.trim()) return
@@ -209,8 +252,14 @@ function Note({ id, note, onNota }: { id: string; note: Nota[]; onNota: (n: Nota
         <ol className="mt-4 space-y-3">
           {note.map((n) => (
             <li key={n.id} className="border-l-2 border-bordo pl-3">
-              <p className="text-[13px] text-tenue">
-                {quando(n.at)}{n.autore_nome && ` · ${n.autore_nome}`}{n.tipo === 'chiamata' && ' · telefonata'}
+              <p className="flex items-center justify-between gap-2 text-[13px] text-tenue">
+                <span>{quando(n.at)}{n.autore_nome && ` · ${n.autore_nome}`}{n.tipo === 'chiamata' && ' · telefonata'}</span>
+                {io && n.autore === io && (
+                  <button onClick={() => void togli(n)} aria-label="Cancella questa nota"
+                          className="-my-2 inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-tenue hover:bg-velo hover:text-red-800">
+                    Cancella
+                  </button>
+                )}
               </p>
               <p className="whitespace-pre-wrap text-[15px] text-inchiostro">{n.testo}</p>
             </li>
@@ -250,7 +299,7 @@ function Analisi({ a }: { a: Scheda['scheda']['analisi'] }) {
   )
 }
 
-function Filo({ filo }: { filo: Messaggio[] }) {
+function Filo({ filo, lui }: { filo: Messaggio[]; lui: string }) {
   const [tutto, setTutto] = useState(false)
   if (!filo.length) return <p className="text-[15px] text-tenue">Nessuna mail.</p>
   const nascosti = tutto ? 0 : Math.max(0, filo.length - 4)
@@ -262,25 +311,28 @@ function Filo({ filo }: { filo: Messaggio[] }) {
         </div>
       )}
       <ol className="space-y-3">
-        {filo.slice(nascosti).map((m, i) => <Mail key={`${m.at}-${i}`} m={m} />)}
+        {filo.slice(nascosti).map((m, i) => <Mail key={`${m.at}-${i}`} m={m} lui={lui} />)}
       </ol>
     </div>
   )
 }
 
-const RIGHE_NOSTRE = 6
+const RIGHE = 6
+const CARATTERI = 600
 
-function Mail({ m }: { m: Messaggio }) {
+function Mail({ m, lui: nome }: { m: Messaggio; lui: string }) {
   const [citato, setCitato] = useState(false)
   const lui = m.chi === 'lui'
-  // le nostre mail sono lunghe (firma, informativa): si leggono le prime righe, il resto a richiesta
-  const lunga = !lui && m.testo.split('\n').length > RIGHE_NOSTRE + 2
+  // le mail lunghe (le nostre con firma e informativa, le sue con l'invito del calendario) si
+  // leggono dalle prime righe, il resto a richiesta. Le sue brevi restano intere.
+  const righe = m.testo.split('\n')
+  const lunga = righe.length > RIGHE + 2 || m.testo.length > CARATTERI + 200
   const [intera, setIntera] = useState(false)
-  const testo = lunga && !intera ? m.testo.split('\n').slice(0, RIGHE_NOSTRE).join('\n') + '…' : m.testo
+  const testo = lunga && !intera ? righe.slice(0, RIGHE).join('\n').slice(0, CARATTERI).trimEnd() + '…' : m.testo
   return (
     <li className={`rounded-2xl border p-4 ${lui ? 'border-bordo bg-white' : 'border-velo bg-velo/60'}`}>
       <p className="mb-1.5 text-[13px] font-semibold text-tenue">
-        <span className={lui ? 'text-inchiostro' : ''}>{lui ? 'Lui' : 'Noi'}</span> · {quando(m.at)}
+        <span className={lui ? 'text-inchiostro' : ''}>{lui ? nome : 'Noi'}</span> · {quando(m.at)}
       </p>
       {m.testo ? <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-inchiostro">{testo}</p>
         : <p className="text-[14px] italic text-tenue">Solo testo citato.</p>}

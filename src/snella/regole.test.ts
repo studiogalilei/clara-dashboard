@@ -1,7 +1,10 @@
 // La versione snella: le regole di chi chiamare, con dati finti.
 import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead } from './dati'
-import { cerca, chiamateInRitardo, contaStati, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, quando, tasso, titoloDomanda } from './regole'
+import {
+  cerca, chiamateInRitardo, contaStati, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
+  scrittoDopo, spiegaDomanda, tasso, titoloDomanda,
+} from './regole'
 
 const ORA = new Date('2026-10-19T08:00:00Z')          // lunedi' 19/10, le 10 a Roma
 
@@ -86,5 +89,25 @@ describe('date e numeri', () => {
     expect(g.map((x) => [x.ultima.id, x.quante])).toEqual([[2, 2], [3, 1]])
     expect(titoloDomanda(g[0].ultima.titolo)).toBe('Azienda A')
     expect(titoloDomanda(g[1].ultima.titolo)).toBe('Azienda B')
+  })
+  it('la Posta detta senza parole interne: niente INT, FOLLOW UP doppio, seconda testa, CANCELLO', () => {
+    expect(titoloDomanda('Follow up 1: Azienda C, FOLLOW UP 1')).toBe('Azienda C')
+    expect(titoloDomanda('Da guardare tu: Azienda D, INT-08 ')).toBe('Azienda D')
+    expect(eSeguito({ titolo: 'Azienda C, FOLLOW UP 1', intento: 'FOLLOW UP 1' })).toBe(true)
+    expect(eSeguito({ titolo: 'Bozza per Azienda E, INT-01', intento: 'INT-01' })).toBe(false)
+    expect(spiegaDomanda("si': la seconda testa dice INCOERENTE: non risponde alla domanda")).toBe('Il controllo ha fermato la bozza: non risponde alla domanda')
+    expect(spiegaDomanda("sì: è un'autorisposta, CANCELLO: regola 3h")).toBe("È un'autorisposta")
+    expect(spiegaDomanda('il template di Dre parola per parola (INT-01); va bene')).toBe('Il template di Dre parola per parola; va bene')
+    expect(spiegaDomanda(null)).toBe('')
+  })
+  it('cosa gli abbiamo scritto dopo la sua risposta', () => {
+    const filo = [
+      { at: '2026-10-12T14:37:00Z', chi: 'lui' as const, testo: 'Possiamo sentirci mercoledì?' },
+      { at: '2026-10-15T15:05:00Z', chi: 'noi' as const, testo: 'Buongiorno Andrea,\nmi scusi: mercoledì è passato.\nA presto' },
+    ]
+    const d = scrittoDopo(filo, '2026-10-12T14:37:00Z')
+    expect(d?.at).toBe('2026-10-15T15:05:00Z')
+    expect(primaRiga(d!.testo)).toBe('mi scusi: mercoledì è passato.')
+    expect(scrittoDopo(filo, '2026-10-16T00:00:00Z')).toBeNull()
   })
 })

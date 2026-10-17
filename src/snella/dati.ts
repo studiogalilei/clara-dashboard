@@ -30,7 +30,7 @@ export interface Decisione {
   chiamata: 'chiamato' | 'non_risponde' | 'richiamare' | null; chiamata_il: string | null
   richiamare_il: string | null; tentativi: number; aggiornato_il?: string
 }
-export interface Nota { id: number; prospect_id: string; testo: string; tipo: 'nota' | 'chiamata'; at: string; autore_nome: string | null }
+export interface Nota { id: number; prospect_id: string; testo: string; tipo: 'nota' | 'chiamata'; at: string; autore: string | null; autore_nome: string | null }
 
 export interface NumeriOggi {
   risposte: number; messaggi: number; si: number; media_minuti: number | null
@@ -45,17 +45,27 @@ export interface Campagna { id: number; nome: string; creata: string; finestre: 
 export interface NumeriCampagne { campagne: Campagna[]; totale: Record<'7' | '30', Finestra>; errore: string | null }
 export interface Numeri { oggi?: { dati: NumeriOggi; il: string }; call?: { dati: { call: Call[] }; il: string }; campagne?: { dati: NumeriCampagne; il: string } }
 
-export interface Domanda { id: number; tipo: 'umano' | 'risposta'; titolo: string; perche: string | null; at: string; prospect_id: string | null }
+export interface Domanda { id: number; tipo: 'umano' | 'risposta'; titolo: string; perche: string | null; at: string; prospect_id: string | null; intento?: string | null }
 export interface Operazione { chiave: string; ultima_corsa: string | null; ultimo_esito: string | null; attiva: boolean }
 
+// 17/10: una scrittura e' rimasta appesa senza risposta e il bottone diceva «Salvo…» per sempre.
+// Ogni lettura e scrittura ha un tempo massimo: dopo, si dice che la connessione non risponde.
+const ATTESA_MS = 20_000
+function entro(ms = ATTESA_MS): AbortSignal {
+  const c = new AbortController()
+  setTimeout(() => c.abort(), ms)
+  return c.signal
+}
+
 function guasto(e: { message?: string } | null): never {
+  if (/abort/i.test(e?.message ?? '')) throw new Error('La connessione non risponde. Controlla la rete e riprova.')
   throw new Error(e?.message || 'Il database non ha risposto')
 }
 
 const CAMPI_RIGA = 'prospect_id,azienda,persona,email,stato,ultima_risposta,frase,da_chiamare,perche_chiamare'
 
 export async function leggiNumeri(): Promise<Numeri> {
-  const { data, error } = await supabase.from('snella_numeri').select('chiave,dati,aggiornato_il')
+  const { data, error } = await supabase.from('snella_numeri').select('chiave,dati,aggiornato_il').abortSignal(entro())
   if (error) guasto(error)
   const out: Numeri = {}
   for (const r of (data ?? []) as Array<{ chiave: keyof Numeri; dati: never; aggiornato_il: string }>) {
@@ -65,7 +75,7 @@ export async function leggiNumeri(): Promise<Numeri> {
 }
 
 export async function leggiDecisioni(): Promise<Map<string, Decisione>> {
-  const { data, error } = await supabase.from('snella_lead').select('*').limit(5000)
+  const { data, error } = await supabase.from('snella_lead').select('*').limit(5000).abortSignal(entro())
   if (error) guasto(error)
   return new Map(((data ?? []) as Decisione[]).map((d) => [d.prospect_id, d]))
 }
@@ -74,29 +84,30 @@ export async function leggiDecisioni(): Promise<Map<string, Decisione>> {
 export async function leggiRighe(giorni = 60, anche: string[] = []): Promise<RigaLead[]> {
   const da = new Date(Date.now() - giorni * 86400e3).toISOString()
   const { data, error } = await supabase.from('snella_schede').select(CAMPI_RIGA)
-    .gte('ultima_risposta', da).order('ultima_risposta', { ascending: false }).limit(2000)
+    .gte('ultima_risposta', da).order('ultima_risposta', { ascending: false }).limit(2000).abortSignal(entro())
   if (error) guasto(error)
   const righe = (data ?? []) as RigaLead[]
   const mancano = anche.filter((id) => !righe.some((r) => r.prospect_id === id))
   if (mancano.length) {
-    const { data: altre, error: e2 } = await supabase.from('snella_schede').select(CAMPI_RIGA).in('prospect_id', mancano)
+    const { data: altre, error: e2 } = await supabase.from('snella_schede').select(CAMPI_RIGA).in('prospect_id', mancano).abortSignal(entro())
     if (e2) guasto(e2)
     righe.push(...((altre ?? []) as RigaLead[]))
   }
   return righe
 }
 
-export type RigaConScheda = RigaLead & { scheda: SchedaDati }
+export type RigaConScheda = RigaLead & { scheda: SchedaDati; filo?: Messaggio[] }
 
-/** Chi la scheda dice di chiamare, piu' chi Dre ha detto di richiamare (per id): con la scheda. */
+/** Chi la scheda dice di chiamare, piu' chi Dre ha detto di richiamare (per id): con la scheda e il
+ *  filo (per dire cosa gli abbiamo scritto dopo la sua risposta: sono pochi, il peso non conta). */
 export async function leggiPerChiamare(richiamare: string[]): Promise<RigaConScheda[]> {
-  const campi = CAMPI_RIGA + ',scheda'
-  const { data, error } = await supabase.from('snella_schede').select(campi).eq('da_chiamare', true).limit(500)
+  const campi = CAMPI_RIGA + ',scheda,filo'
+  const { data, error } = await supabase.from('snella_schede').select(campi).eq('da_chiamare', true).limit(500).abortSignal(entro())
   if (error) guasto(error)
   const righe = (data ?? []) as unknown as RigaConScheda[]
   const mancano = richiamare.filter((id) => !righe.some((r) => r.prospect_id === id))
   if (mancano.length) {
-    const { data: altre, error: e2 } = await supabase.from('snella_schede').select(campi).in('prospect_id', mancano)
+    const { data: altre, error: e2 } = await supabase.from('snella_schede').select(campi).in('prospect_id', mancano).abortSignal(entro())
     if (e2) guasto(e2)
     righe.push(...((altre ?? []) as unknown as RigaConScheda[]))
   }
@@ -105,53 +116,67 @@ export async function leggiPerChiamare(richiamare: string[]): Promise<RigaConSch
 
 export async function leggiTelefoni(ids: string[]): Promise<Map<string, SchedaDati>> {
   if (!ids.length) return new Map()
-  const { data, error } = await supabase.from('snella_schede').select('prospect_id,scheda').in('prospect_id', ids)
+  const { data, error } = await supabase.from('snella_schede').select('prospect_id,scheda').in('prospect_id', ids).abortSignal(entro())
   if (error) guasto(error)
   return new Map(((data ?? []) as Array<{ prospect_id: string; scheda: SchedaDati }>).map((r) => [r.prospect_id, r.scheda]))
 }
 
-export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[] }> {
-  const [s, d, n] = await Promise.all([
-    supabase.from('snella_schede').select('*').eq('prospect_id', id).maybeSingle(),
-    supabase.from('snella_lead').select('*').eq('prospect_id', id).maybeSingle(),
-    supabase.from('snella_note').select('id,prospect_id,testo,tipo,at,autore_nome').eq('prospect_id', id).order('at', { ascending: false }).limit(200),
+const CAMPI_NOTA = 'id,prospect_id,testo,tipo,at,autore,autore_nome'
+
+export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[] }> {
+  const [s, d, n, c] = await Promise.all([
+    supabase.from('snella_schede').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
+    supabase.from('snella_lead').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
+    supabase.from('snella_note').select(CAMPI_NOTA).eq('prospect_id', id).order('at', { ascending: false }).limit(200).abortSignal(entro()),
+    supabase.from('snella_numeri').select('dati').eq('chiave', 'call').abortSignal(entro()).maybeSingle(),
   ])
   if (s.error) guasto(s.error)
   if (d.error) guasto(d.error)
   if (n.error) guasto(n.error)
-  return { scheda: s.data as Scheda | null, decisione: d.data as Decisione | null, note: (n.data ?? []) as Nota[] }
+  // le call prenotate con lui (le prepara schede.py): se manca il dato, la scheda si apre lo stesso
+  const tutte = ((c.data?.dati as { call?: Call[] } | undefined)?.call ?? [])
+  return { scheda: s.data as Scheda | null, decisione: d.data as Decisione | null, note: (n.data ?? []) as Nota[],
+           call: tutte.filter((x) => x.prospect_id === id) }
 }
 
 /** Scrive quello che decide Dre su un lead (solo Workspace). Torna la riga com'e' adesso. */
 export async function salvaDecisione(id: string, cambia: Partial<Decisione>): Promise<Decisione> {
   const { data, error } = await supabase.from('snella_lead')
-    .upsert({ prospect_id: id, ...cambia }, { onConflict: 'prospect_id' }).select('*').single()
+    .upsert({ prospect_id: id, ...cambia }, { onConflict: 'prospect_id' }).select('*').abortSignal(entro()).single()
   if (error) guasto(error)
   return data as Decisione
 }
 
 export async function aggiungiNota(id: string, testo: string, tipo: Nota['tipo'] = 'nota'): Promise<Nota> {
   const { data, error } = await supabase.from('snella_note').insert({ prospect_id: id, testo: testo.trim(), tipo })
-    .select('id,prospect_id,testo,tipo,at,autore_nome').single()
+    .select(CAMPI_NOTA).abortSignal(entro()).single()
   if (error) guasto(error)
   return data as Nota
 }
 
+/** Toglie una nota (il database lo lascia fare solo a chi l'ha scritta). Dice se l'ha tolta davvero. */
 export async function togliNota(nota: number): Promise<void> {
-  const { error } = await supabase.from('snella_note').delete().eq('id', nota)
+  const { data, error } = await supabase.from('snella_note').delete().eq('id', nota).select('id').abortSignal(entro())
   if (error) guasto(error)
+  if (!data?.length) throw new Error('la nota non si può cancellare: l\'ha scritta un\'altra persona')
+}
+
+/** Chi sono io (per sapere quali note posso cancellare). */
+export async function ioSono(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user.id ?? null
 }
 
 export async function leggiDomande(): Promise<Domanda[]> {
-  const { data, error } = await supabase.from('proposte').select('id,tipo,titolo,perche,at,prospect_id')
-    .eq('stato', 'aperta').in('tipo', ['umano', 'risposta']).order('at', { ascending: false }).limit(400)
+  const { data, error } = await supabase.from('proposte').select('id,tipo,titolo,perche,at,prospect_id,intento:azione->>intento')
+    .eq('stato', 'aperta').in('tipo', ['umano', 'risposta']).order('at', { ascending: false }).limit(400).abortSignal(entro())
   if (error) guasto(error)
   return (data ?? []) as Domanda[]
 }
 
 export async function leggiSistema(): Promise<Operazione[]> {
   const { data, error } = await supabase.from('operazioni').select('chiave,ultima_corsa,ultimo_esito,attiva')
-    .in('chiave', ['sync_smartlead', 'schede', 'segnale'])
+    .in('chiave', ['sync_smartlead', 'schede', 'segnale']).abortSignal(entro())
   if (error) guasto(error)
   return (data ?? []) as Operazione[]
 }

@@ -165,7 +165,42 @@ export function numero(n: number | null | undefined): string | null {
   return n == null ? null : String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
 
-/** Il titolo di una domanda della Posta senza i prefissi tecnici («Bozza per X, INT-08»). */
+/** Il titolo di una domanda della Posta senza i prefissi tecnici («Bozza per X, INT-08»,
+ *  «Follow up 1: X, FOLLOW UP 1»): resta il nome dell'azienda. */
 export function titoloDomanda(t: string): string {
-  return t.replace(/,?\s*INT-\d+\b/g, '').replace(/^Da guardare tu:\s*/i, '').replace(/^Bozza per\s+/i, '').trim()
+  return t.replace(/,?\s*INT-\d+\b/g, '').replace(/,?\s*(MINI\s+)?FOLLOW UP\s*\d*\s*$/i, '')
+    .replace(/^Da guardare tu:\s*/i, '').replace(/^Bozza per\s+/i, '').replace(/^(mini\s+)?follow up\s*\d*:\s*/i, '').trim()
+}
+
+/** Una domanda della Posta che e' un follow-up (o una ripresa): non e' una persona che aspetta. */
+export function eSeguito(d: Pick<Domanda, 'titolo' | 'intento'>): boolean {
+  return /FOLLOW UP|RIPRESA/i.test(`${d.intento ?? ''} ${d.titolo}`)
+}
+
+/** Il perche' di una domanda detto senza le parole interne del sistema («si':», «la seconda testa
+ *  dice INCOERENTE», «CANCELLO: ...», «INT-08»). Vuoto se non resta niente. */
+export function spiegaDomanda(perche: string | null | undefined): string {
+  let t = (perche ?? '').replace(/\s+/g, ' ')
+  t = t.replace(/^\s*s[iì]['’]?\s*:\s*/i, '')
+  t = t.replace(/,?\s*CANCELLO:.*$/i, '')
+  t = t.replace(/la seconda testa dice INCOERENTE:\s*/i, 'il controllo ha fermato la bozza: ')
+  t = t.replace(/\(?\bINT-\d+\b\)?/g, '').replace(/\s+([,.;:])/g, '$1').replace(/\s{2,}/g, ' ').trim()
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''
+}
+
+/** La prima riga che dice qualcosa di una nostra mail (senza «Buongiorno Mario,»). */
+export function primaRiga(testo: string, max = 140): string {
+  const r = testo.split('\n').map((x) => x.trim())
+    .find((x) => x && !/^(buongiorno|buonasera|salve|gentile|gentili|ciao|egregi[oa]|alla cortese)\b/i.test(x)) ?? ''
+  return r.length > max ? `${r.slice(0, max - 1).trimEnd()}…` : r
+}
+
+/** Le nostre mail partite dopo la sua ultima risposta (cosa abbiamo gia' fatto). */
+export function scrittoDopo(filo: Array<{ at: string | null; chi: 'lui' | 'noi'; testo: string }> | undefined,
+  ultima: string | null | undefined): { at: string; testo: string } | null {
+  if (!filo?.length || !ultima) return null
+  const da = new Date(ultima).getTime()
+  const dopo = filo.filter((m) => m.chi === 'noi' && m.at && new Date(m.at).getTime() > da && m.testo.trim())
+  const u = dopo[dopo.length - 1]
+  return u?.at ? { at: u.at, testo: u.testo } : null
 }

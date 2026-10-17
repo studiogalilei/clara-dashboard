@@ -2987,6 +2987,23 @@ def _():
     assert direttore.corsia_di("schede") == "leggera"
 
 
+@prova("versione snella: il caldo vale per la mail su cui e' nato; i rimbalzi e i DMARC non sono risposte (17/10)")
+def _():
+    import schede
+    # caldo sulla mail di prima, l'ultima letta dice non caldo: non si chiama
+    assert not schede.vale_il_caldo({"caldo"}, {"m1"}, "m2", {"caldo": False})
+    # caldo nato proprio sull'ultima: vale
+    assert schede.vale_il_caldo({"caldo"}, {"m2"}, "m2", {"caldo": False})
+    # l'ultima non e' stata letta: il segnale resta
+    assert schede.vale_il_caldo({"caldo"}, {"m1"}, "m2", None)
+    assert not schede.vale_il_caldo(set(), set(), "m2", {"caldo": True})
+    import segnale_provvisorio as S
+    assert S.automatica("Message blocked\nYour message to a@b.it has been blocked. See technical details below")
+    assert S.automatica("Your message to a.b@x.com couldn't be delivered. a.b wasn't found at x.com")
+    assert S.automatica("This is a DMARC aggregate report for studiogalilei.com")
+    assert not S.automatica("Va bene, il messaggio l'ho letto: ci sentiamo lunedi'")
+
+
 @prova("versione snella: il testo citato si separa, l'html diventa testo, le righe vuote non si accumulano")
 def _():
     import schede

@@ -7,8 +7,8 @@ import {
   type Call, type Decisione, type Domanda, type NumeriOggi, type Operazione, type RigaConScheda,
 } from './dati'
 import {
-  chiamateInRitardo, dataCorta, daQuanto, durata, giornoRoma, listaDaChiamare, nomeGiorno, ora, perAzienda, perGiorno,
-  piuGiorni, quando, titoloDomanda, type DaChiamare,
+  chiamateInRitardo, dataCorta, daQuanto, durata, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, ora, perAzienda, perGiorno,
+  piuGiorni, primaRiga, quando, scrittoDopo, spiegaDomanda, titoloDomanda, type DaChiamare,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Sezione, Vuoto } from './pezzi'
 import { linkCompleto, useAvviso, useDati, type Avviso } from './uso'
@@ -39,11 +39,18 @@ export default function Oggi({ apri }: { apri: (id: string) => void }) {
   const lista = useMemo(() => dati ? listaDaChiamare(dati.righe, dati.decisioni, adesso) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dati])
-  const domande = useMemo(() => perAzienda((dati?.domande ?? []).filter((d) => d.tipo === 'umano')), [dati])
-  const bozze = useMemo(() => perAzienda((dati?.domande ?? []).filter((d) => d.tipo === 'risposta'
+  // 17/10: qui solo quello che riguarda una persona che ha scritto. I follow-up (li segue Clara)
+  // e le domande sul sistema restano nella Posta: si contano in una riga, non si elencano.
+  const tutte = dati?.domande ?? []
+  const diPersone = tutte.filter((d) => d.prospect_id && !eSeguito(d))
+  const domande = useMemo(() => perAzienda(diPersone.filter((d) => d.tipo === 'umano')),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dati])
+  const bozze = useMemo(() => perAzienda(diPersone.filter((d) => d.tipo === 'risposta'
     && adesso.getTime() - new Date(d.at).getTime() > BOZZA_FERMA_MIN * 60_000)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dati])
+  const altro = { seguiti: tutte.filter((d) => eSeguito(d)).length, sistema: tutte.filter((d) => !d.prospect_id).length }
   const call = useMemo(() => {
     const oggi = giornoRoma(adesso)
     const fine = piuGiorni(oggi, 8)
@@ -96,8 +103,8 @@ export default function Oggi({ apri }: { apri: (id: string) => void }) {
 
           <Sezione titolo="Da decidere" conta={domande.length + bozze.length} id="sez-decidere">
             {domande.length || bozze.length ? (
-              <DaDecidere domande={domande} bozze={bozze} />
-            ) : <Vuoto>Nella Posta non ti aspetta niente.</Vuoto>}
+              <DaDecidere domande={domande} bozze={bozze} altro={altro} />
+            ) : <Vuoto>Nessuna persona aspetta una tua decisione.</Vuoto>}
           </Sezione>
         </div>
       )}
@@ -112,7 +119,15 @@ function RigaStato({ oggi, lista, sistema, apri }: { oggi: DatiOggi['oggi']; lis
   const adesso = new Date()
   const n = oggi?.dati
   const tardi = chiamateInRitardo(lista, adesso)
-  const ritardi = [...(n?.ritardi ?? []), ...tardi.map((x) => `${x.riga.azienda}: aspetta una telefonata ${daQuanto(x.riga.ultima_risposta, adesso)}`)]
+  // 17/10: i nomi di chi chiamare stanno gia' qui sotto: nel riquadro rosso basta quanti sono.
+  // Il si' senza risposta si dice col suo tempo vero, non coi minuti di dieci minuti fa.
+  const siFermi = (n?.in_attesa ?? []).filter((x) => adesso.getTime() - new Date(x.at).getTime() >= 30 * 60_000)
+  const ritardi: Array<{ testo: string; id?: string; chi?: string }> = siFermi.map((x) => ({
+    id: x.prospect_id, chi: x.azienda, testo: `ha detto sì, aspetta una risposta ${daQuanto(x.at, adesso)}`,
+  }))
+  if (tardi.length) {
+    ritardi.push({ testo: `${tardi.length} ${tardi.length === 1 ? 'persona da chiamare aspetta' : 'persone da chiamare aspettano'} da più di un giorno: ${tardi.length === 1 ? 'è qui' : 'sono qui'} sotto` })
+  }
   const rosso = ritardi.length > 0
   // il sistema fermo si dice: le schede (questo giro) e il sync delle risposte
   const fermi: string[] = []
@@ -134,28 +149,24 @@ function RigaStato({ oggi, lista, sistema, apri }: { oggi: DatiOggi['oggi']; lis
             <span className="text-tenue"> · </span>
             {n.si === 0 ? <span>nessun sì</span> : (
               <span>
-                <b>{n.si} sì</b>: {n.serviti.length} {n.serviti.length === 1 ? 'servito' : 'serviti'}
-                {n.media_minuti != null && <> in {durata(n.media_minuti)} di media</>}
-                {n.in_attesa.length > 0 && <>, <b className={rosso ? 'text-red-800' : ''}>{n.in_attesa.length} {n.in_attesa.length === 1 ? 'aspetta' : 'aspettano'}</b></>}
+                <b>{n.si} sì</b>
+                {n.serviti.length > 0 && <>: {n.serviti.length === n.si ? (n.si === 1 ? 'gli abbiamo risposto' : 'a tutti abbiamo risposto') : `${n.serviti.length} con risposta`}
+                  {n.media_minuti != null && <> in {durata(n.media_minuti)}{n.serviti.length > 1 && ' di media'}</>}</>}
+                {n.in_attesa.length > 0 && <>{n.serviti.length > 0 ? ', ' : ': '}<b className={rosso ? 'text-red-800' : ''}>{n.in_attesa.length} {n.in_attesa.length === 1 ? 'aspetta' : 'aspettano'} la risposta</b></>}
               </span>
             )}
           </p>
-          {n.aspetta_da_piu && (
-            <p className="mt-1 text-[15px] text-tenue">
-              Aspetta da più tempo una risposta:{' '}
-              <button onClick={() => apri(n.aspetta_da_piu!.prospect_id)} className="font-semibold text-inchiostro underline decoration-bordo underline-offset-4 hover:decoration-inchiostro">
-                {n.aspetta_da_piu.azienda}
-              </button>{' '}
-              {daQuanto(n.aspetta_da_piu.da, adesso)}
-              {n.aspettano > 1 && <> ({n.aspettano} in tutto)</>}
-            </p>
-          )}
           {rosso && (
             <div className="mt-2 text-[15px] text-red-800">
-              <p className="font-bold">In ritardo: {ritardi.length}</p>
+              <p className="font-bold">In ritardo: {siFermi.length + tardi.length}</p>
               <ul className="mt-0.5 space-y-0.5">
-                {ritardi.slice(0, 3).map((r) => <li key={r}>{r}</li>)}
-                {ritardi.length > 3 && <li>e altri {ritardi.length - 3}</li>}
+                {ritardi.slice(0, 4).map((r) => (
+                  <li key={r.testo + (r.id ?? '')}>
+                    {r.id && <><button onClick={() => apri(r.id!)} className="font-semibold underline underline-offset-4">{r.chi}</button>: </>}
+                    {r.testo}
+                  </li>
+                ))}
+                {ritardi.length > 4 && <li>e altri {ritardi.length - 4}</li>}
               </ul>
             </div>
           )}
@@ -183,6 +194,7 @@ function CartaChiamata({ x, apri, mostra, onCambio }: {
   const [sbaglio, setSbaglio] = useState<string | null>(null)
   const [primo, ...altri] = s?.telefoni ?? []
   const nonRisponde = x.decisione?.chiamata === 'non_risponde' ? x.decisione : null
+  const dopo = scrittoDopo(r.filo, r.ultima_risposta)
 
   async function segna(cosa: 'chiamato' | 'non_risponde' | 'richiamare') {
     setLavoro(true); setSbaglio(null)
@@ -251,7 +263,12 @@ function CartaChiamata({ x, apri, mostra, onCambio }: {
       </button>
       <div className="mt-2"><Pillola testo={x.motivo === 'richiamare' ? 'Da richiamare oggi' : (r.perche_chiamare ?? 'Da chiamare')} forte /></div>
       {r.frase && <p className="mt-2 text-[15px] leading-snug text-inchiostro">«{r.frase}»</p>}
-      {s?.consiglio && <p className="mt-1 text-[14px] text-tenue">{s.consiglio}</p>}
+      {/* 17/10: il consiglio e' di quando ha scritto; se poi gli abbiamo riscritto, conta quello */}
+      {dopo ? (
+        <p className="mt-1 text-[14px] text-tenue">
+          <span className="font-semibold text-inchiostro">Gli abbiamo riscritto {quando(dopo.at)}:</span> {primaRiga(dopo.testo)}
+        </p>
+      ) : s?.consiglio && <p className="mt-1 text-[14px] text-tenue">{s.consiglio}</p>}
       {nonRisponde && (
         <p className="mt-1.5 text-[14px] font-semibold text-amber-900">
           Non ha risposto {nonRisponde.tentativi > 1 ? `${nonRisponde.tentativi} volte` : ''} · ultima prova {quando(nonRisponde.chiamata_il)}
@@ -275,7 +292,7 @@ function CartaChiamata({ x, apri, mostra, onCambio }: {
           <ul className="mt-1.5 space-y-0.5">
             {altri.map((t) => (
               <li key={t.tel} className="text-[14px]">
-                <a href={`tel:${t.tel}`} className="inline-flex min-h-9 items-center font-semibold text-blu-scuro hover:underline">{t.numero}</a>
+                <a href={`tel:${t.tel}`} className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">{t.numero}</a>
                 <span className="text-tenue"> · {t.etichetta}</span>
               </li>
             ))}
@@ -379,34 +396,38 @@ function ListaCall({ call, apri }: { call: Call[]; apri: (id: string) => void })
 
 // ── da decidere ────────────────────────────────────────────────────────
 
-function DaDecidere({ domande, bozze }: { domande: Array<{ ultima: Domanda; quante: number }>; bozze: Array<{ ultima: Domanda; quante: number }> }) {
+type Gruppo = { ultima: Domanda; quante: number }
+
+function DaDecidere({ domande, bozze, altro }: { domande: Gruppo[]; bozze: Gruppo[]; altro: { seguiti: number; sistema: number } }) {
   const [tutte, setTutte] = useState(false)
   const quante = tutte ? 50 : 5
-  const riga = (x: { ultima: Domanda; quante: number }) => (
-    <li key={x.ultima.id}>
-      <a href={linkCompleto('posta')} className="flex min-h-12 items-center gap-3 px-4 py-2 hover:bg-velo">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-semibold text-inchiostro">{titoloDomanda(x.ultima.titolo)}</span>
-          <span className="block truncate text-[13px] text-tenue">
-            {x.ultima.perche ? x.ultima.perche : 'Da guardare'}{x.quante > 1 && ` · ${x.quante} in sospeso`}
+  const riga = (x: Gruppo) => {
+    const spiega = x.ultima.tipo === 'risposta' ? 'Risposta pronta: approvala o correggila' : (spiegaDomanda(x.ultima.perche) || 'Clara non sa decidere: guardala tu')
+    return (
+      <li key={x.ultima.id}>
+        <a href={linkCompleto('posta')} className="flex min-h-12 items-center gap-3 px-4 py-2 hover:bg-velo">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-semibold text-inchiostro">{titoloDomanda(x.ultima.titolo)}</span>
+            <span className="line-clamp-2 text-[13px] leading-snug text-tenue">{spiega}{x.quante > 1 && ` · ${x.quante} in sospeso`}</span>
           </span>
-        </span>
-        <span className="shrink-0 text-[13px] text-tenue">{daQuanto(x.ultima.at)}</span>
-      </a>
-    </li>
-  )
+          <span className="shrink-0 text-[13px] text-tenue">{daQuanto(x.ultima.at)}</span>
+        </a>
+      </li>
+    )
+  }
+  const resto = [altro.seguiti && `${altro.seguiti} follow-up`, altro.sistema && `${altro.sistema} domande sul sistema`].filter(Boolean)
   return (
     <div className="space-y-4">
-      {domande.length > 0 && (
-        <div>
-          <h3 className="mb-1.5 text-[14px] font-semibold text-tenue">Domande per te · {domande.length} aziende</h3>
-          <ul className="divide-y divide-velo overflow-hidden rounded-2xl border border-bordo bg-white">{domande.slice(0, quante).map(riga)}</ul>
-        </div>
-      )}
       {bozze.length > 0 && (
         <div>
-          <h3 className="mb-1.5 text-[14px] font-semibold text-tenue">Bozze ferme da più di un'ora · {bozze.length}</h3>
+          <h3 className="mb-1.5 text-[14px] font-semibold text-tenue">Risposte pronte da approvare · {bozze.length}</h3>
           <ul className="divide-y divide-velo overflow-hidden rounded-2xl border border-bordo bg-white">{bozze.slice(0, quante).map(riga)}</ul>
+        </div>
+      )}
+      {domande.length > 0 && (
+        <div>
+          <h3 className="mb-1.5 text-[14px] font-semibold text-tenue">Da guardare tu · {domande.length} {domande.length === 1 ? 'azienda' : 'aziende'}</h3>
+          <ul className="divide-y divide-velo overflow-hidden rounded-2xl border border-bordo bg-white">{domande.slice(0, quante).map(riga)}</ul>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -417,6 +438,7 @@ function DaDecidere({ domande, bozze }: { domande: Array<{ ultima: Domanda; quan
           <Bottone tipo="piatto" onClick={() => setTutte(!tutte)}>{tutte ? 'Mostra meno' : 'Mostra tutte'}</Bottone>
         )}
       </div>
+      {resto.length > 0 && <p className="text-[13px] text-tenue">Nella Posta ci sono anche {resto.join(' e ')}: qui non li elenco.</p>}
     </div>
   )
 }

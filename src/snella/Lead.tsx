@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { STATI, leggiDecisioni, leggiRighe, type Decisione, type RigaLead } from './dati'
 import { cerca, contaStati, quando, statoDi } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from './pezzi'
-import { useDati } from './uso'
+import { linkCompleto, useDati } from './uso'
 
 const PASSO = 80
 
@@ -36,6 +36,10 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
   }, [dati, filtro, q])
 
   function scegli(f: string) { setFiltro(f); ricorda('snella-filtro', f); setQuanti(PASSO) }
+  // 17/10: 13 lead stavano in stati senza filtro (Nel Workspace, Fuori target, Casella morta):
+  // si vedevano solo in «Tutti». Ogni stato che c'e' ha il suo filtro, in fondo.
+  const altri = [...conta.keys()].filter((k) => !(STATI as readonly string[]).includes(k)).sort()
+  const filtri = ['Tutti', ...STATI, ...altri]
 
   return (
     <div>
@@ -48,8 +52,8 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
       </div>
 
       <div role="group" aria-label="Filtra per stato" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
-        {['Tutti', ...STATI].map((s) => {
-          const n = s === 'Tutti' ? dati?.righe.length : conta.get(s) ?? 0
+        {filtri.map((s) => {
+          const n = !dati ? null : s === 'Tutti' ? dati.righe.length : conta.get(s) ?? 0
           const su = filtro === s
           return (
             <button key={s} onClick={() => scegli(s)} aria-pressed={su}
@@ -64,7 +68,11 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
         {caricando ? <Carico righe={6} etichetta="Carico i lead" />
           : errore && !dati ? <Errore testo={errore} riprova={() => void rifai()} />
             : !visibili.length ? (
-              <Vuoto>{q ? `Nessun lead trovato per «${q}»${filtro !== 'Tutti' ? ` in ${filtro}` : ''}.` : `Nessun lead in ${filtro} negli ultimi 60 giorni.`}</Vuoto>
+              <Vuoto>
+                {q ? `Nessun lead trovato per «${q}»${filtro !== 'Tutti' ? ` in ${filtro}` : ''} fra chi ha risposto negli ultimi 60 giorni.` : `Nessun lead in ${filtro} negli ultimi 60 giorni.`}
+                {q && filtro !== 'Tutti' && <> <button onClick={() => scegli('Tutti')} className="font-semibold text-blu-scuro underline">Cerca in tutti</button>.</>}
+                {q && filtro === 'Tutti' && <> Gli altri sono nel <a href={linkCompleto('pipeline')} className="font-semibold text-blu-scuro underline">Workspace completo</a>.</>}
+              </Vuoto>
             ) : (
               <>
                 <p aria-live="polite" className="mb-2 text-[14px] text-tenue">{visibili.length} {visibili.length === 1 ? 'lead' : 'lead'}, l'ultima risposta in cima</p>

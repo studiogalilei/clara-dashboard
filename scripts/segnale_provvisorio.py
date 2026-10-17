@@ -117,9 +117,12 @@ ORDINE_TIPO = {"caldo": 0, "da_guardare": 1, "si": 2}
 OGGETTO = {"caldo": "Vuole sentirti", "si": "Sì da servire", "da_guardare": "Da guardare"}
 
 # le autorisposte che nessuno deve leggere: quella collaudata di lettura.py, piu' rimbalzi,
-# indirizzi dismessi e accettazioni del calendario (viste il 13/10)
+# indirizzi dismessi e accettazioni del calendario (viste il 13/10); 17/10: i rimbalzi in inglese
+# («Message blocked», «couldn't be delivered») e i rapporti DMARC finivano fra le risposte dei lead
 AUTOMATICHE = re.compile(r"^\s*(accettato|accepted|rifiutato|declined)\s*:|recapito non (e'|è) riuscito|undeliverable|"
                          r"delivery status notification|mail delivery (failed|subsystem)|mancata consegna|"
+                         r"^\s*message blocked\b|your message to \S+ (has been blocked|couldn.?t be delivered)|"
+                         r"could not be delivered to|dmarc aggregate report|"
                          r"indirizzo[^.\n]{0,60}(dismess|disattivat)|verr[àa] (dismess|disattivat)", re.I | re.M)
 TELEFONO = re.compile(r"(?<![\w\d])(?:\+|00)?(?:39[\s.\-]?)?(?:3\d{2}|0\d{1,3})(?:[\s.\-/]?\d){6,8}(?![\d])")
 # un numero dopo queste parole non e' un telefono: partita IVA, codice fiscale, IBAN, REA
