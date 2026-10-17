@@ -3345,6 +3345,15 @@ def _():
     assert "notificationclick" in sw and "data.url" in sw.replace("dati.url", "data.url"), "il tocco sulla notifica non apre il suo indirizzo"
 
 
+@prova("calendario: il fuso di Outlook («W. Europe Standard Time») non ferma la lettura (17/10)")
+def _():
+    import calendario
+    d, _ = calendario._quando("20261019T110000", ";TZID=W. Europe Standard Time")
+    assert d.utcoffset().total_seconds() == 7200, d
+    d, _ = calendario._quando("20261019T110000", ";TZID=Fuso Inventato")
+    assert d.tzinfo is not None
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

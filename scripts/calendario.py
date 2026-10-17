@@ -88,8 +88,26 @@ def _quando(valore, parametri):
     if valore.endswith("Z"):
         return datetime.datetime.strptime(valore, "%Y%m%dT%H%M%SZ").replace(tzinfo=datetime.timezone.utc), False
     m = re.search(r"TZID=([^;:]+)", parametri)
-    tz = zoneinfo.ZoneInfo(m.group(1)) if m else ROMA
+    tz = _fuso(m.group(1)) if m else ROMA
     return datetime.datetime.strptime(valore, "%Y%m%dT%H%M%S").replace(tzinfo=tz), False
+
+
+# 17/10: gli inviti di Outlook scrivono il fuso coi nomi di Windows («W. Europe Standard Time») e
+# zoneinfo li rifiutava: cadeva tutta la lettura della posta di Dre (la rete delle prenotazioni).
+_FUSI_WINDOWS = {"w. europe standard time": "Europe/Rome", "central europe standard time": "Europe/Budapest",
+                 "romance standard time": "Europe/Paris", "central european standard time": "Europe/Warsaw",
+                 "gmt standard time": "Europe/London", "greenwich standard time": "Atlantic/Reykjavik",
+                 "e. europe standard time": "Europe/Chisinau", "fle standard time": "Europe/Kiev",
+                 "gtb standard time": "Europe/Bucharest", "eastern standard time": "America/New_York",
+                 "pacific standard time": "America/Los_Angeles", "utc": "UTC"}
+
+
+def _fuso(nome):
+    nome = (nome or "").strip().strip('"')
+    try:
+        return zoneinfo.ZoneInfo(_FUSI_WINDOWS.get(nome.lower(), nome))
+    except Exception:                                            # noqa: BLE001
+        return ROMA                                              # un fuso sconosciuto non ferma la lettura
 
 
 def _link_google(uid):
