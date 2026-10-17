@@ -193,6 +193,10 @@ _STOP_FINE = {"ma", "non", "siamo", "sono", "e", "di", "che", "per", "il", "la",
               "con", "ci", "vi", "ne", "al", "del", "della", "un", "una", "se", "o", "anche", "mi", "ti", "si", "piu", "più"}
 
 
+_RIMANDO = re.compile(r"\b(?:scriv\w*|invi\w*|contatt\w*|rivolg\w*|utilizz\w*|usa(?:re|te)?|inoltr\w*|nuov[oa]|"
+                      r"seguente|indirizzo|write|send|contact|new (?:e-?mail|address))\b", re.I)
+
+
 def _frase(r):
     parole = [w.strip("()[],.;:!?«»\"'’").lower() for w in r.split()]
     vere = [w for w in parole if len(w) >= 3 and w.isalpha() and w not in _NON_FRASE]
@@ -230,6 +234,10 @@ def _riga_che_apre_la_firma(r, prima=""):
     parole = r.split()
     if prima.endswith(":") or (prima and prima.split()[-1].lower().strip(",") in _STOP_FINE):
         return False
+    # 17/10 (esame): «si prega di scrivere / alla nuova email: gino@...». L'indirizzo a cui ci rimandano
+    # e' messaggio: e' proprio quello che ci dice di fare.
+    if EMAIL.search(r) and _RIMANDO.search(prima + " " + r):
+        return False
     if _frase(r):
         return False
     if len(parole) == 1 and r.endswith(".") and len(r) > 4:          # «Interessati.» non e' un nome
@@ -246,6 +254,12 @@ def dividi(testo):
     """(messaggio, firma) di una risposta: la nostra mail citata e l'oggetto nostro tolti; la
     firma separata riga per riga. Il messaggio non resta mai vuoto per colpa del taglio."""
     t = solo_suo(testo, con_firma=True).replace("\xa0", " ")
+    if not t.strip() and (testo or "").strip():
+        # 17/10 (esame): risposta scritta SOTTO la nostra mail citata. Se la citazione e' fatta di righe
+        # con «>», quello che resta fuori da quelle righe, dopo l'intestazione, e' suo.
+        resto = (testo or "")[(CITAZIONE.search(testo).end() if CITAZIONE.search(testo) else 0):].split("\n")
+        if any(r.lstrip().startswith(">") for r in resto):
+            t = "\n".join(r for r in resto[1:] if not r.lstrip().startswith(">")).replace("\xa0", " ").strip()
     righe = [r.rstrip() for r in t.split("\n")]
     piene = [i for i, r in enumerate(righe) if r.strip()]
     if piene:
@@ -277,6 +291,17 @@ def dividi(testo):
         firma = (messaggio[f.start():] + "\n" + firma).strip()
         messaggio = messaggio[:f.start()].strip()
     return messaggio, firma
+
+
+def _scheda_breve(p):
+    """Quello che sappiamo dell'azienda (17/10, esame: la seconda testa lasciava passare 4 fatti
+    inventati su 4, perche' non aveva niente con cui confrontarli)."""
+    e = (p or {}).get("enriched") or {}
+    fit, an = e.get("google_fit") or {}, e.get("analisi") or {}
+    pezzi = [f"azienda: {p.get('company') or ''}", f"persona: {p.get('name') or ''}",
+             f"citta'/provincia: {p.get('city') or fit.get('provincia') or ''}", f"settore: {p.get('sector') or fit.get('settore') or ''}",
+             f"cosa fa: {fit.get('cosa_fa') or ''}", f"l'analisi dice: {an.get('intro') or ''} {an.get('frase_forte') or ''}"]
+    return " | ".join(x for x in pezzi if not x.endswith(": ") and not x.endswith(":  "))[:1200]
 
 
 def _messaggio_e_firma(testo):
@@ -426,6 +451,7 @@ def ha_gia(p, righe):
         # alla nostra mail («mercoledì 14 alle 15:30») e bocciava come inventato un rimando vero.
         "ultima_nostra": " ".join(((ultima_nostra or {}).get("body") or "").split())[:1500], "ultima_nostra_il": (ultima_nostra or {}).get("at", "")[:10],
         "ultima_loro_da": (ultima_loro or {}).get("mittente") or "", "ultima_nostra_a": (ultima_nostra or {}).get("a") or "",
+        "scheda": _scheda_breve(p),
         "scritto_dopo_di_lei": len(dopo),
         "analisi_ricevuta": bool(p.get("analysis_sent")) or bool(GIA_LETTA.search(testo)) or ("analisi" in nostre_testo and bool(dopo)),
         "analisi_gia_letta": bool(GIA_LETTA.search(testo)),
@@ -502,6 +528,8 @@ Guarda gli indirizzi: se la nostra ultima mail e' partita a un indirizzo diverso
 che non gli era arrivata direttamente e' vero. Un messaggio che dice «questo indirizzo verra' disattivato» o «scrivete
 d'ora in poi a ...», mandato subito dopo la nostra, e' la risposta automatica di quella casella.
 
+QUELLO CHE SAPPIAMO DELL'AZIENDA (scheda e analisi): {f.get('scheda') or '(niente)'}
+
 LA BOZZA CHE STIAMO PER MANDARE:
 {bozza}
 
@@ -511,7 +539,12 @@ un'autorisposta come a una persona (salvo il gruppo RICONTATTO OOO, che e' fatto
 sbaglia nome o azienda; usa un indirizzo email come se fosse il nome di una persona; dice «metto in copia»
 o «grazie per il passaggio» quando la mail parte direttamente al contatto nuovo; ripete parola per parola una
 cosa che avevamo gia' scritto; risponde a una domanda precisa senza rispondere; nei gruppi (ripresa, rinvio,
-dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. REGOLA DEI COSTI (Dre, 12/10): prima della videochiamata conoscitiva non si da' mai un prezzo. Se chiedono i costi,
+dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. FATTI INVENTATI (17/10): se la bozza afferma un fatto sull'azienda o sulla storia del contatto (una sede,
+un premio, un magazzino, una telefonata fatta, un collega che ha detto qualcosa, un giorno proposto da loro)
+che non sta ne' nel filo ne' in QUELLO CHE SAPPIAMO, e' INCOERENTE: fatto inventato. Le osservazioni su
+Google e sulle ricerche (cosa conviene, cosa cercano le persone) vengono dall'analisi e sono normali. Se
+loro hanno proposto dei giorni, una bozza che ne propone un altro senza dirlo e' INCOERENTE.
+REGOLA DEI COSTI (Dre, 12/10): prima della videochiamata conoscitiva non si da' mai un prezzo. Se chiedono i costi,
 rispondere che dipendono da cosa ha senso fare per loro e che i numeri precisi si danno in call e' la risposta giusta,
 non un'elusione: non bocciare per questo.
 E' COERENTE se un lettore attento, che vede tutto il filo, la troverebbe naturale.

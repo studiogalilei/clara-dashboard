@@ -138,13 +138,17 @@ conferma mail» o «Ultima mail da parte mia» in cima): giudica solo quello che
 Rispondi con questi campi:
 - autorisposta: true se non l'ha scritta una persona (fuori ufficio, ticket, presa in carico,
   mancata consegna, accettazione di un invito del calendario).
-- caldo: true SOLO se vuole sentirsi: chiede di essere chiamata o di parlarne, propone un giorno o un
-  orario, lascia un numero perche' la si chiami, oppure e' molto carica ed entusiasta. Un semplice
-  «si', mandi pure l'analisi» NON e' caldo. Un numero che sta solo nella firma standard non basta.
-  Se conferma soltanto un appuntamento che ha gia' prenotato da sola, NON e' caldo: e' gia' a posto.
+- caldo: true SOLO se vuole sentirsi adesso: chiede di essere chiamata o di parlarne, propone un giorno
+  o un orario vicino, lascia un numero perche' la si chiami; oppure chiede di spostare una call gia'
+  fissata, o non riesce a prenotare (il link del calendario non funziona). Un semplice «si', mandi pure
+  l'analisi» o «si' grazie molto volentieri» NON e' caldo. Un numero che sta solo nella firma non basta.
+  NON e' caldo chi rimanda a fra qualche mese («sentiamoci a settembre»), ne' chi conferma o ha gia'
+  fissato da sola una call («fissato per venerdi' alle 15»): e' gia' a posto.
 - si: true se vuole o accetta l'analisi o il materiale, anche solo con «confermo la mail», «la mail
   e' corretta», «mandi pure», «va bene», «valutiamo», «si' grazie», «se vuole inoltrarla».
-  false se dice no, rimanda a piu' avanti, chiede di non scrivere, o chiede solo chi siamo.
+  true anche se chiede cos'e', che tipo di analisi, o chi siamo («non ho capito cos'e'», «che analisi
+  nello specifico?»): Dre a chi chiede risponde mandando l'analisi e spiegandola (note di Dre, 17/10).
+  false se dice no, rimanda a piu' avanti o chiede di non scrivere.
 - frase: la sua frase chiave, copiata dal testo, al massimo 15 parole.
 - telefono: UN solo numero di telefono suo o dell'azienda (il cellulare, se c'e') se compare nel testo
   o nella firma, copiato com'e'; altrimenti stringa vuota. Mai inventarlo.

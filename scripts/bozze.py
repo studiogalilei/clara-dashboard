@@ -972,7 +972,10 @@ def main():
             if fermo_da >= 2:
                 return (p, gruppo, nome, None, [], letti, ("chiedi", f"aspetta l'analisi da {fermo_da} giorni e non arriva"))
             return (p, gruppo, nome, None, [], letti, ("aspetta", "l'analisi non c'e' ancora (la fa l'operazione analisi)"))
-        if not gruppo and len((letti.get("ultima_loro") or "").strip()) < 30:
+        # 17/10 (esame): «Go for it.» e «Yes, we will take a look. Thanks!» erano sì chiusi in silenzio,
+        # perche' sotto i 30 caratteri. Corta non vuol dire vuota: si salta solo se non c'e' una parola.
+        suo = (letti.get("ultima_loro") or "").split("  [firma di chi scrive")[0]
+        if not gruppo and not re.search(r"[A-Za-zÀ-ÿ]{2,}", suo):
             return (p, gruppo, nome, None, [], letti, ("salta", "l'ultima mail loro e' vuota o illeggibile"))
         # 3. LA BOZZA. I follow-up col template li scrive il codice, parola per parola
         # (Dre 29/9, strada A): il modello qui non scrive niente. Se il codice non

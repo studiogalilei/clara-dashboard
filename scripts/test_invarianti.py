@@ -3128,6 +3128,13 @@ def _():
     assert "347 1234567" in m, m
     m, f = L.dividi("Buongiorno,\nva bene.\nMario Rossi")
     assert "va bene" in m and f == "Mario Rossi", (m, f)
+    # esame del 17/10: l'indirizzo nuovo dopo «si prega di scrivere» andato a capo, e la risposta sotto la citazione
+    m, _ = L.dividi("Buongiorno,\nquesta casella non e' piu' attiva, si prega di scrivere\nalla nuova email: gino" + at + "azienda.it\nGrazie")
+    assert "gino" + at + "azienda.it" in m, m
+    m, _ = L.dividi("Il giorno lun 12 ott 2026 alle 10:00 Lorenzo <l" + at + "azienda.it> ha scritto:\n> la nostra mail\n\nOk, mandatemela pure.\nMario")
+    assert m == "Ok, mandatemela pure.", m
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py")).read()
+    assert 'not re.search(r"[A-Za-zÀ-ÿ]{2,}", suo)' in src, "un sì corto non si salta piu' per lunghezza"
 
 
 @prova("l'esame di affidabilita' non scrive: database, Smartlead e Google si fermano nel guardiano; un sì perso e' pericoloso (17/10)")
