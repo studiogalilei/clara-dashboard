@@ -3133,6 +3133,9 @@ def _():
     assert "gino" + at + "azienda.it" in m, m
     m, _ = L.dividi("Il giorno lun 12 ott 2026 alle 10:00 Lorenzo <l" + at + "azienda.it> ha scritto:\n> la nostra mail\n\nOk, mandatemela pure.\nMario")
     assert m == "Ok, mandatemela pure.", m
+    m, _ = L.dividi("Il 2026-08-03 13:22 Lorenzo Fornasier ha scritto: Buongiorno Daniele,&nbsp; abbiamo preparato un'analisi. "
+                    "Cordiali saluti, Lorenzo Fornasier&nbsp; Studio Galilei Studiogalilei com.&nbsp; Buonasera, La ringrazio. Mi mandi pure.")
+    assert m.startswith("Buonasera, La ringrazio. Mi mandi pure"), m
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py")).read()
     assert 'not re.search(r"[A-Za-zÀ-ÿ]{2,}", suo)' in src, "un sì corto non si salta piu' per lunghezza"
 

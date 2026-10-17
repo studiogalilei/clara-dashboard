@@ -197,6 +197,11 @@ _RIMANDO = re.compile(r"\b(?:scriv\w*|invi\w*|contatt\w*|rivolg\w*|utilizz\w*|us
                       r"seguente|indirizzo|write|send|contact|new (?:e-?mail|address))\b", re.I)
 
 
+# come finisce la nostra mail quando la citano senza «>» (17/10, esame)
+_NOSTRA_FIRMA = re.compile(r"studiogalilei\s*com\._?|tutto il necessario per crescere\.?|"
+                           r"ti chiediamo di avvisarci e di cancellarlo\.", re.I)
+
+
 def _frase(r):
     parole = [w.strip("()[],.;:!?«»\"'’").lower() for w in r.split()]
     vere = [w for w in parole if len(w) >= 3 and w.isalpha() and w not in _NON_FRASE]
@@ -260,6 +265,12 @@ def dividi(testo):
         resto = (testo or "")[(CITAZIONE.search(testo).end() if CITAZIONE.search(testo) else 0):].split("\n")
         if any(r.lstrip().startswith(">") for r in resto):
             t = "\n".join(r for r in resto[1:] if not r.lstrip().startswith(">")).replace("\xa0", " ").strip()
+        if not t.strip():
+            # testo salvato su una riga sola: la nostra mail citata finisce con la nostra firma, dopo c'e' lui
+            import html as _html
+            fine = list(_NOSTRA_FIRMA.finditer(testo or ""))
+            if fine:
+                t = _html.unescape((testo or "")[fine[-1].end():]).replace("\xa0", " ").lstrip(" _>").strip()
     righe = [r.rstrip() for r in t.split("\n")]
     piene = [i for i, r in enumerate(righe) if r.strip()]
     if piene:
