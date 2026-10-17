@@ -1,0 +1,1972 @@
+[
+{
+"interaction_id": "00425548-b642-4e6d-9d7d-4ec130248744",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "05567ae1-4950-4bd6-8aae-9b00d16c3f40",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "06619bbe-1a62-41e9-8ef6-2d6e1bbfc7ca",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "094093cb-4a7c-47c8-86f7-9e3e3ccdcaba",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "0b047f01-f25b-4e39-b2d1-d750f109c25f",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "0b265a51-532b-462c-8247-7a2fd2f041b2",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "0b652cb9-9208-4a84-aead-57b44032012b",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "1099c491-fbab-49ef-acde-8e9d687f476e",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "12eb0d73-510f-401f-8723-d78d21ba7f65",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "1347d413-7d52-4ce9-bfdc-44729275cc9c",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "1790aff7-28ee-43c4-9c77-108d28592b55",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "190fca72-04c4-4c24-b30a-373cf0828301",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "1b08e670-c7af-40e4-82c8-033016d2a54d",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "1b524e30-4b3a-461f-94ca-cc766053ede5",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "1da451fc-5db0-4243-9f4f-89665649c6de",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente",
+"si"
+]
+},
+{
+"interaction_id": "23295d30-5891-4001-9542-109f3561492c",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "23d95784-a9fc-4685-9315-8a88c302ea1e",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "2870dfb3-0787-437f-805c-6b7607ea6e42",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "2915046c-408f-4424-b8a1-306ef79861d1",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "2a703cd1-dc7f-4342-b492-cdd0ee7500b3",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "2dca0e06-bb86-4cbd-afd9-e01a5932af1d",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "2e3054e6-8f42-41e3-944b-07f984770d7c",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "2f20b7e0-c48f-4443-94e0-842a08a92970",
+"azione": "TOGLI_DALLA_LISTA",
+"conferma": true,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "300b3979-ef64-4caf-bbdd-10cdc9f9f92e",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "307d1f0b-5820-42c3-8ac5-0f036dee69e2",
+"azione": "GUARDA_TU",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "30c791d3-ed80-4784-9bf8-0f5ce318e02c",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "34752611-b714-4961-a3d4-e3e7f6bac5ca",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "353d9b35-2aa5-43b8-a218-4bee91508331",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "3685e317-8ad9-41e0-b990-236afe2ebc99",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "3c45e5d5-5334-4361-a1c0-78b6eea60033",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "3cc4d94e-8270-4c8d-83d3-2a1767da409a",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "3ceeb8c8-4958-451a-a938-4c0bcb358fe8",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo",
+"si"
+]
+},
+{
+"interaction_id": "417dcdf5-caa3-4d6c-ab01-f8fece59fa9c",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "419ed96e-a427-4437-bf98-c7718c16b64b",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "425f839a-ce1b-4dbc-bc34-2bb8e10a2b20",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "4348aadb-73dc-4d30-be6b-c6e6978ef2e2",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "438d92a3-d79f-4bde-b91b-510d0da66e7c",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "441a05d2-f706-48fa-a731-dbd11f2d32d7",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente",
+"si"
+]
+},
+{
+"interaction_id": "444a7c8a-addd-47d5-9f6d-be384875a1f0",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "45af6b8a-5964-4f74-b891-ea5aee6da47b",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "4726995e-b848-41b7-a78a-feba4ab91af3",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "4822eb59-fa57-49e8-8ebc-106d692a7161",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "48d78ba6-5088-42eb-a619-6dfb7e09de6d",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "4d5f86de-199f-4bca-9d4f-7bd831b2393a",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "4e4d8f9e-0499-41a1-8513-e5d8285c2479",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "4fe88d63-d2aa-42ae-84b6-85d29eb64430",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "50b4b773-9205-4154-9f73-5437be4086ec",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "50e1bdc1-07d4-4604-9dfe-24ccd6ce70ce",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "568ed9a0-c2b6-4199-9a7e-43185109b0a6",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "56ed5221-0235-4d8f-a4c4-92a9c7995a08",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "56f7194a-d2de-4e8b-8b07-2038e6900167",
+"azione": "TOGLI_DALLA_LISTA",
+"conferma": true,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "5a0d3085-72c5-42b1-a879-b769416173b2",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "5b2f5c98-1c11-43c3-8e95-c128efd265f5",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "5b68a565-7f5a-4009-8afa-ceef5b3a3cbb",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "5ee570db-2871-458b-afa8-8a3c792690ed",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "601b96de-4a9e-41ea-9453-0edfc11dc3b8",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "62722884-43c0-49fb-bb95-c93b1bf6be5b",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "64220b2d-d400-4a72-9cfb-c6ab9147fb78",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "67384628-4394-4059-8805-c2ba0db26251",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "6d2bffb5-b57d-4e24-8cee-c21fce7927ff",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "6dfc7926-088a-4700-b1eb-7e704478b0eb",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "71b28796-54ab-4a40-8568-0476cd5a74bc",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "74516b90-c50b-4886-8e14-7070a0f1cb5e",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "7607cf06-5ccf-49ee-87cb-b87813c16179",
+"azione": "GIGANTE_BUONO",
+"conferma": true,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "7608a649-5395-49ee-985c-9011cf261673",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "763ae5b3-5256-4b3b-ad08-1f5d4d67d585",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "7755b84d-9a62-4ba2-a519-2c8f2926a90f",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "782c1396-0e27-4f47-964d-685afd40117f",
+"azione": "GUARDA_TU",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "78dac612-9b23-4e2e-b525-0d250c1225d9",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "7972ed41-c9bd-4d9f-a903-444f8e6f65c2",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "7a49cfd0-8d81-482f-acff-0a1dd32fb89f",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "7f0ce454-fd91-47a3-bc04-1c9a7df4119a",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "814db3a4-e453-42f5-9750-e95c25568edd",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "829e219f-2c4c-4cbd-a333-79fb969c7b10",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "82a9e4bc-15e5-47c1-976c-e007d404ee5e",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "84aa8b62-3f59-4b64-a064-dd2ba53d9d94",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "8a239906-3b9d-4e24-8aa2-2f83f816d4bb",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "8a952ece-a55f-4d7f-ae54-e1aad4bfac03",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "8b79526e-e01d-4de9-902f-5d584b976d20",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "8c117b11-76e2-414d-9361-469254669620",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "8d8a1ae8-e553-466a-8792-dc0630def22b",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "90d7b103-d88a-4545-a394-869f8771e6d8",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "93fa367b-85b8-4726-8a09-451e833bc4f1",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "94fe1cf3-0f01-423e-bde9-bd457326d6e8",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "968d7dcd-734e-4b39-9266-d6a1a1cfb149",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "9944dd22-973a-44b6-b266-637a0b3ba4ce",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "9acb7396-0d2c-4c4f-9936-eea059f6a6f4",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "9baf1a7d-abe3-43e3-a60b-7a791feca33a",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "9e5193eb-2d4b-466b-bb95-add3737de7a7",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "9f392134-cfff-40bd-9b23-af7bdf2acdbc",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "9fb46fca-8efc-4765-8eb2-0f4b14348305",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente",
+"si"
+]
+},
+{
+"interaction_id": "a0f57e7a-4511-456c-8c18-0a9971f7edd9",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "a36bf55b-fbf6-416f-9653-a410c8b476c0",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "a3faa6dc-b3e0-4426-b033-6904d987a719",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "a84738f0-5b1d-40f5-8354-f3ff04efd498",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "a9c00862-bfc3-4c60-b491-e93ca00e52e2",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "ab61a4e0-c98c-4a6a-b3fa-951f7fa8a73b",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "ae6f1493-dcc4-4b22-8565-e5676f59e9a2",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b1b98187-0f10-432b-be16-0e439c8e3ba0",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "b2d208e3-4b88-49ea-bcc6-90f19c900648",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "b3ebc74d-8689-4981-8a23-efe5d6aee1ef",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "b410960b-d79a-49f5-9d49-a46e56069357",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "b4211e22-6624-43d8-9f92-1a0ba414636d",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b63a93e8-deac-4890-8f53-5ff577c57ff6",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b6740fce-c521-42d1-8f1b-91fd539763ce",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b7ee1bbd-cf10-421e-8c7c-df063b82bc3d",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b862ce9f-039b-479b-a136-f6a08402aa61",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b98341e1-cab5-44d3-b688-0b56a6e9b4f3",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "b9ebe67d-8315-47b1-8fa2-b6d04ffcb4d4",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "ba623448-9b0b-4b73-8e8b-db1363662f2f",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "bd41fd11-c183-41ad-b697-e8e57d907c83",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "be441201-aebf-461f-bbad-c23f136b3aa2",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "bf65a2e3-d532-47aa-8d75-b55d30081e11",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "c10edf4e-22c2-4806-bdfb-d5e558fef419",
+"azione": "TOGLI_DALLA_LISTA",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "c67d8658-79ba-44bf-907d-882f7ca7d0f6",
+"azione": "TOGLI_DALLA_LISTA",
+"conferma": true,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "c722e3a8-7368-47c0-97ee-73c68f652646",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "c7a67579-488a-409f-a912-93ccd056f02f",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "c7e72abd-f16a-4158-8dc6-b99183201f67",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "ca8e9a23-7051-41ef-8538-c59b8b1cb4ac",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "cb4eb16a-9b6d-43f5-b31d-ae681be42686",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "cb5c344b-5783-4943-9541-bc5163436b1e",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "cd578dad-f06c-4d93-a30f-64551f8ff0f2",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "cef907c6-5855-4e1a-9276-427c2ac6f63e",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "d05a14ff-5875-4c25-a307-172d9bb30041",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "d0cafa92-9811-42c3-8ff2-cb2113c3d117",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "d5d6e14d-3efd-47b5-a77c-19086dfd9006",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "d6535636-1e21-4ede-b9b0-761ae636e7d4",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "d6650e0e-f406-4ba6-b288-531b77c3900b",
+"azione": "TOGLI_DALLA_LISTA",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "d96cc97c-f130-4079-aa22-5317983804ea",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "da83d4d2-2ac0-43b2-9ad2-1db361324cc2",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "dd0e2683-1933-4584-a7e0-1a0c8280affa",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "e2536dae-1322-4dab-b96c-d24c33265fe6",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "e2bf0b5c-010c-4937-9e57-c23ff8f28930",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "e3e3661f-68a8-4e37-a228-d44e5ec876e9",
+"azione": "GUARDA_TU",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "e553f1a7-7fb5-438f-9fc0-7abda34c90b5",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "e58d5c83-ac09-4989-bcd9-b763edb9c770",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "e79ae72a-d0fc-465c-88ad-d1998e5d5500",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "ea80de62-8bd0-49df-a493-4ae85b66f994",
+"azione": "GIGANTE_BUONO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": true,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "eac06e63-c40b-49dc-8576-8744d3259662",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente",
+"si"
+]
+},
+{
+"interaction_id": "ed316bdb-5409-4cee-9379-e18c4a95b9ee",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "ef105f33-6fbd-4336-9f0e-7f56ee7c0c5c",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+},
+{
+"interaction_id": "f122ed04-e241-4b4d-9a85-6724d2ca75e6",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "f1660cf2-80af-4f96-ad05-6edba3c26c0b",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"si"
+]
+},
+{
+"interaction_id": "f3c60ed2-8d18-496c-8f2c-a180e772e67a",
+"azione": "NON_RISPONDERE",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "f4b05678-737b-4ff7-829d-dcedc0df0ee7",
+"azione": "INDIRIZZO_NUOVO",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"si",
+"niente"
+]
+},
+{
+"interaction_id": "f50188f5-d54a-4c10-8b23-f7d51c082214",
+"azione": "TOGLI_DALLA_LISTA",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": true,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "f6db6dfd-1a4e-44ab-80be-7dd42edc55d3",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "fc9140c6-e608-4cb4-ba63-edb547b7fc33",
+"azione": "MANDA_ANALISI",
+"conferma": false,
+"ooo": false,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "fd77db1b-9b99-433d-9ba3-4cdf6c9821ac",
+"azione": "RICONTATTA_PIU_AVANTI",
+"conferma": false,
+"ooo": true,
+"vuole": false,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": true,
+"segnale_atteso": [
+"niente"
+]
+},
+{
+"interaction_id": "ff6ec3ea-72c5-400d-8a3d-4a41ee73d828",
+"azione": "CONVERSAZIONE_A_DRE",
+"conferma": false,
+"ooo": false,
+"vuole": true,
+"ha_detto_no": false,
+"non_scrivere": false,
+"automatico": false,
+"segnale_atteso": [
+"caldo"
+]
+}
+]

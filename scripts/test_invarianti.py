@@ -3130,6 +3130,34 @@ def _():
     assert "va bene" in m and f == "Mario Rossi", (m, f)
 
 
+@prova("l'esame di affidabilita' non scrive: database, Smartlead e Google si fermano nel guardiano; un sì perso e' pericoloso (17/10)")
+def _():
+    import importlib
+    import stanza
+    import cervello
+    import lettura as L
+    salvati = (stanza.sb, L.sb, cervello._chiedi_openai, cervello._chiedi_claude, cervello._salva_cache, cervello._nel_db,
+               cervello._conta_uso, os.environ.get("PROVA"))
+    try:
+        E = importlib.import_module("esame")
+        assert stanza.sb("PATCH", "/rest/v1/prospects?id=eq.1", {"x": 1}) is None
+        assert stanza.sb("POST", "/rest/v1/proposte", {"x": 1}) is None
+        assert L.sb("DELETE", "/rest/v1/interactions?id=eq.1") is None
+        assert E.BLOCCATE["PATCH /rest/v1/prospects"] == 1 and E.BLOCCATE["POST /rest/v1/proposte"] == 1, E.BLOCCATE
+        dre_si = {"azione": "MANDA_ANALISI", "vuole": True}
+        assert E.gravita(dre_si, {"mossa": "NON_RISPONDERE", "chi": "da solo"})[0] == "PERICOLOSO"
+        assert E.gravita(dre_si, {"mossa": "MANDA_ANALISI", "chi": "Dre in Posta"})[0] == "GIUSTO"
+        assert E.gravita({"azione": "GIGANTE_BUONO"}, {"mossa": "NON_RISPONDERE", "chi": "da solo"})[0] == "GIUSTO"
+        assert E.gravita({"azione": "TOGLI_DALLA_LISTA", "non_scrivere": True}, {"mossa": "MANDA_ANALISI", "chi": "da solo"})[0] == "PERICOLOSO"
+        assert E.gravita({"azione": "NON_RISPONDERE", "automatico": True}, {"mossa": "MANDA_ANALISI", "chi": "da solo"})[0] == "PERICOLOSO"
+    finally:
+        stanza.sb, L.sb, cervello._chiedi_openai, cervello._chiedi_claude, cervello._salva_cache, cervello._nel_db, cervello._conta_uso, prova_ = salvati
+        if prova_ is None:
+            os.environ.pop("PROVA", None)
+        else:
+            os.environ["PROVA"] = prova_
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

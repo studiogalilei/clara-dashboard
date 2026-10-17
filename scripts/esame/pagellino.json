@@ -1,0 +1,73 @@
+{
+ "il": "2026-10-17",
+ "numeri": {
+  "1": {
+   "giuste": 109,
+   "su": 150,
+   "pericolosi": 6,
+   "innocui": 35,
+   "no_gentili_chiusi": 32,
+   "per_tipo_pericoloso": {
+    "risponde a un automatico come a una persona": 4,
+    "un sì perso: vuole qualcosa e il sistema chiude in silenzio": 2
+   },
+   "innocui_per_tipo": {
+    "mossa diversa": 8,
+    "finisce a Dre: giusto ma a mano": 20,
+    "non scrive più, ma non conferma la cancellazione e non lo mette nella lista di blocco": 3,
+    "fuori ufficio: cambia solo quando": 2,
+    "un sì rimandato invece di servito": 2
+   }
+  },
+  "2": {
+   "risposte": 80,
+   "giuste": 48,
+   "con_parole_perse": 3,
+   "grazie_finale_perso": 6,
+   "parole_perse": 36,
+   "parole_messaggio": 1564,
+   "con_firma_rimasta": 23,
+   "con_testo_estraneo": 2
+  },
+  "3": {
+   "giusti": 136,
+   "su": 150,
+   "si_persi": 5,
+   "caldi_persi": 2,
+   "falsi_caldi": 4,
+   "falsi_si": 3,
+   "caldi_come_si": 0,
+   "da_guardare": 0
+  },
+  "4": {
+   "piantati": 25,
+   "presi": 19,
+   "giuste": 25,
+   "falsi_allarmi": 3,
+   "per_tipo": {
+    "nome sbagliato": "4/4",
+    "call a chi ha detto no": "2/2",
+    "ignora una domanda": "3/4",
+    "fatto inventato": "0/4",
+    "collega inventato": "3/4",
+    "la mail non era partita": "4/4",
+    "ripete la nostra mail": "3/3"
+   }
+  },
+  "5": {
+   "bozze": 20,
+   "parte": 1,
+   "ritocco": 15,
+   "riscrivere": 3,
+   "non_mandare": 1,
+   "criteri_mancati": {
+    "lista_nera": 14,
+    "allegati_coerenti": 12,
+    "tono": 9,
+    "risponde_a_lei": 4,
+    "giorno_sensato": 2
+   }
+  }
+ },
+ "chiamate_ai_modelli": 356
+}
