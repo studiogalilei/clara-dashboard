@@ -178,7 +178,7 @@ function Pagina({ children }: { children: React.ReactNode }) {
 function Vista({ io }: { io: ChiSono }) {
   const [lavoro, setLavoro] = useState(false)
   return (
-    <div role="alert" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[14px] text-amber-900">
+    <div role="alert" className="border-b border-attesa-bordo bg-attesa-fondo px-4 py-2.5 text-[14px] text-attesa-testo">
       Stai guardando il Workspace come {io.vista?.nome ?? 'un\'altra persona'}: qui alcune cose potrebbero non vedersi.{' '}
       <button disabled={lavoro} onClick={() => { setLavoro(true); void vediCome(null).then(() => window.location.reload()) }}
               className="min-h-9 font-bold underline underline-offset-2">

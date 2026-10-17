@@ -335,10 +335,15 @@ export default function Conversazioni({ proposte, rispondi, occupato, invioAcces
             <p className="py-8 text-center text-sm text-tenue">Niente nel filo. Il resto sta nella scheda.</p>
           ) : filo.map((b) => (
             b.kind === 'email_in' || b.kind === 'email_out' ? (
-              <div key={b.id} className={`mb-2 flex ${b.kind === 'email_out' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${b.kind === 'email_out' ? 'rounded-br-md bg-navy text-white' : 'rounded-bl-md border border-bordo bg-white text-inchiostro'}`}>
+              // 17/10, Dre: «noi e loro non si capiscono». Ogni mail dice di chi e' con una parola
+              // grande e una barra: Noi in blu (a destra), Loro nel colore caldo (a sinistra).
+              <div key={b.id} className={`mb-2.5 flex ${b.kind === 'email_out' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-xl border border-l-[5px] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-inchiostro ${b.kind === 'email_out' ? 'border-noi-bordo border-l-noi-segno bg-noi-fondo' : 'border-bordo border-l-loro-segno bg-white'}`}>
+                  <p className="mb-1 flex flex-wrap items-baseline gap-x-2">
+                    <span className={`text-[14px] font-bold ${b.kind === 'email_out' ? 'text-noi-testo' : 'text-loro-testo'}`}>{b.kind === 'email_out' ? 'Noi' : `Loro · ${aperta.nome}`}</span>
+                    <span className="text-[12.5px] text-inchiostro/75">{fmtDateShort(b.at)}</span>
+                  </p>
                   <p className="whitespace-pre-wrap">{(b.body ?? '').slice(0, 900)}</p>
-                  <p className={`mt-1 text-right text-[10px] ${b.kind === 'email_out' ? 'text-white/60' : 'text-tenue'}`}>{fmtDateShort(b.at)}</p>
                 </div>
               </div>
             ) : (

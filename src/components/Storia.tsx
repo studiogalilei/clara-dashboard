@@ -230,15 +230,17 @@ function Bolla({ tipo, at, testo }: { tipo: string; at: string; testo: string })
   const lungo = corpo.length > 520 || corpo.split('\n').length > 8
   return (
     <div className={`flex ${noi ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-snug ${
-        noi ? 'rounded-br-md bg-blu text-white' : loro ? 'rounded-bl-md border border-bordo bg-white' : 'w-full border border-navy/30 bg-white'}`}>
-        <p className={`mb-1 flex items-baseline gap-2 text-[10.5px] font-bold uppercase tracking-[0.05em] ${noi ? 'text-white/70' : loro ? 'text-green-700' : 'text-navy'}`}>
-          {eti}{ora ? <span className="font-normal normal-case tracking-normal opacity-80">{ora}</span> : null}
+      {/* 17/10, Dre: «noi e loro in piccolissimo, non si capisce». La parola grande e la barra:
+          Noi in blu, Loro nel colore caldo, le call in grigio (src/index.css, i sei toni). */}
+      <div className={`max-w-[88%] rounded-xl border border-l-[5px] px-4 py-2.5 text-[13.5px] leading-snug text-inchiostro ${
+        noi ? 'border-noi-bordo border-l-noi-segno bg-noi-fondo' : loro ? 'border-bordo border-l-loro-segno bg-white' : 'w-full border-bordo border-l-navy bg-white'}`}>
+        <p className={`mb-1 flex items-baseline gap-2 text-[14px] font-bold ${noi ? 'text-noi-testo' : loro ? 'text-loro-testo' : 'text-navy'}`}>
+          {eti}{ora ? <span className="text-[12.5px] font-normal text-inchiostro/75">{ora}</span> : null}
         </p>
         {oggetto && <p className="mb-1 font-semibold">{oggetto}</p>}
         <p className={`whitespace-pre-wrap ${!tutto && lungo ? 'line-clamp-[8]' : ''}`}>{corpo}</p>
         {lungo && (
-          <button onClick={() => setTutto(!tutto)} className={`mt-1 text-[11px] font-bold ${noi ? 'text-white/80' : 'text-blu'} hover:underline`}>
+          <button onClick={() => setTutto(!tutto)} className="mt-1 text-[12.5px] font-bold text-blu-scuro hover:underline">
             {tutto ? 'chiudi' : 'leggi tutto'}
           </button>
         )}

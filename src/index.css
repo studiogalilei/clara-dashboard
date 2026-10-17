@@ -44,6 +44,39 @@
   --color-fondo: #eef0f4;
   --shadow-carta: 0 1px 2px rgba(20, 34, 90, 0.06), 0 2px 8px rgba(20, 34, 90, 0.06);
   --shadow-alta: 0 4px 16px rgba(20, 34, 90, 0.10), 0 1px 3px rgba(20, 34, 90, 0.08);
+
+  /* I COLORI CHE DICONO QUALCOSA (Dre, 17/10: «solo due colori, non si capisce cosa conta;
+     non voglio un arcobaleno, ma colori coerenti che la mente registra veloce»).
+     Sei toni e nient'altro, sempre con una parola o un'icona accanto (mai solo colore):
+       ok      verde   va bene, si', fatto, prenotato
+       no      rosso   no, in ritardo, urgente, errore
+       attesa  ambra   da guardare, in attesa
+       noi     blu     noi, le azioni nostre, i link
+       loro    cotto   loro: chi ci scrive (caldo, ne' rosso ne' verde)
+       neutro  grigio  neutro, chiuso, passato (tenue/velo/bordo, qui sopra)
+     Ogni tono ha quattro gradi: -testo (scritte, contrasto 5.9:1 o piu' anche sul suo fondo),
+     -segno (barre e pallini, sempre accanto a una parola), -fondo, -bordo.
+     Lo sfondo resta calmo: il colore va solo su cio' che chiede attenzione o dice uno stato. */
+  --color-ok-testo: #166534;
+  --color-ok-segno: #15a34a;
+  --color-ok-fondo: #edf9f1;
+  --color-ok-bordo: #b5e2c4;
+  --color-no-testo: #b42318;
+  --color-no-segno: #d92d20;
+  --color-no-fondo: #fef1f0;
+  --color-no-bordo: #f8c5bf;
+  --color-attesa-testo: #8a4005;
+  --color-attesa-segno: #d99400;
+  --color-attesa-fondo: #fff7e6;
+  --color-attesa-bordo: #f3d391;
+  --color-noi-testo: #1f5f9e;
+  --color-noi-segno: #2979c4;
+  --color-noi-fondo: #edf4fc;
+  --color-noi-bordo: #bcd5ef;
+  --color-loro-testo: #9a3a12;
+  --color-loro-segno: #d8642a;
+  --color-loro-fondo: #fff4ec;
+  --color-loro-bordo: #f2cdb2;
 }
 
 /* la carta: il secondo livello, sopra lo sfondo */
@@ -57,9 +90,9 @@
 /* la riga di stato in testa a una carta: dice cosa e' senza colorare tutto */
 .carta-blu   { border-top: 3px solid var(--color-blu); }
 .carta-navy  { border-top: 3px solid var(--color-navy); }
-.carta-ambra { border-top: 3px solid #d97706; }
-.carta-verde { border-top: 3px solid #16a34a; }
-.carta-rossa { border-top: 3px solid #dc2626; }
+.carta-ambra { border-top: 3px solid var(--color-attesa-segno); }
+.carta-verde { border-top: 3px solid var(--color-ok-segno); }
+.carta-rossa { border-top: 3px solid var(--color-no-segno); }
 
 html {
   -webkit-tap-highlight-color: transparent;

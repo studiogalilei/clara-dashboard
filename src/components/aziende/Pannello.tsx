@@ -218,9 +218,10 @@ export default function Pannello({ p, bozze, onChiudi, onEsegui, onIndietro, onC
             {!storia ? <p className="text-sm text-spento">Leggo…</p> : fatti.length === 0 ? <p className="text-sm text-spento">Ancora niente.</p> : (
               <ul className="space-y-2.5">
                 {fatti.map((f, i) => (
-                  <li key={i} className="flex gap-3 text-[13px] leading-relaxed">
-                    <span className="w-14 shrink-0 tabular-nums text-spento">{fmtDateShort(f.quando)}</span>
-                    <span className="min-w-0"><b className="font-semibold text-inchiostro">{f.chi}</b> <span className="text-tenue">{f.testo.length > 260 ? `${f.testo.slice(0, 260)}…` : f.testo}</span></span>
+                  // 17/10: di chi e' la mail si vede dal colore della barra e della parola (Noi blu, Loro caldo)
+                  <li key={i} className={`flex gap-3 border-l-4 pl-2.5 text-[13px] leading-relaxed ${f.chi.startsWith('Noi') ? 'border-l-noi-segno' : f.chi === 'Loro' ? 'border-l-loro-segno' : 'border-l-transparent'}`}>
+                    <span className="w-14 shrink-0 tabular-nums text-tenue">{fmtDateShort(f.quando)}</span>
+                    <span className="min-w-0"><b className={`font-bold ${f.chi.startsWith('Noi') ? 'text-noi-testo' : f.chi === 'Loro' ? 'text-loro-testo' : 'text-inchiostro'}`}>{f.chi}</b> <span className="text-tenue">{f.testo.length > 260 ? `${f.testo.slice(0, 260)}…` : f.testo}</span></span>
                   </li>
                 ))}
               </ul>

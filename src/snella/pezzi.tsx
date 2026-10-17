@@ -1,6 +1,9 @@
 // LA VERSIONE SNELLA: i pezzi piccoli che usano tutte e tre le schermate.
-// Bianco, una tinta sola (il blu scuro SG, contrasto 6:1 sul bianco), testo grande, niente
-// fronzoli. Il rosso solo per quello che e' in ritardo.
+// Bianco, testo grande, niente fronzoli. Il colore dice un significato e basta (17/10, i sei toni
+// di src/index.css): verde va bene, rosso no o in ritardo, ambra da guardare, blu noi e le azioni,
+// cotto loro, grigio neutro. Sempre con una parola accanto.
+import { tonoStato, type Tono } from './regole'
+import { TONO } from './toni'
 const ICONE = {
   oggi: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   lead: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
@@ -10,7 +13,10 @@ const ICONE = {
   esterno: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3',
   cerca: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
   video: 'M23 7l-7 5 7 5V7zM14 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z',
+  ok: 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3',
+  avviso: 'M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
 }
+
 export type NomeIcona = keyof typeof ICONE
 
 export function Icona({ nome, className = 'h-5 w-5' }: { nome: NomeIcona; className?: string }) {
@@ -22,12 +28,21 @@ export function Icona({ nome, className = 'h-5 w-5' }: { nome: NomeIcona; classN
   )
 }
 
-export function Sezione({ titolo, conta, children, id }: { titolo: string; conta?: number | null; children: React.ReactNode; id?: string }) {
+/** Una sezione: il titolo con il segno del suo tono (una barretta) e quanti sono, nello stesso colore. */
+export function Sezione({ titolo, conta, children, id, tono }: {
+  titolo: string; conta?: number | null; children: React.ReactNode; id?: string; tono?: Tono
+}) {
+  const t = tono ? TONO[tono] : null
   return (
-    <section aria-labelledby={id} className="mt-7 first:mt-0">
-      <h2 id={id} className="mb-2.5 flex items-baseline gap-2 text-[17px] font-bold text-inchiostro">
+    <section aria-labelledby={id} className="mt-8 first:mt-0">
+      <h2 id={id} className="mb-3 flex items-center gap-2.5 text-[19px] font-bold text-inchiostro">
+        {t && <span aria-hidden="true" className={`h-5 w-1.5 shrink-0 rounded-full ${t.segno}`} />}
         {titolo}
-        {conta != null && <span className="text-[15px] font-semibold text-tenue">{conta}</span>}
+        {conta != null && (
+          <span className={`inline-flex min-w-7 items-center justify-center rounded-full border px-2 text-[14px] font-bold leading-6 ${conta > 0 && t ? t.morbido : 'border-bordo text-tenue'}`}>
+            {conta}
+          </span>
+        )}
       </h2>
       {children}
     </section>
@@ -48,11 +63,11 @@ export function Carico({ righe = 3, etichetta = 'Carico i dati' }: { righe?: num
 
 export function Errore({ testo, riprova }: { testo: string; riprova?: () => void }) {
   return (
-    <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[15px] text-red-900">
+    <div role="alert" className="rounded-xl border border-no-bordo bg-no-fondo px-4 py-3 text-[15px] text-no-testo">
       <p className="font-semibold">Non riesco a leggere i dati.</p>
       <p className="mt-0.5 text-[14px]">{testo}</p>
       {riprova && (
-        <button onClick={riprova} className="mt-2 min-h-11 rounded-full border border-red-300 bg-white px-4 text-[14px] font-semibold text-red-900 hover:bg-red-100">
+        <button onClick={riprova} className="mt-2 min-h-11 rounded-full border border-no-bordo bg-white px-4 text-[14px] font-semibold text-no-testo hover:bg-no-fondo">
           Riprova
         </button>
       )}
@@ -81,12 +96,21 @@ export function Bottone({ children, onClick, tipo = 'secondo', disabled, classNa
   )
 }
 
-/** La pillola dello stato: testo scuro, bordo sottile. Il colore lo prende solo «Vuole sentirti». */
-export function Pillola({ testo, forte = false }: { testo: string; forte?: boolean }) {
+/** La pillola dello stato: la parola nel colore del suo tono, su un fondo appena tinto.
+ *  «piena» e' per la cosa sola che chiede un gesto adesso (Vuole sentirti): fondo pieno. */
+export function Pillola({ testo, tono = 'neutro', piena = false }: { testo: string; tono?: Tono; piena?: boolean }) {
+  const stile = piena && tono === 'ok' ? 'border-ok-testo bg-ok-testo text-white'
+    : piena && tono === 'no' ? 'border-no-testo bg-no-testo text-white'
+      : TONO[tono].morbido
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${forte ? 'border-blu-scuro/40 bg-blu-scuro/[0.07] text-blu-scuro' : 'border-bordo text-tenue'}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${stile}`}>
       {testo}
     </span>
   )
 }
 
+
+/** Lo stato di un lead, col suo colore: lo stesso in Oggi, in Lead e nella scheda. */
+export function PillolaStato({ stato }: { stato: string }) {
+  return <Pillola testo={stato} tono={tonoStato(stato)} piena={stato === 'Vuole sentirti'} />
+}

@@ -24,6 +24,21 @@ export function statoDi(r: Pick<RigaLead, 'stato'>, d?: Decisione | null): strin
   return d?.stato || r.stato || 'In conversazione'
 }
 
+/** I sei toni del Workspace (src/index.css, 17/10): il colore dice il significato, mai da solo. */
+export type Tono = 'ok' | 'no' | 'attesa' | 'noi' | 'loro' | 'neutro'
+
+/** Il colore di uno stato: verde va bene, rosso no, ambra da guardare, blu lo seguiamo noi,
+ *  grigio neutro o chiuso. Uno stato nuovo che non e' qui resta grigio, non inventa un colore. */
+const TONI_STATO: Record<string, Tono> = {
+  'Vuole sentirti': 'ok', 'Conoscitiva': 'ok', 'Analisi mandata': 'ok',
+  'Follow-up': 'noi',
+  'Da riprendere': 'attesa', 'Fuori ufficio': 'attesa',
+  'No grazie': 'no', 'Non scrivere più': 'no',
+}
+export function tonoStato(stato: string): Tono {
+  return TONI_STATO[stato] ?? 'neutro'
+}
+
 export type Motivo = 'richiamare' | 'chiamare'
 export interface DaChiamare<R extends RigaLead = RigaLead> { riga: R; decisione: Decisione | null; motivo: Motivo; nonRisponde: boolean }
 

@@ -2,8 +2,9 @@
 // Cerca per nome o azienda, filtra coi nomi delle categorie di Dre su Smartlead.
 import { useMemo, useState } from 'react'
 import { STATI, leggiDecisioni, leggiRighe, type Decisione, type RigaLead } from './dati'
-import { cerca, contaStati, quando, statoDi } from './regole'
-import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from './pezzi'
+import { cerca, contaStati, quando, statoDi, tonoStato } from './regole'
+import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
+import { TONO } from './toni'
 import { linkCompleto, useDati } from './uso'
 
 const PASSO = 80
@@ -57,8 +58,10 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
           const su = filtro === s
           return (
             <button key={s} onClick={() => scegli(s)} aria-pressed={su}
-                    className={`min-h-10 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-semibold transition-colors ${su ? 'border-blu-scuro bg-blu-scuro text-white' : 'border-bordo bg-white text-inchiostro hover:border-tenue'}`}>
-              {s}{n != null && <span className={su ? 'text-white/85' : 'text-tenue'}> {n}</span>}
+                    className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-semibold transition-colors ${su ? 'border-blu-scuro bg-blu-scuro text-white' : 'border-bordo bg-white text-inchiostro hover:border-tenue'}`}>
+              {/* 17/10: il pallino ha il colore della pillola di quello stato, cosi' filtro e lista si riconoscono */}
+              {s !== 'Tutti' && tonoStato(s) !== 'neutro' && <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONO[tonoStato(s)].segno} ${su ? 'ring-2 ring-white' : ''}`} />}
+              {s}{n != null && <span className={su ? 'text-white/85' : 'text-tenue'}>{n}</span>}
             </button>
           )
         })}
@@ -88,7 +91,7 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
                           </span>
                           {r.persona && <span className="block truncate text-[14px] text-tenue">{r.persona}</span>}
                           <span className="mt-1 flex items-center gap-2">
-                            <Pillola testo={stato} forte={stato === 'Vuole sentirti'} />
+                            <PillolaStato stato={stato} />
                             {r.frase && <span className="min-w-0 truncate text-[14px] text-inchiostro">{r.frase}</span>}
                           </span>
                         </button>

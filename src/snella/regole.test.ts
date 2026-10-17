@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead } from './dati'
 import {
   cerca, chiamateInRitardo, contaStati, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
-  scrittoDopo, spiegaDomanda, tasso, titoloDomanda,
+  scrittoDopo, spiegaDomanda, tasso, titoloDomanda, tonoStato,
 } from './regole'
 
 const ORA = new Date('2026-10-19T08:00:00Z')          // lunedi' 19/10, le 10 a Roma
@@ -109,5 +109,21 @@ describe('date e numeri', () => {
     expect(d?.at).toBe('2026-10-15T15:05:00Z')
     expect(primaRiga(d!.testo)).toBe('mi scusi: mercoledì è passato.')
     expect(scrittoDopo(filo, '2026-10-16T00:00:00Z')).toBeNull()
+  })
+})
+
+describe('il colore degli stati', () => {
+  it('verde il si\', rosso il no, ambra l\'attesa, blu quello che seguiamo noi', () => {
+    expect(tonoStato('Vuole sentirti')).toBe('ok')
+    expect(tonoStato('Conoscitiva')).toBe('ok')
+    expect(tonoStato('No grazie')).toBe('no')
+    expect(tonoStato('Non scrivere più')).toBe('no')
+    expect(tonoStato('Fuori ufficio')).toBe('attesa')
+    expect(tonoStato('Follow-up')).toBe('noi')
+  })
+  it('uno stato che non conosce resta grigio', () => {
+    expect(tonoStato('In conversazione')).toBe('neutro')
+    expect(tonoStato('Casella morta')).toBe('neutro')
+    expect(tonoStato('Uno stato nuovo')).toBe('neutro')
   })
 })

@@ -4,8 +4,9 @@
 // inventa: si scrive «non disponibile».
 import { useState } from 'react'
 import { leggiNumeri, type Finestra } from './dati'
-import { numero, quando, tasso } from './regole'
+import { numero, quando, tasso, type Tono } from './regole'
 import { Carico, Errore, Vuoto } from './pezzi'
+import { TONO } from './toni'
 import { useDati } from './uso'
 
 type Periodo = '7' | '30'
@@ -38,7 +39,7 @@ export default function Campagne() {
       </div>
 
       {c.dati.errore && (
-        <p role="alert" className="mt-3 text-[14px] font-semibold text-amber-900">
+        <p role="alert" className="mt-3 text-[14px] font-semibold text-attesa-testo">
           Smartlead non ha dato tutti i numeri ({c.dati.errore}): dove manca c'è scritto «non disponibile».
         </p>
       )}
@@ -72,22 +73,28 @@ function Riquadro({ titolo, f, forte = false }: { titolo: string; f: Finestra | 
   // 17/10: 4 risposte su 9 aziende faceva «44,4%»: sotto le 30 aziende scritte un tasso non dice niente
   const pochi = f?.aziende != null && f.aziende < POCHE_AZIENDE
   const t = pochi ? null : tasso(f?.risposte, f?.aziende)
-  const voci: Array<[string, string | null, string?, string?]> = [
-    ['Mail mandate', numero(f?.mandate), f?.aziende != null ? `a ${numero(f.aziende)} aziende` : undefined],
-    ['Risposte', numero(f?.risposte)],
-    ['Tasso di risposta', t, undefined, pochi ? 'troppe poche aziende scritte' : undefined],
-    ['Sì', numero(f?.si)],
-    ['Call prenotate', numero(f?.call)],
-    ['No', numero(f?.no)],
+  // 17/10: i numeri buoni in verde (si', call), i no in rosso, il resto neutro. Il colore sta sul
+  // numero e su un pallino accanto alla parola: la parola resta, il colore aiuta l'occhio.
+  const voci: Array<[string, string | null, string | undefined, string | undefined, Tono]> = [
+    ['Mail mandate', numero(f?.mandate), f?.aziende != null ? `a ${numero(f.aziende)} aziende` : undefined, undefined, 'neutro'],
+    ['Risposte', numero(f?.risposte), undefined, undefined, 'neutro'],
+    ['Tasso di risposta', t, undefined, pochi ? 'troppe poche aziende scritte' : undefined, 'neutro'],
+    ['Sì', numero(f?.si), undefined, undefined, 'ok'],
+    ['Call prenotate', numero(f?.call), undefined, undefined, 'ok'],
+    ['No', numero(f?.no), undefined, undefined, 'no'],
   ]
   return (
     <section className={`mt-4 rounded-2xl border bg-white p-4 ${forte ? 'border-blu-scuro/40' : 'border-bordo'}`}>
       <h3 className={`${forte ? 'text-[17px]' : 'text-[15px]'} font-bold leading-snug text-inchiostro`}>{titolo}</h3>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-        {voci.map(([nome, v, sotto, vuoto]) => (
+        {voci.map(([nome, v, sotto, vuoto, tono]) => (
           <div key={nome}>
-            <dt className="text-[13px] text-tenue">{nome}</dt>
-            <dd className={v == null ? 'text-[14px] font-semibold text-tenue' : 'text-[22px] font-bold leading-tight text-inchiostro'}>
+            <dt className="flex items-center gap-1.5 text-[13px] text-tenue">
+              {tono !== 'neutro' && <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONO[tono].segno}`} />}
+              {nome}
+            </dt>
+            <dd className={v == null ? 'text-[14px] font-semibold text-tenue'
+              : `${forte ? 'text-[26px]' : 'text-[22px]'} font-bold leading-tight ${tono === 'neutro' || v === '0' ? 'text-inchiostro' : TONO[tono].testo}`}>
               {v ?? vuoto ?? 'non disponibile'}
             </dd>
             {sotto && v != null && <dd className="text-[12.5px] text-tenue">{sotto}</dd>}

@@ -6,7 +6,7 @@ import {
   type Call, type Decisione, type Messaggio, type Nota, type Scheda,
 } from './dati'
 import { dataCorta, giornoRoma, nomeGiorno, ora, quando, statoDi } from './regole'
-import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from './pezzi'
+import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
 
 export default function SchedaLead({ id, indietro }: { id: string; indietro: () => void }) {
@@ -43,7 +43,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           {[s.nome || sc.persona, s.ruolo].filter(Boolean).join(', ') || 'Persona non indicata'}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Pillola testo={stato} forte={stato === 'Vuole sentirti'} />
+          <PillolaStato stato={stato} />
           {sc.ultima_risposta && <span className="text-[14px] text-tenue">ultima risposta {quando(sc.ultima_risposta)}</span>}
         </div>
         <ProssimaCall call={dati.call} />
@@ -92,8 +92,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         <Analisi a={s.analisi} />
       </Blocco>
 
-      <Blocco titolo={`Le mail · ${sc.filo.length}`}>
-        <Filo filo={sc.filo} lui={(s.nome || sc.persona || '').trim().split(/\s+/)[0] || 'Lui'} />
+      <Blocco titolo={`La conversazione · ${sc.filo.length} mail`}>
+        <Filo filo={sc.filo} lui={(s.nome || sc.persona || '').trim().split(/\s+/)[0] || ''} />
       </Blocco>
 
       <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
@@ -115,9 +115,10 @@ function ProssimaCall({ call }: { call: Call[] }) {
   if (!c) return null
   const giorno = nomeGiorno(giornoRoma(new Date(c.at)))
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-blu-scuro/30 bg-blu-scuro/[0.05] px-4 py-3">
-      <p className="text-[15px] text-inchiostro">
-        <b>Call {giorno === 'Oggi' || giorno === 'Domani' ? giorno.toLowerCase() : giorno.charAt(0).toLowerCase() + giorno.slice(1)} alle {ora(c.at)}</b>
+    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-ok-bordo bg-ok-fondo px-4 py-3">
+      <p className="flex items-center gap-2 text-[15px] text-inchiostro">
+        <Icona nome="ok" className="h-5 w-5 shrink-0 text-ok-testo" />
+        <b className="text-ok-testo">Call {giorno === 'Oggi' || giorno === 'Domani' ? giorno.toLowerCase() : giorno.charAt(0).toLowerCase() + giorno.slice(1)} alle {ora(c.at)}</b>
         {c.di_chi && <span className="text-tenue"> · nel calendario di {c.di_chi}</span>}
       </p>
       {c.meet && (
@@ -195,7 +196,7 @@ function Decidi({ id, scheda, decisione, onSalvato }: { id: string; scheda: Sche
         <Bottone tipo="primo" type="submit" disabled={lavoro || !cambiato}>{lavoro ? 'Salvo…' : 'Salva'}</Bottone>
         <span className="text-[13px] text-tenue">Resta nel Workspace: Smartlead non cambia.</span>
       </div>
-      {sbaglio && <p role="alert" className="text-[14px] font-semibold text-red-800">{sbaglio}</p>}
+      {sbaglio && <p role="alert" className="text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
     </form>
   )
 }
@@ -246,7 +247,7 @@ function Note({ id, note, onNota, onTolta, mostra }: {
         <div className="mt-2 flex items-center gap-2">
           <Bottone tipo="primo" type="submit" disabled={lavoro || !testo.trim()}>{lavoro ? 'Salvo…' : 'Aggiungi la nota'}</Bottone>
         </div>
-        {sbaglio && <p role="alert" className="mt-2 text-[14px] font-semibold text-red-800">{sbaglio}</p>}
+        {sbaglio && <p role="alert" className="mt-2 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
       </form>
       {note.length ? (
         <ol className="mt-4 space-y-3">
@@ -256,7 +257,7 @@ function Note({ id, note, onNota, onTolta, mostra }: {
                 <span>{quando(n.at)}{n.autore_nome && ` · ${n.autore_nome}`}{n.tipo === 'chiamata' && ' · telefonata'}</span>
                 {io && n.autore === io && (
                   <button onClick={() => void togli(n)} aria-label="Cancella questa nota"
-                          className="-my-2 inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-tenue hover:bg-velo hover:text-red-800">
+                          className="-my-2 inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-tenue hover:bg-velo hover:text-no-testo">
                     Cancella
                   </button>
                 )}
@@ -294,7 +295,7 @@ function Analisi({ a }: { a: Scheda['scheda']['analisi'] }) {
       {apribile ? (
         <Bottone onClick={() => void apri()} disabled={apro}>{apro ? 'Apro…' : 'Apri il PDF'} <Icona nome="esterno" className="h-4 w-4" /></Bottone>
       ) : <p className="text-[14px] text-tenue">Il PDF non è agganciato a questa scheda.</p>}
-      {sbaglio && <p role="alert" className="text-[14px] font-semibold text-red-800">Il PDF non si apre: provalo dal Workspace completo.</p>}
+      {sbaglio && <p role="alert" className="text-[14px] font-semibold text-no-testo">Il PDF non si apre: provalo dal Workspace completo.</p>}
     </div>
   )
 }
@@ -329,10 +330,18 @@ function Mail({ m, lui: nome }: { m: Messaggio; lui: string }) {
   const lunga = righe.length > RIGHE + 2 || m.testo.length > CARATTERI + 200
   const [intera, setIntera] = useState(false)
   const testo = lunga && !intera ? righe.slice(0, RIGHE).join('\n').slice(0, CARATTERI).trimEnd() + '…' : m.testo
+  // 17/10, Dre: «"noi" e "loro" in piccolissimo: devo rileggere ogni messaggio per capire qual e'
+  // il mio». Ogni mail ha la sua barra a sinistra e la parola grande: Noi in blu, sul fondo
+  // azzurro e spostata a destra; Loro nel colore caldo, sul bianco e a sinistra.
   return (
-    <li className={`rounded-2xl border p-4 ${lui ? 'border-bordo bg-white' : 'border-velo bg-velo/60'}`}>
-      <p className="mb-1.5 text-[13px] font-semibold text-tenue">
-        <span className={lui ? 'text-inchiostro' : ''}>{lui ? nome : 'Noi'}</span> · {quando(m.at)}
+    <li className={`rounded-xl border border-l-[5px] p-4 ${lui
+      ? 'mr-6 border-bordo border-l-loro-segno bg-white sm:mr-16'
+      : 'ml-6 border-noi-bordo border-l-noi-segno bg-noi-fondo sm:ml-16'}`}>
+      <p className="mb-2 flex flex-wrap items-baseline gap-x-2">
+        <span className={`text-[15px] font-bold ${lui ? 'text-loro-testo' : 'text-noi-testo'}`}>
+          {lui ? `Loro${nome ? ` · ${nome}` : ''}` : 'Noi'}
+        </span>
+        <span className="text-[14px] text-inchiostro/75">{quando(m.at)}</span>
       </p>
       {m.testo ? <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-inchiostro">{testo}</p>
         : <p className="text-[14px] italic text-tenue">Solo testo citato.</p>}

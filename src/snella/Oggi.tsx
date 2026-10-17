@@ -11,6 +11,7 @@ import {
   piuGiorni, primaRiga, quando, scrittoDopo, spiegaDomanda, titoloDomanda, type DaChiamare,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Sezione, Vuoto } from './pezzi'
+import { TONO } from './toni'
 import { linkCompleto, useAvviso, useDati, type Avviso } from './uso'
 
 interface DatiOggi {
@@ -74,34 +75,36 @@ export default function Oggi({ apri }: { apri: (id: string) => void }) {
   if (errore && !dati) return <Errore testo={errore} riprova={() => void rifai()} />
   if (!dati) return null
 
+  // chi aspetta da piu' di un giorno: la sua carta lo dice in rosso, come il riquadro in alto
+  const tardi = new Set(chiamateInRitardo(lista, adesso).map((x) => x.riga.prospect_id))
   const niente = !lista.length && !call.length && !domande.length && !bozze.length
 
   return (
     <div>
       <RigaStato oggi={dati.oggi} lista={lista} sistema={dati.sistema} apri={apri} />
-      {errore && <p role="alert" className="mt-3 text-[14px] text-red-800">Non sono riuscito ad aggiornare: {errore}</p>}
+      {errore && <p role="alert" className="mt-3 text-[14px] text-no-testo">Non sono riuscito ad aggiornare: {errore}</p>}
 
       {niente ? (
         <p className="mt-8 text-center text-[17px] font-semibold text-inchiostro">Niente per te adesso.</p>
       ) : (
         <div className="mt-6">
-          <Sezione titolo="Da chiamare" conta={lista.length} id="sez-chiamare">
+          <Sezione titolo="Da chiamare" conta={lista.length} id="sez-chiamare" tono="noi">
             {lista.length ? (
               <ul className="space-y-3">
                 {lista.map((x) => (
                   <li key={x.riga.prospect_id}>
-                    <CartaChiamata x={x} apri={apri} mostra={mostra} onCambio={cambiaDecisione} />
+                    <CartaChiamata x={x} tardi={tardi.has(x.riga.prospect_id)} apri={apri} mostra={mostra} onCambio={cambiaDecisione} />
                   </li>
                 ))}
               </ul>
             ) : <Vuoto>Nessuno da chiamare adesso.</Vuoto>}
           </Sezione>
 
-          <Sezione titolo="Call prenotate" conta={call.length} id="sez-call">
+          <Sezione titolo="Call prenotate" conta={call.length} id="sez-call" tono="ok">
             {call.length ? <ListaCall call={call} apri={apri} /> : <Vuoto>Nessuna call da oggi ai prossimi 7 giorni.</Vuoto>}
           </Sezione>
 
-          <Sezione titolo="Da decidere" conta={domande.length + bozze.length} id="sez-decidere">
+          <Sezione titolo="Da decidere" conta={domande.length + bozze.length} id="sez-decidere" tono="attesa">
             {domande.length || bozze.length ? (
               <DaDecidere domande={domande} bozze={bozze} altro={altro} />
             ) : <Vuoto>Nessuna persona aspetta una tua decisione.</Vuoto>}
@@ -138,8 +141,17 @@ function RigaStato({ oggi, lista, sistema, apri }: { oggi: DatiOggi['oggi']; lis
     fermi.push(sync.ultimo_esito === 'errore' ? 'l\'ultimo controllo delle risposte è andato male' : `le risposte non si controllano ${daQuanto(sync.ultima_corsa, adesso)}`)
   }
 
+  // 17/10, Dre: «far cadere gli occhi sulla cosa importante». Il riquadro dice prima com'e',
+  // con una parola e un'icona nel colore giusto: rosso in ritardo, ambra da controllare, verde a posto.
+  const tono = rosso ? 'no' : fermi.length ? 'attesa' : n ? 'ok' : null
+  const titolo = rosso ? `In ritardo: ${siFermi.length + tardi.length}` : fermi.length ? 'Da controllare' : 'Nessuno in ritardo'
   return (
-    <div role="status" className={`rounded-2xl border px-4 py-3.5 ${rosso ? 'border-red-300 bg-red-50' : 'border-bordo bg-white'}`}>
+    <div role="status" className={`rounded-2xl border px-4 py-3.5 ${tono ? TONO[tono].morbido : 'border-bordo bg-white'}`}>
+      {tono && (
+        <p className={`mb-1.5 flex items-center gap-2 text-[19px] font-bold leading-tight ${TONO[tono].testo}`}>
+          <Icona nome={tono === 'ok' ? 'ok' : 'avviso'} className="h-[22px] w-[22px] shrink-0" /> {titolo}
+        </p>
+      )}
       {!n ? (
         <p className="text-[15px] text-tenue">I numeri di oggi non sono ancora pronti: arrivano entro dieci minuti.</p>
       ) : (
@@ -149,17 +161,16 @@ function RigaStato({ oggi, lista, sistema, apri }: { oggi: DatiOggi['oggi']; lis
             <span className="text-tenue"> · </span>
             {n.si === 0 ? <span>nessun sì</span> : (
               <span>
-                <b>{n.si} sì</b>
+                <b className="text-ok-testo">{n.si} sì</b>
                 {n.serviti.length > 0 && <>: {n.serviti.length === n.si ? (n.si === 1 ? 'gli abbiamo risposto' : 'a tutti abbiamo risposto') : `${n.serviti.length} con risposta`}
                   {n.media_minuti != null && <> in {durata(n.media_minuti)}{n.serviti.length > 1 && ' di media'}</>}</>}
-                {n.in_attesa.length > 0 && <>{n.serviti.length > 0 ? ', ' : ': '}<b className={rosso ? 'text-red-800' : ''}>{n.in_attesa.length} {n.in_attesa.length === 1 ? 'aspetta' : 'aspettano'} la risposta</b></>}
+                {n.in_attesa.length > 0 && <>{n.serviti.length > 0 ? ', ' : ': '}<b className={rosso ? 'text-no-testo' : ''}>{n.in_attesa.length} {n.in_attesa.length === 1 ? 'aspetta' : 'aspettano'} la risposta</b></>}
               </span>
             )}
           </p>
           {rosso && (
-            <div className="mt-2 text-[15px] text-red-800">
-              <p className="font-bold">In ritardo: {siFermi.length + tardi.length}</p>
-              <ul className="mt-0.5 space-y-0.5">
+            <div className="mt-2 text-[15px] text-no-testo">
+              <ul className="space-y-0.5">
                 {ritardi.slice(0, 4).map((r) => (
                   <li key={r.testo + (r.id ?? '')}>
                     {r.id && <><button onClick={() => apri(r.id!)} className="font-semibold underline underline-offset-4">{r.chi}</button>: </>}
@@ -172,16 +183,16 @@ function RigaStato({ oggi, lista, sistema, apri }: { oggi: DatiOggi['oggi']; lis
           )}
         </>
       )}
-      {fermi.length > 0 && <p className="mt-2 text-[14px] font-semibold text-amber-900">Attenzione: {fermi.join('; ')}.</p>}
-      {oggi && !fermi.length && <p className="mt-1.5 text-[13px] text-tenue">Aggiornato alle {ora(oggi.il)}</p>}
+      {fermi.length > 0 && <p className="mt-2 text-[14px] font-semibold text-attesa-testo">Attenzione: {fermi.join('; ')}.</p>}
+      {oggi && !fermi.length && <p className="mt-1.5 text-[13px] text-inchiostro/70">Aggiornato alle {ora(oggi.il)}</p>}
     </div>
   )
 }
 
 // ── una persona da chiamare ────────────────────────────────────────────
 
-function CartaChiamata({ x, apri, mostra, onCambio }: {
-  x: DaChiamare<RigaConScheda>; apri: (id: string) => void; mostra: (a: Avviso) => void
+function CartaChiamata({ x, tardi, apri, mostra, onCambio }: {
+  x: DaChiamare<RigaConScheda>; tardi: boolean; apri: (id: string) => void; mostra: (a: Avviso) => void
   onCambio: (id: string, d: Decisione | null) => void
 }) {
   const r = x.riga
@@ -261,16 +272,20 @@ function CartaChiamata({ x, apri, mostra, onCambio }: {
           {[[s?.nome || r.persona, s?.ruolo].filter(Boolean).join(', '), r.ultima_risposta && `ha scritto ${quando(r.ultima_risposta)}`].filter(Boolean).join(' · ')}
         </span>
       </button>
-      <div className="mt-2"><Pillola testo={x.motivo === 'richiamare' ? 'Da richiamare oggi' : (r.perche_chiamare ?? 'Da chiamare')} forte /></div>
+      {/* il motivo: verde chi ci ha detto di chiamarlo, blu chi abbiamo deciso noi di richiamare; rosso se aspetta da piu' di un giorno */}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <Pillola testo={x.motivo === 'richiamare' ? 'Da richiamare oggi' : (r.perche_chiamare ?? 'Da chiamare')} tono={x.motivo === 'richiamare' ? 'noi' : 'ok'} />
+        {tardi && r.ultima_risposta && <Pillola testo={`In ritardo: aspetta ${daQuanto(r.ultima_risposta)}`} tono="no" piena />}
+      </div>
       {r.frase && <p className="mt-2 text-[15px] leading-snug text-inchiostro">«{r.frase}»</p>}
       {/* 17/10: il consiglio e' di quando ha scritto; se poi gli abbiamo riscritto, conta quello */}
       {dopo ? (
         <p className="mt-1 text-[14px] text-tenue">
-          <span className="font-semibold text-inchiostro">Gli abbiamo riscritto {quando(dopo.at)}:</span> {primaRiga(dopo.testo)}
+          <span className="font-semibold text-noi-testo">Noi, {quando(dopo.at)}:</span> {primaRiga(dopo.testo)}
         </p>
       ) : s?.consiglio && <p className="mt-1 text-[14px] text-tenue">{s.consiglio}</p>}
       {nonRisponde && (
-        <p className="mt-1.5 text-[14px] font-semibold text-amber-900">
+        <p className="mt-1.5 text-[14px] font-semibold text-attesa-testo">
           Non ha risposto {nonRisponde.tentativi > 1 ? `${nonRisponde.tentativi} volte` : ''} · ultima prova {quando(nonRisponde.chiamata_il)}
         </p>
       )}
@@ -342,7 +357,7 @@ function CartaChiamata({ x, apri, mostra, onCambio }: {
           </div>
         </form>
       )}
-      {sbaglio && <p role="alert" className="mt-2 text-[14px] font-semibold text-red-800">{sbaglio}</p>}
+      {sbaglio && <p role="alert" className="mt-2 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
     </article>
   )
 }
@@ -356,13 +371,13 @@ function ListaCall({ call, apri }: { call: Call[]; apri: (id: string) => void })
     <div className="space-y-4">
       {perGiorno(call).map(({ giorno, call: cc }) => (
         <div key={giorno}>
-          <h3 className="mb-1.5 text-[14px] font-semibold text-tenue">{nomeGiorno(giorno)}</h3>
-          <ul className="divide-y divide-velo overflow-hidden rounded-2xl border border-bordo bg-white">
+          <h3 className="mb-1.5 text-[14px] font-semibold text-inchiostro">{nomeGiorno(giorno)}</h3>
+          <ul className="divide-y divide-velo overflow-hidden rounded-2xl border border-bordo border-l-4 border-l-ok-segno bg-white">
             {cc.map((c) => {
               const nome = c.azienda || c.titolo
               const dentro = (
                 <>
-                  <span className="w-14 shrink-0 text-[16px] font-bold text-inchiostro">{ora(c.at)}</span>
+                  <span className="w-14 shrink-0 text-[16px] font-bold text-ok-testo">{ora(c.at)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-semibold text-inchiostro">{nome}</span>
                     <span className="block truncate text-[13px] text-tenue">
