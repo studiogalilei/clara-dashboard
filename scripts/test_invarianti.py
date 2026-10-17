@@ -3002,6 +3002,18 @@ def _():
     assert S.automatica("Your message to a.b@x.com couldn't be delivered. a.b wasn't found at x.com")
     assert S.automatica("This is a DMARC aggregate report for studiogalilei.com")
     assert not S.automatica("Va bene, il messaggio l'ho letto: ci sentiamo lunedi'")
+    # le schede di chi non e' piu' attivo si tolgono, ma mai in massa (una lettura storta)
+    chiamate = []
+    vero = schede.sb
+    schede.sb = lambda metodo, percorso, *a, **k: chiamate.append((metodo, percorso))
+    try:
+        schede.togli_spente({"gia": {"a": {}, "b": {}, "c": {}}, "ps": {"a": {}}})
+        assert chiamate == [("DELETE", "/rest/v1/snella_schede?prospect_id=in.(b,c)")], chiamate
+        chiamate.clear()
+        schede.togli_spente({"gia": {str(i): {} for i in range(200)}, "ps": {"1": {}}})
+        assert chiamate == [], "199 schede su 200 da togliere: e' una lettura storta, non si tocca niente"
+    finally:
+        schede.sb = vero
 
 
 @prova("versione snella: il testo citato si separa, l'html diventa testo, le righe vuote non si accumulano")

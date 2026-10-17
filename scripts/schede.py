@@ -642,6 +642,8 @@ def main():
     scrivi("snella_numeri", numeri, "chiave")
     print(f"schede: scritte {len(fatte)} in {int(time.time() - t0)}s")
     togli_spente(ctx)
+    if rotte and len(rotte) > len(fatte):
+        sys.exit("schede: piu' schede rotte che fatte, guardare l'errore qui sopra")
 
 
 def togli_spente(ctx):
@@ -658,8 +660,6 @@ def togli_spente(ctx):
     for pezzo in a_pezzi(via):
         sb("DELETE", f"/rest/v1/snella_schede?prospect_id=in.({pezzo})")
     print(f"schede: tolte {len(via)} schede di chi non e' piu' attivo")
-    if rotte and len(rotte) > len(fatte):
-        sys.exit("schede: piu' schede rotte che fatte, guardare l'errore qui sopra")
 
 
 if __name__ == "__main__":
