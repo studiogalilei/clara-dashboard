@@ -611,7 +611,7 @@ def segno(ora_n, prima_n):
         return f"▲ {d} sulla settimana prima"
     if d < 0:
         return f"▼ {-d} sulla settimana prima"
-    return "= come la settimana prima"
+    return "uguale alla settimana prima"      # mai iniziare con «=»: Google lo legge come formula (#ERROR!)
 
 
 def conta(filtro):

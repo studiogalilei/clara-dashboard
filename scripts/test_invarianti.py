@@ -3497,6 +3497,15 @@ def _():
     assert direttore.corsia_di("foglio") == "leggera"
 
 
+@prova("sync: «grazie per la disponibilità ma abbiamo già un'agenzia» e' un no, non un si' (19/10)")
+def _():
+    import sync_v2 as S
+    assert S.classifica("Grazie per la vostra disponibilità ma già abbiamo una agenzia che ci segue.") == "negativo"
+    assert S.classifica("Nel ringraziarvi per la disponibilità, abbiamo un'agenzia che si occupa della comunicazione.") == "negativo"
+    assert S.classifica("Grazie per la disponibilità, va bene mandi pure l'analisi.") == "positivo"
+    assert S.classifica("Sono disponibile per una call domani alle 15.") == "positivo"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

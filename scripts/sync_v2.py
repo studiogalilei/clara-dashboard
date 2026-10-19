@@ -160,7 +160,9 @@ NEG = re.compile(NO_INTERESSATO + "|" +
                  r"(?:rimuov|cancell)\w* (?:il|la|le|i|lo) (?:mio|mia|miei|mie|nostr)|(?:rimuov|cancell)\w* (?:dalla|dalle|dai|dal|dagli) (?:vostr|lista|list|mailing|database|elenc|contatt)|ci occupiamo (gia|già)|abbiamo gia|unsubscribe|non desidero|"
                  r"togliet|non fa per noi|non abbiamo (intenzione|interesse|budget)|siamo (a posto|copert)|"
                  r"^\s*(stop|no|remove)\b|non contattarmi|non scriv|gia'? seguiti|già seguiti|"
-                 r"non ci interessa|non ci contatt|abbiamo già|gi[aà] chi (ci|si)", re.I)   # 6/10: «non ci», l'accento
+                 r"non ci interessa|non ci contatt|abbiamo già|gi[aà] chi (ci|si)|"
+                 # 19/10: «già abbiamo una agenzia che ci segue», «ci segue già», «siamo già seguiti da»
+                 r"gi[aà] abbiamo|ci segue gi[aà]|(?:abbiamo|ho) (?:gi[aà] )?(?:un['’]?|una )?\s?agenzia che", re.I)   # 6/10: «non ci», l'accento
 OOO = re.compile(r"out of (the )?office|fuori ufficio|assenza|assente|in ferie|maternit|paternit|congedo|"
                  r"rientr|automatic reply|risposta automatica|messaggio automatico|autorepl|vacation|"
                  r"i'?ll be (back|out)|accesso limitato", re.I)
@@ -194,9 +196,16 @@ def corpo_pulito(body):
 IPOTESI_NOSTRA = re.compile(r"se (?:invece )?(?:lei |voi )?non (?:fosse|foste|fossi) interessat\w*[^.!?]*")
 
 
+# 19/10: «grazie per la vostra disponibilità, ma abbiamo già un'agenzia» diventava positivo per
+# «disponibil». La formula di cortesia non e' interesse: si toglie prima di cercare il si'.
+CORTESIA = re.compile(r"(?:grazie|ringrazi\w*|ringraziand\w*)\s+(?:per|della|di)\s+(?:la\s+)?(?:sua\s+|vostra\s+|loro\s+)?"
+                      r"(?:gentile\s+|cortese\s+)?(?:disponibilit[àa]|attenzione|interesse|proposta|mail|e-?mail|messaggio)", re.I)
+
+
 def classifica(testo):
     # 12/10: gli spazi doppi («non siamo  interessati») facevano saltare il no
     t = IPOTESI_NOSTRA.sub(" ", " ".join(testo.lower().split()))
+    t = CORTESIA.sub(" ", t)
     if OOO.search(t) and not POS.search(t):
         return "ooo"
     if CAMBIO.search(t) and not POS.search(t):
