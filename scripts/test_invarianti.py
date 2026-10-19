@@ -3424,6 +3424,79 @@ def _():
     assert not bozze.cancello(t), bozze.cancello(t)
 
 
+@prova("foglio della pipeline (19/10): le scritture di Dre si leggono prima e non si riscrivono mai")
+def _():
+    import datetime, foglio as F
+    st = {"scritto": {"a": {"retainer": 1100, "nota": "", "sposta": ""}}, "dre": {}, "mano": {}, "attesa": {}, "call": {}}
+    # una cella uguale a quella che il sistema aveva scritto non e' di Dre; una diversa si'
+    assert F.scritture_di_dre({"a": {"retainer": 1100, "nota": "", "sposta": ""}}, st) == []
+    assert F.scritture_di_dre({"a": {"retainer": 2000, "nota": "", "sposta": ""}}, st) == [("a", "retainer", 2000)]
+    assert F.scritture_di_dre({"b": {"retainer": 5}}, st) == [], "una riga mai scritta dal sistema non si indovina"
+    # la cella di Dre vince sul dato del database, giro dopo giro
+    ora = datetime.datetime(2026, 10, 19, 12, tzinfo=datetime.timezone.utc)
+    dati = {"ps": {"a": {"id": "a", "company": "Prova srl", "stage": "cliente", "pipeline_stage": "cliente"}},
+            "schede": {}, "dec": {}, "clienti": {"a": {"prospect_id": "a", "dal": "2026-05-01"}}, "agenda": [],
+            "retainer": {"a": 1100}, "prova_costo": {}, "interesse": set()}
+    st["dre"]["a"] = {"retainer": {"v": 2000, "il": ora.isoformat()}}
+    per_fase, _ = F.calcola(dati, st, ora)
+    assert per_fase[F.CLIENTE][0]["retainer"] == 2000, per_fase[F.CLIENTE]
+    numeri = {k: {x: 0 for x, _ in F.GIOCO} for k in ("ora", "prima")}
+    righe, scritto = F.griglia(per_fase, numeri, [("No", 1)], 2000, ora)
+    assert scritto["a"]["retainer"] == 2000 and 2000 in righe[F.PRIMA - 1]
+    # le date e i numeri tornano uguali da come si scrivono a come si rileggono (se no ogni giro
+    # sembrerebbe una scrittura di Dre)
+    for campo, v in (("inizio", "2026-10-07"), ("costo", 1500), ("retainer", 1100.5), ("nota", "Richiamarlo"), ("sposta", F.CLIENTE)):
+        assert F.norma(campo, F.in_cella(campo, v)) == v, (campo, v, F.in_cella(campo, v))
+    assert F.norma("inizio", "7/10/26") == "2026-10-07" and F.norma("costo", "1.500 €") == 1500
+    # un nome d'azienda non diventa mai una formula nel foglio
+    assert F.testo("=IMPORTXML(1)").startswith("'") and F.testo("+39 333").startswith("'")
+
+
+@prova("foglio della pipeline: «Perso» e «Togli» rendono il lead non contattabile; «Da chiamare» lo porta in Oggi")
+def _():
+    import datetime, foglio as F
+    from stanza import contattabile
+    oggi = datetime.date(2026, 10, 19)
+    lead = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}
+    assert contattabile(lead)
+    for campo, valore in (("scelta", "Perso"), ("sposta", F.TOGLI)):
+        p = dict(lead)
+        for tabella, cosa in F.effetti(campo, valore, oggi):
+            if tabella == "prospects":
+                p.update(cosa)
+        assert not contattabile(p), (campo, valore, p)
+        assert ("snella_lead", {"stato": "Perso"}) in F.effetti(campo, valore, oggi)
+    p = dict(lead)
+    for tabella, cosa in F.effetti("sposta", F.CLIENTE, oggi):
+        if tabella == "prospects":
+            p.update(cosa)
+    assert not contattabile(p), "un cliente spostato dal foglio non si contatta"
+    chiama = dict(F.effetti("scelta", "Da chiamare", oggi))["snella_lead"]
+    assert chiama["chiamata"] == "richiamare" and chiama["richiamare_il"] == "2026-10-19" and chiama["stato"] == "Da chiamare"
+    attesa = dict(F.effetti("scelta", "In attesa di risposta", oggi))
+    assert attesa["snella_lead"]["prossima_il"] == "2026-10-24" and attesa["attesa"]
+
+
+@prova("foglio della pipeline: nessuna mail parte dal foglio (niente postino, bozze, Gmail o Smartlead)")
+def _():
+    import datetime, re as _re, foglio as F
+    radice = os.path.dirname(os.path.abspath(__file__))
+    src = open(os.path.join(radice, "foglio.py"), encoding="utf-8").read()
+    codice = "\n".join(r for r in src.splitlines() if not r.lstrip().startswith("#"))
+    codice = _re.sub(r'"""[\s\S]*?"""', "", codice)
+    for vietato in ("import manda", "from manda", "import lettura", "import bozze", "prima_risposta", "gmail", "smartlead",
+                    "/proposte", "manda_mail", "postino"):
+        assert vietato not in codice.lower(), f"foglio.py tocca «{vietato}»"
+    assert set(_re.findall(r'proponi\("(\w+)"', codice)) == {"umano"}, "il foglio fa solo domande a Dre, mai bozze"
+    oggi = datetime.date(2026, 10, 19)
+    for campo in F.DI_DRE:
+        for v in ("", "x", 100, "2026-10-21", F.TOGLI, *F.FASI, *F.SCELTE):
+            for tabella, _ in F.effetti(campo, v, oggi):
+                assert tabella in ("prospects", "snella_lead", "snella_note", "mano", "attesa"), (campo, v, tabella)
+    import direttore
+    assert direttore.corsia_di("foglio") == "leggera"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

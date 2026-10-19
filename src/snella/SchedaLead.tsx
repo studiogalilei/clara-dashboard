@@ -5,7 +5,7 @@ import {
   GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
   type Call, type Decisione, type Messaggio, type Nota, type RigaBase, type Scheda,
 } from './dati'
-import { dataCorta, giornoRoma, infoStato, nomeGiorno, nomeStato, ora, quando, statoDi } from './regole'
+import { dataCorta, faseDi, giornoRoma, infoStato, nomeGiorno, nomeStato, ora, quando, statoDi } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
 
@@ -19,7 +19,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   if (errore && !dati) return <><Torna indietro={indietro} /><Errore testo={errore} riprova={() => void rifai()} /></>
   if (!dati) return null
   if (!dati.scheda && dati.base) {
-    return <SchedaBase id={id} base={dati.base} decisione={dati.decisione} note={dati.note} indietro={indietro}
+    return <SchedaBase id={id} base={dati.base} decisione={dati.decisione} note={dati.note} fase={dati.fase} indietro={indietro}
                        onDecisione={(nuova) => setDati((x) => x ? { ...x, decisione: nuova } : x)}
                        onNote={(f) => setDati((x) => x ? { ...x, note: f(x.note) } : x)} />
   }
@@ -50,6 +50,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <PillolaStato stato={stato} />
           <span className="text-[14px] text-tenue">tocca a <b className="font-semibold text-inchiostro">{d?.responsabile || infoStato(stato)?.responsabile}</b></span>
+          <Fase fase={faseDi(stato, dati.fase)} />
           {sc.ultima_risposta && <span className="text-[14px] text-tenue">ultima risposta {quando(sc.ultima_risposta)}</span>}
         </div>
         <ProssimaCall call={dati.call} />
@@ -114,11 +115,21 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   )
 }
 
+/** La fase del foglio della pipeline (19/10): dove sta questo lead nel foglio di Dre. */
+function Fase({ fase }: { fase: { nome: string; dentro: boolean } | null }) {
+  if (!fase) return null
+  return (
+    <span className="text-[14px] text-tenue">
+      {fase.dentro ? 'nel foglio: ' : 'fuori dal percorso: '}<b className="font-semibold text-inchiostro">{fase.nome}</b>
+    </span>
+  )
+}
+
 /** 19/10: la scheda di chi non ha la scheda pronta (ha risposto prima dei 60 giorni, o mai: si
  *  apre da «Tutti»). Quello che si sa da qui, e soprattutto stato, prossima mossa e note, come
  *  nella scheda piena. Toccandolo, schede.py prepara anche il resto (conversazione, analisi). */
-function SchedaBase({ id, base: b, decisione, note, indietro, onDecisione, onNote }: {
-  id: string; base: RigaBase; decisione: Decisione | null; note: Nota[]; indietro: () => void
+function SchedaBase({ id, base: b, decisione, note, fase, indietro, onDecisione, onNote }: {
+  id: string; base: RigaBase; decisione: Decisione | null; note: Nota[]; fase: string | null; indietro: () => void
   onDecisione: (d: Decisione) => void; onNote: (f: (n: Nota[]) => Nota[]) => void
 }) {
   const { mostra, vista: avviso } = useAvviso()
@@ -133,6 +144,7 @@ function SchedaBase({ id, base: b, decisione, note, indietro, onDecisione, onNot
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <PillolaStato stato={stato} />
           <span className="text-[14px] text-tenue">tocca a <b className="font-semibold text-inchiostro">{decisione?.responsabile || infoStato(stato)?.responsabile}</b></span>
+          <Fase fase={faseDi(stato, fase)} />
           <span className="text-[14px] text-tenue">{b.ultima_risposta ? `ultima risposta ${quando(b.ultima_risposta)}` : 'non ha mai risposto'}</span>
         </div>
       </header>

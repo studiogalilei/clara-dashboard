@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead } from './dati'
 import {
-  cerca, chiamateInRitardo, contaStati, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
+  FASI, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
   infoStato, nomeStato, scrittoDopo, spiegaDomanda, statoDi, tasso, titoloDomanda, tonoStato,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
@@ -162,5 +162,22 @@ describe('il colore degli stati', () => {
     expect(tonoStato('Assente')).toBe('neutro')
     expect(tonoStato('Nessuna risposta')).toBe('neutro')
     expect(tonoStato('Uno stato nuovo')).toBe('neutro')
+  })
+})
+
+describe('le 8 fasi del foglio della pipeline (19/10)', () => {
+  it('sono otto, nell\'ordine del design, e ogni stato ha la sua fase o il suo conteggio', () => {
+    expect(FASI.map((f) => f.nome)).toEqual(['Analisi in preparazione', 'Analisi inviata', 'Conversazione',
+      'Chiamata conoscitiva', 'Chiamata tecnica', 'Chiamata di avvio', 'Periodo di prova', 'Cliente'])
+    for (const s of STATI) expect(faseDi(s)).not.toBeNull()
+  })
+  it('quella del foglio vince su quella di partenza dello stato', () => {
+    expect(faseDi('Da rispondere')).toEqual({ nome: 'Analisi in preparazione', dentro: true })
+    expect(faseDi('Da rispondere', 'Conversazione')).toEqual({ nome: 'Conversazione', dentro: true })
+    expect(faseDi('Call fissata', 'Chiamata tecnica')).toEqual({ nome: 'Chiamata tecnica', dentro: true })
+    expect(faseDi('Assente')).toEqual({ nome: 'Fuori ufficio', dentro: false })
+    expect(faseDi('Analisi inviata', 'Persi')).toEqual({ nome: 'Persi', dentro: false })
+    expect(faseDi('Vuole sentirti')).toEqual({ nome: 'Analisi in preparazione', dentro: true })   // un nome vecchio si traduce
+    expect(faseDi(null)).toBeNull()
   })
 })

@@ -18,6 +18,23 @@ export function nomeStato(s: string | null | undefined): string | null {
   return DAI_VECCHI[s] ?? null
 }
 
+/** LE 8 FASI del foglio della pipeline (19/10), da sinistra a destra (stati.json, «fasi»). */
+export const FASI: ReadonlyArray<{ nome: string; colore: string; fondo: string; testo: string; chi: string }> = statiJson.fasi
+const FASE_DI_STATO: Record<string, string | null> = statiJson.fase_di_stato
+const FUORI_PERCORSO: Record<string, string> = statiJson.fuori_percorso
+
+/** La fase di un lead, come la dice il foglio: quella calcolata da scripts/foglio.py (che guarda
+ *  anche l'analisi, il calendario e le scelte di Dre) se c'e', se no quella di partenza dello stato.
+ *  Fuori dal percorso torna l'etichetta del conteggio («No», «Fuori ufficio»...) e `dentro` falso. */
+export function faseDi(stato: string | null | undefined, dalFoglio?: string | null): { nome: string; dentro: boolean } | null {
+  if (dalFoglio) return { nome: dalFoglio, dentro: FASI.some((f) => f.nome === dalFoglio) }
+  const s = nomeStato(stato)
+  if (!s) return null
+  const f = FASE_DI_STATO[s]
+  if (f) return { nome: f, dentro: true }
+  return FUORI_PERCORSO[s] ? { nome: FUORI_PERCORSO[s], dentro: false } : null
+}
+
 /** Quello che sa lo stato: gruppo, colore, responsabile e prossima azione di default. */
 export function infoStato(s: string): InfoStato | null {
   return INFO_STATI.find((x) => x.nome === s) ?? null

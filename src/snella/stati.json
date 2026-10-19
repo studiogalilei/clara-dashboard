@@ -27,6 +27,39 @@
     { "nome": "Non contattare", "gruppo": "Chiusi", "tono": "stop", "responsabile": "Claude", "azione": "Nessun messaggio, mai più",
       "significa": "Ha chiesto di non ricevere messaggi: blocco permanente" }
   ],
+  "_fasi": "Le 8 fasi del foglio della pipeline (design del 19/10, docs/superpowers/specs/2026-10-19-foglio-pipeline-design.md), da sinistra a destra. Ogni stato ha la sua fase di partenza (fase_di_stato); scripts/foglio.py la precisa con l'analisi, il calendario di Dre e le scelte di Dre, e scrive la fase vera in snella_numeri (chiave fasi): la scheda dell'app legge quella. Gli stati senza fase stanno fuori dal percorso, nei conteggi (fuori_percorso).",
+  "fasi": [
+    { "nome": "Analisi in preparazione", "colore": "#d8642a", "fondo": "#fff4ec", "testo": "#9a3a12", "chi": "Sistema (Dre se si blocca)" },
+    { "nome": "Analisi inviata", "colore": "#2979c4", "fondo": "#edf4fc", "testo": "#1f5f9e", "chi": "Sistema" },
+    { "nome": "Conversazione", "colore": "#1c2e6e", "fondo": "#eef0f4", "testo": "#1c2e6e", "chi": "Dre" },
+    { "nome": "Chiamata conoscitiva", "colore": "#9333ea", "fondo": "#f5f0fd", "testo": "#6b21a8", "chi": "Dre" },
+    { "nome": "Chiamata tecnica", "colore": "#7e22ce", "fondo": "#f5f0fd", "testo": "#6b21a8", "chi": "Dre" },
+    { "nome": "Chiamata di avvio", "colore": "#6b21a8", "fondo": "#f5f0fd", "testo": "#6b21a8", "chi": "Dre" },
+    { "nome": "Periodo di prova", "colore": "#e6b800", "fondo": "#fefbe5", "testo": "#6b5300", "chi": "Dre" },
+    { "nome": "Cliente", "colore": "#166534", "fondo": "#edf9f1", "testo": "#166534", "chi": "Dre" }
+  ],
+  "fase_di_stato": {
+    "Da chiamare": "Analisi in preparazione",
+    "Da rispondere": "Analisi in preparazione",
+    "Analisi inviata": "Analisi inviata",
+    "Call fissata": "Chiamata conoscitiva",
+    "Proposta inviata": "Chiamata tecnica",
+    "Cliente acquisito": "Cliente",
+    "Da ricontattare": null,
+    "Assente": null,
+    "Nessuna risposta": null,
+    "Non interessato": null,
+    "Perso": null,
+    "Non contattare": null
+  },
+  "fuori_percorso": {
+    "Non interessato": "No",
+    "Non contattare": "Non contattare",
+    "Assente": "Fuori ufficio",
+    "Da ricontattare": "Più avanti",
+    "Perso": "Persi",
+    "Nessuna risposta": "Mai risposto"
+  },
   "dai_vecchi": {
     "No grazie": "Non interessato",
     "Non scrivere più": "Non contattare",

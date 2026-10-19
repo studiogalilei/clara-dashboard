@@ -75,7 +75,10 @@ function guasto(e: { message?: string } | null): never {
 const CAMPI_RIGA = 'prospect_id,azienda,persona,email,stato,ultima_risposta,frase,da_chiamare,perche_chiamare'
 
 export async function leggiNumeri(): Promise<Numeri> {
-  const { data, error } = await supabase.from('snella_numeri').select('chiave,dati,aggiornato_il').abortSignal(entro())
+  // 19/10: in snella_numeri ci sono anche il foglio della pipeline e le sue fasi (scripts/foglio.py):
+  // qui solo i numeri di Oggi, cosi' il telefono non scarica lo stato del foglio a ogni apertura
+  const { data, error } = await supabase.from('snella_numeri').select('chiave,dati,aggiornato_il')
+    .in('chiave', ['oggi', 'call', 'campagne']).abortSignal(entro())
   if (error) guasto(error)
   const out: Numeri = {}
   for (const r of (data ?? []) as Array<{ chiave: keyof Numeri; dati: never; aggiornato_il: string }>) {
@@ -133,12 +136,14 @@ export async function leggiTelefoni(ids: string[]): Promise<Map<string, SchedaDa
 
 const CAMPI_NOTA = 'id,prospect_id,testo,tipo,at,autore,autore_nome'
 
-export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null }> {
-  const [s, d, n, c] = await Promise.all([
+export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null; fase: string | null }> {
+  const [s, d, n, c, f] = await Promise.all([
     supabase.from('snella_schede').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_lead').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_note').select(CAMPI_NOTA).eq('prospect_id', id).order('at', { ascending: false }).limit(200).abortSignal(entro()),
     supabase.from('snella_numeri').select('dati').eq('chiave', 'call').abortSignal(entro()).maybeSingle(),
+    // la fase del foglio della pipeline (scripts/foglio.py, ogni 10 minuti): la stessa che vede Dre nel foglio
+    supabase.from('snella_numeri').select(`fase:dati->>${id}`).eq('chiave', 'fasi').abortSignal(entro()).maybeSingle(),
   ])
   if (s.error) guasto(s.error)
   if (d.error) guasto(d.error)
@@ -149,7 +154,8 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
   // scrivere le note lo stesso
   const base = s.data ? null : await leggiRigaTutti(id)
   return { scheda: s.data as Scheda | null, decisione: d.data as Decisione | null, note: (n.data ?? []) as Nota[],
-           call: tutte.filter((x) => x.prospect_id === id), base }
+           call: tutte.filter((x) => x.prospect_id === id), base,
+           fase: ((f.data as { fase?: string | null } | null)?.fase) ?? null }
 }
 
 // ── TUTTI (19/10): il foglio con tutti i prospect, una pagina alla volta dal database ──
