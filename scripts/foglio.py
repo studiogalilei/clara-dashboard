@@ -749,9 +749,10 @@ def forma(sid, st):
         R.append({"addConditionalFormatRule": {"index": 0, "rule": {
             "ranges": [_campo(S, PRIMA - 1, RIGHE, x["da"], x["da"] + 1)],
             "booleanRule": {"condition": {"type": "NOT_BLANK"}, "format": {"textFormat": {"bold": True}}}}}})
-        # niente righe orizzontali negli elenchi (con le griglie nascoste restano pulite): solo
-        # una riga sotto i titoli delle colonne
-        R.append({"updateBorders": {"range": _campo(S, 2, 3, x["da"], fine_b(x)),
+        # l'effetto a celle (Dre, 19/10 sera: «lascia l'effetto a celle»): una riga sottile fra un
+        # lead e l'altro in ogni blocco, come nella prima versione
+        R.append({"updateBorders": {"range": _campo(S, 1, RIGHE, x["da"], fine_b(x)),
+                                    "innerHorizontal": {"style": "SOLID", "color": rgb(BORDO)},
                                     "bottom": {"style": "SOLID", "color": rgb(BORDO)}}})
     # le celle del sistema: un avviso se Dre le tocca (si possono toccare, ma vengono riscritte)
     R.append({"addProtectedRange": {"protectedRange": {"range": _campo(S, 0, PRIMA - 1, 0, NCOL), "warningOnly": True,
