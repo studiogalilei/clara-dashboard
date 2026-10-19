@@ -3004,6 +3004,64 @@ def _():
     assert direttore.corsia_di("schede") == "leggera"
 
 
+@prova("i 12 stati di Dre (19/10): dodici e nient'altro, ognuno col responsabile e l'azione; i vecchi passano ai nuovi; il database ha la stessa copia")
+def _():
+    import json as _json, re as _re
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    st = _json.load(open(os.path.join(radice, "src", "snella", "stati.json"), encoding="utf-8"))
+    nomi = [x["nome"] for x in st["stati"]]
+    assert nomi == ["Da chiamare", "Da rispondere", "Analisi inviata", "Call fissata", "Proposta inviata", "Cliente acquisito",
+                    "Da ricontattare", "Assente", "Nessuna risposta", "Non interessato", "Perso", "Non contattare"], nomi
+    assert st["gruppi"] == ["Da gestire oggi", "Opportunità", "In attesa", "Chiusi"]
+    for x in st["stati"]:
+        assert x["gruppo"] in st["gruppi"] and x["responsabile"] in ("Dramane", "Claude") and x["azione"].strip(), x
+    # i nomi vecchi (snella del 15/10 e i calcolati) finiscono tutti in uno dei 12
+    vecchi = {"No grazie": "Non interessato", "Non scrivere più": "Non contattare", "Fuori ufficio": "Assente",
+              "Conoscitiva": "Call fissata", "Analisi mandata": "Analisi inviata", "Vuole sentirti": "Da chiamare",
+              "Follow-up": "Analisi inviata", "Da riprendere": "Da ricontattare", "In conversazione": "Da rispondere"}
+    for v, n in vecchi.items():
+        assert st["dai_vecchi"][v] == n, (v, st["dai_vecchi"].get(v))
+    assert set(st["dai_vecchi"].values()) <= set(nomi)
+    # il database: snella_stati ha le stesse righe, snella_nome_nuovo la stessa mappa, e snella_lead
+    # accetta solo i 12 (la chiave verso snella_stati, non un elenco a parte)
+    sql = open(os.path.join(radice, "supabase", "schema_v92.sql"), encoding="utf-8").read()
+    righe = _re.findall(r"\('([^']+)',\s+(\d+),\s+'([^']+)',\s+'(\w+)',\s+'(\w+)',\s+'((?:[^']|'')+)'", sql)
+    assert [(r[0], int(r[1]), r[2], r[3], r[4], r[5].replace("''", "'")) for r in righe] == \
+        [(x["nome"], i + 1, x["gruppo"], x["tono"], x["responsabile"], x["azione"]) for i, x in enumerate(st["stati"])], righe
+    mappa = dict(_re.findall(r"when '([^']+)' then '([^']+)'", sql.split("function snella_nome_nuovo", 1)[1].split("$$;", 1)[0]))
+    assert mappa == st["dai_vecchi"], mappa
+    assert "foreign key (stato) references snella_stati" in sql
+    # schede.py: ogni categoria va in uno dei 12, ogni stato ha un'azione, il caldo porta a Da chiamare
+    import schede
+    import categorie_smartlead as C
+    assert set(schede.NOME_DI.values()) <= set(nomi)
+    p = {"classificazione": "positivo", "stage": "in_follow_up", "last_reply_at": "2026-10-18"}
+    assert schede.stato_di(C.N_FU, p, False, True) == "Analisi inviata"
+    assert schede.stato_di(C.N_NO, p, False, True) == "Non interessato"
+    assert schede.stato_di(C.N_STOP, p, True, True) == "Non contattare", "il blocco vince anche sul cliente"
+    assert schede.stato_di(None, {**p, "pipeline_stage": "prova"}, False, True) == "Cliente acquisito"
+    assert schede.stato_di(C.N_SI, {**p, "pipeline_stage": "perso"}, False, True) == "Perso"
+    assert schede.stato_di(C.N_SI, {**p, "stage": "perso"}, False, True) == "Perso"
+    assert schede.stato_di(C.N_NO, {**p, "stage": "perso"}, False, True) == "Non interessato"
+    assert schede.stato_di(None, {**p, "pipeline_stage": "conoscitiva"}, False, True) == "Call fissata"
+    assert schede.stato_di(None, {}, False, False) == "Nessuna risposta"
+    assert schede.stato_di(None, p, False, True) == "Da rispondere"
+    for n in nomi:
+        azione, _ = schede.prossima_mossa(n, {}, [])
+        assert azione.strip(), n
+    assert schede.prossima_mossa("Non interessato", {}, [], "casella morta")[0] == "Fermare la sequenza: casella morta"
+    assert schede.NON_SI_CHIAMA == {"Call fissata", "Proposta inviata", "Cliente acquisito", "Non interessato", "Perso", "Non contattare"}
+    # la UI non scrive piu' i nomi vecchi (si traducono da stati.json)
+    for f in os.listdir(os.path.join(radice, "src", "snella")):
+        if f.endswith((".ts", ".tsx")) and not f.endswith(".test.ts"):
+            t = open(os.path.join(radice, "src", "snella", f), encoding="utf-8").read()
+            t = "\n".join(r for r in t.splitlines() if not r.lstrip().startswith(("//", "*", "/*")))
+            for v in vecchi:
+                if v == "Conoscitiva":
+                    continue                    # e' anche il nome del tipo di call (Oggi), non solo lo stato vecchio
+                assert f"'{v}'" not in t, f"{f} usa ancora lo stato vecchio «{v}»"
+
+
 @prova("versione snella: il caldo vale per la mail su cui e' nato; i rimbalzi e i DMARC non sono risposte (17/10)")
 def _():
     import schede
@@ -3352,6 +3410,18 @@ def _():
     assert d.utcoffset().total_seconds() == 7200, d
     d, _ = calendario._quando("20261019T110000", ";TZID=Fuso Inventato")
     assert d.tzinfo is not None
+
+
+@prova("promemoria della conoscitiva: il giorno lavorativo prima, il testo di Dre col suo numero (19/10)")
+def _():
+    import datetime, promemoria as P
+    assert P.giorno_della_call(datetime.date(2026, 10, 23)) == datetime.date(2026, 10, 26)   # venerdi' -> lunedi'
+    assert P.giorno_della_call(datetime.date(2026, 10, 20)) == datetime.date(2026, 10, 21)
+    assert P.quando_detto(datetime.date(2026, 10, 23), datetime.date(2026, 10, 26)) == "lunedì"
+    t = P.testo("domani")
+    assert "ci vediamo domani" in t and "371 116 9430" in t and "Dramane" in t
+    import bozze
+    assert not bozze.cancello(t), bozze.cancello(t)
 
 
 def main():
