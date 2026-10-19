@@ -45,8 +45,15 @@ Il consiglio di chiamare va reso **più selettivo** di adesso. Dre: «a volte mi
   - **Sotto ogni intestazione, l'elenco** che scende. Per riga: azienda, un dettaglio corto (quando ha scritto, quando è stata inviata l'analisi, la data della call), le celle gialle di Dre, e in una colonna nascosta l'id del lead.
   - **Ordine dentro ogni fase:** prima il più nuovo, appena arrivato. Nel **Periodo di prova** prima la scadenza più vicina.
   - La conversazione (fase 3) mostra accanto all'azienda il **menu di Dre** come tendina («Da chiamare», «In attesa di risposta», «Perso»). È l'unica tendina del foglio.
+- **Il blocco «Progetti»** (Dre, 19/10 sera: «dopo Cliente, a destra, metti Progetti, connesso ai clienti, perché con alcuni facciamo siti, automazioni, software e lì non è per forza recurring»). La sezione clienti è divisa in due: **Cliente** col retainer (MRR nell'intestazione) e **Progetti** una tantum.
+  - Una riga per **progetto**, non per lead. Tutte le celle sono di Dre (gialle): Cliente, Progetto, Importo (una tantum, €), Consegna, Stato (tendina: In corso / Consegnato / Pagato), Note.
+  - Intestazione: «Progetti · 7 · una tantum 2.150 € (in corso)», la somma degli importi non ancora pagati.
+  - Una riga col cliente scritto e senza id è un progetto nuovo: il sistema lo salva e al giro dopo ha il suo id nella colonna nascosta. Il cliente si collega al blocco Cliente per nome (maiuscole, spazi e accenti non contano), se no resta testo libero. Quello che scrive Dre vince sempre. Una riga svuotata è un progetto tolto: resta nel database come «tolto», non si perde.
+  - Ordine: prima «In corso» per consegna più vicina, poi Consegnato, poi Pagato in fondo.
+  - All'accensione, i progetti una tantum già nel Workspace (tabella progetti, senza tipo retainer/prova/onboarding) sono stati messi lì con l'importo della cassaforte quando c'era; dove non c'era l'importo è vuoto.
 - **Spostare e togliere un lead, come dice Dre:**
   - **spostare:** Dre copia (o scrive) il nome dell'azienda nella colonna «Azienda» di un'altra fase. A ogni giro il sistema legge le celle Azienda: un nome sotto una fase diversa da quella calcolata, senza id nella colonna nascosta, abbinato (maiuscole, spazi e accenti non contano) a un lead noto o a un contatto della stessa azienda = «Dre l'ha spostato lì», con gli stessi effetti di prima (Prova, Cliente, perso…) e vince per sempre. Se il nome non si abbina a nessuno, resta dov'è (in fondo alla sua colonna) e lo si dice nel log: niente inventato.
+  - **tagliare e incollare** è uno spostamento: la riga vecchia rimasta senza nome non conta come «togli» (il primo caso vero, la sera del 19/10: quattro clienti spostati da Cliente a Prova).
   - **togliere:** Dre cancella il nome dalla sua cella (riga scritta dal sistema, id presente, Azienda vuota) = «togli dal foglio»: stage perso, non contattabile.
   - La colonna «Sposta in» non c'è più.
 - **Dove scrive Dre:**

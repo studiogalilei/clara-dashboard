@@ -3442,7 +3442,7 @@ def _():
     assert per_fase[F.CLIENTE][0]["retainer"] == 2000, per_fase[F.CLIENTE]
     righe, scritto = F.griglia(per_fase, 2000, ora)
     assert scritto["a"]["retainer"] == 2000 and 2000 in righe[F.PRIMA - 1] and scritto["a"]["fase"] == F.CLIENTE
-    assert "MRR 2.000 €" in righe[1][F.BLOCCHI[-1]["da"]] and righe[0][0] == F.NOME_FOGLIO
+    assert "MRR 2.000 €" in righe[1][F.BLOCCHI[-2]["da"]] and righe[0][0] == F.NOME_FOGLIO
     assert not any("Settimana" in str(c) or "Aggiornato " in str(c) for c in righe[0]), "via la settimana e la frase lunga (Dre, 19/10 sera)"
     assert "sposta" not in F.DI_DRE and not any("sposta" in b["campi"] for b in F.BLOCCHI), "la tendina «Sposta in» non c'e' piu' (Dre, 19/10)"
     # le date e i numeri tornano uguali da come si scrivono a come si rileggono (se no ogni giro
@@ -3495,10 +3495,13 @@ def _():
     # il nome cancellato dalla riga del sistema = togli; una riga che il sistema non ha scritto no
     mosse, _ = F.mosse_di_dre([], ["c", "zz"], st, dati)
     assert mosse == [("c", F.SPOSTA, F.TOGLI)]
+    # taglia e incolla (il primo caso vero, 19/10 sera): la riga vecchia senza nome non e' un togli
+    mosse, _ = F.mosse_di_dre([(F.PROVA_F, "Bianchi")], ["c"], st, dati)
+    assert mosse == [("c", F.SPOSTA, F.PROVA_F)], mosse
     # e gli ignoti restano nel foglio, in fondo alla loro colonna, senza id
     import datetime
     righe, scritto = F.griglia({f: [] for f in F.FASI}, 0, datetime.datetime(2026, 10, 19, tzinfo=datetime.timezone.utc), ignoti)
-    assert righe[F.PRIMA - 1][F.BLOCCHI[-1]["da"]] == "Azienda Inventata" and "Azienda Inventata" not in str(scritto)
+    assert righe[F.PRIMA - 1][F.BLOCCHI[-2]["da"]] == "Azienda Inventata" and "Azienda Inventata" not in str(scritto)
 
 
 @prova("foglio della pipeline: la data sopra un blocco cambia solo se il blocco cambia (Dre, 19/10 sera)")
@@ -3525,6 +3528,42 @@ def _():
     assert righe[0][0] == F.NOME_FOGLIO and righe[0][1].startswith("Ultima modifica lun 19/10")
     assert righe[0][F.BLOCCHI[1]["da"]] == "Ultima modifica lun 19/10 16:30", righe[0][F.BLOCCHI[1]["da"]]
     assert righe[0][F.BLOCCHI[2]["da"]] == "Ultima modifica lun 19/10 16:20"
+
+
+@prova("foglio della pipeline, Progetti (Dre, 19/10 sera): una riga nuova nasce dal foglio, Dre vince, cancellata = tolta")
+def _():
+    import datetime, foglio as F
+    ora = datetime.datetime(2026, 10, 19, 17, tzinfo=datetime.timezone.utc)
+    st = {}
+    clienti = {F.chiave_nome("Rossi Srl"): "pid-rossi"}
+    # una riga col cliente e senza id: un progetto nuovo, collegato al cliente per nome, «In corso» se manca lo stato
+    F.progetti_dal_foglio([{"id": "", "cliente": "ROSSI srl", "progetto": "Sito", "importo": 2500, "consegna": "2026-11-15",
+                            "stato": "", "nota": ""}], st, clienti, ora)
+    (pid, p), = st["progetti"].items()
+    assert pid == "pr-1" and p["stato"] == "In corso" and p["prospect_id"] == "pid-rossi" and p["importo"] == 2500
+    # al giro dopo la riga ha il suo id; quello che Dre cambia vince e resta
+    F.progetti_dal_foglio([{"id": "pr-1", "cliente": "ROSSI srl", "progetto": "Sito", "importo": 2800, "consegna": "2026-11-15",
+                            "stato": "Consegnato", "nota": "manca il logo"}], st, clienti, ora)
+    assert p["importo"] == 2800 and p["stato"] == "Consegnato" and p["nota"] == "manca il logo"
+    righe = F.righe_progetti(st)
+    assert righe[0]["id"] == "pr-1" and righe[0]["importo"] == 2800, "il foglio riscrive il valore di Dre, non un altro"
+    # una riga vuota senza id non crea niente; una riga col suo id svuotata e' «tolta», non persa
+    F.progetti_dal_foglio([{"id": "", "cliente": "", "progetto": "", "importo": "", "consegna": "", "stato": "", "nota": ""}], st, clienti, ora)
+    assert list(st["progetti"]) == ["pr-1"]
+    F.progetti_dal_foglio([{"id": "pr-1", "cliente": "", "progetto": "", "importo": "", "consegna": "", "stato": "", "nota": ""}], st, clienti, ora)
+    assert st["progetti"]["pr-1"]["tolto_il"] and st["progetti"]["pr-1"]["importo"] == 2800 and F.righe_progetti(st) == []
+    # l'ordine: In corso per consegna piu' vicina, poi Consegnato, poi Pagato
+    st2 = {"progetti": {"a": {"cliente": "A", "stato": "Pagato", "consegna": "2026-10-01"},
+                        "b": {"cliente": "B", "stato": "In corso", "consegna": "2026-12-01"},
+                        "c": {"cliente": "C", "stato": "Consegnato", "consegna": "2026-10-10"},
+                        "d": {"cliente": "D", "stato": "In corso", "consegna": "2026-11-01"}}}
+    assert [r["id"] for r in F.righe_progetti(st2)] == ["d", "b", "c", "a"]
+    # l'intestazione: la somma degli importi non ancora pagati
+    vista = {f: [] for f in F.FASI}
+    vista[F.PROGETTI] = [{"id": "x", "azienda": "X", "cliente": "X", "importo": 1000, "stato": "In corso"},
+                         {"id": "y", "azienda": "Y", "cliente": "Y", "importo": 500, "stato": "Pagato"}]
+    righe, scritto = F.griglia(vista, 0, ora)
+    assert righe[1][F.BLOCCHI[-1]["da"]] == "Progetti · 2 · una tantum 1.000 € (in corso)" and "x" not in scritto
 
 
 @prova("foglio della pipeline: nessuna mail parte dal foglio (niente postino, bozze, Gmail o Smartlead)")

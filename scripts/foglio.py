@@ -77,7 +77,7 @@ COMMERCIALE = "1ipPNIf8Ep-XFIZq23u4vG8V6xJgpuo5m"     # «2 Commerciale» nel Dr
 CHIAMATE = "1PWqTL7hhhPr6JaYNbBfadxnojPWAlWb6"        # «Chiamate» (l'ex «5 Riunioni»)
 NOME_FOGLIO = "Pipeline Studio Galilei"
 SCHEDA = "Pipeline"
-LAYOUT = 3                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco
+LAYOUT = 4                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco; 4: il blocco Progetti
 PRIMA = 4                        # la prima riga degli elenchi (contando da 1): titolo, intestazioni delle fasi, titoli delle colonne
 RIGHE = 1000
 SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
@@ -99,6 +99,13 @@ FRASE_USO = "Scrivi nelle celle gialle (le Note sono tue: Achille le legge). Per
 # che e' stata modificata dal sistema, font piccolo grigio non invasivo». Sopra ogni blocco, nella riga del
 # titolo: l'ultima volta che il sistema ha cambiato qualcosa in quel blocco (non l'ora dell'ultimo giro).
 GRIGIO_CHIARO = "#9aa0ad"
+# IL BLOCCO PROGETTI (Dre, 19/10 sera): «dopo Cliente, a destra, metti Progetti, connesso ai clienti,
+# perche' con alcuni facciamo siti, automazioni, software e li' non e' per forza recurring». Una riga per
+# progetto, tutta di Dre: il sistema la salva, le da' un id (colonna nascosta) e la rimette in ordine.
+PROGETTI = "Progetti"
+STATI_PROGETTO = ("In corso", "Consegnato", "Pagato")
+COLORE_PROGETTI = {"nome": PROGETTI, "colore": "#0f766e", "fondo": "#ecfdf5", "testo": "#0f5e57", "chi": "Dre"}
+GIALLE = set(DI_DRE) | {"cliente", "progetto", "importo", "consegna", "stato"}
 DETTAGLIO = {PREP: "Ha scritto", INVIATA: "Inviata", CONV: "Ultima sua", CONO: "Call", TECN: "Call", AVVIO: "Call"}
 
 
@@ -117,7 +124,11 @@ def _blocchi():
         campi += [("nota", "Note", 170), ("id", "id", 20)]
         out.append({"fase": fase, "da": col, "campi": [c[0] for c in campi], "titoli": [c[1] for c in campi],
                     "larghezze": [c[2] for c in campi]})
-        col += len(campi) + (1 if i < len(FASI) - 1 else 0)          # una colonna stretta fra i blocchi
+        col += len(campi) + 1                                        # una colonna stretta fra i blocchi
+    campi = [("cliente", "Cliente", 170), ("progetto", "Progetto", 150), ("importo", "Importo", 86),
+             ("consegna", "Consegna", 86), ("stato", "Stato", 110), ("nota", "Note", 170), ("id", "id", 20)]
+    out.append({"fase": PROGETTI, "da": col, "campi": [c[0] for c in campi], "titoli": [c[1] for c in campi],
+                "larghezze": [c[2] for c in campi]})
     return out
 
 
@@ -182,9 +193,9 @@ def _data(v):
 
 def norma(campo, v):
     """Il valore di una cella di Dre come si salva e si confronta."""
-    if campo in ("costo", "retainer"):
+    if campo in ("costo", "retainer", "importo"):
         return _numero(v)
-    if campo in ("inizio", "fine"):
+    if campo in ("inizio", "fine", "consegna"):
         return _data(v)
     return " ".join(str(v if v is not None else "").split()) if campo != "nota" else str(v if v is not None else "").strip()
 
@@ -193,7 +204,7 @@ def in_cella(campo, v):
     """Il valore come si scrive nella cella (USER_ENTERED): le date all'italiana, i numeri nudi."""
     if v == "" or v is None:
         return ""
-    if campo in ("inizio", "fine") and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(v)):
+    if campo in ("inizio", "fine", "consegna") and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(v)):
         a, m, g_ = str(v).split("-")
         return f"{g_}/{m}/{a}"
     if isinstance(v, (int, float)):
@@ -543,7 +554,12 @@ def applica(scritte, dati, st, ora):
         for tabella, cosa in effetti(campo, v, oggi):
             if tabella == "prospects":
                 for x in pids:
-                    sb("PATCH", f"/rest/v1/prospects?id=eq.{x}", cosa)
+                    # una scelta fatta a mano da una persona (lock umano nel database) non la cambia uno
+                    # script: si dice e si va avanti, il giro non cade (19/10: un cliente «tolto» per sbaglio)
+                    try:
+                        sb("PATCH", f"/rest/v1/prospects?id=eq.{x}", cosa)
+                    except RuntimeError as e:
+                        righe.append(f"    (il database non lo cambia: {str(e)[:140]})")
             elif tabella == "snella_lead":
                 sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id", [{"prospect_id": x, **cosa} for x in pids],
                    {"Prefer": "resolution=merge-duplicates,return=minimal"})
@@ -701,7 +717,7 @@ def forma(sid, st):
     # la frase d'uso sta nella nota della cella del titolo: non ingombra
     R.append({"updateCells": {"range": _campo(S, 0, 1, 0, 1), "rows": [{"values": [{"note": FRASE_USO}]}], "fields": "note"}})
     for x in b:
-        info_f = INFO_FASE[x["fase"]]
+        info_f = INFO_FASE.get(x["fase"]) or COLORE_PROGETTI
         testo_testa = "#17191f" if x["fase"] == PROVA_F else "#ffffff"
         R.append(_formato(_campo(S, 1, 2, x["da"], fine_b(x)), fondo=info_f["colore"], colore=testo_testa, grassetto=True, dim=13, a_capo="WRAP"))
         R.append(_formato(_campo(S, 2, 3, x["da"], fine_b(x)), fondo=info_f["fondo"], colore=info_f["testo"], grassetto=True, dim=9))
@@ -712,25 +728,28 @@ def forma(sid, st):
             rng = _campo(S, PRIMA - 1, RIGHE, c, c + 1)
             if campo == "dettaglio":
                 R.append(_formato(rng, colore=TENUE, dim=9))
-            if campo in ("costo", "retainer"):
+            if campo in ("costo", "retainer", "importo"):
                 R.append(_formato(rng, numero={"type": "CURRENCY", "pattern": '#,##0 "€"'}, oriz="RIGHT"))
-            if campo in ("inizio", "fine"):
+            if campo in ("inizio", "fine", "consegna"):
                 R.append(_formato(rng, numero={"type": "DATE", "pattern": "dd/mm/yyyy"}))
             # le tendine e i controlli sulle celle di Dre
             regola = None
             if campo == "scelta":
                 regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in SCELTE]},
                           "strict": True, "showCustomUi": True}
-            elif campo in ("inizio", "fine"):
+            elif campo == "stato":
+                regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in STATI_PROGETTO]},
+                          "strict": True, "showCustomUi": True}
+            elif campo in ("inizio", "fine", "consegna"):
                 regola = {"condition": {"type": "DATE_IS_VALID"}, "strict": True,
                           "inputMessage": "Una data, per esempio 21/10/2026"}
-            elif campo in ("costo", "retainer"):
+            elif campo in ("costo", "retainer", "importo"):
                 regola = {"condition": {"type": "NUMBER_GREATER_THAN_EQ", "values": [{"userEnteredValue": "0"}]}, "strict": True,
                           "inputMessage": "Euro, solo il numero (es. 1500)"}
             if regola:
                 R.append({"setDataValidation": {"range": rng, "rule": regola}})
             # le celle di Dre si colorano di giallo quando nella riga c'e' un lead
-            if campo in DI_DRE:
+            if campo in GIALLE:
                 prima_az = f"${lettera(x['da'])}{PRIMA}"
                 R.append({"addConditionalFormatRule": {"index": 0, "rule": {
                     "ranges": [rng], "booleanRule": {"condition": {"type": "CUSTOM_FORMULA", "values": [{"userEnteredValue": f'={prima_az}<>""'}]},
@@ -749,7 +768,7 @@ def forma(sid, st):
                                                        "description": "Lo scrive il sistema ogni 10 minuti"}}})
     for x in b:
         for campo in x["campi"]:
-            if campo not in DI_DRE and campo != "azienda":          # l'azienda la tocca Dre per spostare o togliere
+            if campo not in GIALLE and campo != "azienda":          # l'azienda la tocca Dre per spostare o togliere
                 c = colonna(x, campo)
                 R.append({"addProtectedRange": {"protectedRange": {"range": _campo(S, PRIMA - 1, RIGHE, c, c + 1), "warningOnly": True,
                                                                    "description": "Lo scrive il sistema ogni 10 minuti: scrivi nelle celle gialle"}}})
@@ -759,13 +778,20 @@ def forma(sid, st):
     print(f"foglio: forma fatta ({len(R)} istruzioni)")
 
 
-def leggi_celle(sid):
+def leggi_celle(sid, con_progetti=True):
     """Le celle di Dre del foglio, per lead: {pid: {campo: valore normalizzato}}."""
-    rng = [f"{SCHEDA}!{lettera(b['da'])}{PRIMA}:{lettera(b['da'] + len(b['campi']) - 1)}{RIGHE}" for b in BLOCCHI]
+    blocchi = [b for b in BLOCCHI if con_progetti or b["fase"] != PROGETTI]     # la forma 3 non ha il blocco Progetti
+    rng = [f"{SCHEDA}!{lettera(b['da'])}{PRIMA}:{lettera(b['da'] + len(b['campi']) - 1)}{RIGHE}" for b in blocchi]
     q = "&".join("ranges=" + urllib.parse.quote(r) for r in rng)
     d = _g("GET", f"{SHEETS}/{sid}/values:batchGet?{q}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING")
     out, incollati, tolti = {}, [], []
-    for b, vr in zip(BLOCCHI, d.get("valueRanges", [])):
+    progetti = []
+    for b, vr in zip(blocchi, d.get("valueRanges", [])):
+        if b["fase"] == PROGETTI:
+            for riga in vr.get("values", []):
+                riga = riga + [""] * (len(b["campi"]) - len(riga))
+                progetti.append({c: (str(riga[i]).strip() if c == "id" else norma(c, riga[i])) for i, c in enumerate(b["campi"])})
+            continue
         for riga in vr.get("values", []):
             riga = riga + [""] * (len(b["campi"]) - len(riga))
             pid = str(riga[b["campi"].index("id")]).strip()
@@ -777,7 +803,7 @@ def leggi_celle(sid):
             if not azienda:
                 tolti.append(pid)                                  # il nome cancellato da una riga del sistema
             out[pid] = {c: norma(c, riga[i]) for i, c in enumerate(b["campi"]) if c in DI_DRE}
-    return out, incollati, tolti
+    return out, incollati, tolti, progetti
 
 
 def leggi_celle_v1(sid):
@@ -827,10 +853,94 @@ def mosse_di_dre(incollati, tolti, st, dati):
         if dove == fase:
             continue                                           # incollato dove sta gia': niente
         mosse.append((pid, SPOSTA, fase))
+    # 19/10 sera, il primo caso vero: Dre ha TAGLIATO quattro clienti da Cliente e li ha incollati in
+    # Prova. La riga vecchia resta col nome vuoto: non e' un «togli», e' l'altra meta' dello spostamento.
+    spostati = {chiave_azienda(dati["ps"][x]) for x, _, _ in mosse if x in dati["ps"]}
     for pid in tolti:
+        if pid in dati["ps"] and chiave_azienda(dati["ps"][pid]) in spostati:
+            continue
         if pid in st["scritto"] and (st["mano"].get(pid) or {}).get("fase") != TOGLI:
             mosse.append((pid, SPOSTA, TOGLI))
     return mosse, ignoti
+
+
+# ── i progetti (una tantum) ──────────────────────────────────────────
+
+CAMPI_PROGETTO = ("cliente", "progetto", "importo", "consegna", "stato", "nota")
+
+
+def progetti_dal_foglio(righe, st, clienti, ora):
+    """Le righe del blocco Progetti come le ha lasciate Dre. Tutte le celle sono sue: quello che c'e'
+    nel foglio vince sempre. Una riga con il cliente e senza id e' un progetto nuovo (prende un id);
+    una riga col suo id e il cliente cancellato e' un progetto tolto (resta nel database come «tolto»).
+    `clienti`: {chiave_nome: prospect_id} dei clienti, per collegare il progetto al suo cliente.
+    Torna le righe del log."""
+    st.setdefault("progetti", {})
+    log = []
+    adesso = ora.isoformat()
+    for r in righe:
+        pid_r = r.get("id") or ""
+        valori = {c: r.get(c, "") for c in CAMPI_PROGETTO}
+        if pid_r in st["progetti"]:
+            p = st["progetti"][pid_r]
+            if not valori["cliente"] and not valori["progetto"]:
+                if not p.get("tolto_il"):
+                    p["tolto_il"] = adesso
+                    log.append(f"  progetto tolto da Dre: {p.get('cliente')} · {p.get('progetto')}")
+                continue
+            cambiati = {c: v for c, v in valori.items() if v != p.get(c, "")}
+            if cambiati:
+                p.update(cambiati)
+                p["modificato_il"] = adesso
+                log.append(f"  progetto cambiato da Dre: {p['cliente']} · {', '.join(cambiati)}")
+        elif valori["cliente"] and not pid_r:
+            st["progetti_n"] = int(st.get("progetti_n") or 0) + 1
+            nuovo = f"pr-{st['progetti_n']}"
+            st["progetti"][nuovo] = {**valori, "stato": valori["stato"] or "In corso", "creato_il": adesso, "da": "foglio"}
+            log.append(f"  progetto nuovo da Dre: {valori['cliente']} · {valori['progetto']}")
+    for p in st["progetti"].values():
+        p["prospect_id"] = clienti.get(chiave_nome(p.get("cliente"))) or p.get("prospect_id")
+    return log
+
+
+def progetti_esistenti(st):
+    """Una volta sola: i progetti una tantum gia' nel Workspace (tabella progetti, senza tipo retainer,
+    prova o onboarding), con l'importo dalla cassaforte se c'e' (mai inventato)."""
+    if st.get("progetti_semina"):
+        return 0
+    valori = {int(r["progetto_id"]): r.get("valore") for r in sb_tutte("/rest/v1/soldi_progetti?select=progetto_id,valore",
+                                                                      chiave="progetto_id")}
+    st.setdefault("progetti", {})
+    fatti = 0
+    for pr in sb_tutte("/rest/v1/progetti?select=id,prospect_id,cliente,nome,tipo,stato,scadenza,note"):
+        if pr.get("tipo") or pr.get("stato") not in ("da_iniziare", "in_corso", "consegnato"):
+            continue
+        p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,email&id=eq.{pr['prospect_id']}") or [None])[0] if pr.get("prospect_id") else None
+        st["progetti_n"] = int(st.get("progetti_n") or 0) + 1
+        st["progetti"][f"pr-{st['progetti_n']}"] = {
+            "cliente": nome_azienda(p) if p else (pr.get("cliente") or ""), "progetto": pr.get("nome") or "",
+            "importo": _numero(valori.get(int(pr["id"])) or ""), "consegna": pr.get("scadenza") or "",
+            "stato": "Consegnato" if pr.get("stato") == "consegnato" else "In corso", "nota": "",
+            "prospect_id": pr.get("prospect_id"), "creato_il": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "da": f"progetti:{pr['id']}"}
+        fatti += 1
+    st["progetti_semina"] = True
+    return fatti
+
+
+def righe_progetti(st):
+    """Le righe del blocco: prima «In corso» per consegna piu' vicina, poi Consegnato, poi Pagato."""
+    out = []
+    for pid_r, p in (st.get("progetti") or {}).items():
+        if p.get("tolto_il"):
+            continue
+        r = {"id": pid_r, **{c: p.get(c, "") for c in CAMPI_PROGETTO}}
+        r["azienda"] = r["cliente"]
+        r["dettaglio"] = "|".join(str(r[c]) for c in ("progetto", "importo", "consegna", "stato", "nota"))
+        out.append(r)
+    ordine = {s: i for i, s in enumerate(STATI_PROGETTO)}
+    out.sort(key=lambda r: (ordine.get(r["stato"], 0), str(r["consegna"] or "9999"), r["cliente"].lower()))
+    return out
 
 
 def colonna_data(x):
@@ -877,9 +987,14 @@ def griglia(per_fase, mrr, ora, ignoti=(), date=None):
     for x in b:
         if date and date.get(x["fase"]):
             righe[0][colonna_data(x)] = scritta_data(date[x["fase"]])
+    per_fase = {**{x["fase"]: [] for x in b}, **per_fase}          # un blocco senza righe e' vuoto, non un errore
     for x in b:
         n = len(per_fase[x["fase"]])
-        righe[1][x["da"]] = f"{x['fase']} · {n}" + (f" · MRR {euro(mrr)}" if x["fase"] == CLIENTE else "")
+        if x["fase"] == PROGETTI:
+            aperti = sum(r["importo"] for r in per_fase[PROGETTI] if r.get("stato") != "Pagato" and isinstance(r.get("importo"), (int, float)))
+            righe[1][x["da"]] = f"{PROGETTI} · {n} · una tantum {euro(aperti)} (in corso)"
+        else:
+            righe[1][x["da"]] = f"{x['fase']} · {n}" + (f" · MRR {euro(mrr)}" if x["fase"] == CLIENTE else "")
         for i, t in enumerate(x["titoli"]):
             righe[2][x["da"] + i] = "" if t == "id" else t
     liste = {f: list(v) for f, v in per_fase.items()}
@@ -900,8 +1015,9 @@ def griglia(per_fase, mrr, ora, ignoti=(), date=None):
                 continue
             for j, campo in enumerate(x["campi"]):
                 v = lead.get(campo, "")
-                riga[x["da"] + j] = in_cella(campo, v) if campo in DI_DRE else (lead["id"] if campo == "id" else testo(v))
-            scritto[lead["id"]] = {**{c: lead.get(c, "") for c in x["campi"] if c in DI_DRE}, "fase": x["fase"]}
+                riga[x["da"] + j] = in_cella(campo, v) if campo in GIALLE else (lead["id"] if campo == "id" else testo(v))
+            if x["fase"] != PROGETTI:
+                scritto[lead["id"]] = {**{c: lead.get(c, "") for c in x["campi"] if c in DI_DRE}, "fase": x["fase"]}
         righe.append(riga)
     return righe, scritto
 
@@ -1108,12 +1224,15 @@ def main():
         print("foglio: l'API di Google Sheets e' spenta nel progetto Google (686127567563): il foglio non si aggiorna")
     sid = trova_foglio(st) if acceso else None
     # 1. prima le scritture di Dre
-    scritte, ignoti = [], []
+    scritte, ignoti, prog_foglio = [], [], None
     if sid and st.get("foglio_id") == sid and st.get("layout"):   # le celle di Dre si leggono anche dalla forma vecchia, prima di rifarla
         if st.get("layout") == 1:
             celle, incollati, tolti = leggi_celle_v1(sid), [], []
+        elif st.get("layout") < 4:
+            celle, incollati, tolti, _ = leggi_celle(sid, False)   # dalla 2 alla 3 gli elenchi stanno negli stessi blocchi
+            st["layout_vecchio"] = True
         else:
-            celle, incollati, tolti = leggi_celle(sid)              # dalla 2 in poi gli elenchi hanno la stessa forma
+            celle, incollati, tolti, prog_foglio = leggi_celle(sid)
         scritte = scritture_di_dre(celle, st)
         mosse, ignoti = mosse_di_dre(incollati, tolti, st, dati)
         scritte += mosse
@@ -1128,7 +1247,15 @@ def main():
     mrr = sum(r["retainer"] for r in per_fase[CLIENTE] if isinstance(r["retainer"], (int, float)))
     print("foglio: " + " · ".join(f"{f} {len(per_fase[f])}" for f in FASI) + f" · MRR {euro(mrr)}")
     print("foglio: fuori dal percorso " + ", ".join(f"{x} {sum(1 for v in fasi_app.values() if v == x)}" for x in (ALTRE, FERMI)))
-    righe, scritto = griglia(per_fase, mrr, ora, ignoti, date_blocchi(per_fase, st, ora))
+    # i progetti: prima quelli che c'erano gia' (una volta sola), poi quello che ha scritto Dre nel foglio
+    progetti_esistenti(st)
+    if prog_foglio is not None:
+        clienti_chiavi = {chiave_nome(r["azienda"]): r["id"] for r in per_fase[CLIENTE]}
+        for x in progetti_dal_foglio(prog_foglio, st, clienti_chiavi, ora):
+            print(x)
+    vista = {**per_fase, PROGETTI: righe_progetti(st)}
+    print(f"foglio: {PROGETTI} {len(vista[PROGETTI])}")
+    righe, scritto = griglia(vista, mrr, ora, ignoti, date_blocchi(vista, st, ora))
     if PROVA:
         print("(prova: non scrivo niente)")
     elif acceso:
