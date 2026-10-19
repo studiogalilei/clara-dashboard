@@ -3442,7 +3442,8 @@ def _():
     assert per_fase[F.CLIENTE][0]["retainer"] == 2000, per_fase[F.CLIENTE]
     righe, scritto = F.griglia(per_fase, 2000, ora)
     assert scritto["a"]["retainer"] == 2000 and 2000 in righe[F.PRIMA - 1] and scritto["a"]["fase"] == F.CLIENTE
-    assert "MRR 2.000 €" in righe[1][F.BLOCCHI[-1]["da"]] and F.FRASE_USO in righe[0][F.BLOCCHI[4]["da"]]
+    assert "MRR 2.000 €" in righe[1][F.BLOCCHI[-1]["da"]] and righe[0][0] == F.NOME_FOGLIO
+    assert not any("Settimana" in str(c) or "Aggiornato " in str(c) for c in righe[0]), "via la settimana e la frase lunga (Dre, 19/10 sera)"
     assert "sposta" not in F.DI_DRE and not any("sposta" in b["campi"] for b in F.BLOCCHI), "la tendina «Sposta in» non c'e' piu' (Dre, 19/10)"
     # le date e i numeri tornano uguali da come si scrivono a come si rileggono (se no ogni giro
     # sembrerebbe una scrittura di Dre)
@@ -3498,6 +3499,32 @@ def _():
     import datetime
     righe, scritto = F.griglia({f: [] for f in F.FASI}, 0, datetime.datetime(2026, 10, 19, tzinfo=datetime.timezone.utc), ignoti)
     assert righe[F.PRIMA - 1][F.BLOCCHI[-1]["da"]] == "Azienda Inventata" and "Azienda Inventata" not in str(scritto)
+
+
+@prova("foglio della pipeline: la data sopra un blocco cambia solo se il blocco cambia (Dre, 19/10 sera)")
+def _():
+    import datetime, foglio as F
+    t0 = datetime.datetime(2026, 10, 19, 14, 0, tzinfo=datetime.timezone.utc)
+    t1 = t0 + datetime.timedelta(minutes=10)
+    t2 = t1 + datetime.timedelta(minutes=10)
+    lead = lambda i, d="oggi 10:00": {"id": i, "azienda": "Azienda " + i, "dettaglio": d}      # noqa: E731
+    st = {}
+    per_fase = {f: [] for f in F.FASI}
+    per_fase[F.INVIATA] = [lead("a"), lead("b")]
+    date = F.date_blocchi(per_fase, st, t0)
+    assert all(d == t0 for d in date.values()), "alla nascita tutti i blocchi hanno la data della nascita"
+    date = F.date_blocchi(per_fase, st, t1)
+    assert all(d == t0 for d in date.values()), "un giro senza cambiamenti non cambia le date"
+    per_fase[F.CONV] = [lead("c")]
+    date = F.date_blocchi(per_fase, st, t2)
+    assert date[F.CONV] == t2 and date[F.INVIATA] == t0 and date[F.CLIENTE] == t0, date
+    per_fase[F.INVIATA][0]["dettaglio"] = "ieri 10:00"
+    t3 = t2 + datetime.timedelta(minutes=10)
+    assert F.date_blocchi(per_fase, st, t3)[F.INVIATA] == t3, "cambia il dettaglio di un lead: il blocco e' cambiato"
+    righe, _ = F.griglia(per_fase, 0, t3, (), F.date_blocchi(per_fase, st, t3))
+    assert righe[0][0] == F.NOME_FOGLIO and righe[0][1].startswith("aggiornato dal sistema lun 19/10")
+    assert righe[0][F.BLOCCHI[1]["da"]] == "aggiornato dal sistema lun 19/10 16:30", righe[0][F.BLOCCHI[1]["da"]]
+    assert righe[0][F.BLOCCHI[2]["da"]] == "aggiornato dal sistema lun 19/10 16:20"
 
 
 @prova("foglio della pipeline: nessuna mail parte dal foglio (niente postino, bozze, Gmail o Smartlead)")

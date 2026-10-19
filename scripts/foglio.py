@@ -77,7 +77,7 @@ COMMERCIALE = "1ipPNIf8Ep-XFIZq23u4vG8V6xJgpuo5m"     # «2 Commerciale» nel Dr
 CHIAMATE = "1PWqTL7hhhPr6JaYNbBfadxnojPWAlWb6"        # «Chiamate» (l'ex «5 Riunioni»)
 NOME_FOGLIO = "Pipeline Studio Galilei"
 SCHEDA = "Pipeline"
-LAYOUT = 2                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»
+LAYOUT = 3                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco
 PRIMA = 4                        # la prima riga degli elenchi (contando da 1): titolo, intestazioni delle fasi, titoli delle colonne
 RIGHE = 1000
 SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
@@ -95,6 +95,10 @@ DI_DRE = ("scelta", "costo", "inizio", "fine", "retainer", "nota")
 # luogo giusto»): si copia il nome dell'azienda nella colonna Azienda di un'altra fase, o lo si cancella.
 SPOSTA = "sposta"                # il nome interno della mossa (effetti), non una colonna
 FRASE_USO = "Scrivi nelle celle gialle (le Note sono tue: Achille le legge). Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo."
+# Dre, 19/10 sera: «togli la roba della data settimana; metti sopra ogni cella una scritta dell'ultima volta
+# che e' stata modificata dal sistema, font piccolo grigio non invasivo». Sopra ogni blocco, nella riga del
+# titolo: l'ultima volta che il sistema ha cambiato qualcosa in quel blocco (non l'ora dell'ultimo giro).
+GRIGIO_CHIARO = "#9aa0ad"
 DETTAGLIO = {PREP: "Ha scritto", INVIATA: "Inviata", CONV: "Ultima sua", CONO: "Call", TECN: "Call", AVVIO: "Call"}
 
 
@@ -563,21 +567,6 @@ def applica(scritte, dati, st, ora):
 
 # ── la settimana ──────────────────────────────────────────────────────
 
-def settimana(ora):
-    r = ora.astimezone(ROMA)
-    lun = (r - datetime.timedelta(days=r.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    return lun, lun + datetime.timedelta(days=7)
-
-
-def titolo_settimana(ora):
-    lun, _ = settimana(ora)
-    dom = lun + datetime.timedelta(days=6)
-    n = lun.isocalendar()[1]
-    if lun.month == dom.month:
-        return f"Settimana {n} · {lun.day}-{dom.day} {MESI[lun.month - 1]}"
-    return f"Settimana {n} · {lun.day} {MESI[lun.month - 1]} - {dom.day} {MESI[dom.month - 1]}"
-
-
 def _z(t):
     return t.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -693,7 +682,7 @@ def forma(sid, st):
         if fine < NCOL:
             R.append({"updateDimensionProperties": {"range": {"sheetId": S, "dimension": "COLUMNS", "startIndex": fine, "endIndex": fine + 1},
                                                     "properties": {"pixelSize": 14}, "fields": "pixelSize"}})
-    for r, h in ((0, 44), (1, 44), (2, 26)):
+    for r, h in ((0, 40), (1, 44), (2, 26)):
         R.append({"updateDimensionProperties": {"range": {"sheetId": S, "dimension": "ROWS", "startIndex": r, "endIndex": r + 1},
                                                 "properties": {"pixelSize": h}, "fields": "pixelSize"}})
     R.append({"updateDimensionProperties": {"range": {"sheetId": S, "dimension": "ROWS", "startIndex": PRIMA - 1, "endIndex": RIGHE},
@@ -701,15 +690,16 @@ def forma(sid, st):
     # le unioni: la riga in alto (titolo, settimana, come si usa) e le intestazioni delle fasi
     b = BLOCCHI
     fine_b = lambda x: x["da"] + len(x["campi"])                       # noqa: E731
-    unioni = [(0, b[0]["da"], fine_b(b[1])), (0, b[2]["da"], fine_b(b[3])), (0, b[4]["da"], NCOL)]
+    unioni = []
     for x in b:
         unioni.append((1, x["da"], fine_b(x)))
     for r, c0, c1 in unioni:
         R.append({"mergeCells": {"range": _campo(S, r, r + 1, c0, c1), "mergeType": "MERGE_ALL"}})
     # i caratteri e i colori
-    R.append(_formato(_campo(S, 0, 1, 0, fine_b(b[1])), colore=NAVY, grassetto=True, dim=20))
-    R.append(_formato(_campo(S, 0, 1, b[2]["da"], fine_b(b[3])), colore=INCHIOSTRO, grassetto=True, dim=13))
-    R.append(_formato(_campo(S, 0, 1, b[4]["da"], NCOL), colore=TENUE, dim=10, oriz="RIGHT", a_capo="WRAP"))
+    R.append(_formato(_campo(S, 0, 1, 0, NCOL), colore=GRIGIO_CHIARO, dim=8, oriz="LEFT", vert="BOTTOM", a_capo="CLIP"))
+    R.append(_formato(_campo(S, 0, 1, 0, 1), colore=NAVY, grassetto=True, dim=20, vert="MIDDLE"))
+    # la frase d'uso sta nella nota della cella del titolo: non ingombra
+    R.append({"updateCells": {"range": _campo(S, 0, 1, 0, 1), "rows": [{"values": [{"note": FRASE_USO}]}], "fields": "note"}})
     for x in b:
         info_f = INFO_FASE[x["fase"]]
         testo_testa = "#17191f" if x["fase"] == PROVA_F else "#ffffff"
@@ -843,7 +833,40 @@ def mosse_di_dre(incollati, tolti, st, dati):
     return mosse, ignoti
 
 
-def griglia(per_fase, mrr, ora, ignoti=()):
+def colonna_data(x):
+    """Dove sta la data di un blocco nella riga del titolo: la colonna Azienda; nel primo blocco,
+    dove c'e' il titolo, la colonna dopo."""
+    return x["da"] + (1 if x["da"] == 0 else 0)
+
+
+def impronta_blocco(righe):
+    """Cosa c'e' in un blocco, come lo vede Dre: chi c'e', in che ordine, col dettaglio."""
+    import hashlib
+    return hashlib.sha256(json.dumps([(r["id"], r["azienda"], str(r.get("dettaglio", ""))) for r in righe]).encode()).hexdigest()[:16]
+
+
+def date_blocchi(per_fase, st, ora):
+    """L'ultima volta che il sistema ha cambiato qualcosa in ogni blocco: si confronta l'impronta del
+    blocco con quella del giro prima; se e' uguale la data resta. Alla nascita, l'ora della nascita.
+    Aggiorna st (impronte, cambiato_il) e torna {fase: datetime}."""
+    st.setdefault("impronte", {})
+    st.setdefault("cambiato_il", {})
+    out = {}
+    for fase, righe in per_fase.items():
+        imp = impronta_blocco(righe)
+        if st["impronte"].get(fase) != imp or fase not in st["cambiato_il"]:
+            st["impronte"][fase] = imp
+            st["cambiato_il"][fase] = ora.isoformat()
+        out[fase] = quando(st["cambiato_il"][fase])
+    return out
+
+
+def scritta_data(dt):
+    r = dt.astimezone(ROMA)
+    return f"aggiornato dal sistema {GIORNI[r.weekday()]} {r:%d/%m %H:%M}"
+
+
+def griglia(per_fase, mrr, ora, ignoti=(), date=None):
     """Tutto il foglio come righe di valori: la riga in alto, le intestazioni delle fasi, i titoli
     delle colonne, gli elenchi. I nomi incollati da Dre che non si abbinano restano in fondo alla loro
     colonna, senza id, finche' li toglie lui. Torna (righe, scritto)."""
@@ -851,9 +874,9 @@ def griglia(per_fase, mrr, ora, ignoti=()):
     righe = [vuota() for _ in range(PRIMA - 1)]
     b = BLOCCHI
     righe[0][0] = NOME_FOGLIO
-    righe[0][b[2]["da"]] = titolo_settimana(ora)
-    r = ora.astimezone(ROMA)
-    righe[0][b[4]["da"]] = f"Aggiornato {GIORNI[r.weekday()]} {r:%d/%m} alle {r:%H:%M}, ogni 10 minuti. {FRASE_USO}"
+    for x in b:
+        if date and date.get(x["fase"]):
+            righe[0][colonna_data(x)] = scritta_data(date[x["fase"]])
     for x in b:
         n = len(per_fase[x["fase"]])
         righe[1][x["da"]] = f"{x['fase']} · {n}" + (f" · MRR {euro(mrr)}" if x["fase"] == CLIENTE else "")
@@ -1086,11 +1109,11 @@ def main():
     sid = trova_foglio(st) if acceso else None
     # 1. prima le scritture di Dre
     scritte, ignoti = [], []
-    if sid and st.get("foglio_id") == sid and st.get("layout") in (1, LAYOUT):   # 1: si leggono le celle della forma vecchia prima di rifarla
-        if st.get("layout") == LAYOUT:
-            celle, incollati, tolti = leggi_celle(sid)
-        else:
+    if sid and st.get("foglio_id") == sid and st.get("layout"):   # le celle di Dre si leggono anche dalla forma vecchia, prima di rifarla
+        if st.get("layout") == 1:
             celle, incollati, tolti = leggi_celle_v1(sid), [], []
+        else:
+            celle, incollati, tolti = leggi_celle(sid)              # dalla 2 in poi gli elenchi hanno la stessa forma
         scritte = scritture_di_dre(celle, st)
         mosse, ignoti = mosse_di_dre(incollati, tolti, st, dati)
         scritte += mosse
@@ -1105,7 +1128,7 @@ def main():
     mrr = sum(r["retainer"] for r in per_fase[CLIENTE] if isinstance(r["retainer"], (int, float)))
     print("foglio: " + " · ".join(f"{f} {len(per_fase[f])}" for f in FASI) + f" · MRR {euro(mrr)}")
     print("foglio: fuori dal percorso " + ", ".join(f"{x} {sum(1 for v in fasi_app.values() if v == x)}" for x in (ALTRE, FERMI)))
-    righe, scritto = griglia(per_fase, mrr, ora, ignoti)
+    righe, scritto = griglia(per_fase, mrr, ora, ignoti, date_blocchi(per_fase, st, ora))
     if PROVA:
         print("(prova: non scrivo niente)")
     elif acceso:
