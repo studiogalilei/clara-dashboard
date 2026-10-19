@@ -3610,6 +3610,13 @@ def _():
     assert C.tipo_evento({"titolo": "45 Min with Carlo | Performance Marketing (Mario Rossi)", "invitati": ["mario" + at + "azienda.it"]}) == "tecnica"
 
 
+@prova("sync: «Cancellami» e' un no (collaudo 19/10)")
+def _():
+    import sync_v2 as S
+    assert S.classifica("Cancellami") == "negativo"
+    assert S.classifica("Cancellateci dalla lista") == "negativo"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

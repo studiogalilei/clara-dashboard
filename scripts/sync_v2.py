@@ -154,7 +154,7 @@ def sb(method, path, body=None, headers=None):
 from lettura import NO_INTERESSATO                      # noqa: E402  la regola unica (14/10)
 NEG = re.compile(NO_INTERESSATO + "|" +
                  r"non (siamo|sono) interessat|non mi interessa|\bno,?\s*grazie|non interessa|basta spam|"
-                 r"cancellatemi|cancellarmi|cancellarci|rimuovetemi|rimuovermi|rimuoverci|non voglio|"
+                 r"cancellatemi|cancellarmi|cancellarci|\bcancellami\b|\bcancellateci\b|rimuovetemi|rimuovermi|rimuoverci|non voglio|"
                  # 12/10: «cancellare»/«rimuovere» solo quando parlano di loro (lo stesso taglio di lettura.DETTO_NO):
                  # «cancellare il messaggio» dell'informativa faceva diventare no un si'
                  r"(?:rimuov|cancell)\w* (?:il|la|le|i|lo) (?:mio|mia|miei|mie|nostr)|(?:rimuov|cancell)\w* (?:dalla|dalle|dai|dal|dagli) (?:vostr|lista|list|mailing|database|elenc|contatt)|ci occupiamo (gia|già)|abbiamo gia|unsubscribe|non desidero|"
