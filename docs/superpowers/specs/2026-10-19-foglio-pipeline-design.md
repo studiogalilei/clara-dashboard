@@ -35,27 +35,30 @@ Il consiglio di chiamare va reso **più selettivo** di adesso. Dre: «a volte mi
 
 ## Com'è fatto il foglio
 
-- Un solo foglio Google, **«Pipeline Studio Galilei»**, sul Drive di Dre (studiogalilei.com), nella cartella «2 Commerciale». *Scelta di Achille:* la cartella è da confermare.
+*Rivisto la sera del 19/10 dopo che Dre ha visto la prima versione: «c'è tanto noise. "Sposta in" non serve a un cazzo, posso copiare e incollare nel luogo giusto. La riga "Fuori dal percorso…" non serve. Quei numeri in alto non servono. Less noise, solo concretismo».*
+
+- Un solo foglio Google, **«Pipeline Studio Galilei»**, sul Drive condiviso Studio Galilei, nella cartella «2 Commerciale» (confermata: è lì).
 - **Scheda principale «Pipeline»:**
-  - Riga 1: il titolo e la **settimana** («Settimana 43 · 19-25 ottobre»), come le settimane del foglio di Giacomo.
-  - **Le righe del gioco**, sopra le colonne:
-    - i numeri della settimana: risposte, analisi inviate, conoscitive, tecniche, avvii, nuovi clienti;
-    - **MRR attuale**, con una barra verso **50.000 €**;
-    - un segno su ogni numero rispetto alla settimana prima (▲/▼).
-    - *Scelta di Achille:* niente di più, per non farne un gioco vero.
-  - **Una colonna per fase**, da sinistra a destra nell'ordine sopra. Intestazione grande, colore pieno diverso per ogni fase, e il conteggio nell'intestazione («Analisi inviata · 113»).
-  - **Sotto ogni intestazione, l'elenco** che scende. Per riga: azienda, ed eventualmente un dettaglio corto (per esempio la data della call o la scadenza della prova). *Scelta di Achille:* due celle per lead (nome, dettaglio), così le colonne restano strette come quelle di Giacomo.
+  - **Una riga sola in alto:** il titolo, la **settimana** («Settimana 43 · 19-25 ottobre»), «Aggiornato … ogni 10 minuti» e la frase d'uso: «Scrivi nelle celle gialle. Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo.»
+  - **Niente righe del gioco** (numeri della settimana, frecce, barra del MRR) e **niente riga dei conteggi** di chi sta fuori dal percorso: tolte da Dre il 19/10. L'MRR resta, concreto: nell'intestazione dell'ultima colonna, «Cliente · 10 · MRR 1.100 €» (la somma dei retainer scritti).
+  - **Una colonna per fase**, da sinistra a destra nell'ordine sopra. Intestazione grande, colore pieno diverso per ogni fase, e il conteggio nell'intestazione («Analisi inviata · 81»). Subito sotto la riga dei titoli di colonna, poi gli elenchi. Righe fisse: solo queste tre.
+  - **Sotto ogni intestazione, l'elenco** che scende. Per riga: azienda, un dettaglio corto (quando ha scritto, quando è stata inviata l'analisi, la data della call), le celle gialle di Dre, e in una colonna nascosta l'id del lead.
   - **Ordine dentro ogni fase:** prima il più nuovo, appena arrivato. Nel **Periodo di prova** prima la scadenza più vicina.
-  - La conversazione (fase 3) mostra accanto all'azienda il **menu di Dre** come tendina.
+  - La conversazione (fase 3) mostra accanto all'azienda il **menu di Dre** come tendina («Da chiamare», «In attesa di risposta», «Perso»). È l'unica tendina del foglio.
+- **Spostare e togliere un lead, come dice Dre:**
+  - **spostare:** Dre copia (o scrive) il nome dell'azienda nella colonna «Azienda» di un'altra fase. A ogni giro il sistema legge le celle Azienda: un nome sotto una fase diversa da quella calcolata, senza id nella colonna nascosta, abbinato (maiuscole, spazi e accenti non contano) a un lead noto o a un contatto della stessa azienda = «Dre l'ha spostato lì», con gli stessi effetti di prima (Prova, Cliente, perso…) e vince per sempre. Se il nome non si abbina a nessuno, resta dov'è (in fondo alla sua colonna) e lo si dice nel log: niente inventato.
+  - **togliere:** Dre cancella il nome dalla sua cella (riga scritta dal sistema, id presente, Azienda vuota) = «togli dal foglio»: stage perso, non contattabile.
+  - La colonna «Sposta in» non c'è più.
 - **Dove scrive Dre:**
   - la tendina della Conversazione;
   - costo, inizio e fine della Prova;
   - il retainer del Cliente;
-  - una cella «Nota per Achille» per lead.
-  - Il resto lo scrive il sistema.
+  - una cella «Nota per Achille» per lead;
+  - la colonna Azienda, solo per spostare o togliere.
+  - Il resto lo scrive il sistema (celle protette con un avviso, non bloccate).
 - **Vince sempre Dre.** Una cella scritta da lui non viene più riscritta dal sistema. Il sistema legge le sue scritture e le applica: stato nell'app, ricontatti, chiusure.
-- **Togliere un lead** (chi si perde dopo una call): lo fa Dre. Se un lead resta fermo in una fase oltre una soglia (*scelta di Achille:* 10 giorni senza novità), il sistema legge la trascrizione dell'ultima call e fa a Dre **una domanda breve** su cosa fare. La domanda sta nella pagina «Decisioni di Dre» e nell'app.
-- **Aggiornamento:** ogni 10 minuti dal cloud (corsia leggera del direttore), come le altre operazioni.
+- Se un lead resta fermo in una fase oltre una soglia (*scelta di Achille:* 10 giorni senza novità), il sistema legge la trascrizione dell'ultima call e fa a Dre **una domanda breve** su cosa fare. La domanda sta nella pagina «Decisioni di Dre» e nell'app. *(Fase 2, non ancora costruito.)*
+- **Aggiornamento:** ogni 10 minuti dal cloud (corsia leggera del direttore, operazione «foglio»), come le altre operazioni.
 
 ## Da dove il sistema capisce le fasi (si aggiorna da solo)
 

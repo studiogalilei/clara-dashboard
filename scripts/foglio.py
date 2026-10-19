@@ -9,19 +9,22 @@ approvato sta in docs/superpowers/specs/2026-10-19-foglio-pipeline-design.md («
 semplice, non complicarla, fai e basta»). L'app resta la scheda del lead; il foglio e' la vista.
 
 COSA FA, a ogni giro (il direttore, corsia leggera, ogni 10 minuti)
-1. LEGGE PRIMA DRE. Le celle gialle del foglio (sposta in, la scelta della Conversazione, costo,
-   inizio e fine della Prova, il retainer, la «Nota per Achille") si confrontano con quello che il
-   sistema ci aveva scritto: quello che e' diverso l'ha scritto Dre. Si salva nel database e da
-   li' non si riscrive piu' (vince sempre Dre). Gli effetti:
-   - sposta in una fase: la fase nel database (pipeline_stage, come la carta del Workspace) e lo
-     stato nell'app; «Togli dal foglio» e «Perso»: perso, quindi mai piu' contattabile;
+1. LEGGE PRIMA DRE. Le celle gialle del foglio (la scelta della Conversazione, costo, inizio e
+   fine della Prova, il retainer, la «Nota per Achille») si confrontano con quello che il sistema
+   ci aveva scritto: quello che e' diverso l'ha scritto Dre. Si salva nel database e da li' non si
+   riscrive piu' (vince sempre Dre). Spostare e togliere si fa col copia e incolla (Dre, 19/10 sera):
+   un nome d'azienda incollato nella colonna Azienda di un'altra fase (senza id nella colonna
+   nascosta) e' uno spostamento; un nome cancellato dalla sua riga e' un «togli». Gli effetti:
+   - spostato in una fase: la fase nel database (pipeline_stage, come la carta del Workspace) e lo
+     stato nell'app; tolto e «Perso»: perso, quindi mai piu' contattabile;
    - «Da chiamare»: entra in Oggi da chiamare; «In attesa di risposta»: dopo 5 giorni senza
      novita' un promemoria a Dre (app e notifica);
    - una nota: nelle note del lead nell'app, a nome di Dramane (le legge Achille);
    - inizio e fine della prova, il retainer: sulla scheda (il retainer va in cassaforte da solo).
-2. RISCRIVE IL RESTO. Le 8 fasi da sinistra a destra (src/snella/stati.json), il piu' nuovo in
-   cima (la Prova per scadenza), la riga della settimana, i numeri della settimana con ▲/▼ e il
-   MRR con la barra verso 50.000 €, i conteggi di chi sta fuori dal percorso.
+2. RISCRIVE IL RESTO. Una riga in alto (titolo, settimana, quando e' stato aggiornato, come si usa),
+   le 8 fasi da sinistra a destra (src/snella/stati.json) col conteggio nell'intestazione (e il MRR,
+   somma dei retainer, in quella di Cliente), il piu' nuovo in cima (la Prova per scadenza).
+   Niente altro: Dre, 19/10 sera: «less noise, solo concretismo».
 3. LE CALL DI DRE. Gli appunti di Gemini delle sue call con un lead finiscono in «Chiamate» (Drive
    condiviso). Se in una conoscitiva o in una tecnica vi siete accordati per la call dopo con una
    data, e il giorno dopo l'invito non e' in calendario: un avviso a Dre in Oggi e sul telefono.
@@ -67,7 +70,6 @@ CALL_GIORNI = 45
 FERMO_GIORNI = 60
 ALTRE = "Altre risposte"
 FERMI = "Fermi da 60 giorni"
-OBIETTIVO_MRR = 50000
 CALL = {"conoscitiva": CONO, "tecnica": TECN, "avvio": AVVIO}
 LIVELLO = {CONO: 0, TECN: 1, AVVIO: 2}
 
@@ -75,8 +77,8 @@ COMMERCIALE = "1ipPNIf8Ep-XFIZq23u4vG8V6xJgpuo5m"     # «2 Commerciale» nel Dr
 CHIAMATE = "1PWqTL7hhhPr6JaYNbBfadxnojPWAlWb6"        # «Chiamate» (l'ex «5 Riunioni»)
 NOME_FOGLIO = "Pipeline Studio Galilei"
 SCHEDA = "Pipeline"
-LAYOUT = 1                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre)
-PRIMA = 9                        # la prima riga degli elenchi (contando da 1)
+LAYOUT = 2                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»
+PRIMA = 4                        # la prima riga degli elenchi (contando da 1): titolo, intestazioni delle fasi, titoli delle colonne
 RIGHE = 1000
 SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
 DRIVE = "https://www.googleapis.com/drive/v3"
@@ -88,7 +90,11 @@ MESI = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", 
 # ── la forma: un blocco di colonne per fase ───────────────────────────
 # Le celle di Dre (gialle) e quelle del sistema. L'id del lead sta in una colonna nascosta: le
 # righe si riordinano a ogni giro, l'id dice di chi e' una cella che Dre ha scritto.
-DI_DRE = ("scelta", "costo", "inizio", "fine", "retainer", "sposta", "nota")
+DI_DRE = ("scelta", "costo", "inizio", "fine", "retainer", "nota")
+# Spostare e togliere un lead (Dre, 19/10 sera: «"Sposta in" non serve, posso copiare e incollare nel
+# luogo giusto»): si copia il nome dell'azienda nella colonna Azienda di un'altra fase, o lo si cancella.
+SPOSTA = "sposta"                # il nome interno della mossa (effetti), non una colonna
+FRASE_USO = "Scrivi nelle celle gialle. Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo."
 DETTAGLIO = {PREP: "Ha scritto", INVIATA: "Inviata", CONV: "Ultima sua", CONO: "Call", TECN: "Call", AVVIO: "Call"}
 
 
@@ -104,7 +110,7 @@ def _blocchi():
             campi += [("dettaglio", DETTAGLIO[fase], 84)]
         if fase == CONV:
             campi += [("scelta", "La tua scelta", 150)]
-        campi += [("sposta", "Sposta in", 118), ("nota", "Nota per Achille", 150), ("id", "id", 20)]
+        campi += [("nota", "Nota per Achille", 170), ("id", "id", 20)]
         out.append({"fase": fase, "da": col, "campi": [c[0] for c in campi], "titoli": [c[1] for c in campi],
                     "larghezze": [c[2] for c in campi]})
         col += len(campi) + (1 if i < len(FASI) - 1 else 0)          # una colonna stretta fra i blocchi
@@ -267,10 +273,16 @@ def leggi_dati():
             "retainer": retainer, "prova_costo": prova_costo}
 
 
+def chiave_nome(nome):
+    """Un nome d'azienda come si confronta: minuscolo, senza accenti, spazi e punteggiatura."""
+    import unicodedata
+    piatto = unicodedata.normalize("NFKD", str(nome or "")).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]", "", piatto.lower())
+
+
 def chiave_azienda(p):
     """La stessa azienda con piu' contatti sta su una riga sola (tre contatti di un cliente)."""
-    a = re.sub(r"[^a-z0-9]", "", (p.get("company") or "").lower())
-    return a or p["id"]
+    return chiave_nome(p.get("company")) or p["id"]
 
 
 def nome_azienda(p, s=None):
@@ -549,7 +561,7 @@ def applica(scritte, dati, st, ora):
     return righe
 
 
-# ── i numeri della settimana ──────────────────────────────────────────
+# ── la settimana ──────────────────────────────────────────────────────
 
 def settimana(ora):
     r = ora.astimezone(ROMA)
@@ -568,68 +580,6 @@ def titolo_settimana(ora):
 
 def _z(t):
     return t.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def numeri_settimana(dati, st, ora):
-    """Questa settimana fino ad adesso, e la settimana prima fino allo stesso momento (cosi' il
-    lunedi' mattina non sembra un crollo)."""
-    import segnale_provvisorio as SP
-    lun, _ = settimana(ora)
-    prima_lun = lun - datetime.timedelta(days=7)
-    finestre = {"ora": (lun, ora), "prima": (prima_lun, ora - datetime.timedelta(days=7))}
-    entrate = sb_tutte(f"/rest/v1/interactions?select=id,prospect_id,at,body&kind=eq.email_in&prospect_id=not.is.null&at=gte.{_z(prima_lun)}")
-    entrate = [(r["prospect_id"], quando(r["at"])) for r in entrate if not SP.automatica(r.get("body") or "")]
-    analisi = [quando(p["analysis_sent_at"]) for p in
-               sb_tutte(f"/rest/v1/prospects?select=id,analysis_sent_at&analysis_sent_at=gte.{_z(prima_lun)}")]
-    nuovi = []
-    for c in dati["clienti"].values():
-        if c.get("dal"):
-            nuovi.append((chiave_azienda(dati["ps"].get(c["prospect_id"]) or {"id": c["prospect_id"]}),
-                          datetime.datetime.combine(datetime.date.fromisoformat(str(c["dal"])[:10]), datetime.time(9), ROMA)))
-    for pid, m in st["mano"].items():
-        if m.get("fase") == CLIENTE and m.get("da") == "foglio":
-            nuovi.append((chiave_azienda(dati["ps"].get(pid) or {"id": pid}), quando(m["il"])))
-    out = {}
-    for nome, (da, a) in finestre.items():
-        dentro = lambda t: da <= t < a                                      # noqa: E731
-        call = {k: len({(x["prospect_id"], x["at"][:10]) for x in dati["agenda"] if x.get("tipo") == k and dentro(quando(x["at"]))})
-                for k in CALL}
-        out[nome] = {"risposte": len({pid for pid, t in entrate if dentro(t)}),
-                     "analisi": sum(1 for t in analisi if dentro(t)),
-                     "conoscitive": call["conoscitiva"], "tecniche": call["tecnica"], "avvii": call["avvio"],
-                     "clienti": len({k for k, t in nuovi if dentro(t)})}
-    return out
-
-
-GIOCO = [("risposte", "Risposte"), ("analisi", "Analisi inviate"), ("conoscitive", "Conoscitive"),
-         ("tecniche", "Tecniche"), ("avvii", "Avvii"), ("clienti", "Nuovi clienti")]
-
-
-def segno(ora_n, prima_n):
-    d = ora_n - prima_n
-    if d > 0:
-        return f"▲ {d} sulla settimana prima"
-    if d < 0:
-        return f"▼ {-d} sulla settimana prima"
-    return "uguale alla settimana prima"      # mai iniziare con «=»: Google lo legge come formula (#ERROR!)
-
-
-def conta(filtro):
-    """Quanti prospect con quel filtro (il database lo dice senza mandare le righe)."""
-    req = urllib.request.Request(f"{URL.rstrip('/')}/rest/v1/prospects?select=id&limit=1&{filtro}", headers={
-        "apikey": CHIAVE, "Authorization": "Bearer " + CHIAVE, "Prefer": "count=exact"})
-    with urllib.request.urlopen(req, timeout=40) as r:
-        return int((r.headers.get("Content-Range") or "*/0").split("/")[-1])
-
-
-def fuori_percorso():
-    """I conteggi di chi sta fuori dalle colonne: li gestisce il sistema."""
-    return [("No", conta("classificazione=in.(negativo,fuori_target)")),
-            ("Non contattare", conta("classificazione=in.(soppresso,nervoso)")),
-            ("Fuori ufficio", conta("classificazione=eq.ooo")),
-            ("Più avanti", conta("classificazione=eq.rinvio")),
-            ("Persi", conta("or=(stage.eq.perso,pipeline_stage.eq.perso)")),
-            ("Mai risposto", conta("last_reply_at=is.null"))]
 
 
 def migliaia(n):
@@ -743,42 +693,28 @@ def forma(sid, st):
         if fine < NCOL:
             R.append({"updateDimensionProperties": {"range": {"sheetId": S, "dimension": "COLUMNS", "startIndex": fine, "endIndex": fine + 1},
                                                     "properties": {"pixelSize": 14}, "fields": "pixelSize"}})
-    for r, h in ((0, 44), (1, 10), (2, 22), (3, 40), (4, 20), (5, 30), (6, 44), (7, 26)):
+    for r, h in ((0, 44), (1, 44), (2, 26)):
         R.append({"updateDimensionProperties": {"range": {"sheetId": S, "dimension": "ROWS", "startIndex": r, "endIndex": r + 1},
                                                 "properties": {"pixelSize": h}, "fields": "pixelSize"}})
     R.append({"updateDimensionProperties": {"range": {"sheetId": S, "dimension": "ROWS", "startIndex": PRIMA - 1, "endIndex": RIGHE},
                                             "properties": {"pixelSize": 28}, "fields": "pixelSize"}})
-    # le unioni: il titolo, la riga della settimana, il gioco (un blocco per numero, il MRR sugli
-    # ultimi due), i conteggi fuori percorso, le intestazioni delle fasi
+    # le unioni: la riga in alto (titolo, settimana, come si usa) e le intestazioni delle fasi
     b = BLOCCHI
     fine_b = lambda x: x["da"] + len(x["campi"])                       # noqa: E731
-    unioni = [(0, b[0]["da"], fine_b(b[1])), (0, b[2]["da"], fine_b(b[3])), (0, b[4]["da"], NCOL), (5, 0, NCOL)]
-    for i in range(6):
-        for r in (2, 3, 4):
-            unioni.append((r, b[i]["da"], fine_b(b[i])))
-    for r in (2, 4):
-        unioni.append((r, b[6]["da"], NCOL))
-    unioni.append((3, b[6]["da"], fine_b(b[6])))
-    unioni.append((3, b[7]["da"], NCOL))
+    unioni = [(0, b[0]["da"], fine_b(b[1])), (0, b[2]["da"], fine_b(b[3])), (0, b[4]["da"], NCOL)]
     for x in b:
-        unioni.append((6, x["da"], fine_b(x)))
+        unioni.append((1, x["da"], fine_b(x)))
     for r, c0, c1 in unioni:
         R.append({"mergeCells": {"range": _campo(S, r, r + 1, c0, c1), "mergeType": "MERGE_ALL"}})
     # i caratteri e i colori
     R.append(_formato(_campo(S, 0, 1, 0, fine_b(b[1])), colore=NAVY, grassetto=True, dim=20))
     R.append(_formato(_campo(S, 0, 1, b[2]["da"], fine_b(b[3])), colore=INCHIOSTRO, grassetto=True, dim=13))
     R.append(_formato(_campo(S, 0, 1, b[4]["da"], NCOL), colore=TENUE, dim=10, oriz="RIGHT", a_capo="WRAP"))
-    R.append(_formato(_campo(S, 2, 3, 0, NCOL), colore=TENUE, grassetto=True, dim=10))
-    R.append(_formato(_campo(S, 3, 4, 0, NCOL), colore=INCHIOSTRO, grassetto=True, dim=22, oriz="LEFT"))
-    R.append(_formato(_campo(S, 3, 4, b[6]["da"], fine_b(b[6])), colore="#166534", grassetto=True, dim=22,
-                      numero={"type": "CURRENCY", "pattern": '#,##0 "€"'}))
-    R.append(_formato(_campo(S, 4, 5, 0, NCOL), colore=TENUE, dim=9))
-    R.append(_formato(_campo(S, 5, 6, 0, NCOL), colore=TENUE, dim=10, fondo="#f6f7f9"))
     for x in b:
         info_f = INFO_FASE[x["fase"]]
         testo_testa = "#17191f" if x["fase"] == PROVA_F else "#ffffff"
-        R.append(_formato(_campo(S, 6, 7, x["da"], fine_b(x)), fondo=info_f["colore"], colore=testo_testa, grassetto=True, dim=13))
-        R.append(_formato(_campo(S, 7, 8, x["da"], fine_b(x)), fondo=info_f["fondo"], colore=info_f["testo"], grassetto=True, dim=9))
+        R.append(_formato(_campo(S, 1, 2, x["da"], fine_b(x)), fondo=info_f["colore"], colore=testo_testa, grassetto=True, dim=13, a_capo="WRAP"))
+        R.append(_formato(_campo(S, 2, 3, x["da"], fine_b(x)), fondo=info_f["fondo"], colore=info_f["testo"], grassetto=True, dim=9))
         R.append(_formato(_campo(S, PRIMA - 1, RIGHE, x["da"], fine_b(x)), dim=10, colore=INCHIOSTRO, a_capo="CLIP"))
         R.append(_formato(_campo(S, PRIMA - 1, RIGHE, x["da"], x["da"] + 1), grassetto=True, dim=10, colore=INCHIOSTRO))
         for campo in x["campi"]:
@@ -792,10 +728,7 @@ def forma(sid, st):
                 R.append(_formato(rng, numero={"type": "DATE", "pattern": "dd/mm/yyyy"}))
             # le tendine e i controlli sulle celle di Dre
             regola = None
-            if campo == "sposta":
-                regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in FASI + [TOGLI]]},
-                          "strict": True, "showCustomUi": True}
-            elif campo == "scelta":
+            if campo == "scelta":
                 regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in SCELTE]},
                           "strict": True, "showCustomUi": True}
             elif campo in ("inizio", "fine"):
@@ -816,21 +749,16 @@ def forma(sid, st):
         R.append({"addConditionalFormatRule": {"index": 0, "rule": {
             "ranges": [_campo(S, PRIMA - 1, RIGHE, x["da"], x["da"] + 1)],
             "booleanRule": {"condition": {"type": "NOT_BLANK"}, "format": {"textFormat": {"bold": True}}}}}})
-        R.append({"updateBorders": {"range": _campo(S, 6, RIGHE, x["da"], fine_b(x)),
-                                    "innerHorizontal": {"style": "SOLID", "color": rgb(BORDO)},
+        # niente righe orizzontali negli elenchi (con le griglie nascoste restano pulite): solo
+        # una riga sotto i titoli delle colonne
+        R.append({"updateBorders": {"range": _campo(S, 2, 3, x["da"], fine_b(x)),
                                     "bottom": {"style": "SOLID", "color": rgb(BORDO)}}})
-    # ▲ verde, ▼ rosso
-    for car, col in (("▲", "#166534"), ("▼", "#b42318")):
-        R.append({"addConditionalFormatRule": {"index": 0, "rule": {
-            "ranges": [_campo(S, 4, 5, 0, NCOL)],
-            "booleanRule": {"condition": {"type": "TEXT_STARTS_WITH", "values": [{"userEnteredValue": car}]},
-                            "format": {"textFormat": {"foregroundColor": rgb(col), "bold": True}}}}}})
     # le celle del sistema: un avviso se Dre le tocca (si possono toccare, ma vengono riscritte)
     R.append({"addProtectedRange": {"protectedRange": {"range": _campo(S, 0, PRIMA - 1, 0, NCOL), "warningOnly": True,
                                                        "description": "Lo scrive il sistema ogni 10 minuti"}}})
     for x in b:
         for campo in x["campi"]:
-            if campo not in DI_DRE:
+            if campo not in DI_DRE and campo != "azienda":          # l'azienda la tocca Dre per spostare o togliere
                 c = colonna(x, campo)
                 R.append({"addProtectedRange": {"protectedRange": {"range": _campo(S, PRIMA - 1, RIGHE, c, c + 1), "warningOnly": True,
                                                                    "description": "Lo scrive il sistema ogni 10 minuti: scrivi nelle celle gialle"}}})
@@ -845,55 +773,111 @@ def leggi_celle(sid):
     rng = [f"{SCHEDA}!{lettera(b['da'])}{PRIMA}:{lettera(b['da'] + len(b['campi']) - 1)}{RIGHE}" for b in BLOCCHI]
     q = "&".join("ranges=" + urllib.parse.quote(r) for r in rng)
     d = _g("GET", f"{SHEETS}/{sid}/values:batchGet?{q}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING")
-    out = {}
+    out, incollati, tolti = {}, [], []
     for b, vr in zip(BLOCCHI, d.get("valueRanges", [])):
         for riga in vr.get("values", []):
             riga = riga + [""] * (len(b["campi"]) - len(riga))
             pid = str(riga[b["campi"].index("id")]).strip()
+            azienda = " ".join(str(riga[b["campi"].index("azienda")] or "").split())
             if not re.fullmatch(r"[0-9a-f\-]{36}", pid):
+                if azienda:
+                    incollati.append((b["fase"], azienda))        # un nome senza id: l'ha scritto Dre
                 continue
+            if not azienda:
+                tolti.append(pid)                                  # il nome cancellato da una riga del sistema
             out[pid] = {c: norma(c, riga[i]) for i, c in enumerate(b["campi"]) if c in DI_DRE}
+    return out, incollati, tolti
+
+
+def leggi_celle_v1(sid):
+    """Le celle di Dre della forma vecchia (LAYOUT 1: elenchi dalla riga 9, colonna «Sposta in» prima
+    della nota): si leggono una volta sola, prima di rifare il foglio, cosi' niente di suo si perde."""
+    campi_v1 = []
+    for b in BLOCCHI:
+        c = list(b["campi"])
+        c.insert(c.index("nota"), "sposta")
+        campi_v1.append(c)
+    da = 0
+    rng = []
+    for c in campi_v1:
+        rng.append(f"{SCHEDA}!{lettera(da)}9:{lettera(da + len(c) - 1)}{RIGHE}")
+        da += len(c) + 1
+    q = "&".join("ranges=" + urllib.parse.quote(r) for r in rng)
+    d = _g("GET", f"{SHEETS}/{sid}/values:batchGet?{q}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING")
+    out = {}
+    for c, vr in zip(campi_v1, d.get("valueRanges", [])):
+        for riga in vr.get("values", []):
+            riga = riga + [""] * (len(c) - len(riga))
+            pid = str(riga[c.index("id")]).strip()
+            if re.fullmatch(r"[0-9a-f\-]{36}", pid):
+                out[pid] = {k: norma(k, riga[i]) for i, k in enumerate(c) if k in DI_DRE or k == "sposta"}
     return out
 
 
-def griglia(per_fase, numeri, fuori, mrr, ora):
-    """Tutto il foglio come righe di valori (le righe 1-8 e gli elenchi). Torna (righe, scritto)."""
+def mosse_di_dre(incollati, tolti, st, dati):
+    """Gli spostamenti fatti col copia e incolla e i nomi cancellati. Torna ([(pid, SPOSTA, fase o TOGLI)],
+    [(fase, nome) non abbinati]). Un nome incollato sotto una fase si abbina per chiave_azienda a un
+    lead noto (prima chi sta gia' nel foglio); se e' gia' in quella fase non e' una mossa; se non si
+    abbina a nessuno non si inventa niente: resta dov'e' e si dice nel log."""
+    per_chiave = {}
+    for pid, p in dati["ps"].items():
+        per_chiave.setdefault(chiave_azienda(p), []).append(pid)
+    mosse, ignoti = [], []
+    for fase, nome in incollati:
+        if fase not in FASI:
+            continue
+        pids = per_chiave.get(chiave_nome(nome)) or []
+        nel_foglio = [x for x in pids if x in st["scritto"]]
+        pid = (nel_foglio or pids or [None])[0]
+        if not pid:
+            ignoti.append((fase, nome))
+            continue
+        dove = (st["scritto"].get(pid) or {}).get("fase") or (st["mano"].get(pid) or {}).get("fase")
+        if dove == fase:
+            continue                                           # incollato dove sta gia': niente
+        mosse.append((pid, SPOSTA, fase))
+    for pid in tolti:
+        if pid in st["scritto"] and (st["mano"].get(pid) or {}).get("fase") != TOGLI:
+            mosse.append((pid, SPOSTA, TOGLI))
+    return mosse, ignoti
+
+
+def griglia(per_fase, mrr, ora, ignoti=()):
+    """Tutto il foglio come righe di valori: la riga in alto, le intestazioni delle fasi, i titoli
+    delle colonne, gli elenchi. I nomi incollati da Dre che non si abbinano restano in fondo alla loro
+    colonna, senza id, finche' li toglie lui. Torna (righe, scritto)."""
     vuota = lambda: [""] * NCOL                                         # noqa: E731
     righe = [vuota() for _ in range(PRIMA - 1)]
     b = BLOCCHI
     righe[0][0] = NOME_FOGLIO
     righe[0][b[2]["da"]] = titolo_settimana(ora)
     r = ora.astimezone(ROMA)
-    righe[0][b[4]["da"]] = (f"Aggiornato {GIORNI[r.weekday()]} {r:%d/%m} alle {r:%H:%M}, ogni 10 minuti. "
-                            "Scrivi solo nelle celle gialle: il resto lo scrive il sistema.")
-    for i, (k, nome) in enumerate(GIOCO):
-        righe[2][b[i]["da"]] = nome
-        righe[3][b[i]["da"]] = numeri["ora"][k]
-        righe[4][b[i]["da"]] = segno(numeri["ora"][k], numeri["prima"][k])
-    righe[2][b[6]["da"]] = f"MRR · obiettivo {euro(OBIETTIVO_MRR)}"
-    righe[3][b[6]["da"]] = mrr
-    righe[3][b[7]["da"]] = (f'=SPARKLINE({mrr},{{"charttype","bar";"max",{OBIETTIVO_MRR};'
-                            f'"color1","{INFO_FASE[CLIENTE]["colore"]}";"color2","{BORDO}"}})')
-    righe[4][b[6]["da"]] = f"{mrr / OBIETTIVO_MRR:.0%} dell'obiettivo · mancano {euro(max(0, OBIETTIVO_MRR - mrr))}"
-    righe[5][0] = "Fuori dal percorso, li gestisce il sistema:   " + "   ·   ".join(f"{n} {migliaia(v)}" for n, v in fuori)
+    righe[0][b[4]["da"]] = f"Aggiornato {GIORNI[r.weekday()]} {r:%d/%m} alle {r:%H:%M}, ogni 10 minuti. {FRASE_USO}"
     for x in b:
         n = len(per_fase[x["fase"]])
-        righe[6][x["da"]] = f"{x['fase']} · {n}"
+        righe[1][x["da"]] = f"{x['fase']} · {n}" + (f" · MRR {euro(mrr)}" if x["fase"] == CLIENTE else "")
         for i, t in enumerate(x["titoli"]):
-            righe[7][x["da"] + i] = "" if t == "id" else t
-    lunga = max((len(v) for v in per_fase.values()), default=0)
+            righe[2][x["da"] + i] = "" if t == "id" else t
+    liste = {f: list(v) for f, v in per_fase.items()}
+    for fase, nome in ignoti:
+        if fase in liste:
+            liste[fase].append({"id": "", "azienda": nome, "ignoto": True})
+    lunga = max((len(v) for v in liste.values()), default=0)
     scritto = {}
     for i in range(lunga):
         riga = vuota()
         for x in b:
-            lista = per_fase[x["fase"]]
+            lista = liste[x["fase"]]
             if i >= len(lista):
                 continue
             lead = lista[i]
+            if lead.get("ignoto"):
+                riga[x["da"]] = testo(lead["azienda"])
+                continue
             for j, campo in enumerate(x["campi"]):
                 v = lead.get(campo, "")
                 riga[x["da"] + j] = in_cella(campo, v) if campo in DI_DRE else (lead["id"] if campo == "id" else testo(v))
-            scritto[lead["id"]] = {c: lead.get(c, "") for c in x["campi"] if c in DI_DRE}
+            scritto[lead["id"]] = {**{c: lead.get(c, "") for c in x["campi"] if c in DI_DRE}, "fase": x["fase"]}
         righe.append(riga)
     return righe, scritto
 
@@ -1100,23 +1084,27 @@ def main():
         print("foglio: l'API di Google Sheets e' spenta nel progetto Google (686127567563): il foglio non si aggiorna")
     sid = trova_foglio(st) if acceso else None
     # 1. prima le scritture di Dre
-    scritte = []
-    if sid and ((st.get("foglio_id") == sid and st.get("layout") == LAYOUT) or "--rifai" in sys.argv):
-        celle = leggi_celle(sid)
+    scritte, ignoti = [], []
+    if sid and st.get("foglio_id") == sid and st.get("layout") in (1, LAYOUT):   # 1: si leggono le celle della forma vecchia prima di rifarla
+        if st.get("layout") == LAYOUT:
+            celle, incollati, tolti = leggi_celle(sid)
+        else:
+            celle, incollati, tolti = leggi_celle_v1(sid), [], []
         scritte = scritture_di_dre(celle, st)
+        mosse, ignoti = mosse_di_dre(incollati, tolti, st, dati)
+        scritte += mosse
+        for fase, nome in ignoti:
+            print(f"  incollato sotto «{fase}» ma non lo riconosco, lo lascio li': {nome[:60]}")
     for r in applica(scritte, dati, st, ora):
         print(r)
     if scritte and not PROVA:
         dati = leggi_dati()                        # gli effetti hanno cambiato le fasi
     # 2. poi il resto
     per_fase, fasi_app = calcola(dati, st, ora)
-    numeri = numeri_settimana(dati, st, ora)
-    fuori = fuori_percorso() + [(x, sum(1 for v in fasi_app.values() if v == x)) for x in (ALTRE, FERMI)]
     mrr = sum(r["retainer"] for r in per_fase[CLIENTE] if isinstance(r["retainer"], (int, float)))
-    print("foglio: " + " · ".join(f"{f} {len(per_fase[f])}" for f in FASI))
-    print(f"foglio: settimana {numeri['ora']} (prima {numeri['prima']}), MRR {euro(mrr)}")
-    print("foglio: fuori " + ", ".join(f"{n} {v}" for n, v in fuori))
-    righe, scritto = griglia(per_fase, numeri, fuori, mrr, ora)
+    print("foglio: " + " · ".join(f"{f} {len(per_fase[f])}" for f in FASI) + f" · MRR {euro(mrr)}")
+    print("foglio: fuori dal percorso " + ", ".join(f"{x} {sum(1 for v in fasi_app.values() if v == x)}" for x in (ALTRE, FERMI)))
+    righe, scritto = griglia(per_fase, mrr, ora, ignoti)
     if PROVA:
         print("(prova: non scrivo niente)")
     elif acceso:

@@ -3440,12 +3440,13 @@ def _():
     st["dre"]["a"] = {"retainer": {"v": 2000, "il": ora.isoformat()}}
     per_fase, _ = F.calcola(dati, st, ora)
     assert per_fase[F.CLIENTE][0]["retainer"] == 2000, per_fase[F.CLIENTE]
-    numeri = {k: {x: 0 for x, _ in F.GIOCO} for k in ("ora", "prima")}
-    righe, scritto = F.griglia(per_fase, numeri, [("No", 1)], 2000, ora)
-    assert scritto["a"]["retainer"] == 2000 and 2000 in righe[F.PRIMA - 1]
+    righe, scritto = F.griglia(per_fase, 2000, ora)
+    assert scritto["a"]["retainer"] == 2000 and 2000 in righe[F.PRIMA - 1] and scritto["a"]["fase"] == F.CLIENTE
+    assert "MRR 2.000 €" in righe[1][F.BLOCCHI[-1]["da"]] and F.FRASE_USO in righe[0][F.BLOCCHI[4]["da"]]
+    assert "sposta" not in F.DI_DRE and not any("sposta" in b["campi"] for b in F.BLOCCHI), "la tendina «Sposta in» non c'e' piu' (Dre, 19/10)"
     # le date e i numeri tornano uguali da come si scrivono a come si rileggono (se no ogni giro
     # sembrerebbe una scrittura di Dre)
-    for campo, v in (("inizio", "2026-10-07"), ("costo", 1500), ("retainer", 1100.5), ("nota", "Richiamarlo"), ("sposta", F.CLIENTE)):
+    for campo, v in (("inizio", "2026-10-07"), ("costo", 1500), ("retainer", 1100.5), ("nota", "Richiamarlo")):
         assert F.norma(campo, F.in_cella(campo, v)) == v, (campo, v, F.in_cella(campo, v))
     assert F.norma("inizio", "7/10/26") == "2026-10-07" and F.norma("costo", "1.500 €") == 1500
     # un nome d'azienda non diventa mai una formula nel foglio
@@ -3459,7 +3460,7 @@ def _():
     oggi = datetime.date(2026, 10, 19)
     lead = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}
     assert contattabile(lead)
-    for campo, valore in (("scelta", "Perso"), ("sposta", F.TOGLI)):
+    for campo, valore in (("scelta", "Perso"), (F.SPOSTA, F.TOGLI)):
         p = dict(lead)
         for tabella, cosa in F.effetti(campo, valore, oggi):
             if tabella == "prospects":
@@ -3467,7 +3468,7 @@ def _():
         assert not contattabile(p), (campo, valore, p)
         assert ("snella_lead", {"stato": "Perso"}) in F.effetti(campo, valore, oggi)
     p = dict(lead)
-    for tabella, cosa in F.effetti("sposta", F.CLIENTE, oggi):
+    for tabella, cosa in F.effetti(F.SPOSTA, F.CLIENTE, oggi):
         if tabella == "prospects":
             p.update(cosa)
     assert not contattabile(p), "un cliente spostato dal foglio non si contatta"
@@ -3475,6 +3476,28 @@ def _():
     assert chiama["chiamata"] == "richiamare" and chiama["richiamare_il"] == "2026-10-19" and chiama["stato"] == "Da chiamare"
     attesa = dict(F.effetti("scelta", "In attesa di risposta", oggi))
     assert attesa["snella_lead"]["prossima_il"] == "2026-10-24" and attesa["attesa"]
+
+
+@prova("foglio della pipeline: spostare = copiare il nome in un'altra colonna, togliere = cancellarlo; un nome sconosciuto non fa niente (Dre, 19/10 sera)")
+def _():
+    import foglio as F
+    dati = {"ps": {"a": {"id": "a", "company": "Rossi & Figli S.r.l."}, "b": {"id": "b", "company": "Verdi Serramenti"},
+                   "b2": {"id": "b2", "company": "Verdi Serramenti"}, "c": {"id": "c", "company": "Bianchi"}}}
+    st = {"scritto": {"a": {"fase": F.INVIATA}, "b": {"fase": F.CONV}, "c": {"fase": F.CONO}}, "mano": {}, "dre": {}}
+    # il nome incollato sotto un'altra fase, anche scritto diverso (maiuscole, accenti, punteggiatura)
+    mosse, ignoti = F.mosse_di_dre([(F.PROVA_F, "ROSSI & figli s.r.l."), (F.CLIENTE, "VERDI SERRAMENTI")], [], st, dati)
+    assert mosse == [("a", F.SPOSTA, F.PROVA_F), ("b", F.SPOSTA, F.CLIENTE)] and not ignoti, (mosse, ignoti)
+    assert F.chiave_nome("Città Più S.p.A.") == F.chiave_nome("citta piu spa")
+    # incollato dove sta gia': non e' una mossa. Un nome che non si conosce: niente, e si tiene da parte
+    mosse, ignoti = F.mosse_di_dre([(F.CONV, "Verdi Serramenti"), (F.CLIENTE, "Azienda Inventata")], [], st, dati)
+    assert mosse == [] and ignoti == [(F.CLIENTE, "Azienda Inventata")]
+    # il nome cancellato dalla riga del sistema = togli; una riga che il sistema non ha scritto no
+    mosse, _ = F.mosse_di_dre([], ["c", "zz"], st, dati)
+    assert mosse == [("c", F.SPOSTA, F.TOGLI)]
+    # e gli ignoti restano nel foglio, in fondo alla loro colonna, senza id
+    import datetime
+    righe, scritto = F.griglia({f: [] for f in F.FASI}, 0, datetime.datetime(2026, 10, 19, tzinfo=datetime.timezone.utc), ignoti)
+    assert righe[F.PRIMA - 1][F.BLOCCHI[-1]["da"]] == "Azienda Inventata" and "Azienda Inventata" not in str(scritto)
 
 
 @prova("foglio della pipeline: nessuna mail parte dal foglio (niente postino, bozze, Gmail o Smartlead)")
@@ -3489,7 +3512,7 @@ def _():
         assert vietato not in codice.lower(), f"foglio.py tocca «{vietato}»"
     assert set(_re.findall(r'proponi\("(\w+)"', codice)) == {"umano"}, "il foglio fa solo domande a Dre, mai bozze"
     oggi = datetime.date(2026, 10, 19)
-    for campo in F.DI_DRE:
+    for campo in (*F.DI_DRE, F.SPOSTA):
         for v in ("", "x", 100, "2026-10-21", F.TOGLI, *F.FASI, *F.SCELTE):
             for tabella, _ in F.effetti(campo, v, oggi):
                 assert tabella in ("prospects", "snella_lead", "snella_note", "mano", "attesa"), (campo, v, tabella)
