@@ -3522,9 +3522,9 @@ def _():
     t3 = t2 + datetime.timedelta(minutes=10)
     assert F.date_blocchi(per_fase, st, t3)[F.INVIATA] == t3, "cambia il dettaglio di un lead: il blocco e' cambiato"
     righe, _ = F.griglia(per_fase, 0, t3, (), F.date_blocchi(per_fase, st, t3))
-    assert righe[0][0] == F.NOME_FOGLIO and righe[0][1].startswith("aggiornato dal sistema lun 19/10")
-    assert righe[0][F.BLOCCHI[1]["da"]] == "aggiornato dal sistema lun 19/10 16:30", righe[0][F.BLOCCHI[1]["da"]]
-    assert righe[0][F.BLOCCHI[2]["da"]] == "aggiornato dal sistema lun 19/10 16:20"
+    assert righe[0][0] == F.NOME_FOGLIO and righe[0][1].startswith("Ultima modifica lun 19/10")
+    assert righe[0][F.BLOCCHI[1]["da"]] == "Ultima modifica lun 19/10 16:30", righe[0][F.BLOCCHI[1]["da"]]
+    assert righe[0][F.BLOCCHI[2]["da"]] == "Ultima modifica lun 19/10 16:20"
 
 
 @prova("foglio della pipeline: nessuna mail parte dal foglio (niente postino, bozze, Gmail o Smartlead)")

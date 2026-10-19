@@ -863,7 +863,7 @@ def date_blocchi(per_fase, st, ora):
 
 def scritta_data(dt):
     r = dt.astimezone(ROMA)
-    return f"aggiornato dal sistema {GIORNI[r.weekday()]} {r:%d/%m %H:%M}"
+    return f"Ultima modifica {GIORNI[r.weekday()]} {r:%d/%m %H:%M}"
 
 
 def griglia(per_fase, mrr, ora, ignoti=(), date=None):
