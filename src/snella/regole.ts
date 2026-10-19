@@ -1,11 +1,27 @@
 // LA VERSIONE SNELLA: le poche regole della UI, pure e provate (regole.test.ts).
 // Il grosso lo decide scripts/schede.py; qui solo come si combinano le schede con quello che
 // ha deciso Dre (chiamato, richiamare il...) e come si scrivono date e numeri.
-import type { Call, Decisione, Domanda, RigaLead, Stato } from './dati'
+import { INFO_STATI, type Call, type Decisione, type Domanda, type InfoStato, type RigaLead } from './dati'
+import statiJson from './stati.json'
 
 export const ROMA = 'Europe/Rome'
 export const GIORNI_DA_CHIAMARE = 21          // oltre, chi voleva sentirti si guarda dalla lista Lead
-const FERMI: Array<Stato | string> = ['No grazie', 'Non scrivere più', 'Conoscitiva']
+// chi Dre ha messo in un'opportunita' (la call c'e' gia', o e' cliente) o fra i chiusi non si chiama
+const FERMI: string[] = INFO_STATI.filter((s) => s.gruppo === 'Opportunità' || s.gruppo === 'Chiusi').map((s) => s.nome)
+const DAI_VECCHI: Record<string, string> = statiJson.dai_vecchi
+
+/** Il nome di uno stato fra i 12 di Dre (19/10): una scheda non ancora rifatta puo' avere ancora
+ *  un nome vecchio («No grazie», «Vuole sentirti»...): si traduce, mai si mostra. */
+export function nomeStato(s: string | null | undefined): string | null {
+  if (!s) return null
+  if (INFO_STATI.some((x) => x.nome === s)) return s
+  return DAI_VECCHI[s] ?? null
+}
+
+/** Quello che sa lo stato: gruppo, colore, responsabile e prossima azione di default. */
+export function infoStato(s: string): InfoStato | null {
+  return INFO_STATI.find((x) => x.nome === s) ?? null
+}
 
 /** Il giorno a Roma, AAAA-MM-GG. */
 export function giornoRoma(d: Date = new Date()): string {
@@ -21,22 +37,19 @@ export function piuGiorni(giorno: string, n: number): string {
 }
 
 export function statoDi(r: Pick<RigaLead, 'stato'>, d?: Decisione | null): string {
-  return d?.stato || r.stato || 'In conversazione'
+  return nomeStato(d?.stato) || nomeStato(r.stato) || 'Da rispondere'
 }
 
-/** I sei toni del Workspace (src/index.css, 17/10): il colore dice il significato, mai da solo. */
-export type Tono = 'ok' | 'no' | 'attesa' | 'noi' | 'loro' | 'neutro'
+/** I toni del Workspace (src/index.css, 17/10 e 19/10): il colore dice il significato, mai da solo.
+ *  ok verde, no rosso, attesa ambra, noi blu, loro arancio, neutro grigio; dal 19/10 opp viola (le
+ *  opportunita'), giallo (da ricontattare) e stop (Non contattare: piu' scuro del rosso). */
+export type Tono = 'ok' | 'no' | 'attesa' | 'noi' | 'loro' | 'neutro' | 'opp' | 'giallo' | 'stop'
+const TONI: readonly Tono[] = ['ok', 'no', 'attesa', 'noi', 'loro', 'neutro', 'opp', 'giallo', 'stop']
 
-/** Il colore di uno stato: verde va bene, rosso no, ambra da guardare, blu lo seguiamo noi,
- *  grigio neutro o chiuso. Uno stato nuovo che non e' qui resta grigio, non inventa un colore. */
-const TONI_STATO: Record<string, Tono> = {
-  'Vuole sentirti': 'ok', 'Conoscitiva': 'ok', 'Analisi mandata': 'ok',
-  'Follow-up': 'noi',
-  'Da riprendere': 'attesa', 'Fuori ufficio': 'attesa',
-  'No grazie': 'no', 'Non scrivere più': 'no',
-}
+/** Il colore di uno stato, da stati.json. Uno stato che non c'e' resta grigio, non inventa un colore. */
 export function tonoStato(stato: string): Tono {
-  return TONI_STATO[stato] ?? 'neutro'
+  const t = infoStato(stato)?.tono as Tono | undefined
+  return t && TONI.includes(t) ? t : 'neutro'
 }
 
 export type Motivo = 'richiamare' | 'chiamare'

@@ -3,12 +3,17 @@
 // snella_numeri) e scrive solo quello che decide Dre (snella_lead, snella_note). Non tocca mai
 // le tabelle del sistema vecchio, non manda mail, non scrive su Smartlead.
 import { supabase } from '../lib/supabase'
+import statiJson from './stati.json'
 
-export const STATI = [
-  'In conversazione', 'Vuole sentirti', 'Analisi mandata', 'Conoscitiva', 'Follow-up',
-  'Da riprendere', 'No grazie', 'Non scrivere più', 'Fuori ufficio',
-] as const
-export type Stato = (typeof STATI)[number]
+/** I 12 stati della pipeline (Dre, 19/10), nell'ordine e nei gruppi: la fonte unica e' stati.json
+ *  (la leggono anche scripts/schede.py e il database, snella_stati). Nient'altro. */
+export interface InfoStato { nome: string; gruppo: string; tono: string; responsabile: Responsabile; azione: string; significa: string }
+export type Responsabile = 'Dramane' | 'Claude'
+export const INFO_STATI = statiJson.stati as InfoStato[]
+export const STATI: readonly string[] = INFO_STATI.map((s) => s.nome)
+export const GRUPPI: readonly string[] = statiJson.gruppi
+export type Stato = string
+export const RESPONSABILI: readonly Responsabile[] = ['Dramane', 'Claude']
 
 export interface Telefono { numero: string; tel: string; etichetta: string }
 export interface Messaggio { at: string | null; chi: 'lui' | 'noi'; testo: string; citato: string }
@@ -16,7 +21,7 @@ export interface SchedaDati {
   azienda: string; nome: string; ruolo: string; email: string; sg_id: number | null; campagna: string
   telefoni: Telefono[]; attivita: string; ultima: string; ultima_il: string | null; consiglio: string
   analisi: { mandata: boolean; il: string | null; link: string; percorso: string; punto: string }
-  prossima: { mossa: string; il: string | null }
+  prossima: { mossa: string; il: string | null; responsabile?: Responsabile }
   aspetta_noi: boolean
 }
 export interface RigaLead {
@@ -29,6 +34,7 @@ export interface Decisione {
   prospect_id: string; stato: Stato | null; prossima_mossa: string | null; prossima_il: string | null
   chiamata: 'chiamato' | 'non_risponde' | 'richiamare' | null; chiamata_il: string | null
   richiamare_il: string | null; tentativi: number; aggiornato_il?: string
+  responsabile?: Responsabile | null
 }
 export interface Nota { id: number; prospect_id: string; testo: string; tipo: 'nota' | 'chiamata'; at: string; autore: string | null; autore_nome: string | null }
 
@@ -127,7 +133,7 @@ export async function leggiTelefoni(ids: string[]): Promise<Map<string, SchedaDa
 
 const CAMPI_NOTA = 'id,prospect_id,testo,tipo,at,autore,autore_nome'
 
-export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[] }> {
+export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null }> {
   const [s, d, n, c] = await Promise.all([
     supabase.from('snella_schede').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_lead').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
@@ -139,8 +145,46 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
   if (n.error) guasto(n.error)
   // le call prenotate con lui (le prepara schede.py): se manca il dato, la scheda si apre lo stesso
   const tutte = ((c.data?.dati as { call?: Call[] } | undefined)?.call ?? [])
+  // 19/10: da «Tutti» si apre anche chi non ha la scheda pronta: allora la sua riga, per decidere e
+  // scrivere le note lo stesso
+  const base = s.data ? null : await leggiRigaTutti(id)
   return { scheda: s.data as Scheda | null, decisione: d.data as Decisione | null, note: (n.data ?? []) as Nota[],
-           call: tutte.filter((x) => x.prospect_id === id) }
+           call: tutte.filter((x) => x.prospect_id === id), base }
+}
+
+// ── TUTTI (19/10): il foglio con tutti i prospect, una pagina alla volta dal database ──
+
+/** Una riga di «Tutti» (supabase/schema_v92.sql, la vista snella_tutti). */
+export interface RigaTutti {
+  prospect_id: string; azienda: string | null; persona: string | null; email: string | null; campagna: string | null
+  stato: string; stato_tuo: boolean; gruppo: string | null; ultima_risposta: string | null; ultima_nostra: string | null; novita: string | null
+  risposto: boolean; scheda_pronta: boolean; telefono: string | null; responsabile: Responsabile | null; responsabile_tuo: boolean
+  mossa: string | null; mossa_il: string | null; mossa_tua: boolean; richiamare_il: string | null
+}
+export interface FiltriTutti { q: string; stato: string | null; campagna: string | null; mai: boolean }
+export interface PaginaTutti {
+  righe: RigaTutti[]
+  totale?: number; stati?: Record<string, number>; campagne?: Array<{ nome: string; n: number }>
+}
+
+/** Una pagina di «Tutti», gia' filtrata e ordinata dal database (l'ultima novita' in cima).
+ *  Con `conta` arrivano anche il totale e i conteggi per stato e per campagna. */
+export async function leggiTutti(f: FiltriTutti, da: number, quanti: number, conta: boolean): Promise<PaginaTutti> {
+  const { data, error } = await supabase.rpc('snella_tutti_pagina', {
+    q: f.q, stato: f.stato, campagna: f.campagna, anche_mai: f.mai, da, quanti, conta,
+  }).abortSignal(entro())
+  if (error) guasto(error)
+  return data as PaginaTutti
+}
+
+/** Un lead senza scheda pronta (ha risposto prima dei 60 giorni, o mai): la sua riga di «Tutti». */
+export interface RigaBase extends RigaTutti { stato_sistema: string }
+export async function leggiRigaTutti(id: string): Promise<RigaBase | null> {
+  const { data, error } = await supabase.from('snella_tutti')
+    .select('prospect_id,azienda,persona,email,campagna,stato,stato_sistema,stato_tuo,gruppo,ultima_risposta,ultima_nostra,novita,risposto,scheda_pronta,telefono,responsabile,responsabile_tuo,mossa,mossa_il,mossa_tua,richiamare_il')
+    .eq('prospect_id', id).abortSignal(entro()).maybeSingle()
+  if (error) guasto(error)
+  return data as RigaBase | null
 }
 
 /** Scrive quello che decide Dre su un lead (solo Workspace). Torna la riga com'e' adesso. */

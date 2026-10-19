@@ -69,7 +69,7 @@ import categorie_smartlead as C                                # noqa: E402
 PROVA = "--prova" in sys.argv or _a_secco()
 TUTTE = "--tutte" in sys.argv
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
-VERSIONE = "schede4"                     # cambia la forma della scheda -> si rifanno tutte
+VERSIONE = "schede5"                     # cambia la forma della scheda -> si rifanno tutte (5: i 12 stati del 19/10)
 GIORNI_ATTIVI = 60
 VECCHIE_PER_GIRO = 30
 FRESCA = datetime.timedelta(hours=1)     # una risposta piu' giovane di cosi': la scheda si rifa' a ogni giro
@@ -77,14 +77,26 @@ SI_IN_RITARDO = datetime.timedelta(minutes=30)
 CAMPAGNE_OGNI = datetime.timedelta(minutes=55)
 SL_BASE = "https://server.smartlead.ai/api/v1"
 
-# I nomi di Dre (15/10) per le categorie del manuale (categorie_smartlead.NUOVE)
+# GLI STATI (Dre, 19/10): dodici, in quattro gruppi, nient'altro. La fonte unica e'
+# src/snella/stati.json (la UI, questo script e le prove la leggono; il database ne ha la copia
+# in snella_stati, schema_v93). Ogni stato ha un responsabile e una prossima azione di default.
+_STATI_JSON = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "snella", "stati.json"), encoding="utf-8"))
+STATI = {s["nome"]: s for s in _STATI_JSON["stati"]}
+
+# Le categorie del manuale (categorie_smartlead.NUOVE) nei nomi di Dre. Fuori target e casella
+# morta sono «Non interessato» col motivo nella prossima azione (MOTIVO); girato a un collega e'
+# «Da rispondere» (c'e' un'alternativa a cui scrivere).
 NOME_DI = {
-    C.N_SI: "Analisi mandata", C.N_FU: "Follow-up", C.N_CALL_CHIESTA: "Vuole sentirti",
-    C.N_DRE: "In conversazione", C.N_CALL: "Conoscitiva", C.N_AVANTI: "Da riprendere",
-    C.N_OOO: "Fuori ufficio", C.N_GIRATO: "In conversazione", C.N_NO: "No grazie",
-    C.N_STOP: "Non scrivere più", C.N_FUORI: "Fuori target", C.N_MORTA: "Casella morta",
+    C.N_SI: "Analisi inviata", C.N_FU: "Analisi inviata", C.N_CALL_CHIESTA: "Da chiamare",
+    C.N_DRE: "Da rispondere", C.N_CALL: "Call fissata", C.N_AVANTI: "Da ricontattare",
+    C.N_OOO: "Assente", C.N_GIRATO: "Da rispondere", C.N_NO: "Non interessato",
+    C.N_STOP: "Non contattare", C.N_FUORI: "Non interessato", C.N_MORTA: "Non interessato",
 }
-NON_SI_CHIAMA = {"Conoscitiva", "No grazie", "Non scrivere più", "Fuori target", "Casella morta"}
+MOTIVO = {C.N_FUORI: "fuori target", C.N_MORTA: "casella morta"}
+# chi non si chiama: le opportunita' (la call c'e' gia' o e' cliente) e i chiusi
+NON_SI_CHIAMA = {s["nome"] for s in _STATI_JSON["stati"] if s["gruppo"] in ("Opportunità", "Chiusi")}
+PIPELINE_CLIENTE = ("cliente", "prova", "avvio")
+PIPELINE_CALL = ("conoscitiva", "tecnica")
 CLASSI_NO = {"negativo", "soppresso", "nervoso"}
 
 # L'AI qui non si paga mai: la lettura della scheda si prende dalla memoria se c'e' (l'ha
@@ -285,27 +297,44 @@ def _giorno(d):
     return str(d)[:10]
 
 
-def prossima_mossa(stato, p, call):
-    """La mossa suggerita e la sua data. Dre la cambia nel Workspace (snella_lead)."""
-    aspetta = bool(p.get("awaiting_us"))
-    if stato == "Vuole sentirti":
-        return "Chiamalo", None
-    if stato == "Conoscitiva":
+def stato_di(cat, p, cliente, rispose):
+    """Lo stato (uno dei 12) dalla categoria del manuale e dalla pipeline. Lo stesso ordine sta in
+    snella_stato_calcolato (schema_v93) per chi non ha la scheda pronta. Se Dre ne sceglie uno a
+    mano (snella_lead), vince il suo: questo e' quello che dice il sistema."""
+    ps = p.get("pipeline_stage")
+    if cat == C.N_STOP:
+        return "Non contattare"
+    if cliente or ps in PIPELINE_CLIENTE:
+        return "Cliente acquisito"
+    if ps == "perso":
+        return "Perso"
+    if cat == C.N_CALL or ps in PIPELINE_CALL:
+        return "Call fissata"
+    if not rispose:
+        return "Nessuna risposta"
+    nome = NOME_DI.get(cat) or "Da rispondere"
+    # perso nel Workspace vecchio (stage): un'opportunita' chiusa, se non e' gia' un no
+    if p.get("stage") == "perso" and nome != "Non interessato":
+        return "Perso"
+    return nome
+
+
+def prossima_mossa(stato, p, call, motivo=None):
+    """La prossima azione di default dello stato (stati.json) e la sua data. Dre la cambia nel
+    Workspace (snella_lead): le date stanno qui, non in stati nuovi."""
+    azione = STATI[stato]["azione"]
+    if stato == "Call fissata":
         prossime = sorted(a["at"] for a in call if quando(a["at"]) >= adesso() - datetime.timedelta(hours=2))
-        return ("Fai la call", _giorno(quando(prossime[0]).astimezone(ROMA).date())) if prossime else ("Decidi dopo la call", None)
-    if stato == "Analisi mandata":
-        return ("Rispondergli", None) if aspetta else ("Aspetta che legga l'analisi", _giorno(p.get("followup_due")))
-    if stato == "Follow-up":
-        return "Clara lo segue col follow-up", _giorno(p.get("followup_due"))
-    if stato == "Da riprendere":
-        return "Riscrivergli", _giorno(p.get("next_action_date") or p.get("followup_due"))
-    if stato == "Fuori ufficio":
-        return "Riscrivergli al rientro", _giorno(p.get("ooo_until"))
-    if stato in ("No grazie", "Non scrivere più", "Fuori target", "Casella morta"):
-        return "Niente", None
-    if stato == "Nel Workspace":
-        return "La segue il Workspace completo", None
-    return ("Rispondergli", None) if aspetta else ("Aspetta la sua risposta", None)
+        return (azione, _giorno(quando(prossime[0]).astimezone(ROMA).date())) if prossime else ("Decidere dopo la call", None)
+    if stato == "Analisi inviata":
+        return azione, _giorno(p.get("followup_due"))
+    if stato == "Da ricontattare":
+        return azione, _giorno(p.get("next_action_date") or p.get("followup_due"))
+    if stato == "Assente":
+        return azione, _giorno(p.get("ooo_until"))
+    if stato == "Non interessato" and motivo:
+        return f"{azione}: {motivo}", None
+    return azione, None
 
 
 def vale_il_caldo(tipi, caldi, ultima_id, lettura):
@@ -333,10 +362,9 @@ def costruisci(ctx, pid, ora):
     ultima_suo = L.solo_suo(ultima["body"], con_firma=True) if ultima else ""
     call = call_di(ctx, pid)
     cliente = pid in ctx["clienti"] or p.get("stage") == "cliente" or p.get("pipeline_stage") == "cliente"
-    cat = C.categoria_nuova({**p, "bloccato": False}, ctx["intenti"].get(pid), pid in ctx["girati"], ultima_suo, call=bool(call))
-    stato = NOME_DI.get(cat) if cat else None
-    if not stato:
-        stato = "Nel Workspace" if (p.get("fuori") or p.get("pipeline_stage") or cliente) else "In conversazione"
+    # fuori (passato al Workspace) non ferma la lettura della categoria: la pipeline la guarda stato_di
+    cat = C.categoria_nuova({**p, "bloccato": False, "fuori": False}, ctx["intenti"].get(pid), pid in ctx["girati"], ultima_suo, call=bool(call))
+    stato = stato_di(cat, p, cliente, bool(ultima or p.get("last_reply_at")))
     azienda = " ".join((p.get("company") or p.get("name") or "?").split())
     lettura = lettura_segnale(azienda, ultima["body"]) if ultima else None
     tipi = ctx["segnali"].get(pid, set())
@@ -346,17 +374,17 @@ def costruisci(ctx, pid, ora):
     # e', lui non si chiama. Senza lettura dell'ultima il segnale resta (meglio una chiamata in piu').
     segnalato = vale_il_caldo(tipi, ctx.get("caldi", {}).get(pid, set()), ultima and ultima["id"], lettura)
     caldo = segnalato or bool(lettura and lettura.get("caldo"))
-    if caldo and stato in ("Analisi mandata", "Follow-up", "In conversazione"):
-        stato = "Vuole sentirti"
+    if caldo and stato in ("Analisi inviata", "Da rispondere"):
+        stato = "Da chiamare"
     # da chiamare (il senso lo decide l'AI, non una regex): segnalato caldo dal segnale, la lettura
-    # del segnale che dice caldo (col numero se l'ha lasciato), o la categoria «Vuole sentirti»
+    # del segnale che dice caldo (col numero se l'ha lasciato), o lo stato «Da chiamare»
     perche = []
     if segnalato:
         perche.append("Segnalato caldo")
     if lettura and lettura.get("caldo") and (lettura.get("telefono") or "").strip():
         perche.append("Ha lasciato il numero")
-    elif not perche and (caldo or stato == "Vuole sentirti"):
-        perche.append("Vuole sentirti")
+    elif not perche and (caldo or stato == "Da chiamare"):
+        perche.append("Ha chiesto una chiamata")
     escluso = (cliente or p.get("fuori") or p.get("stage") == "perso" or p.get("pipeline_stage") == "perso"
                or p.get("classificazione") in CLASSI_NO or stato in NON_SI_CHIAMA)
     da_chiamare = bool(perche) and not escluso
@@ -364,7 +392,7 @@ def costruisci(ctx, pid, ora):
     if lettura and lettura.get("frase") and S._dentro(lettura["frase"], ultima["body"]):
         frase = S._frase_pulita(lettura["frase"])
     frase = " ".join(pulito(frase or sc.get("ultima") or "").split())
-    mossa, mossa_il = prossima_mossa(stato, p, call)
+    mossa, mossa_il = prossima_mossa(stato, p, call, MOTIVO.get(cat))
     an = sc.get("analisi") or {}
     link = an.get("link") or ""
     percorso = ""
@@ -383,7 +411,7 @@ def costruisci(ctx, pid, ora):
         "consiglio": (lettura or {}).get("consiglio") or "",
         "analisi": {"mandata": bool(an.get("mandata")), "il": _iso(an.get("il")), "link": link,
                     "percorso": percorso, "punto": an.get("punto") or ""},
-        "prossima": {"mossa": mossa, "il": mossa_il},
+        "prossima": {"mossa": mossa, "il": mossa_il, "responsabile": STATI[stato]["responsabile"]},
         "aspetta_noi": bool(p.get("awaiting_us")),
     }
     return {"prospect_id": pid, "azienda": azienda, "persona": scheda["nome"] or " ".join((p.get("name") or "").split()),

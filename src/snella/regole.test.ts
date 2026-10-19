@@ -3,14 +3,16 @@ import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead } from './dati'
 import {
   cerca, chiamateInRitardo, contaStati, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
-  scrittoDopo, spiegaDomanda, tasso, titoloDomanda, tonoStato,
+  infoStato, nomeStato, scrittoDopo, spiegaDomanda, statoDi, tasso, titoloDomanda, tonoStato,
 } from './regole'
+import { GRUPPI, INFO_STATI, STATI } from './dati'
+import statiJson from './stati.json'
 
 const ORA = new Date('2026-10-19T08:00:00Z')          // lunedi' 19/10, le 10 a Roma
 
 function riga(id: string, cambia: Partial<RigaLead> = {}): RigaLead {
-  return { prospect_id: id, azienda: `Azienda ${id}`, persona: `Persona ${id}`, email: `${id}@esempio.it`, stato: 'Vuole sentirti',
-           ultima_risposta: '2026-10-18T09:00:00Z', frase: 'Ci sentiamo?', da_chiamare: true, perche_chiamare: 'Vuole sentirti', ...cambia }
+  return { prospect_id: id, azienda: `Azienda ${id}`, persona: `Persona ${id}`, email: `${id}@esempio.it`, stato: 'Da chiamare',
+           ultima_risposta: '2026-10-18T09:00:00Z', frase: 'Ci sentiamo?', da_chiamare: true, perche_chiamare: 'Ha chiesto una chiamata', ...cambia }
 }
 function dec(id: string, cambia: Partial<Decisione> = {}): Decisione {
   return { prospect_id: id, stato: null, prossima_mossa: null, prossima_il: null, chiamata: null, chiamata_il: null,
@@ -39,8 +41,8 @@ describe('chi chiamare', () => {
     const l = listaDaChiamare([riga('a', { ultima_risposta: '2026-10-17T09:00:00Z' }), riga('b')], d, ORA)
     expect(l.map((x) => [x.riga.prospect_id, x.nonRisponde])).toEqual([['b', false], ['a', true]])
   })
-  it('chi Dre ha messo in No grazie o in Conoscitiva non si chiama; oltre 21 giorni neanche', () => {
-    const d = new Map([['a', dec('a', { stato: 'No grazie' })], ['b', dec('b', { stato: 'Conoscitiva' })]])
+  it('chi Dre ha messo in Non interessato o in Call fissata non si chiama; oltre 21 giorni neanche', () => {
+    const d = new Map([['a', dec('a', { stato: 'Non interessato' })], ['b', dec('b', { stato: 'Call fissata' })]])
     const vecchio = riga('c', { ultima_risposta: '2026-09-20T09:00:00Z' })
     expect(listaDaChiamare([riga('a'), riga('b'), vecchio], d, ORA)).toHaveLength(0)
   })
@@ -52,9 +54,9 @@ describe('chi chiamare', () => {
 
 describe('lista e ricerca', () => {
   it('lo stato deciso da Dre vince su quello calcolato', () => {
-    const m = contaStati([riga('a'), riga('b')], new Map([['a', dec('a', { stato: 'Follow-up' })]]))
-    expect(m.get('Follow-up')).toBe(1)
-    expect(m.get('Vuole sentirti')).toBe(1)
+    const m = contaStati([riga('a'), riga('b')], new Map([['a', dec('a', { stato: 'Analisi inviata' })]]))
+    expect(m.get('Analisi inviata')).toBe(1)
+    expect(m.get('Da chiamare')).toBe(1)
   })
   it('cerca per azienda o persona, senza accenti', () => {
     const r = [riga('a', { azienda: 'Caffè Rossi' }), riga('b', { persona: 'Mario Verdi' })]
@@ -112,18 +114,53 @@ describe('date e numeri', () => {
   })
 })
 
-describe('il colore degli stati', () => {
-  it('verde il si\', rosso il no, ambra l\'attesa, blu quello che seguiamo noi', () => {
-    expect(tonoStato('Vuole sentirti')).toBe('ok')
-    expect(tonoStato('Conoscitiva')).toBe('ok')
-    expect(tonoStato('No grazie')).toBe('no')
-    expect(tonoStato('Non scrivere più')).toBe('no')
-    expect(tonoStato('Fuori ufficio')).toBe('attesa')
-    expect(tonoStato('Follow-up')).toBe('noi')
+describe('i 12 stati (Dre, 19/10)', () => {
+  it('dodici, in quattro gruppi, in quest\'ordine, nient\'altro', () => {
+    expect(STATI).toEqual(['Da chiamare', 'Da rispondere', 'Analisi inviata', 'Call fissata', 'Proposta inviata', 'Cliente acquisito',
+      'Da ricontattare', 'Assente', 'Nessuna risposta', 'Non interessato', 'Perso', 'Non contattare'])
+    expect(GRUPPI).toEqual(['Da gestire oggi', 'Opportunità', 'In attesa', 'Chiusi'])
   })
-  it('uno stato che non conosce resta grigio', () => {
-    expect(tonoStato('In conversazione')).toBe('neutro')
-    expect(tonoStato('Casella morta')).toBe('neutro')
+  it('ogni stato ha un responsabile e una prossima azione di default', () => {
+    for (const s of INFO_STATI) {
+      expect(['Dramane', 'Claude']).toContain(s.responsabile)
+      expect(s.azione.trim().length).toBeGreaterThan(0)
+      expect(GRUPPI).toContain(s.gruppo)
+    }
+    expect(infoStato('Da chiamare')?.responsabile).toBe('Dramane')
+    expect(infoStato('Da rispondere')?.responsabile).toBe('Claude')
+  })
+  it('i nomi vecchi passano ai nuovi, mai si mostrano', () => {
+    expect(nomeStato('No grazie')).toBe('Non interessato')
+    expect(nomeStato('Non scrivere più')).toBe('Non contattare')
+    expect(nomeStato('Fuori ufficio')).toBe('Assente')
+    expect(nomeStato('Conoscitiva')).toBe('Call fissata')
+    expect(nomeStato('Analisi mandata')).toBe('Analisi inviata')
+    expect(nomeStato('Vuole sentirti')).toBe('Da chiamare')
+    expect(nomeStato('Follow-up')).toBe('Analisi inviata')
+    expect(nomeStato('Da riprendere')).toBe('Da ricontattare')
+    expect(nomeStato('In conversazione')).toBe('Da rispondere')
+    for (const v of Object.values(statiJson.dai_vecchi)) expect(STATI).toContain(v)
+    expect(statoDi({ stato: 'Vuole sentirti' })).toBe('Da chiamare')
+    expect(statoDi({ stato: 'Nel Workspace' })).toBe('Da rispondere')
+  })
+})
+
+describe('il colore degli stati', () => {
+  it('verde il si\', rosso il no, ambra da rispondere, blu quello che seguiamo noi, viola le opportunita\'', () => {
+    expect(tonoStato('Da chiamare')).toBe('ok')
+    expect(tonoStato('Cliente acquisito')).toBe('ok')
+    expect(tonoStato('Da rispondere')).toBe('attesa')
+    expect(tonoStato('Analisi inviata')).toBe('noi')
+    expect(tonoStato('Call fissata')).toBe('opp')
+    expect(tonoStato('Proposta inviata')).toBe('opp')
+    expect(tonoStato('Da ricontattare')).toBe('giallo')
+    expect(tonoStato('Non interessato')).toBe('no')
+    expect(tonoStato('Perso')).toBe('no')
+    expect(tonoStato('Non contattare')).toBe('stop')
+  })
+  it('grigi: assente, nessuna risposta, e uno stato che non conosce', () => {
+    expect(tonoStato('Assente')).toBe('neutro')
+    expect(tonoStato('Nessuna risposta')).toBe('neutro')
     expect(tonoStato('Uno stato nuovo')).toBe('neutro')
   })
 })

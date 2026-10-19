@@ -2,10 +2,10 @@
 // stato e prossima mossa (solo Workspace: non va su Smartlead), l'analisi e tutto il filo.
 import { useEffect, useState } from 'react'
 import {
-  STATI, aggiungiNota, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
-  type Call, type Decisione, type Messaggio, type Nota, type Scheda,
+  GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
+  type Call, type Decisione, type Messaggio, type Nota, type RigaBase, type Scheda,
 } from './dati'
-import { dataCorta, giornoRoma, nomeGiorno, ora, quando, statoDi } from './regole'
+import { dataCorta, giornoRoma, infoStato, nomeGiorno, nomeStato, ora, quando, statoDi } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
 
@@ -18,6 +18,11 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   if (caricando) return <><Torna indietro={indietro} /><Carico righe={5} etichetta="Carico la scheda" /></>
   if (errore && !dati) return <><Torna indietro={indietro} /><Errore testo={errore} riprova={() => void rifai()} /></>
   if (!dati) return null
+  if (!dati.scheda && dati.base) {
+    return <SchedaBase id={id} base={dati.base} decisione={dati.decisione} note={dati.note} indietro={indietro}
+                       onDecisione={(nuova) => setDati((x) => x ? { ...x, decisione: nuova } : x)}
+                       onNote={(f) => setDati((x) => x ? { ...x, note: f(x.note) } : x)} />
+  }
   if (!dati.scheda) {
     return (
       <>
@@ -44,6 +49,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <PillolaStato stato={stato} />
+          <span className="text-[14px] text-tenue">tocca a <b className="font-semibold text-inchiostro">{d?.responsabile || infoStato(stato)?.responsabile}</b></span>
           {sc.ultima_risposta && <span className="text-[14px] text-tenue">ultima risposta {quando(sc.ultima_risposta)}</span>}
         </div>
         <ProssimaCall call={dati.call} />
@@ -75,8 +81,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         </Blocco>
       )}
 
-      <Blocco titolo="Stato e prossima mossa">
-        <Decidi id={id} scheda={sc} decisione={d} onSalvato={(nuova) => {
+      <Blocco titolo="Stato e prossima azione">
+        <Decidi id={id} sistema={nomeStato(sc.stato) ?? 'Da rispondere'} suggerita={nomeStato(sc.stato) === sc.stato ? s.prossima : { mossa: null, il: null }} decisione={d} onSalvato={(nuova) => {
           setDati((x) => x ? { ...x, decisione: nuova } : x)
           mostra({ testo: 'Salvato' })
         }} />
@@ -99,6 +105,65 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
         {s.campagna && <>Campagna: {s.campagna}<br /></>}
         Scheda aggiornata {quando(sc.aggiornata_il)}.{' '}
+        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">
+          Apri nel Workspace completo
+        </a>
+      </p>
+      {avviso}
+    </article>
+  )
+}
+
+/** 19/10: la scheda di chi non ha la scheda pronta (ha risposto prima dei 60 giorni, o mai: si
+ *  apre da «Tutti»). Quello che si sa da qui, e soprattutto stato, prossima mossa e note, come
+ *  nella scheda piena. Toccandolo, schede.py prepara anche il resto (conversazione, analisi). */
+function SchedaBase({ id, base: b, decisione, note, indietro, onDecisione, onNote }: {
+  id: string; base: RigaBase; decisione: Decisione | null; note: Nota[]; indietro: () => void
+  onDecisione: (d: Decisione) => void; onNote: (f: (n: Nota[]) => Nota[]) => void
+}) {
+  const { mostra, vista: avviso } = useAvviso()
+  const stato = decisione?.stato || b.stato_sistema
+  const suggerita = b.mossa_tua ? { mossa: null, il: null } : { mossa: b.mossa, il: b.mossa_il }
+  return (
+    <article aria-labelledby="titolo-scheda">
+      <Torna indietro={indietro} />
+      <header>
+        <h1 id="titolo-scheda" className="text-[24px] font-bold leading-tight text-inchiostro">{b.azienda || b.email}</h1>
+        <p className="mt-1 text-[15px] text-tenue">{b.persona || 'Persona non indicata'}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <PillolaStato stato={stato} />
+          <span className="text-[14px] text-tenue">tocca a <b className="font-semibold text-inchiostro">{decisione?.responsabile || infoStato(stato)?.responsabile}</b></span>
+          <span className="text-[14px] text-tenue">{b.ultima_risposta ? `ultima risposta ${quando(b.ultima_risposta)}` : 'non ha mai risposto'}</span>
+        </div>
+      </header>
+
+      <Blocco titolo="Telefoni">
+        {b.telefono ? (
+          <a href={`tel:${b.telefono.replace(/[^\d+]/g, '')}`} aria-label={`Chiama ${b.telefono}`}
+             className="flex min-h-14 items-center gap-3 rounded-xl bg-blu-scuro px-4 py-2 text-white hover:bg-navy sm:max-w-md">
+            <Icona nome="telefono" className="h-5 w-5 shrink-0" />
+            <span className="whitespace-nowrap text-[17px] font-bold tracking-wide">{b.telefono}</span>
+          </a>
+        ) : <p className="text-[15px] text-tenue">Nessun numero nel Workspace.</p>}
+        {b.email && <p className="mt-2 break-all text-[14px] text-tenue">Mail: {b.email}</p>}
+      </Blocco>
+
+      <Blocco titolo="Stato e prossima azione">
+        <Decidi id={id} sistema={b.stato_sistema} suggerita={suggerita} decisione={decisione} onSalvato={(nuova) => {
+          onDecisione(nuova)
+          mostra({ testo: 'Salvato' })
+        }} />
+      </Blocco>
+
+      <Blocco titolo="Note">
+        <Note id={id} note={note} mostra={mostra}
+              onNota={(n) => onNote((x) => [n, ...x])}
+              onTolta={(nid) => onNote((x) => x.filter((n) => n.id !== nid))} />
+      </Blocco>
+
+      <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
+        {b.campagna && <>Campagna: {b.campagna}<br /></>}
+        La conversazione e l'analisi si preparano per chi ha risposto negli ultimi 60 giorni: se salvi uno stato o una nota, arrivano qui entro dieci minuti.{' '}
         <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">
           Apri nel Workspace completo
         </a>
@@ -148,19 +213,33 @@ function Blocco({ titolo, children }: { titolo: string; children: React.ReactNod
   )
 }
 
-function Decidi({ id, scheda, decisione, onSalvato }: { id: string; scheda: Scheda; decisione: Decisione | null; onSalvato: (d: Decisione) => void }) {
-  const suggerita = scheda.scheda.prossima
+/** Stato, responsabile, prossima azione e data: quello che decide Dre (19/10: i 12 stati, un
+ *  contatto = uno stato, ogni stato ha un responsabile e una prossima azione di default). Vuoto vuol
+ *  dire «come dice il sistema»; scelto a mano, vince il suo. */
+function Decidi({ id, sistema, suggerita, decisione, onSalvato }: {
+  id: string; sistema: string; suggerita: { mossa: string | null; il: string | null }; decisione: Decisione | null; onSalvato: (d: Decisione) => void
+}) {
   const [stato, setStato] = useState(decisione?.stato ?? '')
+  const [chi, setChi] = useState<string>(decisione?.responsabile ?? '')
   const [mossa, setMossa] = useState(decisione?.prossima_mossa ?? '')
   const [il, setIl] = useState(decisione?.prossima_il ?? '')
   const [lavoro, setLavoro] = useState(false)
   const [sbaglio, setSbaglio] = useState<string | null>(null)
-  const cambiato = stato !== (decisione?.stato ?? '') || mossa !== (decisione?.prossima_mossa ?? '') || il !== (decisione?.prossima_il ?? '')
+  const cambiato = stato !== (decisione?.stato ?? '') || chi !== (decisione?.responsabile ?? '')
+    || mossa !== (decisione?.prossima_mossa ?? '') || il !== (decisione?.prossima_il ?? '')
+  // lo stato che vale (quello scelto, se no quello del sistema) da' il responsabile e l'azione di default
+  const vale = stato || sistema
+  const info = infoStato(vale)
+  const proposta = stato && stato !== sistema ? { mossa: info?.azione ?? null, il: null }
+    : suggerita.mossa ? suggerita : { mossa: info?.azione ?? null, il: null }
 
   async function salva() {
     setLavoro(true); setSbaglio(null)
     try {
-      onSalvato(await salvaDecisione(id, { stato: (stato || null) as Decisione['stato'], prossima_mossa: mossa.trim() || null, prossima_il: il || null }))
+      onSalvato(await salvaDecisione(id, {
+        stato: (stato || null) as Decisione['stato'], responsabile: (chi || null) as Decisione['responsabile'],
+        prossima_mossa: mossa.trim() || null, prossima_il: il || null,
+      }))
     } catch (e) {
       setSbaglio(`Non salvato: ${e instanceof Error ? e.message : e}`)
     } finally {
@@ -168,29 +247,41 @@ function Decidi({ id, scheda, decisione, onSalvato }: { id: string; scheda: Sche
     }
   }
 
+  const campo = 'h-11 w-full rounded-xl border border-bordo bg-white px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro'
   return (
     <form onSubmit={(e) => { e.preventDefault(); void salva() }} className="space-y-3 rounded-2xl border border-bordo bg-white p-4">
       <div>
         <label htmlFor="stato" className="mb-1 block text-[14px] font-semibold text-inchiostro">Stato</label>
-        <select id="stato" value={stato} onChange={(e) => setStato(e.target.value)}
-                className="h-11 w-full rounded-xl border border-bordo bg-white px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro">
-          <option value="">Come dicono le mail: {scheda.stato ?? 'In conversazione'}</option>
-          {STATI.map((s) => <option key={s} value={s}>{s}</option>)}
+        <select id="stato" value={stato} onChange={(e) => setStato(e.target.value)} className={campo}>
+          <option value="">Automatico: {sistema}</option>
+          {GRUPPI.map((g) => (
+            <optgroup key={g} label={g}>
+              {INFO_STATI.filter((s) => s.gruppo === g).map((s) => <option key={s.nome} value={s.nome}>{s.nome}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {info && <p className="mt-1 text-[13px] text-tenue">{info.significa}.</p>}
+      </div>
+      <div>
+        <label htmlFor="responsabile" className="mb-1 block text-[14px] font-semibold text-inchiostro">Responsabile</label>
+        <select id="responsabile" value={chi} onChange={(e) => setChi(e.target.value)} className={campo}>
+          <option value="">Automatico: {info?.responsabile ?? 'Claude'}</option>
+          {RESPONSABILI.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
       </div>
       <div>
-        <label htmlFor="mossa" className="mb-1 block text-[14px] font-semibold text-inchiostro">Prossima mossa</label>
+        <label htmlFor="mossa" className="mb-1 block text-[14px] font-semibold text-inchiostro">Prossima azione</label>
         <input id="mossa" value={mossa} onChange={(e) => setMossa(e.target.value)} maxLength={200}
-               placeholder={suggerita.mossa ? `Suggerita: ${suggerita.mossa}${suggerita.il ? ` (${dataCorta(suggerita.il)})` : ''}` : 'Cosa fare'}
+               placeholder={proposta.mossa ? `Di default: ${proposta.mossa}` : 'Cosa fare'}
                className="h-11 w-full rounded-xl border border-bordo px-3 text-[16px] text-inchiostro outline-none placeholder:text-spento focus:border-blu-scuro" />
       </div>
       <div>
-        <label htmlFor="quando" className="mb-1 block text-[14px] font-semibold text-inchiostro">Quando</label>
+        <label htmlFor="quando" className="mb-1 block text-[14px] font-semibold text-inchiostro">Data prossima azione</label>
         <input id="quando" type="date" value={il} onChange={(e) => setIl(e.target.value)}
                className="h-11 rounded-xl border border-bordo px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro" />
       </div>
-      {!decisione?.prossima_mossa && suggerita.mossa && (
-        <p className="text-[14px] text-tenue">Per ora vale quella suggerita: {suggerita.mossa}{suggerita.il ? `, ${dataCorta(suggerita.il)}` : ''}.</p>
+      {!mossa.trim() && proposta.mossa && (
+        <p className="text-[14px] text-tenue">Per ora vale quella di default: {proposta.mossa}{proposta.il && !il ? `, ${dataCorta(proposta.il)}` : ''}.</p>
       )}
       <div className="flex items-center gap-3">
         <Bottone tipo="primo" type="submit" disabled={lavoro || !cambiato}>{lavoro ? 'Salvo…' : 'Salva'}</Bottone>

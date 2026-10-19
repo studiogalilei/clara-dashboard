@@ -1,10 +1,12 @@
 // LA VERSIONE SNELLA DEL WORKSPACE (15/10/2026), fino a «Clara nuova» (dicembre).
 // Dre: il Workspace e' pesante e confuso per quello che fa ogni giorno con le campagne.
 // Tre schermate e basta: Oggi (chi chiamare, le call, cosa decidere), Lead (chi ha risposto,
-// con la scheda e le note), Campagne (come vanno). Sul telefono le tre voci stanno in basso,
-// sul computer a sinistra. Il Workspace completo resta a un tocco, in alto.
+// con la scheda e le note), Campagne (come vanno). Dal 19/10 una quarta, Tutti: il foglio con
+// tutti i prospect e il loro stato (Dre: «io non ho un luogo dove vedere tutti quanti»).
+// Sul telefono le voci stanno in basso, sul computer a sinistra. Il Workspace completo resta a
+// un tocco, in alto.
 //
-// Gli indirizzi: #/s/oggi, #/s/lead, #/s/lead/<id>, #/s/campagne. Un ceo che apre il Workspace
+// Gli indirizzi: #/s/oggi, #/s/lead, #/s/lead/<id>, #/s/tutti, #/s/tutti/<id>, #/s/campagne. Un ceo che apre il Workspace
 // senza indirizzo (l'icona sul telefono, il link nudo) arriva qui (src/main.tsx).
 import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
@@ -15,24 +17,27 @@ import Oggi from './Oggi'
 import Lead from './Lead'
 import SchedaLead from './SchedaLead'
 import Campagne from './Campagne'
+import Tutti from './Tutti'
 import { Icona, type NomeIcona } from './pezzi'
 import { linkCompleto } from './uso'
 import { AvvisoTelefono, CollegaTelefono } from './Telefono'
 import { riallinea } from '../lib/notifiche'
 
-type Voce = 'oggi' | 'lead' | 'campagne'
+type Voce = 'oggi' | 'lead' | 'tutti' | 'campagne'
 interface Dove { voce: Voce; id: string | null }
 
 const VOCI: Array<{ voce: Voce; nome: string; icona: NomeIcona }> = [
   { voce: 'oggi', nome: 'Oggi', icona: 'oggi' },
   { voce: 'lead', nome: 'Lead', icona: 'lead' },
+  { voce: 'tutti', nome: 'Tutti', icona: 'tutti' },
   { voce: 'campagne', nome: 'Campagne', icona: 'campagne' },
 ]
 
 function leggi(): Dove {
   const [, , voce, id] = window.location.hash.replace(/^#/, '').split('/')
-  const v: Voce = voce === 'lead' || voce === 'campagne' ? voce : 'oggi'
-  return { voce: v, id: v === 'lead' && id ? decodeURIComponent(id) : null }
+  const v: Voce = voce === 'lead' || voce === 'tutti' || voce === 'campagne' ? voce : 'oggi'
+  // la scheda si apre sotto Lead o sotto Tutti: la voce accesa in basso resta quella da cui vieni
+  return { voce: v, id: (v === 'lead' || v === 'tutti') && id ? decodeURIComponent(id) : null }
 }
 
 function indirizzo(d: Dove): string {
@@ -93,9 +98,10 @@ export default function Snella() {
   }
   function indietro() {
     if (passi.current > 0) { passi.current -= 1; window.history.back() }
-    else { window.location.replace(indirizzo({ voce: 'lead', id: null })) }
+    else { window.location.replace(indirizzo({ voce: dove.voce === 'tutti' ? 'tutti' : 'lead', id: null })) }
   }
   const apri = (id: string) => vai({ voce: 'lead', id })
+  const apriDaTutti = (id: string) => vai({ voce: 'tutti', id })
 
   if (!pronta) return <div className="min-h-dvh bg-white" />
   if (!session) return <Login />
@@ -152,7 +158,7 @@ export default function Snella() {
 
       <div className="min-w-0 flex-1">
         {io.vista && <Vista io={io} />}
-        <main id="contenuto" className="mx-auto w-full max-w-[760px] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(96px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))] lg:px-8 lg:pb-16 lg:pt-8">
+        <main id="contenuto" className={`mx-auto w-full ${dove.voce === 'tutti' && !dove.id ? 'max-w-[1400px]' : 'max-w-[760px]'} pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(96px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))] lg:px-8 lg:pb-16 lg:pt-8`}>
           {titolo && (
             <header className="mb-5 flex items-start justify-between gap-3">
               <div>
@@ -167,12 +173,13 @@ export default function Snella() {
           {!dove.id && dove.voce === 'oggi' && <AvvisoTelefono />}
           {dove.id ? <SchedaLead key={dove.id} id={dove.id} indietro={indietro} />
             : dove.voce === 'lead' ? <Lead apri={apri} />
+              : dove.voce === 'tutti' ? <Tutti apri={apriDaTutti} />
               : dove.voce === 'campagne' ? <Campagne />
                 : <Oggi apri={apri} />}
         </main>
       </div>
 
-      {/* il menu sul telefono: tre voci in basso, a portata di pollice */}
+      {/* il menu sul telefono: quattro voci in basso, a portata di pollice */}
       <nav aria-label="Sezioni" className="fixed inset-x-0 bottom-0 z-30 border-t border-velo bg-white/95 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur lg:hidden">
         <ul className="mx-auto flex max-w-md">
           {VOCI.map((v) => {

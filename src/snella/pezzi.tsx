@@ -1,4 +1,4 @@
-// LA VERSIONE SNELLA: i pezzi piccoli che usano tutte e tre le schermate.
+// LA VERSIONE SNELLA: i pezzi piccoli che usano tutte le schermate.
 // Bianco, testo grande, niente fronzoli. Il colore dice un significato e basta (17/10, i sei toni
 // di src/index.css): verde va bene, rosso no o in ritardo, ambra da guardare, blu noi e le azioni,
 // cotto loro, grigio neutro. Sempre con una parola accanto.
@@ -8,6 +8,7 @@ const ICONE = {
   oggi: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   lead: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
   campagne: 'M3 3v18h18M7 15l4-4 3 3 5-6',
+  tutti: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zM3 9h18M3 15h18M9 9v12',
   telefono: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z',
   indietro: 'M15 18l-6-6 6-6',
   esterno: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3',
@@ -18,6 +19,7 @@ const ICONE = {
   campana: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0',
   condividi: 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13',
   cellulare: 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2',
+  divieto: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM4.93 4.93l14.14 14.14',
 }
 
 export type NomeIcona = keyof typeof ICONE
@@ -100,13 +102,15 @@ export function Bottone({ children, onClick, tipo = 'secondo', disabled, classNa
 }
 
 /** La pillola dello stato: la parola nel colore del suo tono, su un fondo appena tinto.
- *  «piena» e' per la cosa sola che chiede un gesto adesso (Vuole sentirti): fondo pieno. */
-export function Pillola({ testo, tono = 'neutro', piena = false }: { testo: string; tono?: Tono; piena?: boolean }) {
+ *  «piena» e' per la cosa sola che chiede un gesto adesso (Da chiamare): fondo pieno.
+ *  «Non contattare» (tono stop) e' sempre piena, scura, con l'icona del divieto. */
+export function Pillola({ testo, tono = 'neutro', piena = false, icona }: { testo: string; tono?: Tono; piena?: boolean; icona?: NomeIcona }) {
   const stile = piena && tono === 'ok' ? 'border-ok-testo bg-ok-testo text-white'
     : piena && tono === 'no' ? 'border-no-testo bg-no-testo text-white'
       : TONO[tono].morbido
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${stile}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${stile}`}>
+      {icona && <Icona nome={icona} className="h-3.5 w-3.5 shrink-0" />}
       {testo}
     </span>
   )
@@ -115,5 +119,6 @@ export function Pillola({ testo, tono = 'neutro', piena = false }: { testo: stri
 
 /** Lo stato di un lead, col suo colore: lo stesso in Oggi, in Lead e nella scheda. */
 export function PillolaStato({ stato }: { stato: string }) {
-  return <Pillola testo={stato} tono={tonoStato(stato)} piena={stato === 'Vuole sentirti'} />
+  const tono = tonoStato(stato)
+  return <Pillola testo={stato} tono={tono} piena={stato === 'Da chiamare'} icona={tono === 'stop' ? 'divieto' : undefined} />
 }

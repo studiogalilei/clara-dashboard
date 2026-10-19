@@ -2,10 +2,10 @@
 // Cerca per nome o azienda, filtra coi nomi delle categorie di Dre su Smartlead.
 import { useMemo, useState } from 'react'
 import { STATI, leggiDecisioni, leggiRighe, type Decisione, type RigaLead } from './dati'
-import { cerca, contaStati, quando, statoDi, tonoStato } from './regole'
+import { cerca, contaStati, nomeStato, quando, statoDi, tonoStato } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
 import { TONO } from './toni'
-import { linkCompleto, useDati } from './uso'
+import { useDati } from './uso'
 
 const PASSO = 80
 
@@ -26,7 +26,8 @@ async function caricaLead(): Promise<{ righe: RigaLead[]; decisioni: Map<string,
 export default function Lead({ apri }: { apri: (id: string) => void }) {
   const { dati, errore, caricando, rifai } = useDati(caricaLead)
   const [q, setQ] = useState(() => ricorda('snella-cerca') ?? '')
-  const [filtro, setFiltro] = useState<string>(() => ricorda('snella-filtro') ?? 'Tutti')
+  // 19/10: un filtro ricordato col nome vecchio di uno stato passa al nome nuovo
+  const [filtro, setFiltro] = useState<string>(() => { const f = ricorda('snella-filtro'); return !f || f === 'Tutti' ? 'Tutti' : nomeStato(f) ?? 'Tutti' })
   const [quanti, setQuanti] = useState(PASSO)
 
   const conta = useMemo(() => dati ? contaStati(dati.righe, dati.decisioni) : new Map<string, number>(), [dati])
@@ -56,12 +57,14 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
         {filtri.map((s) => {
           const n = !dati ? null : s === 'Tutti' ? dati.righe.length : conta.get(s) ?? 0
           const su = filtro === s
+          // 19/10: dodici stati: si mostrano quelli che ci sono (e quello scelto), gli altri no
+          if (s !== 'Tutti' && !su && dati && n === 0) return null
           return (
             <button key={s} onClick={() => scegli(s)} aria-pressed={su}
                     className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-semibold transition-colors ${su ? 'border-blu-scuro bg-blu-scuro text-white' : 'border-bordo bg-white text-inchiostro hover:border-tenue'}`}>
               {/* 17/10: il pallino ha il colore della pillola di quello stato, cosi' filtro e lista si riconoscono */}
               {s !== 'Tutti' && tonoStato(s) !== 'neutro' && <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONO[tonoStato(s)].segno} ${su ? 'ring-2 ring-white' : ''}`} />}
-              {s}{n != null && <span className={su ? 'text-white/85' : 'text-tenue'}>{n}</span>}
+              {s === 'Tutti' ? 'Tutti gli stati' : s}{n != null && <span className={su ? 'text-white/85' : 'text-tenue'}>{n}</span>}
             </button>
           )
         })}
@@ -74,7 +77,9 @@ export default function Lead({ apri }: { apri: (id: string) => void }) {
               <Vuoto>
                 {q ? `Nessun lead trovato per «${q}»${filtro !== 'Tutti' ? ` in ${filtro}` : ''} fra chi ha risposto negli ultimi 60 giorni.` : `Nessun lead in ${filtro} negli ultimi 60 giorni.`}
                 {q && filtro !== 'Tutti' && <> <button onClick={() => scegli('Tutti')} className="font-semibold text-blu-scuro underline">Cerca in tutti</button>.</>}
-                {q && filtro === 'Tutti' && <> Gli altri sono nel <a href={linkCompleto('pipeline')} className="font-semibold text-blu-scuro underline">Workspace completo</a>.</>}
+                {/* 19/10: chi ha risposto prima, o mai, sta in Tutti: la ricerca ci passa con la stessa parola */}
+                {q && filtro === 'Tutti' && <> <a href="#/s/tutti" onClick={() => ricorda('snella-tutti', JSON.stringify({ q, stato: null, campagna: null, mai: true }))}
+                                                  className="font-semibold text-blu-scuro underline">Cercalo in Tutti</a>, fra tutti i prospect.</>}
               </Vuoto>
             ) : (
               <>

@@ -54,6 +54,10 @@
        noi     blu     noi, le azioni nostre, i link
        loro    cotto   loro: chi ci scrive (caldo, ne' rosso ne' verde)
        neutro  grigio  neutro, chiuso, passato (tenue/velo/bordo, qui sopra)
+     Dal 19/10 (i 12 stati della pipeline, src/snella/stati.json) tre in piu':
+       opp     viola   le opportunita': call fissata, proposta inviata
+       giallo  giallo  da ricontattare (piu' avanti, con la data): diverso dall'ambra
+       stop    rosso scuro  non contattare: blocco permanente, piu' scuro del no, con l'icona del divieto
      Ogni tono ha quattro gradi: -testo (scritte, contrasto 5.9:1 o piu' anche sul suo fondo),
      -segno (barre e pallini, sempre accanto a una parola), -fondo, -bordo.
      Lo sfondo resta calmo: il colore va solo su cio' che chiede attenzione o dice uno stato. */
@@ -77,6 +81,18 @@
   --color-loro-segno: #d8642a;
   --color-loro-fondo: #fff4ec;
   --color-loro-bordo: #f2cdb2;
+  --color-opp-testo: #6b21a8;
+  --color-opp-segno: #9333ea;
+  --color-opp-fondo: #f5f0fd;
+  --color-opp-bordo: #dcc8f4;
+  --color-giallo-testo: #6b5300;
+  --color-giallo-segno: #e6b800;
+  --color-giallo-fondo: #fefbe5;
+  --color-giallo-bordo: #efdc8a;
+  --color-stop-testo: #5c1210;
+  --color-stop-segno: #4a0e0b;
+  --color-stop-fondo: #f7ecea;
+  --color-stop-bordo: #c9a29e;
 }
 
 /* la carta: il secondo livello, sopra lo sfondo */
