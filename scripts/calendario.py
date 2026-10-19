@@ -308,7 +308,8 @@ def tipo_di(titolo):
     t = (titolo or "").lower()
     if "avvio" in t or "kick" in t or "onboarding" in t:
         return "avvio"
-    if any(k in t for k in ("tecnic", "proposta", "offerta", "analisi", "2'", "2º", "2°", "secondo")):
+    # 19/10 (Dre): le tecniche le fa con Carlo; la sua pagina di prenotazione si chiama «45 Min with Carlo | Performance Marketing»
+    if any(k in t for k in ("tecnic", "proposta", "offerta", "analisi", "2'", "2º", "2°", "secondo", "with carlo", "performance marketing")):
         return "tecnica"
     if any(k in t for k in ("conoscitiv", "confronto", "call", "chiamata", "meeting", "discovery")):
         return "conoscitiva"

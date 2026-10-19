@@ -3541,6 +3541,7 @@ def _():
     assert C.tipo_evento({"titolo": "StudioGalilei - Chiamata conoscitiva (Carlo)", "invitati": ["carlo" + at + "studiogalilei.com"],
                           "descrizione": "<b>Prenotato da</b> Carlo carlo" + at + "studiogalilei.com"}) == "altro"
     assert C.tipo_evento({"titolo": "Call Tecnica e proposta", "invitati": ["mario" + at + "azienda.it"]}) == "tecnica"
+    assert C.tipo_evento({"titolo": "45 Min with Carlo | Performance Marketing (Mario Rossi)", "invitati": ["mario" + at + "azienda.it"]}) == "tecnica"
 
 
 def main():
