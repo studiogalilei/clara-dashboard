@@ -234,7 +234,7 @@ def riconosci(evento, prospects):
         if d and d not in GENERICI and d in per_dominio:
             return per_dominio[d], "dominio"
     # il sito del modulo di prenotazione, solo per le call: e solo se e' di UN lead
-    if tipo_di(evento["titolo"]) != "altro":
+    if tipo_evento(evento) != "altro":
         for d in siti_nella_descrizione(evento.get("descrizione")):
             pid = prospects.get("sito", {}).get(d)
             if pid:
@@ -263,7 +263,7 @@ def riconosci(evento, prospects):
     # e solo per le call: un colloquio o un impegno personale non si aggancia cosi'.
     cerca = prospects.get("cerca_nome")
     nome = prenotato_da(evento) if cerca else None
-    if nome and tipo_di(evento["titolo"]) != "altro":
+    if nome and tipo_evento(evento) != "altro":
         trovati = cerca(nome)
         if len(trovati) == 1:
             return trovati.pop(), "nome nelle mail"
@@ -284,6 +284,24 @@ def _cerca_nome(nome):
     righe = sb("GET", "/rest/v1/interactions?select=prospect_id&kind=eq.email_in&body=ilike."
                + urllib.parse.quote(f"*{nome}*") + "&limit=50") or []
     return {r["prospect_id"] for r in righe if r.get("prospect_id")}
+
+
+def tipo_evento(evento):
+    """Il tipo di un evento: una call (conoscitiva, tecnica, avvio) solo se c'e' qualcuno di fuori.
+    19/10 (Super Corp): un appunto personale di Dre, «preparare la bozza di proposta da inviare ad
+    Anthony», senza invitati, era diventato una «tecnica» martedi' alle 13 nel foglio della pipeline."""
+    t = (evento.get("titolo") or "").lower()
+    esplicita = any(k in t for k in ("conoscitiv", "call tecnic", "chiamata tecnic", "call di avvio", "chiamata di avvio",
+                                     "kick", "onboarding", "discovery"))
+    fuori = esterni(evento.get("invitati") or [])
+    if not esplicita and not fuori:
+        return "altro"                   # «proposta», «analisi», «offerta» da soli: e' un appunto, non una call
+    if not fuori:
+        # una conoscitiva «prenotata da» uno di noi, senza nessuno di fuori: una prova della pagina di prenotazione
+        m = re.search(r"prenotato da\s*</b>?\s*[^<\n]*?([\w.+-]+@[\w.-]+)", (evento.get("descrizione") or ""), re.I)
+        if m and (_dominio(m.group(1)) in NOSTRI or m.group(1).lower() in NOSTRE_EMAIL):
+            return "altro"
+    return tipo_di(evento.get("titolo"))
 
 
 def tipo_di(titolo):
@@ -396,7 +414,7 @@ def calendari_persone(prova, prospects):
             if not pid and not esterni(e["invitati"]) and not e.get("meet"):
                 saltati += 1
                 continue
-            riga = {"at": e["at"].astimezone(datetime.timezone.utc).isoformat(), "titolo": e["titolo"][:200], "tipo": tipo_di(e["titolo"]),
+            riga = {"at": e["at"].astimezone(datetime.timezone.utc).isoformat(), "titolo": e["titolo"][:200], "tipo": tipo_evento(e),
                     "prospect_id": pid, "link": e.get("meet") or e["link"], "fonte": f"gcal:{u['email']}", "owner": u["user_id"]}
             vecchia = esistenti.get((riga["link"], riga["at"]))
             if prova:
@@ -493,7 +511,7 @@ def main():
             saltati += 1              # roba personale: non e' un impegno di lavoro con qualcuno
             continue
         riga = {"at": e["at"].astimezone(datetime.timezone.utc).isoformat(), "titolo": e["titolo"][:200],
-                "tipo": tipo_di(e["titolo"]), "prospect_id": pid, "link": e.get("meet") or e["link"], "fonte": "gcal"}
+                "tipo": tipo_evento(e), "prospect_id": pid, "link": e.get("meet") or e["link"], "fonte": "gcal"}
         chiave = e.get("meet") or e["link"]
         vecchia = esistenti.get(chiave)
         if prova:

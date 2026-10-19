@@ -94,7 +94,7 @@ DI_DRE = ("scelta", "costo", "inizio", "fine", "retainer", "nota")
 # Spostare e togliere un lead (Dre, 19/10 sera: «"Sposta in" non serve, posso copiare e incollare nel
 # luogo giusto»): si copia il nome dell'azienda nella colonna Azienda di un'altra fase, o lo si cancella.
 SPOSTA = "sposta"                # il nome interno della mossa (effetti), non una colonna
-FRASE_USO = "Scrivi nelle celle gialle. Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo."
+FRASE_USO = "Scrivi nelle celle gialle (le Note sono tue: Achille le legge). Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo."
 DETTAGLIO = {PREP: "Ha scritto", INVIATA: "Inviata", CONV: "Ultima sua", CONO: "Call", TECN: "Call", AVVIO: "Call"}
 
 
@@ -110,7 +110,7 @@ def _blocchi():
             campi += [("dettaglio", DETTAGLIO[fase], 84)]
         if fase == CONV:
             campi += [("scelta", "La tua scelta", 150)]
-        campi += [("nota", "Nota per Achille", 170), ("id", "id", 20)]
+        campi += [("nota", "Note", 170), ("id", "id", 20)]
         out.append({"fase": fase, "da": col, "campi": [c[0] for c in campi], "titoli": [c[1] for c in campi],
                     "larghezze": [c[2] for c in campi]})
         col += len(campi) + (1 if i < len(FASI) - 1 else 0)          # una colonna stretta fra i blocchi

@@ -3529,6 +3529,20 @@ def _():
     assert S.classifica("Sono disponibile per una call domani alle 15.") == "positivo"
 
 
+@prova("calendario: un appunto senza invitati non e' una call (19/10)")
+def _():
+    import calendario as C
+    at = "@"
+    assert C.tipo_evento({"titolo": "preparare la bozza di proposta da inviare ad Anthony", "invitati": []}) == "altro"
+    assert C.tipo_evento({"titolo": "Bozza di proposta e analisi", "invitati": ["dramane" + at + "studiogalilei.com"]}) == "altro"
+    # una call col nome esplicito resta una call anche se l'invitato esterno manca (prenotata a mano da Dre)
+    assert C.tipo_evento({"titolo": "StudioGalilei - Chiamata conoscitiva (Mario Rossi)", "invitati": []}) == "conoscitiva"
+    # ma una prenotazione di prova fatta da uno di noi no
+    assert C.tipo_evento({"titolo": "StudioGalilei - Chiamata conoscitiva (Carlo)", "invitati": ["carlo" + at + "studiogalilei.com"],
+                          "descrizione": "<b>Prenotato da</b> Carlo carlo" + at + "studiogalilei.com"}) == "altro"
+    assert C.tipo_evento({"titolo": "Call Tecnica e proposta", "invitati": ["mario" + at + "azienda.it"]}) == "tecnica"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
