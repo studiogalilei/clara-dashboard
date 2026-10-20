@@ -3871,6 +3871,27 @@ def _():
         assert frase in cose, (frase, cose)
     for tecnico in ("prospect", "proposta", "FOLLOW UP 1", "INT-", "classificazione"):
         assert tecnico not in cose, tecnico
+    # 20/10 sera: un rimbalzo interno «da_classificare» e' un si' fermo, e il semaforo lo deve vedere
+    vero_cont = C.contattabile
+    try:
+        C.contattabile = lambda p: not p.get("fuori")
+        proposte = [{"prospect_id": "r1"}, {"prospect_id": "r2"}, {"prospect_id": "r3"}, {"prospect_id": "r4"}, {"prospect_id": "s1"}]
+        schede = [{"id": "r1", "company": "Falegnameria Finta", "classificazione": "da_classificare", "analysis_sent": False, "fuori": False, "last_reply_at": alle(8, 56).isoformat()},
+                  {"id": "r2", "company": "Gia' Servita", "classificazione": "da_classificare", "analysis_sent": True, "fuori": False, "last_reply_at": alle(8).isoformat()},
+                  {"id": "r3", "company": "Positiva srl", "classificazione": "positivo", "analysis_sent": False, "fuori": False, "last_reply_at": alle(8).isoformat()},
+                  {"id": "r4", "company": "In Pipeline", "classificazione": "da_classificare", "analysis_sent": False, "fuori": True, "last_reply_at": alle(8).isoformat()},
+                  {"id": "s1", "company": "Col Segnale", "classificazione": "da_classificare", "analysis_sent": False, "fuori": False, "last_reply_at": alle(8).isoformat()}]
+        r = C.rimbalzi_fermi(alle(11), gia={"s1"}, proposte=proposte, schede=schede)
+        assert [x["azienda"] for x in r] == ["Falegnameria Finta"] and r[0]["quando"] == alle(8, 56) and r[0]["bozza"], r
+        d = vuoto()
+        d["si"] = r
+        g = C.semaforo(alle(11), d)
+        assert len(g) == 1 and "Falegnameria Finta" in g[0]["cosa"] and "8:56" in g[0]["cosa"], g
+        assert C.rimbalzi_fermi(alle(11), proposte=[], schede=schede) == []
+        src_c = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "clara_foglio.py"), encoding="utf-8").read()
+        assert src_c.count("rimbalzi_fermi(ora") >= 2, "si_fermi deve sommare i rimbalzi, con e senza segnali"
+    finally:
+        C.contattabile = vero_cont
     # la scheda Clara e i link leggono e basta: niente scritture nel database, niente mail
     import re as _re
     for nome in ("clara_foglio.py", "foglio_lead.py"):
