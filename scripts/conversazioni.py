@@ -23,6 +23,15 @@ un giorno. Un lead che riscrive mentre la conversazione e' aperta non suona di n
 Una conversazione cominciata prima della finestra (o, alla prima accensione, piu' di 2 ore fa)
 si segna senza suonare: e' il passato, Dre lo sa.
 
+IL SI' CALDO (20/10 sera). Dre: «fino all'analisi fa tutto il sistema; quando tocca a me voglio la
+notifica». Un si' che il lettore AI legge CALDO («mi mandi tutto e poi ci sentiamo», un numero
+lasciato) e' gia' una conversazione di Dre, anche prima dell'analisi: l'analisi gliela manda lo
+stesso il sistema (INT-01, col calendario, come a ogni si'), e in piu' il lead passa a Dre:
+«Da chiamare» nell'app (snella_lead, da oggi, come dal foglio) e questa stessa notifica, subito.
+Vale solo per la lettura del lettore sulla sua ultima mail (stanza.lettore_di), con la classe
+«positivo» (se Dre l'ha cambiata, vince lui). Se Dre ha gia' toccato il lead dopo la sua mail, la
+sua decisione non si tocca. Un si' non caldo non suona: lo serve il sistema.
+
 DOVE GIRA
 Ogni 5 minuti dentro il giro del segnale provvisorio (dopo le risposte, prima delle prenotazioni):
 un guasto qui non ferma il resto. Da sola, per provarla:
@@ -37,7 +46,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, quando, _a_secco                         # noqa: E402
+from stanza import sb, quando, _a_secco, contattabile, lettore_di  # noqa: E402
 import segnale_provvisorio as S                                 # noqa: E402
 from lettura import solo_suo                                    # noqa: E402
 
@@ -140,9 +149,57 @@ def frase(r):
     return " ".join(" ".join(righe).split())
 
 
-def suona(pid, p, r):
-    """La notifica: titolo con l'azienda, l'inizio di quello che ha scritto, tocco = la scheda."""
-    return S.notifica(f"È entrato in conversazione: {azienda(p)}", frase(r)[:170] or "Ha risposto dopo l'analisi", pid)
+def suona(pid, p, r, caldo=False):
+    """La notifica: titolo con l'azienda, l'inizio di quello che ha scritto, tocco = la scheda.
+    Per un si' caldo il testo lo dice: «Vuole sentirti»."""
+    detto = frase(r)[:150]
+    testo = (f"Vuole sentirti: «{detto}»" if detto else "Vuole sentirti") if caldo else (frase(r)[:170] or "Ha risposto dopo l'analisi")
+    return S.notifica(f"È entrato in conversazione: {azienda(p)}", testo, pid)
+
+
+# ── il si' caldo, prima dell'analisi ───────────────────────────────
+
+def caldi_del_lettore(da, stato):
+    """I lead che il lettore AI ha letto CALDI sulla loro ultima mail (nella finestra), con la classe
+    «positivo», contattabili e non ancora in conversazione."""
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,fuori,stage,"
+                      "pipeline_stage,no_followup,lettore:enriched->lettore&enriched->lettore->>caldo=eq.true"
+                      f"&last_reply_at=gte.{urllib.parse.quote(_z(da))}&limit=300") or []
+    out = []
+    for p in righe:
+        if p["id"] in stato or p.get("classificazione") != "positivo":
+            continue
+        l = lettore_di(p)
+        if not l or not l.get("caldo") or not contattabile(p):
+            continue
+        out.append(p)
+    return out
+
+
+def risposta_calda(p, dal):
+    """La sua mail letta calda: la prima email_in da `dal` (l'ora della risposta letta dal lettore,
+    o il «dal» dello stato)."""
+    if not dal:
+        return None
+    t = quando(dal if str(dal).endswith("Z") or "+" in str(dal) else str(dal) + "+00:00")
+    righe = sb("GET", f"/rest/v1/interactions?select=id,prospect_id,at,body&kind=eq.email_in&prospect_id=eq.{p['id']}"
+                      f"&at=gte.{urllib.parse.quote(_z(t))}&order=at.asc&limit=50") or []
+    righe = [r for r in righe if r.get("at") and quando(r["at"]) >= t]
+    return righe[0] if righe else None
+
+
+def da_chiamare(pid, inizio):
+    """Il si' caldo passa a Dre: «Da chiamare» nell'app, da oggi (la stessa riga del foglio e
+    dell'orecchio). Se Dre ha gia' toccato il lead dopo la sua mail, vince lui: torna False."""
+    r = (sb("GET", f"/rest/v1/snella_lead?select=stato,aggiornato_il&prospect_id=eq.{pid}") or [None])[0]
+    if r and r.get("aggiornato_il") and quando(r["aggiornato_il"]) > inizio:
+        return False
+    ora = adesso()
+    sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id",
+       [{"prospect_id": pid, "stato": "Da chiamare", "chiamata": "richiamare", "chiamata_il": _z(ora),
+         "richiamare_il": ora.astimezone(S.ROMA).date().isoformat(), "aggiornato_il": _z(ora)}],
+       {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    return True
 
 
 # ── il giro ────────────────────────────────────────────────────────
@@ -194,6 +251,30 @@ def giro(prova=None, dal=None):
         if suona(pid, p, r):
             stato[pid] = {**voce, "notificata": True, "il": _z(adesso())}
         cambiato = True
+    # il si' caldo (20/10 sera): e' di Dre anche prima dell'analisi
+    for p in caldi_del_lettore(da, stato):
+        pid = p["id"]
+        r = risposta_calda(p, (p.get("lettore") or {}).get("risposta_il"))
+        if not r:
+            continue
+        inizio = quando(r["at"])
+        voce = {"dal": _z(inizio), "notificata": False, "caldo": True}
+        if inizio < da or (prima_volta and ora - inizio > SEMINA):
+            stato[pid] = {**voce, "notificata": True, "silenziosa": True}
+            cambiato = True
+            continue
+        detto = frase(r)[:120]
+        print(f"  si' caldo, passa a Dre: {azienda(p)} dal {inizio.astimezone(S.ROMA):%d/%m %H:%M} «{detto}»")
+        suonano.append((pid, azienda(p), inizio, detto))
+        if prova:
+            continue
+        if da_chiamare(pid, inizio):
+            print(f"    «Da chiamare» nell'app, da oggi")
+        stato[pid] = voce
+        scrivi_stato(stato)
+        if suona(pid, p, r, caldo=True):
+            stato[pid] = {**voce, "notificata": True, "il": _z(adesso())}
+        cambiato = True
     # le notifiche non arrivate si riprovano, per un giorno
     for pid, v in list(stato.items()):
         if prova or v.get("notificata") or pid in {s[0] for s in suonano}:
@@ -201,10 +282,10 @@ def giro(prova=None, dal=None):
         if ora - quando(v["dal"]) > RIPROVA:
             continue
         p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=eq.{pid}") or [None])[0]
-        r = apertura(p, _risposte_dopo(p)) if p else None
+        r = (risposta_calda(p, v["dal"]) if v.get("caldo") else apertura(p, _risposte_dopo(p))) if p else None
         if not r or r == S.RIMANDATA:
             continue
-        if suona(pid, p, r):
+        if suona(pid, p, r, caldo=bool(v.get("caldo"))):
             stato[pid] = {**v, "notificata": True, "il": _z(adesso())}
             cambiato = True
     vecchie = [pid for pid, v in stato.items() if ora - quando(v.get("dal") or _z(ora)) > TIENI]

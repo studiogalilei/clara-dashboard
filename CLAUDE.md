@@ -39,7 +39,9 @@ registro chi ha fatto cosa, e ferma le scritture quando si è in prova a secco.
    20/10: sollecito a mano, stessa azienda, risposta arrivata dopo); il **promemoria** della
    conoscitiva; il **rimbalzo a un collega** con in cc solo l'indirizzo scritto dal lead.
    **Dopo l'analisi la conversazione è di Dre**: risponde lui su Smartlead, non si scrivono
-   bozze. La classe delle risposte la decide il **lettore AI** (`scripts/lettore.py`,
+   bozze. Un **sì caldo** (il lettore dice «vuole sentirsi») riceve l'analisi da solo come ogni sì
+   e in più passa subito a Dre: «Da chiamare» nell'app e la notifica «entrato in conversazione»
+   (20/10 sera, `scripts/conversazioni.py`). La classe delle risposte la decide il **lettore AI** (`scripts/lettore.py`,
    acceso); le liste di parole sono solo rete. Gli interruttori stanno nella tabella
    `operazioni` (`prima_risposta`, `seguiti`, `manda`, `lettore`): prima di dire cosa
    parte, si leggono lì.

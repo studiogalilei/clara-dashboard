@@ -235,6 +235,23 @@ def contattabile(p):
     return True
 
 
+def lettore_di(p):
+    """LA LETTURA DEL LETTORE AI SULLA SUA ULTIMA MAIL (20/10 sera). sync_v2 la salva in
+    enriched.lettore con l'ora della risposta letta (risposta_il): vale solo se e' quella della
+    sua ultima mail (last_reply_at), se no e' la lettura di un messaggio vecchio. Le liste di
+    parole (fonte «liste») non sono il lettore. Torna il dizionario della lettura o {}.
+    Accetta anche l'alias `lettore:enriched->lettore` delle select corte."""
+    p = p or {}
+    l = (p.get("enriched") or {}).get("lettore") if isinstance(p.get("enriched"), dict) else None
+    l = l or p.get("lettore") or {}
+    if not isinstance(l, dict) or l.get("fonte") != "lettore":
+        return {}
+    ultima = (p.get("last_reply_at") or "")[:19]
+    if ultima and (l.get("risposta_il") or "")[:19] != ultima:
+        return {}
+    return l
+
+
 def fit_di(p):
     """IL GOOGLE FIT, LETTO IN UN MODO SOLO (7/10). Prima c'erano due gerarchie: il
     triage e la prima risposta leggevano il fit nuovo prima del vecchio, bozze.py e

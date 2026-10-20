@@ -48,7 +48,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import casi
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile  # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile, lettore_di  # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
 
@@ -830,6 +830,55 @@ def testo_di_dre(b, p, letti):
     return b
 
 
+def intento_col_lettore(b, p, gruppo=None):
+    """IL SENSO LO DECIDE IL LETTORE (20/10 sera). Un si' caldo («mi mandi tutto e poi ci sentiamo»,
+    caso C05) il modello delle bozze lo leggeva INT-23 (il materiale senza la call): la bozza partiva
+    senza calendario a chi ha appena chiesto di sentirci. Se il lettore AI, sulla sua ultima mail,
+    dice caldo e positivo, la prima risposta e' INT-01 (analisi + call). INT-02 (fissa la call) non
+    contraddice un caldo e resta. Nei gruppi (ricontatti) non si tocca niente."""
+    if not b or gruppo or b.get("intento") != "INT-23":
+        return b
+    l = lettore_di(p)
+    if not (l.get("caldo") and l.get("classe") == "positivo"):
+        return b
+    return {**b, "intento": "INT-01", "template": "INT-01",
+            "nota": "il lettore dice caldo (vuole sentirsi): INT-01 con la call, non INT-23; " + (b.get("nota") or "")}
+
+
+SLOT = re.compile(r"slot|48\s*ore|orario|giorno propost|data propost|stesso giorno|troppo (?:presto|vicin)", re.I)
+
+
+def fermati_sullo_slot(fermati):
+    """IL GIORNO LO SCEGLIE IL CODICE, NON IL MODELLO (20/10 sera). Il playbook diceva «slot almeno
+    48 ore avanti»; Dre il 14/10 ha deciso «il giorno successivo, max 2-3 giorni dopo», e il giorno
+    lo mette proposta_giorno_ora sul suo calendario. Il modello pero' faceva il preflight sulla
+    regola vecchia e fermava la mail: «slot sotto 48 ore, serve la sua conferma». Un fermati che
+    parla solo dello slot non e' un dubbio sulla persona: si ignora, e si scrive nella nota."""
+    f = " ".join((fermati or "").split())
+    return bool(f) and not f.lower().startswith("no") and bool(SLOT.search(f))
+
+
+def ricomponi_senza_attacco(b, b_modello, p, letti, gruppo, componi=None, giudica=None):
+    """LA SECONDA TESTA BOCCIA L'ATTACCO, NON IL TEMPLATE (20/10 sera). Fino all'analisi fa tutto
+    il sistema: se il template di Dre composto dal codice e' INCOERENTE solo per l'attacco che il
+    modello ci ha messo davanti («Grazie per il passaggio,» a chi riceve la mail direttamente), si
+    ricompone col template puro («Va bene perfetto,») e si rigiudica. Torna (bozza, verdetto,
+    motivo) se cosi' e' COERENTE, None se non c'e' niente da togliere o resta incoerente: allora va
+    a Dre come prima. Solo prime risposte col testo dal codice; nei gruppi niente."""
+    componi = componi or testo_di_dre
+    giudica = giudica or lettura.coerenza
+    if gruppo or not b or not b_modello or not b.get("dal_codice") or not (b_modello.get("attacco") or "").strip():
+        return None
+    b2 = componi({**b_modello, "attacco": ""}, p, letti)
+    if not b2 or not b2.get("dal_codice") or b2.get("bozza") == b.get("bozza"):
+        return None
+    verdetto, motivo = giudica(letti, b2["bozza"], gruppo, cc=b2.get("cc"))
+    if verdetto != "COERENTE":
+        return None
+    b2 = {**b2, "nota": "ricomposta col template puro (l'attacco del modello era incoerente); " + (b2.get("nota") or "")}
+    return b2, verdetto, motivo
+
+
 CHIUDONO = ("non c'è nessuno a cui scrivere", "nessun ricontatto")
 
 
@@ -1081,6 +1130,8 @@ def main():
             b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
             return (p, gruppo, nome, None, [], letti, None)
+        b = intento_col_lettore(b, p, gruppo)
+        b_modello = None if b.get("dal_codice") else dict(b)     # il testo del modello, per ricomporre senza attacco
         niente_analisi = analisi_impossibile(p)     # 7/10: regola unica, decisione di Dre compresa
         # IL TESTO DI DRE (29/9: «basta seguire questo tutte le volte possibili»): se per
         # l'intento c'e' un suo template, la bozza e' quello, composto dal codice. Il testo
@@ -1088,6 +1139,8 @@ def main():
         # il template la promette.
         if not gruppo and not niente_analisi:
             b = testo_di_dre(b, p, letti)
+        if b.get("dal_codice") and b.get("giorno") and fermati_sullo_slot(b.get("fermati")):
+            b = {**b, "fermati": "no", "nota": f"il modello si fermava per lo slot ({b.get('fermati')}): il giorno lo sceglie il codice sul calendario di Dre (14/10); " + (b.get("nota") or "")}
         if not gruppo and b.get("intento") in seguiti.RIMBALZI and "cc" not in b:
             # il codice non ha potuto comporre il template (azienda senza nome): la copia resta
             # quella decisa dal testo suo, e la seconda testa controlla che la bozza la dica
@@ -1101,6 +1154,11 @@ def main():
             b["fermati"] = "si': " + dura[1]
         # 4. LA SECONDA TESTA
         verdetto, motivo = lettura.coerenza(letti, b["bozza"], gruppo, cc=b.get("cc"))
+        if verdetto != "COERENTE":
+            ric = ricomponi_senza_attacco(b, b_modello, p, letti, gruppo)
+            if ric:
+                b, verdetto, motivo = ric
+                errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"))
         b["lettura"] = {**letti, "letta_da_clara": b.get("lettura_di_clara", ""), "ha_gia_di_clara": b.get("ha_gia_di_clara", ""),
                         "coerenza": verdetto, "coerenza_motivo": motivo, "gruppo": gruppo}
         if verdetto != "COERENTE" and b["fermati"].lower().startswith("no"):

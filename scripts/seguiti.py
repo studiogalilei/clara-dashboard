@@ -59,8 +59,14 @@ def _nome_vero(n):
 def saluto(p, letti):
     """«Salve Nome,» o «Salve,». Mai un nome inventato."""
     nostra = (letti or {}).get("ultima_nostra") or ""
+    # 20/10 sera: se ha risposto un'altra persona (un collega dallo stesso dominio) il nome della
+    # nostra mail e' quello sbagliato: «Salve Luca» a chi si chiama Francesco. Mittente diverso
+    # dal destinatario nostro: il nome nostro non vale, e al massimo resta quello della scheda se sta nel suo testo
+    da = ((letti or {}).get("ultima_loro_da") or "").strip().lower()
+    a_chi = ((letti or {}).get("ultima_nostra_a") or "").strip().lower()
+    altra_persona = bool(da and a_chi and da != a_chi)
     m = re.match(r"\s*(?:Salve|Buongiorno|Gentile)\s+(?:Sig\.ra\s+|Sig\.\s+|Dott\.ssa\s+|Dott\.\s+)?([A-ZÀ-Ý][\wà-ÿ']+)\s*,", nostra)
-    if m and _nome_vero(m.group(1)):
+    if m and _nome_vero(m.group(1)) and not altra_persona:
         return f"Salve {m.group(1)},"
     nome = ((p or {}).get("name") or "").split()
     primo = nome[0] if nome else ""
@@ -145,10 +151,15 @@ def _blocco(titolo_re, testo_file):
 
 
 def _attacco(a):
-    """L'attacco del modello, solo se e' corto e innocuo: niente numeri, niente promesse."""
+    """L'attacco del modello, solo se e' corto e innocuo: niente numeri, niente promesse.
+    20/10 sera: nemmeno un fatto sul filo («grazie per il passaggio», «la metto in copia»,
+    «me l'ha inoltrata»): se scriviamo direttamente al contatto nuovo e' falso, e la seconda
+    testa fermava la mail per quello. Senza attacco si usa quello di Dre."""
     a = " ".join((a or "").split()).strip(" «»\"'")
-    if not a or len(a.split()) > 7 or re.search(r"\d|analisi|€|garanzi|allego|propongo", a, re.I):
+    if not a or len(a.split()) > 7 or re.search(r"\d|analisi|€|garanzi|allego|propongo|passaggi|copia|inoltr|girat", a, re.I):
         return None
+    if re.match(r"(?:salve|buongiorno|buonasera|gentile|egregi|ciao|spett)", a, re.I):
+        return None            # il saluto lo mette il codice: «Salve,» e poi «Buongiorno Francesco,» e' un doppio saluto
     a = a.rstrip(".;:!") + ("" if a.endswith(",") else ",")
     return a[0].upper() + a[1:]
 

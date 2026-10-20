@@ -13,7 +13,11 @@ una seconda, «Clara», scritta dal sistema a ogni giro del foglio (10 minuti):
 
 IL SEMAFORO si accende solo per quello che costa lead o soldi (spec, punto 4):
 - un si' senza analisi da piu' di un'ora, contando solo l'orario di invio (8-21); conta anche un
-  rimbalzo interno (INT-08/09, «mandatelo a questo indirizzo») ancora «da_classificare» (20/10);
+  rimbalzo interno (INT-08/09, «mandatelo a questo indirizzo») ancora «da_classificare» (20/10).
+  CHI E' UN SI' LO DICE IL LETTORE AI (20/10 sera): prospects.classificazione == positivo, che
+  sync_v2 scrive dal lettore (scripts/lettore.py). Il segnale provvisorio non decide piu': la sera
+  del 20/10 accendeva 6 rossi, e 5 non erano si' («abbiamo gia' chi ci segue», «ho girato la
+  mail», «non lavora piu' qui», un'obiezione);
 - l'invio fermo: le ultime 3 corse di un'operazione che porta le mail in errore, o nessuna corsa
   da un'ora in orario; crediti finiti o chiave scaduta (l'ultima corsa lo dice);
 - il direttore fermo (nessuna operazione da 20 minuti);
@@ -36,7 +40,7 @@ import urllib.parse
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, contattabile          # noqa: E402
+from stanza import sb, sb_tutte, quando, contattabile, lettore_di  # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 SCHEDA = "Clara"
@@ -120,6 +124,7 @@ def _nomi(pids):
 
 
 RIMBALZI = ("INT-08", "INT-09")
+RIMBALZI_LETTORE = ("C35", "C37")       # «scriva a quest'altro indirizzo», «mette in copia un collega»
 
 
 def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
@@ -127,7 +132,10 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
     con una persona in piu', ma il sync lo lascia «da_classificare» e il segnale non lo conta come si':
     un rimbalzo fermo mezza giornata non accendeva il semaforo. Si contano le bozze INT-08/INT-09
     aperte (anche «da guardare tu») di chi e' ancora da classificare e senza analisi, con l'ora della
-    sua mail. `proposte` e `schede` si passano solo nelle prove."""
+    sua mail. 20/10 sera: se il lettore AI ha letto la sua ultima mail, il rimbalzo e' tale solo se
+    lo dice lui (C35 un indirizzo nuovo, C37 un collega in copia): «l'ho girata, vi contatteranno»
+    (C36) e «non lavora piu' qui» (C39) non sono si' da servire, anche se il modello delle bozze
+    aveva scritto un INT-08. `proposte` e `schede` si passano solo nelle prove."""
     if proposte is None:
         proposte = sb("GET", "/rest/v1/proposte?select=prospect_id&tipo=in.(risposta,umano)&stato=in.(aperta,approvata,in_invio)"
                              f"&azione->>intento=in.({','.join(RIMBALZI)})&prospect_id=not.is.null&limit=300") or []
@@ -138,11 +146,14 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
         schede = []
         for pezzo in _pezzi(ids):
             schede += sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,fuori,stage,pipeline_stage,no_followup,"
-                                f"classificazione,last_reply_at&id=in.({pezzo})") or []
+                                f"classificazione,last_reply_at,lettore:enriched->lettore&id=in.({pezzo})") or []
     out = []
     for p in schede:
         if p["id"] not in ids or p.get("classificazione") != "da_classificare" or p.get("analysis_sent") or not p.get("last_reply_at"):
             continue
+        letto = lettore_di(p)
+        if letto and letto.get("caso") not in RIMBALZI_LETTORE:
+            continue                                   # il lettore l'ha letta e non e' un rimbalzo
         t = quando(p["last_reply_at"])
         if ora - t > datetime.timedelta(days=3) or not contattabile(p):
             continue
@@ -150,41 +161,41 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
     return out
 
 
-def si_fermi(ora):
-    """I si' (letti dal segnale) degli ultimi 3 giorni senza analisi e senza nessuna mail nostra dopo,
-    piu' i rimbalzi interni ancora da classificare (rimbalzi_fermi)."""
-    segnali = sb_tutte(f"/rest/v1/segnali_provvisori?select=id,prospect_id,quando,come&tipo=eq.si&quando=gte.{_z(ora - datetime.timedelta(days=3))}")
-    segnali = [s for s in segnali if s.get("come") != "prova" and s.get("prospect_id")]
-    if not segnali:
-        return rimbalzi_fermi(ora)
-    ps = {}
-    for pezzo in _pezzi({s["prospect_id"] for s in segnali}):
-        for p in sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,fuori,stage,pipeline_stage,no_followup,"
-                           f"classificazione&id=in.({pezzo})") or []:
-            ps[p["id"]] = p
-    dopo = {}
-    da = min(quando(s["quando"]) for s in segnali)
-    for pezzo in _pezzi(ps):
-        for x in sb("GET", f"/rest/v1/interactions?select=prospect_id,at&prospect_id=in.({pezzo})"
-                           f"&kind=in.(email_out,followup)&at=gte.{_z(da)}&limit=2000") or []:
-            t = quando(x["at"])
-            if x["prospect_id"] not in dopo or t > dopo[x["prospect_id"]]:
-                dopo[x["prospect_id"]] = t
-    bozze = set()
-    for pezzo in _pezzi(ps):
-        bozze |= {x["prospect_id"] for x in sb("GET", f"/rest/v1/proposte?select=prospect_id&prospect_id=in.({pezzo})"
-                                                     "&tipo=eq.risposta&stato=in.(aperta,approvata,in_invio)") or []}
+def si_fermi(ora, positivi=None, dopo=None, bozze=None):
+    """I si' degli ultimi 3 giorni senza analisi e senza nessuna mail nostra dopo, piu' i rimbalzi
+    interni ancora da classificare (rimbalzi_fermi). UN SI' E' CHI IL LETTORE HA MESSO «positivo»
+    (prospects.classificazione, 20/10 sera): il segnale provvisorio non decide piu'. La sua ora e'
+    quella della sua ultima mail. `positivi`, `dopo` ({pid: ultima nostra mail}) e `bozze` (pid con
+    una bozza aperta, anche «da guardare tu») si passano solo nelle prove."""
+    da = ora - datetime.timedelta(days=3)
+    if positivi is None:
+        positivi = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,fuori,stage,pipeline_stage,no_followup,"
+                             f"classificazione,last_reply_at&classificazione=eq.positivo&last_reply_at=gte.{_z(da)}"
+                             "&order=last_reply_at.desc&limit=500") or []
+    ps = {p["id"]: p for p in positivi if p.get("last_reply_at") and p.get("classificazione") == "positivo"}
+    if dopo is None:
+        dopo = {}
+        for pezzo in _pezzi(ps):
+            for x in sb("GET", f"/rest/v1/interactions?select=prospect_id,at&prospect_id=in.({pezzo})"
+                               f"&kind=in.(email_out,followup)&at=gte.{_z(da)}&limit=2000") or []:
+                t = quando(x["at"])
+                if x["prospect_id"] not in dopo or t > dopo[x["prospect_id"]]:
+                    dopo[x["prospect_id"]] = t
+    if bozze is None:
+        bozze = set()
+        for pezzo in _pezzi(ps):
+            bozze |= {x["prospect_id"] for x in sb("GET", f"/rest/v1/proposte?select=prospect_id&prospect_id=in.({pezzo})"
+                                                         "&tipo=in.(risposta,umano)&stato=in.(aperta,approvata,in_invio)") or []}
     out = []
-    for s in segnali:
-        p = ps.get(s["prospect_id"])
-        t = quando(s["quando"])
-        if not p or p.get("analysis_sent") or not contattabile(p):
+    for p in sorted(ps.values(), key=lambda p: p["last_reply_at"]):
+        t = quando(p["last_reply_at"])
+        if t < da or p.get("analysis_sent") or not contattabile(p):
             continue
         if dopo.get(p["id"]) and dopo[p["id"]] >= t - datetime.timedelta(minutes=30):
             continue                                       # gli abbiamo scritto: servito
         out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t,
                     "bozza": p["id"] in bozze})
-    return out + rimbalzi_fermi(ora, gia={s["prospect_id"] for s in segnali})
+    return out + rimbalzi_fermi(ora, gia=set(ps))
 
 
 def leggi_semaforo(ora):

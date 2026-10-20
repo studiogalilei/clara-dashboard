@@ -50,7 +50,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, proponi, _a_secco, URL, CHIAVE      # noqa: E402
+from stanza import sb, sb_tutte, quando, proponi, _a_secco, URL, CHIAVE, lettore_di  # noqa: E402
 import foglio_lead                                                            # noqa: E402
 
 PROVA = _a_secco()
@@ -291,9 +291,13 @@ def leggi_dati():
     schede = {r["prospect_id"]: r for r in sb_tutte(
         "/rest/v1/snella_schede?select=prospect_id,azienda,stato,ultima_risposta,analisi:scheda->analisi,"
         "aspetta:scheda->aspetta_noi,da_chiamare", chiave="prospect_id")}
-    # chi ha mostrato interesse: la lettura del segnale (si', caldo), gia' fatta dall'AI
-    interesse = {r["prospect_id"] for r in sb_tutte("/rest/v1/segnali_provvisori?select=id,prospect_id,tipo,come&tipo=in.(si,caldo)")
-                 if r.get("come") != "prova" and r.get("prospect_id")}
+    # chi ha mostrato interesse: la lettura del lettore AI sulla sua ultima mail (si' o caldo).
+    # 20/10 sera: il segnale provvisorio non decide piu' (metteva nel percorso anche «abbiamo gia' chi ci segue»)
+    da_int = _z(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=FERMO_GIORNI))
+    interesse = {r["id"] for r in sb_tutte("/rest/v1/prospects?select=id,last_reply_at,lettore:enriched->lettore"
+                                           "&or=(enriched->lettore->>caldo.eq.true,enriched->lettore->>classe.eq.positivo)"
+                                           f"&last_reply_at=gte.{da_int}")
+                 if lettore_di(r) and (lettore_di(r).get("caldo") or lettore_di(r).get("classe") == "positivo")}
     dec = {r["prospect_id"]: r for r in sb_tutte("/rest/v1/snella_lead?select=*", chiave="prospect_id")}
     clienti = {r["prospect_id"]: r for r in sb_tutte("/rest/v1/clienti?select=prospect_id,dal,stato", chiave="prospect_id")}
     # basta il calendario di Dre (deciso il 19/10: le call le fa sempre lui)

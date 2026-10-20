@@ -3603,6 +3603,8 @@ class _ConversazioniFinte:
         self.risposte, self.memoria, self.notifiche, self.ai = [], {}, [], []
         self.stato = stato                          # None = la chiave non c'e' ancora (la prima accensione)
         self.dispositivi = 1                        # 0 = la notifica non arriva a nessuno
+        self.caldo = False                          # il lettore AI ha letto calda la sua ultima mail (20/10 sera)
+        self.snella_lead = {}                       # le decisioni nell'app (quello che scrive «Da chiamare»)
 
     def scrive(self, testo, minuti_fa=30, pid="p1"):
         at = (self.ora - datetime.timedelta(minutes=minuti_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
@@ -3617,8 +3619,23 @@ class _ConversazioniFinte:
             pid = _re.search(r"prospect_id=eq\.([^&]+)", path)
             return [r for r in rr if not pid or r["prospect_id"] == pid.group(1)]
         if path.startswith("/rest/v1/prospects"):
-            return [{"id": "p1", "company": "Azienda Finta", "name": "Mario", "analysis_sent_at": self.analisi,
-                     "stage": "in_follow_up", "pipeline_stage": None, "classificazione": "positivo"}]
+            ultima = max((r["at"] for r in self.risposte), default=None)
+            riga = {"id": "p1", "company": "Azienda Finta", "name": "Mario", "analysis_sent_at": self.analisi,
+                    "stage": "in_follow_up", "pipeline_stage": None, "classificazione": "positivo", "fuori": False,
+                    "no_followup": False, "last_reply_at": ultima}
+            if "lettore" in path:                   # la domanda dei caldi del lettore
+                if not self.caldo or not self.risposte:
+                    return []
+                prima = min(r["at"] for r in self.risposte)
+                riga["lettore"] = {"fonte": "lettore", "classe": "positivo", "caldo": True, "caso": "C05", "risposta_il": prima[:19]}
+            return [riga]
+        if path.startswith("/rest/v1/snella_lead"):
+            if m == "GET":
+                pid = _re.search(r"prospect_id=eq\.([^&]+)", path)
+                return [dict(self.snella_lead[pid.group(1)])] if pid and pid.group(1) in self.snella_lead else []
+            for r in corpo:
+                self.snella_lead[r["prospect_id"]] = {**self.snella_lead.get(r["prospect_id"], {}), **r}
+            return None
         if path.startswith("/rest/v1/snella_numeri"):
             if m == "GET":
                 return [{"dati": json.loads(json.dumps(self.stato))}] if self.stato is not None else []
@@ -3888,13 +3905,20 @@ def _():
                   {"id": "s1", "company": "Col Segnale", "classificazione": "da_classificare", "analysis_sent": False, "fuori": False, "last_reply_at": alle(8).isoformat()}]
         r = C.rimbalzi_fermi(alle(11), gia={"s1"}, proposte=proposte, schede=schede)
         assert [x["azienda"] for x in r] == ["Falegnameria Finta"] and r[0]["quando"] == alle(8, 56) and r[0]["bozza"], r
+        # 20/10 sera: se il lettore ha letto la sua ultima mail, decide lui cos'e' un rimbalzo
+        lett = lambda caso: {"fonte": "lettore", "caso": caso, "classe": "da_classificare", "risposta_il": alle(8, 56).isoformat()[:19]}  # noqa: E731
+        girata = {**schede[0], "id": "r5", "company": "L'ho Girata", "lettore": lett("C36")}
+        indirizzo = {**schede[0], "id": "r6", "company": "Altro Indirizzo", "lettore": lett("C35")}
+        vecchia = {**schede[0], "id": "r7", "company": "Lettura Vecchia", "lettore": {**lett("C36"), "risposta_il": "2026-10-01T08:00:00"}}
+        r2 = C.rimbalzi_fermi(alle(11), proposte=[{"prospect_id": "r5"}, {"prospect_id": "r6"}, {"prospect_id": "r7"}], schede=[girata, indirizzo, vecchia])
+        assert [x["azienda"] for x in r2] == ["Altro Indirizzo", "Lettura Vecchia"], [x["azienda"] for x in r2]
         d = vuoto()
         d["si"] = r
         g = C.semaforo(alle(11), d)
         assert len(g) == 1 and "Falegnameria Finta" in g[0]["cosa"] and "8:56" in g[0]["cosa"], g
         assert C.rimbalzi_fermi(alle(11), proposte=[], schede=schede) == []
         src_c = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "clara_foglio.py"), encoding="utf-8").read()
-        assert src_c.count("rimbalzi_fermi(ora") >= 2, "si_fermi deve sommare i rimbalzi, con e senza segnali"
+        assert "rimbalzi_fermi(ora, gia=" in src_c, "si_fermi deve sommare i rimbalzi"
     finally:
         C.contattabile = vero_cont
     # la scheda Clara e i link leggono e basta: niente scritture nel database, niente mail
@@ -4593,6 +4617,154 @@ def _():
     assert m["annunci_attivi"] == 2 and m["annunci_totali"] == 2 and m["giorni"] == 292, m
     assert G.segnali_meta("<script src='https://connect.facebook.net/it_IT/fbevents.js'></script><a href='https://instagram.com/x'>")["pixel_meta"]
     assert not G.segnali_meta("<a href='https://facebook.com/tr?id=1'>")["facebook"]
+
+# ── 20/10 sera: i si' li dice il lettore, e un si' caldo passa a Dre senza fermare l'analisi ──
+
+@prova("semaforo (20/10 sera): «sì senza analisi» lo decide il lettore (classificazione positivo), non il segnale vecchio")
+def _():
+    import datetime, clara_foglio as C
+    roma = C.ROMA
+    alle = lambda h, m=0: datetime.datetime(2026, 10, 20, h, m, tzinfo=roma)        # noqa: E731
+    vero_cont, vero_rimb = C.contattabile, C.rimbalzi_fermi
+    try:
+        C.contattabile = lambda p: not p.get("fuori")
+        C.rimbalzi_fermi = lambda ora, gia=(), **k: [{"prospect_id": "r1", "azienda": "Rimbalzo srl", "quando": alle(9), "bozza": True}]
+        positivi = [
+            {"id": "a", "company": "Si' Vero", "classificazione": "positivo", "analysis_sent": False, "fuori": False, "last_reply_at": alle(9, 30).isoformat()},
+            {"id": "b", "company": "Gia' Servito", "classificazione": "positivo", "analysis_sent": False, "fuori": False, "last_reply_at": alle(9).isoformat()},
+            {"id": "c", "company": "Con Analisi", "classificazione": "positivo", "analysis_sent": True, "fuori": False, "last_reply_at": alle(9).isoformat()},
+            {"id": "d", "company": "In Pipeline", "classificazione": "positivo", "analysis_sent": False, "fuori": True, "last_reply_at": alle(9).isoformat()},
+            {"id": "e", "company": "Da Guardare", "classificazione": "positivo", "analysis_sent": False, "fuori": False, "last_reply_at": alle(8, 15).isoformat()},
+            {"id": "f", "company": "Non e' un si'", "classificazione": "da_classificare", "analysis_sent": False, "fuori": False, "last_reply_at": alle(9).isoformat()},
+        ]
+        dopo = {"b": alle(9, 20)}                     # a «b» abbiamo scritto dopo la sua mail: servito
+        r = C.si_fermi(alle(11), positivi=positivi, dopo=dopo, bozze={"e"})
+        assert [x["azienda"] for x in r] == ["Da Guardare", "Si' Vero", "Rimbalzo srl"], [x["azienda"] for x in r]
+        assert r[1]["quando"] == alle(9, 30) and not r[1]["bozza"] and r[0]["bozza"], r
+        g = C.semaforo(alle(11), {"si": r, "corse": {}, "operazioni": {}, "foglio_il": None, "conversazioni": None, "ultima_corsa": None})
+        assert [x["pid"] for x in g] == ["e", "r1", "a"], g
+        assert "scheda" in g[0]["sta_facendo"] and "riprova" in g[2]["sta_facendo"], g
+        # una nostra mail PRIMA della sua (piu' di mezz'ora prima) non e' un servizio
+        assert [x["azienda"] for x in C.si_fermi(alle(11), positivi=positivi[:1], dopo={"a": alle(8, 30)}, bozze=set())][:1] == ["Si' Vero"]
+    finally:
+        C.contattabile, C.rimbalzi_fermi = vero_cont, vero_rimb
+    # la fonte vecchia non decide piu' da nessuna parte: ne' il semaforo, ne' il foglio, ne' il riquadro rosso di Oggi
+    cartella = os.path.dirname(os.path.abspath(__file__))
+    for nome in ("clara_foglio.py", "foglio.py"):
+        src = open(os.path.join(cartella, nome), encoding="utf-8").read()
+        assert "segnali_provvisori" not in src, f"{nome} legge ancora il segnale provvisorio per decidere"
+    src = open(os.path.join(cartella, "schede.py"), encoding="utf-8").read()
+    assert 'v.get("si")' not in src and "lettore_di" in open(os.path.join(cartella, "foglio.py"), encoding="utf-8").read()
+    import stanza as St
+    fresco = {"last_reply_at": "2026-10-20T13:31:16+00:00", "enriched": {"lettore": {"fonte": "lettore", "classe": "positivo", "caldo": True, "risposta_il": "2026-10-20T13:31:16"}}}
+    assert St.lettore_di(fresco)["caldo"] is True
+    assert St.lettore_di({**fresco, "last_reply_at": "2026-10-20T15:00:00+00:00"}) == {}, "una lettura di una mail vecchia non vale per la nuova"
+    assert St.lettore_di({**fresco, "enriched": {"lettore": {**fresco["enriched"]["lettore"], "fonte": "liste"}}}) == {}, "le liste non sono il lettore"
+    assert St.lettore_di({"last_reply_at": fresco["last_reply_at"], "lettore": fresco["enriched"]["lettore"]})["classe"] == "positivo", "anche con l'alias lettore:enriched->lettore"
+
+
+@prova("bozze (20/10 sera): l'attacco del modello non racconta un passaggio; se risponde un'altra persona il saluto non riusa il nome nostro")
+def _():
+    import seguiti as S
+    assert S._attacco("Grazie per il passaggio") is None and S._attacco("grazie per il passaggio, molto gentile") is None
+    assert S._attacco("Perfetto, la metto in copia") is None and S._attacco("Grazie per avermela inoltrata") is None
+    assert S._attacco("Perfetto") == "Perfetto," and S._attacco("La ringrazio della risposta") == "La ringrazio della risposta,"
+    assert S._attacco("Buongiorno Francesco, grazie") is None and S._attacco("Salve, perfetto") is None, "un saluto nell'attacco fa un doppio saluto"
+    letti = {"ultima_nostra": "Buongiorno Luca, le avevo scritto...", "ultima_nostra_a": "luca@esempio.invalid",
+             "ultima_loro_da": "francesco@esempio.invalid", "ultima_loro": "mi ha passato la comunicazione il collega, me ne occupo io"}
+    assert S.saluto({"name": "Luca"}, letti) == "Salve,", "ha risposto un'altra persona: il nome della nostra mail non vale"
+    assert S.saluto({"name": "Luca"}, {**letti, "ultima_loro_da": "luca@esempio.invalid"}) == "Salve Luca,"
+    assert S.saluto({"name": "Luca"}, {**letti, "ultima_loro_da": "LUCA@Esempio.invalid"}) == "Salve Luca,", "lo stesso indirizzo, maiuscole diverse"
+    assert S.saluto({"name": "Luca"}, {**letti, "ultima_loro_da": None}) == "Salve Luca,", "senza mittente noto si fa come prima"
+
+
+@prova("bozze (20/10 sera): un sì caldo per il lettore è INT-01 con la call, non INT-23; una bozza incoerente per l'attacco si ricompone col template puro")
+def _():
+    import bozze as Bz
+    caldo = {"id": "p1", "last_reply_at": "2026-10-20T13:31:16+00:00",
+             "enriched": {"lettore": {"fonte": "lettore", "classe": "positivo", "caldo": True, "caso": "C05", "risposta_il": "2026-10-20T13:31:16"}}}
+    b = {"intento": "INT-23", "template": "INT-23", "nota": "", "fermati": "no", "bozza": "x"}
+    b2 = Bz.intento_col_lettore(b, caldo)
+    assert b2["intento"] == "INT-01" and b2["template"] == "INT-01" and "lettore" in b2["nota"], b2
+    assert Bz.intento_col_lettore(b, {**caldo, "enriched": {}}) is b, "senza lettore non si tocca"
+    assert Bz.intento_col_lettore(b, caldo, gruppo="FOLLOW UP 1") is b, "nei gruppi no"
+    assert Bz.intento_col_lettore({**b, "intento": "INT-02"}, caldo)["intento"] == "INT-02", "INT-02 (fissa la call) non contraddice un caldo"
+    tiepido = {**caldo, "enriched": {"lettore": {**caldo["enriched"]["lettore"], "caldo": False}}}
+    assert Bz.intento_col_lettore(b, tiepido) is b, "un si' non caldo che vuole solo il materiale resta INT-23"
+    # la ricomposizione: l'attacco del modello rende la bozza incoerente, il template puro no
+    modello = {"intento": "INT-01", "template": "INT-01", "attacco": "Grazie per il passaggio", "bozza": "testo del modello", "fermati": "no", "nota": ""}
+    composta = {**modello, "bozza": "Salve,\nGrazie per il passaggio, vi inoltro...", "dal_codice": True, "bozza_modello": "testo del modello"}
+    chiamate = []
+    def componi(bm, p, letti):
+        chiamate.append(bm.get("attacco"))
+        return {**bm, "bozza": "Salve,\nVa bene perfetto, vi inoltro...", "dal_codice": True}
+    def giudica(letti, testo, gruppo=None, cc=None):
+        return ("INCOERENTE", "grazie per il passaggio al contatto nuovo") if "passaggio" in testo else ("COERENTE", "")
+    r = Bz.ricomponi_senza_attacco(composta, modello, {"id": "p1"}, {}, None, componi=componi, giudica=giudica)
+    assert r and r[1] == "COERENTE" and r[0]["bozza"].startswith("Salve,\nVa bene perfetto") and "ricomposta" in r[0]["nota"], r
+    assert chiamate == [""], "si ricompone senza l'attacco del modello"
+    assert Bz.ricomponi_senza_attacco(composta, modello, {"id": "p1"}, {}, "FOLLOW UP 1", componi=componi, giudica=giudica) is None, "nei gruppi no"
+    assert Bz.ricomponi_senza_attacco({**composta, "dal_codice": False}, modello, {"id": "p1"}, {}, None, componi=componi, giudica=giudica) is None, "solo sul template composto dal codice"
+    assert Bz.ricomponi_senza_attacco(composta, {**modello, "attacco": ""}, {"id": "p1"}, {}, None, componi=componi, giudica=giudica) is None, "senza attacco non c'e' niente da togliere"
+    ancora = lambda letti, testo, gruppo=None, cc=None: ("INCOERENTE", "altro")      # noqa: E731
+    assert Bz.ricomponi_senza_attacco(composta, modello, {"id": "p1"}, {}, None, componi=componi, giudica=ancora) is None, "se resta incoerente va a Dre come prima"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py"), encoding="utf-8").read()
+    assert "intento_col_lettore(b, p, gruppo)" in src and "ricomponi_senza_attacco(b, b_modello" in src, "il motore deve usarle davvero"
+    # il giorno lo sceglie il codice: un «fermati» del modello solo sullo slot non ferma la mail
+    assert Bz.fermati_sullo_slot("si': slot sotto 48 ore; serve la sua conferma prima")
+    assert Bz.fermati_sullo_slot("sì: lo slot proposto è lo stesso giorno dell'invio")
+    assert not Bz.fermati_sullo_slot("no") and not Bz.fermati_sullo_slot("") and not Bz.fermati_sullo_slot(None)
+    assert not Bz.fermati_sullo_slot("si': nella sua ultima mail sembra dire di no"), "un dubbio sulla persona resta"
+    assert 'fermati_sullo_slot(b.get("fermati"))' in src and 'b.get("dal_codice") and b.get("giorno")' in src, "vale solo col giorno scelto dal codice"
+
+
+@prova("conversazione (20/10 sera): un sì CALDO prima dell'analisi suona e passa a Dre come «Da chiamare»; un sì non caldo no")
+def _():
+    f = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+    f.caldo = True
+    f.scrive("Se volete potete inviarmi tutto e poi ci sentiamo.", minuti_fa=20)
+    f.giro()
+    assert len(f.notifiche) == 1, f.notifiche
+    n = f.notifiche[0]
+    assert n["titolo"].startswith("È entrato in conversazione") and "Vuole sentirti" in n["testo"] and n["url"].endswith("#/s/lead/p1"), n
+    assert f.stato["p1"]["notificata"] is True and f.stato["p1"]["caldo"] is True, f.stato
+    d = f.snella_lead.get("p1")
+    assert d and d["stato"] == "Da chiamare" and d["chiamata"] == "richiamare" and d["richiamare_il"] == f.ora.astimezone(zoneinfo.ZoneInfo("Europe/Rome")).date().isoformat(), d
+    f.giro()
+    f.giro()
+    assert len(f.notifiche) == 1, "lo stesso caldo ha suonato piu' volte"
+    # poi arriva l'analisi e lui riscrive: e' la stessa conversazione, non suona di nuovo
+    f.analisi = (f.ora - datetime.timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    f.scrive("Ricevuto, grazie: ci sentiamo mercoledi'", minuti_fa=2)
+    f.giro()
+    assert len(f.notifiche) == 1, f.notifiche
+    # un si' non caldo prima dell'analisi: niente (lo serve il sistema con l'analisi)
+    g = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+    g.scrive("Si', mandatemi pure l'analisi", minuti_fa=20)
+    g.giro()
+    assert g.notifiche == [] and g.stato == {} and g.snella_lead == {}, (g.notifiche, g.stato, g.snella_lead)
+    # Dre ha gia' toccato il lead dopo la sua mail: la notifica suona, la sua decisione non si tocca
+    h = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+    h.caldo = True
+    h.snella_lead["p1"] = {"prospect_id": "p1", "stato": "Perso", "aggiornato_il": h.ora.strftime("%Y-%m-%dT%H:%M:%S+00:00")}
+    h.scrive("Chiamatemi pure al 333 0000000", minuti_fa=20)
+    h.giro()
+    assert len(h.notifiche) == 1 and h.snella_lead["p1"]["stato"] == "Perso", (h.notifiche, h.snella_lead)
+    # la prova a secco non scrive niente
+    k = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+    k.caldo = True
+    k.scrive("Volentieri, poi ci sentiamo", minuti_fa=20)
+    assert len(k.giro(prova=True)) == 1 and k.notifiche == [] and k.stato == {} and k.snella_lead == {}
+    # una notifica non arrivata al caldo si riprova
+    j = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+    j.caldo, j.dispositivi = True, 0
+    j.scrive("Volentieri, poi ci sentiamo", minuti_fa=20)
+    j.giro()
+    assert j.notifiche == [] and j.stato["p1"]["notificata"] is False, j.stato
+    j.dispositivi = 1
+    j.giro()
+    assert len(j.notifiche) == 1 and j.stato["p1"]["notificata"] is True, (j.notifiche, j.stato)
+
 
 
 def main():

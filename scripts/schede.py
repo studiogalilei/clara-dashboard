@@ -434,18 +434,14 @@ def numeri_oggi(ctx, ora):
             ps[p["id"]] = p
     vere = [r for r in righe if r["prospect_id"] in ps and not S.automatica(r.get("body") or "")]
     chi = {r["prospect_id"] for r in vere}
-    # i si' di oggi: la lettura del segnale (in memoria) per ogni risposta, se no la classe del lead
+    # i si' di oggi: la classe che il lettore AI ha scritto nel lead (prospects.classificazione).
+    # 20/10 sera: la lettura del segnale provvisorio non decide piu' chi «ha detto si' e aspetta»
     si = {}
     az_di = lambda r: " ".join((ps[r["prospect_id"]].get("company") or ps[r["prospect_id"]].get("name") or "?").split())  # noqa: E731
-    letture = {r["id"]: v for r, v in in_parallelo(lambda r: lettura_segnale(az_di(r), r.get("body") or ""), vere)}
     for r in sorted(vere, key=lambda r: r["at"]):
         p = ps[r["prospect_id"]]
-        az = az_di(r)
-        v = letture.get(r["id"])
-        v = v if isinstance(v, dict) else None
-        e_si = (v.get("si") or v.get("caldo")) if v else p.get("classificazione") == "positivo"
-        if e_si and r["prospect_id"] not in si and not p.get("fuori"):
-            si[r["prospect_id"]] = (r, az)
+        if p.get("classificazione") == "positivo" and r["prospect_id"] not in si and not p.get("fuori"):
+            si[r["prospect_id"]] = (r, az_di(r))
     serviti, in_attesa = [], []
     serviti_il = dict(in_parallelo(lambda pid: S.primo_servizio(pid, quando(si[pid][0]["at"])), list(si)))
     for pid, (r, az) in si.items():
