@@ -17,6 +17,8 @@ COSA FA, PER OGNI AZIENDA «IN ARRIVO» (ha risposto, l'analisi non e' partita)
 5. verdetto: SI', PARZIALE o NO, con il motivo scritto, e lo salva in
    enriched.google_fit. Da li' lo leggono la scheda, il foglio e le bozze.
    Dal 20/10 il Foglio Zone NON entra (Dre: non affidabile, caso per caso).
+6. dal 20/10 anche IL META FIT (google_fit.meta): stesso sito, stesse recensioni, la Meta Ad
+   Library, e un verdetto a parte; google_fit.canale dice il canale consigliato.
 
 Non manda niente e non chiude nessuno: un NO resta «in arrivo» col motivo,
 e Dre decide. Il pedaggio e' l'invio dell'analisi.
@@ -163,6 +165,7 @@ def leggi_sito(url):
             return ""
     except Exception:
         return ""
+    _SEGNALI[url] = segnali_meta(raw)
     raw = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", " ", raw, flags=re.S | re.I)
     titolo = re.search(r"<title[^>]*>(.*?)</title>", raw, flags=re.S | re.I)
     descr = re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']*)', raw, flags=re.I)
@@ -175,6 +178,24 @@ def leggi_sito(url):
         pezzi.append("DESCRIZIONE: " + descr.group(1))
     pezzi.append(testo[:3500])
     return "\n".join(pezzi)
+
+
+_SEGNALI = {}
+
+
+def segnali_meta(raw):
+    """Quello che il codice del sito dice di Meta: il pixel (hanno gia' fatto o fanno Meta Ads),
+    e se hanno Instagram o Facebook (c'e' materiale visivo da cui partire)."""
+    r = raw or ""
+    return {"pixel_meta": bool(re.search(r"connect\.facebook\.net|fbq\s*\(|facebook-jssdk|fbevents\.js", r, re.I)),
+            "instagram": "instagram.com/" in r.lower(), "facebook": bool(re.search(r"facebook\.com/(?!tr\b|plugins|sharer)", r, re.I))}
+
+
+def segnali_di(sito):
+    u = sito or ""
+    if u and not u.startswith("http"):
+        u = "https://" + u
+    return _SEGNALI.get(u) or {"pixel_meta": False, "instagram": False, "facebook": False}
 
 
 # ── il cervello: settore, provincia, natura ───────────────────────
@@ -230,6 +251,16 @@ Rispondi SOLO con un JSON su una riga, con queste chiavi:
    false se la vendita avviene solo di persona o per telefono,
  "due_cose_scomode": array di due stringhe brevi: le due ragioni per cui questo cliente
    potrebbe NON funzionare con Google Ads. Sempre due, anche quando l'azienda ti convince.
+ "visivo": true se quello che vendono si vende con le immagini (una casa, un infisso, una cucina, un
+   viaggio, un piatto, un trattamento estetico, un prodotto da vedere), false se e' un servizio che le
+   foto non raccontano (consulenza, software, pratiche),
+ "pubblico_definibile": true se il cliente tipo si riconosce bene per eta', zona, interessi o momento
+   della vita (chi sta ristrutturando, chi ha un neonato, chi ama la bici), false se puo' essere
+   chiunque o solo poche aziende specifiche,
+ "categoria_sensibile": "" oppure una fra "casa" (immobili, mutui, affitti), "credito" (finanza,
+   prestiti, assicurazioni), "lavoro" (offerte di lavoro, formazione per lavorare), "salute"
+   (dimagrimento, integratori, cure, estetica medica), "alcol", "gioco", "adulti", "armi", "tabacco",
+   "cripto", "politica": sono le categorie su cui Meta limita o vieta la pubblicita'.
  "come_lo_cercano": come si arriva a comprare quello che vendono. Una fra
    "ricerca" (la gente lo cerca su Google con parole chiare: un idraulico, una casa, un infisso),
    "impulso" (si compra perche' lo si vede, non perche' lo si cerca: meglio social o display),
@@ -396,6 +427,145 @@ def verdetto(c, zona, rec, ads=None):
     return "SI", "; ".join(pezzi) if pezzi else "nessun motivo di scarto"
 
 
+# ── IL META FIT (Dre, 20/10: «da ora in poi facciamo anche Meta Ads, crea il Meta fit») ──────
+# Dre: «qui conta di piu' il ticket del prodotto, perche' e' demand generation: si genera la domanda
+# in modo diretto; l'altra parte (Google) e' intercettare la domanda». Quindi: su Meta il valore di
+# un cliente pesa piu' di tutto, e il resto (visivo, pubblico, categoria) viene dopo.
+META_SERI = {"annunci": 10, "giorni": 90}
+_PAROLE_VUOTE = {"srl", "srls", "snc", "sas", "spa", "s.r.l.", "s.n.c.", "s.a.s.", "di", "e", "&", "the", "group",
+                 "gruppo", "studio", "agenzia", "immobiliare", "azienda", "italia", "italy"}
+
+
+def _parole(nome):
+    return {w for w in re.split(r"[^a-z0-9]+", (nome or "").lower()) if len(w) >= 3 and w not in _PAROLE_VUOTE}
+
+
+def _annuncio_suo(ad, azienda, dom):
+    """L'annuncio e' dell'azienda se il link porta al suo dominio o se il nome della pagina e' il suo."""
+    sn = ad.get("snapshot") or {}
+    testi = " ".join(str(sn.get(k) or "") for k in ("link_url", "caption", "page_profile_uri")).lower()
+    if dom and dom.lower() in testi:
+        return True
+    mie, sue = _parole(azienda), _parole(ad.get("page_name") or sn.get("page_name"))
+    return bool(mie) and (mie <= sue or (len(mie & sue) >= 2))
+
+
+def conta_meta_ads(ads, azienda, dom, oggi=None):
+    """{"fa_meta_ads", "annunci_attivi", "giorni", "pagina"} dagli annunci della Ad Library."""
+    oggi = oggi or datetime.datetime.now(datetime.timezone.utc)
+    suoi = [a for a in (ads or []) if _annuncio_suo(a, azienda, dom)]
+    attivi = [a for a in suoi if a.get("is_active")]
+    giorni = 0
+    for a in suoi:
+        try:
+            g = (oggi - datetime.datetime.fromisoformat(str(a.get("start_date")).replace("Z", "+00:00"))).days
+            giorni = max(giorni, g)
+        except Exception:                                    # noqa: BLE001
+            continue
+    pagina = (suoi[0].get("page_name") if suoi else None)
+    return {"fa_meta_ads": bool(attivi), "annunci_attivi": len(attivi), "annunci_totali": len(suoi),
+            "giorni": giorni, "pagina": pagina}
+
+
+def fa_meta_ads(azienda, dom):
+    """La Meta Ad Library via SearchAPI (1 credito). None se la chiave manca o la ricerca fallisce."""
+    if not env("SEARCHAPI_KEY") or not azienda:
+        return None
+    try:
+        import pull
+        d = pull.cerca("meta_ad_library", q=azienda, country="IT")
+    except Exception as e:                                   # noqa: BLE001
+        return {"errore": str(e)[:80]}
+    if "_errore" in d:
+        return {"errore": "meta: " + d["_errore"]}
+    return conta_meta_ads(d.get("ads") or [], azienda, dom)
+
+
+def giudizio_meta_ads(m):
+    if not m or m.get("errore"):
+        return None, "Meta Ads non misurato"
+    if not m.get("fa_meta_ads"):
+        return "no", "non fa Meta Ads"
+    n, g = m.get("annunci_attivi") or 0, m.get("giorni") or 0
+    if n >= META_SERI["annunci"] and g >= META_SERI["giorni"]:
+        return "serio", f"fa gia' Meta Ads con continuita' ({n} annunci attivi, da {g} giorni)"
+    return "poco", f"fa Meta Ads ma poco ({n} annunci attivi, da {g} giorni): forse lo fa male, da guardare"
+
+
+META_VIETATE = ("adulti", "armi", "tabacco", "gioco")
+META_LIMITATE = ("casa", "credito", "lavoro", "salute", "alcol", "cripto", "politica")
+
+
+def verdetto_meta(c, rec, meta=None, segnali=None):
+    """SI / PARZIALE / NO per Meta Ads, col motivo. Il ticket pesa piu' di tutto (Dre, 20/10)."""
+    motivi, a_favore = [], []
+    segnali = segnali or {}
+    if c.get("esclusione"):
+        return "NO", f"{c['esclusione']}: non e' un cliente possibile"
+    quanto, frase = giudizio_meta_ads(meta)
+    if quanto == "serio":
+        return "NO", frase + ": cerchiamo chi non lo fa o lo fa male"
+    cat = (c.get("categoria_sensibile") or "").lower()
+    if cat in META_VIETATE:
+        return "NO", f"categoria «{cat}»: Meta non la fa pubblicizzare"
+    # il ticket: generare domanda costa, e la paga il margine di un cliente
+    tmax = c.get("ticket_max") or c.get("ticket_min") or 0
+    online = bool(c.get("vendita_possibile_online"))
+    if tmax and tmax < 50:
+        return "NO", f"ticket sotto i 50 € ({_ticket_scritto(c)}): generare la domanda costa piu' di quanto rende"
+    if tmax and tmax < 300 and not online:
+        return "NO", f"ticket basso ({_ticket_scritto(c)}) e non si compra online: generare la domanda non si ripaga"
+    if tmax and tmax < 300:
+        motivi.append(f"ticket basso ({_ticket_scritto(c)}): regge solo vendendo online con volumi")
+    elif tmax and tmax < 1000:
+        motivi.append(f"ticket medio ({_ticket_scritto(c)}): serve un passaggio di vendita che chiuda")
+    elif tmax:
+        a_favore.append(f"un cliente vale {_ticket_scritto(c)}: la domanda generata si ripaga")
+    # il pubblico: Meta lo trova per chi e', non per cosa cerca
+    b2b = (c.get("tipo") or "").upper() == "B2B"
+    if b2b and c.get("pubblico_definibile") is False:
+        return "NO", "B2B senza un pubblico riconoscibile: Meta non sa a chi mostrarlo"
+    if b2b:
+        motivi.append("B2B: su Meta funziona solo con un pubblico stretto e un contenuto che spiega")
+    elif c.get("pubblico_definibile") is False:
+        motivi.append("il cliente tipo puo' essere chiunque: difficile da mirare")
+    else:
+        a_favore.append("il cliente tipo si riconosce")
+    if c.get("visivo") is False:
+        motivi.append("non si vende con le immagini: serve un contenuto che spieghi")
+    elif c.get("visivo"):
+        a_favore.append("si vende con le immagini")
+    come = (c.get("come_lo_cercano") or "ricerca").lower()
+    if come in ("impulso", "per_pubblico", "da_spiegare"):
+        a_favore.append({"impulso": "si compra d'impulso: la domanda si crea mostrandolo",
+                         "per_pubblico": "il cliente si riconosce per pubblico", "da_spiegare": "va spiegato: il video lo fa"}[come])
+    if quanto == "poco":
+        motivi.append(frase)
+    if cat in META_LIMITATE:
+        motivi.append(f"categoria «{cat}»: Meta limita il targeting, si puo' fare ma con meno precisione")
+    if rec is not None:
+        if rec["recensioni"] < 5:
+            return "NO", f"meno di 5 recensioni ({rec['recensioni']}): troppo piccolo"
+        if rec["recensioni"] < 20:
+            motivi.append(f"{rec['recensioni']} recensioni: piccolo, forse regge un pilot")
+    if segnali.get("pixel_meta") and quanto == "no":
+        a_favore.append("ha il pixel Meta sul sito: il canale lo conosce, oggi non lo usa")
+    if motivi:
+        return "PARZIALE", "; ".join(motivi)
+    return "SI", "; ".join(a_favore) if a_favore else "nessun motivo di scarto"
+
+
+def canale(google, meta):
+    """Il canale consigliato dai due verdetti: entrambi, Google, Meta, o nessuno."""
+    peso = {"SI": 2, "PARZIALE": 1, "NO": 0}
+    g, m = peso.get(google, 0), peso.get(meta, 0)
+    if g == 0 and m == 0:
+        return "nessuno"
+    if g == m:
+        return "entrambi" if g == 2 else ("Google o Meta, con riserve")
+    return "Google" if g > m else "Meta"
+
+
 def _zona_sul_raggio(c, zone):
     """La domanda si misura dove l'azienda vende davvero, non dove ha la sede (Dre, 21/9).
 
@@ -449,8 +619,16 @@ def valuta(p, zone, settori):
         except Exception as e:                               # noqa: BLE001
             ads = {"errore": str(e)[:80]}
     v, motivo = verdetto(c, zona, rec, ads)
+    dom_meta = re.sub(r"^https?://(www\.)?", "", (sito or "").lower()).split("/")[0]
+    meta_ads = None if c.get("esclusione") else fa_meta_ads(azienda, dom_meta)
+    segnali = segnali_di(sito)
+    vm, motivo_m = verdetto_meta(c, rec, meta_ads, segnali)
     fit = {
         "google_ads": ads,
+        "meta": {"verdetto": vm, "motivo": motivo_m, "meta_ads": meta_ads, "segnali": segnali,
+                 "visivo": c.get("visivo"), "pubblico_definibile": c.get("pubblico_definibile"),
+                 "categoria_sensibile": c.get("categoria_sensibile") or None},
+        "canale": canale(v, vm),
         "verdetto": v, "motivo": motivo, "settore": c.get("settore"), "provincia": c.get("provincia"),
         "settore_uguale": c.get("settore_uguale"),
         "tipo": c.get("tipo"), "cosa_fa": c.get("cosa_fa"), "esclusione": c.get("esclusione") or None,
@@ -541,6 +719,15 @@ def main():
         righe = [p for p in tutte if _sospetto(p)]
         righe = controlla("rifaccio il google fit delle aziende con volumi sospetti", righe, irreversibile=False,
                           motivo="il settore era solo il piu' vicino: i volumi erano di un altro settore", dove="crm")
+    elif "--rifai-meta" in sys.argv:
+        # 20/10: il Meta fit e' nuovo; chi aspetta l'analisi lo riceve subito (il resto, man mano che si rifa' il fit)
+        from revisore import controlla
+        tutte = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched"
+                          "&fuori=eq.false&analysis_sent=eq.false&or=(awaiting_us.eq.true,coda.not.is.null)"
+                          "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))&limit=300") or []
+        tutte = [p for p in tutte if "meta" not in (((p.get("enriched") or {}).get("google_fit")) or {})]
+        righe = controlla("rifaccio il fit con il Meta fit a chi aspetta l'analisi", tutte, irreversibile=False,
+                          motivo="Dre 20/10: da ora facciamo anche Meta Ads", dove="crm")
     elif "--uno" in sys.argv:
         email = sys.argv[sys.argv.index("--uno") + 1]
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched&email=eq.{urllib.parse.quote(email)}")
@@ -588,7 +775,7 @@ def main():
         except Exception as e:                      # noqa: BLE001
             print(f"  {'?':8} {str(nome)[:34]:34} non valutata: {str(e)[:70]}")
             continue
-        print(f"  {fit['verdetto']:8} {nome[:34]:34} {fit.get('settore') or '?':24} {fit.get('provincia') or '?':14} {fit['motivo'][:70]}")
+        print(f"  G {fit['verdetto']:8} M {fit['meta']['verdetto']:8} {nome[:30]:30} canale {fit['canale']:10} {fit['motivo'][:50]} | {fit['meta']['motivo'][:50]}")
         if prova:
             continue
         prima = (p.get("enriched") or {}).get("google_fit") or {}
