@@ -1225,6 +1225,60 @@ def _():
     assert B.cancello("Le inoltro l'analisi. Le scrivo io martedì 13 ottobre per fissare.") == []
 
 
+@prova("INT-23 e il cancello (20/10 sera): senza call passa, con la call dentro no, e a chi ha chiuso non si risponde")
+def _():
+    import bozze as B
+    import prima_risposta as PR
+    # Regola contro regola: INT-23 («mi mandi il materiale, niente call», Dre 1/10) e' fra gli intenti
+    # automatici, ma cadeva SEMPRE al cancello «chiusa a volo» del 30/9 (a chi chiude non si propone la
+    # call). Il cancello ora, per INT-23, verifica che la call NON ci sia e che l'analisi ci sia: non
+    # che la persona abbia lasciato un prossimo punto di contatto, perche' l'ha scelto lei (si fa viva).
+    int23 = ("Salve,\nVa bene perfetto, vi inoltro qui l'analisi che abbiamo fatto sulla vostra azienda.\n"
+             "Le allego anche una breve presentazione dei nostri servizi.\n\n"
+             "L'analisi è centrata sulla comunicazione su Google.\n"
+             "Se dopo averla letta volesse approfondire, resto a disposizione.\n\nA presto,")
+    assert B.cancello(int23, intento="INT-23") == [], B.cancello(int23, intento="INT-23")
+    con_call = int23.replace("resto a disposizione", "le propongo una breve videochiamata conoscitiva giovedì alle 15: https://calendar.app.google/x")
+    assert any("propone la call" in e for e in B.cancello(con_call, intento="INT-23")), "una INT-23 con la call dentro passa ancora"
+    assert any("senza l'analisi" in e for e in B.cancello("Salve,\ngrazie, resto a disposizione.\nA presto,", intento="INT-23")), \
+        "una INT-23 che non dice di allegare l'analisi passa: il materiale e' l'unica cosa che manda"
+    # per tutti gli altri le due regole del 30/9 restano com'erano
+    assert any("a volo" in e for e in B.cancello(int23)) and any("disposizione" in e for e in B.cancello(int23))
+    assert any("a volo" in e for e in B.cancello(int23, intento="INT-01"))
+    # il postino e approva passano l'intento al cancello: lo stesso testo passa da manda.controlla
+    import manda
+    assert manda.controlla(int23, None, intento="INT-23") == [], manda.controlla(int23, None, intento="INT-23")
+    assert any("a volo" in e for e in manda.controlla(int23, None, intento="INT-01"))
+    # a chi ha chiuso non si risponde in automatico, ne' INT-01 ne' INT-23: il no lo dice la lettura
+    for intento in ("INT-01", "INT-23"):
+        pr = {"tipo": "risposta", "titolo": "Bozza per X", "azione": {"bozza": int23, "intento": intento,
+                                                                       "lettura": {"coerenza": "COERENTE", "detto_no": True}}}
+        assert "ha detto no" in PR.perche_no(pr, None), f"{intento} a chi ha chiuso passerebbe il cancello della prima risposta"
+    # una regex sola per «l'analisi e' allegata»: quella del cancello
+    assert PR.ALLEGA_ANALISI is B.ALLEGA_ANALISI
+
+
+@prova("la prima risposta segue il lettore: C04 (mandatela, vi cerchiamo noi) e' INT-23 senza call, un caldo e' INT-01 (20/10 sera)")
+def _():
+    import bozze as B
+    # il caso di stasera: «inviateci pure il materiale e se dovessimo valutare vi ricontatteremo» (C04, non
+    # caldo), il modello diceva INT-01 e proponeva uno slot a chi ha detto che si fa vivo lui
+    p = {"last_reply_at": "2026-10-09T14:33:00", "enriched": {"lettore": {"fonte": "lettore", "classe": "positivo", "caso": "C04",
+                                                                           "caldo": False, "risposta_il": "2026-10-09T14:33:00"}}}
+    b = B.intento_col_lettore({"intento": "INT-01", "template": "INT-01", "bozza": "x", "nota": ""}, p)
+    assert b["intento"] == "INT-23" and b["template"] == "INT-23", b
+    # un caldo resta INT-01 anche se il modello diceva INT-23 (regola del 20/10 sera, caso C05)
+    caldo = {**p, "enriched": {"lettore": {**p["enriched"]["lettore"], "caso": "C05", "caldo": True}}}
+    assert B.intento_col_lettore({"intento": "INT-23", "template": "INT-23", "bozza": "x", "nota": ""}, caldo)["intento"] == "INT-01"
+    # C01 («si', me la mandi») non si tocca: INT-01 resta INT-01; e senza una lettura valida non si cambia niente
+    c01 = {**p, "enriched": {"lettore": {**p["enriched"]["lettore"], "caso": "C01"}}}
+    assert B.intento_col_lettore({"intento": "INT-01", "template": "INT-01", "bozza": "x", "nota": ""}, c01)["intento"] == "INT-01"
+    vecchia = {**p, "last_reply_at": "2026-10-12T09:00:00"}       # la lettura e' di una mail precedente
+    assert B.intento_col_lettore({"intento": "INT-01", "template": "INT-01", "bozza": "x", "nota": ""}, vecchia)["intento"] == "INT-01"
+    # nei gruppi (ricontatti) non si tocca niente
+    assert B.intento_col_lettore({"intento": "INT-01", "template": "INT-01", "bozza": "x", "nota": ""}, p, gruppo="RIPRESA")["intento"] == "INT-01"
+
+
 @prova("la garanzia solo col punteggio: mai promessa a chi non regge, aggiunta dove regge")
 def _():
     import garanzia as G

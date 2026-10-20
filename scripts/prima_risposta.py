@@ -60,6 +60,7 @@ import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, di_clara, contattabile, quando, fit_bocciato  # noqa: E402
+from bozze import ALLEGA_ANALISI                                   # noqa: E402  (20/10 sera: una regex sola, nel cancello)
 
 PROVA = "--prova" in sys.argv
 OMBRA = "--ombra" in sys.argv
@@ -113,13 +114,7 @@ INTENTI_CALL = ("INT-02", "INT-24")
 # quella persona e' in copia davvero (azione.cc, decisa dal codice sul testo suo) e la bozza lo
 # dice: la copia e gli allegati li verifica lettura.copia_coerente, non una frase.
 INTENTI_RIMBALZO = ("INT-08",)
-# 2/10: il gigante buono dice «gliela lasciamo in allegato», e «le lascio» non bastava
-# 20/10: un punto dentro una parola (F.lli, S.r.l., www.sito.it) non chiude la frase: «analisi su come
-# Falegnameria F.lli X appare su Google (la trova allegata)» non la vedeva, e il si' restava fermo
-_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w))"
-ALLEGA_ANALISI = re.compile(rf"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*{_NEL_PERIODO}{{0,60}}\banalisi\b|"
-                            r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"
-                            rf"\banalisi\b{_NEL_PERIODO}{{0,120}}(?:in allegato|allegat|qui sotto)")
+# ALLEGA_ANALISI (la bozza dice che l'analisi e' allegata) vive in bozze.py dal 20/10 sera: la usa anche il cancello.
 CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,fuori,no_followup,notes,owner,"
          "analysis_sent,analysis_pdf,campaign,campaign_id,lead_id,last_reply_at")
 

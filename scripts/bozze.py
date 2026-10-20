@@ -117,10 +117,33 @@ APERTURE_SECCHE = ("si'.", "sì.", "no.", "volentieri.", "certo.", "ok.", "va be
 # «senza impegno» era vietata dal lint del 3/7, ma Dre la usa nei SUOI template
 # (RIMBALZO INTERNO: «senza alcun impegno»): il template vince sul lint (1/10)
 PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato")
+# LA BOZZA DICE CHE L'ANALISI E' ALLEGATA (nata in prima_risposta il 29/9, qui dal 20/10 sera perche'
+# la usa anche il cancello). 2/10: il gigante buono dice «gliela lasciamo in allegato», e «le lascio»
+# non bastava. 20/10: un punto dentro una parola (F.lli, S.r.l., www.sito.it) non chiude la frase.
+_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w))"
+ALLEGA_ANALISI = re.compile(rf"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*{_NEL_PERIODO}{{0,60}}\banalisi\b|"
+                            r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"
+                            rf"\banalisi\b{_NEL_PERIODO}{{0,120}}(?:in allegato|allegat|qui sotto)")
+# LA CALL PROPOSTA NEL TESTO: il calendario, uno slot, la chiamata conoscitiva.
+PROPONE_LA_CALL = re.compile(r"calendar\.app\.google|\{\{calendario\}\}|le propongo\b|videochiamata|breve call|chiamata conoscitiva|"
+                             r"ci sentiamo (?:il|luned|marted|mercoled|gioved|venerd|sabato|domani)|disponibil\w+ (?:per una|a una) (?:call|chiamata)", re.I)
+# Gli intenti in cui NON si propone la call per regola: INT-23 (vuole il materiale, non la call; Dre 1/10,
+# caso Oikos 6/10). Il «prossimo punto di contatto» qui e' il materiale stesso: se lo ha chiesto cosi',
+# insistere con un orario e' quello che lo irrigidisce (playbook).
+INTENTI_SENZA_CALL = ("INT-23",)
+# I casi del lettore che chiedono il materiale e NON la call (la carta di Clara nuova): C04 «Mandatela,
+# se ci interessa vi cerchiamo noi». La prima risposta a questi e' INT-23, anche se il modello dice INT-01.
+CASI_SENZA_CALL = ("C04",)
 
 
-def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=False):
+def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=False, intento=None):
     """Torna la lista dei motivi per cui la bozza NON va bene (vuota = passa).
+
+    `intento` (20/10 sera): per INT-23 le due regole del «prossimo punto di contatto» (niente
+    «a disposizione», niente chiusa a volo) NON valgono: la persona ha chiesto il materiale senza
+    la call, e il cancello verifica il contrario, che la call non ci sia e che l'analisi ci sia.
+    Prima erano regola contro regola: INT-23 cadeva SEMPRE al cancello «chiusa a volo» (il caso
+    del 9/10 e quello di stasera, fermo dall'altro 9/10), pur essendo fra gli intenti automatici.
 
     `senza_analisi` e' vero quando l'analisi non esiste e non nascera' (fit NO):
     in quel caso la bozza non deve prometterla. 29/9: Elettroone ha chiesto
@@ -140,6 +163,12 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
         return ["un indirizzo email usato come nome (caso Kormed, 25/9)"]
     errori = []
     low = testo.lower()
+    senza_call = (intento or "").strip() in INTENTI_SENZA_CALL
+    if senza_call:
+        if PROPONE_LA_CALL.search(low):
+            errori.append("INT-23 propone la call: ha chiesto il materiale senza la call, si manda l'analisi e basta (Dre 1/10, caso Oikos 6/10)")
+        if not senza_analisi and not ALLEGA_ANALISI.search(low):
+            errori.append("INT-23 senza l'analisi nel testo: il materiale e' l'unica cosa che manda, la bozza deve dire che e' allegata")
     # le due regole del dare-avere (Dre, 30/9), col perche' nel messaggio:
     # chi corregge la bozza deve capire, non solo obbedire.
     # La rifinitura di Dre (30/9 sera): «se metto una frase vaga vuol dire che SO che
@@ -149,9 +178,11 @@ def cancello(testo, senza_analisi=False, seguito_programmato=False, detto_no=Fal
     # Il peccato non e' la frase vaga: e' la frase vaga quando NESSUNO riprendera' il filo.
     if re.search(r"(?:vedi\w+|guard\w+|rived\w+|analizz\w+|spieg\w+|comment\w+|approfond\w+)[^.!?\n]{0,45}\binsieme\b|\binsieme\b[^.!?\n]{0,45}\b(?:l.)?analisi\b|(?:analisi|numeri)[^.!?\n]{0,30}\bin (?:call|chiamata)\b", low):
         errori.append("promette di vedere l'analisi insieme: la call e' conoscitiva, l'analisi si legge prima da soli, se no in call si vende e la vendita si rovina (Dre 30/9)")
-    if not seguito_programmato and re.search(r"(?:rest\w+|rimang\w+|siamo|sono)\s+(?:sempre\s+)?a\s+(?:sua\s+|vostra\s+|loro\s+|completa\s+|piena\s+)?disposizione|non esiti a", low):
+    # INT-23 (20/10 sera): «resto a disposizione» e' il finale del template di Dre per chi non vuole la call:
+    # il prossimo punto di contatto l'ha scelto la persona (si fa viva lei), e le due regole sotto tacciono.
+    if not seguito_programmato and not senza_call and re.search(r"(?:rest\w+|rimang\w+|siamo|sono)\s+(?:sempre\s+)?a\s+(?:sua\s+|vostra\s+|loro\s+|completa\s+|piena\s+)?disposizione|non esiti a", low):
         errori.append("chiude «a disposizione»: cosi' nessuno torna e poi servono pipeline di recupero; serve un prossimo punto di contatto (Dre 30/9)")
-    if not seguito_programmato and not re.search(r"calendar\.app\.google|\{\{calendario\}\}|le scrivo io|la ricontatto io|vi ricontatto io|la richiamo io|scrivo (?:direttamente )?a lui|scrivo (?:direttamente )?a lei|appena ho il contatto|appena mi gira|ci sentiamo (?:il|dopo|a |luned|marted|mercoled|gioved|venerd|sabato)|risentir\w+ (?:a |dopo|il |in )|le propongo|confermo[^.!?\n]{0,45}\balle\b|ci vediamo|trova il nostro calendario|sono disponibile (?:anche )?(?:domani|gi)", low):
+    if not seguito_programmato and not senza_call and not re.search(r"calendar\.app\.google|\{\{calendario\}\}|le scrivo io|la ricontatto io|vi ricontatto io|la richiamo io|scrivo (?:direttamente )?a lui|scrivo (?:direttamente )?a lei|appena ho il contatto|appena mi gira|ci sentiamo (?:il|dopo|a |luned|marted|mercoled|gioved|venerd|sabato)|risentir\w+ (?:a |dopo|il |in )|le propongo|confermo[^.!?\n]{0,45}\balle\b|ci vediamo|trova il nostro calendario|sono disponibile (?:anche )?(?:domani|gi)", low):
         errori.append("chiusa a volo: manca il prossimo punto di contatto (una data proposta, il calendario, o «le scrivo io il …»), se no la persona non torna (Dre 30/9)")
     # AL MESSAGGERO NON SI PROPONE LA CALL (Dre, 1/10, caso Daniel/EnergetiKa: «a noi
     # interessa il meeting con la persona. Al messaggero si chiede al massimo un favore:
@@ -836,13 +867,21 @@ def intento_col_lettore(b, p, gruppo=None):
     senza calendario a chi ha appena chiesto di sentirci. Se il lettore AI, sulla sua ultima mail,
     dice caldo e positivo, la prima risposta e' INT-01 (analisi + call). INT-02 (fissa la call) non
     contraddice un caldo e resta. Nei gruppi (ricontatti) non si tocca niente."""
-    if not b or gruppo or b.get("intento") != "INT-23":
+    if not b or gruppo or b.get("intento") not in ("INT-01", "INT-23"):
         return b
     l = lettore_di(p)
-    if not (l.get("caldo") and l.get("classe") == "positivo"):
+    if l.get("classe") != "positivo":
         return b
-    return {**b, "intento": "INT-01", "template": "INT-01",
-            "nota": "il lettore dice caldo (vuole sentirsi): INT-01 con la call, non INT-23; " + (b.get("nota") or "")}
+    if l.get("caldo") and b.get("intento") == "INT-23":
+        return {**b, "intento": "INT-01", "template": "INT-01",
+                "nota": "il lettore dice caldo (vuole sentirsi): INT-01 con la call, non INT-23; " + (b.get("nota") or "")}
+    # 20/10 sera, il rovescio: «inviateci pure il materiale, se dovessimo valutare vi ricontatteremo» (C04)
+    # il modello lo leggeva INT-01 e proponeva uno slot a chi ha appena detto che si fa vivo lui.
+    # Il lettore dice C04 e non caldo: il materiale senza la call (INT-23, Dre 1/10, caso Oikos 6/10).
+    if not l.get("caldo") and l.get("caso") in CASI_SENZA_CALL and b.get("intento") == "INT-01":
+        return {**b, "intento": "INT-23", "template": "INT-23",
+                "nota": f"il lettore legge {l.get('caso')} (mandatela, se ci interessa vi cerchiamo noi): INT-23, il materiale senza la call; " + (b.get("nota") or "")}
+    return b
 
 
 SLOT = re.compile(r"slot|48\s*ore|orario|giorno propost|data propost|stesso giorno|troppo (?:presto|vicin)", re.I)
@@ -1145,10 +1184,10 @@ def main():
             # il codice non ha potuto comporre il template (azienda senza nome): la copia resta
             # quella decisa dal testo suo, e la seconda testa controlla che la bozza la dica
             b["cc"] = in_copia(letti, p)
-        errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"))
+        errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"), intento=b.get("intento"))
         if errori and not b.get("dal_codice"):
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
-            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no")):
+            if b2 and not cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"), intento=b2.get("intento")):
                 b, errori = b2, []
         if dura and dura[0] == "fermati" and b["fermati"].lower().startswith("no"):
             b["fermati"] = "si': " + dura[1]
@@ -1158,7 +1197,7 @@ def main():
             ric = ricomponi_senza_attacco(b, b_modello, p, letti, gruppo)
             if ric:
                 b, verdetto, motivo = ric
-                errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"))
+                errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"), intento=b.get("intento"))
         b["lettura"] = {**letti, "letta_da_clara": b.get("lettura_di_clara", ""), "ha_gia_di_clara": b.get("ha_gia_di_clara", ""),
                         "coerenza": verdetto, "coerenza_motivo": motivo, "gruppo": gruppo}
         if verdetto != "COERENTE" and b["fermati"].lower().startswith("no"):

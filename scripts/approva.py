@@ -67,7 +67,8 @@ def main():
         if not contattabile(p):
             ferme.append((p.get("company") or pr["titolo"][:40], "non contattabile (pipeline, cliente, perso, soppresso o niente follow-up)")); continue
         # 20/10: anche chi va in copia passa dal cancello (mai inventato, mai un cliente, mai una casella di servizio)
-        errori = manda.controlla(testo, p, gruppo=az.get("gruppo") or az.get("template"), cc=az.get("cc"), let=az.get("lettura")) or []
+        errori = manda.controlla(testo, p, gruppo=az.get("gruppo") or az.get("template"), cc=az.get("cc"), let=az.get("lettura"),
+                                 intento=az.get("intento")) or []
         if errori:
             ferme.append((p.get("company") or pr["titolo"][:40], "; ".join(errori)[:160])); continue
         # 15/10 (Maori Group): la seconda testa aveva bocciato la bozza di Clara, Achille l'ha riscritta

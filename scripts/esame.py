@@ -306,10 +306,10 @@ def mossa_del_sistema(caso):
         niente_analisi = bozze.analisi_impossibile(pt)
         if not niente_analisi:
             b = bozze.testo_di_dre(b, pt, f)
-        errori = bozze.cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=False, detto_no=f.get("detto_no"))
+        errori = bozze.cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=False, detto_no=f.get("detto_no"), intento=b.get("intento"))
         if errori and not b.get("dal_codice"):
             b2 = bozze.chiedi_bozza(pt, f["ultima_loro"], riprova="; ".join(errori), gruppo=None, letti=f)
-            if b2 and not bozze.cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=False, detto_no=f.get("detto_no")):
+            if b2 and not bozze.cancello(b2["bozza"], senza_analisi=niente_analisi, seguito_programmato=False, detto_no=f.get("detto_no"), intento=b2.get("intento")):
                 b, errori = b2, []
     finally:
         _LOCALE.righe = None

@@ -152,7 +152,7 @@ def prova_uno(p, c):
     if not niente:
         b = bozze.testo_di_dre(b, ps, letti)             # 29/9: il testo di Dre, come in produzione
     out["dal_codice"] = bool(b.get("dal_codice"))
-    errori = bozze.cancello(b["bozza"], senza_analisi=niente)
+    errori = bozze.cancello(b["bozza"], senza_analisi=niente, intento=b.get("intento"))
     verdetto, motivo = lettura.coerenza(letti, b["bozza"], None)
     ferma = not b["fermati"].lower().startswith("no") or verdetto != "COERENTE"
     pr = {"id": 0, "tipo": "umano" if ferma else "risposta", "titolo": ("Da guardare tu" if ferma else "Bozza"),
