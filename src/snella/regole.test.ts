@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead } from './dati'
 import {
   FASI, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
-  infoStato, nomeStato, scrittoDopo, spiegaDomanda, statoDi, tasso, titoloDomanda, tonoStato,
+  infoStato, nomeStato, prossimoMessaggio, scrittoDopo, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi, tasso, titoloDomanda, tonoStato,
+  type LeadPerProssimo, type PropostaLead,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
 import statiJson from './stati.json'
@@ -179,5 +180,74 @@ describe('le 8 fasi del foglio della pipeline (19/10)', () => {
     expect(faseDi('Analisi inviata', 'Persi')).toEqual({ nome: 'Persi', dentro: false })
     expect(faseDi('Vuole sentirti')).toEqual({ nome: 'Analisi in preparazione', dentro: true })   // un nome vecchio si traduce
     expect(faseDi(null)).toBeNull()
+  })
+})
+
+describe('la scheda pulita (20/10): il prossimo messaggio di Clara e il sito', () => {
+  const ADESSO = new Date('2026-10-20T08:00:00Z')        // martedi' 20/10, le 10 a Roma
+  const lead: LeadPerProssimo = {
+    analysis_sent_at: '2026-10-19T09:00:00Z', last_reply_at: '2026-10-18T09:00:00Z', no_followup: false, fuori: false,
+    stage: 'risposto', classificazione: 'positivo', coda: null, awaiting_us: false,
+  }
+  const proposta = (cambia: Partial<PropostaLead> = {}): PropostaLead => ({
+    id: 1, tipo: 'risposta', stato: 'approvata', at: '2026-10-20T07:00:00Z', bozza: 'Salve,\n\ntorno sull\'analisi.', template: 'FOLLOW UP 1', risposta: null, ...cambia,
+  })
+
+  it('una proposta approvata: parte a minuti, col testo esatto, e si sa cosa chiudere', () => {
+    const p = prossimoMessaggio(lead, [proposta()], null, [], ADESSO)
+    expect(p).toMatchObject({ testo: 'Salve,\n\ntorno sull\'analisi.', tipo: 'Primo follow-up', da_chiudere: [1] })
+    expect(p?.quando).toMatch(/parte a minuti/i)
+  })
+  it('l\'approvata vince sull\'aperta; chiuse e altri tipi non contano', () => {
+    const p = prossimoMessaggio(lead, [proposta({ id: 2, stato: 'aperta', template: null, bozza: 'Altro' }), proposta({ id: 3 }),
+      proposta({ id: 4, stato: 'fatta' }), proposta({ id: 5, stato: 'aperta', bozza: null, tipo: 'umano' }),
+      proposta({ id: 6, stato: 'aperta', tipo: 'avanza' })], null, [], ADESSO)
+    expect(p?.da_chiudere).toEqual([2, 3, 5])
+    expect(p?.testo).toBe('Salve,\n\ntorno sull\'analisi.')
+  })
+  it('una proposta aperta: scritta, non ancora partita', () => {
+    expect(prossimoMessaggio(lead, [proposta({ stato: 'aperta', template: null })], null, [], ADESSO))
+      .toMatchObject({ tipo: 'Risposta', quando: 'Scritto, non ancora partito' })
+  })
+  it('senza proposte e senza analisi: niente', () => {
+    expect(prossimoMessaggio({ ...lead, analysis_sent_at: null }, [], null, [], ADESSO)).toBeNull()
+  })
+  it('il calendario dei follow-up (followup.py) dice il giorno; il testo lo scrive Clara quel giorno', () => {
+    const p = prossimoMessaggio(lead, [], { gruppo: 'MINI FOLLOW UP', il: '2026-10-22' }, [], ADESSO)
+    expect(p).toMatchObject({ giorno: '2026-10-22', testo: null, tipo: 'Mini follow-up', da_chiudere: [] })
+    expect(p?.quando).toMatch(/22/)
+  })
+  it('senza calendario: come followup.py, analisi + 5 giorni se non ha piu\' scritto', () => {
+    expect(prossimoMessaggio(lead, [], null, [], ADESSO)).toMatchObject({ giorno: '2026-10-24', tipo: 'Primo follow-up' })
+    // in ritardo: oggi, non nel passato
+    expect(prossimoMessaggio({ ...lead, analysis_sent_at: '2026-10-01T09:00:00Z', last_reply_at: '2026-09-30T09:00:00Z' }, [], null, [], ADESSO)?.giorno).toBe('2026-10-20')
+  })
+  it('niente follow-up se ha scritto dopo l\'analisi, se e\' fermato, fuori, perso, o l\'ha gia\' avuto', () => {
+    expect(prossimoMessaggio({ ...lead, last_reply_at: '2026-10-19T10:00:00Z' }, [], null, [], ADESSO)).toBeNull()
+    expect(prossimoMessaggio({ ...lead, no_followup: true }, [], null, [], ADESSO)).toBeNull()
+    expect(prossimoMessaggio({ ...lead, fuori: true }, [], null, [], ADESSO)).toBeNull()
+    expect(prossimoMessaggio({ ...lead, stage: 'perso' }, [], null, [], ADESSO)).toBeNull()
+    expect(prossimoMessaggio({ ...lead, classificazione: 'negativo' }, [], null, [], ADESSO)).toBeNull()
+    expect(prossimoMessaggio(lead, [proposta({ stato: 'fatta' })], null, [], ADESSO)).toBeNull()
+    // una nostra mail partita dopo il giorno dell'analisi e' gia' un follow-up
+    expect(prossimoMessaggio(lead, [], null, ['2026-10-21T09:00:00Z'], ADESSO)).toBeNull()
+    // un follow-up rifiutato «a mano» da Dre conta come avuto; chiuso dagli script no
+    expect(prossimoMessaggio(lead, [proposta({ stato: 'no', risposta: 'NO: non serve' })], null, [], ADESSO)).toBeNull()
+    expect(prossimoMessaggio(lead, [proposta({ stato: 'no', risposta: 'chiusa da sola' })], null, [], ADESSO)).not.toBeNull()
+  })
+  it('fermato da Dre: il calendario non conta piu\'', () => {
+    expect(prossimoMessaggio({ ...lead, no_followup: true }, [], { gruppo: 'FOLLOW UP 1', il: '2026-10-22' }, [], ADESSO)).toBeNull()
+  })
+
+  it('il sito si apre sempre, con o senza https', () => {
+    expect(sitoCliccabile('esempio.it')).toBe('https://esempio.it')
+    expect(sitoCliccabile(' www.esempio.it/ ')).toBe('https://www.esempio.it/')
+    expect(sitoCliccabile('http://esempio.it')).toBe('http://esempio.it')
+    expect(sitoCliccabile('HTTPS://Esempio.it')).toBe('HTTPS://Esempio.it')
+    expect(sitoCliccabile('')).toBeNull()
+    expect(sitoCliccabile(null)).toBeNull()
+    expect(sitoCliccabile('non un sito')).toBeNull()
+    expect(sitoBreve('https://www.esempio.it/')).toBe('esempio.it')
+    expect(sitoBreve('https://esempio.it/chi-siamo')).toBe('esempio.it/chi-siamo')
   })
 })

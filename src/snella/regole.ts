@@ -240,6 +240,83 @@ export function primaRiga(testo: string, max = 140): string {
   return r.length > max ? `${r.slice(0, max - 1).trimEnd()}…` : r
 }
 
+// ── la scheda pulita (20/10): il prossimo messaggio di Clara e il sito ──
+
+/** Quello che serve di un lead per dire il suo prossimo messaggio (la riga di prospects). */
+export interface LeadPerProssimo {
+  analysis_sent_at: string | null; last_reply_at: string | null; no_followup: boolean | null; fuori: boolean | null
+  stage: string | null; classificazione: string | null; coda: string | null; awaiting_us: boolean | null
+}
+/** Una proposta del lead (tabella proposte): `bozza` e `template` vengono da `azione`. */
+export interface PropostaLead { id: number; tipo: string; stato: string; at: string; bozza: string | null; template: string | null; risposta: string | null }
+export interface Prossimo {
+  quando: string; giorno: string | null; tipo: string
+  /** il testo esatto che partira'; null se Clara lo scrive il giorno stesso, dopo aver riletto il filo */
+  testo: string | null
+  /** le proposte da chiudere se Dre lo ferma */
+  da_chiudere: number[]
+}
+
+const NOMI_GRUPPO: Record<string, string> = {
+  'FOLLOW UP 1': 'Primo follow-up', 'FOLLOW UP SU MISURA': 'Follow-up su misura', 'MINI FOLLOW UP': 'Mini follow-up', RIPRESA: 'Ripresa',
+  'RINVIO SCADUTO': 'Ripresa dopo il rinvio', 'RICONTATTO OOO': 'Ricontatto dopo le ferie',
+}
+// come scripts/followup.py: chi non e' piu' un lead non riceve follow-up da nessuna strada
+const FERMI_FOLLOWUP = ['negativo', 'soppresso', 'nervoso', 'fuori_target', 'persona_sbagliata']
+const STADI_FERMI = ['cliente', 'perso', 'call_fissata', 'rinviato']
+const CLASSI_FOLLOWUP = ['positivo', 'tiepido', 'da_classificare']
+export const GIORNI_FOLLOWUP = 5
+
+/** IL PROSSIMO MESSAGGIO DI CLARA a questo lead, nell'ordine:
+ *  1. una mail gia' scritta (proposta aperta o approvata col testo): quella, parola per parola;
+ *  2. il calendario dei follow-up (seguiti_calendario, lo scrive scripts/followup.py): il giorno;
+ *  3. la stessa regola di followup.py rifatta qui (analisi + 5 giorni di silenzio, mai prima di oggi).
+ *  `nostre`: quando sono partite le nostre mail (il filo), per sapere se un follow-up c'e' gia' stato. */
+export function prossimoMessaggio(lead: LeadPerProssimo, proposte: PropostaLead[], calendario: { gruppo: string; il: string } | null,
+  nostre: string[], ora: Date = new Date()): Prossimo | null {
+  const aperte = proposte.filter((p) => (p.stato === 'aperta' || p.stato === 'approvata') && (p.tipo === 'risposta' || p.tipo === 'umano'))
+  const da_chiudere = aperte.map((p) => p.id)
+  const scritte = aperte.filter((p) => p.bozza?.trim())
+    .sort((a, b) => Number(b.stato === 'approvata') - Number(a.stato === 'approvata') || b.at.localeCompare(a.at))
+  const p = scritte[0]
+  if (p) {
+    return { quando: p.stato === 'approvata' ? 'Parte a minuti' : 'Scritto, non ancora partito', giorno: null,
+             tipo: NOMI_GRUPPO[p.template ?? ''] ?? 'Risposta', testo: p.bozza!.trim(), da_chiudere }
+  }
+  if (lead.no_followup || lead.fuori) return null
+  const oggi = giornoRoma(ora)
+  const nel = (il: string, gruppo: string): Prossimo => {
+    const giorno = il < oggi ? oggi : il
+    return { quando: nomeGiorno(giorno, ora), giorno, tipo: NOMI_GRUPPO[gruppo] ?? 'Primo follow-up', testo: null, da_chiudere }
+  }
+  if (calendario) return nel(calendario.il.slice(0, 10), calendario.gruppo)
+  // 3. followup.py, main(): analisi mandata, silenzio, nessun follow-up avuto
+  const a = lead.analysis_sent_at
+  if (!a || lead.coda || lead.awaiting_us) return null
+  if (FERMI_FOLLOWUP.includes(lead.classificazione ?? '') || !CLASSI_FOLLOWUP.includes(lead.classificazione ?? 'da_classificare')) return null
+  if (STADI_FERMI.includes(lead.stage ?? '')) return null
+  if (lead.last_reply_at && lead.last_reply_at > a) return null
+  const avuto = proposte.some((x) => /^FOLLOW UP (1|SU MISURA)$/.test(x.template ?? '') && (x.stato !== 'no' || (x.risposta ?? '').startsWith('NO:')))
+  if (avuto) return null
+  const inviata = a.slice(0, 10)
+  if (nostre.some((at) => at > piuGiorni(inviata, 1))) return null
+  return nel(piuGiorni(inviata, GIORNI_FOLLOWUP), 'FOLLOW UP 1')
+}
+
+/** Il sito com'e' scritto nel database, reso un link che si apre: «esempio.it» → «https://esempio.it».
+ *  Quello che non sembra un sito (spazi, niente punto) torna null. */
+export function sitoCliccabile(s: string | null | undefined): string | null {
+  const t = (s ?? '').trim()
+  if (!t || /\s/.test(t)) return null
+  if (/^https?:\/\//i.test(t)) return t
+  return /^[\w-]+(\.[\w-]+)+/.test(t) ? `https://${t.replace(/^\/+/, '')}` : null
+}
+
+/** Il sito detto corto, per leggerlo: senza https, www e la barra finale. */
+export function sitoBreve(url: string): string {
+  return url.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
+}
+
 /** Le nostre mail partite dopo la sua ultima risposta (cosa abbiamo gia' fatto). */
 export function scrittoDopo(filo: Array<{ at: string | null; chi: 'lui' | 'noi'; testo: string }> | undefined,
   ultima: string | null | undefined): { at: string; testo: string } | null {

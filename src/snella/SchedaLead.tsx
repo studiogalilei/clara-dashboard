@@ -1,12 +1,16 @@
-// LA SCHEDA di un lead nella versione snella: chi e', come chiamarlo, cosa fa, le note di Dre,
-// stato e prossima mossa (solo Workspace: non va su Smartlead), l'analisi e tutto il filo.
+// LA SCHEDA di un lead nella versione snella (pulita il 20/10, Dre: «fa abbastanza schifo,
+// impostala clean con le info anche del sito»). In quest'ordine: chi e' (azienda, persona, stato in
+// una riga); come si contatta (telefono, mail, sito, citta', settore, campagna); il prossimo messaggio
+// di Clara, col testo esatto e «Ferma»; la conversazione con l'analisi; stato e prossima azione; note.
 import { useEffect, useState } from 'react'
 import {
-  GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
-  type Call, type Decisione, type Messaggio, type Nota, type RigaBase, type Scheda,
+  GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, fermaMessaggi, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
+  type Call, type Decisione, type Lead, type Messaggio, type Nota, type Scheda, type Telefono,
 } from './dati'
-import { dataCorta, faseDi, giornoRoma, infoStato, nomeGiorno, nomeStato, ora, quando, statoDi } from './regole'
-import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
+import {
+  giornoRoma, infoStato, nomeGiorno, nomeStato, ora, prossimoMessaggio, quando, sitoBreve, sitoCliccabile, statoDi,
+} from './regole'
+import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
 
 export default function SchedaLead({ id, indietro }: { id: string; indietro: () => void }) {
@@ -18,72 +22,71 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   if (caricando) return <><Torna indietro={indietro} /><Carico righe={5} etichetta="Carico la scheda" /></>
   if (errore && !dati) return <><Torna indietro={indietro} /><Errore testo={errore} riprova={() => void rifai()} /></>
   if (!dati) return null
-  if (!dati.scheda && dati.base) {
-    return <SchedaBase id={id} base={dati.base} decisione={dati.decisione} note={dati.note} fase={dati.fase} indietro={indietro}
-                       onDecisione={(nuova) => setDati((x) => x ? { ...x, decisione: nuova } : x)}
-                       onNote={(f) => setDati((x) => x ? { ...x, note: f(x.note) } : x)} />
-  }
-  if (!dati.scheda) {
-    return (
-      <>
-        <Torna indietro={indietro} />
-        <Vuoto>
-          Questa scheda non è ancora pronta: si prepara entro dieci minuti per chi ha risposto negli ultimi 60 giorni.{' '}
-          <a className="font-semibold text-blu-scuro underline" href={linkCompleto(`azienda/${id}`)}>Aprila nel Workspace completo</a>.
-        </Vuoto>
-      </>
-    )
-  }
   const sc = dati.scheda
-  const s = sc.scheda
+  const b = dati.base
+  if (!sc && !b) {
+    return <><Torna indietro={indietro} /><Errore testo="Questo lead non c'è più nel Workspace." /></>
+  }
+  const lead = dati.lead
   const d = dati.decisione
-  const stato = statoDi(sc, d)
+  const s = sc?.scheda
+  // la scheda piena (chi ha risposto negli ultimi 60 giorni, scripts/schede.py) o la riga di «Tutti»
+  const stato = sc ? statoDi(sc, d) : (d?.stato || b!.stato_sistema)
+  const sistema = sc ? (nomeStato(sc.stato) ?? 'Da rispondere') : b!.stato_sistema
+  const suggerita = sc
+    ? (nomeStato(sc.stato) === sc.stato ? s!.prossima : { mossa: null, il: null })
+    : (b!.mossa_tua ? { mossa: null, il: null } : { mossa: b!.mossa, il: b!.mossa_il })
+  const azienda = s?.azienda || sc?.azienda || b?.azienda || b?.email || 'Senza nome'
+  const persona = [s?.nome || sc?.persona || b?.persona, s?.ruolo].filter(Boolean).join(', ')
+  const ultima = sc ? sc.ultima_risposta : b!.ultima_risposta
+  const unico = b?.telefono || lead?.phone || ''
+  const telefoni: Telefono[] = s?.telefoni.length ? s.telefoni
+    : unico ? [{ numero: unico, tel: unico.replace(/[^\d+]/g, ''), etichetta: '' }] : []
+  // l'analisi della scheda; se la scheda non la sa, quella della riga del lead
+  const analisi: Scheda['scheda']['analisi'] = s?.analisi.mandata ? s.analisi : {
+    mandata: Boolean(lead?.analysis_sent_at), il: lead?.analysis_sent_at ?? null, link: lead?.analysis_pdf ?? '', percorso: '', punto: s?.analisi.punto ?? '',
+  }
+  const chiuso = ['Opportunità', 'Chiusi'].includes(infoStato(stato)?.gruppo ?? '')
+  const filo = sc?.filo ?? []
+  const prossimo = prossimoMessaggio(lead ?? VUOTO, dati.proposte, dati.calendario,
+    filo.filter((m) => m.chi === 'noi' && m.at).map((m) => m.at!))
 
   return (
     <article aria-labelledby="titolo-scheda">
       <Torna indietro={indietro} />
       <header>
-        <h1 id="titolo-scheda" className="text-[24px] font-bold leading-tight text-inchiostro">{s.azienda || sc.azienda}</h1>
-        <p className="mt-1 text-[15px] text-tenue">
-          {[s.nome || sc.persona, s.ruolo].filter(Boolean).join(', ') || 'Persona non indicata'}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <h1 id="titolo-scheda" className="text-[26px] font-bold leading-tight tracking-[-0.01em] text-inchiostro">{azienda}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[15px] text-tenue">
           <PillolaStato stato={stato} />
-          <span className="text-[14px] text-tenue">tocca a <b className="font-semibold text-inchiostro">{d?.responsabile || infoStato(stato)?.responsabile}</b></span>
-          <Fase fase={faseDi(stato, dati.fase)} />
-          {sc.ultima_risposta && <span className="text-[14px] text-tenue">ultima risposta {quando(sc.ultima_risposta)}</span>}
+          {persona && <span className="text-inchiostro">{persona}</span>}
         </div>
+        <p className="mt-1 text-[14px] text-tenue">{ultima ? `Ha scritto ${quando(ultima)}` : 'Non ha mai risposto'}</p>
+        {s?.attivita && <p className="mt-3 max-w-[65ch] text-[15px] leading-relaxed text-tenue">{s.attivita}</p>}
         <ProssimaCall call={dati.call} />
       </header>
 
-      <Blocco titolo="Telefoni">
-        {s.telefoni.length ? (
-          <ul className="space-y-2 sm:max-w-md">
-            {s.telefoni.map((t, i) => (
-              <li key={t.tel}>
-                <a href={`tel:${t.tel}`} aria-label={`Chiama ${t.numero}, ${t.etichetta}`}
-                   className={`flex min-h-14 items-center gap-3 rounded-xl px-4 py-2 ${i === 0 ? 'bg-blu-scuro text-white hover:bg-navy' : 'border border-bordo text-inchiostro hover:border-tenue'}`}>
-                  <Icona nome="telefono" className="h-5 w-5 shrink-0" />
-                  <span className="min-w-0">
-                    <span className="block whitespace-nowrap text-[17px] font-bold tracking-wide">{t.numero}</span>
-                    <span className={`block truncate text-[13px] ${i === 0 ? 'text-white/85' : 'text-tenue'}`}>{t.etichetta}</span>
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : <p className="text-[15px] text-tenue">Nessun numero: né nella firma, né nella scheda, né sul sito.</p>}
-        {s.email && <p className="mt-2 break-all text-[14px] text-tenue">Mail: {s.email}</p>}
+      <Contatti telefoni={telefoni} email={s?.email || b?.email || lead?.email || ''} lead={lead}
+                campagna={s?.campagna || b?.campagna || lead?.campaign || ''} />
+
+      <Blocco titolo="Il prossimo messaggio di Clara">
+        <ProssimoMessaggio id={id} prossimo={prossimo} fermato={Boolean(lead?.no_followup)} chiuso={chiuso} onFermato={(partite) => {
+          setDati((x) => x ? {
+            ...x, calendario: null, lead: x.lead ? { ...x.lead, no_followup: true, coda: null } : x.lead,
+            proposte: x.proposte.map((p) => prossimo?.da_chiudere.includes(p.id) && (p.stato === 'aperta' || p.stato === 'approvata')
+              ? { ...p, stato: 'no', risposta: 'NO: fermato da Dre' } : p),
+          } : x)
+          mostra({ testo: partite ? 'Fermato. Una mail era già partita.' : 'Fermato' })
+        }} />
       </Blocco>
 
-      {s.attivita && (
-        <Blocco titolo="Cosa fa">
-          <p className="text-[15px] leading-relaxed text-inchiostro">{s.attivita}</p>
-        </Blocco>
-      )}
+      <Blocco titolo="La conversazione">
+        <Analisi a={analisi} />
+        {sc ? <div className="mt-4"><Filo filo={filo} lui={(s?.nome || sc.persona || '').trim().split(/\s+/)[0] || ''} /></div>
+          : <p className="mt-3 text-[15px] text-tenue">Le mail arrivano qui entro dieci minuti da quando salvi uno stato o una nota.</p>}
+      </Blocco>
 
       <Blocco titolo="Stato e prossima azione">
-        <Decidi id={id} sistema={nomeStato(sc.stato) ?? 'Da rispondere'} suggerita={nomeStato(sc.stato) === sc.stato ? s.prossima : { mossa: null, il: null }} decisione={d} onSalvato={(nuova) => {
+        <Decidi id={id} sistema={sistema} suggerita={suggerita} decisione={d} onSalvato={(nuova) => {
           setDati((x) => x ? { ...x, decisione: nuova } : x)
           mostra({ testo: 'Salvato' })
         }} />
@@ -95,19 +98,9 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
               onTolta={(nid) => setDati((x) => x ? { ...x, note: x.note.filter((n) => n.id !== nid) } : x)} />
       </Blocco>
 
-      <Blocco titolo="Analisi">
-        <Analisi a={s.analisi} />
-      </Blocco>
-
-      <Blocco titolo={`La conversazione · ${sc.filo.length} mail`}>
-        <Filo filo={sc.filo} lui={(s.nome || sc.persona || '').trim().split(/\s+/)[0] || ''} />
-      </Blocco>
-
-      <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
-        {s.campagna && <>Campagna: {s.campagna}<br /></>}
-        Scheda aggiornata {quando(sc.aggiornata_il)}.{' '}
-        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">
-          Apri nel Workspace completo
+      <p className="mt-10 border-t border-velo pt-3 text-[14px]">
+        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-blu-scuro hover:underline">
+          Apri nel Workspace completo <Icona nome="esterno" className="h-4 w-4" />
         </a>
       </p>
       {avviso}
@@ -115,73 +108,138 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   )
 }
 
-/** La fase del foglio della pipeline (19/10): dove sta questo lead nel foglio di Dre. */
-function Fase({ fase }: { fase: { nome: string; dentro: boolean } | null }) {
-  if (!fase) return null
+const VUOTO: Lead = {
+  website: null, city: null, sector: null, campaign: null, phone: null, email: null, analysis_pdf: null, analysis_sent_at: null,
+  last_reply_at: null, no_followup: null, fuori: null, stage: null, classificazione: null, coda: null, awaiting_us: null,
+}
+
+/** «esperienze_turistiche» → «Esperienze turistiche» */
+function settore(s: string | null | undefined): string {
+  const t = (s ?? '').replace(/_/g, ' ').trim()
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''
+}
+
+/** Come si contatta e chi e': una riga per cosa, come la rubrica del telefono. Quello che manca non c'e'. */
+function Contatti({ telefoni, email, lead, campagna }: { telefoni: Telefono[]; email: string; lead: Lead | null; campagna: string }) {
+  const sito = sitoCliccabile(lead?.website)
+  const righe: Array<{ icona: NomeIcona; testo: string; sotto?: string; href?: string; fuori?: boolean; etichetta?: string }> = [
+    ...telefoni.map((t) => ({ icona: 'telefono' as const, testo: t.numero, sotto: t.etichetta, href: `tel:${t.tel}`, etichetta: `Chiama ${t.numero}` })),
+    ...(email ? [{ icona: 'mail' as const, testo: email, href: `mailto:${email}`, etichetta: `Scrivi a ${email}` }] : []),
+    ...(sito ? [{ icona: 'sito' as const, testo: sitoBreve(sito), href: sito, fuori: true, etichetta: `Apri il sito ${sitoBreve(sito)}` }] : []),
+    ...(lead?.city ? [{ icona: 'luogo' as const, testo: lead.city }] : []),
+    ...(settore(lead?.sector) ? [{ icona: 'settore' as const, testo: settore(lead?.sector) }] : []),
+    ...(campagna ? [{ icona: 'campagna' as const, testo: campagna, sotto: 'campagna' }] : []),
+  ]
+  if (!righe.length) return null
   return (
-    <span className="text-[14px] text-tenue">
-      {fase.dentro ? 'nel foglio: ' : 'fuori dal percorso: '}<b className="font-semibold text-inchiostro">{fase.nome}</b>
-    </span>
+    <section aria-label="Contatti" className="mt-6 rounded-2xl border border-bordo bg-white px-2 py-1">
+      <ul className="grid sm:grid-cols-2 sm:gap-x-2">
+        {righe.map((r) => {
+          const dentro = (
+            <>
+              <Icona nome={r.icona} className={`h-5 w-5 shrink-0 ${r.href ? 'text-blu-scuro' : 'text-tenue'}`} />
+              <span className="min-w-0">
+                <span className={`block truncate text-[15px] ${r.href ? 'font-semibold text-blu-scuro' : 'text-inchiostro'} ${r.icona === 'telefono' ? 'tabular-nums tracking-wide' : ''}`}>{r.testo}</span>
+                {r.sotto && <span className="block truncate text-[13px] text-tenue">{r.sotto}</span>}
+              </span>
+              {r.fuori && <Icona nome="esterno" className="ml-auto h-4 w-4 shrink-0 text-tenue" />}
+            </>
+          )
+          const stile = 'flex min-h-12 items-center gap-3 rounded-xl px-3 py-2'
+          return (
+            <li key={`${r.icona}-${r.testo}`} className="min-w-0">
+              {r.href ? (
+                <a href={r.href} aria-label={r.etichetta} {...(r.fuori ? { target: '_blank', rel: 'noreferrer' } : {})}
+                   className={`${stile} transition-colors duration-150 hover:bg-velo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blu-scuro`}>
+                  {dentro}
+                </a>
+              ) : <div className={stile}>{dentro}</div>}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
-/** 19/10: la scheda di chi non ha la scheda pronta (ha risposto prima dei 60 giorni, o mai: si
- *  apre da «Tutti»). Quello che si sa da qui, e soprattutto stato, prossima mossa e note, come
- *  nella scheda piena. Toccandolo, schede.py prepara anche il resto (conversazione, analisi). */
-function SchedaBase({ id, base: b, decisione, note, fase, indietro, onDecisione, onNote }: {
-  id: string; base: RigaBase; decisione: Decisione | null; note: Nota[]; fase: string | null; indietro: () => void
-  onDecisione: (d: Decisione) => void; onNote: (f: (n: Nota[]) => Nota[]) => void
+const RIGHE_MESSAGGIO = 8
+
+/** Il prossimo messaggio che Clara gli mandera': quando, il testo esatto (se e' gia' scritto) e
+ *  «Ferma», che chiede conferma prima di fermare questo e i messaggi automatici dopo. */
+function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
+  id: string; prossimo: ReturnType<typeof prossimoMessaggio>; fermato: boolean; chiuso: boolean; onFermato: (partite: number) => void
 }) {
-  const { mostra, vista: avviso } = useAvviso()
-  const stato = decisione?.stato || b.stato_sistema
-  const suggerita = b.mossa_tua ? { mossa: null, il: null } : { mossa: b.mossa, il: b.mossa_il }
-  return (
-    <article aria-labelledby="titolo-scheda">
-      <Torna indietro={indietro} />
-      <header>
-        <h1 id="titolo-scheda" className="text-[24px] font-bold leading-tight text-inchiostro">{b.azienda || b.email}</h1>
-        <p className="mt-1 text-[15px] text-tenue">{b.persona || 'Persona non indicata'}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PillolaStato stato={stato} />
-          <span className="text-[14px] text-tenue">tocca a <b className="font-semibold text-inchiostro">{decisione?.responsabile || infoStato(stato)?.responsabile}</b></span>
-          <Fase fase={faseDi(stato, fase)} />
-          <span className="text-[14px] text-tenue">{b.ultima_risposta ? `ultima risposta ${quando(b.ultima_risposta)}` : 'non ha mai risposto'}</span>
-        </div>
-      </header>
+  const [chiedo, setChiedo] = useState(false)
+  const [lavoro, setLavoro] = useState(false)
+  const [sbaglio, setSbaglio] = useState<string | null>(null)
+  const [intero, setIntero] = useState(false)
 
-      <Blocco titolo="Telefoni">
-        {b.telefono ? (
-          <a href={`tel:${b.telefono.replace(/[^\d+]/g, '')}`} aria-label={`Chiama ${b.telefono}`}
-             className="flex min-h-14 items-center gap-3 rounded-xl bg-blu-scuro px-4 py-2 text-white hover:bg-navy sm:max-w-md">
-            <Icona nome="telefono" className="h-5 w-5 shrink-0" />
-            <span className="whitespace-nowrap text-[17px] font-bold tracking-wide">{b.telefono}</span>
-          </a>
-        ) : <p className="text-[15px] text-tenue">Nessun numero nel Workspace.</p>}
-        {b.email && <p className="mt-2 break-all text-[14px] text-tenue">Mail: {b.email}</p>}
-      </Blocco>
-
-      <Blocco titolo="Stato e prossima azione">
-        <Decidi id={id} sistema={b.stato_sistema} suggerita={suggerita} decisione={decisione} onSalvato={(nuova) => {
-          onDecisione(nuova)
-          mostra({ testo: 'Salvato' })
-        }} />
-      </Blocco>
-
-      <Blocco titolo="Note">
-        <Note id={id} note={note} mostra={mostra}
-              onNota={(n) => onNote((x) => [n, ...x])}
-              onTolta={(nid) => onNote((x) => x.filter((n) => n.id !== nid))} />
-      </Blocco>
-
-      <p className="mt-8 border-t border-velo pt-4 text-[14px] text-tenue">
-        {b.campagna && <>Campagna: {b.campagna}<br /></>}
-        La conversazione e l'analisi si preparano per chi ha risposto negli ultimi 60 giorni: se salvi uno stato o una nota, arrivano qui entro dieci minuti.{' '}
-        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">
-          Apri nel Workspace completo
-        </a>
+  if (!prossimo) {
+    return (
+      <p className="text-[15px] text-tenue">
+        {chiuso ? 'Nessun messaggio automatico.'
+          : fermato ? 'Fermato: Clara non gli scrive finché non risponde lui.' : 'Nessun messaggio in programma.'}
       </p>
-      {avviso}
-    </article>
+    )
+  }
+
+  async function ferma() {
+    setLavoro(true); setSbaglio(null)
+    try {
+      const { partite } = await fermaMessaggi(id, prossimo!.da_chiudere)
+      setChiedo(false)
+      onFermato(partite)
+    } catch (e) {
+      setSbaglio(`Non fermato: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setLavoro(false)
+    }
+  }
+
+  const righe = prossimo.testo?.split('\n') ?? []
+  const lungo = righe.length > RIGHE_MESSAGGIO + 2
+  const testo = lungo && !intero ? righe.slice(0, RIGHE_MESSAGGIO).join('\n').trimEnd() + '…' : prossimo.testo
+  return (
+    <div className="overflow-hidden rounded-2xl border border-noi-bordo bg-white">
+      <p className="border-b border-noi-bordo px-4 py-3 text-[16px] font-bold text-inchiostro">
+        {prossimo.quando}
+        <span className="font-normal text-tenue"> · {prossimo.tipo}</span>
+      </p>
+      <div className="px-4 py-3">
+        {testo ? (
+          <>
+            <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-inchiostro">{testo}</p>
+            {lungo && (
+              <button onClick={() => setIntero(!intero)} aria-expanded={intero}
+                      className="mt-1 inline-flex min-h-11 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
+                {intero ? 'Mostra meno' : 'Mostra tutto'}
+              </button>
+            )}
+          </>
+        ) : <p className="text-[15px] text-tenue">Clara lo scrive quel giorno, dopo aver riletto la conversazione.</p>}
+      </div>
+      {!chiedo && (
+        <div className="border-t border-velo px-2 py-1">
+          <button onClick={() => setChiedo(true)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-no-testo transition-colors duration-150 hover:bg-no-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-no-testo">
+            <Icona nome="divieto" className="h-4 w-4" /> Ferma
+          </button>
+        </div>
+      )}
+      {chiedo && (
+        <div role="alertdialog" aria-labelledby={`ferma-${id}`} className="border-t border-no-bordo bg-no-fondo px-4 py-3">
+          <p id={`ferma-${id}`} className="text-[15px] font-semibold text-no-testo">Fermarlo? Clara non gli scrive più finché non risponde lui.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button onClick={() => void ferma()} disabled={lavoro} autoFocus
+                    className="inline-flex min-h-11 items-center rounded-full border border-no-testo bg-no-testo px-4 text-[14px] font-semibold text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50">
+              {lavoro ? 'Fermo…' : 'Sì, ferma'}
+            </button>
+            <Bottone onClick={() => setChiedo(false)} disabled={lavoro}>Annulla</Bottone>
+          </div>
+        </div>
+      )}
+      {sbaglio && <p role="alert" className="px-4 pb-3 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
+    </div>
   )
 }
 
@@ -218,16 +276,15 @@ function Torna({ indietro }: { indietro: () => void }) {
 
 function Blocco({ titolo, children }: { titolo: string; children: React.ReactNode }) {
   return (
-    <section className="mt-6">
-      <h2 className="mb-2 text-[13px] font-bold uppercase tracking-[0.06em] text-tenue">{titolo}</h2>
+    <section className="mt-8">
+      <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.06em] text-tenue">{titolo}</h2>
       {children}
     </section>
   )
 }
 
-/** Stato, responsabile, prossima azione e data: quello che decide Dre (19/10: i 12 stati, un
- *  contatto = uno stato, ogni stato ha un responsabile e una prossima azione di default). Vuoto vuol
- *  dire «come dice il sistema»; scelto a mano, vince il suo. */
+/** Stato, responsabile, prossima azione e data: quello che decide Dre (19/10, i 12 stati). Vuoto vuol
+ *  dire «come dice il sistema»: la voce vuota porta il nome di quello che vale adesso. */
 function Decidi({ id, sistema, suggerita, decisione, onSalvato }: {
   id: string; sistema: string; suggerita: { mossa: string | null; il: string | null }; decisione: Decisione | null; onSalvato: (d: Decisione) => void
 }) {
@@ -239,11 +296,8 @@ function Decidi({ id, sistema, suggerita, decisione, onSalvato }: {
   const [sbaglio, setSbaglio] = useState<string | null>(null)
   const cambiato = stato !== (decisione?.stato ?? '') || chi !== (decisione?.responsabile ?? '')
     || mossa !== (decisione?.prossima_mossa ?? '') || il !== (decisione?.prossima_il ?? '')
-  // lo stato che vale (quello scelto, se no quello del sistema) da' il responsabile e l'azione di default
-  const vale = stato || sistema
-  const info = infoStato(vale)
-  const proposta = stato && stato !== sistema ? { mossa: info?.azione ?? null, il: null }
-    : suggerita.mossa ? suggerita : { mossa: info?.azione ?? null, il: null }
+  const info = infoStato(stato || sistema)
+  const proposta = stato && stato !== sistema ? (info?.azione ?? null) : (suggerita.mossa || info?.azione || null)
 
   async function salva() {
     setLavoro(true); setSbaglio(null)
@@ -259,47 +313,44 @@ function Decidi({ id, sistema, suggerita, decisione, onSalvato }: {
     }
   }
 
-  const campo = 'h-11 w-full rounded-xl border border-bordo bg-white px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro'
+  const campo = 'h-11 w-full rounded-xl border border-bordo bg-white px-3 text-[16px] text-inchiostro outline-none transition-colors duration-150 focus:border-blu-scuro'
+  const etichetta = 'mb-1 block text-[13px] font-semibold text-tenue'
   return (
-    <form onSubmit={(e) => { e.preventDefault(); void salva() }} className="space-y-3 rounded-2xl border border-bordo bg-white p-4">
-      <div>
-        <label htmlFor="stato" className="mb-1 block text-[14px] font-semibold text-inchiostro">Stato</label>
-        <select id="stato" value={stato} onChange={(e) => setStato(e.target.value)} className={campo}>
-          <option value="">Automatico: {sistema}</option>
-          {GRUPPI.map((g) => (
-            <optgroup key={g} label={g}>
-              {INFO_STATI.filter((s) => s.gruppo === g).map((s) => <option key={s.nome} value={s.nome}>{s.nome}</option>)}
-            </optgroup>
-          ))}
-        </select>
-        {info && <p className="mt-1 text-[13px] text-tenue">{info.significa}.</p>}
+    <form onSubmit={(e) => { e.preventDefault(); void salva() }} className="rounded-2xl border border-bordo bg-white p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="stato" className={etichetta}>Stato</label>
+          <select id="stato" value={stato} onChange={(e) => setStato(e.target.value)} className={campo}>
+            <option value="">{sistema}</option>
+            {GRUPPI.map((g) => (
+              <optgroup key={g} label={g}>
+                {INFO_STATI.filter((s) => s.gruppo === g).map((s) => <option key={s.nome} value={s.nome}>{s.nome}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="responsabile" className={etichetta}>Chi</label>
+          <select id="responsabile" value={chi} onChange={(e) => setChi(e.target.value)} className={campo}>
+            <option value="">{info?.responsabile ?? 'Claude'}</option>
+            {RESPONSABILI.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="mossa" className={etichetta}>Prossima azione</label>
+          <input id="mossa" value={mossa} onChange={(e) => setMossa(e.target.value)} maxLength={200}
+                 placeholder={proposta ?? 'Cosa fare'}
+                 className={`${campo} placeholder:text-spento`} />
+        </div>
+        <div>
+          <label htmlFor="quando" className={etichetta}>Quando</label>
+          <input id="quando" type="date" value={il || ''} onChange={(e) => setIl(e.target.value)} className={campo} />
+        </div>
       </div>
-      <div>
-        <label htmlFor="responsabile" className="mb-1 block text-[14px] font-semibold text-inchiostro">Responsabile</label>
-        <select id="responsabile" value={chi} onChange={(e) => setChi(e.target.value)} className={campo}>
-          <option value="">Automatico: {info?.responsabile ?? 'Claude'}</option>
-          {RESPONSABILI.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-      </div>
-      <div>
-        <label htmlFor="mossa" className="mb-1 block text-[14px] font-semibold text-inchiostro">Prossima azione</label>
-        <input id="mossa" value={mossa} onChange={(e) => setMossa(e.target.value)} maxLength={200}
-               placeholder={proposta.mossa ? `Di default: ${proposta.mossa}` : 'Cosa fare'}
-               className="h-11 w-full rounded-xl border border-bordo px-3 text-[16px] text-inchiostro outline-none placeholder:text-spento focus:border-blu-scuro" />
-      </div>
-      <div>
-        <label htmlFor="quando" className="mb-1 block text-[14px] font-semibold text-inchiostro">Data prossima azione</label>
-        <input id="quando" type="date" value={il} onChange={(e) => setIl(e.target.value)}
-               className="h-11 rounded-xl border border-bordo px-3 text-[16px] text-inchiostro outline-none focus:border-blu-scuro" />
-      </div>
-      {!mossa.trim() && proposta.mossa && (
-        <p className="text-[14px] text-tenue">Per ora vale quella di default: {proposta.mossa}{proposta.il && !il ? `, ${dataCorta(proposta.il)}` : ''}.</p>
-      )}
-      <div className="flex items-center gap-3">
+      <div className="mt-4 flex items-center gap-3">
         <Bottone tipo="primo" type="submit" disabled={lavoro || !cambiato}>{lavoro ? 'Salvo…' : 'Salva'}</Bottone>
-        <span className="text-[13px] text-tenue">Resta nel Workspace: Smartlead non cambia.</span>
+        {sbaglio && <p role="alert" className="text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
       </div>
-      {sbaglio && <p role="alert" className="text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
     </form>
   )
 }
@@ -377,7 +428,7 @@ function Note({ id, note, onNota, onTolta, mostra }: {
 function Analisi({ a }: { a: Scheda['scheda']['analisi'] }) {
   const [apro, setApro] = useState(false)
   const [sbaglio, setSbaglio] = useState(false)
-  if (!a.mandata) return <p className="text-[15px] text-inchiostro">Non ancora mandata.</p>
+  if (!a.mandata) return <p className="text-[15px] text-tenue">Analisi non ancora mandata.</p>
   const apribile = Boolean(a.percorso || a.link)
 
   async function apri() {
@@ -392,13 +443,15 @@ function Analisi({ a }: { a: Scheda['scheda']['analisi'] }) {
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-[15px] text-inchiostro">Mandata{a.il ? ` ${quando(a.il)}` : ''}.</p>
-      {a.punto && <p className="text-[15px] leading-snug text-tenue">Il punto chiave: {a.punto}</p>}
-      {apribile ? (
-        <Bottone onClick={() => void apri()} disabled={apro}>{apro ? 'Apro…' : 'Apri il PDF'} <Icona nome="esterno" className="h-4 w-4" /></Bottone>
-      ) : <p className="text-[14px] text-tenue">Il PDF non è agganciato a questa scheda.</p>}
-      {sbaglio && <p role="alert" className="text-[14px] font-semibold text-no-testo">Il PDF non si apre: provalo dal Workspace completo.</p>}
+    <div className="rounded-2xl border border-bordo bg-white px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <p className="text-[15px] text-inchiostro"><b className="font-semibold">Analisi mandata</b>{a.il ? <span className="text-tenue"> {quando(a.il)}</span> : ''}</p>
+        {apribile ? (
+          <Bottone onClick={() => void apri()} disabled={apro} className="-mr-2">{apro ? 'Apro…' : 'Apri il PDF'} <Icona nome="esterno" className="h-4 w-4" /></Bottone>
+        ) : <span className="text-[14px] text-tenue">PDF non agganciato</span>}
+      </div>
+      {a.punto && <p className="mt-1 max-w-[65ch] text-[14px] leading-snug text-tenue">{a.punto}</p>}
+      {sbaglio && <p role="alert" className="mt-1 text-[14px] font-semibold text-no-testo">Il PDF non si apre: provalo dal Workspace completo.</p>}
     </div>
   )
 }

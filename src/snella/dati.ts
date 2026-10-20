@@ -4,6 +4,7 @@
 // le tabelle del sistema vecchio, non manda mail, non scrive su Smartlead.
 import { supabase } from '../lib/supabase'
 import statiJson from './stati.json'
+import type { LeadPerProssimo, PropostaLead } from './regole'
 
 /** I 12 stati della pipeline (Dre, 19/10), nell'ordine e nei gruppi: la fonte unica e' stati.json
  *  (la leggono anche scripts/schede.py e il database, snella_stati). Nient'altro. */
@@ -136,18 +137,26 @@ export async function leggiTelefoni(ids: string[]): Promise<Map<string, SchedaDa
 
 const CAMPI_NOTA = 'id,prospect_id,testo,tipo,at,autore,autore_nome'
 
-export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null; fase: string | null }> {
-  const [s, d, n, c, f] = await Promise.all([
+export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null; lead: Lead | null; proposte: PropostaLead[]; calendario: { gruppo: string; il: string } | null }> {
+  const [s, d, n, c, p, pr, cal] = await Promise.all([
     supabase.from('snella_schede').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_lead').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_note').select(CAMPI_NOTA).eq('prospect_id', id).order('at', { ascending: false }).limit(200).abortSignal(entro()),
     supabase.from('snella_numeri').select('dati').eq('chiave', 'call').abortSignal(entro()).maybeSingle(),
-    // la fase del foglio della pipeline (scripts/foglio.py, ogni 10 minuti): la stessa che vede Dre nel foglio
-    supabase.from('snella_numeri').select(`fase:dati->>${id}`).eq('chiave', 'fasi').abortSignal(entro()).maybeSingle(),
+    // 20/10: la scheda pulita. Dalla riga del lead il sito, la citta', il settore, la campagna e quello
+    // che serve per dire il prossimo messaggio; dalle proposte la mail gia' scritta; dal calendario dei
+    // follow-up (scripts/followup.py) il giorno del prossimo
+    supabase.from('prospects').select(CAMPI_LEAD).eq('id', id).abortSignal(entro()).maybeSingle(),
+    supabase.from('proposte').select('id,tipo,stato,at,risposta,bozza:azione->>bozza,template:azione->>template')
+      .eq('prospect_id', id).order('at', { ascending: false }).limit(100).abortSignal(entro()),
+    supabase.from('seguiti_calendario').select('gruppo,il').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
   ])
   if (s.error) guasto(s.error)
   if (d.error) guasto(d.error)
   if (n.error) guasto(n.error)
+  // senza la riga del lead o le proposte la scheda non saprebbe dire il prossimo messaggio: meglio dirlo
+  if (p.error) guasto(p.error)
+  if (pr.error) guasto(pr.error)
   // le call prenotate con lui (le prepara schede.py): se manca il dato, la scheda si apre lo stesso
   const tutte = ((c.data?.dati as { call?: Call[] } | undefined)?.call ?? [])
   // 19/10: da «Tutti» si apre anche chi non ha la scheda pronta: allora la sua riga, per decidere e
@@ -155,7 +164,37 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
   const base = s.data ? null : await leggiRigaTutti(id)
   return { scheda: s.data as Scheda | null, decisione: d.data as Decisione | null, note: (n.data ?? []) as Nota[],
            call: tutte.filter((x) => x.prospect_id === id), base,
-           fase: ((f.data as { fase?: string | null } | null)?.fase) ?? null }
+           lead: p.data as Lead | null, proposte: (pr.data ?? []) as PropostaLead[],
+           calendario: (cal.data as { gruppo: string; il: string } | null) ?? null }
+}
+
+/** La riga del lead che legge la scheda (prospects). */
+export interface Lead extends LeadPerProssimo {
+  website: string | null; city: string | null; sector: string | null; campaign: string | null; phone: string | null
+  email: string | null; analysis_pdf: string | null
+}
+const CAMPI_LEAD = 'website,city,sector,campaign,phone,email,analysis_pdf,analysis_sent_at,last_reply_at,no_followup,fuori,stage,classificazione,coda,awaiting_us'
+
+/** «FERMA» (20/10, Dre: il prossimo messaggio di Clara si deve poter fermare dalla scheda): il lead
+ *  passa a «niente follow-up» (prospects.no_followup, finche' non riscrive lui), esce dalla coda e
+ *  dal calendario dei follow-up, e le mail gia' scritte per lui si chiudono col motivo. Una
+ *  scrittura alla volta, controllata: alla prima che non va ci si ferma e lo si dice. */
+export async function fermaMessaggi(id: string, proposte: number[]): Promise<{ partite: number }> {
+  const l = await supabase.from('prospects').update({ no_followup: true, coda: null }).eq('id', id).select('id').abortSignal(entro())
+  if (l.error) guasto(l.error)
+  // la riga deve cambiare davvero: se il database non la lascia scrivere, lo si dice
+  if (!l.data?.length) throw new Error('il database non mi lascia fermare questo lead')
+  let chiuse = 0
+  if (proposte.length) {
+    // solo quelle ancora aperte o approvate: una gia' «in invio» sta partendo e non si tocca
+    const p = await supabase.from('proposte').update({ stato: 'no', risposta: 'NO: fermato da Dre', risposta_il: new Date().toISOString() })
+      .in('id', proposte).in('stato', ['aperta', 'approvata']).select('id').abortSignal(entro())
+    if (p.error) guasto(p.error)
+    chiuse = p.data?.length ?? 0
+  }
+  const c = await supabase.from('seguiti_calendario').delete().eq('prospect_id', id).abortSignal(entro())
+  if (c.error) guasto(c.error)
+  return { partite: proposte.length - chiuse }
 }
 
 // ── TUTTI (19/10): il foglio con tutti i prospect, una pagina alla volta dal database ──
