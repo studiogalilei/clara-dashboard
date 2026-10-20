@@ -577,9 +577,40 @@ def regola_dura(gruppo, f, classificazione=None):
     return None
 
 
-def coerenza(f, bozza, gruppo=None):
+def copia_coerente(f, bozza, cc):
+    """«METTO IN COPIA» E' UN FATTO, E LO VERIFICA IL CODICE (20/10). Quel giorno una bozza diceva
+    «metto in copia Mattia a info@…» e il postino non metteva nessuno in copia: la frase sarebbe
+    partita falsa. Torna None se tutto torna, altrimenti ("INCOERENTE", motivo):
+    - la bozza dice «in copia» ma nessuno e' in copia (o un indirizzo diverso): FATTO INVENTATO;
+    - qualcuno e' in copia ma la bozza non lo dice;
+    - in copia un indirizzo che la persona non ha scritto: FATTO INVENTATO."""
+    cc = [str(c).strip().lower() for c in (cc or []) if str(c).strip()]
+    testo = bozza or ""
+    dice = bool(re.search(r"\bin copia\b", testo, re.I))
+    if dice and not cc:
+        return "INCOERENTE", "FATTO INVENTATO: dice «metto in copia» ma la mail non mette nessuno in copia"
+    if cc and not dice:
+        return "INCOERENTE", f"mette in copia {', '.join(cc)} senza dirlo nel testo"
+    suo = ((f or {}).get("ultima_loro") or "").lower()
+    noti = {str(g).lower() for g in ((f or {}).get("girato_a") or [])}
+    for c in cc:
+        if c not in suo and c not in noti:
+            return "INCOERENTE", f"FATTO INVENTATO: in copia {c}, un indirizzo che la persona non ha scritto"
+    if dice:
+        for e in EMAIL.findall(testo):
+            if e.lower() not in cc:
+                return "INCOERENTE", f"FATTO INVENTATO: la bozza nomina {e.lower()} ma in copia c'e' {', '.join(cc)}"
+    return None
+
+
+def coerenza(f, bozza, gruppo=None, cc=None):
     """LA SECONDA TESTA. Un modello diverso legge loro / noi / bozza e dice COERENTE o
-    INCOERENTE con il motivo. Non scrive, giudica. Nel dubbio, INCOERENTE."""
+    INCOERENTE con il motivo. Non scrive, giudica. Nel dubbio, INCOERENTE.
+    `cc`: chi va in copia (20/10). Il codice verifica da solo che «metto in copia» sia vero."""
+    esito = copia_coerente(f, bozza, cc)
+    if esito:
+        return esito
+    cc = [str(c).strip().lower() for c in (cc or []) if str(c).strip()]
     try:
         import cervello
         prompt = f"""Sei la SECONDA TESTA di Studio Galilei. Un altro sistema ha scritto una mail a un'azienda.
@@ -595,7 +626,7 @@ L'ULTIMA MAIL NOSTRA ({f['ultima_nostra_il'] or 'mai'}{', mandata a ' + f['ultim
 
 FATTI CHE IL CODICE HA VERIFICATO: analisi gia' ricevuta={f['analisi_ricevuta']}, dice di averla letta={f['analisi_gia_letta']},
 ha detto no={f['detto_no']}, autorisposta={f['autorisposta']}, ci ha girato a={f['girato_a'] or 'nessuno'}, gruppo={gruppo or 'risposta normale'},
-la mail parte a={f.get('destinatario') or 'lo stesso indirizzo del thread'}.
+la mail parte a={f.get('destinatario') or 'lo stesso indirizzo del thread'}, in copia a={', '.join(cc) or 'nessuno'}.
 Guarda gli indirizzi: se la nostra ultima mail e' partita a un indirizzo diverso da quello di chi ci ha scritto, dire
 che non gli era arrivata direttamente e' vero. Un messaggio che dice «questo indirizzo verra' disattivato» o «scrivete
 d'ora in poi a ...», mandato subito dopo la nostra, e' la risposta automatica di quella casella.
@@ -609,7 +640,8 @@ E' INCOERENTE se: risponde a qualcosa che non hanno detto; dice «la mail non er
 gia' scritto dopo la loro; promette o allega l'analisi come nuova a chi dice di averla gia' letta; parla a
 un'autorisposta come a una persona (salvo il gruppo RICONTATTO OOO, che e' fatto apposta); ignora un no;
 sbaglia nome o azienda; usa un indirizzo email come se fosse il nome di una persona; dice «metto in copia»
-o «grazie per il passaggio» quando la mail parte direttamente al contatto nuovo; ripete parola per parola una
+o «grazie per il passaggio» quando la mail parte direttamente al contatto nuovo; dice «metto in copia» qualcuno
+che non e' fra «in copia a» (FATTO INVENTATO: la copia la mette il codice, non la frase); ripete parola per parola una
 cosa che avevamo gia' scritto; risponde a una domanda precisa senza rispondere; nei gruppi (ripresa, rinvio,
 dopo le ferie, follow-up) aggiunge uno slot o righe che il template di Dre non ha. FATTI INVENTATI (17/10): e' INCOERENTE una bozza che racconta un AVVENIMENTO che non sta ne' nel filo ne' in
 QUELLO CHE SAPPIAMO: una novita' dell'azienda (sede aperta, premio vinto, magazzino chiuso, assunzione,

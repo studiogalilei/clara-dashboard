@@ -177,8 +177,47 @@ Le propongo {{GIORNO}}: se le va meglio un altro momento, qui trova il calendari
 Un saluto"""
 GIORNI_DOPO_ANALISI = 15
 
+# IL RIMBALZO INTERNO, VERSIONE CC (template di Dre del 15/7: «Reply nel thread, To: originale,
+# CC: nuova mail, due righe, allegare l'analisi se esiste»). Dal 20/10 lo compone il codice:
+# quel giorno un si' («provi a mandarlo a questo indirizzo che le giro, all'attenzione di X»)
+# e' rimasto fermo ore perche' la bozza del modello diceva «metto in copia» e il postino non
+# sapeva mettere nessuno in copia: la frase sarebbe stata falsa. Le parole sono quelle di Dre;
+# le frasi vanno a capo invece di stare incollate sulla stessa riga (Dre 1/10). Chi va in copia
+# lo decide il codice da quello che la persona ha scritto (bozze.in_copia), mai il modello.
+RIMBALZI = ("INT-08", "INT-09")
+RIMBALZO_CC = """Salve,
 
-def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=None, testo_file=None, loro="", garanzia=None):
+grazie per il passaggio, molto gentile. Metto in copia {{NUOVO}} così proseguiamo direttamente lì.
+
+{{PIACERE}}sono Lorenzo di Studio Galilei.
+In una riga: abbiamo preparato un'analisi esterna gratuita su come {{AZIENDA}} appare oggi su Google (la trova allegata), ed è il nostro modo di presentarci portando già spunti concreti.
+Se le fa piacere approfondire, qui trova il calendario per scegliere il giorno più comodo.
+📅 Calendario: {{CALENDARIO}}"""
+
+
+def rimbalzo_cc(p, letti, calendario, cc, nome_nuovo=None):
+    """Il RIMBALZO INTERNO con la nuova persona in copia. None se non c'e' nessuno da mettere in
+    copia o manca l'azienda: allora lo scrive il modello e lo guarda Dre. Il nome del nuovo
+    contatto solo se e' un nome vero (mai un indirizzo come nome, 25/9)."""
+    cc = [str(c).strip() for c in (cc or []) if str(c).strip()]
+    azienda = ((p or {}).get("company") or "").strip()
+    if not cc or not azienda:
+        return None
+    nome = (nome_nuovo or "").strip()
+    nome = nome if _nome_vero(nome) else ""
+    nuovo = f"{nome} ({', '.join(cc)})" if nome else ", ".join(cc)
+    t = (RIMBALZO_CC.replace("{{NUOVO}}", nuovo).replace("{{PIACERE}}", f"{nome}, piacere: " if nome else "Piacere: ")
+         .replace("{{AZIENDA}}", azienda).replace("{{CALENDARIO}}", calendario))
+    righe = t.splitlines()
+    righe[0] = saluto(p, letti)
+    t = "\n".join(righe)
+    if "[" in t or "{{" in t:
+        return None
+    return t.strip()
+
+
+def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=None, testo_file=None, loro="", garanzia=None,
+             cc=None, nome_nuovo=None):
     """La risposta col testo di Dre, o None se per quell'intento non c'e' un suo template.
 
     `garanzia` (1/10, lo score di Dre: «uno se lo ricorda»): la frase della proposta
@@ -186,6 +225,8 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
     calcola qui da p; nei template che non la hanno (CHI SEI, SENTIAMOCI) la stessa
     frase di Dre si AGGIUNGE quando lo score passa («quella linea ci sta in realta'»).
     """
+    if (intento or "").strip() in RIMBALZI:
+        return rimbalzo_cc(p, letti, calendario, cc, nome_nuovo)
     chiave = RISPOSTE.get((intento or "").strip())
     if chiave == "CHI SEI" and CHIEDE_SOCIETA.search(loro or ""):
         chiave = "QUAL E"

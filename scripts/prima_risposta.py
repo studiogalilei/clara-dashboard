@@ -108,10 +108,18 @@ CLASSI_OK = ("positivo", "tiepido")
 # che segna in calendario e risponde a mano (Manuale di Clara v2, caso 13).
 INTENTI_OK = ("INT-01", "INT-03", "INT-23")
 INTENTI_CALL = ("INT-02", "INT-24")
+# 20/10 (Dre: «fino all'analisi fa tutto il sistema»): il rimbalzo interno («provi a mandarlo a
+# questo indirizzo, all'attenzione di X») e' un si' con una persona in piu'. Parte da solo SOLO se
+# quella persona e' in copia davvero (azione.cc, decisa dal codice sul testo suo) e la bozza lo
+# dice: la copia e gli allegati li verifica lettura.copia_coerente, non una frase.
+INTENTI_RIMBALZO = ("INT-08",)
 # 2/10: il gigante buono dice «gliela lasciamo in allegato», e «le lascio» non bastava
-ALLEGA_ANALISI = re.compile(r"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*[^.\n]{0,60}\banalisi\b|"
+# 20/10: un punto dentro una parola (F.lli, S.r.l., www.sito.it) non chiude la frase: «analisi su come
+# Falegnameria F.lli X appare su Google (la trova allegata)» non la vedeva, e il si' restava fermo
+_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w))"
+ALLEGA_ANALISI = re.compile(rf"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*{_NEL_PERIODO}{{0,60}}\banalisi\b|"
                             r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"
-                            r"\banalisi\b[^.\n]{0,60}(?:in allegato|allegat|qui sotto)")
+                            rf"\banalisi\b{_NEL_PERIODO}{{0,120}}(?:in allegato|allegat|qui sotto)")
 CAMPI = ("id,email,email_alt,company,name,classificazione,stage,pipeline_stage,fuori,no_followup,notes,owner,"
          "analysis_sent,analysis_pdf,campaign,campaign_id,lead_id,last_reply_at")
 
@@ -307,8 +315,20 @@ def perche_no(pr, p):
         no.append("gia' passata di qui")
     if let.get("gruppo") and not (gb and let.get("gruppo") == "GIGANTE BUONO"):
         no.append(f"non e' una prima risposta ({let['gruppo']})")
-    if az.get("intento") not in INTENTI_OK:
+    rimbalzo = az.get("intento") in INTENTI_RIMBALZO
+    cc = [str(c).lower() for c in (az.get("cc") or []) if c]
+    if az.get("intento") not in INTENTI_OK and not rimbalzo:
         no.append(f"intento {az.get('intento')} fuori dalla prima risposta")
+    if rimbalzo:
+        import lettura
+        if not cc:
+            no.append("rimbalzo senza nessuno in copia")
+        else:
+            copia = lettura.copia_coerente(let, az.get("bozza") or "", cc)
+            if copia:
+                no.append(f"la copia non torna: {copia[1]}")
+        if not az.get("testo_dal_codice"):
+            no.append("il rimbalzo non e' il template di Dre composto dal codice")
     if let.get("coerenza") != "COERENTE":
         no.append("la seconda testa non dice COERENTE")
     if let.get("scritto_dopo_di_lei"):
@@ -324,8 +344,9 @@ def perche_no(pr, p):
     # 2/10: un alias dello STESSO dominio (info@ che risponde per commerciale@) non e'
     # un rimbalzo a terzi: si risponde nel thread come sempre. Il freno resta per i
     # domini diversi (vero passaggio di persona) e per i cambi di indirizzo dichiarati.
+    # 20/10: un indirizzo di un altro dominio che sta IN COPIA non e' «di mezzo»: e' servito.
     _dom = ((p or {}).get("email") or "").split("@")[-1].lower()
-    _fuori = [g for g in (let.get("girato_a") or []) if g.split("@")[-1].lower() != _dom]
+    _fuori = [g for g in (let.get("girato_a") or []) if g.split("@")[-1].lower() != _dom and g.lower() not in cc]
     if _fuori or let.get("destinatario") or (p or {}).get("email_alt"):
         no.append("c'e' di mezzo un altro indirizzo")
     if let.get("analisi_ricevuta") or let.get("analisi_gia_letta"):
@@ -333,7 +354,12 @@ def perche_no(pr, p):
     if not p:
         no.append("manca la scheda")
         return no
-    if p.get("classificazione") not in CLASSI_OK and not (az.get("intento") == "INT-GB" and p.get("classificazione") == "negativo"):
+    # 20/10: il sync lascia «da_classificare» chi indica un altro indirizzo («serve occhio umano»).
+    # Nel rimbalzo con la copia verificata l'occhio ce l'hanno il codice, la seconda testa e il Revisore.
+    classe_ok = p.get("classificazione") in CLASSI_OK \
+        or (az.get("intento") == "INT-GB" and p.get("classificazione") == "negativo") \
+        or (rimbalzo and cc and p.get("classificazione") == "da_classificare")
+    if not classe_ok:
         no.append(f"e' {p.get('classificazione')}, non positivo o tiepido")
     if not contattabile(p):
         no.append("non e' piu' un lead")
@@ -415,6 +441,7 @@ I numeri di zona (ricerche al mese, recensioni) vengono dal fit misurato dal cod
 {_template_approvati()}
 
 A CHI: {azienda} ({p['email']}), classificato {p.get('classificazione')}, intento {az.get('intento')}.
+IN COPIA (cc, messa dal codice, non dalla frase): {', '.join(str(c) for c in (az.get('cc') or [])) or 'nessuno'}.
 IN ALLEGATO partiranno: l'analisi Google Ads in PDF fatta per loro e la presentazione dello Studio.
 
 L'ULTIMA MAIL LORO ({letti.get('ultima_loro_il') or 'data ignota'}):
@@ -556,7 +583,8 @@ def main():
             cambiato = "ha riscritto dopo che la bozza era nata"
         elif (letti.get("detto_no") and (pr.get("azione") or {}).get("intento") != "INT-GB") \
                 or letti.get("non_scrivere") \
-                or [g for g in (letti.get("girato_a") or []) if g.split("@")[-1].lower() != (p.get("email") or "").split("@")[-1].lower()] \
+                or [g for g in (letti.get("girato_a") or []) if g.split("@")[-1].lower() != (p.get("email") or "").split("@")[-1].lower()
+                    and g.lower() not in [str(c).lower() for c in (az.get("cc") or [])]] \
                 or (letti.get("autorisposta") and not SEGUITI):
             # per il gigante buono il no E' il caso (Dre, 2/10); «non scrivetemi» ferma sempre
             cambiato = "rileggendo il filo adesso, non e' piu' un caso semplice"

@@ -1666,7 +1666,7 @@ def _():
     vero_leggi, vera_coer = L.leggi, L.coerenza
     try:
         L.leggi = lambda p: (None, {"ultima_loro": "ho girato la sua mail a chi se ne occupa"})
-        L.coerenza = lambda letti, testo, gruppo=None: ("INCOERENTE", "nessun collega ha girato il contatto") if "collega mi ha girato" in testo else ("COERENTE", "")
+        L.coerenza = lambda letti, testo, gruppo=None, cc=None: ("INCOERENTE", "nessun collega ha girato il contatto") if "collega mi ha girato" in testo else ("COERENTE", "")
         assert A.seconda_testa({}, "il suo collega mi ha girato il suo contatto")[0] == "INCOERENTE"
         assert A.seconda_testa({}, "mi può dire a chi ha girato la mia mail?")[0] == "COERENTE"
         L.leggi = lambda p: (_ for _ in ()).throw(RuntimeError("smartlead giu'"))
@@ -4231,6 +4231,130 @@ def _():
     assert fase == F.CONV, fase
     fase2, _ = F.fase_di(p, None, None, [], None, None, ora=ora)
     assert fase2 == F.INVIATA, fase2
+
+
+# ── 20/10: il rimbalzo interno, con la nuova persona in copia davvero ────────
+_LETTI_RIMBALZO = {"ultima_loro": "PROVI A MANDARLO A QUESTO INDIRIZZO CHE LE GIRO, ABBIAMO UNA COMMERCIALE CON UN SOCIO: "
+                                  "INFO@NUOVA-AZIENDA.INVALID, ALL'ATTENZIONE DI MATTIA. BUONA GIORNATA",
+                   "ultima_loro_il": "2026-10-20", "ultima_nostra": "Salve, le avevo scritto", "ultima_nostra_il": "2026-10-15",
+                   "scritto_dopo_di_lei": 0, "girato_a": ["info@nuova-azienda.invalid"], "detto_no": False, "autorisposta": False,
+                   "analisi_ricevuta": False, "analisi_gia_letta": False, "destinatario": None, "coerenza": "COERENTE"}
+_P_RIMBALZO = {"id": "x", "email": "lead@vecchia-azienda.invalid", "company": "Falegnameria F.lli Prova", "name": "", "email_alt": None,
+               "classificazione": "da_classificare", "stage": "risposto", "fuori": False, "pipeline_stage": None, "no_followup": False,
+               "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf"}
+
+
+@prova("rimbalzo interno (20/10): il template di Dre composto dal codice, con la copia vera e l'analisi allegata")
+def _():
+    import bozze, seguiti, prima_risposta as R
+    letti, p = _LETTI_RIMBALZO, _P_RIMBALZO
+    cc = bozze.in_copia(letti, p)
+    assert cc == ["info@nuova-azienda.invalid"], cc
+    # chi ci ha dato un destinatario nuovo non ha nessuno in copia: la mail parte a lui
+    assert bozze.in_copia(letti, {**p, "email_alt": ["nuovo@nuova-azienda.invalid"]}) == []
+    # il nome solo se sta nel testo suo: «Mattia» si', «Giovanni» (inventato dal modello) no
+    assert bozze.nome_nuovo(letti, "Metto in copia Mattia a info@nuova-azienda.invalid") == "Mattia"
+    assert bozze.nome_nuovo({**letti, "ultima_loro": "mandi pure a info@nuova-azienda.invalid"}, "Metto in copia Giovanni") == ""
+    t = seguiti.risposta("INT-08", p, letti, bozze.CALENDARIO, cc=cc, nome_nuovo="Mattia")
+    assert t and "Metto in copia Mattia (info@nuova-azienda.invalid)" in t and "(la trova allegata)" in t and "Mattia, piacere:" in t, t
+    assert "F.lli Prova appare oggi su Google" in t and bozze.CALENDARIO in t
+    assert bozze.cancello(t) == [], bozze.cancello(t)                       # a capo, non punto-spazio-e-continua
+    assert R.ALLEGA_ANALISI.search(t.lower()), "«F.lli» dentro la frase non deve nascondere l'allegato"
+    senza_nome = seguiti.risposta("INT-08", p, letti, bozze.CALENDARIO, cc=cc, nome_nuovo="")
+    assert "Metto in copia info@nuova-azienda.invalid" in senza_nome and "\nPiacere: sono Lorenzo" in senza_nome, senza_nome
+    assert seguiti.risposta("INT-08", p, letti, bozze.CALENDARIO, cc=[]) is None, "senza nessuno in copia il codice non scrive"
+    # il motore mette cc e allegati nella proposta
+    b = bozze.testo_di_dre({"intento": "INT-08", "bozza": "Metto in copia Mattia a info@nuova-azienda.invalid", "nota": ""}, p, letti)
+    assert b.get("dal_codice") and b.get("cc") == cc and "in copia info@nuova-azienda.invalid" in b["nota"], b
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py"), encoding="utf-8").read()
+    assert 'azione.update({"cc": b["cc"], "allega": True, "allega_presentazione": True})' in src
+
+
+@prova("seconda testa (20/10): «metto in copia» e' un fatto, e lo verifica il codice prima del modello")
+def _():
+    import lettura as L
+    letti, cc = _LETTI_RIMBALZO, ["info@nuova-azienda.invalid"]
+    bozza = "Salve,\n\ngrazie, metto in copia Mattia (info@nuova-azienda.invalid) così proseguiamo lì.\nLa trova allegata."
+    assert L.copia_coerente(letti, bozza, cc) is None
+    # la frase senza la copia: il caso vero del 20/10
+    v, m = L.copia_coerente(letti, bozza, [])
+    assert v == "INCOERENTE" and "FATTO INVENTATO" in m, (v, m)
+    # in copia un indirizzo che la persona non ha scritto
+    v, m = L.copia_coerente(letti, "Metto in copia Mattia (altro@altra.invalid)", ["altro@altra.invalid"])
+    assert v == "INCOERENTE" and "non ha scritto" in m, (v, m)
+    # la bozza nomina un indirizzo diverso da quello in copia
+    v, m = L.copia_coerente(letti, "Metto in copia Mattia (altro@altra.invalid)", cc)
+    assert v == "INCOERENTE" and "altro@altra.invalid" in m, (v, m)
+    # qualcuno in copia senza dirlo
+    v, m = L.copia_coerente(letti, "Salve, le allego l'analisi.", cc)
+    assert v == "INCOERENTE" and "senza dirlo" in m, (v, m)
+    # coerenza() si ferma qui, senza chiamare il modello
+    assert L.coerenza(letti, bozza, None, cc=[])[0] == "INCOERENTE"
+    assert "in copia a=" in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lettura.py"), encoding="utf-8").read()
+
+
+@prova("prima risposta (20/10): INT-08 parte da solo solo con la copia vera, il template del codice e gli allegati")
+def _():
+    import prima_risposta as R
+    letti, p = _LETTI_RIMBALZO, _P_RIMBALZO
+    bozza = ("Salve,\n\ngrazie per il passaggio, molto gentile. Metto in copia Mattia (info@nuova-azienda.invalid) così proseguiamo direttamente lì.\n\n"
+             "Mattia, piacere: sono Lorenzo di Studio Galilei.\nIn una riga: abbiamo preparato un'analisi esterna gratuita su come Falegnameria F.lli Prova "
+             "appare oggi su Google (la trova allegata), ed è il nostro modo di presentarci.\n📅 Calendario: https://calendar.app.google/x")
+    az = {"bozza": bozza, "intento": "INT-08", "cc": ["info@nuova-azienda.invalid"], "lettura": letti, "testo_dal_codice": True}
+    pr = {"id": 1, "tipo": "risposta", "titolo": "Bozza per Prova, INT-08", "azione": az}
+    assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
+    def con(**mod):
+        return R.perche_no({**pr, "azione": {**az, **mod}}, p)
+    assert any("nessuno in copia" in m for m in con(cc=[])), "senza copia non e' un rimbalzo servito"
+    assert any("di mezzo un altro indirizzo" in m for m in con(cc=[])), "l'indirizzo non servito resta «di mezzo»"
+    assert any("la copia non torna" in m for m in con(cc=["altro@altra.invalid"])), "una copia inventata deve fermare"
+    assert any("composto dal codice" in m for m in con(testo_dal_codice=False)), "il testo del modello resta a Dre"
+    assert any("fuori dalla prima risposta" in m for m in con(intento="INT-09")), "INT-09 non e' nella corsia (solo INT-08, decisione del 20/10)"
+    # un INT-01 con un indirizzo di un altro dominio nel testo resta fermo come prima (2/10)
+    assert any("di mezzo" in m for m in con(intento="INT-01", cc=[]))
+    # il Revisore sa chi e' in copia
+    assert "IN COPIA (cc, messa dal codice" in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "prima_risposta.py"), encoding="utf-8").read()
+
+
+@prova("postino (20/10): la copia parte davvero (cc di Smartlead) e passa dal cancello: mai inventata, mai un cliente, mai una casella di servizio")
+def _():
+    import manda
+    letti, p = _LETTI_RIMBALZO, _P_RIMBALZO
+    assert manda.in_copia({"cc": ["a@nuova-azienda.invalid", " b@nuova-azienda.invalid "]}) == {"cc": "a@nuova-azienda.invalid, b@nuova-azienda.invalid"}
+    assert manda.in_copia({"cc": []}) == {} and manda.in_copia({}) == {}
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "manda.py"), encoding="utf-8").read()
+    assert '"to_email": a, **copia}' in src and "cc=az.get(\"cc\"), let=az.get(\"lettura\")" in src, "il cc deve entrare nel corpo di reply-email-thread"
+    assert any("non ha scritto" in e for e in manda.controlla_cc(["x@altra.invalid"], p, letti))
+    assert any("non e' un indirizzo" in e for e in manda.controlla_cc(["non-un-indirizzo"], p, letti))
+    for brutto in ("noreply@nuova-azienda.invalid", "a@pec.nuova-azienda.invalid", "b@arubapec.invalid", "lorenzo@studiogalilei.com"):
+        err = manda.controlla_cc([brutto], p, {**letti, "ultima_loro": letti["ultima_loro"] + " " + brutto})
+        assert any("non una persona" in e for e in err), (brutto, err)
+    assert any("gia' il destinatario" in e for e in manda.controlla_cc([p["email"]], p, {**letti, "girato_a": [p["email"]]}))
+    vero_sb = manda.sb
+    chiamate = []
+    try:
+        # sul dominio c'e' un cliente: la regola del 25/9 vale anche per chi sta in copia
+        manda.sb = lambda m, u, *a, **k: chiamate.append(u) or [{"fuori": False, "stage": "cliente", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}]
+        err = manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti)
+        assert any("non si contatta" in e for e in err), err
+        assert chiamate and "ilike" in chiamate[0] and "nuova-azienda.invalid" in chiamate[0], chiamate
+        # nessuna scheda sul dominio, o schede contattabili: passa
+        manda.sb = lambda m, u, *a, **k: []
+        assert manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti) == []
+        manda.sb = lambda m, u, *a, **k: [{"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}]
+        assert manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti) == []
+        # il database non risponde: non si manda alla cieca
+        def rotto(*a, **k):
+            raise RuntimeError("giu'")
+        manda.sb = rotto
+        assert any("non riesco a controllare" in e for e in manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti))
+        # il cancello intero: il cc passa prima del resto
+        assert manda.controlla("Salve,\n\nmetto in copia x.", p, cc=["x@altra.invalid"], let=letti) == ["in copia x@altra.invalid, che la persona non ha scritto: mai un indirizzo inventato"]
+    finally:
+        manda.sb = vero_sb
+    # chi approva in chat passa la copia al cancello e alla seconda testa
+    src_a = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "approva.py"), encoding="utf-8").read()
+    assert 'cc=az.get("cc"), let=az.get("lettura")' in src_a and 'seconda_testa(p, testo, az.get("gruppo") or az.get("template"), cc=az.get("cc"))' in src_a
 
 
 def main():

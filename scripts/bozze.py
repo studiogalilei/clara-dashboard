@@ -607,7 +607,12 @@ SE C'E' UN DESTINATARIO NUOVO (destinatario_effettivo diverso dall'email della
 scheda): la mail PARTE a quell'indirizzo, non nel vecchio thread. Scrivi al
 nuovo contatto direttamente, come prima mail a lui: niente «metto in copia»,
 niente «grazie per il passaggio» rivolto a chi non la legge. Un indirizzo email
-NON e' un nome: se il nome non c'e', «Salve,» secco."""
+NON e' un nome: se il nome non c'e', «Salve,» secco.
+
+SE C'E' in_copia (un rimbalzo interno, INT-08/INT-09, senza destinatario nuovo): la mail
+parte nel thread a chi ci ha scritto, con quegli indirizzi in copia e l'analisi allegata.
+La bozza e' la versione CC di RIMBALZO INTERNO: dice «Metto in copia …» con quell'indirizzo
+e dice che l'analisi e' allegata. Mai «metto in copia» un indirizzo che non sta in in_copia."""
 
 
 def come_corregge_dre(quante=8):
@@ -708,6 +713,8 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
     if alt and alt[0]:
         fatti["destinatario_effettivo"] = alt[0]
         fatti["nome_del_nuovo_contatto"] = ""          # se non e' nella scheda non c'e': «Salve,»
+    elif letti and letti.get("girato_a"):
+        fatti["in_copia"] = in_copia(letti, p)         # 20/10: chi va in copia lo decide il codice
     if letti:
         try:
             from garanzia import promettibile
@@ -759,6 +766,38 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
 LEZIONI = ""
 
 
+def in_copia(letti, p):
+    """CHI VA IN COPIA IN UN RIMBALZO INTERNO (20/10). Gli indirizzi che la persona ha scritto
+    nella sua mail (lettura.girato_a: trovati nel testo suo, mai in firma o nel disclaimer),
+    mai uno inventato dal modello. Se invece ci ha dato un nuovo destinatario (email_alt) la
+    mail parte a lui e non c'e' nessuna copia (versione FORWARD del template)."""
+    alt = (p or {}).get("email_alt") or []
+    alt = alt if isinstance(alt, list) else [alt]
+    if any(alt):
+        return []
+    return [str(g).strip().lower() for g in ((letti or {}).get("girato_a") or []) if str(g).strip()][:3]
+
+
+def nome_nuovo(letti, bozza_modello=None):
+    """Il nome di chi va in copia, solo se sta nel testo della persona («all'attenzione di
+    Mattia», «chiedere di Sara», «il mio socio Marco»). Se il modello l'ha gia' capito
+    («Metto in copia Mattia») si tiene solo se quel nome compare davvero nella sua mail.
+    Nessun nome: «Piacere:» secco, mai un indirizzo come nome."""
+    suo = ((letti or {}).get("ultima_loro") or "").split("  [firma di chi scrive")[0]
+    m = re.search(r"all.attenzione (?:di|del|della)\s+(?:sig\.?r?a?\s+|dott\.?(?:ssa)?\s+)?([A-Za-zÀ-ÿ']{3,20})\b", suo, re.I)
+    m = m or re.search(r"\b(?:chied\w+ di|parl\w+ con|rivolg\w+ a|sent\w+ con)\s+(?:sig\.?r?a?\s+|dott\.?(?:ssa)?\s+)?([A-Za-zÀ-ÿ']{3,20})\b", suo, re.I)
+    m = m or re.search(r"\b(?:socio|socia|collega|titolare|responsabile|referente)\s+(?:e'|è|si chiama)?\s*([A-Za-zÀ-ÿ']{3,20})\b", suo, re.I)
+    candidati = [m.group(1)] if m else []
+    mb = re.search(r"[Mm]etto in copia\s+([A-Za-zÀ-ÿ']{3,20})\b", bozza_modello or "")
+    if mb:
+        candidati.append(mb.group(1))
+    for c in candidati:
+        nome = c[:1].upper() + c[1:].lower()
+        if seguiti._nome_vero(nome) and re.search(rf"\b{re.escape(c)}\b", suo, re.I):
+            return nome
+    return ""
+
+
 def testo_di_dre(b, p, letti):
     """La bozza del modello diventa il template di Dre composto dal codice, se per
     quell'intento ce n'e' uno (seguiti.risposta). Una funzione sola: la usano il
@@ -768,13 +807,19 @@ def testo_di_dre(b, p, letti):
     # chi ha gia' l'analisi e dice «piu' avanti»: la data a due settimane (Dre, 7/10)
     dopo_analisi = b.get("intento") in ("INT-05", "INT-06") and bool((p or {}).get("analysis_sent"))
     giorno = proposta_giorno_ora(seguiti.GIORNI_DOPO_ANALISI if dopo_analisi else 1)
+    # 20/10: nel rimbalzo interno la nuova persona va in copia, e lo decide il codice dal testo suo
+    cc = in_copia(letti, p) if b.get("intento") in seguiti.RIMBALZI else []
     comp = seguiti.risposta(b.get("intento"), p, letti, CALENDARIO, giorno=giorno, attacco=b.get("attacco"),
-                            periodo=b.get("periodo"), loro=(letti or {}).get("ultima_loro") or "")
+                            periodo=b.get("periodo"), loro=(letti or {}).get("ultima_loro") or "",
+                            cc=cc, nome_nuovo=nome_nuovo(letti, b.get("bozza")) if cc else None)
     if comp:
         # il giorno si salva solo se il testo lo propone davvero (INT-23 no: conterebbe nel tetto
         # dei tre per orario un'offerta che non c'e')
         b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": giorno if giorno and giorno in comp else None,
              "nota": f"il template di Dre parola per parola ({b.get('intento')}); " + (b.get("nota") or "")}
+        if cc:
+            b["cc"] = cc
+            b["nota"] = f"in copia {', '.join(cc)}, con analisi e presentazione allegate; " + b["nota"]
         if dopo_analisi:
             # il follow-up a 15 giorni: quando la mail parte, la scheda diventa un rinvio con la sua
             # data, e il calendario dei follow-up la riprende il giorno dopo (followup.py, RINVIO)
@@ -1043,6 +1088,10 @@ def main():
         # il template la promette.
         if not gruppo and not niente_analisi:
             b = testo_di_dre(b, p, letti)
+        if not gruppo and b.get("intento") in seguiti.RIMBALZI and "cc" not in b:
+            # il codice non ha potuto comporre il template (azienda senza nome): la copia resta
+            # quella decisa dal testo suo, e la seconda testa controlla che la bozza la dica
+            b["cc"] = in_copia(letti, p)
         errori = cancello(b["bozza"], senza_analisi=niente_analisi, seguito_programmato=bool(gruppo), detto_no=letti.get("detto_no"))
         if errori and not b.get("dal_codice"):
             b2 = chiedi_bozza(p, letti["ultima_loro"], riprova="; ".join(errori), gruppo=gruppo, letti=letti)
@@ -1051,7 +1100,7 @@ def main():
         if dura and dura[0] == "fermati" and b["fermati"].lower().startswith("no"):
             b["fermati"] = "si': " + dura[1]
         # 4. LA SECONDA TESTA
-        verdetto, motivo = lettura.coerenza(letti, b["bozza"], gruppo)
+        verdetto, motivo = lettura.coerenza(letti, b["bozza"], gruppo, cc=b.get("cc"))
         b["lettura"] = {**letti, "letta_da_clara": b.get("lettura_di_clara", ""), "ha_gia_di_clara": b.get("ha_gia_di_clara", ""),
                         "coerenza": verdetto, "coerenza_motivo": motivo, "gruppo": gruppo}
         if verdetto != "COERENTE" and b["fermati"].lower().startswith("no"):
@@ -1110,6 +1159,10 @@ def main():
                     azione["bozza_modello"] = b["bozza_modello"]
                 if b.get("dopo_invio"):
                     azione["dopo_invio"] = b["dopo_invio"]
+            if b.get("cc"):
+                # 20/10, il rimbalzo interno: la nuova persona in copia (manda.py la mette nel cc
+                # di Smartlead), e analisi e presentazione allegate, perche' il testo lo dice
+                azione.update({"cc": b["cc"], "allega": True, "allega_presentazione": True})
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1"):
                 azione["allega_presentazione"] = True
             if gruppo in ("RIPRESA", "RINVIO SCADUTO", "RICONTATTO OOO"):

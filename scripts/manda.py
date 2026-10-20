@@ -21,7 +21,8 @@ COSA FA, per ogni proposta in stato «approvata» (tipo risposta o umano, con la
    Se lo script muore a meta', al giro dopo non riparte da sola: resta li' e
    Clara lo dice.
 4. L'INVIO: reply-email-thread di Smartlead, con la firma della casella
-   (add_signature), all'indirizzo che la persona ci ha dato (email_alt) se c'e'.
+   (add_signature), all'indirizzo che la persona ci ha dato (email_alt) se c'e', e con
+   in copia (cc) chi la bozza mette in copia (azione.cc, il rimbalzo interno del 20/10).
 5. DOPO: proposta «fatta» con l'ora, la persona non aspetta piu' noi
    (awaiting_us), l'analisi segnata come mandata se il link era nel testo (o se
    Dre ha detto di allegarla), il gigante buono senza follow-up. La mail nel
@@ -289,9 +290,59 @@ def con_presentazione(prima_risposta, az):
     return bool(scelta) or (prima_risposta and scelta is not False)
 
 
-def controlla(bozza, p=None, gruppo=None, detto_no=False):
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+# caselle che non sono una persona: in copia non ci vanno mai
+DI_SERVIZIO = re.compile(r"^(?:no-?reply|noreply|donotreply|mailer-daemon|postmaster|notif\w*|dmarc\w*|abuse|privacy|unsubscribe|"
+                         r"assistenza|supporto|support|helpdesk|ticket|customercare|customer\.?service|servizioclienti)@", re.I)
+
+
+def controlla_cc(cc, p=None, let=None):
+    """IL CANCELLO SULLA COPIA (20/10). Un indirizzo in copia deve essere:
+    1. scritto dalla persona nella SUA mail (lettura.girato_a o il testo suo): mai inventato;
+    2. una persona: non una casella di servizio, non una pec, non uno di noi;
+    3. di un'azienda che si contatta: la regola del 25/9 (mai a un cliente, a chi e' in pipeline,
+       perso o senza follow-up) vale anche per chi sta in copia, scheda per scheda sul dominio.
+    Torna i motivi; vuota vuol dire che passa."""
+    errori = []
+    suo = ((let or {}).get("ultima_loro") or "").lower()
+    noti = {str(g).lower() for g in ((let or {}).get("girato_a") or [])}
+    for c in cc or []:
+        c = str(c).strip().lower()
+        if not EMAIL.fullmatch(c):
+            errori.append(f"in copia «{c[:40]}» non e' un indirizzo"); continue
+        if c not in suo and c not in noti:
+            errori.append(f"in copia {c}, che la persona non ha scritto: mai un indirizzo inventato"); continue
+        dominio = c.split("@")[1]
+        if DI_SERVIZIO.match(c) or "pec" in dominio or dominio.endswith(("legalmail.it", "postecert.it")) \
+                or any(n in c for n in ("studiogalilei", "galilei", "odyn", "smartlead")):
+            errori.append(f"in copia {c}: casella di servizio, pec o nostra, non una persona"); continue
+        if p and (p.get("email") or "").lower() == c:
+            errori.append(f"in copia {c}, che e' gia' il destinatario"); continue
+        try:
+            q = urllib.parse.quote(c, safe="@"), urllib.parse.quote("*@" + dominio, safe="@*")
+            schede = sb("GET", f"/rest/v1/prospects?select=id,fuori,stage,pipeline_stage,no_followup,classificazione"
+                               f"&or=(email.eq.{q[0]},email.ilike.{q[1]})&limit=20") or []
+        except Exception as e:                                    # noqa: BLE001
+            errori.append(f"in copia {c}: non riesco a controllare se e' un cliente ({str(e)[:40]})"); continue
+        if any(not contattabile(s) for s in schede):
+            errori.append(f"in copia {c}: su quel dominio c'e' chi non si contatta (cliente, pipeline, perso o senza follow-up, regola del 25/9)")
+    return errori
+
+
+def in_copia(az):
+    """Il campo cc di reply-email-thread: una stringa, indirizzi separati da virgola
+    (documentazione Smartlead, api.smartlead.ai/api-reference/inbox/reply, letta il 20/10)."""
+    cc = [str(c).strip() for c in ((az or {}).get("cc") or []) if str(c).strip()]
+    return {"cc": ", ".join(cc)} if cc else {}
+
+
+def controlla(bozza, p=None, gruppo=None, detto_no=False, cc=None, let=None):
     if "{{" in bozza or "}}" in bozza or "[[" in bozza:
         return ["segnaposto lasciato nel testo"]
+    if cc:
+        errori_cc = controlla_cc(cc, p, let)
+        if errori_cc:
+            return errori_cc
     # IL PREZZO SUGGERITO E' INTERNO (Dre, 26/9): se il numero della scheda compare nel testo, non parte.
     # 12/10: vale fino alla conoscitiva compresa («mai un prezzo prima della conoscitiva»). Dopo,
     # il canone e' il listino e puo' stare in una mail di preventivo: bloccarlo fermerebbe il lavoro vero.
@@ -420,7 +471,8 @@ def main():
             continue
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
-        errori = controlla(bozza, p, gruppo=az.get("gruppo") or az.get("template"), detto_no=bool((az.get("lettura") or {}).get("detto_no")))
+        errori = controlla(bozza, p, gruppo=az.get("gruppo") or az.get("template"), detto_no=bool((az.get("lettura") or {}).get("detto_no")),
+                           cc=az.get("cc"), let=az.get("lettura"))
         if errori:
             torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         cid, lid, ultima = thread(p)
@@ -441,12 +493,14 @@ def main():
                 torna_aperta(pr, azienda, vecchia + ": rileggi il filo", prova)
             continue
         a = (p.get("email_alt") or [None])[0] or chi_ha_risposto(ultima, p["email"]) or p["email"]
+        copia = in_copia(az)
         corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
                  "email_body": in_html(bozza),
                  "reply_message_id": ultima.get("message_id"),
                  "reply_email_time": ultima.get("time"),
                  "reply_email_body": ultima.get("email_body") or "",
-                 "add_signature": True, "to_email": a}
+                 "add_signature": True, "to_email": a, **copia}
+        a_chi = a + (f", in copia {copia['cc']}" if copia else "")
         # GLI ALLEGATI IN PDF (Dre, 25/9): «alla prima risposta mandiamo l'analisi e
         # la presentazione in PDF allegato, nessun link da cliccare, semplicemente
         # quello». Nei follow-up: la presentazione se il template la prevede,
@@ -495,7 +549,7 @@ def main():
                                                              "file_type": "application/pdf", "file_size": peso_p})
             else:
                 torna_aperta(pr, azienda, "la presentazione dello Studio non si apre dal bucket: non la mando senza", prova); continue
-        print(f"  {azienda} → {a}  (campagna {cid}, risposta del {str(ultima.get('time'))[:16]})")
+        print(f"  {azienda} → {a_chi}  (campagna {cid}, risposta del {str(ultima.get('time'))[:16]})")
         if prova:
             print("    " + bozza[:160].replace("\n", " ") + "…"); continue
         # il lucchetto: prima di chiamare Smartlead, e solo se nessun altro postino l'ha presa
@@ -521,9 +575,9 @@ def main():
         agg.update(dopo_invio(az))
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", agg)
         sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "fatta", "risposta_il": ora.isoformat(),
-                                                             "risposta": f"Mandata da Clara alle {ora:%H:%M} da Smartlead, a {a}",
+                                                             "risposta": f"Mandata da Clara alle {ora:%H:%M} da Smartlead, a {a_chi}",
                                                              "azione": {**az, "invio": {"campagna": cid, "lead": lid, "alle": ora.isoformat(), "smartlead": (json.dumps(r, ensure_ascii=False) if not isinstance(r, str) else r)[:300]}}})
-        di_clara("controllo", f"Mandata a {azienda} ({a}) alle {ora:%H:%M}, nel thread di Smartlead.", prospect_id=p["id"], letto=True)
+        di_clara("controllo", f"Mandata a {azienda} ({a_chi}) alle {ora:%H:%M}, nel thread di Smartlead.", prospect_id=p["id"], letto=True)
         mandate += 1
     print(f"manda: {mandate} mandate, {len(approvate)} approvate, {len(bloccate)} ferme")
 

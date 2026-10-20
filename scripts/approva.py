@@ -30,13 +30,13 @@ PROVA = "--prova" in sys.argv
 CHI = "Dre (approvata in chat con Achille, una per una)"
 
 
-def seconda_testa(p, testo, gruppo=None):
+def seconda_testa(p, testo, gruppo=None, cc=None):
     """(verdetto, motivo) della seconda testa sul testo che parte, col filo letto adesso.
     Se la lettura non riesce, non si approva: meglio una mail ferma che una mail falsa."""
     try:
         import lettura
         _, letti = lettura.leggi(p)
-        return lettura.coerenza(letti, testo, gruppo)
+        return lettura.coerenza(letti, testo, gruppo, cc=cc)
     except Exception as e:                                    # noqa: BLE001
         return "NON LETTA", f"la seconda testa non ha potuto leggere ({str(e)[:80]})"
 
@@ -66,13 +66,14 @@ def main():
             ferme.append((pr["titolo"][:40], "manca la scheda o il testo")); continue
         if not contattabile(p):
             ferme.append((p.get("company") or pr["titolo"][:40], "non contattabile (pipeline, cliente, perso, soppresso o niente follow-up)")); continue
-        errori = manda.controlla(testo, p, gruppo=az.get("gruppo") or az.get("template")) or []
+        # 20/10: anche chi va in copia passa dal cancello (mai inventato, mai un cliente, mai una casella di servizio)
+        errori = manda.controlla(testo, p, gruppo=az.get("gruppo") or az.get("template"), cc=az.get("cc"), let=az.get("lettura")) or []
         if errori:
             ferme.append((p.get("company") or pr["titolo"][:40], "; ".join(errori)[:160])); continue
         # 15/10 (Maori Group): la seconda testa aveva bocciato la bozza di Clara, Achille l'ha riscritta
         # e la sua versione (falsa) e' partita: qui la seconda testa non ripassava sul testo nuovo. Ora
         # rilegge il filo di adesso e giudica il testo che parte davvero; se non e' coerente, si ferma.
-        verdetto, motivo = seconda_testa(p, testo, az.get("gruppo") or az.get("template"))
+        verdetto, motivo = seconda_testa(p, testo, az.get("gruppo") or az.get("template"), cc=az.get("cc"))
         if verdetto != "COERENTE":
             ferme.append((p.get("company") or pr["titolo"][:40], f"seconda testa: {verdetto} {motivo}"[:200])); continue
         if PROVA:
