@@ -4542,6 +4542,19 @@ def _():
     assert '"zona": fit.get("zona")' not in inspect.getsource(B)
 
 
+@prova("google fit: chi fa gia' Google Ads sul serio e' NO, chi lo fa poco e' da guardare (Dre, 20/10)")
+def _():
+    import googlefit as G
+    c = {"settore": "serramenti", "settore_uguale": True, "ticket_min": 2000, "ticket_max": 8000, "come_lo_cercano": "ricerca"}
+    rec = {"recensioni": 40}
+    assert G.verdetto(c, None, rec, {"fa_ads": False, "annunci": 0, "giorni_ads": 0})[0] == "SI"
+    v, m = G.verdetto(c, None, rec, {"fa_ads": True, "annunci": 25, "giorni_ads": 200})
+    assert v == "NO" and "continuita" in m
+    v, m = G.verdetto(c, None, rec, {"fa_ads": True, "annunci": 3, "giorni_ads": 400})
+    assert v == "PARZIALE" and "poco" in m
+    assert G.verdetto(c, None, rec, {"errore": "x"})[0] == "SI"       # non misurato: non boccia
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

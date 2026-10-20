@@ -311,10 +311,32 @@ def _ticket_scritto(c):
     return f"intorno a {int(solo):,} €".replace(",", ".") if solo else "non stimabile"
 
 
-def verdetto(c, zona, rec):
+# Dre, 20/10: «solo gente che non fa Google Ads o che lo fa male male: alcuni arrivati facevano gia'
+# Google Ads». Dal Transparency Center (pull.fa_ads): tanti annunci da tanto tempo = lo fanno sul serio.
+ADS_SERI = {"annunci": 10, "giorni": 90}
+
+
+def giudizio_ads(ads):
+    """(«no»|«poco»|«serio»|None, frase). None = non misurato."""
+    if not ads or ads.get("errore"):
+        return None, "Google Ads non misurato"
+    if not ads.get("fa_ads"):
+        return "no", "non fa Google Ads"
+    n, g = ads.get("annunci") or 0, ads.get("giorni_ads") or 0
+    if n >= ADS_SERI["annunci"] and g >= ADS_SERI["giorni"]:
+        return "serio", f"fa gia' Google Ads con continuita' ({n} annunci, da {g} giorni)"
+    return "poco", f"fa Google Ads ma poco ({n} annunci, da {g} giorni): forse lo fa male, da guardare"
+
+
+def verdetto(c, zona, rec, ads=None):
     motivi = []
     if c.get("esclusione"):
         return "NO", f"{c['esclusione']}: non e' un cliente possibile"
+    quanto, frase_ads = giudizio_ads(ads)
+    if quanto == "serio":
+        return "NO", frase_ads + ": cerchiamo chi non lo fa o lo fa male"
+    if quanto == "poco":
+        motivi.append(frase_ads)
     if not c.get("settore") or c.get("settore") == "altro":
         motivi.append("settore non fra quelli misurati")
     elif c.get("settore_uguale") is False:
@@ -418,8 +440,17 @@ def valuta(p, zone, settori):
     zona = None
     # le recensioni costano (SearchAPI): non si chiedono per chi e' gia' fuori
     rec = None if c.get("esclusione") else recensioni(azienda, c.get("provincia", ""))
-    v, motivo = verdetto(c, zona, rec)
+    ads = None
+    if not c.get("esclusione"):
+        try:
+            import pull
+            dom = re.sub(r"^https?://(www\.)?", "", (sito or "").lower()).split("/")[0]
+            ads = pull.fa_ads(dom) if dom else None
+        except Exception as e:                               # noqa: BLE001
+            ads = {"errore": str(e)[:80]}
+    v, motivo = verdetto(c, zona, rec, ads)
     fit = {
+        "google_ads": ads,
         "verdetto": v, "motivo": motivo, "settore": c.get("settore"), "provincia": c.get("provincia"),
         "settore_uguale": c.get("settore_uguale"),
         "tipo": c.get("tipo"), "cosa_fa": c.get("cosa_fa"), "esclusione": c.get("esclusione") or None,
