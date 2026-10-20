@@ -4007,6 +4007,20 @@ def _():
     assert "gia_aperta" in src and "stato=eq.aperta&azione->revisore->>azione" in src, "una domanda aperta per azione, non una per giro"
 
 
+@prova("foglio: una call annullata per mail non e' piu' una «Chiamata conoscitiva» (20/10)")
+def _():
+    import foglio as F
+    ann = F.call_annullate([{"prospect_id": "p1", "azione": {"call_at": "2026-10-21T15:00:00+02:00"}},
+                            {"prospect_id": "p2", "azione": {}}, {"prospect_id": None, "azione": {"call_at": "2026-10-21T15:00:00+02:00"}}])
+    assert ann == {("p1", "2026-10-21T13:00")}
+    assert F.call_annullata({"prospect_id": "p1", "at": "2026-10-21T13:00:00+00:00"}, ann)
+    assert not F.call_annullata({"prospect_id": "p1", "at": "2026-10-28T13:00:00+00:00"}, ann)   # la call rifissata resta
+    assert not F.call_annullata({"prospect_id": "p2", "at": "2026-10-21T13:00:00+00:00"}, ann)
+    import orecchio as O
+    righe = dict((t, r) for t, r in O.scritture("p1", "ev1", "annulla", datetime.date(2026, 10, 20), "2026-10-21T15:00:00+02:00"))
+    assert righe["promemoria"]["call_at"] == "2026-10-21T15:00:00+02:00"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

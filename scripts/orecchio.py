@@ -129,7 +129,7 @@ def gia_deciso(p, scelta, note, at):
     return None
 
 
-def scritture(pid, evento, cosa, oggi):
+def scritture(pid, evento, cosa, oggi, call_at=None):
     """Le tre scritture di un annullamento: (tabella, riga). Niente mail, niente calendario."""
     return [
         ("snella_lead", {"prospect_id": pid, "stato": "Da chiamare", "chiamata": "richiamare",
@@ -137,7 +137,8 @@ def scritture(pid, evento, cosa, oggi):
                          "richiamare_il": oggi.isoformat()}),
         ("snella_note", {"prospect_id": pid, "testo": NOTA_ANNULLA if cosa == "annulla" else NOTA_SPOSTA,
                          "tipo": "nota", "autore_nome": "Achille"}),
-        ("promemoria", {"ref": f"promemoria:{evento}", "prospect_id": pid}),
+        # call_at: cosi' il foglio sa QUALE call e' saltata e non la mostra piu' come «Chiamata conoscitiva»
+        ("promemoria", {"ref": f"promemoria:{evento}", "prospect_id": pid, "call_at": call_at}),
     ]
 
 
@@ -217,7 +218,8 @@ def scrivi_registro(mid, esito):
 
 
 def applica(pid, ev, cosa, oggi):
-    for tabella, riga in scritture(pid, ev["evento"], cosa, oggi):
+    inizio = ev.get("inizio")
+    for tabella, riga in scritture(pid, ev["evento"], cosa, oggi, inizio.isoformat() if inizio else None):
         if tabella == "snella_lead":
             sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id", [riga], {"Prefer": "resolution=merge-duplicates,return=minimal"})
         elif tabella == "snella_note":
@@ -227,10 +229,10 @@ def applica(pid, ev, cosa, oggi):
             gia = sb("GET", f"/rest/v1/proposte?select=id,stato&ref=eq.{ref}&limit=1") or []
             motivo = NOTA_ANNULLA if cosa == "annulla" else NOTA_SPOSTA
             if gia and gia[0]["stato"] in ("aperta", "approvata"):
-                sb("PATCH", f"/rest/v1/proposte?id=eq.{gia[0]['id']}", {"stato": "no", "risposta": motivo,
+                sb("PATCH", f"/rest/v1/proposte?id=eq.{gia[0]['id']}", {"stato": "no", "risposta": motivo, "azione": {"call_at": riga.get("call_at")},
                    "risposta_il": datetime.datetime.now(datetime.timezone.utc).isoformat()}, {"Prefer": "return=minimal"})
             elif not gia:
-                sb("POST", "/rest/v1/proposte", {"tipo": "umano", "stato": "no", "ref": riga["ref"], "prospect_id": pid,
+                sb("POST", "/rest/v1/proposte", {"tipo": "umano", "stato": "no", "ref": riga["ref"], "prospect_id": pid, "azione": {"call_at": riga.get("call_at")},
                    "titolo": "Promemoria fermato: la call e' stata annullata per mail", "risposta": motivo,
                    "risposta_il": datetime.datetime.now(datetime.timezone.utc).isoformat()}, {"Prefer": "return=minimal"})
 

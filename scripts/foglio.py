@@ -266,6 +266,27 @@ def _pezzi(ids, n=80):
         yield ",".join(ids[i:i + n])
 
 
+def _minuto(iso):
+    try:
+        return quando(iso).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    except Exception:
+        return None
+
+
+def call_annullate(proposte):
+    """{(lead, minuto della call)} dai promemoria fermati che dicono quale call e' saltata."""
+    out = set()
+    for pr in proposte:
+        m = _minuto(((pr.get("azione") or {}).get("call_at")) or "")
+        if m and pr.get("prospect_id"):
+            out.add((pr["prospect_id"], m))
+    return out
+
+
+def call_annullata(a, annullate):
+    return (a.get("prospect_id"), _minuto(a.get("at") or "")) in annullate
+
+
 def leggi_dati():
     schede = {r["prospect_id"]: r for r in sb_tutte(
         "/rest/v1/snella_schede?select=prospect_id,azienda,stato,ultima_risposta,analisi:scheda->analisi,"
@@ -277,6 +298,10 @@ def leggi_dati():
     clienti = {r["prospect_id"]: r for r in sb_tutte("/rest/v1/clienti?select=prospect_id,dal,stato", chiave="prospect_id")}
     # basta il calendario di Dre (deciso il 19/10: le call le fa sempre lui)
     agenda = sb_tutte("/rest/v1/agenda?select=id,at,tipo,prospect_id,titolo&fonte=eq.gcal&prospect_id=not.is.null")
+    # 20/10: una call annullata per mail (o fermata a mano) resta nel calendario, ma il suo promemoria e'
+    # fermato con l'ora della call: quella call per il foglio non esiste piu'
+    annullate = call_annullate(sb("GET", "/rest/v1/proposte?select=prospect_id,azione&ref=like.promemoria:*&stato=eq.no&limit=1000") or [])
+    agenda = [a for a in agenda if not call_annullata(a, annullate)]
     ps = {p["id"]: p for p in sb_tutte(f"/rest/v1/prospects?select={CAMPI_P}&or=(pipeline_stage.not.is.null,stage.eq.cliente)")}
     servono = (set(schede) | set(dec) | set(clienti) | {a["prospect_id"] for a in agenda if a.get("tipo") in CALL}) - set(ps)
     for pezzo in _pezzi(servono):
