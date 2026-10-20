@@ -404,10 +404,15 @@ def calendari_persone(prova, prospects):
             continue
         # la chiave e' link+ora: una riunione che si ripete ha lo stesso Meet
         # su tutte le istanze, e prima si pestavano i piedi (QA 14/9)
-        esistenti = {(r["link"], r["at"]): r for r in (sb_tutte(f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
+        esistenti = {(r["link"], r["at"]): r for r in (sb_tutte(f"/rest/v1/agenda?select=id,link,at,titolo,prospect_id,tipo&owner=eq.{u['user_id']}&limit=3000") or []) if r.get("link")}
         nuovi = agg = saltati = 0
         for e in eventi:
-            if not e["titolo"] or e["stato"] == "CANCELLED" or e.get("giornata"):
+            if e["stato"] == "CANCELLED":
+                vecchia = esistenti.get((e.get("meet") or e["link"], e["at"].astimezone(datetime.timezone.utc).isoformat()))
+                if da_annullare(e, vecchia) and not prova:
+                    sb("PATCH", f"/rest/v1/agenda?id=eq.{vecchia['id']}", {"tipo": "annullata"})
+                continue
+            if not e["titolo"] or e.get("giornata"):
                 continue
             pid, _ = riconosci(e, prospects)
             # il calendario di lavoro, non la vita privata: o e' di un'azienda che
@@ -484,6 +489,29 @@ def fasi_dalle_call(prova):
 PRIMA_DELLA_CALL = ("risposto", "analisi_inviata", "in_follow_up")
 
 
+def da_annullare(e, vecchia):
+    """20/10 (My Tecno): un evento ANNULLATO nel calendario restava in agenda come call, e il foglio lo
+    mostrava ancora in «Chiamata conoscitiva». Torna True se la riga va segnata «annullata»."""
+    return bool(vecchia) and (e.get("stato") == "CANCELLED") and vecchia.get("tipo") != "annullata"
+
+
+def sparite(esistenti, visti, da, a, letti):
+    """Le righe di agenda nel periodo letto che nel feed non ci sono piu'. Il feed iCal di Google NON
+    porta gli eventi annullati (20/10, My Tecno: la call del 19/10 era sparita, l'agenda la teneva).
+    Con un feed sospetto (pochi eventi, o troppe righe sparite) non si tocca niente: meglio una call
+    di troppo nel foglio che un'agenda svuotata da un feed rotto."""
+    nel_periodo = [r for r in esistenti.values() if r.get("tipo") != "annullata"
+                   and r.get("at") and da <= _utc_di(r["at"]) <= a]
+    fuori = [r for r in nel_periodo if r["link"] not in visti]
+    if letti < 30 or (nel_periodo and len(fuori) > max(3, len(nel_periodo) // 10)):
+        return [], f"feed sospetto ({letti} letti, {len(fuori)} su {len(nel_periodo)} sparite): non annullo niente"
+    return fuori, None
+
+
+def _utc_di(iso):
+    return datetime.datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(datetime.timezone.utc)
+
+
 def main():
     prova = "--prova" in sys.argv
     if "--da-json" in sys.argv:
@@ -499,11 +527,23 @@ def main():
     da, a = adesso - datetime.timedelta(days=INDIETRO), adesso + datetime.timedelta(days=AVANTI)
     prospects = carica_prospects()
     nomi = {p["id"]: (p.get("company") or p.get("name") or "") for p in (sb_tutte("/rest/v1/prospects?select=id,name,company&limit=10000") or [])} if prova else {}
-    esistenti = {r["link"]: r for r in (sb_tutte("/rest/v1/agenda?select=id,link,at,titolo,prospect_id&fonte=eq.gcal&limit=5000") or []) if r.get("link")}
+    esistenti = {r["link"]: r for r in (sb_tutte("/rest/v1/agenda?select=id,link,at,titolo,prospect_id,tipo&fonte=eq.gcal&limit=5000") or []) if r.get("link")}
 
-    nuovi = aggiornati = saltati = 0
+    nuovi = aggiornati = saltati = annullati = 0
+    visti = set()
     for e in eventi:
-        if not e.get("titolo") or e.get("stato") == "CANCELLED" or e.get("giornata"):
+        if e.get("at") and (da <= e["at"] <= a):
+            visti.add(e.get("meet") or e.get("link"))
+        if e.get("stato") == "CANCELLED":
+            vecchia = esistenti.get(e.get("meet") or e.get("link"))
+            if da_annullare(e, vecchia):
+                if prova:
+                    print(f"  (prova) annullata: {e.get('titolo', '')[:50]}")
+                else:
+                    sb("PATCH", f"/rest/v1/agenda?id=eq.{vecchia['id']}", {"tipo": "annullata"})
+                annullati += 1
+            continue
+        if not e.get("titolo") or e.get("giornata"):
             continue
         if not (da <= e["at"] <= a):
             continue
@@ -530,7 +570,16 @@ def main():
             sb("POST", "/rest/v1/agenda", riga)
             nuovi += 1
 
-    print(f"calendario ({fonte}): {nuovi} nuovi, {aggiornati} aggiornati, {saltati} personali saltati, {len(eventi)} letti")
+    fuori, motivo = sparite(esistenti, visti, da, a, len(eventi))
+    for r in fuori:
+        if prova:
+            print(f"  (prova) sparita dal calendario, da annullare: {r['at'][:16]} {(r.get('titolo') or '')[:50]}")
+        else:
+            sb("PATCH", f"/rest/v1/agenda?id=eq.{r['id']}", {"tipo": "annullata"})
+        annullati += 1
+    if motivo:
+        print(f"  {motivo}")
+    print(f"calendario ({fonte}): {nuovi} nuovi, {aggiornati} aggiornati, {annullati} annullati, {saltati} personali saltati, {len(eventi)} letti")
     calendari_persone(prova, prospects)
     fasi_dalle_call(prova)
 

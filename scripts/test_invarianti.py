@@ -4200,6 +4200,24 @@ def _():
     assert not spedite, "il postino ha spedito a chi aveva appena risposto"
     chiuse = [c for m, path, c in chiamate if m == "PATCH" and "proposte?id=eq.7" in path and (c or {}).get("stato") == "no"]
     assert chiuse and "ha riscritto" in chiuse[0]["risposta"] and "19/10" in chiuse[0]["risposta"], chiuse
+@prova("calendario: un evento annullato nel calendario diventa «annullata» in agenda (20/10)")
+def _():
+    import calendario as C
+    assert C.da_annullare({"stato": "CANCELLED"}, {"id": 1, "tipo": "conoscitiva"})
+    assert not C.da_annullare({"stato": "CANCELLED"}, {"id": 1, "tipo": "annullata"})   # gia' fatto
+    assert not C.da_annullare({"stato": "CANCELLED"}, None)                             # mai stata in agenda
+    assert not C.da_annullare({"stato": "CONFIRMED"}, {"id": 1, "tipo": "conoscitiva"})
+    assert "annullata" not in C.CALL if hasattr(C, "CALL") else True
+    # il feed iCal non porta gli annullati: una riga sparita nel periodo si annulla, ma non con un feed sospetto
+    da, a = datetime.datetime(2026, 10, 1, tzinfo=datetime.timezone.utc), datetime.datetime(2026, 11, 30, tzinfo=datetime.timezone.utc)
+    es = {f"l{i}": {"id": i, "link": f"l{i}", "at": "2026-10-19T13:00:00+00:00", "tipo": "conoscitiva", "titolo": "x"} for i in range(40)}
+    visti = {f"l{i}" for i in range(1, 40)}
+    fuori, motivo = C.sparite(es, visti, da, a, 183)
+    assert [r["id"] for r in fuori] == [0] and motivo is None
+    assert C.sparite(es, visti, da, a, 10) == ([], C.sparite(es, visti, da, a, 10)[1]) and "sospetto" in C.sparite(es, visti, da, a, 10)[1]
+    assert C.sparite(es, set(), da, a, 183)[0] == []                      # tutte sparite: feed rotto, niente
+    es["l0"]["at"] = "2026-01-05T10:00:00+00:00"
+    assert C.sparite(es, visti, da, a, 183)[0] == []                      # fuori dal periodo letto: non si giudica
 
 
 def main():
