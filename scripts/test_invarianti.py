@@ -4220,6 +4220,19 @@ def _():
     assert C.sparite(es, visti, da, a, 183)[0] == []                      # fuori dal periodo letto: non si giudica
 
 
+@prova("foglio: un lead «Da chiamare» con l'analisi gia' mandata sta in Conversazione (20/10)")
+def _():
+    import foglio as F
+    ora = datetime.datetime(2026, 10, 20, 12, tzinfo=datetime.timezone.utc)
+    p = {"id": "p1", "classificazione": "positivo", "last_reply_at": "2026-10-01T10:00:00+00:00",
+         "analysis_sent_at": "2026-10-02T10:00:00+00:00", "pipeline_stage": None, "stage": None}
+    d = {"stato": "Da chiamare", "aggiornato_il": "2026-10-20T11:00:00+00:00"}
+    fase, _ = F.fase_di(p, None, d, [], None, None, ora=ora)
+    assert fase == F.CONV, fase
+    fase2, _ = F.fase_di(p, None, None, [], None, None, ora=ora)
+    assert fase2 == F.INVIATA, fase2
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

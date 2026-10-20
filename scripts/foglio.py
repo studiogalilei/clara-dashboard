@@ -392,6 +392,10 @@ def fase_di(p, s, d, call, cliente, mano, interesse=False, ora=None):
     if quando(risposta) < ora - datetime.timedelta(days=FERMO_GIORNI):
         return None, FERMI                         # niente da due mesi: non e' una trattativa aperta
     inviata = analisi_il(p, s)
+    # «Da chiamare» (Dre dall'app, o una call annullata per mail) e' una conversazione in mano a Dre,
+    # anche se l'ultima mail del lead e' prima dell'analisi (20/10, My Tecno: call annullata, Dre lo richiama)
+    if stato == "Da chiamare" or (s or {}).get("da_chiamare"):
+        return CONV, None
     if inviata:
         return (CONV if quando(risposta) > inviata + datetime.timedelta(minutes=5) else INVIATA), None
     # senza analisi: nel percorso solo chi ha mostrato interesse (la lettura dell'AI, la
