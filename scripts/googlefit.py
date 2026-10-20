@@ -15,9 +15,8 @@ COSA FA, PER OGNI AZIENDA «IN ARRIVO» (ha risposto, l'analisi non e' partita)
    domanda, CPC e budget suggerito;
 4. se c'e' SEARCHAPI_KEY, conta le recensioni su Google Maps;
 5. verdetto: SI', PARZIALE o NO, con il motivo scritto, e lo salva in
-   enriched.google_fit. Da li' lo leggono la scheda, il foglio e le bozze
-   (che mettono nel messaggio il numero della zona: «a Bergamo ci sono 260
-   ricerche al mese per quello che fate»).
+   enriched.google_fit. Da li' lo leggono la scheda, il foglio e le bozze.
+   Dal 20/10 il Foglio Zone NON entra (Dre: non affidabile, caso per caso).
 
 Non manda niente e non chiude nessuno: un NO resta «in arrivo» col motivo,
 e Dre decide. Il pedaggio e' l'invio dell'analisi.
@@ -414,7 +413,9 @@ def valuta(p, zone, settori):
     sito = sito_vero(p)                                  # 17/10: mai aruba.it o gmail.com come sito
     testo = leggi_sito(sito)
     c = capisci(azienda, testo, settori)
-    zona = _zona_sul_raggio(c, zone)
+    # Dre, 20/10: «dimentica la roba delle zone, abbiamo visto che non e' affidabile, bisogna vedere
+    # le cose caso per caso». Il Foglio Zone non entra piu' nel verdetto ne' nei messaggi.
+    zona = None
     # le recensioni costano (SearchAPI): non si chiedono per chi e' gia' fuori
     rec = None if c.get("esclusione") else recensioni(azienda, c.get("provincia", ""))
     v, motivo = verdetto(c, zona, rec)
@@ -455,9 +456,41 @@ def valuta(p, zone, settori):
     return fit
 
 
+def senza_zone(gf):
+    """Il verdetto di un fit gia' fatto, rifatto senza le zone (Dre, 20/10). Usa quello che il fit ha
+    salvato (settore, ticket, esclusione, recensioni); come_lo_cercano non era salvato: vale «ricerca»."""
+    c = {k: gf.get(k) for k in ("settore", "settore_uguale", "esclusione", "ticket_min", "ticket_max", "ticket_fonte", "cosa_fa")}
+    # come_lo_cercano non era salvato: si ricava dal motivo di allora, cosi' un «si compra d'impulso» resta tale
+    m = (gf.get("motivo") or "").lower()
+    c["come_lo_cercano"] = ("impulso" if "impulso" in m else "da_spiegare" if "da spiegare" in m
+                            else "per_pubblico" if "per pubblico" in m else gf.get("come_lo_cercano") or "ricerca")
+    v, motivo = verdetto(c, None, gf.get("recensioni"))
+    nuovo = dict(gf, verdetto=v, motivo=motivo, zona=None,
+                 provenienza=[r for r in (gf.get("provenienza") or []) if r.get("voce") != "domanda e CPC dove vendono"])
+    return nuovo
+
+
 def main():
     prova = "--prova" in sys.argv
     zone, settori = carica_fogli()
+    if "--senza-zone" in sys.argv:
+        from revisore import controlla
+        tutte = sb_tutte("/rest/v1/prospects?select=id,email,company,enriched&enriched->google_fit->zona=not.is.null")
+        tutte = [p for p in tutte if ((p.get("enriched") or {}).get("google_fit") or {}).get("zona")]   # solo i fit con le zone
+        righe = controlla("rifaccio il verdetto del google fit senza le zone", tutte, irreversibile=False,
+                          motivo="Dre 20/10: le zone non sono affidabili", dove="crm")
+        cambi = 0
+        for p in righe:
+            gf = p["enriched"]["google_fit"]
+            nuovo = senza_zone(gf)
+            if nuovo["verdetto"] != gf.get("verdetto"):
+                cambi += 1
+                print(f"  {gf.get('verdetto'):8} -> {nuovo['verdetto']:8} {(p.get('company') or '')[:34]:34} {nuovo['motivo'][:60]}")
+            if not prova:
+                en = dict(p["enriched"], google_fit=nuovo)
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": en}, {"Prefer": "return=minimal"})
+        print(f"googlefit senza zone: {len(righe)} fit riscritti, {cambi} verdetti cambiati" + (" (prova)" if prova else ""))
+        return
     if "--sospetti" in sys.argv:
         # 30/9: i fit con un volume «misurato» che non sta in piedi, fatti prima che il modello
         # dicesse se il settore e' davvero il loro (concessionarie Ford con 10 ricerche al mese).

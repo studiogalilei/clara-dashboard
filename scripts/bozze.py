@@ -677,12 +677,12 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
         "perche_niente_analisi": ((fit_di(p)[1] or "il sito non si legge")[:160] if analisi_impossibile(p) else ""),
         "ultima_sua_mail": (p.get("last_reply_at") or "")[:10], "settore": p.get("sector"), "citta": p.get("city"),
     }
-    # il Google Fit di Clara (googlefit.py): il numero della zona va nel messaggio,
-    # e' la personalizzazione che ha fatto rispondere Orobica e Sarci
+    # il Google Fit di Clara (googlefit.py). Dal 20/10 senza i numeri delle zone (Dre: non affidabili):
+    # una bozza non scrive mai «nella vostra zona ci sono N ricerche»
     fit = (p.get("enriched") or {}).get("google_fit") or {}
     if fit:
         fatti["google_fit"] = {"verdetto": fit.get("verdetto"), "motivo": fit.get("motivo"), "cosa_fa": fit.get("cosa_fa"),
-                               "provincia": fit.get("provincia"), "zona": fit.get("zona")}
+                               "provincia": fit.get("provincia")}
     # LA SCRIVANIA: TUTTA LA SEQUENZA, NON DUE MESSAGGI (Dre, 28/9). Fino a oggi
     # la storia si prendeva dal CRM, che NON ha le mail partite da Smartlead: su
     # Istituto Flegreo il CRM conosceva due righe su sei, e tutte e due in arrivo.
@@ -1271,8 +1271,8 @@ def main():
         if letti["scritto_dopo_di_lei"]:
             mai_gb(p, "gli abbiamo gia' scritto dopo il suo no"); continue
         fit = (p.get("enriched") or {}).get("google_fit") or {}
-        if fit.get("verdetto") == "NO" or not (fit.get("zona") or p.get("analysis_pdf")):
-            mai_gb(p, "non c'e' un'analisi vera da lasciargli"); continue   # senza PDF o zona misurata non c'e' niente da lasciare
+        if fit.get("verdetto") == "NO" or not p.get("analysis_pdf"):
+            mai_gb(p, "non c'e' un'analisi vera da lasciargli"); continue   # senza PDF non c'e' niente da lasciare
         ultimo_no = (p.get("last_reply_at") or "")[:10]
         if ultimo_no and (datetime.date.today() - datetime.date.fromisoformat(ultimo_no)).days > GIORNI_GB:
             mai_gb(p, f"il suo no ha piu' di {GIORNI_GB} giorni"); continue

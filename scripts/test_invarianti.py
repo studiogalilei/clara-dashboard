@@ -4528,6 +4528,20 @@ def _():
     assert '"classificazione" in deciso' in src and "select=enriched,deciso," in src
 
 
+@prova("google fit: le zone non entrano nel verdetto ne' nelle bozze (Dre, 20/10)")
+def _():
+    import googlefit as G, inspect, bozze as B
+    assert "zona = None" in inspect.getsource(G.valuta)
+    vecchio = {"verdetto": "NO", "motivo": "provincia rossa: 80 ricerche/mese", "settore": "serramenti", "settore_uguale": True,
+               "ticket_min": 2000, "ticket_max": 8000, "recensioni": {"recensioni": 40, "voto": 4.8},
+               "zona": {"verdetto": "ROSSO", "domanda_mese": 80, "cpc": 1.2},
+               "provenienza": [{"voce": "domanda e CPC dove vendono"}, {"voce": "settore"}]}
+    n = G.senza_zone(vecchio)
+    assert n["verdetto"] == "SI" and n["zona"] is None and "rossa" not in n["motivo"], n
+    assert [r["voce"] for r in n["provenienza"]] == ["settore"]
+    assert '"zona": fit.get("zona")' not in inspect.getsource(B)
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
