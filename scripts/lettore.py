@@ -548,9 +548,9 @@ def _registra(scopo, modello, nuovi, letti, scritti, fuori, sconto=1.0):
     if not scopo:
         return
     try:
-        from stanza import sb, _a_secco
-        if _a_secco():
-            return
+        from stanza import sb
+        # anche in prova a secco: la chiamata e' pagata lo stesso, e la spesa si conta (20/10: la prova
+        # della riclassifica aveva speso 2,6 $ senza una riga)
         pesati = int(round((nuovi + letti * 0.1 + scritti * 1.25) * sconto))
         sb("POST", "/rest/v1/uso_modelli", {"script": os.path.basename(sys.argv[0] or "?")[:60], "scopo": scopo,
                                              "modello": modello, "token_in": pesati, "token_out": int(round(fuori * sconto))},
@@ -949,9 +949,10 @@ def riclassifica(prova=True, percorso_cache=None):
     if percorso_cache:
         cache = json.load(open(percorso_cache, encoding="utf-8")) if os.path.exists(percorso_cache) else {}
     ps = sb("GET", "/rest/v1/prospects?select=id,company,email,classificazione,analysis_sent,campaign_id,lead_id,"
-                   "last_reply_at,enriched,fuori,stage,pipeline_stage,no_followup"
+                   "last_reply_at,enriched,deciso,fuori,stage,pipeline_stage,no_followup"
                    "&classificazione=in.(positivo,da_classificare)&last_reply_at=not.is.null&order=last_reply_at.desc&limit=1000") or []
-    ps = [p for p in ps if not p.get("fuori") and (p.get("enriched") or {}).get("classificazione") != "manual"]
+    ps = [p for p in ps if not p.get("fuori") and (p.get("enriched") or {}).get("classificazione") != "manual"
+          and "classificazione" not in (p.get("deciso") or {})]
     print(f"RICLASSIFICA: {len(ps)} lead positivo o da classificare (non fuori, non corretti a mano)")
     cambi, spesa = [], 0.0
     for p in ps:
@@ -1002,6 +1003,7 @@ def riclassifica(prova=True, percorso_cache=None):
         print("(prova a secco: nessuna scrittura)")
         return tenuti
     adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    scritti = lasciati = 0
     for c in tenuti:
         l = c["lettura"]
         fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{c['id']}") or [{}])[0]
@@ -1012,8 +1014,16 @@ def riclassifica(prova=True, percorso_cache=None):
             patch["no_followup"] = True
         if c["esito"] in ("negativo", "soppresso", "ooo"):
             patch["awaiting_us"] = False
-        sb("PATCH", f"/rest/v1/prospects?id=eq.{c['id']}", patch)
-    print(f"scritti {len(tenuti)} cambi")
+        try:
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{c['id']}", patch)
+            scritti += 1
+        except RuntimeError as e:
+            # la classe decisa da una persona e' murata nel database (lock umano): si lascia, e si dice
+            if "lock umano" not in str(e):
+                raise
+            lasciati += 1
+            print(f"  = {c['azienda']}: la classe l'ha decisa una persona, la lascio ({c['classificazione']})")
+    print(f"scritti {scritti} cambi, {lasciati} lasciati perche' decisi da una persona")
     return tenuti
 
 

@@ -496,30 +496,30 @@ def main():
             # LA CLARA INTELLIGENTE (20/10): il lettore AI legge la stessa risposta quando le liste la
             # rileggerebbero (una risposta nuova, o un lead ancora da classificare). Una risposta gia'
             # letta non si ripaga: la lettura sta in enriched.lettore con l'ora della risposta.
-            lettura, lettura_nuova = None, False
+            esito_lettore, lettore_nuovo = None, False
             attuale = (rec or {}).get("classificazione")
             ricalcola = nuova or not attuale or attuale == "da_classificare"
             if MODO_LETTORE in ("ombra", "acceso") and ricalcola:
                 ora_risposta = (last_reply.get("time") or "")[:19]
                 prima = (((rec or {}).get("enriched") or {}).get("lettore") or {})
                 if prima.get("risposta_il") == ora_risposta and prima.get("fonte") == "lettore":
-                    lettura = prima
+                    esito_lettore = prima
                 elif not DRY:
                     import lettore
-                    lettura = lettore.leggi_risposta(last_reply.get("email_body"), msgs, rec or {})
-                    lettura_nuova = True
-                    if lettura.get("fonte") == "lettore" and lettura.get("classe") != cls_liste:
+                    esito_lettore = lettore.leggi_risposta(last_reply.get("email_body"), msgs, rec or {})
+                    lettore_nuovo = True
+                    if esito_lettore.get("fonte") == "lettore" and esito_lettore.get("classe") != cls_liste:
                         try:
                             from stanza import di_clara
                             di_clara("controllo", f"Lettore ({MODO_LETTORE}): {(lead.get('company_name') or em)[:40]}: liste «{cls_liste}», "
-                                                  f"lettore «{lettura.get('classe')}» ({lettura.get('caso')}, {lettura.get('sicurezza')}). "
-                                                  f"{(lettura.get('motivo') or '')[:200]}")
+                                                  f"lettore «{esito_lettore.get('classe')}» ({esito_lettore.get('caso')}, {esito_lettore.get('sicurezza')}). "
+                                                  f"{(esito_lettore.get('motivo') or '')[:200]}")
                         except Exception:                                    # noqa: BLE001
                             pass
-                cls = classe_col_lettore(cls_liste, lettura, MODO_LETTORE, testo)
+                cls = classe_col_lettore(cls_liste, esito_lettore, MODO_LETTORE, testo)
             ooo_until = data_ooo(testo) if cls == "ooo" else None
-            if cls == "ooo" and lettura and lettura.get("data") and MODO_LETTORE == "acceso":
-                ooo_until = lettura["data"]
+            if cls == "ooo" and esito_lettore and esito_lettore.get("data") and MODO_LETTORE == "acceso":
+                ooo_until = esito_lettore["data"]
 
             # se Dre ha classificato a mano ooo/rinvio/negativo/fuori_target/soppresso,
             # l'autoreply non rimette il lead in coda risposta
@@ -541,8 +541,9 @@ def main():
 
             # 3. (25/9) enriched si rilegge ADESSO, non dall'elenco letto all'avvio: nel
             # frattempo fit, analisi, rilettura e punto possono averci scritto
-            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
+            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,deciso,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
             enr = dict(fresco.get("enriched") or {})
+            deciso = fresco.get("deciso") or {}
             patch = {
                 "enriched": {**enr, "sl_firma": wrap.get("_firma"), "sl_riletto_il": started},
                 "awaiting_us": awaiting,
@@ -553,13 +554,16 @@ def main():
                 patch["company"] = lead["company_name"]   # solo se vuoto: un nome messo a mano non si tocca
             if lead.get("is_unsubscribed"):
                 patch["no_followup"] = True   # unsubscribed su Smartlead: non si tocca piu'
-            if lettura_nuova:
+            if lettore_nuovo:
                 import lettore
-                patch["enriched"]["lettore"] = lettore._per_enriched(lettura, cls_liste, started, (last_reply.get("time") or "")[:19])
-                if MODO_LETTORE == "acceso" and lettura.get("fonte") == "lettore" and lettura.get("non_scrivere"):
+                patch["enriched"]["lettore"] = lettore._per_enriched(esito_lettore, cls_liste, started, (last_reply.get("time") or "")[:19])
+                if MODO_LETTORE == "acceso" and esito_lettore.get("fonte") == "lettore" and esito_lettore.get("non_scrivere") \
+                        and "no_followup" not in deciso:
                     patch["no_followup"] = True   # «non scrivetemi»: nessuna mail automatica, mai piu'
             # classificazione: solo se non corretta a mano
-            manual = enr.get("classificazione") == "manual"
+            # 20/10: anche «deciso» (v78): una classe decisa da una persona e' murata nel database, e
+            # scriverla faceva cadere il giro intero (visto con la riclassifica del lettore)
+            manual = enr.get("classificazione") == "manual" or "classificazione" in deciso
             lettura = enr.get("lettura") or {}
             letta_dopo = bool((lettura.get("il") or "") >= (body_last_reply or "~")) if lettura else False
             if not manual and not letta_dopo:

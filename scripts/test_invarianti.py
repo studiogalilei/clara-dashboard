@@ -4523,6 +4523,9 @@ def _():
     assert S.classe_col_lettore("positivo", dict(lettura, classe="automatico"), "acceso") == "ooo"
     # la rete delle liste resta per i casi gravi: se le liste dicono «Cancellami» e il lettore no, decide Dre
     assert S.classe_col_lettore("negativo", lettura, "acceso", testo="Cancellami") == "da_classificare"
+    # una classe decisa da una persona (deciso, v78) non si scrive: il database la rifiuta e il giro cadrebbe
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py"), encoding="utf-8").read()
+    assert '"classificazione" in deciso' in src and "select=enriched,deciso," in src
 
 
 def main():
