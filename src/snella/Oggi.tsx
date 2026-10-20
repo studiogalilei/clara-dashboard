@@ -7,7 +7,7 @@ import {
   type Call, type Decisione, type Domanda, type NumeriOggi, type Operazione, type RigaConScheda,
 } from './dati'
 import {
-  chiamateInRitardo, dataCorta, daQuanto, durata, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, ora, perAzienda, perGiorno,
+  cellulareDi, chiamateInRitardo, dataCorta, daQuanto, durata, eSeguito, giornoRoma, listaDaChiamare, nomeGiorno, ora, perAzienda, perGiorno,
   piuGiorni, primaRiga, quando, scrittoDopo, spiegaDomanda, titoloDomanda, type DaChiamare,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Sezione, Vuoto } from './pezzi'
@@ -203,7 +203,9 @@ function CartaChiamata({ x, tardi, apri, mostra, onCambio }: {
   const [nota, setNota] = useState('')
   const [giorno, setGiorno] = useState(piuGiorni(giornoRoma(), 1))
   const [sbaglio, setSbaglio] = useState<string | null>(null)
-  const [primo, ...altri] = s?.telefoni ?? []
+  // il numero grande e' il suo cellulare (20/10 sera); gli altri sotto. Senza cellulare (solo un «richiama» di Dre) il primo che c'e'
+  const primo = cellulareDi(s) ?? s?.telefoni[0]
+  const altri = (s?.telefoni ?? []).filter((t) => t !== primo)
   const nonRisponde = x.decisione?.chiamata === 'non_risponde' ? x.decisione : null
   const dopo = scrittoDopo(r.filo, r.ultima_risposta)
 

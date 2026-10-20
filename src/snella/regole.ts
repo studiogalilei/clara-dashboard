@@ -1,7 +1,7 @@
 // LA VERSIONE SNELLA: le poche regole della UI, pure e provate (regole.test.ts).
 // Il grosso lo decide scripts/schede.py; qui solo come si combinano le schede con quello che
 // ha deciso Dre (chiamato, richiamare il...) e come si scrivono date e numeri.
-import { INFO_STATI, type Call, type Decisione, type Domanda, type InfoStato, type RigaLead } from './dati'
+import { INFO_STATI, type Call, type Decisione, type Domanda, type InfoStato, type RigaLead, type Telefono } from './dati'
 import statiJson from './stati.json'
 
 export const ROMA = 'Europe/Rome'
@@ -69,12 +69,24 @@ export function tonoStato(stato: string): Tono {
   return t && TONI.includes(t) ? t : 'neutro'
 }
 
+/** IL CELLULARE di un lead (Dre, 20/10 sera: «Da chiamare SOLO se c'e' il numero, e se e' personale, un
+ *  cellulare, non uno d'ufficio»): un numero che inizia per 3 lasciato da lui (la firma) o scritto nella sua
+ *  scheda, mai il centralino del sito. La stessa regola di scripts/segnale_provvisorio.cellulare_fra; una
+ *  scheda vecchia senza tipo e fonte si legge dall'etichetta («cellulare, dalla firma»). */
+export function cellulareDi(s: { telefoni?: Telefono[] } | null | undefined): Telefono | null {
+  for (const t of s?.telefoni ?? []) {
+    if (t.tipo ? (t.tipo === 'cellulare' && (t.fonte === 'firma' || t.fonte === 'scheda')) : /^cellulare, dalla (firma|scheda)/.test(t.etichetta)) return t
+  }
+  return null
+}
+
 export type Motivo = 'richiamare' | 'chiamare'
 export interface DaChiamare<R extends RigaLead = RigaLead> { riga: R; decisione: Decisione | null; motivo: Motivo; nonRisponde: boolean }
 
-/** Chi chiamare adesso: chi lo vuole (la scheda) e chi va richiamato oggi. Chi e' stato chiamato
- *  dopo la sua ultima risposta esce; chi va richiamato torna il giorno scelto. */
-export function listaDaChiamare<R extends RigaLead>(righe: R[], decisioni: Map<string, Decisione>, ora: Date = new Date()): Array<DaChiamare<R>> {
+/** Chi chiamare adesso: chi lo vuole (la scheda) E ha lasciato un cellulare (20/10 sera: senza, non si
+ *  chiama, gli si scrive), piu' chi va richiamato oggi (un gesto di Dre: resta com'e'). Chi e' stato
+ *  chiamato dopo la sua ultima risposta esce; chi va richiamato torna il giorno scelto. */
+export function listaDaChiamare<R extends RigaLead & { scheda?: { telefoni?: Telefono[] } }>(righe: R[], decisioni: Map<string, Decisione>, ora: Date = new Date()): Array<DaChiamare<R>> {
   const oggi = giornoRoma(ora)
   const limite = ora.getTime() - GIORNI_DA_CHIAMARE * 86400e3
   const out: Array<DaChiamare<R>> = []
@@ -85,11 +97,11 @@ export function listaDaChiamare<R extends RigaLead>(righe: R[], decisioni: Map<s
     const chiamataIl = d?.chiamata_il ? new Date(d.chiamata_il).getTime() : 0
     if (d?.chiamata === 'richiamare' && d.richiamare_il) {
       // una risposta nuova dopo il «richiamare» lo riporta su, se la scheda dice di chiamare
-      const nuova = r.da_chiamare && ultima > chiamataIl
+      const nuova = r.da_chiamare && ultima > chiamataIl && cellulareDi(r.scheda)
       if (d.richiamare_il <= oggi) { out.push({ riga: r, decisione: d, motivo: 'richiamare', nonRisponde: false }); continue }
       if (!nuova) continue
     }
-    if (!r.da_chiamare || ultima < limite) continue
+    if (!r.da_chiamare || ultima < limite || !cellulareDi(r.scheda)) continue
     if (d?.chiamata === 'chiamato' && chiamataIl >= ultima) continue
     out.push({ riga: r, decisione: d, motivo: 'chiamare', nonRisponde: d?.chiamata === 'non_risponde' && chiamataIl >= ultima })
   }

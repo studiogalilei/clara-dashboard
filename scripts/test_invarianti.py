@@ -3062,6 +3062,58 @@ def _():
                 assert f"'{v}'" not in t, f"{f} usa ancora lo stato vecchio «{v}»"
 
 
+@prova("Da chiamare SOLO con un cellulare suo, dalla firma o dalla scheda, mai dal sito (Dre, 20/10 sera); le scelte a mano restano")
+def _():
+    import segnale_provvisorio as S
+    import schede
+    import foglio as F
+    import orecchio as O
+    nostra = "Studio Galilei\nTel. 02 00000000\nCell. 345 0000000"
+    firma_cell = "Va bene, sentiamoci.\n\nMario Rossi\nCell. 333 0000001"
+    firma_fisso = "Va bene, sentiamoci.\n\nMario Rossi\nTel. 02 00000001"
+    p = {"id": "p1", "phone": None, "enriched": {"google_fit": {"sito_testo": "Contatti: 02 00000002, cell. 334 0000002"}}}
+    out = {"kind": "email_out", "body": nostra}
+    # caldo con un cellulare in firma: si chiama; solo il fisso in firma: no; solo il centralino (o un cellulare) del sito: no
+    assert S.cellulare_di(p, [out, {"kind": "email_in", "body": firma_cell}]) == "333 0000001"
+    assert S.cellulare_di(p, [out, {"kind": "email_in", "body": firma_fisso}]) is None
+    assert S.cellulare_di(p, [out]) is None, "il sito e' il centralino, anche se il numero inizia per 3"
+    assert S.si_puo_chiamare(p, [out, {"kind": "email_in", "body": firma_cell}]) and not S.si_puo_chiamare(p, [out])
+    # il cellulare della scheda del Workspace vale; il nostro numero nella sua mail no; il fisso della scheda no
+    assert S.cellulare_di({**p, "phone": "+39 335 0000003"}, [out]) == "+39 335 0000003"
+    assert S.cellulare_di({**p, "phone": "02 00000003"}, [out]) is None
+    assert S.cellulare_di(p, [out, {"kind": "email_in", "body": "Richiamatemi al 345 0000000"}]) is None, "e' il nostro numero"
+    # la stessa regola sui telefoni gia' in gerarchia (quelli della scheda dell'app)
+    ger = S.in_gerarchia(S.numeri_di(p, [out, {"kind": "email_in", "body": firma_cell}]))
+    assert S.cellulare_fra(ger) == "333 0000001" and ger[0]["etichetta"] == "cellulare, dalla firma"
+    assert S.cellulare_fra([]) is None and S.cellulare_fra(None) is None
+    # la riga che passa il lead a Dre: col cellulare «Da chiamare» da oggi, senza «Da rispondere» con Dre e il perche'
+    ora = datetime.datetime(2026, 10, 20, 16, 0, tzinfo=datetime.timezone.utc)
+    r = S.passa_a_dre("p1", "333 0000001", ora)
+    assert r["stato"] == "Da chiamare" and r["chiamata"] == "richiamare" and r["richiamare_il"] == "2026-10-20", r
+    r = S.passa_a_dre("p1", None, ora)
+    assert r["stato"] == "Da rispondere" and r["responsabile"] == "Dramane" and r["prossima_mossa"] == S.SENZA_CELLULARE and "chiamata" not in r, r
+    assert S.SENZA_CELLULARE == "Vuole sentirci ma non ha lasciato un cellulare: scrivigli"
+    # schede.py: il cancello sta dopo il caldo e prima di «da_chiamare»; i telefoni portano tipo e fonte alla UI
+    src = open(schede.__file__, encoding="utf-8").read()
+    assert 'cellulare = S.cellulare_fra(sc.get("telefoni") or [])' in src
+    assert 'senza_cellulare = stato == "Da chiamare" and not cellulare' in src and 'if senza_cellulare:\n        stato = "Da rispondere"' in src
+    assert 'da_chiamare = bool(perche) and not escluso and cellulare is not None' in src
+    assert 'mossa, mossa_il, responsabile = S.SENZA_CELLULARE, None, "Dramane"' in src
+    assert '"tipo": t["tipo"], "fonte": t["fonte"]' in src and schede.VERSIONE != "schede5", "le schede si rifanno tutte con la regola nuova"
+    # la UI: la lista «Da chiamare» di Oggi vuole il cellulare, e il numero grande e' quello
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    regole = open(os.path.join(radice, "src", "snella", "regole.ts"), encoding="utf-8").read()
+    assert "export function cellulareDi" in regole and "|| !cellulareDi(r.scheda)) continue" in regole
+    oggi = open(os.path.join(radice, "src", "snella", "Oggi.tsx"), encoding="utf-8").read()
+    assert "const primo = cellulareDi(s) ?? s?.telefoni[0]" in oggi
+    # le scelte a mano di Dre restano: il foglio scrive «Da chiamare» senza guardare il numero, e l'app non passa di qui
+    chiama = dict(F.effetti("scelta", "Da chiamare", datetime.date(2026, 10, 20)))["snella_lead"]
+    assert chiama["stato"] == "Da chiamare" and chiama["chiamata"] == "richiamare"
+    assert "cellulare" not in open(F.__file__, encoding="utf-8").read().split("def effetti", 1)[1].split("\ndef ", 1)[0]
+    # l'orecchio e il si' caldo passano dalla stessa riga
+    assert "SP.passa_a_dre(pid, cellulare, ora)" in open(O.__file__, encoding="utf-8").read()
+
+
 @prova("versione snella: il caldo vale per la mail su cui e' nato; i rimbalzi e i DMARC non sono risposte (17/10)")
 def _():
     import schede
@@ -4025,11 +4077,16 @@ def _():
     assert O.gia_deciso({"stage": "risposto"}, {"stato": "Perso", "aggiornato_il": prima}, [], at)
     assert O.gia_deciso({"stage": "risposto"}, {"stato": "Call fissata", "aggiornato_il": dopo}, [], at)
     assert O.gia_deciso({"stage": "risposto"}, None, [{"at": dopo}], at), "una nota di Dre dopo la mail: ci ha gia' pensato lui"
-    # le tre scritture, e solo quelle
-    s = O.scritture("p1", "ev1", "annulla", datetime.date(2026, 10, 19))
+    # le tre scritture, e solo quelle. Col cellulare «Da chiamare»; senza (20/10 sera) «Da rispondere», gli scrive Dre
+    s = O.scritture("p1", "ev1", "annulla", datetime.date(2026, 10, 19), cellulare="333 0000000")
     assert [t for t, _ in s] == ["snella_lead", "snella_note", "promemoria"]
-    assert s[0][1]["stato"] == "Da chiamare" and s[1][1]["testo"] == "Achille: ha annullato la call per mail"
+    assert s[0][1]["stato"] == "Da chiamare" and s[0][1]["chiamata"] == "richiamare" and s[1][1]["testo"] == "Achille: ha annullato la call per mail"
     assert s[2][1]["ref"] == "promemoria:ev1", "il promemoria si ferma con il ref che promemoria.py controlla"
+    s = O.scritture("p1", "ev1", "annulla", datetime.date(2026, 10, 19))
+    assert s[0][1]["stato"] == "Da rispondere" and s[0][1]["responsabile"] == "Dramane" and "chiamata" not in s[0][1], s[0][1]
+    assert "non ha lasciato un cellulare" in s[0][1]["prossima_mossa"] and "annullato" in s[0][1]["prossima_mossa"], s[0][1]
+    assert "spostare" in O.scritture("p1", "ev1", "sposta", datetime.date(2026, 10, 19))[0][1]["prossima_mossa"]
+    assert "phone,enriched" in open(O.__file__, encoding="utf-8").read(), "l'orecchio legge la scheda per sapere se c'e' un cellulare"
     import promemoria
     assert "ref=eq.{ref}" in open(promemoria.__file__).read(), "promemoria.py deve saltare la call se il ref esiste gia'"
     # non manda, non tocca il calendario, non scrive bozze

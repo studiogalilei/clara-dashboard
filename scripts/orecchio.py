@@ -11,7 +11,10 @@ quelli da chiamare. La mail stava nella casella di Dre, e nessuno la leggeva.
 COSA FA DA SOLO (una cosa sola, decisione del 20/10)
 Una mail nella casella di Dre che ANNULLA o SPOSTA la call di un lead che ha una call
 in calendario (risposta all'invito, «devo annullare», «possiamo spostare», «non riesco»):
-  1. il lead torna «Da chiamare» (snella_lead, come dal foglio);
+  1. il lead torna a Dre: «Da chiamare» (snella_lead, come dal foglio) se ha lasciato un
+     cellulare (firma o scheda, mai il centralino del sito: regola di Dre del 20/10 sera,
+     segnale_provvisorio.cellulare_di); se no «Da rispondere» con Dre responsabile e la
+     prossima azione che dice perche' (gli scrive lui per rifissarla);
   2. una nota sul lead: «Achille: ha annullato la call per mail»;
   3. il promemoria di quella call si ferma (proposta ref=promemoria:<evento>, stato «no»).
 Lo fa solo se due teste concordano: il lettore AI dice annulla o sposta, sicuro, E nel
@@ -129,12 +132,17 @@ def gia_deciso(p, scelta, note, at):
     return None
 
 
-def scritture(pid, evento, cosa, oggi, call_at=None):
-    """Le tre scritture di un annullamento: (tabella, riga). Niente mail, niente calendario."""
+def scritture(pid, evento, cosa, oggi, call_at=None, cellulare=None, ora=None):
+    """Le tre scritture di un annullamento: (tabella, riga). Niente mail, niente calendario.
+    `cellulare`: il suo, se c'e' (segnale_provvisorio.cellulare_di): senza, non e' «Da chiamare»."""
+    import segnale_provvisorio as SP
+    ora = ora or datetime.datetime.now(datetime.timezone.utc)
+    riga = SP.passa_a_dre(pid, cellulare, ora)
+    if not cellulare:
+        riga["prossima_mossa"] = ("Ha annullato la call per mail" if cosa == "annulla" else "Ha chiesto per mail di spostare la call") \
+            + " e non ha lasciato un cellulare: scrivigli per rifissarla"
     return [
-        ("snella_lead", {"prospect_id": pid, "stato": "Da chiamare", "chiamata": "richiamare",
-                         "chiamata_il": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                         "richiamare_il": oggi.isoformat()}),
+        ("snella_lead", riga),
         ("snella_note", {"prospect_id": pid, "testo": NOTA_ANNULLA if cosa == "annulla" else NOTA_SPOSTA,
                          "tipo": "nota", "autore_nome": "Achille"}),
         # call_at: cosi' il foglio sa QUALE call e' saltata e non la mostra piu' come «Chiamata conoscitiva»
@@ -217,9 +225,9 @@ def scrivi_registro(mid, esito):
        {"Prefer": "return=minimal"})
 
 
-def applica(pid, ev, cosa, oggi):
+def applica(pid, ev, cosa, oggi, cellulare=None):
     inizio = ev.get("inizio")
-    for tabella, riga in scritture(pid, ev["evento"], cosa, oggi, inizio.isoformat() if inizio else None):
+    for tabella, riga in scritture(pid, ev["evento"], cosa, oggi, inizio.isoformat() if inizio else None, cellulare):
         if tabella == "snella_lead":
             sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id", [riga], {"Prefer": "resolution=merge-duplicates,return=minimal"})
         elif tabella == "snella_note":
@@ -266,7 +274,7 @@ def main():
             scrivi_registro(m["id"], f"{email}: nessuna call in calendario dopo la mail, non tocco niente")
             continue
         pid = pid or ev.get("pid")
-        p = (sb("GET", f"/rest/v1/prospects?select=id,company,stage,pipeline_stage&id=eq.{pid}") or [None])[0] if pid else None
+        p = (sb("GET", f"/rest/v1/prospects?select=id,company,stage,pipeline_stage,phone,enriched&id=eq.{pid}") or [None])[0] if pid else None
         if not p:
             scrivi_registro(m["id"], f"{email}: la call c'e' ma non e' abbinata a un lead, non tocco niente")
             print(f"  {email}: call del {ev['inizio'].astimezone(SP.ROMA):%d/%m %H:%M} senza lead abbinato")
@@ -287,11 +295,15 @@ def main():
             if fermo:
                 riga += f", ma non lo muovo: {fermo}"
                 print(f"      non lo muovo: {fermo}")
-            elif not PROVA:
-                applica(pid, ev, cosa, oggi)
-                mossi += 1
+            else:
+                cellulare = SP.cellulare_di(p)
+                riga += ", torna «Da chiamare»" if cellulare else ", senza cellulare: «Da rispondere», gli scrive Dre"
+                print(f"      {'ha un cellulare: Da chiamare' if cellulare else 'nessun cellulare: Da rispondere, gli scrive Dre'}")
+                if not PROVA:
+                    applica(pid, ev, cosa, oggi, cellulare)
+                    mossi += 1
         scrivi_registro(m["id"], riga)
-    print(f"orecchio: {mossi} lead tornati «Da chiamare»" + (" (prova)" if PROVA else ""))
+    print(f"orecchio: {mossi} lead tornati a Dre" + (" (prova)" if PROVA else ""))
 
 
 if __name__ == "__main__":

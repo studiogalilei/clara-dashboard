@@ -22,6 +22,10 @@ COSA FA, a ogni giro (il direttore, corsia leggera, ogni 10 minuti)
      caldo (con il numero, se l'ha lasciato: «Ha lasciato il numero»), o la categoria «Vuole
      sentirti». Il senso lo decide l'AI del segnale, gia' pagata: niente regex sul testo (il
      15/10 una regex sui numeri prendeva 37 firme e autorisposte su 42).
+     MA (Dre, 20/10 sera) «Da chiamare» SOLO se c'e' un cellulare suo (la firma o la scheda, mai il
+     centralino del sito: segnale_provvisorio.cellulare_fra). Chi vuole sentirci senza un cellulare
+     e' «Da rispondere» con Dre responsabile e la prossima azione che dice perche'. Le scelte a
+     mano di Dre (snella_lead) vincono comunque su questo stato.
    - il filo delle mail in ordine, con la parte citata gia' separata (lettura.CITAZIONE).
    Si rifa' solo quello che e' cambiato (l'impronta: scheda del lead, mail, segnali, call),
    le schede con una risposta dell'ultima ora (la lettura del segnale arriva dopo il sync),
@@ -69,7 +73,7 @@ import categorie_smartlead as C                                # noqa: E402
 PROVA = "--prova" in sys.argv or _a_secco()
 TUTTE = "--tutte" in sys.argv
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
-VERSIONE = "schede5"                     # cambia la forma della scheda -> si rifanno tutte (5: i 12 stati del 19/10)
+VERSIONE = "schede6"                     # cambia la forma della scheda -> si rifanno tutte (6: Da chiamare solo col cellulare, 20/10 sera)
 GIORNI_ATTIVI = 60
 VECCHIE_PER_GIRO = 30
 FRESCA = datetime.timedelta(hours=1)     # una risposta piu' giovane di cosi': la scheda si rifa' a ogni giro
@@ -376,6 +380,12 @@ def costruisci(ctx, pid, ora):
     caldo = segnalato or bool(lettura and lettura.get("caldo"))
     if caldo and stato in ("Analisi inviata", "Da rispondere"):
         stato = "Da chiamare"
+    # 20/10 sera: «Da chiamare» solo con un cellulare suo (firma o scheda, mai il sito). Senza, la
+    # conversazione e' di Dre ma per mail: «Da rispondere», responsabile lui, e la mossa dice perche'.
+    cellulare = S.cellulare_fra(sc.get("telefoni") or [])
+    senza_cellulare = stato == "Da chiamare" and not cellulare
+    if senza_cellulare:
+        stato = "Da rispondere"
     # da chiamare (il senso lo decide l'AI, non una regex): segnalato caldo dal segnale, la lettura
     # del segnale che dice caldo (col numero se l'ha lasciato), o lo stato «Da chiamare»
     perche = []
@@ -387,12 +397,15 @@ def costruisci(ctx, pid, ora):
         perche.append("Ha chiesto una chiamata")
     escluso = (cliente or p.get("fuori") or p.get("stage") == "perso" or p.get("pipeline_stage") == "perso"
                or p.get("classificazione") in CLASSI_NO or stato in NON_SI_CHIAMA)
-    da_chiamare = bool(perche) and not escluso
+    da_chiamare = bool(perche) and not escluso and cellulare is not None
     frase = ""
     if lettura and lettura.get("frase") and S._dentro(lettura["frase"], ultima["body"]):
         frase = S._frase_pulita(lettura["frase"])
     frase = " ".join(pulito(frase or sc.get("ultima") or "").split())
     mossa, mossa_il = prossima_mossa(stato, p, call, MOTIVO.get(cat))
+    responsabile = STATI[stato]["responsabile"]
+    if senza_cellulare and not escluso:
+        mossa, mossa_il, responsabile = S.SENZA_CELLULARE, None, "Dramane"
     an = sc.get("analisi") or {}
     link = an.get("link") or ""
     percorso = ""
@@ -401,7 +414,7 @@ def costruisci(ctx, pid, ora):
         percorso = urllib.parse.unquote(m.group(1))
     elif link and not link.startswith("http"):
         link = ""                               # solo il nome del file: non si apre da qui
-    telefoni = [{"numero": t["numero"], "tel": S._tel_link(t["numero"]), "etichetta": t["etichetta"]}
+    telefoni = [{"numero": t["numero"], "tel": S._tel_link(t["numero"]), "etichetta": t["etichetta"], "tipo": t["tipo"], "fonte": t["fonte"]}
                 for t in sc.get("telefoni") or []]
     scheda = {
         "azienda": azienda, "nome": sc.get("nome") or "", "ruolo": sc.get("ruolo") or "",
@@ -411,7 +424,7 @@ def costruisci(ctx, pid, ora):
         "consiglio": (lettura or {}).get("consiglio") or "",
         "analisi": {"mandata": bool(an.get("mandata")), "il": _iso(an.get("il")), "link": link,
                     "percorso": percorso, "punto": an.get("punto") or ""},
-        "prossima": {"mossa": mossa, "il": mossa_il, "responsabile": STATI[stato]["responsabile"]},
+        "prossima": {"mossa": mossa, "il": mossa_il, "responsabile": responsabile},
         "aspetta_noi": bool(p.get("awaiting_us")),
     }
     return {"prospect_id": pid, "azienda": azienda, "persona": scheda["nome"] or " ".join((p.get("name") or "").split()),

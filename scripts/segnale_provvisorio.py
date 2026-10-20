@@ -1132,6 +1132,78 @@ def in_gerarchia(numeri):
     return out
 
 
+def numeri_di(p, righe):
+    """Tutti i numeri di un lead, con tipo e fonte: la firma (la parte sua delle sue mail), la scheda
+    del Workspace (phone, enriched.phone), il sito gia' letto dal Google Fit. Via i nostri (quelli
+    che stanno nelle nostre mail). `righe`: le sue mail e le nostre (kind e body bastano)."""
+    e = p.get("enriched") or {}
+    fit = e.get("google_fit") or e.get("google_fit_v2") or {}
+    nostri = set()
+    for r in righe:
+        if r.get("kind") == "email_out":
+            nostri |= {_nazionale(_cifre(m.group(0)))[-9:] for m in TELEFONO.finditer(r.get("body") or "")}
+    numeri = []
+    for r in righe:
+        if r.get("kind") == "email_in" and (r.get("body") or "").strip() and not automatica(r["body"]):
+            numeri += telefoni_in(solo_suo(r["body"], con_firma=True), "firma", nostri)
+    for t in (p.get("phone"), e.get("phone")):
+        if isinstance(t, str) and t.strip():
+            numeri += telefoni_in(t, "scheda", nostri)
+    numeri += telefoni_in(fit.get("sito_testo") or "", "sito", nostri)
+    return numeri
+
+
+# LA REGOLA DEL «DA CHIAMARE» (Dre, 20/10 sera): «a volte il sistema abusa del Da chiamare. Da chiamare
+# SOLO se c'e' il numero di telefono, e se il numero e' personale (un cellulare), non uno d'ufficio».
+# Il cellulare e' un numero che inizia per 3 lasciato da LUI (la firma) o scritto nella sua scheda;
+# il numero del sito e' il centralino e non conta mai. Chi vuole sentirci senza un cellulare resta
+# una conversazione da gestire per mail: tocca a Dre scrivergli (SENZA_CELLULARE). Le scelte a mano
+# di Dre (il foglio, l'app) non passano di qui.
+FONTI_PERSONALI = ("firma", "scheda")
+SENZA_CELLULARE = "Vuole sentirci ma non ha lasciato un cellulare: scrivigli"
+
+
+def cellulare_fra(numeri):
+    """Il cellulare fra i numeri di un lead (quelli di numeri_di o di in_gerarchia), il piu' diretto
+    prima (la firma, poi la scheda). None se non c'e': un fisso o il centralino del sito non bastano."""
+    for t in sorted(numeri or [], key=lambda t: RANGO_TEL.get((t.get("tipo"), t.get("fonte")), 9)):
+        if t.get("tipo") == "cellulare" and t.get("fonte") in FONTI_PERSONALI:
+            return t["numero"]
+    return None
+
+
+def cellulare_di(p, letti=None):
+    """Il cellulare di un lead, o None. `letti`: le sue mail se chi chiama le ha gia' (le righe di
+    lettura.leggi o di interactions: kind e body bastano); se no si leggono da interactions.
+    Se la scheda passata non ha phone ed enriched, si completano dal database."""
+    if not p or not p.get("id"):
+        return None
+    if "phone" not in p or "enriched" not in p:
+        extra = (sb("GET", f"/rest/v1/prospects?select=phone,enriched&id=eq.{p['id']}") or [{}])[0]
+        p = {**extra, **p}
+    if letti is None:
+        letti = sb("GET", f"/rest/v1/interactions?select=at,kind,body&prospect_id=eq.{p['id']}"
+                          f"&kind=in.(email_in,email_out)&order=at.asc&limit=80") or []
+    return cellulare_fra(numeri_di(p, letti))
+
+
+def si_puo_chiamare(p, letti=None):
+    """La regola, in una riga: si chiama solo chi ha un cellulare."""
+    return cellulare_di(p, letti) is not None
+
+
+def passa_a_dre(pid, cellulare, ora):
+    """La riga di snella_lead per un lead che vuole sentirci e passa a Dre (il si' caldo, la call
+    annullata per mail). Col cellulare: «Da chiamare», da oggi (la stessa riga del foglio). Senza:
+    «Da rispondere» con Dre responsabile e la prossima azione che dice perche'."""
+    oggi = ora.astimezone(ROMA).date().isoformat()
+    if cellulare:
+        return {"prospect_id": pid, "stato": "Da chiamare", "chiamata": "richiamare", "chiamata_il": _z(ora),
+                "richiamare_il": oggi, "aggiornato_il": _z(ora)}
+    return {"prospect_id": pid, "stato": "Da rispondere", "responsabile": "Dramane", "prossima_mossa": SENZA_CELLULARE,
+            "prossima_il": oggi, "aggiornato_il": _z(ora)}
+
+
 def _frase_pulita(t):
     return " ".join((t or "").replace("«", "").replace("»", "").split())
 
@@ -1261,19 +1333,7 @@ def scheda(pid, ev, invitato=""):
     righe = sb("GET", f"/rest/v1/interactions?select=at,kind,body&prospect_id=eq.{pid}"
                       f"&kind=in.(email_in,email_out)&order=at.asc&limit=80") or []
     sue = [r for r in righe if r.get("kind") == "email_in" and (r.get("body") or "").strip() and not automatica(r["body"])]
-    nostri = set()
-    for r in righe:
-        if r.get("kind") == "email_out":
-            nostri |= {_nazionale(_cifre(m.group(0)))[-9:] for m in TELEFONO.finditer(r.get("body") or "")}
-    # i numeri: la firma (tutte le sue mail, la parte sua), la scheda, il sito gia' letto
-    numeri = []
-    for r in sue:
-        numeri += telefoni_in(solo_suo(r["body"], con_firma=True), "firma", nostri)
-    for t in (p.get("phone"), e.get("phone")):
-        if isinstance(t, str) and t.strip():
-            numeri += telefoni_in(t, "scheda", nostri)
-    numeri += telefoni_in(fit.get("sito_testo") or "", "sito", nostri)
-    sc["telefoni"] = in_gerarchia(numeri)
+    sc["telefoni"] = in_gerarchia(numeri_di(p, righe))
     # l'analisi
     an = e.get("analisi") or {}
     sc["analisi"] = {"mandata": bool(p.get("analysis_sent")), "il": quando(p["analysis_sent_at"]) if p.get("analysis_sent_at") else None,

@@ -16,7 +16,8 @@ export const GRUPPI: readonly string[] = statiJson.gruppi
 export type Stato = string
 export const RESPONSABILI: readonly Responsabile[] = ['Dramane', 'Claude']
 
-export interface Telefono { numero: string; tel: string; etichetta: string }
+// tipo e fonte (dal 20/10 sera, schede6): «cellulare» o «fisso»; «firma», «scheda» o «sito». Le schede vecchie non li hanno.
+export interface Telefono { numero: string; tel: string; etichetta: string; tipo?: 'cellulare' | 'fisso'; fonte?: 'firma' | 'scheda' | 'sito' }
 export interface Messaggio { at: string | null; chi: 'lui' | 'noi'; testo: string; citato: string }
 export interface SchedaDati {
   azienda: string; nome: string; ruolo: string; email: string; sg_id: number | null; campagna: string

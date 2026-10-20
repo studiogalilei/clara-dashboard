@@ -1,8 +1,8 @@
 // La versione snella: le regole di chi chiamare, con dati finti.
 import { describe, expect, it } from 'vitest'
-import type { Decisione, Domanda, RigaLead } from './dati'
+import type { Decisione, Domanda, RigaLead, Telefono } from './dati'
 import {
-  DA_APP, FASI, NOTE_APP, allegaAnalisi, azioneApprovata, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare,
+  DA_APP, FASI, NOTE_APP, allegaAnalisi, azioneApprovata, cellulareDi, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare,
   messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
   infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
   tasso, titoloDomanda, tonoStato,
@@ -13,9 +13,14 @@ import statiJson from './stati.json'
 
 const ORA = new Date('2026-10-19T08:00:00Z')          // lunedi' 19/10, le 10 a Roma
 
-function riga(id: string, cambia: Partial<RigaLead> = {}): RigaLead {
+type RigaProva = RigaLead & { scheda?: { telefoni: Telefono[] } }
+const CELL: Telefono = { numero: '333 0000000', tel: '+393330000000', etichetta: 'cellulare, dalla firma', tipo: 'cellulare', fonte: 'firma' }
+const FISSO: Telefono = { numero: '02 0000000', tel: '+3920000000', etichetta: 'fisso, dalla firma', tipo: 'fisso', fonte: 'firma' }
+const CENTRALINO: Telefono = { numero: '02 0000001', tel: '+3920000001', etichetta: 'centralino, dal sito', tipo: 'fisso', fonte: 'sito' }
+function riga(id: string, cambia: Partial<RigaProva> = {}): RigaProva {
   return { prospect_id: id, azienda: `Azienda ${id}`, persona: `Persona ${id}`, email: `${id}@esempio.it`, stato: 'Da chiamare',
-           ultima_risposta: '2026-10-18T09:00:00Z', frase: 'Ci sentiamo?', da_chiamare: true, perche_chiamare: 'Ha chiesto una chiamata', ...cambia }
+           ultima_risposta: '2026-10-18T09:00:00Z', frase: 'Ci sentiamo?', da_chiamare: true, perche_chiamare: 'Ha chiesto una chiamata',
+           scheda: { telefoni: [CELL, FISSO] }, ...cambia }
 }
 function dec(id: string, cambia: Partial<Decisione> = {}): Decisione {
   return { prospect_id: id, stato: null, prossima_mossa: null, prossima_il: null, chiamata: null, chiamata_il: null,
@@ -26,6 +31,20 @@ describe('chi chiamare', () => {
   it('chi vuole sentirti c\'e\', chi no non c\'e\'', () => {
     const l = listaDaChiamare([riga('a'), riga('b', { da_chiamare: false })], new Map(), ORA)
     expect(l.map((x) => x.riga.prospect_id)).toEqual(['a'])
+  })
+  it('Da chiamare solo con un cellulare suo (20/10 sera): solo il fisso, solo il centralino del sito o nessun numero non bastano', () => {
+    const righe = [riga('a'), riga('b', { scheda: { telefoni: [FISSO] } }), riga('c', { scheda: { telefoni: [CENTRALINO] } }),
+      riga('d', { scheda: { telefoni: [] } }), riga('e', { scheda: undefined }),
+      riga('f', { scheda: { telefoni: [{ numero: '334 0000000', tel: '+393340000000', etichetta: 'cellulare, dal sito', tipo: 'cellulare', fonte: 'sito' }] } })]
+    expect(listaDaChiamare(righe, new Map(), ORA).map((x) => x.riga.prospect_id)).toEqual(['a'])
+    // il cellulare e' quello che si mostra, anche se la scheda vecchia ha solo l'etichetta
+    expect(cellulareDi({ telefoni: [FISSO, CELL] })?.numero).toBe('333 0000000')
+    expect(cellulareDi({ telefoni: [{ numero: '335 0000000', tel: '+393350000000', etichetta: 'cellulare, dalla scheda del Workspace' }] })?.numero).toBe('335 0000000')
+    expect(cellulareDi({ telefoni: [{ numero: '336 0000000', tel: '+393360000000', etichetta: 'cellulare, dal sito' }] })).toBeNull()
+    expect(cellulareDi(null)).toBeNull()
+    // il gesto di Dre («richiamare il») resta anche senza cellulare: l'ha deciso lui
+    const d = new Map([['b', dec('b', { chiamata: 'richiamare', chiamata_il: '2026-10-18T10:00:00Z', richiamare_il: '2026-10-19' })]])
+    expect(listaDaChiamare([riga('b', { scheda: { telefoni: [FISSO] } })], d, ORA).map((x) => x.motivo)).toEqual(['richiamare'])
   })
   it('chiamato dopo la sua risposta esce; una risposta nuova dopo la chiamata lo riporta', () => {
     const d = new Map([['a', dec('a', { chiamata: 'chiamato', chiamata_il: '2026-10-18T10:00:00Z' })]])
