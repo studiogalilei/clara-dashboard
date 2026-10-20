@@ -56,7 +56,6 @@ PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 25
 SOLO = [e.strip().lower() for e in sys.argv[sys.argv.index("--email") + 1].split(",")] if "--email" in sys.argv else []   # solo queste (rifare una bozza, o provare)
 IN_PARALLELO = 5
-PRONTE = []        # (prospect_id, nome, con_analisi): per la notifica sul telefono
 CALENDARIO = "https://calendar.app.google/szPdtoZD8KqyxkmJ8"   # Dre 29/9: «questo e' il link corretto, dimentica tutto il resto»
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
@@ -1080,7 +1079,6 @@ def main():
                 # 13/10: la bozza non e' nata (rifiutata dal database o gia' una proposta): si scrive
                 # perche', e si riprende solo a una sua mail nuova. Mai piu' un riprovo pagato ogni giro.
                 esito_coda(p, "la bozza non e' nata: il database l'ha rifiutata o c'era gia' una proposta")
-            PRONTE.append((p["id"], (p.get("company") or p.get("name") or "")[:30], bool(p.get("analysis_pdf"))))
         if ferma: ferme += 1
         else: fatte += 1
 
@@ -1212,7 +1210,6 @@ def main():
         lett = {**letti, "coerenza": verdetto, "coerenza_motivo": motivo, "gruppo": "GIGANTE BUONO"}
         print(f"\n  [GB] Gigante buono per {nome}\n      " + bozza[:200].replace("\n", " ") + "…")
         if not PROVA:
-            PRONTE.append((p["id"], nome, True))
             esito = proponi("risposta", f"Gigante buono per {nome}, INT-GB", prospect_id=p["id"],
                             perche=("Ci ha detto no con garbo: gli lasciamo l'analisi lo stesso, una volta sola. Allega il PDF dell'analisi. " + nota)[:280],
                             azione={"bozza": bozza, "intento": "INT-GB", "template": "INT-GB", "lettura": lett})
@@ -1229,22 +1226,7 @@ def main():
                 gb -= 1
         gb += 1
     print(f"  giganti buoni pronti: {gb}")
-    # il telefono di Dre: una riga, solo se c'e' qualcosa da approvare
-    if not PROVA and (fatte or ferme):
-        # LA BOZZA PRONTA ARRIVA SUL TELEFONO (Dre, 24/9): una notifica che dice chi,
-        # se c'e' l'analisi, e apre la scheda giusta: leggi, Approva e manda.
-        from avvisa import avvisa
-        import os as _os
-        base = _os.environ.get("DASHBOARD_URL", "./")
-        if len(PRONTE) == 1:
-            pid, nome, con_pdf = PRONTE[0]
-            con = ", con l'analisi" if con_pdf else ""
-            avvisa(f"Bozza pronta per {nome}{con}: apri, leggi, Approva e manda.",
-                   titolo="Clara", url=f"{base}?scheda={pid}")
-        else:
-            nomi = ", ".join(n for _, n, _ in PRONTE[:3]) + ("…" if len(PRONTE) > 3 else "")
-            pezzi = ([f"{fatte} bozze pronte ({nomi})"] if fatte else []) + ([f"{ferme} da guardare tu"] if ferme else [])
-            avvisa(", ".join(pezzi) + ". Apri la Posta e approva.", titolo="Clara", url=base)
+    # 20/10: niente piu' notifica sul telefono per le bozze (Dre: suona solo il lead in conversazione)
 
 
 if __name__ == "__main__":

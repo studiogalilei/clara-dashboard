@@ -18,7 +18,7 @@ COSA FA, a ogni giro (il direttore, corsia leggera, ogni 10 minuti)
    - spostato in una fase: la fase nel database (pipeline_stage, come la carta del Workspace) e lo
      stato nell'app; tolto e «Perso»: perso, quindi mai piu' contattabile;
    - «Da chiamare»: entra in Oggi da chiamare; «In attesa di risposta»: dopo 5 giorni senza
-     novita' un promemoria a Dre (app e notifica);
+     novita' un promemoria a Dre (nell'app; niente notifica dal 20/10);
    - una nota: nelle note del lead nell'app, a nome di Dramane (le legge Achille);
    - inizio e fine della prova, il retainer: sulla scheda (il retainer va in cassaforte da solo).
 2. RISCRIVE IL RESTO. Una riga in alto (titolo, settimana, quando e' stato aggiornato, come si usa),
@@ -1032,7 +1032,6 @@ def scrivi(sid, righe):
 # ── «In attesa di risposta»: il promemoria dopo 5 giorni ──────────────
 
 def promemoria_attesa(dati, st, ora):
-    import segnale_provvisorio as SP
     fatti = 0
     for pid, a in list(st["attesa"].items()):
         if a.get("ricordato") or ora - quando(a["il"]) < datetime.timedelta(days=ATTESA_GIORNI):
@@ -1050,7 +1049,6 @@ def promemoria_attesa(dati, st, ora):
         proponi("umano", f"{azienda}: nessuna risposta da {ATTESA_GIORNI} giorni", prospect_id=pid,
                 perche=f"Nel foglio l'avevi messo «In attesa di risposta» il {il:%d/%m}. Lo chiami, gli scrivi o lo segni perso?",
                 ref=f"foglio-attesa:{pid}:{a['il'][:10]}")
-        SP.notifica(f"In attesa da {ATTESA_GIORNI} giorni: {azienda}", "Nessuna risposta dopo la tua scelta nel foglio. Lo chiami?", pid)
         a["ricordato"] = True
         fatti += 1
     return fatti
@@ -1164,8 +1162,7 @@ def call_di_dre(dati, st, ora):
 
 def link_mancanti(dati, st, ora):
     """Il giorno dopo la call: se vi siete accordati per la call successiva e in calendario non c'e',
-    un avviso a Dre (in Oggi e sul telefono). Una volta sola per call; mai per una data gia' passata."""
-    import segnale_provvisorio as SP
+    un avviso a Dre (in Oggi; sul telefono no dal 20/10). Una volta sola per call; mai per una data gia' passata."""
     oggi = ora.astimezone(ROMA).date()
     avvisi = 0
     for doc_id, v in st["call"].items():
@@ -1192,7 +1189,6 @@ def link_mancanti(dati, st, ora):
                 f"Nella {v['tipo']} del {at.astimezone(ROMA):%d/%m} vi siete accordati per {quando_detto}"
                 + (f": «{acc['frase'][:120]}»" if acc.get("frase") else "") + ". In calendario non c'e' ancora."),
                 ref=f"link-mancante:{doc_id}")
-        SP.notifica(f"Manca il link: {azienda}", f"Call {prossima} concordata per {quando_detto}, in calendario non c'e'", v["pid"])
         v["avvisato"] = ora.isoformat()
         avvisi += 1
     return avvisi

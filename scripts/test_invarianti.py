@@ -3264,46 +3264,19 @@ def _con_letture(f):
     return dentro
 
 
-@prova("notifica: ogni mail del segnale porta la sua notifica, DOPO la mail, che apre la scheda del lead")
+@prova("notifica: il segnale e le prenotazioni mandano la mail a Dre e non suonano sul telefono (20/10)")
 @_con_letture
 def _():
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO})
     f.scrive("Buongiorno, mi chiami domani al 333 1234567")
-    assert f.giro() == ["caldo"] and len(f.mail) == 1 and len(f.notifiche) == 1, (f.mail, f.notifiche)
-    n = f.notifiche[0]
-    assert n["titolo"] == "Vuole sentirti" and n["mail_prima"] == 1, n
-    assert "Azienda Finta 1" in n["testo"] and "mi chiami domani" in n["testo"], n
-    assert n["url"].endswith("#/s/lead/p1"), n["url"]
-    assert f.giro() == [] and len(f.notifiche) == 1, "la stessa notifica e' partita due volte"
+    assert f.giro() == ["caldo"] and len(f.mail) == 1 and f.notifiche == [], (f.mail, f.notifiche)
+    assert [x.get("come") for x in f.segnati] == ["segnale"], f.segnati
     p = _PrenotazioniFinte()
     p.evento("ev1", "2026-10-23", "11:00")
-    assert p.giro("2026-10-14", "15:00") and len(p.notifiche) == 1, p.notifiche
-    assert p.notifiche[0]["titolo"] == "Prenotato" and p.notifiche[0]["url"].endswith("#/s/lead/p1"), p.notifiche
-    assert p.notifiche[0]["mail_prima"] == 1, "la notifica e' partita prima della mail"
+    assert p.giro("2026-10-14", "15:00") and len(p.mail) == 1 and p.notifiche == [], p.notifiche
     p.cal["ev1"]["stato"] = "cancelled"
     p.giro("2026-10-15", "10:00")
-    assert [x["titolo"] for x in p.notifiche] == ["Prenotato", "Cancellata"], p.notifiche
-
-
-@prova("notifica: la push rotta non blocca la mail, non la segna come fallita e non ferma il giro")
-@_con_letture
-def _():
-    f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO, "La mail e' corretta": SI}, n_aziende=1)
-    f.push_rotta = True
-    f.scrive("Buongiorno, mi chiami domani al 333 1234567")
-    assert f.giro() == ["caldo"], "con la push rotta il giro e' uscito con errore"
-    assert len(f.mail) == 1 and f.notifiche == [], (f.mail, f.notifiche)
-    assert [x.get("come") for x in f.segnati] == ["segnale"], f"la mail partita e' stata segnata male: {f.segnati}"
-    assert f.avvisi == [], "una push rotta non e' un guasto della mail"
-    p = _PrenotazioniFinte()
-    p.push_rotta = True
-    p.evento("ev1", "2026-10-23", "11:00")
-    p.giro("2026-10-14", "15:00")
-    assert len(p.mail) == 1 and all(r.get("come") == "segnale" for r in p.righe), p.righe
-    # anche una notifica che si compone male (un campo che manca) resta fuori dalla mail
-    import segnale_provvisorio as S
-    assert S.notifica_segnali("Vuole sentirti: X", [{"tipo": "caldo"}]) == 0
-    assert S.notifica_prenotazione("Prenotato: X", {}) == 0
+    assert len(p.mail) == 2 and p.notifiche == [], p.notifiche
 
 
 @prova("notifica: un indirizzo morto (410 o 404) si toglie, un errore qualunque no, e gli altri dispositivi ricevono")
@@ -3615,6 +3588,174 @@ def _():
     import sync_v2 as S
     assert S.classifica("Cancellami") == "negativo"
     assert S.classifica("Cancellateci dalla lista") == "negativo"
+
+
+# ── una notifica sola: il lead entrato in conversazione (20/10) ──
+class _ConversazioniFinte:
+    """Un database finto per conversazioni.py: un lead con l'analisi mandata, le sue risposte,
+    la memoria delle letture e lo stato in snella_numeri. Le notifiche si contano in `notifiche`."""
+
+    def __init__(self, analisi_ore_fa=48, letture=None, stato=None):
+        self.ora = datetime.datetime.now(datetime.timezone.utc)
+        self.analisi = (self.ora - datetime.timedelta(hours=analisi_ore_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00") \
+            if analisi_ore_fa is not None else None
+        self.letture = letture or {}
+        self.risposte, self.memoria, self.notifiche, self.ai = [], {}, [], []
+        self.stato = stato                          # None = la chiave non c'e' ancora (la prima accensione)
+        self.dispositivi = 1                        # 0 = la notifica non arriva a nessuno
+
+    def scrive(self, testo, minuti_fa=30, pid="p1"):
+        at = (self.ora - datetime.timedelta(minutes=minuti_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        self.risposte.append({"id": f"i{len(self.risposte) + 1}", "prospect_id": pid, "at": at, "created_at": at, "body": testo})
+
+    def sb(self, m, path, corpo=None, *a, **k):
+        import re as _re
+        import urllib.parse as _u
+        path = _u.unquote(path)
+        if path.startswith("/rest/v1/interactions"):
+            rr = [dict(r) for r in self.risposte]
+            pid = _re.search(r"prospect_id=eq\.([^&]+)", path)
+            return [r for r in rr if not pid or r["prospect_id"] == pid.group(1)]
+        if path.startswith("/rest/v1/prospects"):
+            return [{"id": "p1", "company": "Azienda Finta", "name": "Mario", "analysis_sent_at": self.analisi,
+                     "stage": "in_follow_up", "pipeline_stage": None, "classificazione": "positivo"}]
+        if path.startswith("/rest/v1/snella_numeri"):
+            if m == "GET":
+                return [{"dati": json.loads(json.dumps(self.stato))}] if self.stato is not None else []
+            self.stato = json.loads(json.dumps(corpo[0]["dati"]))
+            return None
+        if path.startswith("/rest/v1/memoria_letture"):
+            if m == "GET":
+                c = path.split("chiave=eq.")[1]
+                return [{"valore": self.memoria[c]}] if c in self.memoria else []
+            for r in corpo:
+                self.memoria[r["chiave"]] = r["valore"]
+            return None
+        return []
+
+    def chiedi(self, prompt):
+        self.ai.append(prompt)
+        for chiave, v in self.letture.items():
+            if chiave in prompt:
+                return json.dumps(v)
+        return json.dumps({"autorisposta": False, "caldo": False, "si": False, "frase": "", "telefono": "", "consiglio": ""})
+
+    def push(self, titolo, testo, url, tag):
+        if self.dispositivi:
+            self.notifiche.append({"titolo": titolo, "testo": testo, "url": url})
+        return self.dispositivi
+
+    def giro(self, prova=False):
+        import conversazioni as C
+        import segnale_provvisorio as S
+        import stanza as St
+        vero = (C.sb, S.sb, St.sb, S._chiedi_ai, S._push, S._restano_oggi, C.adesso)
+        C.sb = S.sb = St.sb = self.sb
+        # schede.py, importato da una prova prima, azzera le letture pagabili: qui servono
+        S._chiedi_ai, S._push, S._restano_oggi, C.adesso = self.chiedi, self.push, lambda: 100, lambda: self.ora
+        S.GIRO.update(pagate=0, memoria_rotta=False, sonda=False, giorno_restano=100, tetto_giorno=False)
+        try:
+            return C.giro(prova=prova)
+        finally:
+            C.sb, S.sb, St.sb, S._chiedi_ai, S._push, S._restano_oggi, C.adesso = vero
+
+
+FUORI_UFFICIO = {"autorisposta": True, "caldo": False, "si": False, "frase": "", "telefono": "", "consiglio": ""}
+
+
+@prova("conversazione: chi risponde dopo l'analisi suona UNA volta, anche se scrive due volte (20/10)")
+def _():
+    f = _ConversazioniFinte(stato={})
+    f.scrive("Grazie per l'analisi, ci sentiamo la settimana prossima per capire i costi", minuti_fa=20)
+    f.giro()
+    assert len(f.notifiche) == 1, f.notifiche
+    n = f.notifiche[0]
+    assert n["titolo"].startswith("È entrato in conversazione") and "Azienda Finta" in n["titolo"], n
+    assert n["url"].endswith("#/s/lead/p1"), n["url"]
+    assert f.stato["p1"]["notificata"] is True and f.stato["p1"]["dal"], f.stato
+    f.scrive("Ah, dimenticavo: ci mandi anche un preventivo?", minuti_fa=2)
+    f.giro()
+    f.giro()
+    assert len(f.notifiche) == 1, f"la stessa conversazione ha suonato {len(f.notifiche)} volte"
+
+
+@prova("conversazione: un fuori ufficio dopo l'analisi non suona, ne' l'ovvio ne' quello che legge l'AI (20/10)")
+def _():
+    f = _ConversazioniFinte(stato={})
+    f.scrive("Sono fuori ufficio fino al 26 ottobre, rispondero' al mio rientro.")
+    f.giro()
+    assert f.notifiche == [] and "p1" not in f.stato and f.ai == [], (f.notifiche, f.stato)
+    # un fuori ufficio col cellulare non e' «ovvio»: lo legge l'AI, e l'AI dice autorisposta
+    f = _ConversazioniFinte(stato={}, letture={"assente fino": FUORI_UFFICIO})
+    f.scrive("Messaggio automatico: sono assente fino a lunedi', per urgenze 333 1234567")
+    f.giro()
+    assert f.notifiche == [] and "p1" not in f.stato, (f.notifiche, f.stato)
+
+
+@prova("conversazione: un «no grazie» dopo l'analisi suona (Dre: «se risponde e' in conversazione»)")
+def _():
+    f = _ConversazioniFinte(stato={}, letture={"non siamo interessati": {**FUORI_UFFICIO, "autorisposta": False}})
+    f.scrive("Grazie per l'analisi ma non siamo interessati.")
+    f.giro()
+    assert len(f.notifiche) == 1 and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+
+
+@prova("conversazione: prima dell'analisi nessuna risposta suona, e senza analisi nemmeno")
+def _():
+    f = _ConversazioniFinte(analisi_ore_fa=1, stato={})
+    f.scrive("Si', mandatemi pure l'analisi", minuti_fa=120)       # il si' arrivato prima dell'analisi
+    f.giro()
+    assert f.notifiche == [] and "p1" not in f.stato, (f.notifiche, f.stato)
+    f = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+    f.scrive("Si', mandatemi pure l'analisi")
+    f.giro()
+    assert f.notifiche == [] and "p1" not in f.stato, (f.notifiche, f.stato)
+
+
+@prova("conversazione: una notifica che non arriva resta «non notificata» e riparte, una volta sola")
+def _():
+    f = _ConversazioniFinte(stato={})
+    f.dispositivi = 0
+    f.scrive("Grazie, ci risentiamo a novembre")
+    f.giro()
+    assert f.notifiche == [] and f.stato["p1"]["notificata"] is False, f.stato
+    f.dispositivi = 1
+    f.giro()
+    f.giro()
+    assert len(f.notifiche) == 1 and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+
+
+@prova("conversazione: la prova a secco non scrive e non suona; la prima accensione non fa suonare il passato")
+def _():
+    f = _ConversazioniFinte(stato={})
+    f.scrive("Grazie, ci risentiamo a novembre")
+    trovate = f.giro(prova=True)
+    assert f.notifiche == [] and f.stato == {} and len(trovate) == 1, (f.notifiche, f.stato, trovate)
+    # la chiave non c'e' ancora: le conversazioni vecchie di ore si segnano senza suonare
+    f = _ConversazioniFinte(stato=None)
+    f.scrive("Grazie, ci risentiamo a novembre", minuti_fa=300)
+    f.giro()
+    assert f.notifiche == [] and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+    # una conversazione cominciata giorni fa (prima della finestra) non suona alla risposta nuova
+    f = _ConversazioniFinte(analisi_ore_fa=24 * 10, stato={})
+    f.scrive("Grazie, ci risentiamo a novembre", minuti_fa=60 * 24 * 5)
+    f.scrive("Eccomi, ora possiamo sentirci", minuti_fa=10)
+    f.giro()
+    assert f.notifiche == [] and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+
+
+@prova("notifiche: sul telefono suona solo la conversazione; segnali, prenotazioni, bozze e foglio restano mail o Posta")
+def _():
+    import pathlib
+    cartella = pathlib.Path(__file__).parent
+    for nome in ("foglio.py", "bozze.py"):
+        t = (cartella / nome).read_text(encoding="utf-8")
+        assert ".notifica(" not in t and "avvisa(" not in t, f"{nome} manda ancora una notifica sul telefono"
+    s = (cartella / "segnale_provvisorio.py").read_text(encoding="utf-8")
+    assert "notifica_segnali" not in s and "notifica_prenotazione" not in s, "il segnale manda ancora le sue notifiche"
+    chiamanti = sorted(f.name for f in cartella.glob("*.py") if f.name != "test_invarianti.py"
+                       and ("SP.notifica(" in f.read_text(encoding="utf-8") or "S.notifica(" in f.read_text(encoding="utf-8")))
+    assert chiamanti == ["conversazioni.py"], chiamanti
 
 
 def main():
