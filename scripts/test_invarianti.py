@@ -3875,6 +3875,11 @@ def _():
                           "p2": {"dal": alle(9, 50).isoformat(), "notificata": True},
                           "p3": {"dal": alle(10, 30).isoformat(), "notificata": False}}
     assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["conversazione:p1"], "senza notifica da piu' di un'ora; mezz'ora no (riprova)"
+    # 20/10 sera: si misura da quando il giro l'ha aperta, non dalla sua mail (il si' caldo letto ore dopo)
+    d["conversazioni"] = {"p4": {"dal": alle(7).isoformat(), "aperta_il": alle(10, 50).isoformat(), "notificata": False, "caldo": True, "azienda": "Calda srl"},
+                          "p5": {"dal": alle(7).isoformat(), "aperta_il": alle(9, 50).isoformat(), "notificata": False, "caldo": True, "azienda": "Calda srl"}}
+    g = C.semaforo(alle(11), d)
+    assert [x["chiave"] for x in g] == ["conversazione:p5"] and "vuole sentirti" in g[0]["cosa"], g
     # i guasti del segnale provvisorio confluiscono qui: rossi finche' il segnale li rivede (20 minuti)
     d = vuoto()
     d["segnale"] = {"gmail": {"testo": "Il segnale non riesce a mandarti la mail", "il": alle(10, 55).isoformat(), "dal": alle(9).isoformat()},
@@ -4727,7 +4732,7 @@ def _():
     assert len(f.notifiche) == 1, f.notifiche
     n = f.notifiche[0]
     assert n["titolo"].startswith("È entrato in conversazione") and "Vuole sentirti" in n["testo"] and n["url"].endswith("#/s/lead/p1"), n
-    assert f.stato["p1"]["notificata"] is True and f.stato["p1"]["caldo"] is True, f.stato
+    assert f.stato["p1"]["notificata"] is True and f.stato["p1"]["caldo"] is True and f.stato["p1"]["aperta_il"], f.stato
     d = f.snella_lead.get("p1")
     assert d and d["stato"] == "Da chiamare" and d["chiamata"] == "richiamare" and d["richiamare_il"] == f.ora.astimezone(zoneinfo.ZoneInfo("Europe/Rome")).date().isoformat(), d
     f.giro()

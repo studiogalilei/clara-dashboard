@@ -49,7 +49,10 @@ SI_FERMO = datetime.timedelta(minutes=60)
 FOGLIO_FERMO = datetime.timedelta(minutes=60)
 SILENZIO = datetime.timedelta(minutes=60)
 DIRETTORE_FERMO = datetime.timedelta(minutes=30)        # la sentinella lo rianima a 20; alle 5 c'e' un buco normale di 22
-CONVERSAZIONE_SENZA_NOTIFICA = datetime.timedelta(hours=1)   # conversazioni.py riprova per 24 ore: un'ora e' un guasto
+CONVERSAZIONE_SENZA_NOTIFICA = datetime.timedelta(hours=1)   # conversazioni.py riprova ogni 5 minuti per 24 ore: un'ora senza riuscirci e' un guasto
+# misurata da «aperta_il» (quando il giro l'ha vista), non da «dal» (la sua mail): un si' caldo letto
+# ore dopo la mail accendeva il rosso al primo giro, e Dre riceveva «si e' fermato qualcosa» al posto
+# della notifica giusta (20/10 sera)
 SEGNALE_VISTO = datetime.timedelta(minutes=20)              # il segnale gira ogni 4-5 minuti: se non lo rivede, e' risolto
 # le operazioni che portano le mail: se si fermano, si perdono lead
 INVIO = {"sync_smartlead": "La lettura delle risposte da Smartlead", "analisi": "La preparazione delle analisi",
@@ -278,10 +281,10 @@ def semaforo(ora, dati=None):
         if not isinstance(v, dict) or v.get("notificata") or not v.get("dal"):
             continue
         dal = quando(v["dal"])
-        if ora - dal > CONVERSAZIONE_SENZA_NOTIFICA:
+        if ora - quando(v.get("aperta_il") or v["dal"]) > CONVERSAZIONE_SENZA_NOTIFICA:
             chi = v.get("azienda") or "Un lead"
             guasti.append({"chiave": f"conversazione:{pid}", "da": dal, "pid": pid,
-                           "cosa": f"{chi} è in conversazione ma la notifica non è partita",
+                           "cosa": f"{chi} {'vuole sentirti' if v.get('caldo') else 'è in conversazione'} ma la notifica non è partita",
                            "sta_facendo": "La trovi nel foglio, in Conversazione: rispondi da Smartlead."})
     # i guasti che il segnale provvisorio vede da dentro (Gmail ferma, memoria, calendario,
     # conversazioni): li scrive segnale_provvisorio._registra_guasto, restano rossi finche' li rivede

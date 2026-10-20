@@ -15,8 +15,10 @@ fuori ufficio (la regex collaudata del segnale, poi la lettura AI del segnale, d
 la stessa risposta non si ripaga mai). Se l'AI non risponde si suona lo stesso: mai silenzio.
 
 UNA NOTIFICA PER CONVERSAZIONE, NON PER MESSAGGIO
-Lo stato sta in snella_numeri, chiave «conversazioni»: {pid: {"dal": iso, "notificata": bool, ...}}.
-«dal» e' la prima risposta di persona dopo l'analisi. Si scrive «notificata: false» PRIMA di
+Lo stato sta in snella_numeri, chiave «conversazioni»: {pid: {"dal": iso, "aperta_il": iso, "notificata": bool, ...}}.
+«dal» e' la prima risposta di persona dopo l'analisi; «aperta_il» e' quando questo giro l'ha vista
+(20/10 sera: il semaforo misura la notifica mancante da qui, non dalla mail; un si' caldo letto ore
+dopo la sua mail non e' un guasto al primo giro). Si scrive «notificata: false» PRIMA di
 suonare e «true» quando almeno un dispositivo l'ha presa: una conversazione con «false» e' una
 notifica non arrivata (la legge il semaforo della scheda Clara) e si riprova al giro dopo, per
 un giorno. Un lead che riscrive mentre la conversazione e' aperta non suona di nuovo.
@@ -236,7 +238,7 @@ def giro(prova=None, dal=None):
         if not r or r == S.RIMANDATA:
             continue
         inizio = quando(r["at"])
-        voce = {"dal": _z(inizio), "notificata": False}
+        voce = {"dal": _z(inizio), "aperta_il": _z(ora), "notificata": False}
         if inizio < da or (prima_volta and ora - inizio > SEMINA):
             stato[pid] = {**voce, "notificata": True, "silenziosa": True}   # il passato: si segna e basta
             cambiato = True
@@ -258,7 +260,7 @@ def giro(prova=None, dal=None):
         if not r:
             continue
         inizio = quando(r["at"])
-        voce = {"dal": _z(inizio), "notificata": False, "caldo": True}
+        voce = {"dal": _z(inizio), "aperta_il": _z(ora), "notificata": False, "caldo": True}
         if inizio < da or (prima_volta and ora - inizio > SEMINA):
             stato[pid] = {**voce, "notificata": True, "silenziosa": True}
             cambiato = True
