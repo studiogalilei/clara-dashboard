@@ -32,12 +32,19 @@ registro chi ha fatto cosa, e ferma le scritture quando si è in prova a secco.
 
 ## I divieti, che valgono qui come in chat
 
-1. **Mai inviare io.** Parte da sola **solo la prima risposta** (consegna di analisi e
-   presentazione, INT-01/02/03/23, decisione di Dre del 29/9 e dell'1/10), dopo cancello
-   e Revisore, dalle 9 alle 17 e con un tetto al giorno. I follow-up automatici girano
-   **in ombra** (`--ombra`: decidono, non approvano). Tutto il resto lo approva Dre in
-   Posta, una bozza alla volta. Gli interruttori stanno nella tabella `operazioni`
-   (`prima_risposta`, `seguiti`, `manda`): prima di dire cosa parte, si leggono lì.
+1. **Mai inviare io.** Fino all'analisi parte tutto da solo, dopo cancello e Revisore
+   (realtà del 20/10): la **prima risposta** con analisi e presentazione (INT-01/02/03/23,
+   decisioni di Dre del 29/9 e dell'1/10, con un tetto al giorno); i **follow-up** col
+   template di Dre (`seguiti`, acceso senza `--ombra` dal 19/10 sera, con i cancelli del
+   20/10: sollecito a mano, stessa azienda, risposta arrivata dopo); il **promemoria** della
+   conoscitiva; il **rimbalzo a un collega** con in cc solo l'indirizzo scritto dal lead.
+   **Dopo l'analisi la conversazione è di Dre**: risponde lui su Smartlead, non si scrivono
+   bozze. La classe delle risposte la decide il **lettore AI** (`scripts/lettore.py`,
+   acceso); le liste di parole sono solo rete. Gli interruttori stanno nella tabella
+   `operazioni` (`prima_risposta`, `seguiti`, `manda`, `lettore`): prima di dire cosa
+   parte, si leggono lì.
+
+   Il foglio è la base di Dre; la scheda Clara è dove guarda se il sistema sta bene.
 2. **Mai una bozza a un cliente o a chi è in pipeline** (caso Zafferano, 25/9).
    La regola è murata nel database, in `stanza.contattabile` e in `manda.py`.
 3. **Nessuna bozza senza lettura**: ogni bozza nasce dal filo vero, e il database
