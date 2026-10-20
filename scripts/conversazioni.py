@@ -30,6 +30,9 @@ notifica». Un si' che il lettore AI legge CALDO («mi mandi tutto e poi ci sent
 lasciato) e' gia' una conversazione di Dre, anche prima dell'analisi: l'analisi gliela manda lo
 stesso il sistema (INT-01, col calendario, come a ogni si'), e in piu' il lead passa a Dre:
 «Da chiamare» nell'app (snella_lead, da oggi, come dal foglio) e questa stessa notifica, subito.
+MA (Dre, 20/10 sera) «Da chiamare» SOLO se ha lasciato un cellulare (la firma o la scheda, mai il
+centralino del sito: segnale_provvisorio.cellulare_di); se no «Da rispondere» con Dre responsabile e
+la prossima azione «Vuole sentirci ma non ha lasciato un cellulare: scrivigli» (passa_a_dre).
 Vale solo per la lettura del lettore sulla sua ultima mail (stanza.lettore_di), con la classe
 «positivo» (se Dre l'ha cambiata, vince lui). Se Dre ha gia' toccato il lead dopo la sua mail, la
 sua decisione non si tocca. Un si' non caldo non suona: lo serve il sistema.
@@ -190,18 +193,17 @@ def risposta_calda(p, dal):
     return righe[0] if righe else None
 
 
-def da_chiamare(pid, inizio):
-    """Il si' caldo passa a Dre: «Da chiamare» nell'app, da oggi (la stessa riga del foglio e
-    dell'orecchio). Se Dre ha gia' toccato il lead dopo la sua mail, vince lui: torna False."""
+def da_chiamare(pid, inizio, p=None):
+    """Il si' caldo passa a Dre, con la stessa riga dell'orecchio (segnale_provvisorio.passa_a_dre):
+    «Da chiamare» da oggi se ha lasciato un cellulare (firma o scheda, mai il sito: Dre, 20/10 sera),
+    se no «Da rispondere» con Dre responsabile e la mossa che dice perche'. Torna lo stato scritto.
+    Se Dre ha gia' toccato il lead dopo la sua mail, vince lui: torna None."""
     r = (sb("GET", f"/rest/v1/snella_lead?select=stato,aggiornato_il&prospect_id=eq.{pid}") or [None])[0]
     if r and r.get("aggiornato_il") and quando(r["aggiornato_il"]) > inizio:
-        return False
-    ora = adesso()
-    sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id",
-       [{"prospect_id": pid, "stato": "Da chiamare", "chiamata": "richiamare", "chiamata_il": _z(ora),
-         "richiamare_il": ora.astimezone(S.ROMA).date().isoformat(), "aggiornato_il": _z(ora)}],
-       {"Prefer": "resolution=merge-duplicates,return=minimal"})
-    return True
+        return None
+    riga = S.passa_a_dre(pid, S.cellulare_di(p or {"id": pid}), adesso())
+    sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id", [riga], {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    return riga["stato"]
 
 
 # ── il giro ────────────────────────────────────────────────────────
@@ -270,8 +272,9 @@ def giro(prova=None, dal=None):
         suonano.append((pid, azienda(p), inizio, detto))
         if prova:
             continue
-        if da_chiamare(pid, inizio):
-            print(f"    «Da chiamare» nell'app, da oggi")
+        scritto = da_chiamare(pid, inizio, p)
+        if scritto:
+            print(f"    «{scritto}» nell'app, da oggi" + ("" if scritto == "Da chiamare" else " (nessun cellulare: gli scrive Dre)"))
         stato[pid] = voce
         scrivi_stato(stato)
         if suona(pid, p, r, caldo=True):

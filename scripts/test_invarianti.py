@@ -3660,7 +3660,7 @@ class _ConversazioniFinte:
 
     def scrive(self, testo, minuti_fa=30, pid="p1"):
         at = (self.ora - datetime.timedelta(minutes=minuti_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        self.risposte.append({"id": f"i{len(self.risposte) + 1}", "prospect_id": pid, "at": at, "created_at": at, "body": testo})
+        self.risposte.append({"id": f"i{len(self.risposte) + 1}", "prospect_id": pid, "at": at, "created_at": at, "body": testo, "kind": "email_in"})
 
     def sb(self, m, path, corpo=None, *a, **k):
         import re as _re
@@ -4780,11 +4780,12 @@ def _():
     assert 'fermati_sullo_slot(b.get("fermati"))' in src and 'b.get("dal_codice") and b.get("giorno")' in src, "vale solo col giorno scelto dal codice"
 
 
-@prova("conversazione (20/10 sera): un sì CALDO prima dell'analisi suona e passa a Dre come «Da chiamare»; un sì non caldo no")
+@prova("conversazione (20/10 sera): un sì CALDO prima dell'analisi suona e passa a Dre: «Da chiamare» col cellulare, «Da rispondere» senza; un sì non caldo no")
 def _():
+    import segnale_provvisorio as S
     f = _ConversazioniFinte(analisi_ore_fa=None, stato={})
     f.caldo = True
-    f.scrive("Se volete potete inviarmi tutto e poi ci sentiamo.", minuti_fa=20)
+    f.scrive("Se volete potete inviarmi tutto e poi ci sentiamo.\n\nMario Rossi\nCell. 333 0000001", minuti_fa=20)
     f.giro()
     assert len(f.notifiche) == 1, f.notifiche
     n = f.notifiche[0]
@@ -4792,6 +4793,15 @@ def _():
     assert f.stato["p1"]["notificata"] is True and f.stato["p1"]["caldo"] is True and f.stato["p1"]["aperta_il"], f.stato
     d = f.snella_lead.get("p1")
     assert d and d["stato"] == "Da chiamare" and d["chiamata"] == "richiamare" and d["richiamare_il"] == f.ora.astimezone(zoneinfo.ZoneInfo("Europe/Rome")).date().isoformat(), d
+    # lo stesso si' caldo senza un cellulare (solo il fisso in firma): suona lo stesso, ma e' «Da rispondere», gli scrive Dre
+    for firma in ("", "\n\nMario Rossi\nTel. 02 00000001"):
+        s = _ConversazioniFinte(analisi_ore_fa=None, stato={})
+        s.caldo = True
+        s.scrive("Se volete potete inviarmi tutto e poi ci sentiamo." + firma, minuti_fa=20)
+        s.giro()
+        d = s.snella_lead.get("p1")
+        assert len(s.notifiche) == 1 and d and d["stato"] == "Da rispondere" and d["responsabile"] == "Dramane", (firma, s.notifiche, d)
+        assert d["prossima_mossa"] == S.SENZA_CELLULARE and not d.get("chiamata"), d
     f.giro()
     f.giro()
     assert len(f.notifiche) == 1, "lo stesso caldo ha suonato piu' volte"
