@@ -262,6 +262,20 @@ def classe_da_sync(body, categoria, attuale, risposta_nuova):
     return cls
 
 
+def classe_col_lettore(cls_liste, lettura, modo, testo=""):
+    """LA CLARA INTELLIGENTE (20/10). Il senso lo decide il lettore AI (scripts/lettore.py) quando e'
+    acceso; in ombra (o spento) la classe resta quella delle liste e la lettura sta solo accanto.
+    Le liste restano la rete dei casi gravi: se dicono «Cancellami» (la rete del lettore) e il
+    lettore dice altro, decide Dre. Una lettura ricaduta sulle liste non cambia niente."""
+    if modo != "acceso" or not lettura or lettura.get("fonte") != "lettore":
+        return cls_liste
+    import lettore
+    cls = lettore.classe_db(lettura)
+    if cls_liste == "negativo" and cls not in ("negativo", "soppresso") and lettore.rete_su([testo]):
+        return "da_classificare"
+    return cls
+
+
 def data_ooo(testo):
     """Prova a leggere 'fino al X luglio' / 'until July X' -> date ISO, se no None."""
     t = testo.lower()
@@ -379,9 +393,19 @@ def _casella_di(m):
     return None
 
 
+MODO_LETTORE = "spento"
+
+
 def main():
+    global MODO_LETTORE
     started = datetime.now(timezone.utc).isoformat()   # col fuso: sul Mac di Dre l'ora di Roma finiva nel database come UTC (6/10)
     print(f"SYNC V2 {'(DRY RUN)' if DRY else ''} — {started}")
+    try:
+        import lettore
+        MODO_LETTORE = lettore.modo()
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  lettore: non leggo la modalita' ({e}), resto sulle liste")
+    print(f"  lettore AI: {MODO_LETTORE}")
     known = db_prospects()
     print(f"  DB: {len(known)} prospects noti")
 
@@ -468,7 +492,34 @@ def main():
             nuova = (last_reply.get("time") or "")[:19] > ((rec or {}).get("last_reply_at") or "")[:19]
             # se il testo non decide, la categoria Smartlead suggerisce; un no resta no (6/10)
             cls = classe_da_sync(last_reply.get("email_body"), lead.get("category"), (rec or {}).get("classificazione"), nuova)
+            cls_liste = cls
+            # LA CLARA INTELLIGENTE (20/10): il lettore AI legge la stessa risposta quando le liste la
+            # rileggerebbero (una risposta nuova, o un lead ancora da classificare). Una risposta gia'
+            # letta non si ripaga: la lettura sta in enriched.lettore con l'ora della risposta.
+            lettura, lettura_nuova = None, False
+            attuale = (rec or {}).get("classificazione")
+            ricalcola = nuova or not attuale or attuale == "da_classificare"
+            if MODO_LETTORE in ("ombra", "acceso") and ricalcola:
+                ora_risposta = (last_reply.get("time") or "")[:19]
+                prima = (((rec or {}).get("enriched") or {}).get("lettore") or {})
+                if prima.get("risposta_il") == ora_risposta and prima.get("fonte") == "lettore":
+                    lettura = prima
+                elif not DRY:
+                    import lettore
+                    lettura = lettore.leggi_risposta(last_reply.get("email_body"), msgs, rec or {})
+                    lettura_nuova = True
+                    if lettura.get("fonte") == "lettore" and lettura.get("classe") != cls_liste:
+                        try:
+                            from stanza import di_clara
+                            di_clara("controllo", f"Lettore ({MODO_LETTORE}): {(lead.get('company_name') or em)[:40]}: liste «{cls_liste}», "
+                                                  f"lettore «{lettura.get('classe')}» ({lettura.get('caso')}, {lettura.get('sicurezza')}). "
+                                                  f"{(lettura.get('motivo') or '')[:200]}")
+                        except Exception:                                    # noqa: BLE001
+                            pass
+                cls = classe_col_lettore(cls_liste, lettura, MODO_LETTORE, testo)
             ooo_until = data_ooo(testo) if cls == "ooo" else None
+            if cls == "ooo" and lettura and lettura.get("data") and MODO_LETTORE == "acceso":
+                ooo_until = lettura["data"]
 
             # se Dre ha classificato a mano ooo/rinvio/negativo/fuori_target/soppresso,
             # l'autoreply non rimette il lead in coda risposta
@@ -502,6 +553,11 @@ def main():
                 patch["company"] = lead["company_name"]   # solo se vuoto: un nome messo a mano non si tocca
             if lead.get("is_unsubscribed"):
                 patch["no_followup"] = True   # unsubscribed su Smartlead: non si tocca piu'
+            if lettura_nuova:
+                import lettore
+                patch["enriched"]["lettore"] = lettore._per_enriched(lettura, cls_liste, started, (last_reply.get("time") or "")[:19])
+                if MODO_LETTORE == "acceso" and lettura.get("fonte") == "lettore" and lettura.get("non_scrivere"):
+                    patch["no_followup"] = True   # «non scrivetemi»: nessuna mail automatica, mai piu'
             # classificazione: solo se non corretta a mano
             manual = enr.get("classificazione") == "manual"
             lettura = enr.get("lettura") or {}

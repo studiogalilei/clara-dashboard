@@ -4357,6 +4357,153 @@ def _():
     assert 'cc=az.get("cc"), let=az.get("lettura")' in src_a and 'seconda_testa(p, testo, az.get("gruppo") or az.get("template"), cc=az.get("cc"))' in src_a
 
 
+def _lettura_finta(**campi):
+    """Una lettura del modello finto: tutti i campi dello schema, con i valori di una risposta qualsiasi."""
+    base = {"autore": "persona", "testo_suo": "", "caso": "C01", "caso_nuovo_nome": None, "caso_nuovo_descrizione": None,
+            "sicurezza": "alta", "perche": "finto", "porta_aperta": False, "porta_aperta_frase": None, "motivo": "nessuno",
+            "caldo": False, "caldo_motivi": [], "caldo_frase": None, "consiglio": None, "numeri": [], "orario_chiesto": None,
+            "orario_iso": None, "data_rientro": None, "data_ricontatto": None, "indirizzi_nuovi": [], "elementi": [],
+            "saluto_nome": None, "tu": False, "non_scrivere": False}
+    base.update(campi)
+    return base
+
+
+def _modello_finto(lettura, apertura=False):
+    chiamate = []
+
+    def chiedi(ruolo, istruzioni, testo, schema):
+        chiamate.append(ruolo)
+        assert "LA CARTA DEI CASI" in istruzioni or ruolo in ("seconda_lettura", "caldo")
+        return (lettura if ruolo == "lettore" else {"apertura": apertura, "frase": "x" if apertura else None}), 0.001
+    return chiedi, chiamate
+
+
+def _filo_finto(risposta):
+    return [{"type": "SENT", "time": "2026-10-19T08:00:00Z", "email_seq_number": 1, "subject": "Analisi gratuita",
+             "email_body": "<p>Buongiorno, abbiamo preparato un'analisi gratuita delle vostre campagne su Google. Gliela mando?</p>"},
+            {"type": "REPLY", "time": "2026-10-19T09:00:00Z", "email_body": risposta}]
+
+
+@prova("lettore: «noi siamo interessati grazie» e' un si' (i 4 si' persi dalle liste il 19/10)")
+def _():
+    import lettore as L
+    chiedi, chiamate = _modello_finto(_lettura_finta(caso="C01", sicurezza="alta", testo_suo="noi siamo interessati grazie"))
+    r = L.leggi_risposta("noi siamo interessati grazie", _filo_finto("noi siamo interessati grazie"), {}, chiedi=chiedi)
+    assert r["classe"] == "positivo" and r["fonte"] == "lettore" and not r["non_scrivere"], r
+    assert chiamate == ["lettore", "caldo"], "un si' non passa dalla seconda lettura, ma si rilegge cercando il caldo"
+    # il caldo riletto: «se la condividiamo ne parliamo» e' caldo anche se il primo lettore non l'ha visto
+    def caldo_riletto(ruolo, istruzioni, testo, schema):
+        return (_lettura_finta(caso="C02") if ruolo == "lettore" else {"caldo": True, "frase": "ne parliamo"}), 0.0
+    r = L.leggi_risposta("Si' la mail e' corretta, se la condividiamo ne parliamo", None, {}, chiedi=caldo_riletto)
+    assert r["classe"] == "positivo" and r["caldo"] is True, r
+    # chi e' irritato (C31) non riceve mail automatiche: decide Dre
+    chiedi, _c = _modello_finto(_lettura_finta(caso="C31"))
+    r = L.leggi_risposta("Basta spam, vi segnalo alla polizia postale", None, {}, chiedi=chiedi)
+    assert r["classe"] == "da_classificare" and r["non_scrivere"] is True, r
+    # un si' detto con poca sicurezza non fa scrivere Clara da sola: va a Dre, mai in un no
+    chiedi, _c = _modello_finto(_lettura_finta(caso="C01", sicurezza="media"))
+    assert L.leggi_risposta("può inviarmi il report", None, {}, chiedi=chiedi)["classe"] == "da_classificare"
+    # dopo l'analisi chi rimanda e' in conversazione con Dre: niente ripresa automatica (la carta, «dopo»)
+    assert L.classe_del_caso("C17", analisi=False) == "rinvio" and L.classe_del_caso("C17", analisi=True) == "da_classificare"
+    assert L.classe_del_caso("C25", porta_aperta=True) == "rinvio" and L.classe_del_caso("C25") == "negativo"
+    assert L.classe_del_caso("C44", analisi=False) == "da_classificare", "un collega a cui scrivere non e' un fuori ufficio da chiudere"
+
+
+@prova("lettore: «Cancellami» e' un no e non si scrive piu', anche se il modello sbaglia")
+def _():
+    import lettore as L
+    chiedi, chiamate = _modello_finto(_lettura_finta(caso="C30", non_scrivere=True))
+    r = L.leggi_risposta("Cancellami", _filo_finto("Cancellami"), {}, chiedi=chiedi)
+    assert r["classe"] == "negativo" and r["non_scrivere"] is True, r
+    assert L.classe_db(r) == "soppresso"
+    assert chiamate == ["lettore", "seconda_lettura"], "una chiusura passa dalla seconda lettura"
+    # il modello legge un si': la rete dei casi gravi lo porta a Dre e nessuna mail parte
+    chiedi, _c = _modello_finto(_lettura_finta(caso="C01", sicurezza="alta"))
+    r = L.leggi_risposta("Cancellami", None, {}, chiedi=chiedi)
+    assert r["classe"] == "da_classificare" and r["non_scrivere"] is True, r
+    for frase in ("Cancellami", "toglietemi dalla lista", "non scriveteci più", "Non mi può più scrivere"):
+        assert L.rete_su([frase]), frase
+    assert not L.rete_su(["noi siamo interessati grazie"])
+
+
+@prova("lettore: un'autorisposta e' automatica, mai un si' (caso Tenda Ok, 19/10)")
+def _():
+    import lettore as L
+    auto = "Grazie per averci contattato, la sua richiesta e' stata presa in carico. Risponderemo al piu' presto."
+    chiedi, _c = _modello_finto(_lettura_finta(autore="automatico", caso="C47"))
+    r = L.leggi_risposta(auto, _filo_finto(auto), {}, chiedi=chiedi)
+    assert r["classe"] == "automatico" and not r["caldo"], r
+    assert L.classe_db(r) == "ooo", "nel database un automatico e' un fuori ufficio: la sequenza riprende"
+    # il modello la legge come si' ma dice che l'ha scritta una macchina: a Dre, mai positivo
+    chiedi, _c = _modello_finto(_lettura_finta(autore="automatico", caso="C01", caldo=True, caldo_motivi=["lascia_numero"]))
+    r = L.leggi_risposta(auto, None, {}, chiedi=chiedi)
+    assert r["classe"] == "da_classificare" and not r["caldo"], r
+    # la seconda lettura trova un'apertura in una chiusura: a Dre
+    chiedi, _c = _modello_finto(_lettura_finta(caso="C24"), apertura=True)
+    assert L.leggi_risposta("No grazie, pero' mandatela", None, {}, chiedi=chiedi)["classe"] == "da_classificare"
+
+
+@prova("lettore: se il modello non risponde o il tetto e' pieno, ricade sulle liste e lo dice")
+def _():
+    import lettore as L
+
+    def rotto(*a):
+        raise L.Guasto("Anthropic 529: overloaded")
+    r = L.leggi_risposta("Non siamo interessati, grazie", None, {}, chiedi=rotto)
+    assert r["fonte"] == "liste" and r["classe"] == "negativo" and "non ha risposto" in r["motivo"], r
+    vecchia = os.environ.pop("ANTHROPIC_API_KEY", None)
+    L_env = L._env
+    L._env = lambda n: None
+    try:
+        r = L.leggi_risposta("si' mandatela pure", None, {})
+        assert r["fonte"] == "liste" and "manca la chiave" in r["motivo"], r
+        L._env = lambda n: "finta" if n == "ANTHROPIC_API_KEY" else None
+        spesa = L.spesa_di_oggi
+        L.spesa_di_oggi = lambda scopo="lettore": 5.0
+        try:
+            r = L.leggi_risposta("si' mandatela pure", None, {})
+            assert r["fonte"] == "liste" and "tetto" in r["motivo"], r
+        finally:
+            L.spesa_di_oggi = spesa
+    finally:
+        L._env = L_env
+        if vecchia:
+            os.environ["ANTHROPIC_API_KEY"] = vecchia
+    # i soldi: il prezzo di Sonnet e la cache letta a un decimo
+    assert abs(L.costo("claude-sonnet-5", 1_000_000, 0, 0, 0) - 2.0) < 1e-9
+    assert abs(L.costo("claude-sonnet-5", 0, 1_000_000, 0, 0) - 0.2) < 1e-9
+
+
+@prova("lettore: la pulizia toglie la nostra mail citata e il nostro oggetto (pulizia.ts di Clara nuova)")
+def _():
+    import lettore as L
+    nostra = "Buongiorno, abbiamo preparato un'analisi gratuita delle vostre campagne su Google e vorremmo mandargliela"
+    t = "Va bene, me la mandi.\nIl giorno lun 19 ott 2026 alle 10:00 Lorenzo ha scritto:\n> " + nostra
+    assert L.solo_suo(t, [nostra])["con_firma"] == "Va bene, me la mandi."
+    t = "Va bene, me la mandi. " + nostra + " se le interessa"
+    assert L.solo_suo(t, [nostra])["con_firma"].startswith("Va bene, me la mandi.") and "preparato" not in L.solo_suo(t, [nostra])["con_firma"]
+    assert L.solo_suo("Analisi gratuita\nOk procedete", [], ["Re: Analisi gratuita"])["con_firma"] == "Ok procedete"
+    # un'ora scritta dalla persona non e' l'intestazione di una citazione
+    assert "14:30" in L.solo_suo("Confermo martedi' ore 14:30, il collega ha scritto: va bene", [])["con_firma"]
+
+
+@prova("sync: il lettore decide la classe solo quando e' acceso; in ombra scrive accanto e la classe resta delle liste")
+def _():
+    import sync_v2 as S
+    lettura = {"classe": "positivo", "caldo": False, "non_scrivere": False, "fonte": "lettore", "caso": "C01",
+               "sicurezza": "alta", "motivo": "C01"}
+    assert S.classe_col_lettore("negativo", lettura, "acceso") == "positivo"
+    assert S.classe_col_lettore("negativo", lettura, "ombra") == "negativo"
+    assert S.classe_col_lettore("negativo", lettura, "spento") == "negativo"
+    assert S.classe_col_lettore("negativo", None, "acceso") == "negativo"
+    # la ricaduta sulle liste non cambia niente; «non scrivetemi» diventa soppresso
+    assert S.classe_col_lettore("positivo", dict(lettura, fonte="liste", classe="negativo"), "acceso") == "positivo"
+    assert S.classe_col_lettore("positivo", dict(lettura, classe="negativo", non_scrivere=True), "acceso") == "soppresso"
+    assert S.classe_col_lettore("positivo", dict(lettura, classe="automatico"), "acceso") == "ooo"
+    # la rete delle liste resta per i casi gravi: se le liste dicono «Cancellami» e il lettore no, decide Dre
+    assert S.classe_col_lettore("negativo", lettura, "acceso", testo="Cancellami") == "da_classificare"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

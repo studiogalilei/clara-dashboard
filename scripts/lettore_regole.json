@@ -1,0 +1,577 @@
+{
+ "_fonte": "Clara nuova, mattone 5 (regole «casi» e «lettore» della sandbox, 16/10/2026, migrazione 0013). Le istruzioni e la carta dei casi sono quelle rigiocate sulle 1.087 risposte etichettate; la rete e' la stessa, scritta per il re di Python (\\w conosce le lettere accentate). 20/10: in piu' «Cancellami» (e toglimi, rimuovimi, eliminami): la rete di Clara nuova non lo prendeva, le liste del sync si' (collaudo del 19/10).",
+ "istruzioni": "Leggi la risposta di un'azienda contattata da Studio Galilei, un'agenzia Google Ads di Treviso. Le mail partono dalle caselle di Lorenzo Fornasier con una sequenza di 2-3 passi: abbiamo preparato un'analisi gratuita delle loro campagne o del loro potenziale su Google, e chiediamo il permesso di mandarla (il passo 2 di solito chiede «mi conferma che la mail è giusta?»). Lo scopo di tutto è una breve videochiamata conoscitiva con Dre, il titolare. Tu non scrivi niente: capisci cosa vuole la persona, come farebbe un commerciale attento che legge la mail.\n\nRicevi i FATTI calcolati dal codice (a che passo risponde, se l'analisi è già stata mandata, cosa abbiamo scritto prima), il FILO dal più vecchio, e la RISPOSTA da leggere: prima il testo pulito (senza la nostra mail citata), poi, se c'è, il testo grezzo intero. Il pulito può aver tagliato troppo o troppo poco: in caso di dubbio guarda il grezzo, ma le parole della nostra mail citata non sono sue.\n\nCome leggere:\n- Il senso lo decide il significato, non le singole parole. «Attendo una vostra mail per valutare l'interesse» è un sì (C03). «Buongiorno, grazie» o una risposta quasi vuota dopo il passo che chiedeva la conferma della mail è un sì (C02). «Mandali pure» è un sì (C01). «Non ho ancora valutato con il collega», detto prima che l'analisi sia partita, vuol dire che crede di averla già (C07). «Qui non lavora nessun signor…» è C40. «Momentaneamente non interessati» è C25, un no legato al momento: la porta è aperta solo se dice anche che vuole risentirci. Un no con un motivo (budget, troppo lavoro, già seguiti, il settore) è C27 o C28 anche se dice «al momento». Un no di cortesia non è un sì, e un sì detto male non è un no. «Basta», «stop», «basta per favore», «unsubscribe» chiedono di smettere (C30), anche se cominciano con «sì».\n- Un risponditore automatico, una ricevuta («la sua richiesta è stata presa in carico», «ho ricevuto la tua richiesta, ti risponderò appena possibile», «sarete ricontattati al più presto»), un ticket, una PEC, un avviso di mancata consegna, una presentazione automatica dell'azienda, un fuori ufficio: autore «automatico», mai un sì e mai caldo, anche se è firmato con un nome o lascia un numero. Si riconosce perché andrebbe bene per qualunque mittente: non risponde a niente di quello che abbiamo scritto noi («Gentile Cliente», «Dear Sender», «grazie per averci contattato», orari di apertura, numeri «per urgenze»).\n- Dopo l'analisi (fatto «analisi già mandata: sì») valgono soprattutto C14-C20; prima, soprattutto C01-C13 e C21-C55.\n- Guarda anche la firma: il ruolo, il nome dell'azienda e il sito dicono chi scrive (un'agenzia di marketing che dice sì è C53).\n- Fra due casi vicini decide la frase «quando» della carta, che dice il confine: un no che accetta comunque l'analisi è C09; un fuori ufficio con un collega (una persona) è C44, con un indirizzo generico C43, un'assenza lunga C46; un collega con l'indirizzo è C35, col solo nome C36; dopo l'analisi chi la critica o la discute è C18 anche se chiude con un no.\n- Scegli UN caso della carta. Se la risposta non sta in nessun caso, usa l'id di un caso in formazione se è la stessa situazione, altrimenti «nuovo», con un nome corto e una descrizione di una riga. Non forzare un caso che non c'entra.\n- sicurezza: «alta» se due persone attente leggerebbero lo stesso caso; «media» se c'è un'altra lettura possibile; «bassa» se non è chiaro cosa vuole. Il perché in una riga.\n\nIl segnale «caldo» (il più importante: Dre vuole saperlo subito per chiamare o scrivere lui):\n- caldo = true se la persona chiede di essere chiamata o di parlare al telefono, propone o accetta un giorno o un orario per sentirsi, dice «la chiamo io», lascia un suo numero perché lo usiamo, chiede una call, un incontro, un appuntamento, una chiacchierata, oppure è entusiasta e vuole andare avanti subito.\n- caldo_motivi: uno o più fra vuole_sentirti (vuole una call o un incontro), chiede_chiamata (vuole essere chiamato al telefono o chiamerà lui), lascia_numero (scrive un numero nel messaggio per farsi chiamare), propone_orario (propone o accetta un giorno o un orario), carico (entusiasta, vuole procedere).\n- Ogni accenno della persona a sentirsi, a una call, a una chiamata conoscitiva o a un incontro, anche al condizionale o più avanti («poi magari ci sentiamo», «guardo l'analisi e ci sentiamo», «eventualmente organizziamo una chiamata», «una call dopo le vacanze»), la rende calda (vuole_sentirti): prima dell'analisi il caso è C05, dopo è C15. Non è caldo chi rimanda a più avanti senza parlare di sentirsi, né chi dice solo «me la mandi». Un numero che sta solo nella firma non rende caldo nessuno. Un messaggio automatico non è mai caldo.\n- caldo_frase: la frase sua che lo rende caldo, parola per parola. consiglio: una riga per Dre solo se serve davvero (per esempio «ha chiesto di essere chiamato domani alle 9:15 al cellulare»), altrimenti null.\n\nGli altri campi:\n- testo_suo: le parole della persona, parola per parola, senza firma, saluti finali, informativa legale e testo citato. Se è lungo, tienilo intero fino al limite e chiudi con «…».\n- numeri: ogni numero di telefono della persona o della sua azienda che compare nel messaggio o nella firma, scritto come lo ha scritto lei; dove = «messaggio» se lo scrive nel testo, «firma» se sta nella firma. Mai i nostri numeri (Lorenzo Fornasier, Studio Galilei) né numeri che non sono telefoni (partita IVA, codici, date, indirizzi).\n- porta_aperta: true se un no o un rinvio lascia uno spiraglio vero, un segno che vuole sentirci più avanti («terrò presente», «più avanti», «in futuro», «ricontattateci a settembre», «l'anno prossimo», «siamo in fase di rifacimento»); «al momento», «per ora», «per il momento» da soli, in un no cortese, non bastano; motivo del no o del rinvio fra carico_di_lavoro, periodo, gia_seguiti, budget, altro, nessuno (nessuno se non è un no o non lo dice).\n- orario_chiesto: il giorno o l'orario che propone o chiede, come lo dice lui, oppure null. data_rientro e data_ricontatto in formato AAAA-MM-GG, calcolate dalla data della risposta, oppure null.\n- indirizzi_nuovi: gli indirizzi email che ci indica per scrivere (un collega, un nuovo indirizzo, un ufficio), con il ruolo; mai il suo stesso indirizzo in firma.\n- elementi: tutto quello a cui una buona risposta dovrebbe rispondere: domanda, dubbio, vincolo_di_tempo, non_ho_ricevuto, tramite, giorno_o_fascia, numero, mi_chiami, la_chiamo_io, ironia, scetticismo, persona_in_copia, tu.\n- saluto_nome: il nome di battesimo con cui firma, se c'è. tu: true se ci dà del tu.\n- non_scrivere: true solo se chiede di non essere più contattato, di essere tolto dalla lista o di cancellare i suoi dati (anche con garbo); un semplice «no, grazie» non basta.",
+ "istruzioni_seconda": "Un'agenzia ha scritto a un'azienda offrendo un'analisi gratuita del suo marketing su Google e, se interessa, una breve videochiamata. Qui sotto c'è la risposta dell'azienda. Un primo lettore ha deciso di NON rispondere (la legge come un no, una chiusura o un messaggio automatico). Il tuo compito è l'opposto: cerca nella risposta qualsiasi apertura, richiesta, domanda o segno di interesse che renderebbe sbagliato non rispondere. Per esempio: accetta di ricevere qualcosa, fa una domanda, chiede di sentirsi o di essere chiamato, lascia un numero, indica un'altra persona o un altro indirizzo a cui scrivere, rimanda a un momento preciso, dice che vuole risentirci più avanti o in futuro, chiede qualcosa su di noi o su come abbiamo avuto il suo indirizzo. Una richiesta di non essere più contattati o di cancellare i suoi dati NON è un'apertura: è il contrario. L'informativa legale, le frasi fisse della firma e la richiesta di una conferma di lettura non contano. Prima chiediti se il testo l'ha scritto una persona: un risponditore automatico (fuori ufficio, ricevuta, ticket, orari, presentazione dell'azienda) non è mai un'apertura, nemmeno con le sue frasi di servizio o promozionali («la ricontatteremo», «we look forward to answering», «prenota un tour»). I recapiti della firma (telefono, email, sito, indirizzo, orari dell'ufficio) non sono un'apertura: lo è solo un numero o un indirizzo che la persona ci scrive perché lo usiamo. Ringraziare o salutare con garbo non è un'apertura. Un no cortese senza nessuna di queste cose non è un'apertura. Se trovi un'apertura, riporta la frase parola per parola. «Al momento non siamo interessati», «per ora no», «per il momento non ci serve» da soli, in un no cortese, non sono un'apertura.",
+ "misure": {
+  "grezzo_max_caratteri": 6000,
+  "nostra_max_caratteri": 1500,
+  "messaggi_max": 8,
+  "testo_suo_max_caratteri": 800
+ },
+ "ruoli": {
+  "lettore": {
+   "sforzo": "low",
+   "max_token": 6000
+  },
+  "seconda_lettura": {
+   "sforzo": "low",
+   "max_token": 3000
+  }
+ },
+ "rete_non_scrivere": [
+  "(?<!\\w)non\\s+(?:mi|ci)\\s+(?:\\w+\\s+)?(?:\\w+\\s+)?(?:scriv|contatt|mand|disturb)",
+  "(?<!\\w)non\\s+(?:scrivete|scrivermi|scriverci|contattate|contattarmi|contattarci|inviate|disturbate)\\w*\\s+(?:\\w+\\s+)?(?:\\w+\\s+)?pi[uù](?!\\w)",
+  "(?<!\\w)(?:cancell|togli|rimuov|elimin)(?:atemi|etemi|ateci|eteci|armi|erci)(?!\\w)",
+  "(?<!\\w)(?:toglie|rimuov|cancell|elimin)\\w*\\s+(?:\\w+\\s+)?(?:\\w+\\s+)?(?:\\w+\\s+)?(?:mio|mia|miei|mie|nostr\\w*)\\s+(?:\\w+\\s+)?(?:indirizz|mail|nominativ|contatt|dati)",
+  "(?<!\\w)(?:toglie|rimuov|cancell|elimin)\\w*\\s+(?:\\w+\\s+)?(?:\\w+\\s+)?(?:\\w+\\s+)?(?:da|dalla|dalle|dai|dal|dagli)\\s+(?:vostr\\w*\\s+)?(?:lista|elenc|database|mailing|newsletter|indirizzari)",
+  "(?<!\\w)(?:unsubscribe|disiscriv)|(?<!\\w)vi\\s+diffid|(?<!\\w)diffida\\s+formale|(?<!\\w)vie\\s+legali|(?<!\\w)(?:mio|nostro)\\s+(?:legale|avvocato)|(?<!\\w)(?:segnalazione|esposto|reclamo|ricorso)\\s+(?:\\w+\\s+)?(?:\\w+\\s+)?garante",
+  "^[^\\w\\n]*(?:s[iì]\\W+)?(?:stop|remove|basta|unsubscribe)(?!\\w)(?:\\W+(?:per\\s+favore|grazie|così))?[^\\w\\n]*$",
+  "(?<!\\w)basta\\s+(?:con\\s+)?(?:quest[ei]\\s+|le\\s+)?(?:mail|e-?mail|messaggi|spam)(?!\\w)",
+  "(?<!\\w)(?:cancellami|toglimi|rimuovimi|eliminami)(?!\\w)"
+ ],
+ "casi": [
+  {
+   "id": "C01",
+   "nome": "Sì, me la mandi",
+   "quando": "accetta di ricevere l'analisi, senza condizioni particolari e senza parlare di call",
+   "frasi": [
+    "Volentieri, me la invii",
+    "Prego procedete",
+    "Va bene, perché no",
+    "mandali pure",
+    "Attendo l'analisi"
+   ]
+  },
+  {
+   "id": "C02",
+   "nome": "La mail è corretta",
+   "quando": "risponde alla nostra domanda «mi conferma che la mail è giusta?» (di solito al passo 2): è un sì",
+   "frasi": [
+    "La mail è corretta",
+    "Confermo",
+    "Sì, l'indirizzo è giusto, resto in attesa"
+   ]
+  },
+  {
+   "id": "C03",
+   "nome": "Sì, ma senza impegno",
+   "quando": "accetta l'analisi mettendo le mani avanti: scettico, poco tempo, nessun impegno, «per valutare l'interesse»",
+   "frasi": [
+    "Se è gratuita me la invii",
+    "Può inoltrarla, non le garantisco interesse",
+    "Attendo una vostra mail per valutare l'effettivo interesse",
+    "Il nostro business è diverso, ma la guardo"
+   ]
+  },
+  {
+   "id": "C04",
+   "nome": "Mandatela, se ci interessa vi cerchiamo noi",
+   "quando": "accetta l'analisi ma vuole decidere lui i tempi: niente call fissata, niente solleciti",
+   "frasi": [
+    "Se emergono spunti la ricontattiamo noi",
+    "La valutiamo internamente, senza fissare una call",
+    "Inviateci il materiale, se valutiamo vi ricontattiamo"
+   ]
+  },
+  {
+   "id": "C05",
+   "nome": "Sì, e poi sentiamoci",
+   "quando": "accetta l'analisi e parla già di sentirsi, di una call, di una chiacchierata, oppure dice che chiamerà lui",
+   "frasi": [
+    "Leggerò volentieri, poi fissiamo una call per conoscerci",
+    "Guardo l'analisi e ci sentiamo",
+    "Me la invii, la chiamo io dopo averla letta"
+   ],
+   "caldo": true
+  },
+  {
+   "id": "C06",
+   "nome": "Sì, e una domanda",
+   "quando": "accetta e fa una domanda su di noi, sul servizio, sui criteri, sul prezzo",
+   "frasi": [
+    "Come ci avete trovato e con che criteri?",
+    "Lavorate anche sui mercati esteri?",
+    "Mi manda anche un preventivo dei servizi?"
+   ]
+  },
+  {
+   "id": "C07",
+   "nome": "Pensavo l'aveste già mandata",
+   "quando": "crede che l'analisi fosse già partita o di non averla ricevuta, prima che noi l'abbiamo mandata",
+   "frasi": [
+    "Non ho ricevuto nulla",
+    "Non ritrovo la sua mail, può reinoltrarla?",
+    "Non ho ancora avuto modo di valutarla con il collega"
+   ]
+  },
+  {
+   "id": "C08",
+   "nome": "Chi siete? Di cosa si tratta?",
+   "quando": "vuole capire chi siamo o cosa proponiamo prima di dire sì",
+   "frasi": [
+    "In merito a cosa?",
+    "Non ho capito cosa ci state proponendo",
+    "Che tipo di analisi, nello specifico?"
+   ]
+  },
+  {
+   "id": "C09",
+   "nome": "No, ma la mandi pure",
+   "quando": "dice di no (già seguiti, nessun budget, non interessati a nuovi servizi o collaborazioni, un settore particolare) ma accetta comunque di ricevere l'analisi o conferma la mail («mi invii pure», «la guardo comunque», «la mail gliela confermo, ma…»): è C09, non un sì (C01-C04 non dicono no) e non un no (C24-C28 non accettano l'analisi)",
+   "frasi": [
+    "Mi invii pure l'analisi, ma siamo già seguiti",
+    "Il budget è finito, ma se vuole mandarmi ciò che avete fatto lo guardo",
+    "Tendenzialmente no, ma se vuole convincerci mi dica"
+   ]
+  },
+  {
+   "id": "C10",
+   "nome": "Chiamami / proponetemi un giorno",
+   "quando": "chiede di essere chiamato, di parlare al telefono, lascia un numero per farsi chiamare, chiede o propone un giorno o un orario per sentirsi",
+   "frasi": [
+    "Mi chiami domani mattina alle 9.15",
+    "Possiamo sentirci mercoledì mattina?",
+    "Le lascio il mio numero diretto",
+    "Quando siete disponibili per una call?"
+   ],
+   "caldo": true
+  },
+  {
+   "id": "C11",
+   "nome": "Ok per l'orario",
+   "quando": "accetta o sposta l'orario che gli abbiamo proposto per la videochiamata",
+   "frasi": [
+    "Ok alle 15:30",
+    "Venerdì alle 15:30 va bene, manda lei l'invito?",
+    "Quel giorno no, lunedì o mercoledì alla stessa ora"
+   ],
+   "caldo": true
+  },
+  {
+   "id": "C12",
+   "nome": "Ho prenotato dal calendario",
+   "quando": "dice di aver prenotato dal link del calendario, o accetta l'invito",
+   "frasi": [
+    "Prenoto lo slot",
+    "Fissato per venerdì alle 15",
+    "Bene grazie, a lunedì"
+   ]
+  },
+  {
+   "id": "C13",
+   "nome": "Spostiamo, call saltata, problemi di link",
+   "quando": "una call già fissata da spostare, saltata, o un problema col collegamento",
+   "frasi": [
+    "Devo posticipare l'incontro di domani",
+    "Il link al calendario non funziona",
+    "Io ci sono ma non vedo nessuno"
+   ]
+  },
+  {
+   "id": "C14",
+   "nome": "Dopo la conoscitiva, in trattativa, cliente",
+   "quando": "scrive dopo una call già fatta con noi: contratti, accessi, materiali, preventivo, dubbi dopo la call",
+   "frasi": [
+    "Vi mando gli accessi",
+    "Dopo la call col vostro collega non vi ho più sentito",
+    "Il consiglio non ha autorizzato"
+   ]
+  },
+  {
+   "id": "C15",
+   "nome": "L'ho letta, sentiamoci",
+   "quando": "dopo aver ricevuto l'analisi vuole una call, un appuntamento, un approfondimento",
+   "frasi": [
+    "Bellissima analisi, organizziamo una chiamata, oggi potrei",
+    "Mi ci sono ritrovato, fissiamo fra il 22 e il 24",
+    "Possiamo fissare un appuntamento?"
+   ],
+   "caldo": true
+  },
+  {
+   "id": "C16",
+   "nome": "La guardo / l'ho girata / grazie",
+   "quando": "dopo l'analisi: la leggerà, l'ha girata a chi decide, ringrazia",
+   "frasi": [
+    "La settimana prossima la guardo e le faccio sapere",
+    "L'ho sottoposta al titolare",
+    "Ok grazie"
+   ]
+  },
+  {
+   "id": "C17",
+   "nome": "Interessante, ma più avanti",
+   "quando": "dopo l'analisi: interessato, ma rimanda a un momento o a una data",
+   "frasi": [
+    "Sentiamoci a fine ottobre",
+    "Mi piacerebbe un confronto, ma ora ho altre priorità: sentiamoci a fine mese"
+   ]
+  },
+  {
+   "id": "C18",
+   "nome": "Critica o domanda sull'analisi",
+   "quando": "dopo l'analisi: la critica, contesta un dato, spiega perché non va bene per il suo caso o il suo mercato, fa domande nel merito: è C18 anche se chiude con un no o con «non procediamo». Se dice di no senza discutere l'analisi è C19",
+   "frasi": [
+    "Sembra fatta da un'IA",
+    "I volumi non ci sono, manca il costo per incarico",
+    "Avete casi nel mio settore?"
+   ]
+  },
+  {
+   "id": "C19",
+   "nome": "No, dopo l'analisi",
+   "quando": "dopo aver ricevuto l'analisi dice di no, senza discuterla nel merito (se la critica, la contesta o spiega perché non va bene per lui è C18)",
+   "frasi": [
+    "Con l'AI facciamo tutto internamente",
+    "Non fissiamo la call; se cambia mi ricorderò di voi",
+    "Davvero non è il periodo"
+   ],
+   "porta_aperta": true
+  },
+  {
+   "id": "C20",
+   "nome": "Non è arrivata o allegato sbagliato",
+   "quando": "l'analisi che gli abbiamo mandato non è arrivata o è di un'altra azienda",
+   "frasi": [
+    "Veramente non ho ricevuto niente",
+    "Mi ha allegato l'analisi di un'altra azienda"
+   ]
+  },
+  {
+   "id": "C21",
+   "nome": "Risentiamoci a una data",
+   "quando": "rimanda a un mese o a una data precisa, prima di aver ricevuto l'analisi",
+   "frasi": [
+    "Ci sentiamo a settembre",
+    "Mi riscriva a luglio",
+    "Dopo l'evento di metà ottobre ci aggiorniamo"
+   ]
+  },
+  {
+   "id": "C22",
+   "nome": "Ora non è il momento",
+   "quando": "rimanda senza una data: troppo lavoro, periodo pieno, mercato fermo",
+   "frasi": [
+    "Non riesco a risponderle ora, non escludo di riparlarne",
+    "Per ora siamo impegnati"
+   ]
+  },
+  {
+   "id": "C23",
+   "nome": "Motivo personale",
+   "quando": "rimanda o non risponde per un motivo personale: salute, famiglia",
+   "frasi": [
+    "Problemi in famiglia",
+    "Sono in ospedale dopo un intervento"
+   ]
+  },
+  {
+   "id": "C24",
+   "nome": "No, grazie",
+   "quando": "un no secco, senza spiragli",
+   "frasi": [
+    "Non siamo interessati",
+    "No grazie",
+    "Non fa per noi",
+    "Preferiamo non ricevere il materiale"
+   ]
+  },
+  {
+   "id": "C25",
+   "nome": "Al momento no",
+   "quando": "un no cortese legato al momento («al momento», «per ora», «quest'anno»), senza un motivo preciso: con un motivo (budget, troppo lavoro, già seguiti, il settore) è C27 o C28, anche se dice «al momento». La porta è aperta solo se dice anche che vuole risentirci (più avanti, in futuro, a una data, terrà presente il contatto)",
+   "frasi": [
+    "Al momento non siamo interessati",
+    "Per il momento non è nei nostri programmi, ma ci risentiamo più avanti",
+    "Per quest'anno siamo a posto, magari il prossimo"
+   ],
+   "porta_aperta": true
+  },
+  {
+   "id": "C26",
+   "nome": "No, ma vi terremo presenti",
+   "quando": "dice di no ma tiene la porta aperta in modo esplicito",
+   "frasi": [
+    "Al momento no, ma la terremo in considerazione se avremo bisogno",
+    "Conserverò il suo contatto per una futura valutazione"
+   ]
+  },
+  {
+   "id": "C27",
+   "nome": "Abbiamo già chi ci segue",
+   "quando": "no perché hanno già un'agenzia, un consulente o fanno da soli",
+   "frasi": [
+    "Siamo già seguiti da un'agenzia",
+    "Abbiamo un ufficio interno",
+    "Ci troviamo molto bene"
+   ],
+   "porta_aperta": true
+  },
+  {
+   "id": "C28",
+   "nome": "Non ci serve",
+   "quando": "no motivato: non fanno pubblicità, hanno troppo lavoro, il settore non può, vicini alla pensione, budget",
+   "frasi": [
+    "Non facciamo pubblicità né la faremo",
+    "Abbiamo più domanda di quanta ne possiamo servire",
+    "La mia professione non può farsi pubblicità"
+   ]
+  },
+  {
+   "id": "C29",
+   "nome": "Un'obiezione da smontare",
+   "quando": "un'obiezione con una porta: Google non ha funzionato, «siete automatici», agenzia immobiliare senza immobili",
+   "frasi": [
+    "Le campagne Google le ho fatte tre volte: costosissime, zero contatti",
+    "Mi scrivete tutti uguale, è un sistema automatico"
+   ]
+  },
+  {
+   "id": "C30",
+   "nome": "Non scrivetemi più",
+   "quando": "chiede di non essere più contattato, di essere tolto dalla lista, di cancellare i dati",
+   "frasi": [
+    "Toglietemi dalla lista",
+    "Stop",
+    "Basta per favore",
+    "Unsubscribe",
+    "Cancellate i miei dati"
+   ]
+  },
+  {
+   "id": "C31",
+   "nome": "Irritato o sarcastico",
+   "quando": "infastidito, sarcastico, accusa di spam, senza chiedere esplicitamente la cancellazione",
+   "frasi": [
+    "Spero sia proprio l'ultima",
+    "Spam!",
+    "Non le ho permesso di darmi del tu"
+   ]
+  },
+  {
+   "id": "C32",
+   "nome": "Provoca, ma conferma",
+   "quando": "una provocazione o una critica a noi, insieme a una conferma",
+   "frasi": [
+    "Confermo la mail, ma la vostra firma ha un link sbagliato"
+   ]
+  },
+  {
+   "id": "C33",
+   "nome": "Da dove avete preso il mio indirizzo?",
+   "quando": "chiede la fonte dei dati o il consenso all'invio",
+   "frasi": [
+    "Da dove avete preso la mia mail?",
+    "Chi le ha dato il consenso all'invio?"
+   ]
+  },
+  {
+   "id": "C34",
+   "nome": "Controproposta",
+   "quando": "propone un altro accordo: equity, percentuale, partnership, oppure vuole vendere qualcosa a noi",
+   "frasi": [
+    "Possiamo ragionare solo in equity",
+    "Paghiamo solo una percentuale dei contratti firmati"
+   ]
+  },
+  {
+   "id": "C35",
+   "nome": "Scriva a quest'altro indirizzo",
+   "quando": "una persona (non un risponditore) ci indica un collega o un altro indirizzo a cui scrivere, e ci scrive l'indirizzo email. Col solo nome, senza un indirizzo, è C36; un risponditore automatico che dà un indirizzo nuovo è C38 (C44 se è un fuori ufficio); chi non c'entra con l'azienda è C40",
+   "frasi": [
+    "Può inviarla al collega che se ne occupa",
+    "Non sono il titolare, scrivete all'indirizzo generale",
+    "Contatti il mio socio"
+   ],
+   "indirizzo": true
+  },
+  {
+   "id": "C36",
+   "nome": "L'ho girata, vi contatteranno",
+   "quando": "ha girato la mail a qualcun altro, o ci dice il nome di chi se ne occupa, senza darci un indirizzo email a cui scrivere",
+   "frasi": [
+    "Ho girato all'ufficio competente, nel caso sarete ricontattati",
+    "Se il titolare è interessato le scriverà",
+    "Se ne occupa il mio collega del marketing, provi con lui"
+   ]
+  },
+  {
+   "id": "C37",
+   "nome": "Mette in copia un collega",
+   "quando": "mette in copia (cc) un collega o lo indica come destinatario",
+   "frasi": [
+    "Metto in copia il responsabile marketing",
+    "La invii al signore che ci legge in copia"
+   ]
+  },
+  {
+   "id": "C38",
+   "nome": "Ho cambiato indirizzo",
+   "quando": "comunica un indirizzo nuovo a cui scrivere al posto di questo, quasi sempre con un messaggio automatico («questa casella non è più attiva, scrivete a…»): un risponditore che ci rimanda a un altro indirizzo, senza un'assenza, è C38 e non C35",
+   "frasi": [
+    "Il mio nuovo indirizzo è…",
+    "Questa casella sarà dismessa, scrivete a…"
+   ],
+   "automatico": true,
+   "indirizzo": true
+  },
+  {
+   "id": "C39",
+   "nome": "Non lavora più qui",
+   "quando": "la persona non lavora più in azienda o non ricopre più il ruolo",
+   "frasi": [
+    "Non faccio più parte del team",
+    "Non è più in azienda, inoltro alla direzione"
+   ]
+  },
+  {
+   "id": "C40",
+   "nome": "Persona sbagliata",
+   "quando": "il nome o il ruolo a cui abbiamo scritto è sbagliato, oppure la persona non c'entra con le decisioni dell'azienda (non ha più incarichi, ha un ruolo secondario, è solo socio, l'azienda non è sua, ha fatto solo il sito): è C40 anche se ci suggerisce a chi rivolgerci",
+   "frasi": [
+    "Qui non lavora nessun signor…",
+    "Probabilmente ha sbagliato destinatario",
+    "L'azienda non è mia, ho fatto solo il sito"
+   ]
+  },
+  {
+   "id": "C41",
+   "nome": "Avete sbagliato un dato",
+   "quando": "ci corregge un dato su di loro (settore, città, prodotto)",
+   "frasi": [
+    "Facciamo strumenti, non imbarcazioni",
+    "Non abbiamo mai lavorato in quella città"
+   ]
+  },
+  {
+   "id": "C42",
+   "nome": "Azienda sbagliata",
+   "quando": "dice che abbiamo scritto all'azienda sbagliata (omonimia, altro settore)",
+   "frasi": [
+    "Noi non facciamo campagne, ha sbagliato azienda",
+    "Ora dovete solo trovare l'azienda giusta"
+   ]
+  },
+  {
+   "id": "C43",
+   "nome": "Fuori ufficio con data",
+   "quando": "risponditore o messaggio di assenza con la data di rientro, senza un collega da contattare al suo posto: un indirizzo generico (info@, assistenza, un ufficio, la sede) o un numero «per urgenze» non sono un collega. Se indica un collega per nome o col suo indirizzo è C44, anche se c'è la data",
+   "frasi": [
+    "Fuori ufficio fino al 21 agosto",
+    "Lo studio resta chiuso per la pausa estiva"
+   ],
+   "automatico": true
+  },
+  {
+   "id": "C44",
+   "nome": "Fuori ufficio con un collega",
+   "quando": "assenza breve (ferie, viaggio, fuori ufficio, con o senza la data di rientro) che indica il nome o l'indirizzo di un collega (una persona) da contattare al suo posto; un indirizzo generico (info@, assistenza, un ufficio, la sede) o un numero «per urgenze» non bastano: allora è C43. Un'assenza lunga (maternità, malattia, aspettativa) è C46 anche se indica un collega",
+   "frasi": [
+    "Per urgenze scrivere al collega…",
+    "In mia assenza contattate…"
+   ],
+   "automatico": true,
+   "indirizzo": true
+  },
+  {
+   "id": "C45",
+   "nome": "Fuori ufficio senza data",
+   "quando": "assenza senza data di rientro e senza collega",
+   "frasi": [
+    "Sono fuori ufficio",
+    "Risponderò al mio rientro"
+   ],
+   "automatico": true
+  },
+  {
+   "id": "C46",
+   "nome": "Assenza lunga",
+   "quando": "assenza lunga: maternità, malattia, aspettativa, per mesi; è C46 anche se indica un collega o un ufficio a cui scrivere",
+   "frasi": [
+    "Sono in maternità fino a marzo"
+   ],
+   "automatico": true
+  },
+  {
+   "id": "C47",
+   "nome": "Messaggio automatico",
+   "quando": "ricevuta, ticket, orari, filtro anti-spam: una macchina, senza parole di una persona",
+   "frasi": [
+    "Abbiamo ricevuto la sua richiesta, la ricontatteremo",
+    "Numero di pratica…",
+    "Il nostro sistema ha rilevato una mail generata con l'IA"
+   ],
+   "automatico": true
+  },
+  {
+   "id": "C48",
+   "nome": "Rimbalzo, casella morta",
+   "quando": "la mail non è stata consegnata: casella inesistente o piena",
+   "frasi": [
+    "Delivery has failed to these recipients",
+    "Il recapito non è riuscito",
+    "Undeliverable",
+    "Indirizzo inesistente"
+   ],
+   "automatico": true
+  },
+  {
+   "id": "C49",
+   "nome": "Attività chiusa o venduta",
+   "quando": "l'azienda o il progetto chiude o ha cessato l'attività, è in liquidazione o è stata venduta (anche se lascia un contatto personale)",
+   "frasi": [
+    "Siamo in chiusura definitiva",
+    "Società in liquidazione",
+    "Ho venduto l'azienda"
+   ]
+  },
+  {
+   "id": "C50",
+   "nome": "Lutto",
+   "quando": "la persona a cui abbiamo scritto è morta",
+   "frasi": [
+    "Il titolare è venuto a mancare"
+   ]
+  },
+  {
+   "id": "C51",
+   "nome": "Risposta vuota o solo firma",
+   "quando": "nessuna parola della persona, solo firma o niente",
+   "frasi": []
+  },
+  {
+   "id": "C52",
+   "nome": "Solo «grazie» o «ok»",
+   "quando": "un «grazie» o un «ok» senza altro, e la nostra mail prima non chiedeva una conferma",
+   "frasi": [
+    "Grazie",
+    "Ok"
+   ]
+  },
+  {
+   "id": "C53",
+   "nome": "Sì da un fuori target",
+   "quando": "dice sì, ma chi scrive è un'agenzia o un consulente di marketing, comunicazione, pubblicità, web o lead generation (lo dicono la firma, il nome dell'azienda, il sito), un concorrente o un settore escluso",
+   "frasi": [
+    "Siamo un'agenzia anche noi, mandatela pure"
+   ]
+  },
+  {
+   "id": "C54",
+   "nome": "Non parla italiano",
+   "quando": "risponde in un'altra lingua (non un risponditore)",
+   "frasi": [
+    "Please send it over"
+   ]
+  },
+  {
+   "id": "C55",
+   "nome": "Nonprofit o ente pubblico",
+   "quando": "un ente pubblico o una nonprofit che risponde",
+   "frasi": [
+    "Siamo un ente pubblico, gli incarichi passano da una procedura"
+   ]
+  }
+ ],
+ "istruzioni_caldo": "Un'agenzia ha scritto a un'azienda offrendo un'analisi gratuita del suo marketing su Google e, se interessa, una breve videochiamata con il titolare. Qui sotto c'è la risposta dell'azienda. Un primo lettore l'ha letta come un sì, ma senza voglia di sentirsi. Il tuo compito è controllare proprio questo: la persona accenna in qualunque modo a parlarne a voce, sentirsi, una chiamata, una call, un incontro, un appuntamento, un confronto, anche al condizionale, con un dubbio o più avanti («ne parliamo», «poi ci sentiamo», «se serve organizziamo una chiamata», «mi chiami», «la chiamo io»), propone un giorno o un orario, oppure scrive un suo numero perché lo usiamo? Allora caldo è true, e riporta la frase parola per parola. Non bastano: un numero che sta solo nella firma, «me la mandi», «la guardo», «la valuto», «vi faremo sapere», «se interessa vi ricontattiamo», un rimando a più avanti senza parlare di sentirsi, i saluti e i ringraziamenti. Un risponditore automatico non è mai caldo."
+}
