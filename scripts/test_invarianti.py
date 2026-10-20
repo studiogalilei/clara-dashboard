@@ -3907,6 +3907,95 @@ def _():
     assert len(note) == 1 and "3" in note[0][0], note
 
 
+@prova("bozze: chi risponde di persona dopo l'analisi e' in conversazione, niente bozza (Dre 20/10: «faccio io»)")
+def _():
+    import bozze
+    p = {"id": "x", "analysis_sent_at": "2026-10-10T09:00:00+00:00", "last_reply_at": "2026-10-12T08:00:00+00:00"}
+    persona = {"at": "2026-10-12T08:00:00+00:00", "body": "Grazie, l'ho letta. Possiamo sentirci giovedi'?"}
+    prima = {"at": "2026-10-09T08:00:00+00:00", "body": "Si', mandatemi l'analisi"}
+    ooo = {"at": "2026-10-12T08:00:00+00:00", "body": "Sono fuori ufficio fino al 20 ottobre. Risposta automatica."}
+    assert bozze.in_conversazione(p, [prima, persona]) is True, "una persona dopo l'analisi e' una conversazione"
+    assert bozze.in_conversazione({**p, "last_reply_at": prima["at"]}, [prima]) is False, "il si' prima dell'analisi non e' una conversazione"
+    assert bozze.in_conversazione(p, [prima, ooo]) is False, "un fuori ufficio dopo l'analisi non e' una persona"
+    assert bozze.in_conversazione({"id": "x", "analysis_sent_at": None}, [persona]) is False, "senza analisi non c'e' conversazione"
+    # la mail non e' ancora nel database ma la data dice che ha risposto dopo: nel dubbio, scrive Dre
+    assert bozze.in_conversazione(p, []) is True
+    # e il motore lo chiede prima di pagare la bozza, per chi aspetta e per chi e' in coda
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py")).read()
+    assert src.count("in_conversazione(p, risposte_dopo") >= 2, "il controllo deve stare su chi aspetta e su chi e' in coda"
+
+
+@prova("orecchio: una mail che annulla la call riporta il lead a «Da chiamare» e ferma il promemoria, nient'altro (20/10)")
+def _():
+    import orecchio as O
+    utc = datetime.timezone.utc
+    at = datetime.datetime(2026, 10, 19, 9, 3, tzinfo=utc)
+    lead = "mario" + "@" + "esempio.invalid"
+    ev = {"evento": "ev1", "inizio": datetime.datetime(2026, 10, 21, 9, 0, tzinfo=utc), "stato": "confirmed",
+          "titolo": "StudioGalilei - Chiamata conoscitiva (Mario Rossi)", "invitati": [lead, "dramane" + "@" + "studiogalilei.com"],
+          "descrizione": "", "pid": "p1"}
+    vecchia = {**ev, "evento": "ev0", "inizio": datetime.datetime(2026, 10, 15, 9, 0, tzinfo=utc)}
+    appunto = {**ev, "evento": "ev2", "titolo": "preparare la proposta", "invitati": []}
+    # la call giusta: la prossima dopo la mail, del lead (per invitato o per lead), mai un appunto o una passata
+    assert O.call_del_lead(lead, None, [vecchia, appunto, ev], at)["evento"] == "ev1"
+    assert O.call_del_lead("altro" + "@" + "esempio.invalid", "p1", [ev], at)["evento"] == "ev1"
+    assert O.call_del_lead("altro" + "@" + "esempio.invalid", "p9", [ev], at) is None
+    # il caso del 19/10: «ho avuto un imprevisto e devo annullare l'appuntamento»
+    testo = "Buongiorno ho avuto un imprevisto e devo annullare l'appuntamento. Le faccio sapere io"
+    assert O.decidi("R: Promemoria: Chiamata conoscitiva", testo, {"cosa": "annulla", "sicuro": True, "perche": "x"})[0] == "annulla"
+    assert O.decidi("Re: call", "Possiamo spostarla a venerdi'?", {"cosa": "sposta", "sicuro": True, "perche": "x"})[0] == "sposta"
+    assert O.decidi("Rifiutato: Chiamata conoscitiva", "", None)[0] == "annulla", "il rifiuto dell'invito e' un annullamento"
+    # due teste: senza le parole o senza il lettore sicuro, non si tocca niente
+    assert O.decidi("Re: analisi", "Grazie, ci vediamo mercoledi'", {"cosa": "annulla", "sicuro": True, "perche": "x"})[0] is None
+    assert O.decidi("Re: analisi", testo, {"cosa": "annulla", "sicuro": False, "perche": "x"})[0] is None
+    assert O.decidi("Re: analisi", testo, None)[0] is None, "senza il lettore AI non si agisce"
+    assert O.decidi("Accettato: Chiamata conoscitiva", "non riesco a trovare il link", None)[0] is None
+    # quello che Dre ha gia' deciso vince (collaudo 20/10: il lead del 19/10 Dre l'aveva gia' segnato perso)
+    dopo = (at + datetime.timedelta(hours=1)).isoformat()
+    prima = (at - datetime.timedelta(days=2)).isoformat()
+    assert O.gia_deciso({"stage": "risposto"}, None, [], at) is None
+    assert O.gia_deciso({"stage": "risposto"}, {"stato": "Call fissata", "aggiornato_il": prima}, [{"at": prima}], at) is None
+    assert O.gia_deciso({"stage": "perso"}, None, [], at)
+    assert O.gia_deciso({"stage": "risposto"}, {"stato": "Perso", "aggiornato_il": prima}, [], at)
+    assert O.gia_deciso({"stage": "risposto"}, {"stato": "Call fissata", "aggiornato_il": dopo}, [], at)
+    assert O.gia_deciso({"stage": "risposto"}, None, [{"at": dopo}], at), "una nota di Dre dopo la mail: ci ha gia' pensato lui"
+    # le tre scritture, e solo quelle
+    s = O.scritture("p1", "ev1", "annulla", datetime.date(2026, 10, 19))
+    assert [t for t, _ in s] == ["snella_lead", "snella_note", "promemoria"]
+    assert s[0][1]["stato"] == "Da chiamare" and s[1][1]["testo"] == "Achille: ha annullato la call per mail"
+    assert s[2][1]["ref"] == "promemoria:ev1", "il promemoria si ferma con il ref che promemoria.py controlla"
+    import promemoria
+    assert "ref=eq.{ref}" in open(promemoria.__file__).read(), "promemoria.py deve saltare la call se il ref esiste gia'"
+    # non manda, non tocca il calendario, non scrive bozze
+    src = open(O.__file__).read()
+    for vietato in ("import manda", "proponi(", "messages/send", "drafts", '"PATCH", f"{CAL', "/events/", "smartlead"):
+        assert vietato not in src, f"l'orecchio non deve contenere {vietato}"
+    assert O.e_nostro("dramane" + "@" + "studiogalilei.com") and O.e_nostro("calendar-notification" + "@" + "google.com")
+
+
+@prova("categorie Smartlead: un pezzo per giro sotto la soglia, i freschi prima, e una card sola del Revisore (20/10)")
+def _():
+    import categorie_smartlead as CS
+    righe = [{"email": f"x{i}@esempio.invalid", "classificazione": "negativo", "risposta_il": f"2026-10-{1 + i % 28:02d}"} for i in range(870)]
+    righe += [{"email": "s@esempio.invalid", "classificazione": "soppresso", "risposta_il": "2026-10-30"}]
+    righe.sort(key=lambda r: r["risposta_il"], reverse=True)
+    ora, dopo = CS.pezzo_del_giro(righe)
+    import revisore
+    assert 0 < len(ora) <= revisore.SOGLIA, "ogni giro deve stare sotto la soglia del Revisore, o si ferma per sempre"
+    assert len(ora) + len(dopo) == 870 and all(r["classificazione"] != "soppresso" for r in ora + dopo), "i soppressi non rubano il posto"
+    assert ora[0]["risposta_il"] >= dopo[0]["risposta_il"], "le risposte fresche prima"
+    # un'autorisposta con il si' di classe non e' «Analisi» (campione del 20/10)
+    pos = {"classificazione": "positivo", "stage": "risposto"}
+    assert CS.categoria_nuova(pos, testo="Buongiorno, la mail è stata ricevuta. Verrà visionata nei giorni di ufficio.") == CS.N_OOO
+    assert CS.categoria_nuova(pos, testo="Il nostro ufficio è chiuso fino a giovedì. Risponderemo alla vostra e-mail giovedì.") == CS.N_OOO
+    assert CS.categoria_nuova(pos, testo="Sì, mandatemi pure l'analisi, grazie") == CS.N_SI
+    # un perso (ha annullato e Dre l'ha chiuso) non e' «Conoscitiva» anche se la call resta in agenda
+    assert CS.categoria_nuova({"classificazione": "rinvio", "stage": "perso"}, testo="devo annullare l'appuntamento", call=True) is None
+    assert CS.categoria_nuova({"classificazione": "positivo", "stage": "call_fissata"}, call=True) == CS.N_CALL
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "revisore.py")).read()
+    assert "gia_aperta" in src and "stato=eq.aperta&azione->revisore->>azione" in src, "una domanda aperta per azione, non una per giro"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

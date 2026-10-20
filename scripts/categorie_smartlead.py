@@ -52,7 +52,17 @@ CAMBIO = _re.compile(r"(indirizzo|address|e-?mail)\W+(\w+\W+){0,4}(cambiat|chang
 INOLTRATO = _re.compile(r"(ho|abbiamo) (girato|inoltrato|passato) (la (vostra|sua|tua) (mail|email|richiesta)|al (collega|responsabile|ufficio))", _re.I)
 # un autorisponditore non e' una persona che chiede informazioni (caso Tangible Design, 6/10)
 AUTORISPOSTA = _re.compile(r"your message has been received|support (staff|team)|ticket|thank you for (your|contacting)|"
-                           r"risposta automatica|messaggio automatico|automatic reply|out of (the )?office|fuori ufficio|do not reply", _re.I)
+                           r"risposta automatica|messaggio automatico|automatic reply|out of (the )?office|fuori ufficio|do not reply|"
+                           # 20/10, dal campione: «la mail e' stata ricevuta, verra' visionata» era un si' di classe
+                           r"(e-?)?mail (e'|è) stata ricevuta|verr[aà] (visionata|presa in carico)", _re.I)
+
+
+def automatica(testo):
+    """Un'autorisposta (presa in carico, ufficio chiuso, fuori ufficio): non e' una persona."""
+    if not testo:
+        return False
+    from segnale_provvisorio import automatica as _sp
+    return bool(AUTORISPOSTA.search(testo)) or _sp(testo)
 # un no scritto chiaro dentro un si' di classe: non si etichetta, si segnala (la classe e' sbagliata)
 from lettura import NO_INTERESSATO as _NO_INTERESSATO       # noqa: E402  la regola unica (14/10)
 NO_SCRITTO = _re.compile(_NO_INTERESSATO + "|" + r"non (e'|è) di (nostro|mio) interesse|non (ci|mi) interessa|non (siamo|sono) interessat|"
@@ -91,12 +101,17 @@ def categoria_nuova(p, intento=None, girato=False, testo="", call=False):
     pipeline e clienti senza call non si toccano; la call fissata vince su tutto tranne
     soppressi e persi; un sì di classe con un no scritto non si etichetta (va corretta la classe)."""
     c = p.get("classificazione")
-    if call and c != "soppresso" and p.get("pipeline_stage") != "perso":
+    # 20/10, dal campione: un lead che ha annullato la call e che Dre ha segnato perso finiva in
+    # «Conoscitiva» (la call restava in agenda). Un perso e' gia' deciso: niente etichetta nuova.
+    perso = "perso" in (p.get("pipeline_stage"), p.get("stage"))
+    if call and c != "soppresso" and not perso:
         return N_CALL
     if p.get("fuori") or p.get("bloccato"):
         return None
     if c in ("soppresso", "nervoso"):
         return N_STOP
+    if perso:
+        return None
     if c == "fuori_target":
         return N_FUORI
     if testo and MORTA.search(testo):
@@ -115,6 +130,10 @@ def categoria_nuova(p, intento=None, girato=False, testo="", call=False):
         return N_GIRATO
     if c in ("positivo", "tiepido") and testo and NO_SCRITTO.search(testo):
         return None
+    # 20/10, dal campione di 10: due autorisposte («la mail e' stata ricevuta», «l'ufficio e' chiuso
+    # fino a giovedi'») col si' di classe finivano in «Analisi». Se l'ultima e' una macchina, e' un fuori ufficio.
+    if c in ("positivo", "tiepido") and automatica(testo):
+        return N_OOO
     if (girato or (testo and INOLTRATO.search(testo))) and c != "positivo":
         return N_GIRATO
     if c == "tiepido" or intento in INTENTI_DOMANDA:
@@ -223,7 +242,7 @@ DA_GUARDARE = []
 
 
 def da_allineare():
-    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,pipeline_stage,stage,enriched"
+    ps = sb_tutte("/rest/v1/prospects?select=id,email,company,classificazione,fuori,pipeline_stage,stage,enriched,last_reply_at"
                   "&last_reply_at=not.is.null&email=not.is.null")
     intenti, girati = {}, set()
     for x in sb_tutte("/rest/v1/proposte?select=prospect_id,at,azione&prospect_id=not.is.null"
@@ -257,8 +276,27 @@ def da_allineare():
             # Chi non va toccato lo decide gia' categoria_di (soppressi, fuori target,
             # persi, no dopo la call: None). Qui si scrive solo un'etichetta, mai una mail.
             righe.append({"id": p["id"], "email": p["email"], "azienda": p.get("company") or "", "classificazione": p.get("classificazione"),
-                          "esito": voluta, "pipeline": p.get("pipeline_stage") or "", "enriched": p.get("enriched") or {}})
+                          "esito": voluta, "pipeline": p.get("pipeline_stage") or "", "enriched": p.get("enriched") or {},
+                          "risposta_il": p.get("last_reply_at") or ""})
+    # le risposte piu' fresche prima: sono quelle che Dre guarda oggi nei filtri
+    righe.sort(key=lambda r: r["risposta_il"], reverse=True)
     return righe
+
+
+# UN PEZZO PER GIRO (20/10). Il 12/10 Dre ha creato i nomi nuovi e TUTTI i lead (oltre 800) andavano
+# rietichettati in un colpo: sopra la soglia del Revisore, che a ogni giro chiedeva l'ok in Posta e si
+# fermava. L'ok non e' mai arrivato, in Posta si sono accumulate 68 card uguali e il 13/10 l'operazione
+# e' stata spenta: per una settimana nessuna etichetta, nemmeno sulle risposte del giorno. Un'etichetta
+# non manda niente e si riscrive al giro dopo: si allinea un pezzo per giro, le risposte fresche prima,
+# e ogni pezzo passa comunque dalla seconda testa del Revisore. Riaccese il 20/10 (piano «io piu' il sistema», detto a Dre).
+PER_GIRO = 100
+
+
+def pezzo_del_giro(righe, quanti=PER_GIRO):
+    """(da scrivere adesso, rimandate al giro dopo). I soppressi restano fuori: il Revisore non
+    li tocca, e lasciarli dentro li faceva ripresentare a ogni giro rubando il posto agli altri."""
+    tenute = [r for r in righe if r.get("classificazione") != "soppresso"]
+    return tenute[:quanti], tenute[quanti:]
 
 
 def main():
@@ -271,6 +309,9 @@ def main():
         print(f"categorie: {len(DA_GUARDARE)} si' di classe con un no scritto, senza etichetta (da correggere la classe):")
         for n, c, t in DA_GUARDARE[:15]:
             print(f"  {n[:30]:30} {c}: «{t}»")
+    righe, dopo = pezzo_del_giro(righe)
+    if dopo:
+        print(f"categorie: ne scrivo {len(righe)} in questo giro (le risposte piu' fresche), {len(dopo)} ai giri dopo")
     if not righe:
         return
     if PROVA:

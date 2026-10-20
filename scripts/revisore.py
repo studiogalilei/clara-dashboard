@@ -173,7 +173,11 @@ def controlla(azione, righe, chiave=lambda r: r.get("email"), irreversibile=True
         # 13/10: una card sola per lo stesso piano (prima ne nasceva una nuova ogni 15 minuti)
         import hashlib
         ref_piano = "revisore:" + hashlib.sha256(f"{azione}|{len(tenute)}".encode("utf-8")).hexdigest()[:24]
-        pid = proponi("umano", f"Il Revisore chiede il tuo ok: {azione} ({len(tenute)} righe)", ref=ref_piano,
+        # 20/10: il numero di righe cambia a ogni giro, e con lui il ref: 68 card uguali in Posta per
+        # le categorie (12-13/10). Se per la stessa azione c'e' gia' una domanda aperta, non se ne fa un'altra.
+        gia_aperta = sb("GET", "/rest/v1/proposte?select=id&stato=eq.aperta&azione->revisore->>azione=eq."
+                               + urllib.parse.quote(azione, safe="") + "&limit=1")
+        pid = None if gia_aperta else proponi("umano", f"Il Revisore chiede il tuo ok: {azione} ({len(tenute)} righe)", ref=ref_piano,
                       perche=("\n".join(verbale) + "\nPer far partire: REVISORE_OK=<id di questa proposta>")[:280],
                       azione={"revisore": {"azione": azione, "righe": len(tenute), "esclusi": esclusi, "campione": campione[:5]}})
         verbale.append(f"  serve l'ok di Dre: proposta {pid} in Posta. Mi fermo.")

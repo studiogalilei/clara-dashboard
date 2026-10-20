@@ -40,6 +40,7 @@ import datetime
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 import zoneinfo
 from concurrent.futures import ThreadPoolExecutor
@@ -819,6 +820,41 @@ def chiudi_attese_senza_risposta():
     return n
 
 
+CONVERSAZIONE = "in conversazione: ha risposto dopo l'analisi, scrive Dre (niente bozza, regola del 20/10)"
+
+
+def in_conversazione(p, risposte):
+    """CHI RISPONDE DOPO L'ANALISI E' IN CONVERSAZIONE (Dre, 20/10: «se è una conversazione
+    no, faccio io»). Fino all'analisi scrive il sistema; dopo, ogni mail di una persona apre
+    una conversazione che Dre porta avanti da solo su Smartlead, e qui non nasce nessuna bozza
+    (in Posta ne erano ferme a decine). risposte: le sue mail ({at, body}) dal database.
+    Un fuori ufficio non e' una persona. Se la data dice che ha risposto dopo ma la mail non
+    e' ancora nel database, nel dubbio scrive Dre: una bozza in meno non fa danni."""
+    inviata = p.get("analysis_sent_at")
+    if not inviata:
+        return False
+    da = quando(inviata)
+    dopo = [r for r in risposte or [] if r.get("at") and quando(r["at"]) > da]
+    if dopo:
+        from segnale_provvisorio import automatica
+        return any(not automatica(r.get("body") or "") for r in dopo)
+    ultima = p.get("last_reply_at")
+    return bool(ultima) and quando(ultima) > da
+
+
+def risposte_dopo_analisi(ps):
+    """Le mail ricevute dopo l'analisi, per lead, in una lettura sola (niente Smartlead, niente modello)."""
+    out = {}
+    con = [p for p in ps if p.get("analysis_sent_at")]
+    for i in range(0, len(con), 60):
+        pezzo = con[i:i + 60]
+        da = min(p["analysis_sent_at"] for p in pezzo)
+        for r in sb_tutte(f"/rest/v1/interactions?select=prospect_id,at,body&kind=eq.email_in&at=gt.{urllib.parse.quote(da)}"
+                          f"&prospect_id=in.({','.join(p['id'] for p in pezzo)})"):
+            out.setdefault(r["prospect_id"], []).append(r)
+    return out
+
+
 def main():
     global LEZIONI
     print("LE BOZZE" + (" (prova: non scrive niente)" if PROVA else ""))
@@ -858,8 +894,14 @@ def main():
     # prima la bozza si pagava e poi il database la rifiutava, ogni 15 minuti per sempre
     # (Bank Station, «niente follow-up»: circa 8 $ al giorno buttati).
     non_contattabili = []
+    # 20/10: chi ha risposto di persona dopo l'analisi e' in conversazione e scrive Dre
+    risposte_dopo = risposte_dopo_analisi(persone + in_coda)
+    conversazioni = []
     for p in persone:
         if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
+            continue
+        if in_conversazione(p, risposte_dopo.get(p["id"])):
+            conversazioni.append(p)
             continue
         if not contattabile(p):
             non_contattabili.append(p)
@@ -882,6 +924,9 @@ def main():
             continue
         if not contattabile(p):
             fuori_coda.append((p, "non si ricontatta: per la regola unica non e' contattabile (niente follow-up, cliente o bloccato)"))
+            continue
+        if in_conversazione(p, risposte_dopo.get(p["id"])):
+            fuori_coda.append((p, "non si ricontatta: " + CONVERSAZIONE))
             continue
         if p["id"] in aperte or p.get("coda") not in lettura.GRUPPI:
             continue
@@ -931,6 +976,9 @@ def main():
     for p in non_contattabili:
         print(f"  {'':15} {(p.get('company') or p.get('email') or '')[:34]:34} non si scrive: la regola unica non lo lascia contattare")
         esito_coda(p, "non si scrive: per la regola unica non e' contattabile (niente follow-up, cliente o bloccato)")
+    for p in conversazioni:
+        print(f"  {'':15} {(p.get('company') or p.get('email') or '')[:34]:34} {CONVERSAZIONE}")
+        esito_coda(p, CONVERSAZIONE)
 
     def lavora(coppia):
         p, gruppo = coppia
