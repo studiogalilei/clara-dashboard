@@ -368,6 +368,8 @@ def verdetto(c, zona, rec, ads=None):
         return "NO", frase_ads + ": cerchiamo chi non lo fa o lo fa male"
     if quanto == "poco":
         motivi.append(frase_ads)
+    if quanto is None and ads is not None:
+        motivi.append(frase_ads)                             # misura fallita: si dice (20/10)
     if not c.get("settore") or c.get("settore") == "altro":
         motivi.append("settore non fra quelli misurati")
     elif c.get("settore_uguale") is False:
@@ -471,13 +473,30 @@ def fa_meta_ads(azienda, dom):
     """La Meta Ad Library via SearchAPI (1 credito). None se la chiave manca o la ricerca fallisce."""
     if not env("SEARCHAPI_KEY") or not azienda:
         return None
-    try:
-        import pull
-        d = pull.cerca("meta_ad_library", q=azienda, country="IT")
-    except Exception as e:                                   # noqa: BLE001
-        return {"errore": str(e)[:80]}
-    if "_errore" in d:
-        return {"errore": "meta: " + d["_errore"]}
+    import time as _t
+    d = {}
+    for tentativo in (1, 2):
+        try:
+            import pull
+            d = pull.cerca("meta_ad_library", q=azienda, country="IT")
+        except Exception as e:                               # noqa: BLE001
+            return {"errore": str(e)[:80]}
+        if "_errore" in d:
+            return {"errore": "meta: " + d["_errore"]}
+        if d.get("ads"):
+            break
+        # 20/10: una risposta VUOTA puo' essere un nome raro senza annunci (vero zero) o un buco del servizio
+        # (Roero Infissi aveva 16 annunci e risultava senza). Si distingue con una domanda di controllo su una
+        # parola che ha sempre annunci: se il servizio risponde, lo zero e' vero.
+        try:
+            prova = pull.cerca("meta_ad_library", q="serramenti", country="IT")
+        except Exception:                                    # noqa: BLE001
+            prova = {}
+        if prova.get("ads"):
+            break
+        _t.sleep(2)
+    else:
+        return {"errore": "meta: la Ad Library non risponde (risposta vuota anche al controllo)"}
     return conta_meta_ads(d.get("ads") or [], azienda, dom)
 
 
@@ -548,6 +567,8 @@ def verdetto_meta(c, rec, meta=None, segnali=None):
             return "NO", f"meno di 5 recensioni ({rec['recensioni']}): troppo piccolo"
         if rec["recensioni"] < 20:
             motivi.append(f"{rec['recensioni']} recensioni: piccolo, forse regge un pilot")
+    if quanto is None:
+        motivi.append(frase)                                 # «Meta Ads non misurato»: si dice, non si finge un si'
     if segnali.get("pixel_meta") and quanto == "no":
         a_favore.append("ha il pixel Meta sul sito: il canale lo conosce, oggi non lo usa")
     if motivi:
@@ -722,12 +743,42 @@ def main():
     elif "--rifai-meta" in sys.argv:
         # 20/10: il Meta fit e' nuovo; chi aspetta l'analisi lo riceve subito (il resto, man mano che si rifa' il fit)
         from revisore import controlla
-        tutte = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched"
-                          "&fuori=eq.false&analysis_sent=eq.false&or=(awaiting_us.eq.true,coda.not.is.null)"
-                          "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))&limit=300") or []
+        base = "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,classificazione&fuori=eq.false&analysis_sent=eq.false&limit=300"
+        visti, tutte = set(), []
+        for filtro in ("&awaiting_us=eq.true", "&coda=not.is.null"):
+            for p in sb("GET", base + filtro) or []:
+                if p["id"] in visti or p.get("classificazione") in ("negativo", "fuori_target", "soppresso"):
+                    continue
+                visti.add(p["id"]); tutte.append(p)
         tutte = [p for p in tutte if "meta" not in (((p.get("enriched") or {}).get("google_fit")) or {})]
         righe = controlla("rifaccio il fit con il Meta fit a chi aspetta l'analisi", tutte, irreversibile=False,
                           motivo="Dre 20/10: da ora facciamo anche Meta Ads", dove="crm")
+    elif "--ricontrolla-meta-ads" in sys.argv:
+        # 20/10: la Ad Library ha risposto vuoto durante il primo giro; si rimisura e si corregge solo cio' che cambia
+        import time as _t
+        tutte = sb("GET", "/rest/v1/prospects?select=id,company,name,email,website,enriched&fuori=eq.false&analysis_sent=eq.false"
+                          "&enriched->google_fit->meta=not.is.null&limit=300") or []
+        from stanza import sito_vero
+        cambi = 0
+        for p in tutte:
+            gf = p["enriched"]["google_fit"]; m = gf["meta"]
+            dom = re.sub(r"^https?://(www\.)?", "", (sito_vero(p) or "").lower()).split("/")[0]
+            nuovo = fa_meta_ads(p.get("company") or p.get("name"), dom)
+            _t.sleep(1)
+            c = {"settore": gf.get("settore"), "settore_uguale": gf.get("settore_uguale"), "esclusione": gf.get("esclusione"),
+                 "tipo": gf.get("tipo"), "ticket_min": gf.get("ticket_min"), "ticket_max": gf.get("ticket_max"),
+                 "vendita_possibile_online": gf.get("vendita_possibile_online"), "visivo": m.get("visivo"),
+                 "pubblico_definibile": m.get("pubblico_definibile"), "categoria_sensibile": m.get("categoria_sensibile") or "",
+                 "come_lo_cercano": "ricerca"}
+            vm, motivo_m = verdetto_meta(c, gf.get("recensioni"), nuovo, m.get("segnali"))
+            if vm != m.get("verdetto") or (nuovo or {}).get("annunci_attivi") != (m.get("meta_ads") or {}).get("annunci_attivi"):
+                cambi += 1
+                print(f"  M {m.get('verdetto'):8} -> {vm:8} {(p.get('company') or '')[:30]:30} {motivo_m[:70]}")
+                if not prova:
+                    gf2 = dict(gf, meta=dict(m, verdetto=vm, motivo=motivo_m, meta_ads=nuovo), canale=canale(gf.get("verdetto"), vm))
+                    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": {**p["enriched"], "google_fit": gf2}}, {"Prefer": "return=minimal"})
+        print(f"ricontrollo Meta Ads: {len(tutte)} fit, {cambi} cambiati" + (" (prova)" if prova else ""))
+        return
     elif "--uno" in sys.argv:
         email = sys.argv[sys.argv.index("--uno") + 1]
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched&email=eq.{urllib.parse.quote(email)}")

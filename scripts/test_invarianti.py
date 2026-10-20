@@ -4552,7 +4552,9 @@ def _():
     assert v == "NO" and "continuita" in m
     v, m = G.verdetto(c, None, rec, {"fa_ads": True, "annunci": 3, "giorni_ads": 400})
     assert v == "PARZIALE" and "poco" in m
-    assert G.verdetto(c, None, rec, {"errore": "x"})[0] == "SI"       # non misurato: non boccia
+    v, m = G.verdetto(c, None, rec, {"errore": "x"})
+    assert v == "PARZIALE" and "non misurato" in m                      # misura fallita: si dice
+    assert G.verdetto(c, None, rec, None)[0] == "SI"                     # mai chiesto (esclusione o niente chiave): non pesa
 
 
 @prova("meta fit: il ticket pesa piu' di tutto, chi fa gia' Meta Ads sul serio e' NO, il canale consigliato (Dre, 20/10)")
@@ -4572,7 +4574,9 @@ def _():
     v, m = G.verdetto_meta(dict(base, categoria_sensibile="casa"), rec)
     assert v == "PARZIALE" and "limita" in m
     assert G.verdetto_meta(dict(base, esclusione="agenzia"), rec)[0] == "NO"
-    assert G.verdetto_meta(base, rec, None)[0] == "SI"                                                        # non misurato: non boccia
+    v, m = G.verdetto_meta(base, rec, None)
+    assert v == "PARZIALE" and "non misurato" in m                                                            # non misurato: si dice, non e' un si'
+    assert G.verdetto_meta(base, rec, {"errore": "meta: risposta vuota"})[0] == "PARZIALE"
     assert G.canale("SI", "SI") == "entrambi" and G.canale("SI", "PARZIALE") == "Google" and G.canale("NO", "PARZIALE") == "Meta"
     assert G.canale("NO", "NO") == "nessuno"
     # gli annunci della Ad Library si attribuiscono per dominio o per nome della pagina, mai per somiglianza vaga
