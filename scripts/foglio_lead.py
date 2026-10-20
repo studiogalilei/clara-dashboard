@@ -54,7 +54,9 @@ def link_filo(p, mappa=None):
     (aggiunto a mano: niente campagna, niente filo)."""
     p = p or {}
     if mappa:
-        return f"{INBOX}?leadMap={int(mappa)}"
+        # 20/10, Dre: «il link al filo non mi porta». I link che apre lui dalla Master Inbox hanno
+        # action=INBOX davanti: senza, la pagina si apre ma non seleziona la conversazione
+        return f"{INBOX}?action=INBOX&leadMap={int(mappa)}"
     if p.get("campaign_id") and p.get("lead_id"):
         q = {"filterCampaignId": int(p["campaign_id"])}
         if p.get("email"):
