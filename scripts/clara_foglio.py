@@ -19,7 +19,9 @@ IL SEMAFORO si accende solo per quello che costa lead o soldi (spec, punto 4):
 - il foglio non aggiornato da un'ora;
 - un lead entrato in conversazione senza notifica partita (la chiave «conversazioni» in
   snella_numeri, scritta da chi manda la notifica: se manca, questo controllo e' spento).
-Gli stessi guasti li suona sul telefono scripts/avvisi.py (una volta, poi ogni 2 ore, poi «Risolto»).
+- i guasti che il segnale provvisorio vede da dentro (Gmail ferma, memoria, calendario...),
+  scritti da segnale_provvisorio._registra_guasto in snella_numeri «guasti_segnale».
+Gli stessi guasti li suona sul telefono scripts/guasti.py (una volta, poi ogni 2 ore, poi «Risolto»).
 
 USO
   python3 scripts/clara_foglio.py --prova     stampa semaforo e diario, non scrive niente
@@ -42,7 +44,8 @@ SI_FERMO = datetime.timedelta(minutes=60)
 FOGLIO_FERMO = datetime.timedelta(minutes=60)
 SILENZIO = datetime.timedelta(minutes=60)
 DIRETTORE_FERMO = datetime.timedelta(minutes=30)        # la sentinella lo rianima a 20; alle 5 c'e' un buco normale di 22
-CONVERSAZIONE_SENZA_NOTIFICA = datetime.timedelta(minutes=15)
+CONVERSAZIONE_SENZA_NOTIFICA = datetime.timedelta(hours=1)   # conversazioni.py riprova per 24 ore: un'ora e' un guasto
+SEGNALE_VISTO = datetime.timedelta(minutes=20)              # il segnale gira ogni 4-5 minuti: se non lo rivede, e' risolto
 # le operazioni che portano le mail: se si fermano, si perdono lead
 INVIO = {"sync_smartlead": "La lettura delle risposte da Smartlead", "analisi": "La preparazione delle analisi",
          "prima_risposta": "L'invio delle prime risposte", "seguiti": "L'invio dei follow-up",
@@ -165,13 +168,15 @@ def leggi_semaforo(ora):
     else:
         r = sb("GET", "/rest/v1/corse?select=at&operazione=eq.foglio&esito=eq.ok&order=at.desc&limit=1") or []
         foglio_il = quando(r[0]["at"]) if r else None
+    r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.guasti_segnale") or []
+    segnale = (r[0].get("dati") if r else None) or {}
     conv = conversazioni_aperte()
     if conv:
         mute = [pid for pid, v in conv.items() if isinstance(v, dict) and not v.get("notificata")]
         nomi = _nomi(mute) if mute else {}
         conv = {pid: (dict(v, azienda=nomi.get(pid)) if pid in nomi else v) for pid, v in conv.items()}
     return {"si": si_fermi(ora), "corse": corse, "operazioni": ops, "foglio_il": foglio_il,
-            "conversazioni": conv, "ultima_corsa": ultima}
+            "conversazioni": conv, "ultima_corsa": ultima, "segnale": segnale}
 
 
 # ── il semaforo ───────────────────────────────────────────────────────
@@ -234,6 +239,14 @@ def semaforo(ora, dati=None):
             guasti.append({"chiave": f"conversazione:{pid}", "da": dal, "pid": pid,
                            "cosa": f"{chi} è in conversazione ma la notifica non è partita",
                            "sta_facendo": "La trovi nel foglio, in Conversazione: rispondi da Smartlead."})
+    # i guasti che il segnale provvisorio vede da dentro (Gmail ferma, memoria, calendario,
+    # conversazioni): li scrive segnale_provvisorio._registra_guasto, restano rossi finche' li rivede
+    for motivo, v in (dati.get("segnale") or {}).items():
+        if not isinstance(v, dict) or not v.get("il") or ora - quando(v["il"]) > SEGNALE_VISTO:
+            continue
+        guasti.append({"chiave": f"segnale:{motivo}", "da": quando(v.get("dal") or v["il"]),
+                       "cosa": " ".join(str(v.get("testo") or motivo).split()).rstrip("."),
+                       "sta_facendo": "Il segnale riprova da solo ogni 5 minuti."})
     guasti.sort(key=lambda g: g["da"])
     return guasti
 

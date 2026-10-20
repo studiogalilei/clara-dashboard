@@ -33,7 +33,7 @@ jobs:
             echo "corsa $id del direttore ferma da 20+ minuti: la cancello, la prossima riparte"
             gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true
           done
-      # 20/10: se il direttore e' fermo la sentinella manda la notifica a Dre (scripts/avvisi.py)
+      # 20/10: se il direttore e' fermo la sentinella manda la notifica a Dre (scripts/guasti.py)
       - run: pip install -q pywebpush
       - name: la sentinella guarda i dati
         env:

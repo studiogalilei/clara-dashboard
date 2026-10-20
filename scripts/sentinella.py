@@ -21,8 +21,8 @@ workflow con gh, non questo script: la sentinella vede e dice, non opera.
 
 20/10 («io più il sistema»): il collaudo del 19/10 ha visto che la sentinella falliva senza
 arrivare a Dre (scriveva in Posta, che Dre non apre piu'). Ora, se il direttore e' fermo, chiama
-gli avvisi di guasto (scripts/avvisi.py): la notifica sul telefono parte da qui, perche' quando
-il direttore e' morto l'operazione «avvisi» non gira. Gli altri guasti li suona «avvisi».
+gli avvisi di guasto (scripts/guasti.py): la notifica sul telefono parte da qui, perche' quando
+il direttore e' morto l'operazione «guasti» non gira. Gli altri guasti li suona «guasti».
 """
 import datetime
 import os
@@ -48,10 +48,10 @@ def _min_fa(iso):
 def avvisa_se_fermo():
     """Il direttore fermo: la notifica la manda la sentinella (stesse regole e stesso stato degli
     avvisi: una volta, poi ogni 2 ore, poi «Risolto», che arriva dal primo giro del direttore)."""
-    import avvisi
+    import guasti
     import clara_foglio
     if any(g["chiave"] == "direttore" for g in clara_foglio.semaforo(ADESSO)):
-        avvisi.guasti(ora=ADESSO)
+        guasti.giro(ora=ADESSO)
 
 
 def main():

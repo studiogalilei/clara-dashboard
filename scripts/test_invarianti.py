@@ -3849,9 +3849,16 @@ def _():
     assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["direttore"]
     # la conversazione senza notifica: spenta finche' la chiave non c'e'
     d = vuoto()
-    d["conversazioni"] = {"p1": {"dal": alle(10, 30).isoformat(), "notificata": False, "azienda": "Rossi srl"},
-                          "p2": {"dal": alle(10, 30).isoformat(), "notificata": True}}
-    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["conversazione:p1"]
+    d["conversazioni"] = {"p1": {"dal": alle(9, 50).isoformat(), "notificata": False, "azienda": "Rossi srl"},
+                          "p2": {"dal": alle(9, 50).isoformat(), "notificata": True},
+                          "p3": {"dal": alle(10, 30).isoformat(), "notificata": False}}
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["conversazione:p1"], "senza notifica da piu' di un'ora; mezz'ora no (riprova)"
+    # i guasti del segnale provvisorio confluiscono qui: rossi finche' il segnale li rivede (20 minuti)
+    d = vuoto()
+    d["segnale"] = {"gmail": {"testo": "Il segnale non riesce a mandarti la mail", "il": alle(10, 55).isoformat(), "dal": alle(9).isoformat()},
+                    "memoria": {"testo": "vecchio", "il": alle(10, 20).isoformat()}}
+    g = C.semaforo(alle(11), d)
+    assert [x["chiave"] for x in g] == ["segnale:gmail"] and g[0]["da"] == alle(9), g
     assert C.conversazioni_aperte({}) is None
     # il diario: la riga piu' recente in alto, parole di Dre
     eventi = {"analisi": [("p1", alle(9))], "fatte": [("p2", alle(10), "FOLLOW UP 1"), ("p3", alle(10, 30), "PROMEMORIA")],
@@ -3874,7 +3881,7 @@ def _():
 
 @prova("avvisi di guasto (20/10): una notifica alla prima volta, poi ogni 2 ore, poi «Risolto»")
 def _():
-    import datetime, avvisi as A
+    import datetime, guasti as A
     t0 = datetime.datetime(2026, 10, 20, 9, tzinfo=datetime.timezone.utc)
     g = [{"chiave": "invio:manda", "cosa": "L'invio è fermo", "da": t0, "sta_facendo": "Riprova ogni 5 minuti."}]
     note, st = A.decidi(g, {}, t0)
@@ -3901,6 +3908,10 @@ def _():
     note, st = A.decidi([], st, notte + datetime.timedelta(hours=1))
     note2, st = A.decidi([], st, notte + datetime.timedelta(hours=9))
     assert note == [] and note2 == [] and st == {}
+    # un sistema solo: il segnale scrive i suoi guasti, non suona da solo; avvisi.py resta alle task
+    import inspect, segnale_provvisorio as S, avvisi as T
+    assert "from avvisa" not in inspect.getsource(S._avvisa) and "_registra_guasto(" in inspect.getsource(S.avvisa_ogni)
+    assert "semaforo" not in inspect.getsource(T)
     # tre guasti nuovi insieme: una notifica sola, non tre
     tre = [dict(g[0], chiave=f"si:{i}", cosa=f"Sì fermo {i}") for i in range(3)]
     note, st = A.decidi(tre, {}, t0)
