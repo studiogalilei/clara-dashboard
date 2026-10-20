@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""IL SEGNALE PROVVISORIO — una mail a Dre quando un lead e' caldo o un si' resta li' (14/10/2026).
+"""IL SEGNALE PROVVISORIO — vede chi e' caldo, i si' fermi e le prenotazioni; a Dre per mail solo la scheda pre-call (14/10/2026, ristretto il 20/10).
 
 PERCHE'
 Dre, 14/10: «mi dai un modo piccolo per gestirmi questi che arrivano nel frattempo,
@@ -25,34 +25,37 @@ vuol dire 5-10 minuti dalla risposta)
    «da guardare» senza pagare). Prima di pagare si prova a scrivere la memoria: se non si
    scrive non si paga (si ripagherebbe a ogni giro), la risposta arriva «da guardare» e avvisa.
    Di piu' risposte nuove della stessa azienda vince la piu' forte: caldo, da guardare, si'.
-4. Una MAIL A DRE, solo a lui (il controllo e' in manda_mail: qualunque altro
-   destinatario fa un'eccezione prima di toccare Gmail):
-     CALDO       subito                      «Vuole sentirti: <azienda>»
+4. Il SEGNALE, una volta sola per lead e per tipo (segnali_provvisori: unica per risposta, e
+   per azienda e tipo):
+     CALDO       subito
      SI'         dopo 10 minuti, se non c'e' una nostra risposta ne' una bozza approvata
-                                             «Sì da servire: <azienda>»
      DA GUARDARE l'AI non ha risposto: si segnala lo stesso, mai silenzio
-   Una volta sola per lead e per tipo (segnali_provvisori: unica per risposta, e per
-   azienda e tipo): un lead gia' segnalato come si' che poi chiede di essere chiamato
-   arriva di nuovo come caldo; due caldi dello stesso lead fanno una mail sola.
-   Piu' di 3 nello stesso giro: una mail sola con l'elenco.
+   NESSUNA MAIL DI GIORNATA DAL 20/10 SERA (Dre: «me le manda un po' a caso»). Il si' lo serve il
+   sistema da solo, il caldo e' la notifica «entrato in conversazione» + «Da chiamare» nell'app, il
+   «da guardare» sta nella scheda azienda coi pulsanti Manda / Non mandare. Il segnale si rileva e si
+   segna lo stesso: alimenta la scheda, il diario e il telefono. La sera, alle 19, arriva UNA mail con
+   la giornata (scripts/giornata.py). L'unica mail che resta qui e' la scheda prima di una call
+   (punto 5, MATTINA) e la prova esplicita --prova-mail. Il destinatario puo' essere solo Dre: il
+   controllo e' in manda_mail, qualunque altro indirizzo fa un'eccezione prima di toccare Gmail.
 
 5. LE PRENOTAZIONI DELLE CALL (14/10, schema_v89). Dre vedeva chi prenotava la conoscitiva solo
    per caso in Gmail. A ogni giro si guarda il suo calendario (e, come rete, le mail «Appuntamento
    prenotato» / «annullato» con l'invito .ics dentro: la chiave e' l'id dell'evento, uguale dalle due
-   parti, quindi una prenotazione suona una volta sola anche se la si vede due volte):
-     PRENOTATO   una call nuova con qualcuno di fuori     «Prenotato: <azienda>, <giorno> alle <ora>»
+   parti, quindi una prenotazione si segna una volta sola anche se la si vede due volte):
+     MATTINA     il giorno della call dalle 8:30 di Roma  «Oggi alle <ora>: <azienda>», L'UNICA MAIL
                  con la SCHEDA: chi e' (nome e ruolo dalla firma), i telefoni dal piu' diretto
                  (cellulare della firma, fisso della firma, la scheda, il centralino del sito), cosa
                  fa, l'ultima cosa che ci ha scritto, l'analisi mandata col punto chiave, «Appunti:».
                  Se non si abbina a nessun lead parte lo stesso, con quello che dice la prenotazione.
-     MATTINA     il giorno della call dalle 8:30 di Roma  «Oggi alle <ora>: <azienda>», la stessa scheda
-     SPOSTATA    un orario nuovo (anche preso dalla pagina)  una riga
-     CANCELLATA  annullata, o l'invito rifiutato         una riga
+                 Anche per una call prenotata stamattina per oggi pomeriggio.
+     PRENOTATO   una call nuova con qualcuno di fuori: si segna, nessuna mail (20/10 sera: sta nel
+     SPOSTATA    calendario, nel diario della scheda Clara e nella mail della sera)
+     CANCELLATA  annullata, o l'invito rifiutato: come sopra
    Il lead si trova dall'agenda (il calendario ce l'ha gia' attaccato) o con calendario.riconosci.
    Il registro e' prenotazioni_segnalate (chiave unica). Solo lettura su calendario e posta.
 
 6. IL TELEFONO (20/10): suona solo per il lead entrato in conversazione (conversazioni.py, chiamato
-   da questo giro). Le mail qui sopra restano, senza notifica; le notifiche di guasto (avvisa_ogni) si'.
+   da questo giro). Le notifiche di guasto le suona guasti.py.
 
 COSA NON FA
 Mai una mail ai lead. Niente scritto sul calendario, niente su Smartlead. Mai un riprovo pagato: una lettura fallita si scrive in memoria
@@ -111,7 +114,6 @@ PAGATE_PER_GIRO = 10                        # letture pagate al massimo in un gi
 PAGATE_AL_GIORNO = 150                      # e in 24 ore (uso_modelli): oltre, «da guardare» senza pagare
 AVVISO_OGNI = datetime.timedelta(hours=2)   # la stessa notifica di guasto non piu' spesso di cosi'
 FINESTRA_ORE = 24
-TANTI = 3                                   # oltre questo, una mail sola con l'elenco
 PREZZO = {"gpt-5": (1.25, 10.0)}            # dollari per milione di token (dentro, fuori): banco_modelli.py
 VERSIONE = "segnale2"                       # cambia la domanda -> cambia la chiave della memoria
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -770,8 +772,12 @@ def giro(ore=FINESTRA_ORE, prova=None, prova_mail=False, storico=False):
     if not segnali:
         print("niente da segnalare (gia' segnati da un altro giro)")
         return []
+    mail = _mail(segnali, ore, prova_mail)
+    if not mail:
+        print(f"segnati {len(segnali)} (" + ", ".join(f"{s['tipo']}: {s['azienda']}" for s in segnali) + "): nessuna mail, "
+              "stanno nella scheda e nella mail della sera")
     falliti, dubbi = [], []
-    for oggetto, testo, corpo, gruppo in _mail(segnali, ore, prova_mail):
+    for oggetto, testo, corpo, gruppo in mail:
         try:
             manda_mail(DRE, oggetto, testo, corpo)
             print(f"mandata a Dre: {oggetto}")
@@ -792,7 +798,11 @@ def giro(ore=FINESTRA_ORE, prova=None, prova_mail=False, storico=False):
 
 
 def _mail(segnali, ore, prova_mail):
-    """Le mail del giro, ognuna col suo gruppo di segnali: (oggetto, testo, html, gruppo)."""
+    """Le mail del giro, ognuna col suo gruppo di segnali: (oggetto, testo, html, gruppo).
+    DAL 20/10 SERA E' SEMPRE VUOTA nel giro vero: le mail di giornata («Vuole sentirti», «Sì da
+    servire», «Da guardare») non partono piu' (Dre: «me le manda un po' a caso»). Il si' lo serve il
+    sistema, il caldo e' gia' notifica + «Da chiamare», il «da guardare» e' nella scheda azienda. Il
+    quadro arriva la sera con scripts/giornata.py. Resta solo la prova esplicita --prova-mail."""
     if prova_mail:
         aperti = sum(1 for s in segnali if not s.get("servito_il"))
         return [(*componi(segnali, oggetto="Prova del segnale provvisorio", intro=(
@@ -800,9 +810,7 @@ def _mail(segnali, ore, prova_mail):
             "quelli con «servito dopo» erano già sistemati e servono solo a vedere quando ti sarebbe arrivata la mail. "
             "Da adesso arriva da sola: subito per chi vuole sentirti, dopo 10 minuti per un sì rimasto senza risposta. "
             "Questi non te li rimando.")), segnali)]
-    if len(segnali) > TANTI:
-        return [(*componi(segnali), segnali)]
-    return [(*componi([s]), [s]) for s in segnali]
+    return []
 
 
 # ── LE PRENOTAZIONI DELLE CALL (14/10) ─────────────────────────────
@@ -1003,10 +1011,6 @@ def _noti(righe):
     return noti
 
 
-def _alle_830(giorno):
-    return datetime.datetime.combine(giorno, MATTINA, tzinfo=ROMA)
-
-
 def decidi(eventi, righe, ora, calendario_ok=True):
     """I segnali da dare adesso, senza toccare niente (si prova da sola). Una prenotazione nuova
     -> «prenotato»; un orario cambiato -> «spostata» (anche quando dalla pagina si prende un altro
@@ -1075,9 +1079,8 @@ def decidi(eventi, righe, ora, calendario_ok=True):
             chiave = f"mattina:{k}:{oggi.isoformat()}"
             if chiave in n.get("mattine", ()):
                 continue
-            # la scheda e' gia' arrivata stamattina con la prenotazione: non la si rimanda
-            if n.get("come_prenotato") == "segnale" and n.get("prenotato_il") and n["prenotato_il"] >= _alle_830(oggi):
-                continue
+            # (20/10 sera) anche una call prenotata stamattina per oggi: la scheda arriva solo da qui,
+            # la mail «Prenotato» non c'e' piu'
             ev = eventi.get(k)
             segnali.append({"evento": k, "ev": ev, "inizio": inizio, "invitato": n.get("invitato") or ((_esterni(ev) or [""])[0] if ev else ""),
                             "nota": n or None, "tipo": "mattina", "chiave": chiave})
@@ -1446,8 +1449,10 @@ def componi_prenotazione(s):
     t, h = [], []
     e = html.escape
     if s["tipo"] == "prenotato":
+        # dal 20/10 sera non si manda: l'oggetto serve al registro e alle prove, la scheda arriva la mattina
         oggetto = f"Prenotato: {az}, {quando_t}"
-        t, h = _pezzi_scheda(s["scheda"], s)
+        riga = f"{az} ha prenotato una call per {quando_t}. La scheda arriva la mattina della call."
+        t, h = ([riga], [f"<p>{e(riga)}</p>"]) if not s.get("scheda") else _pezzi_scheda(s["scheda"], s)
     elif s["tipo"] == "mattina":
         oggetto = f"Oggi alle {s['inizio'].astimezone(ROMA):%H:%M}: {az}"
         t, h = _pezzi_scheda(s["scheda"], s)
@@ -1494,8 +1499,11 @@ def prepara(segnali, con_scheda=True):
         else:
             s["azienda"] = n.get("azienda") or ""
             if not s["azienda"] and pid:
-                p = (sb("GET", f"/rest/v1/prospects?select=company,name&id=eq.{pid}") or [{}])[0]
-                s["azienda"] = " ".join((p.get("company") or p.get("name") or "").split())
+                try:
+                    p = (sb("GET", f"/rest/v1/prospects?select=company,name&id=eq.{pid}") or [{}])[0]
+                    s["azienda"] = " ".join((p.get("company") or p.get("name") or "").split())
+                except Exception as e:                           # noqa: BLE001
+                    print(f"  (non riesco a leggere il nome dell'azienda: {str(e)[:100]})")
             s["azienda"] = s["azienda"] or _chi_ha_prenotato(ev) or s.get("invitato") or "?"
     return segnali
 
@@ -1599,17 +1607,26 @@ def giro_prenotazioni(prova=None, ora=None, semina=False, tranne=""):
     if not segnali:
         print("prenotazioni: niente da segnalare")
         return []
-    prepara(segnali)
+    # (20/10 sera) la scheda, che costa una lettura AI, si prepara solo per la mail che parte: la mattina
+    # della call. Prenotato, spostata e cancellata si segnano e basta: calendario, diario, mail della sera.
+    prepara([s for s in segnali if s["tipo"] != "mattina"], con_scheda=False)
+    prepara([s for s in segnali if s["tipo"] == "mattina"])
     if prova:
         for s in segnali:
             oggetto, testo, _ = componi_prenotazione(s)
-            print(f"\n(prova) A: {DRE}\n(prova) Oggetto: {oggetto}\n{testo}")
+            if s["tipo"] == "mattina":
+                print(f"\n(prova) A: {DRE}\n(prova) Oggetto: {oggetto}\n{testo}")
+            else:
+                print(f"\n(prova) si segna senza mail: {oggetto}")
         print(f"\n(prova) prenotazioni: {len(segnali)} segnali: niente mandato, niente segnato")
         return segnali
     segnali = segna_prenotazioni(segnali)
     falliti, dubbi = [], []
     for s in segnali:
         oggetto, testo, corpo = componi_prenotazione(s)
+        if s["tipo"] != "mattina":
+            print(f"segnata senza mail: {oggetto}")
+            continue
         try:
             manda_mail(DRE, oggetto, testo, corpo)
             print(f"mandata a Dre: {oggetto}")

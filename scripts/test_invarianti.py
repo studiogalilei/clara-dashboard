@@ -2550,7 +2550,8 @@ class _SegnaleFinto:
         S._avvisa = self.avvisi.append
         S._push = self.push
         try:
-            return [s["tipo"] for s in S.giro(ore=24, prova=False)]
+            self.segnali = S.giro(ore=24, prova=False)
+            return [s["tipo"] for s in self.segnali]
         except SystemExit:
             return "uscito"
         finally:
@@ -2598,31 +2599,32 @@ def _():
 def _():
     import base64
     import email
+    import segnale_provvisorio as S
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO})
     f.scrive("Buongiorno, mi chiami domani al 333 1234567")
-    assert f.giro() == ["caldo"] and len(f.mail) == 1 and len(f.segnati) == 1, (f.mail, f.segnati)
-    m = email.message_from_bytes(base64.urlsafe_b64decode(f.mail[0]))
-    corpo = "".join(p.get_payload(decode=True).decode() for p in m.walk() if p.get_content_type() == "text/html")
+    assert f.giro() == ["caldo"] and f.mail == [] and len(f.segnati) == 1, (f.mail, f.segnati)
+    # 20/10 sera: il caldo non e' piu' una mail (e' la notifica + «Da chiamare»); il testo resta per --prova-mail
+    _, _, corpo = S.componi(f.segnali)
     assert "tel:+393331234567" in corpo and "master-inbox" in corpo, corpo[:300]
-    assert f.giro() == [] and len(f.mail) == 1, "lo stesso caldo e' stato segnalato due volte"
-    f.scrive("Mi richiami pure domani mattina, mi chiami domani", minuti_fa=2)  # un secondo caldo: niente mail nuova
-    assert f.giro() == [] and len(f.mail) == 1, "due caldi dello stesso lead hanno fatto due mail"
+    assert f.giro() == [] and len(f.segnati) == 1, "lo stesso caldo e' stato segnalato due volte"
+    f.scrive("Mi richiami pure domani mattina, mi chiami domani", minuti_fa=2)  # un secondo caldo: niente segnale nuovo
+    assert f.giro() == [] and len(f.segnati) == 1 and f.mail == [], "due caldi dello stesso lead hanno fatto due segnali"
 
 
 @prova("segnale provvisorio: un lead gia' segnalato come si' che poi chiede di essere chiamato arriva come caldo")
 def _():
     f = _SegnaleFinto(SCHEDA_LEAD, {"La mail e' corretta": SI, "mi chiami domani": CALDO})
     f.scrive("La mail e' corretta", minuti_fa=60)
-    assert f.giro() == ["si"] and len(f.mail) == 1
+    assert f.giro() == ["si"] and len(f.segnati) == 1 and f.mail == []
     f.scrive("Buongiorno, mi chiami domani al 333 1234567", minuti_fa=1)
-    assert f.giro() == ["caldo"] and len(f.mail) == 2, "il caldo dopo un si' si e' perso"
-    assert f.giro() == [] and len(f.mail) == 2
+    assert f.giro() == ["caldo"] and len(f.segnati) == 2, "il caldo dopo un si' si e' perso"
+    assert f.giro() == [] and len(f.segnati) == 2 and f.mail == []
     # al contrario, un si' dopo il caldo non suona: il caldo l'ha gia' portato a Dre
     f = _SegnaleFinto(SCHEDA_LEAD, {"La mail e' corretta": SI, "mi chiami domani": CALDO})
     f.scrive("Buongiorno, mi chiami domani al 333 1234567", minuti_fa=60)
     assert f.giro() == ["caldo"]
     f.scrive("La mail e' corretta", minuti_fa=30)
-    assert f.giro() == [] and len(f.mail) == 1, "un si' dopo il caldo ha fatto una seconda mail"
+    assert f.giro() == [] and len(f.segnati) == 1, "un si' dopo il caldo ha fatto un secondo segnale"
 
 
 @prova("segnale provvisorio: due risposte tra un giro e l'altro si leggono tutte, vince il caldo")
@@ -2630,12 +2632,12 @@ def _():
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO, "quanto costa": {**SI, "si": False}})
     f.scrive("Buongiorno, mi chiami domani al 333 1234567", minuti_fa=9)
     f.scrive("Ah, e quanto costa?", minuti_fa=4)
-    assert f.giro() == ["caldo"] and len(f.mail) == 1 and len(f.ai) == 2, (len(f.mail), len(f.ai))
+    assert f.giro() == ["caldo"] and f.mail == [] and len(f.ai) == 2, (len(f.mail), len(f.ai))
     # un caldo e poi un si' che il sistema ha gia' servito: il caldo resta
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO, "La mail e' corretta": SI}, servito=True)
     f.scrive("Buongiorno, mi chiami domani al 333 1234567", minuti_fa=9)
     f.scrive("La mail e' corretta", minuti_fa=4)
-    assert f.giro() == ["caldo"] and len(f.mail) == 1
+    assert f.giro() == ["caldo"] and f.mail == []
 
 
 @prova("segnale provvisorio: un cliente, chi e' in pipeline o soppresso non produce segnali (e non si paga la lettura)")
@@ -2651,16 +2653,15 @@ def _():
 def _():
     f = _SegnaleFinto(SCHEDA_LEAD, {"valutiamo": None})
     f.scrive("Buongiorno, valutiamo volentieri")
-    assert f.giro() == ["da_guardare"] and len(f.mail) == 1 and len(f.segnati) == 1
-    assert f.giro() == [] and len(f.ai) == 1 and len(f.mail) == 1, "una lettura fallita si e' ripagata o rimandata"
+    assert f.giro() == ["da_guardare"] and f.mail == [] and len(f.segnati) == 1
+    assert f.giro() == [] and len(f.ai) == 1 and f.mail == [], "una lettura fallita si e' ripagata o rimandata"
     # AI ferma e Gmail ferma insieme: la lettura fallita si ricorda, non si ripaga a ogni giro
+    # (20/10 sera: senza mail di giornata, Gmail ferma non tocca il segnale)
     f = _SegnaleFinto(SCHEDA_LEAD, {"valutiamo": None}, gmail="no")
     f.scrive("Buongiorno, valutiamo volentieri")
-    assert [f.giro() for _ in range(4)] == ["uscito"] * 4 and f.segnati == []
+    assert [f.giro() for _ in range(4)] == [["da_guardare"], [], [], []] and len(f.segnati) == 1
     assert len(f.ai) == 1, f"con AI e Gmail ferme la lettura si e' pagata {len(f.ai)} volte"
-    assert len(f.avvisi) == 1, f"Gmail ferma: {len(f.avvisi)} notifiche in 4 giri (al massimo una ogni 2 ore)"
-    f.gmail = None
-    assert f.giro() == ["da_guardare"] and len(f.mail) == 1 and len(f.ai) == 1
+    assert f.avvisi == [] and f.mail == [], (f.avvisi, f.mail)
 
 
 @prova("segnale provvisorio: un si' aspetta 10 minuti, e se l'abbiamo gia' servito tace")
@@ -2673,7 +2674,7 @@ def _():
     assert f.giro() == [] and f.mail == [], "un si' gia' servito ha suonato"
     f = _SegnaleFinto(SCHEDA_LEAD, {"corretta": SI})
     f.scrive("La mail e' corretta")
-    assert f.giro() == ["si"] and len(f.mail) == 1
+    assert f.giro() == ["si"] and len(f.segnati) == 1 and f.mail == []
 
 
 @prova("segnale provvisorio: la spesa ha un tetto per giro, e con la memoria rotta smette di pagare")
@@ -2713,20 +2714,17 @@ def _():
     assert f.giro() == ["da_guardare"] and f.ai == [] and f.avvisi, "oltre il tetto del giorno ha pagato o taciuto"
 
 
-@prova("segnale provvisorio: Gmail consegna ma la risposta si perde -> nessun doppione")
+@prova("segnale provvisorio: Gmail ferma o lenta non tocca i segnali di giornata, che non sono piu' mail (20/10 sera)")
 def _():
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami": CALDO}, gmail="timeout")
     f.scrive("Buongiorno, mi chiami domani al 333 1234567")
-    assert f.giro() == "uscito" and len(f.inviate) == 1
-    f.gmail = None
-    assert f.giro() == [] and f.mail == [], "il caldo partito col timeout e' stato rimandato"
+    assert f.giro() == ["caldo"] and f.inviate == [] and f.mail == []
     assert [x["come"] for x in f.segnati] == ["segnale"], f.segnati
-    # se invece Google dice di no (un codice), il segnale riparte al giro dopo
+    f.gmail = None
+    assert f.giro() == [] and f.mail == [], "il caldo e' stato segnalato due volte"
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami": CALDO}, gmail="no")
     f.scrive("Buongiorno, mi chiami domani al 333 1234567")
-    assert f.giro() == "uscito" and f.segnati == []
-    f.gmail = None
-    assert f.giro() == ["caldo"] and len(f.mail) == 1 and len(f.ai) == 1
+    assert f.giro() == ["caldo"] and len(f.segnati) == 1 and len(f.ai) == 1 and f.avvisi == []
 
 
 @prova("segnale provvisorio: una partita IVA non e' un telefono, un fisso vero si'")
@@ -2852,11 +2850,13 @@ class _PrenotazioniFinte:
         S.adesso = lambda: self.ora
         S.GIRO.update(pagate=0, memoria_rotta=False, sonda=False, giorno_restano=None, tetto_giorno=False)
         try:
-            S.giro_prenotazioni(prova=False, ora=self.ora)
+            segnali = S.giro_prenotazioni(prova=False, ora=self.ora)
         finally:
             (S.sb, St.sb, S._eventi_calendario, S._prenotazioni_mail, S._riconosci, S._chiedi_ai, S._gmail_send,
              S._gmail_inviata, S._avvisa, S.adesso, S._push) = vero
-        return [x["oggetto"] for x in self.mail[prima:]]
+        # i segnali segnati in questo giro (20/10 sera: solo la «mattina» e' anche una mail, in .mail)
+        self.ultime_mail = [x["oggetto"] for x in self.mail[prima:]]
+        return [S.componi_prenotazione(s)[0] for s in segnali]
 
     def push(self, titolo, testo, url, tag):
         if self.push_rotta:
@@ -2871,9 +2871,9 @@ def _():
     f = _PrenotazioniFinte()
     f.evento("ev1", "2026-10-23", "11:00")
     f.giro("2026-10-14", "15:00")
-    f.cal["ev1"]["stato"] = "cancelled"
-    f.giro("2026-10-15", "10:00")
-    assert len(f.mail) == 2 and all(x["a"] == "dramane@studiogalilei.com" and not x["cc"] and not x["bcc"] for x in f.mail), f.mail
+    assert f.mail == [], "la prenotazione non e' piu' una mail (20/10 sera)"
+    f.giro("2026-10-23", "08:31")
+    assert len(f.mail) == 1 and all(x["a"] == "dramane@studiogalilei.com" and not x["cc"] and not x["bcc"] for x in f.mail), f.mail
     t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "segnale_provvisorio.py"), encoding="utf-8").read()
     metodi = _re.findall(r'\bg\("(\w+)"', t)
     assert metodi.count("POST") == 1 and set(metodi) == {"GET", "POST"}, f"verso Google solo letture, e la mail: {metodi}"
@@ -2897,7 +2897,7 @@ def _():
     g.cal_rotto = False
     g.evento("ev2", "2026-10-23", "11:00")
     assert g.giro("2026-10-14", "15:05") == []
-    assert len(g.ai) == 1, f"la scheda si e' letta {len(g.ai)} volte"
+    assert g.ai == [], "la scheda (una lettura AI) si prepara solo la mattina della call, per la mail che parte"
 
 
 @prova("prenotazioni: la mattina della call alle 8:30 la scheda torna, una volta (e non se e' arrivata stamattina)")
@@ -2911,11 +2911,13 @@ def _():
     assert "Appunti:" in h and "tel:+393331234567" in h and "Direttore commerciale" in h and "apri l'analisi" in h, h[:400]
     assert f.giro("2026-10-23", "08:40") == [] and f.giro("2026-10-23", "10:00") == [], "la scheda della mattina e' tornata due volte"
     assert f.giro("2026-10-23", "11:30") == []
-    # prenotata stamattina alle 9 per le 15: la scheda e' appena arrivata, la mattina non la rimanda
+    # prenotata stamattina alle 9 per le 15 (20/10 sera): la «Prenotato» non e' piu' una mail, quindi la
+    # scheda arriva al giro dopo come «Oggi alle», una volta
     g = _PrenotazioniFinte()
     g.evento("ev2", "2026-10-23", "15:00")
-    assert g.giro("2026-10-23", "09:00") == ["Prenotato: Rossi Finta, venerdì 23 ottobre alle 15:00"]
-    assert g.giro("2026-10-23", "09:05") == []
+    assert g.giro("2026-10-23", "09:00") == ["Prenotato: Rossi Finta, venerdì 23 ottobre alle 15:00"] and g.mail == []
+    assert g.giro("2026-10-23", "09:05") == ["Oggi alle 15:00: Rossi Finta"] and len(g.mail) == 1
+    assert g.giro("2026-10-23", "09:10") == [] and len(g.mail) == 1
     # una prenotazione gia' nota prima dell'accensione (semina): la mattina la scheda arriva
     s = _PrenotazioniFinte()
     s.evento("ev3", "2026-10-23", "15:00")
@@ -2929,7 +2931,8 @@ def _():
 def _():
     f = _PrenotazioniFinte(abbinata=False)
     f.evento("ev1", "2026-10-23", "11:00", chi="anna@altra.invalid")
-    assert f.giro("2026-10-14", "15:00") == ["Prenotato: Mario Rossi, venerdì 23 ottobre alle 11:00"], [x["oggetto"] for x in f.mail]
+    assert f.giro("2026-10-14", "15:00") == ["Prenotato: Mario Rossi, venerdì 23 ottobre alle 11:00"] and f.mail == []
+    assert f.giro("2026-10-23", "08:31") == ["Oggi alle 11:00: Mario Rossi"], f.mail
     h = f.mail[0]["html"]
     assert "trovato fra i lead" in h and "anna@altra.invalid" in h and "Appunti:" in h, h[:400]
     # anche se il riconoscimento si rompe
@@ -2947,6 +2950,7 @@ def _():
     f = _PrenotazioniFinte()
     f.evento("ev1", "2026-10-23", "11:00")
     f.giro("2026-10-14", "15:00")
+    f.giro("2026-10-23", "08:31")
     h = f.mail[0]["html"]
     ordine = [h.find(f"tel:{n}") for n in ("+393331234567", "+390422123456", "+390422999888", "+390422777666")]
     assert all(i > 0 for i in ordine) and ordine == sorted(ordine), ordine
@@ -3316,19 +3320,109 @@ def _con_letture(f):
     return dentro
 
 
-@prova("notifica: il segnale e le prenotazioni mandano la mail a Dre e non suonano sul telefono (20/10)")
+@prova("notifica: il segnale e le prenotazioni non suonano sul telefono, e dal 20/10 sera non mandano mail di giornata")
 @_con_letture
 def _():
     f = _SegnaleFinto(SCHEDA_LEAD, {"mi chiami domani": CALDO})
     f.scrive("Buongiorno, mi chiami domani al 333 1234567")
-    assert f.giro() == ["caldo"] and len(f.mail) == 1 and f.notifiche == [], (f.mail, f.notifiche)
+    assert f.giro() == ["caldo"] and f.mail == [] and f.notifiche == [], (f.mail, f.notifiche)
     assert [x.get("come") for x in f.segnati] == ["segnale"], f.segnati
     p = _PrenotazioniFinte()
     p.evento("ev1", "2026-10-23", "11:00")
-    assert p.giro("2026-10-14", "15:00") and len(p.mail) == 1 and p.notifiche == [], p.notifiche
+    assert p.giro("2026-10-14", "15:00") and p.mail == [] and p.notifiche == [], p.notifiche
     p.cal["ev1"]["stato"] = "cancelled"
     p.giro("2026-10-15", "10:00")
-    assert len(p.mail) == 2 and p.notifiche == [], p.notifiche
+    assert p.mail == [] and p.notifiche == [], p.notifiche
+
+
+# ── la giornata (20/10 sera): una mail sola alle 19, e dal segnale solo la scheda pre-call ──
+@prova("dal segnale parte una mail a Dre solo per la scheda prima di una call (20/10 sera, Dre: «me le manda un po' a caso»)")
+@_con_letture
+def _():
+    import segnale_provvisorio as S
+    # le risposte: caldo, si', da guardare -> si segnano, nessuna mail
+    for testo, letture in (("Buongiorno, mi chiami domani al 333 1234567", {"mi chiami domani": CALDO}),
+                           ("La mail e' corretta", {"corretta": SI}), ("Buongiorno, valutiamo volentieri", {"valutiamo": None})):
+        f = _SegnaleFinto(SCHEDA_LEAD, letture)
+        f.scrive(testo)
+        assert f.giro() and f.mail == [] and len(f.segnati) == 1, (testo, f.mail, f.segnati)
+    assert S._mail([{"tipo": "caldo", "azienda": "X", "interaction_id": "i1", "prospect_id": "p1"}], 24, False) == []
+    # le prenotazioni: prenotato, spostata, cancellata -> si segnano, nessuna mail; la mattina della call -> UNA mail
+    p = _PrenotazioniFinte()
+    p.evento("ev1", "2026-10-23", "11:00")
+    assert p.giro("2026-10-14", "15:00") == ["Prenotato: Rossi Finta, venerdì 23 ottobre alle 11:00"] and p.mail == []
+    p.evento("ev1", "2026-10-23", "15:00")
+    assert p.giro("2026-10-14", "16:00") == ["Spostata: Rossi Finta, ora venerdì 23 ottobre alle 15:00"] and p.mail == []
+    assert p.giro("2026-10-23", "08:31") == ["Oggi alle 15:00: Rossi Finta"] and [m["oggetto"] for m in p.mail] == ["Oggi alle 15:00: Rossi Finta"]
+    assert p.mail[0]["a"] == "dramane@studiogalilei.com" and "Appunti:" in p.mail[0]["html"]
+    p.cal["ev1"]["stato"] = "cancelled"
+    assert p.giro("2026-10-23", "09:00") == ["Cancellata: Rossi Finta, venerdì 23 ottobre alle 15:00"] and len(p.mail) == 1
+    # nel sorgente: manda_mail(DRE, ...) solo nei due giri, e il giro delle risposte la chiama solo su quello che _mail torna
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "segnale_provvisorio.py"), encoding="utf-8").read()
+    assert src.count("manda_mail(DRE,") == 2, src.count("manda_mail(DRE,")
+    assert 'if s["tipo"] != "mattina":\n            print(f"segnata senza mail' in src, "una prenotazione che non e' la mattina parte per mail"
+    assert "giornata.py" in src, "il segnale deve dire dove e' finito il quadro: la mail della sera"
+
+
+@prova("la giornata (20/10 sera): «funziona regolarmente» solo senza guasti, con un guasto risolto c'e' la soluzione, al massimo 8 righe per Dre")
+def _():
+    import datetime, giornata as G
+    roma = G.ROMA
+    ora = datetime.datetime(2026, 10, 20, 19, tzinfo=roma)
+    alle = lambda h, m=0: datetime.datetime(2026, 10, 20, h, m, tzinfo=roma)        # noqa: E731
+    link = lambda pid: f"https://finto.local/#/s/lead/{pid}"                         # noqa: E731
+    base = {"guasti_aperti": [], "guasti_risolti": [], "serie_errori": [], "controllo_fallito": None,
+            "numeri": {"risposte": 31, "si": 5, "no": 15, "ooo": 4, "analisi": 6, "followup": 38, "promemoria": 0, "risposte_mandate": 0,
+                       "prenotate": 0, "spostate": 0, "annullate": 1, "conversazioni": 5, "da_chiamare": 3},
+            "aspettano": [], "domani": []}
+    oggetto, testo, corpo = G.componi(ora, base, link=link)
+    assert oggetto == "La giornata · mar 20/10", oggetto
+    assert testo.splitlines()[0] == "Il sistema ha funzionato regolarmente." and "Soluzione" not in testo
+    assert "31 risposte arrivate (5 sì, 15 no, 4 fuori ufficio)" in testo and "38 follow-up partiti" in testo and "1 call annullata" in testo
+    assert "Niente da parte tua." in testo and "Nessuna call." in testo and testo.strip().splitlines()[-1] == "Niente da fare stasera: buona serata."
+    # un guasto risolto da solo: niente «regolarmente», c'e' la soluzione
+    d = dict(base, guasti_risolti=[{"chiave": "invio:manda", "cosa": "L'invio delle mail è fermo", "da": alle(10, 40), "risolto_il": alle(11, 5)}])
+    _, t, _ = G.componi(ora, d, link=link)
+    assert "funzionato regolarmente" not in t and t.startswith("È successo: L'invio delle mail è fermo, dalle 10:40 alle 11:05. Soluzione:"), t.splitlines()[0]
+    # un guasto ancora aperto: la soluzione e' quella del semaforo
+    d = dict(base, guasti_aperti=[{"chiave": "foglio", "cosa": "Il foglio non si aggiorna da 2 ore", "da": alle(17), "sta_facendo": "Riprova da solo ogni 10 minuti."}])
+    _, t, _ = G.componi(ora, d, link=link)
+    assert t.startswith("È successo: Il foglio non si aggiorna da 2 ore, dalle 17:00 e ancora adesso. Soluzione: Riprova da solo ogni 10 minuti."), t.splitlines()[0]
+    assert t.strip().splitlines()[-1] == "Il resto va avanti da solo. Buona serata."
+    # un'operazione caduta tre volte di fila e ripartita
+    corse = [{"operazione": "schede", "at": alle(9, m), "esito": e} for m, e in ((0, "errore"), (10, "errore"), (20, "errore"), (30, "ok"))]
+    corse += [{"operazione": "foglio", "at": alle(9, m), "esito": e} for m, e in ((0, "errore"), (10, "ok"), (20, "errore"), (30, "errore"))]
+    serie = G.serie_di_errori(corse, {"schede": "Le schede"})
+    assert [(s["nome"], s["n"], s["ripartita"]) for s in serie] == [("Le schede", 3, alle(9, 30))], serie
+    _, t, _ = G.componi(ora, dict(base, serie_errori=serie), link=link)
+    assert "È successo: Le schede è caduta 3 volte di fila dalle 09:00. Soluzione: è ripartita da sola alle 09:30." in t, t
+    # «Aspettano te»: al massimo 8 righe, col link alla scheda, e il resto detto in una riga
+    asp = [{"pid": f"p{i}", "azienda": f"Azienda {i}", "perche": "ha scritto oggi alle 10:00 e aspetta la tua risposta", "quando": alle(10)} for i in range(11)]
+    _, t, h = G.componi(ora, dict(base, aspettano=asp, domani=[{"at": datetime.datetime(2026, 10, 21, 10, 30, tzinfo=roma), "azienda": "Rossi srl", "tipo": "conoscitiva"}]), link=link)
+    blocco = t.split("Aspettano te\n", 1)[1].split("\n\nDomani", 1)[0].splitlines()
+    assert len([r for r in blocco if r.startswith("- ")]) == 8 and blocco[-1].startswith("…e 3 altri"), blocco
+    assert "https://finto.local/#/s/lead/p0" in t and h.count("<li") == 9 and "- 10:30 Rossi srl, conoscitiva" in t
+    # mai parole tecniche
+    for brutta in ("prospect", "proposta", "snella", "operazion", "corse", "registro", "commit", "interaction", "semaforo"):
+        assert brutta not in t.lower().replace("aspettano una tua decisione", ""), brutta
+    # lo storico dei guasti risolti che tiene guasti.py per questa mail
+    import guasti as A
+    t0 = datetime.datetime(2026, 10, 20, 9, tzinfo=datetime.timezone.utc)
+    stato = {"invio:manda": {"cosa": "L'invio è fermo", "da": t0.isoformat(), "primo": t0.isoformat(), "ultimo": t0.isoformat()}}
+    r = A.storico(stato, {}, [], t0 + datetime.timedelta(hours=1))
+    assert [(x["chiave"], x["cosa"], x["risolto_il"]) for x in r] == [("invio:manda", "L'invio è fermo", (t0 + datetime.timedelta(hours=1)).isoformat())], r
+    assert A.storico(stato, stato, r, t0 + datetime.timedelta(hours=2)) == r, "ancora aperto: niente di nuovo"
+    assert A.storico({}, {}, r, t0 + datetime.timedelta(days=3)) == [], "piu' vecchio di 48 ore: via"
+    di_notte = {"invio:manda": dict(stato["invio:manda"], risolto=True)}
+    assert len(A.storico(stato, di_notte, [], t0 + datetime.timedelta(hours=1))) == 1, "risolto di notte: conta lo stesso"
+    assert A.storico(di_notte, di_notte, [], t0 + datetime.timedelta(hours=2)) == [], "gia' segnato risolto: non si raddoppia"
+    # l'operazione: giornaliera alle 19, nella corsia leggera; la prova a secco non manda
+    import direttore
+    assert direttore.corsia_di("giornata") == "leggera"
+    sql = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "supabase", "schema_v96.sql"), encoding="utf-8").read()
+    assert "('giornata'" in sql and "'python3 scripts/giornata.py', 1440, '19:00'" in sql, "l'operazione «giornata» alle 19"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "giornata.py"), encoding="utf-8").read()
+    assert "if _a_secco():" in src and src.count("manda_mail(") == 1 and "gia_partita(" in src, "una mail sola, e mai in prova"
 
 
 @prova("notifica: un indirizzo morto (410 o 404) si toglie, un errore qualunque no, e gli altri dispositivi ricevono")

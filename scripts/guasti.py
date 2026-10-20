@@ -12,7 +12,8 @@ provvisorio vede da dentro: Gmail ferma, memoria, calendario, conversazioni). Su
 - dalle 22 alle 7:30 non suona: il guasto resta nella scheda Clara e, se e' ancora vero, suona
   alle 7:30.
 Piu' guasti nello stesso giro fanno UNA notifica. Lo stato (quando e' suonato cosa) sta in
-snella_numeri, chiave «guasti». Se un avviso suona spesso si ripara la causa, non si zittisce.
+snella_numeri, chiave «guasti»: «aperti» adesso e «risolti» nelle ultime 48 ore (li legge la mail
+della sera, scripts/giornata.py). Se un avviso suona spesso si ripara la causa, non si zittisce.
 Gira ogni 10 minuti (operazione «guasti»); lo chiama anche la sentinella, dal suo workflow,
 quando il direttore e' fermo (allora questa operazione non gira).
 
@@ -107,13 +108,31 @@ def suona(titolo, testo, pid=None):
         return 0
 
 
+TIENI_RISOLTI = datetime.timedelta(hours=48)
+
+
+def storico(stato, nuovo, risolti, ora):
+    """Pura. I guasti risolti, per la mail della sera (giornata.py): un guasto che era nello stato e
+    non c'e' piu' (o e' appena passato a «risolto» di notte) va nella lista, con cosa, da quando e
+    quando si e' chiuso. Si tengono quelli delle ultime 48 ore. (20/10 sera)"""
+    out = [x for x in (risolti or []) if isinstance(x, dict) and x.get("risolto_il") and ora - quando(x["risolto_il"]) <= TIENI_RISOLTI]
+    for k, v in (stato or {}).items():
+        sparito = k not in nuovo
+        appena_risolto = (not sparito) and nuovo[k].get("risolto") and not v.get("risolto")
+        if (sparito or appena_risolto) and not v.get("risolto"):
+            out.append({"chiave": k, "cosa": v.get("cosa"), "da": v.get("da"), "primo": v.get("primo"), "risolto_il": ora.isoformat()})
+    return out
+
+
 def giro(prova=False, ora=None):
     import clara_foglio
     ora = ora or datetime.datetime.now(datetime.timezone.utc)
     aperti = clara_foglio.semaforo(ora)
     r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.guasti") or []
-    stato = ((r[0].get("dati") if r else None) or {}).get("aperti") or {}
+    dati = ((r[0].get("dati") if r else None) or {})
+    stato = dati.get("aperti") or {}
     note, nuovo = decidi(aperti, stato, ora)
+    risolti = storico(stato, nuovo, dati.get("risolti"), ora)
     print(f"guasti: {len(aperti)} aperti" + "".join(f"\n  ! {g['cosa']}" for g in aperti))
     for titolo, testo, pid in note:
         if prova:
@@ -122,7 +141,7 @@ def giro(prova=False, ora=None):
             suona(titolo, testo, pid)
     if not prova:
         sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave",
-           [{"chiave": "guasti", "dati": {"aperti": nuovo, "giro": ora.isoformat()}, "aggiornato_il": ora.isoformat()}],
+           [{"chiave": "guasti", "dati": {"aperti": nuovo, "risolti": risolti, "giro": ora.isoformat()}, "aggiornato_il": ora.isoformat()}],
            {"Prefer": "resolution=merge-duplicates,return=minimal"})
     return note
 
