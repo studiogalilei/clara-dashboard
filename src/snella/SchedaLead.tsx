@@ -2,13 +2,17 @@
 // impostala clean con le info anche del sito»). In quest'ordine: chi e' (azienda, persona, stato in
 // una riga); come si contatta (telefono, mail, sito, citta', settore, campagna); il prossimo messaggio
 // di Clara, col testo esatto e «Ferma»; la conversazione con l'analisi; stato e prossima azione; note.
+// 20/10 sera (Dre: «lo vedevo, ma non potevo agire»): un messaggio fermo che aspetta lui si decide qui,
+// «Manda» o «Non mandare», e il lead si chiude con «Chiudi: non interessato». Ogni gesto lascia una nota.
 import { useEffect, useState } from 'react'
 import {
-  GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, fermaMessaggi, ioSono, leggiScheda, linkAnalisi, salvaDecisione, togliNota,
+  GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, chiudiLead, fermaMessaggi, ioSono, leggiScheda, linkAnalisi, mandaDallApp, nonMandareDallApp,
+  salvaDecisione, togliNota,
   type Call, type Decisione, type Lead, type Messaggio, type Nota, type Scheda, type Telefono,
 } from './dati'
 import {
-  giornoRoma, infoStato, nomeGiorno, nomeStato, ora, prossimoMessaggio, quando, sitoBreve, sitoCliccabile, statoDi,
+  NOTE_APP, allegaAnalisi, azioneApprovata, giornoRoma, infoStato, messaggioInAttesa, nomeGiorno, nomeStato, ora, prossimoMessaggio, quando,
+  scritturaNonMandare, scrittureChiusura, sitoBreve, sitoCliccabile, statoDi, type InAttesa,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
@@ -50,6 +54,12 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   const filo = sc?.filo ?? []
   const prossimo = prossimoMessaggio(lead ?? VUOTO, dati.proposte, dati.calendario,
     filo.filter((m) => m.chi === 'noi' && m.at).map((m) => m.at!))
+  // 20/10 sera, Dre: «lo vedevo, ma non potevo agire». Un messaggio fermo che aspetta lui si decide qui:
+  // Manda o Non mandare. Se e' lo stesso del «prossimo messaggio», si mostra una volta sola.
+  const attesa = messaggioInAttesa(dati.proposte)
+  const mostraProssimo = !attesa || prossimo?.proposta !== attesa.id
+  const daChiudere = dati.proposte.filter((p) => (p.stato === 'aperta' || p.stato === 'approvata') && (p.tipo === 'risposta' || p.tipo === 'umano')).map((p) => p.id)
+  const conNota = (x: NonNullable<typeof dati>, n: Nota | null) => n ? { ...x, note: [n, ...x.note] } : x
 
   return (
     <article aria-labelledby="titolo-scheda">
@@ -68,16 +78,32 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       <Contatti telefoni={telefoni} email={s?.email || b?.email || lead?.email || ''} lead={lead}
                 campagna={s?.campagna || b?.campagna || lead?.campaign || ''} />
 
-      <Blocco titolo="Il prossimo messaggio di Clara">
-        <ProssimoMessaggio id={id} prossimo={prossimo} fermato={Boolean(lead?.no_followup)} chiuso={chiuso} onFermato={(partite) => {
-          setDati((x) => x ? {
-            ...x, calendario: null, lead: x.lead ? { ...x.lead, no_followup: true, coda: null } : x.lead,
-            proposte: x.proposte.map((p) => prossimo?.da_chiudere.includes(p.id) && (p.stato === 'aperta' || p.stato === 'approvata')
-              ? { ...p, stato: 'no', risposta: 'NO: fermato da Dre' } : p),
-          } : x)
-          mostra({ testo: partite ? 'Fermato. Una mail era già partita.' : 'Fermato' })
-        }} />
-      </Blocco>
+      {attesa && (
+        <Blocco titolo="Messaggio in attesa di una decisione">
+          <MessaggioInAttesa id={id} attesa={attesa} lead={lead ?? VUOTO}
+            onMandato={(n) => {
+              setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa.id ? { ...p, stato: 'approvata' } : p) }, n) : x)
+              mostra({ testo: 'Parte al prossimo giro' })
+            }}
+            onNonMandato={(n) => {
+              setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa.id ? { ...p, stato: 'no', risposta: "NO: Dre dall'app" } : p) }, n) : x)
+              mostra({ testo: 'Non parte' })
+            }} />
+        </Blocco>
+      )}
+
+      {mostraProssimo && (
+        <Blocco titolo="Il prossimo messaggio di Clara">
+          <ProssimoMessaggio id={id} prossimo={prossimo} fermato={Boolean(lead?.no_followup)} chiuso={chiuso} onFermato={(partite) => {
+            setDati((x) => x ? {
+              ...x, calendario: null, lead: x.lead ? { ...x.lead, no_followup: true, coda: null } : x.lead,
+              proposte: x.proposte.map((p) => prossimo?.da_chiudere.includes(p.id) && (p.stato === 'aperta' || p.stato === 'approvata')
+                ? { ...p, stato: 'no', risposta: 'NO: fermato da Dre' } : p),
+            } : x)
+            mostra({ testo: partite ? 'Fermato. Una mail era già partita.' : 'Fermato' })
+          }} />
+        </Blocco>
+      )}
 
       <Blocco titolo="La conversazione">
         <Analisi a={analisi} />
@@ -90,6 +116,16 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           setDati((x) => x ? { ...x, decisione: nuova } : x)
           mostra({ testo: 'Salvato' })
         }} />
+        {!chiuso && (
+          <ChiudiLead id={id} proposte={daChiudere} onChiuso={(nuova, n) => {
+            setDati((x) => x ? conNota({
+              ...x, decisione: nuova, calendario: null,
+              lead: x.lead ? { ...x.lead, no_followup: true, classificazione: 'negativo', coda: null } : x.lead,
+              proposte: x.proposte.map((p) => daChiudere.includes(p.id) ? { ...p, stato: 'no', risposta: "NO: Dre dall'app, lead chiuso" } : p),
+            }, n) : x)
+            mostra({ testo: 'Chiuso: non interessato' })
+          }} />
+        )}
       </Blocco>
 
       <Blocco titolo="Note">
@@ -172,7 +208,6 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
   const [chiedo, setChiedo] = useState(false)
   const [lavoro, setLavoro] = useState(false)
   const [sbaglio, setSbaglio] = useState<string | null>(null)
-  const [intero, setIntero] = useState(false)
 
   if (!prossimo) {
     return (
@@ -196,9 +231,6 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
     }
   }
 
-  const righe = prossimo.testo?.split('\n') ?? []
-  const lungo = righe.length > RIGHE_MESSAGGIO + 2
-  const testo = lungo && !intero ? righe.slice(0, RIGHE_MESSAGGIO).join('\n').trimEnd() + '…' : prossimo.testo
   return (
     <div className="overflow-hidden rounded-2xl border border-noi-bordo bg-white">
       <p className="border-b border-noi-bordo px-4 py-3 text-[16px] font-bold text-inchiostro">
@@ -206,17 +238,8 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
         <span className="font-normal text-tenue"> · {prossimo.tipo}</span>
       </p>
       <div className="px-4 py-3">
-        {testo ? (
-          <>
-            <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-inchiostro">{testo}</p>
-            {lungo && (
-              <button onClick={() => setIntero(!intero)} aria-expanded={intero}
-                      className="mt-1 inline-flex min-h-11 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
-                {intero ? 'Mostra meno' : 'Mostra tutto'}
-              </button>
-            )}
-          </>
-        ) : <p className="text-[15px] text-tenue">Clara lo scrive quel giorno, dopo aver riletto la conversazione.</p>}
+        {prossimo.testo ? <TestoMessaggio testo={prossimo.testo} />
+          : <p className="text-[15px] text-tenue">Clara lo scrive quel giorno, dopo aver riletto la conversazione.</p>}
       </div>
       {!chiedo && (
         <div className="border-t border-velo px-2 py-1">
@@ -236,6 +259,146 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
             </button>
             <Bottone onClick={() => setChiedo(false)} disabled={lavoro}>Annulla</Bottone>
           </div>
+        </div>
+      )}
+      {sbaglio && <p role="alert" className="px-4 pb-3 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
+    </div>
+  )
+}
+
+/** Il testo di una mail di Clara: le prime righe, il resto a richiesta. */
+function TestoMessaggio({ testo }: { testo: string }) {
+  const [intero, setIntero] = useState(false)
+  const righe = testo.split('\n')
+  const lungo = righe.length > RIGHE_MESSAGGIO + 2
+  const mostrato = lungo && !intero ? righe.slice(0, RIGHE_MESSAGGIO).join('\n').trimEnd() + '…' : testo
+  return (
+    <>
+      <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-inchiostro">{mostrato}</p>
+      {lungo && (
+        <button onClick={() => setIntero(!intero)} aria-expanded={intero}
+                className="mt-1 inline-flex min-h-11 items-center text-[14px] font-semibold text-blu-scuro hover:underline">
+          {intero ? 'Mostra meno' : 'Mostra tutto'}
+        </button>
+      )}
+    </>
+  )
+}
+
+/** La domanda prima di un gesto che non si annulla: una riga e due pulsanti, dentro la carta. */
+function Conferma({ id, testo, si, lavoro, lavoroTesto, tono, onSi, onNo }: {
+  id: string; testo: string; si: string; lavoro: boolean; lavoroTesto: string; tono: 'noi' | 'no'; onSi: () => void; onNo: () => void
+}) {
+  const rosso = tono === 'no'
+  return (
+    <div role="alertdialog" aria-labelledby={id} className={`border-t px-4 py-3 ${rosso ? 'border-no-bordo bg-no-fondo' : 'border-noi-bordo bg-noi-fondo'}`}>
+      <p id={id} className={`text-[15px] font-semibold ${rosso ? 'text-no-testo' : 'text-noi-testo'}`}>{testo}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button onClick={onSi} disabled={lavoro} autoFocus
+                className={`inline-flex min-h-11 items-center rounded-full border px-4 text-[14px] font-semibold text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50 ${rosso ? 'border-no-testo bg-no-testo' : 'border-blu-scuro bg-blu-scuro'}`}>
+          {lavoro ? lavoroTesto : si}
+        </button>
+        <Bottone onClick={onNo} disabled={lavoro}>Annulla</Bottone>
+      </div>
+    </div>
+  )
+}
+
+/** Il messaggio fermo che aspetta Dre (20/10 sera): perche' e' fermo, il testo esatto, e due gesti.
+ *  «Manda» lo approva (manda.py lo spedisce al giro dopo, con l'analisi se e' la prima risposta);
+ *  «Non mandare» lo chiude. Tutti e due chiedono conferma; tutti e due lasciano una nota. */
+function MessaggioInAttesa({ id, attesa, lead, onMandato, onNonMandato }: {
+  id: string; attesa: InAttesa; lead: Lead; onMandato: (nota: Nota | null) => void; onNonMandato: (nota: Nota | null) => void
+}) {
+  const [chiedo, setChiedo] = useState<'manda' | 'no' | null>(null)
+  const [lavoro, setLavoro] = useState(false)
+  const [sbaglio, setSbaglio] = useState<string | null>(null)
+  const allega = allegaAnalisi({ bozza: attesa.testo }, lead)
+
+  async function fai(cosa: 'manda' | 'no') {
+    setLavoro(true); setSbaglio(null)
+    try {
+      if (cosa === 'manda') {
+        const r = await mandaDallApp(id, attesa.id, (az) => azioneApprovata(az, lead), NOTE_APP.mandato)
+        setChiedo(null); onMandato(r.nota)
+      } else {
+        const r = await nonMandareDallApp(id, attesa.id, scritturaNonMandare(), NOTE_APP.non_mandato)
+        setChiedo(null); onNonMandato(r.nota)
+      }
+    } catch (e) {
+      setSbaglio(`${cosa === 'manda' ? 'Non mandato' : 'Non chiuso'}: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setLavoro(false)
+    }
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-attesa-bordo bg-white">
+      <div className="border-b border-attesa-bordo bg-attesa-fondo px-4 py-3">
+        <p className="text-[16px] font-bold text-attesa-testo">
+          Aspetta te
+          <span className="font-normal"> · {attesa.tipo}</span>
+        </p>
+        <p className="mt-0.5 max-w-[65ch] text-[14px] leading-snug text-attesa-testo">{attesa.motivo}</p>
+      </div>
+      <div className="px-4 py-3"><TestoMessaggio testo={attesa.testo} /></div>
+      {!chiedo && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-velo px-3 py-2">
+          <Bottone tipo="primo" onClick={() => setChiedo('manda')} disabled={lavoro}>Manda</Bottone>
+          <button onClick={() => setChiedo('no')} disabled={lavoro}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-no-testo transition-colors duration-150 hover:bg-no-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-no-testo disabled:opacity-50">
+            <Icona nome="divieto" className="h-4 w-4" /> Non mandare
+          </button>
+        </div>
+      )}
+      {chiedo === 'manda' && (
+        <Conferma id={`manda-${id}`} tono="noi" lavoro={lavoro} lavoroTesto="Mando…" si="Sì, manda"
+                  testo={allega ? 'Parte al prossimo giro, con analisi e presentazione. Confermi?' : 'Parte al prossimo giro. Confermi?'}
+                  onSi={() => void fai('manda')} onNo={() => setChiedo(null)} />
+      )}
+      {chiedo === 'no' && (
+        <Conferma id={`non-mandare-${id}`} tono="no" lavoro={lavoro} lavoroTesto="Chiudo…" si="Sì, non mandare"
+                  testo="Non parte e resta qui come non mandato. Confermi?"
+                  onSi={() => void fai('no')} onNo={() => setChiedo(null)} />
+      )}
+      {sbaglio && <p role="alert" className="px-4 pb-3 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
+    </div>
+  )
+}
+
+/** «Chiudi: non interessato» (20/10 sera): il lead diventa un no deciso da Dre, Clara non gli scrive
+ *  piu', le mail in attesa si chiudono. Con conferma, e una nota che resta. */
+function ChiudiLead({ id, proposte, onChiuso }: { id: string; proposte: number[]; onChiuso: (d: Decisione, nota: Nota | null) => void }) {
+  const [chiedo, setChiedo] = useState(false)
+  const [lavoro, setLavoro] = useState(false)
+  const [sbaglio, setSbaglio] = useState<string | null>(null)
+
+  async function chiudi() {
+    setLavoro(true); setSbaglio(null)
+    try {
+      const r = await chiudiLead(id, proposte, scrittureChiusura(), NOTE_APP.chiuso)
+      setChiedo(false); onChiuso(r.decisione, r.nota)
+    } catch (e) {
+      setSbaglio(`Non chiuso: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setLavoro(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-bordo bg-white">
+      {!chiedo ? (
+        <div className="px-2 py-1">
+          <button onClick={() => setChiedo(true)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-no-testo transition-colors duration-150 hover:bg-no-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-no-testo">
+            <Icona nome="divieto" className="h-4 w-4" /> Chiudi: non interessato
+          </button>
+        </div>
+      ) : (
+        <div className="-mt-px">
+          <Conferma id={`chiudi-${id}`} tono="no" lavoro={lavoro} lavoroTesto="Chiudo…" si="Sì, chiudi"
+                    testo={`Lo segno come non interessato: Clara non gli scrive più${proposte.length ? ' e le mail in attesa si chiudono' : ''}. Confermi?`}
+                    onSi={() => void chiudi()} onNo={() => setChiedo(false)} />
         </div>
       )}
       {sbaglio && <p role="alert" className="px-4 pb-3 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}

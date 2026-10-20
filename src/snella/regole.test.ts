@@ -2,8 +2,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead } from './dati'
 import {
-  FASI, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
-  infoStato, nomeStato, prossimoMessaggio, scrittoDopo, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi, tasso, titoloDomanda, tonoStato,
+  DA_APP, FASI, NOTE_APP, allegaAnalisi, azioneApprovata, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare,
+  messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
+  infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
+  tasso, titoloDomanda, tonoStato,
   type LeadPerProssimo, type PropostaLead,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
@@ -249,5 +251,58 @@ describe('la scheda pulita (20/10): il prossimo messaggio di Clara e il sito', (
     expect(sitoCliccabile('non un sito')).toBeNull()
     expect(sitoBreve('https://www.esempio.it/')).toBe('esempio.it')
     expect(sitoBreve('https://esempio.it/chi-siamo')).toBe('esempio.it/chi-siamo')
+  })
+})
+
+describe('risolvere da soli un lead fermo (20/10 sera): Manda, Non mandare, Chiudi', () => {
+  const ADESSO = new Date('2026-10-20T18:00:00Z')
+  const lead = { analysis_pdf: 'https://x.supabase.co/storage/v1/object/vault/analisi/a.pdf', analysis_sent_at: null as string | null }
+  const p = (cambia: Partial<PropostaLead> = {}): PropostaLead => ({
+    id: 1, tipo: 'umano', stato: 'aperta', at: '2026-10-20T07:00:00Z', bozza: 'Buongiorno,\n\nle rispondo.', template: 'INT-13', risposta: null,
+    titolo: 'Da guardare tu: Azienda A, INT-13', perche: "si': la seconda testa dice INCOERENTE: evita la domanda (INT-13)", ...cambia,
+  })
+
+  it('il messaggio in attesa e\' la proposta aperta piu\' recente col testo; approvate, chiuse, senza testo e altri tipi no', () => {
+    const a = messaggioInAttesa([p(), p({ id: 2, at: '2026-10-20T09:00:00Z', bozza: 'Più recente' }), p({ id: 3, stato: 'approvata', at: '2026-10-20T10:00:00Z' }),
+      p({ id: 4, at: '2026-10-20T11:00:00Z', bozza: null }), p({ id: 5, tipo: 'avanza', at: '2026-10-20T12:00:00Z' }), p({ id: 6, stato: 'no', at: '2026-10-20T12:00:00Z' })])
+    expect(a).toMatchObject({ id: 2, testo: 'Più recente', tipo: 'Risposta' })
+    expect(messaggioInAttesa([p({ stato: 'approvata' })])).toBeNull()
+    expect(messaggioInAttesa([])).toBeNull()
+  })
+  it('il motivo per cui e\' fermo, senza parole interne: il perche\', poi il controllo, poi l\'ombra, poi il titolo', () => {
+    expect(motivoFermo(p())).toBe('Il controllo ha fermato la bozza: evita la domanda')
+    expect(motivoFermo(p({ perche: null, motivo_controllo: 'dice «grazie» al contatto nuovo' }))).toBe('Il controllo ha fermato la bozza: dice «grazie» al contatto nuovo')
+    expect(motivoFermo(p({ perche: '', motivo_controllo: '', ombra: 'in ombra: il lettore non era sicuro' }))).toBe('In ombra: il lettore non era sicuro')
+    expect(motivoFermo(p({ perche: null }))).toBe('Clara non era sicura: la guardi tu.')
+    expect(motivoFermo(p({ perche: null, titolo: 'Bozza per Azienda A, INT-01' }))).toBe('Aspetta un tuo sì.')
+  })
+  it('il prossimo messaggio sa da quale proposta viene, cosi\' la scheda non lo mostra due volte', () => {
+    const lp: LeadPerProssimo = { analysis_sent_at: null, last_reply_at: '2026-10-20T06:00:00Z', no_followup: false, fuori: false, stage: 'risposto', classificazione: 'positivo', coda: null, awaiting_us: true }
+    expect(prossimoMessaggio(lp, [p()], null, [], ADESSO)?.proposta).toBe(1)
+  })
+  it('Manda: approvata da «Dre (app)» adesso, il resto di azione intatto; l\'analisi in allegato solo se non e\' mai partita', () => {
+    const az = { bozza: 'Buongiorno', intento: 'INT-13', template: 'INT-13', lettura: { coerenza: 'INCOERENTE' } }
+    const dopo = azioneApprovata(az, lead, ADESSO)
+    expect(dopo).toMatchObject({ ...az, approvata_da: DA_APP, approvata_il: '2026-10-20T18:00:00.000Z', allega: true })
+    expect(az).not.toHaveProperty('approvata_da')
+    // analisi gia' mandata: non si rimanda; bozza che la porta gia' dentro: niente doppione; senza PDF: niente
+    expect(azioneApprovata(az, { ...lead, analysis_sent_at: '2026-10-19T09:00:00Z' }, ADESSO)).not.toHaveProperty('allega')
+    expect(allegaAnalisi({ bozza: `ecco ${lead.analysis_pdf}` }, lead)).toBe(false)
+    expect(allegaAnalisi({ bozza: 'x' }, { analysis_pdf: null, analysis_sent_at: null })).toBe(false)
+    // una spunta gia' accesa resta
+    expect(allegaAnalisi({ bozza: 'x', allega: true }, { analysis_pdf: null, analysis_sent_at: '2026-10-19T09:00:00Z' })).toBe(true)
+  })
+  it('Non mandare e Chiudi scrivono quello che poi il sistema rispetta', () => {
+    expect(scritturaNonMandare(ADESSO)).toEqual({ stato: 'no', risposta: "NO: Dre dall'app", risposta_il: '2026-10-20T18:00:00.000Z' })
+    const c = scrittureChiusura(ADESSO)
+    expect(c.lead).toEqual({ classificazione: 'negativo', no_followup: true, coda: null })
+    expect(c.decisione.stato).toBe('Non interessato')
+    expect(STATI).toContain(c.decisione.stato)
+    expect(c.proposte.stato).toBe('no')
+    expect(c.proposte.risposta.startsWith('NO:')).toBe(true)     // un no «a mano» (prossimoMessaggio lo conta come avuto)
+    // chiuso: niente follow-up da nessuna strada
+    const lp: LeadPerProssimo = { analysis_sent_at: '2026-10-15T09:00:00Z', last_reply_at: '2026-10-14T09:00:00Z', fuori: false, stage: 'risposto', awaiting_us: false, ...c.lead }
+    expect(prossimoMessaggio(lp, [], { gruppo: 'FOLLOW UP 1', il: '2026-10-22' }, [], ADESSO)).toBeNull()
+    for (const n of Object.values(NOTE_APP)) expect(n.startsWith("Dall'app: ")).toBe(true)
   })
 })

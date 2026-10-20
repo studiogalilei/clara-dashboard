@@ -374,6 +374,22 @@ def _quando_breve(t, ora):
     return f"{r:%d/%m %H:%M}"
 
 
+def cosa_del_guasto(g):
+    """La cella «Azienda» di una riga rossa. Se il guasto riguarda un lead (ha `pid`), la cella e' il
+    link alla sua scheda nel Workspace (20/10 sera, Dre: «lo vedevo, ma non potevo agire»): un clic e ci
+    sono i pulsanti per mandare, non mandare o chiudere. Il foglio e' in italiano: punto e virgola nella
+    formula, le virgolette nel testo raddoppiate."""
+    from foglio import testo
+    if not g.get("pid"):
+        return testo(g["cosa"])
+    from foglio_lead import link_scheda
+    url = link_scheda(g["pid"])
+    if not url.startswith("https://") or '"' in url:
+        return testo(g["cosa"])
+    t = " ".join(str(g["cosa"]).split()).replace('"', '""')
+    return f'=HYPERLINK("{url}";"{t}")'
+
+
 def griglia(guasti, righe_diario, ora):
     """Le righe della scheda: il semaforo, i guasti, il titolo del diario, il diario.
     Torna (valori, quante righe di guasto)."""
@@ -385,7 +401,7 @@ def griglia(guasti, righe_diario, ora):
     valori = [[testa, "", ""]]
     for g in guasti:
         valori.append([f"dalle {_ora(g['da'])}" if g["da"].astimezone(ROMA).date() == ora.astimezone(ROMA).date()
-                       else _quando_breve(g["da"], ora), testo(g["cosa"]), testo(g["sta_facendo"])])
+                       else _quando_breve(g["da"], ora), cosa_del_guasto(g), testo(g["sta_facendo"])])
     valori.append(["", "", ""])
     valori.append(["Cosa ha fatto Clara, oggi e ieri", "", ""])
     if not righe_diario:

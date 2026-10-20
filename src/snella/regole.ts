@@ -247,12 +247,18 @@ export interface LeadPerProssimo {
   analysis_sent_at: string | null; last_reply_at: string | null; no_followup: boolean | null; fuori: boolean | null
   stage: string | null; classificazione: string | null; coda: string | null; awaiting_us: boolean | null
 }
-/** Una proposta del lead (tabella proposte): `bozza` e `template` vengono da `azione`. */
-export interface PropostaLead { id: number; tipo: string; stato: string; at: string; bozza: string | null; template: string | null; risposta: string | null }
+/** Una proposta del lead (tabella proposte): `bozza` e `template` vengono da `azione`; `titolo`, `perche`,
+ *  `motivo_controllo` (azione.lettura.coerenza_motivo) e `ombra` (azione.ombra) dicono perche' e' ferma. */
+export interface PropostaLead {
+  id: number; tipo: string; stato: string; at: string; bozza: string | null; template: string | null; risposta: string | null
+  titolo?: string | null; perche?: string | null; motivo_controllo?: string | null; ombra?: string | null
+}
 export interface Prossimo {
   quando: string; giorno: string | null; tipo: string
   /** il testo esatto che partira'; null se Clara lo scrive il giorno stesso, dopo aver riletto il filo */
   testo: string | null
+  /** la proposta da cui viene il testo (per non mostrarla due volte nella scheda) */
+  proposta: number | null
   /** le proposte da chiudere se Dre lo ferma */
   da_chiudere: number[]
 }
@@ -281,13 +287,13 @@ export function prossimoMessaggio(lead: LeadPerProssimo, proposte: PropostaLead[
   const p = scritte[0]
   if (p) {
     return { quando: p.stato === 'approvata' ? 'Parte a minuti' : 'Scritto, non ancora partito', giorno: null,
-             tipo: NOMI_GRUPPO[p.template ?? ''] ?? 'Risposta', testo: p.bozza!.trim(), da_chiudere }
+             tipo: NOMI_GRUPPO[p.template ?? ''] ?? 'Risposta', testo: p.bozza!.trim(), proposta: p.id, da_chiudere }
   }
   if (lead.no_followup || lead.fuori) return null
   const oggi = giornoRoma(ora)
   const nel = (il: string, gruppo: string): Prossimo => {
     const giorno = il < oggi ? oggi : il
-    return { quando: nomeGiorno(giorno, ora), giorno, tipo: NOMI_GRUPPO[gruppo] ?? 'Primo follow-up', testo: null, da_chiudere }
+    return { quando: nomeGiorno(giorno, ora), giorno, tipo: NOMI_GRUPPO[gruppo] ?? 'Primo follow-up', testo: null, proposta: null, da_chiudere }
   }
   if (calendario) return nel(calendario.il.slice(0, 10), calendario.gruppo)
   // 3. followup.py, main(): analisi mandata, silenzio, nessun follow-up avuto
@@ -325,4 +331,69 @@ export function scrittoDopo(filo: Array<{ at: string | null; chi: 'lui' | 'noi';
   const dopo = filo.filter((m) => m.chi === 'noi' && m.at && new Date(m.at).getTime() > da && m.testo.trim())
   const u = dopo[dopo.length - 1]
   return u?.at ? { at: u.at, testo: u.testo } : null
+}
+
+// ── risolvere da soli un lead fermo (20/10 sera, Dre: «lo vedevo, ma non potevo agire») ──
+
+/** Il messaggio che aspetta una decisione di Dre: la proposta aperta piu' recente (risposta o umano)
+ *  che ha gia' il testo. Le approvate stanno partendo e non si decidono piu'. */
+export interface InAttesa { id: number; testo: string; motivo: string; tipo: string }
+export function messaggioInAttesa(proposte: PropostaLead[]): InAttesa | null {
+  const p = proposte.filter((x) => x.stato === 'aperta' && (x.tipo === 'risposta' || x.tipo === 'umano') && x.bozza?.trim())
+    .sort((a, b) => b.at.localeCompare(a.at))[0]
+  if (!p) return null
+  return { id: p.id, testo: p.bozza!.trim(), motivo: motivoFermo(p), tipo: NOMI_GRUPPO[p.template ?? ''] ?? 'Risposta' }
+}
+
+/** Perche' il messaggio e' fermo, in parole normali: il perche' della Posta senza le parole interne,
+ *  se no il motivo del controllo (coerenza), se no l'ombra, se no quello che dice il titolo. */
+export function motivoFermo(p: Pick<PropostaLead, 'titolo' | 'perche' | 'motivo_controllo' | 'ombra'>): string {
+  const perche = spiegaDomanda(p.perche)
+  if (perche) return perche
+  const controllo = (p.motivo_controllo ?? '').replace(/\s+/g, ' ').trim()
+  if (controllo) return `Il controllo ha fermato la bozza: ${controllo}`
+  const ombra = (p.ombra ?? '').replace(/\s+/g, ' ').trim()
+  if (ombra) return ombra.charAt(0).toUpperCase() + ombra.slice(1)
+  return /^Da guardare tu/i.test(p.titolo ?? '') ? 'Clara non era sicura: la guardi tu.' : 'Aspetta un tuo sì.'
+}
+
+export const DA_APP = 'Dre (app)'
+/** Le note che restano sul lead dopo un gesto dalla scheda (snella_note): la traccia di cosa ha deciso Dre. */
+export const NOTE_APP = { mandato: "Dall'app: mandato", non_mandato: "Dall'app: non mandato", chiuso: "Dall'app: chiuso, non interessato" } as const
+
+/** L'analisi va in allegato? Se c'e' il PDF, non e' ancora stata mandata e la bozza non la porta gia'
+ *  (il postino manda.py la allega alla prima risposta; qui lo si scrive, cosi' e' detto). A chi l'ha gia'
+ *  ricevuta non si rimanda. */
+export function allegaAnalisi(azione: { bozza?: unknown; allega?: unknown }, lead: { analysis_pdf: string | null; analysis_sent_at: string | null }): boolean {
+  if (azione.allega === true) return true
+  if (!lead.analysis_pdf || lead.analysis_sent_at) return false
+  return !String(azione.bozza ?? '').includes(lead.analysis_pdf)
+}
+
+/** «MANDA»: com'e' `azione` dopo il si' di Dre dalla scheda. manda.py vuole `approvata_da`; il resto
+ *  della bozza non si tocca (il testo non si modifica dalla scheda). */
+export function azioneApprovata(azione: Record<string, unknown>, lead: { analysis_pdf: string | null; analysis_sent_at: string | null },
+  ora: Date = new Date()): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...azione, approvata_da: DA_APP, approvata_il: ora.toISOString() }
+  if (allegaAnalisi(azione, lead)) out.allega = true
+  return out
+}
+
+/** «NON MANDARE»: la proposta si chiude col motivo, come un no di Dre dalla Posta. */
+export function scritturaNonMandare(ora: Date = new Date()): { stato: 'no'; risposta: string; risposta_il: string } {
+  return { stato: 'no', risposta: "NO: Dre dall'app", risposta_il: ora.toISOString() }
+}
+
+/** «CHIUDI: NON INTERESSATO»: il lead e' un no deciso da una persona (il database lo segna in
+ *  `deciso` da solo), niente follow-up, lo stato di Dre «Non interessato», le mail aperte chiuse. */
+export function scrittureChiusura(ora: Date = new Date()): {
+  lead: { classificazione: 'negativo'; no_followup: true; coda: null }
+  decisione: { stato: 'Non interessato' }
+  proposte: { stato: 'no'; risposta: string; risposta_il: string }
+} {
+  return {
+    lead: { classificazione: 'negativo', no_followup: true, coda: null },
+    decisione: { stato: 'Non interessato' },
+    proposte: { stato: 'no', risposta: "NO: Dre dall'app, lead chiuso", risposta_il: ora.toISOString() },
+  }
 }

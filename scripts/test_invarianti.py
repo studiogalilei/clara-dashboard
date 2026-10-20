@@ -3818,6 +3818,11 @@ def _():
     d["si"] = [{"prospect_id": "p1", "azienda": "Rossi srl", "quando": alle(9, 59)}]
     g = C.semaforo(alle(11), d)
     assert len(g) == 1 and "Rossi srl" in g[0]["cosa"] and g[0]["da"] == alle(9, 59) and g[0]["sta_facendo"], g
+    # 20/10 sera: la riga rossa di un lead porta alla sua scheda (un clic e ci sono i pulsanti); le altre restano testo
+    valori, n = C.griglia(g + [{"chiave": "foglio", "da": alle(9, 50), "cosa": "Il foglio non si aggiorna da 1 ora", "sta_facendo": "Riprova."}], [], alle(11))
+    assert n == 2 and valori[1][1].startswith('=HYPERLINK("https://') and "#/s/lead/p1" in valori[1][1] and '";"Sì senza analisi: Rossi srl' in valori[1][1], valori[1]
+    assert valori[2][1] == "Il foglio non si aggiorna da 1 ora", valori[2]
+    assert C.cosa_del_guasto({"pid": "p9", "cosa": 'Rossi "srl"'}).endswith(';"Rossi ""srl""")'), "le virgolette raddoppiate, la formula non si rompe"
     d["si"] = [{"prospect_id": "p1", "azienda": "Rossi srl", "quando": alle(21, 59)}]
     assert C.semaforo(alle(23), d) == []
     # arrivato alle 7: alle 8:30 non e' ancora fermo (l'invio parte alle 8), alle 9:01 si'

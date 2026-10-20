@@ -147,7 +147,8 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
     // che serve per dire il prossimo messaggio; dalle proposte la mail gia' scritta; dal calendario dei
     // follow-up (scripts/followup.py) il giorno del prossimo
     supabase.from('prospects').select(CAMPI_LEAD).eq('id', id).abortSignal(entro()).maybeSingle(),
-    supabase.from('proposte').select('id,tipo,stato,at,risposta,bozza:azione->>bozza,template:azione->>template')
+    // 20/10 sera: anche titolo, perche' e motivo del controllo, per dire perche' un messaggio e' fermo
+    supabase.from('proposte').select('id,tipo,stato,at,risposta,titolo,perche,bozza:azione->>bozza,template:azione->>template,motivo_controllo:azione->lettura->>coerenza_motivo,ombra:azione->>ombra')
       .eq('prospect_id', id).order('at', { ascending: false }).limit(100).abortSignal(entro()),
     supabase.from('seguiti_calendario').select('gruppo,il').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
   ])
@@ -195,6 +196,58 @@ export async function fermaMessaggi(id: string, proposte: number[]): Promise<{ p
   const c = await supabase.from('seguiti_calendario').delete().eq('prospect_id', id).abortSignal(entro())
   if (c.error) guasto(c.error)
   return { partite: proposte.length - chiuse }
+}
+
+// ── risolvere da soli un lead fermo (20/10 sera, Dre: «lo vedevo, ma non potevo agire») ──
+// Le forme di quello che si scrive stanno in regole.ts (pure, provate): qui solo le scritture.
+// Ogni gesto lascia una nota in snella_note; se la nota non si salva il gesto resta fatto e lo si dice.
+
+const NON_PIU_IN_ATTESA = 'questo messaggio non è più in attesa: ricarica la scheda'
+
+async function notaDelGesto(id: string, testo: string): Promise<Nota | null> {
+  try { return await aggiungiNota(id, testo) } catch { return null }
+}
+
+/** «MANDA»: la proposta passa ad «approvata» (con chi e quando, da `approva`) e manda.py la spedisce
+ *  al giro dopo. Si riscrive solo se e' ancora aperta: se nel frattempo e' partita o chiusa, lo si dice. */
+export async function mandaDallApp(id: string, proposta: number, approva: (azione: Record<string, unknown>) => Record<string, unknown>,
+  nota: string): Promise<{ azione: Record<string, unknown>; nota: Nota | null }> {
+  const r = await supabase.from('proposte').select('azione').eq('id', proposta).abortSignal(entro()).single()
+  if (r.error) guasto(r.error)
+  const azione = approva(((r.data as { azione: Record<string, unknown> | null } | null)?.azione) ?? {})
+  const u = await supabase.from('proposte').update({ stato: 'approvata', azione }).eq('id', proposta).eq('stato', 'aperta').select('id').abortSignal(entro())
+  if (u.error) guasto(u.error)
+  if (!u.data?.length) throw new Error(NON_PIU_IN_ATTESA)
+  return { azione, nota: await notaDelGesto(id, nota) }
+}
+
+/** «NON MANDARE»: la proposta si chiude (stato «no» col motivo), solo se e' ancora aperta. */
+export async function nonMandareDallApp(id: string, proposta: number, chiusura: { stato: 'no'; risposta: string; risposta_il: string },
+  nota: string): Promise<{ nota: Nota | null }> {
+  const u = await supabase.from('proposte').update(chiusura).eq('id', proposta).eq('stato', 'aperta').select('id').abortSignal(entro())
+  if (u.error) guasto(u.error)
+  if (!u.data?.length) throw new Error(NON_PIU_IN_ATTESA)
+  return { nota: await notaDelGesto(id, nota) }
+}
+
+/** «CHIUDI: NON INTERESSATO»: il lead (prospects: il database segna che l'ha deciso una persona), le sue
+ *  mail aperte, il calendario dei follow-up, lo stato di Dre. Alla prima scrittura che non va ci si ferma. */
+export async function chiudiLead(id: string, proposte: number[], scritture: {
+  lead: { classificazione: 'negativo'; no_followup: true; coda: null }
+  decisione: { stato: 'Non interessato' }
+  proposte: { stato: 'no'; risposta: string; risposta_il: string }
+}, nota: string): Promise<{ decisione: Decisione; nota: Nota | null }> {
+  const l = await supabase.from('prospects').update(scritture.lead).eq('id', id).select('id').abortSignal(entro())
+  if (l.error) guasto(l.error)
+  if (!l.data?.length) throw new Error('il database non mi lascia chiudere questo lead')
+  if (proposte.length) {
+    const p = await supabase.from('proposte').update(scritture.proposte).in('id', proposte).in('stato', ['aperta', 'approvata']).abortSignal(entro())
+    if (p.error) guasto(p.error)
+  }
+  const c = await supabase.from('seguiti_calendario').delete().eq('prospect_id', id).abortSignal(entro())
+  if (c.error) guasto(c.error)
+  const decisione = await salvaDecisione(id, scritture.decisione)
+  return { decisione, nota: await notaDelGesto(id, nota) }
 }
 
 // ── TUTTI (19/10): il foglio con tutti i prospect, una pagina alla volta dal database ──
