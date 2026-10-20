@@ -309,6 +309,23 @@ def controlla(bozza, p=None, gruppo=None, detto_no=False):
         return [f"cancello non eseguibile: {str(e)[:60]}"]
 
 
+def superata(pr, p, ultima_at):
+    """LA BOZZA E' SUPERATA DAI FATTI? (20/10, caso 3). L'ultima risposta del lead su Smartlead
+    (ultima_at, la fonte vera) e' arrivata DOPO la nascita della bozza: la bozza risponde a un
+    filo che non c'e' piu'. Per un follow-up vale anche una sua mail dopo l'analisi: e' una
+    conversazione, non un silenzio. Torna il motivo, o None."""
+    quando_lei = str(ultima_at or "").replace("Z", "")[:19]
+    nata = str(pr.get("at") or "")[:19]
+    if quando_lei and nata and quando_lei > nata:
+        return f"ha riscritto il {quando_lei[8:10]}/{quando_lei[5:7]}, dopo che la bozza era nata ({nata[8:10]}/{nata[5:7]})"
+    az = pr.get("azione") or {}
+    if "FOLLOW UP 1" in ((az.get("template") or "") + (az.get("gruppo") or "")).upper():
+        inviata = str((p or {}).get("analysis_sent_at") or "")[:19]
+        if quando_lei and inviata and quando_lei > inviata:
+            return f"ha scritto il {quando_lei[8:10]}/{quando_lei[5:7]}, dopo l'analisi: è una conversazione, non un silenzio"
+    return None
+
+
 def torna_aperta(pr, azienda, motivo, prova):
     print(f"    NON mandata: {motivo}")
     if prova:
@@ -409,6 +426,20 @@ def main():
         cid, lid, ultima = thread(p)
         if not ultima:
             torna_aperta(pr, azienda, "non trovo il suo thread su Smartlead", prova); continue
+        # 20/10 (caso 3): l'ultimo cancello guarda il filo VERO. Se il lead ha scritto dopo la
+        # nascita della bozza, un follow-up si chiude col motivo (e' una conversazione: scrive Dre);
+        # una risposta approvata da sola torna in Posta a Dre.
+        vecchia = superata(pr, p, _quando(ultima))
+        if vecchia and (gruppo_fu or az.get("automatica")):
+            if gruppo_fu:
+                print(f"  {azienda}: NON mando il follow-up, {vecchia}")
+                if not prova:
+                    sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "no", "risposta": f"non mandata: {vecchia}"[:300],
+                                                                         "risposta_il": datetime.datetime.now(ROMA).isoformat()})
+                    di_clara("controllo", f"Follow-up a {azienda} non mandato, chiuso: {vecchia}.", prospect_id=p["id"], letto=True)
+            else:
+                torna_aperta(pr, azienda, vecchia + ": rileggi il filo", prova)
+            continue
         a = (p.get("email_alt") or [None])[0] or chi_ha_risposto(ultima, p["email"]) or p["email"]
         corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
                  "email_body": in_html(bozza),

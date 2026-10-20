@@ -179,6 +179,20 @@ SERVIZI_POSTA = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.it", "ya
                  "fastwebnet.it", "interfree.it", "teletu.it", "libero.com", "protonmail.com", "proton.me"}
 
 
+def dominio_vero(email):
+    """Il dominio dell'azienda dalla mail, o «» se e' un servizio di posta (gmail, alice...)."""
+    e = (email or "").strip().lower()
+    dom = e.split("@")[-1] if "@" in e else ""
+    return dom if dom and dom not in SERVIZI_POSTA else ""
+
+
+def chiave_nome(nome):
+    """Un nome d'azienda come si confronta: minuscolo, senza accenti, spazi e punteggiatura."""
+    import unicodedata
+    piatto = unicodedata.normalize("NFKD", str(nome or "")).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]", "", piatto.lower())
+
+
 def sito_vero(p):
     """Il sito dell'azienda, o «» se manca o e' un servizio di posta (mai dedotto da gmail, aruba...)."""
     sito = ((p or {}).get("website") or "").strip()

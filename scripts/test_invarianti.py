@@ -4021,6 +4021,187 @@ def _():
     assert righe["promemoria"]["call_at"] == "2026-10-21T15:00:00+02:00"
 
 
+# ── I TRE FOLLOW-UP SBAGLIATI DEL 20/10 (38 partiti da soli, 3 sbagliati) ──────────
+_FU1_FINTO = "## FOLLOW UP 1\n```\nSalve,\n\ntorno brevemente sull'analisi che le avevo inviato qualche giorno fa.\n\nVolevo sapere se ha avuto occasione di leggerla.\n\nUn saluto\n```\n"
+
+
+@prova("un sollecito a mano dopo l'analisi E' il follow-up: non ne nasce un secondo, e dopo un «tu» niente template col «lei» (20/10, caso 1)")
+def _():
+    import lettura as L
+    import seguiti as S
+    import prima_risposta as R
+    p = {"id": "p1", "email": "info@alloggi-finti.invalid", "company": "Alloggi Brevi Finti", "analysis_sent": True,
+         "analysis_sent_at": "2026-10-11T06:04:23.75+00:00"}
+    righe = [{"kind": "email_out", "at": "2026-10-09T09:42:20", "body": "Salve, le avevo scritto qualche giorno fa riguardo a un'analisi marketing."},
+             {"kind": "email_in", "at": "2026-10-09T16:28:52", "body": "ciao Lorenzo, manda pure il materiale, lo sottoporro' al nostro marketing interno. Cordialmente", "mittente": "tizio@posta-finta.invalid"},
+             {"kind": "email_out", "at": "2026-10-11T06:04:50", "a": "info@alloggi-finti.invalid",
+              "body": "Salve,\n\ngrazie, vi inoltro qui l'analisi che abbiamo fatto sulla vostra azienda.\n\nUn saluto\n\nLorenzo\nBusiness Development\n\n"
+                      "Questo messaggio è riservato al destinatario indicato (Reg. UE 2016/679). Se l'hai ricevuto per errore, ti chiediamo di avvisarci e di cancellarlo."}]
+    sollecito = {"kind": "email_out", "at": "2026-10-16T09:58:43", "a": "info@alloggi-finti.invalid",
+                 "body": "Ciao, ti riscrivo sull'analisi di Alloggi Brevi Finti che ti avevo mandato l'11 ottobre. Mi avevi detto che l'avresti girata al marketing. Fammi sapere.\n\nIl giorno ven 9 ott 2026 alle ore 16:28 Tizio <tizio@posta-finta.invalid> ha scritto:\n> le avevo scritto"}
+    vero = L.secondo_lettore
+    L.secondo_lettore = lambda t: None
+    try:
+        prima = L.ha_gia(p, righe)
+        dopo = L.ha_gia(p, righe + [sollecito])
+    finally:
+        L.secondo_lettore = vero
+    # con la sola analisi dopo la sua mail il follow-up e' dovuto
+    assert not prima["nostre_dopo_analisi"] and not prima["ultima_nostra_del_tu"], prima
+    assert L.regola_dura("FOLLOW UP 1", prima) is None
+    # il sollecito a mano (da qualunque casella nostra) conta come follow-up gia' fatto
+    assert dopo["nostre_dopo_analisi"] == ["2026-10-16"], dopo["nostre_dopo_analisi"]
+    esito = L.regola_dura("FOLLOW UP 1", dopo)
+    assert esito and esito[0] == "salta" and "16/10" in esito[1], esito
+    # e l'ultima nostra da' del tu: il template col lei non si scrive da solo (la cita non conta)
+    assert dopo["ultima_nostra_del_tu"] is True
+    assert L.da_del_tu("Salve, le avevo scritto riguardo a un'analisi. Ti.Emme.Ti srl") is False, "una sigla non e' un tu"
+    assert L.da_del_tu("Salve, grazie, vi inoltro qui l'analisi che abbiamo fatto sulla vostra azienda") is False
+    assert S.testo("FOLLOW UP 1", p, prima, "https://calendar.app.google/x", testo_file=_FU1_FINTO), "col lei il codice scrive"
+    assert S.testo("FOLLOW UP 1", p, dopo, "https://calendar.app.google/x", testo_file=_FU1_FINTO) is None, "dopo un tu il template col lei non parte"
+    assert S.testo("FOLLOW UP 1", p, {"ultima_nostra": "Ciao, ti riscrivo: hai visto l'analisi?"}, "c", testo_file=_FU1_FINTO) is None, "anche su una lettura vecchia senza il campo"
+    # il cancello dei seguiti, rileggendo il filo adesso, ferma e chiude anche se la bozza era gia' nata
+    pr = {"id": 1, "at": "2026-10-16T10:14:16+00:00", "azione": {"lettura": {**prima, "gruppo": "FOLLOW UP 1", "coerenza": "COERENTE"}}}
+    motivo, chiudi = R.seguito_cambiato(pr, dopo, pr["azione"]["lettura"])
+    assert motivo and "sollecito" in motivo and chiudi, (motivo, chiudi)
+    assert R.seguito_cambiato(pr, prima, pr["azione"]["lettura"]) == (None, False)
+
+
+@prova("due schede della stessa azienda ricevono UN follow-up; un «Doppione» o un «fermato da Dre» non si rigenera mai (20/10, caso 2)")
+def _():
+    import followup as F
+    import prima_risposta as R
+    import datetime as _dt
+    assert F.chiusa_per_sempre("NO: non mi piace")
+    assert F.chiusa_per_sempre("chiusa da Achille (15/10, scaglione 1, nessuna mail): Doppione: la stessa agenzia riceve il follow-up nel filo di un collega")
+    assert F.chiusa_per_sempre("fermato da Dre in Posta")
+    assert F.chiusa_per_sempre("chiusa da Achille (15/10): Follow-up già fatto a mano")
+    assert not F.chiusa_per_sempre("chiusa il 25/9: scritta senza lettura del filo; la rifà il motore nuovo")
+    assert not F.chiusa_per_sempre("")
+    # la famiglia: stesso dominio (non generico) o stessa azienda, e il follow-up gia' avuto da una sorella
+    ieri = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=5)).isoformat()
+    vecchia = (_dt.date.today() - _dt.timedelta(days=20)).isoformat()
+    servita = {"id": "a", "email": "mario@posta-finta.invalid", "company": "Agenzia Immobiliare Finta", "analysis_sent_at": vecchia, "last_reply_at": None, "coda": None}
+    gemella = {"id": "b", "email": "info@agenziafinta.invalid", "company": "Agenzia Immobiliare Finta", "analysis_sent_at": vecchia, "last_reply_at": None, "coda": None}
+    dominio = {"id": "c", "email": "ufficio@posta-finta.invalid", "company": "Altra Cosa", "analysis_sent_at": vecchia, "last_reply_at": None, "coda": None}
+    estranea = {"id": "d", "email": "x@terza.invalid", "company": "Terza Srl", "analysis_sent_at": vecchia, "last_reply_at": None, "coda": None}
+    proposte = [{"prospect_id": "a", "stato": "fatta", "risposta": "Mandata da Clara", "at": ieri},
+                {"prospect_id": "b", "stato": "no", "risposta": "chiusa da Achille: Doppione: la stessa agenzia ha il follow-up nel filo di Mario", "at": ieri}]
+    schede = [servita, gemella, dominio, estranea]
+
+    def sb_finto(m, path, corpo=None, h=None):
+        if "/rest/v1/prospects?select=id,name,company,email,analysis_sent_at" in path:
+            return [gemella, dominio, estranea]
+        if path.startswith("/rest/v1/prospects?select=id,email,company&id=in."):
+            ids = path.split("id=in.(")[1].split(")")[0].split(",")
+            return [s for s in schede if s["id"] in ids]
+        if "/rest/v1/interactions" in path:
+            return []
+        return []
+
+    def sb_tutte_finto(path, **k):
+        if "/rest/v1/proposte?select=prospect_id,stato,risposta" in path:
+            return proposte
+        return []
+    messi = []
+    vero = (F.sb, F.sb_tutte, F.in_coda, F.calendario, F.mini_followup, F.rinvii_scaduti, F._fu)
+    try:
+        F._fu = lambda: ""
+        F.sb, F.sb_tutte = sb_finto, sb_tutte_finto
+        F.in_coda = lambda pid, gruppo: messi.append(pid)
+        F.calendario = lambda prova, oggi: None
+        F.mini_followup = lambda prova, oggi: 0
+        F.rinvii_scaduti = lambda prova, oggi: 0
+        F._FAMIGLIA = None
+        # «b» e' chiusa come Doppione: non si rigenera. «c» e' lo stesso dominio di «a»: niente. «d» parte.
+        assert "b" in F.gia_avute("FOLLOW%20UP%201"), "un Doppione conta come gia' avuto"
+        sorella = F.famiglia_servita()
+        assert sorella(gemella) and "Agenzia Immobiliare Finta" in sorella(gemella), sorella(gemella)
+        assert sorella(dominio), "stesso dominio vero: stessa famiglia"
+        assert sorella(estranea) is None
+        assert sorella({"email": ""}) is None and sorella({"email": "chi@" + "gmail.com", "company": ""}) is None, "un dominio generico non fa famiglia"
+        F.main()
+        assert messi == ["d"], messi
+        # il cancello dei seguiti vede la stessa cosa, prima di approvare
+        pr = {"tipo": "risposta", "titolo": "FU", "at": ieri, "azione": {"testo_dal_codice": True, "lettura": {"gruppo": "FOLLOW UP 1", "coerenza": "COERENTE"}}}
+        vero_c = R.contattabile
+        R.contattabile = lambda p: True
+        try:
+            assert any("stessa azienda" in m for m in R.perche_no_seguito(pr, {**dominio, "last_reply_at": None})), R.perche_no_seguito(pr, dominio)
+            assert not any("stessa azienda" in m for m in R.perche_no_seguito(pr, {**estranea, "last_reply_at": None}))
+            assert not any("stessa azienda" in m for m in R.perche_no_seguito(pr, {"email": ""})), "senza scheda non si rompe"
+        finally:
+            R.contattabile = vero_c
+    finally:
+        F.sb, F.sb_tutte, F.in_coda, F.calendario, F.mini_followup, F.rinvii_scaduti, F._fu = vero
+        F._FAMIGLIA = None
+
+
+@prova("una mail del lead dopo la nascita della bozza (o dopo l'analisi) ferma il follow-up e lo chiude, al cancello e al postino (20/10, caso 3)")
+def _():
+    import prima_risposta as R
+    import manda as M
+    nata = "2026-10-18T06:41:49.68+00:00"
+    pr = {"id": 7, "tipo": "risposta", "titolo": "Follow up 1: X", "at": nata, "prospect_id": "p3",
+          "azione": {"testo_dal_codice": True, "template": "FOLLOW UP 1", "approvata_da": "seguito-automatico", "automatica": True, "bozza": "Salve,\n\ntorno sull'analisi.",
+                     "lettura": {"gruppo": "FOLLOW UP 1", "coerenza": "COERENTE", "ultima_loro_il": "2026-10-13", "ultima_loro": "La mail e' corretta.", "scritto_dopo_di_lei": 1}}}
+    p = {"id": "p3", "email": "info@stile-finto.invalid", "company": "Stile Finto", "analysis_sent": True, "analysis_sent_at": "2026-10-13T08:01:30+00:00",
+         "last_reply_at": "2026-10-13T07:52:24+00:00", "fuori": False, "stage": "in_follow_up", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}
+    vero_c, vero_f = R.contattabile, R.sorella_servita
+    R.contattabile = lambda p: True
+    R.sorella_servita = lambda p: None
+    try:
+        assert not [m for m in R.perche_no_seguito(pr, p) if "dopo" in m], R.perche_no_seguito(pr, p)
+        # il 19/10 il lead scrive «confermo indirizzo»: la scheda lo sa (last_reply_at) prima ancora di rileggere il filo
+        p2 = {**p, "last_reply_at": "2026-10-19T09:08:03+00:00"}
+        no = R.perche_no_seguito(pr, p2)
+        assert any("ha scritto" in m and "19/10" in m for m in no), no
+        # e rileggendo il filo adesso: la sua mail nuova ferma e CHIUDE, anche se noi non abbiamo scritto niente
+        vecchia = pr["azione"]["lettura"]
+        letti = {**vecchia, "ultima_loro_il": "2026-10-19", "ultima_loro_at": "2026-10-19T09:08:03", "ultima_loro": "Buongiorno, confermo indirizzo.",
+                 "scritto_dopo_di_lei": 0, "loro_dopo_analisi": "2026-10-19", "nostre_dopo_analisi": []}
+        motivo, chiudi = R.seguito_cambiato(pr, letti, vecchia)
+        assert motivo and "ha riscritto" in motivo and chiudi, (motivo, chiudi)
+        # la lettura di prima (nessuna mail nuova) non ferma niente
+        assert R.seguito_cambiato(pr, {**vecchia, "ultima_loro_at": "2026-10-13T07:52:24", "loro_dopo_analisi": "", "nostre_dopo_analisi": []}, vecchia) == (None, False)
+    finally:
+        R.contattabile, R.sorella_servita = vero_c, vero_f
+    # il postino: l'ultima risposta del lead su Smartlead e' dopo la nascita della bozza → non parte, chiusa col motivo
+    assert M.superata(pr, p, "2026-10-19T09:08:03.000Z"), "una mail del lead dopo la bozza deve fermare"
+    assert M.superata(pr, p, "2026-10-13T07:52:24") is None, "la mail a cui la bozza risponde non la supera"
+    assert M.superata({**pr, "azione": {**pr["azione"], "template": "INT-01"}}, p, "2026-10-19T09:08:03") , "vale per ogni bozza nata prima della sua mail"
+    # dentro il giro vero del postino: niente POST a Smartlead, proposta chiusa con il motivo scritto
+    chiamate, spedite = [], []
+    vero = (M.sb, M.thread, M.controlla, M.contattabile, M.con_soldi, M.soldi_clienti, M.sl, M.di_clara, M.pulizia)
+    try:
+        def sb_finto(m, path, corpo=None, h=None):
+            chiamate.append((m, path, corpo))
+            if m == "GET" and "stato=eq.approvata" in path:
+                return [pr]
+            if m == "GET" and path.startswith("/rest/v1/prospects?select=id,email"):
+                return [p]
+            if m == "GET" and path.startswith("/rest/v1/prospects?select=fuori"):
+                return [p]
+            if m == "PATCH" and "stato=eq.approvata" in path:
+                return [{"id": 7}]                       # il lucchetto riesce: senza il freno nuovo si spedirebbe
+            return []
+        M.sb = sb_finto
+        M.thread = lambda p: (1, 2, {"type": "REPLY", "time": "2026-10-19T09:08:03.000Z", "message_id": "m", "stats_id": "s", "email_body": "confermo"})
+        M.controlla = lambda *a, **k: []
+        M.contattabile = lambda p: True
+        M.con_soldi, M.soldi_clienti = (lambda p, s: p), (lambda ids=None: {})
+        M.sl = lambda m, path, corpo=None: spedite.append(path)
+        M.di_clara = lambda *a, **k: None
+        M.pulizia = lambda: 0
+        assert "--prova" not in sys.argv
+        M.main()
+    finally:
+        M.sb, M.thread, M.controlla, M.contattabile, M.con_soldi, M.soldi_clienti, M.sl, M.di_clara, M.pulizia = vero
+    assert not spedite, "il postino ha spedito a chi aveva appena risposto"
+    chiuse = [c for m, path, c in chiamate if m == "PATCH" and "proposte?id=eq.7" in path and (c or {}).get("stato") == "no"]
+    assert chiuse and "ha riscritto" in chiuse[0]["risposta"] and "19/10" in chiuse[0]["risposta"], chiuse
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

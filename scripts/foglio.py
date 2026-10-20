@@ -327,10 +327,9 @@ def leggi_dati():
 
 
 def chiave_nome(nome):
-    """Un nome d'azienda come si confronta: minuscolo, senza accenti, spazi e punteggiatura."""
-    import unicodedata
-    piatto = unicodedata.normalize("NFKD", str(nome or "")).encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9]", "", piatto.lower())
+    """Un nome d'azienda come si confronta (20/10: la regola sta in stanza, la usano anche i follow-up)."""
+    from stanza import chiave_nome as _chiave
+    return _chiave(nome)
 
 
 def chiave_azienda(p):

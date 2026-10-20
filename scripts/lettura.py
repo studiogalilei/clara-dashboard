@@ -30,7 +30,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                       # noqa: E402
+from stanza import sb, quando                               # noqa: E402
 
 AUTORISPOSTA = re.compile(r"out of (the )?office|fuori (ufficio|sede)|risposta automatica|automatic reply|auto-?reply|"
                           r"sar[òo] (assente|fuori)|assente (dal|fino|per)|rientr(o|er[òo]) (il|in|dal)|in ferie|ferie fino|"
@@ -417,6 +417,41 @@ def si_acceso(regex_dice, lettore):
     return bool(regex_dice) or bool(lettore and lettore.get("etichetta") == "si" and not lettore.get("dubbio"))
 
 
+# LA CONSEGNA DELL'ANALISI, come la scriviamo noi («vi inoltro qui l'analisi», «le allego
+# l'analisi»): e' l'unica nostra mail dopo la loro che NON e' un sollecito.
+CONSEGNA = re.compile(r"(?:inoltr|alleg|lasci|ecco|trov\w* qui)\w*[^.\n]{0,60}\banalisi\b|\banalisi\b[^.\n]{0,80}(?:in allegato|allegat)", re.I)
+# IL TU (20/10, caso 1): Dre era passato al «tu» a mano e il template col «lei» e' partito
+# sopra. Si guarda la nostra ultima mail, solo le righe nostre (la loro citata sotto non conta).
+DEL_TU = re.compile(r"(?<![\w.])(?:ciao|ti|te|tu|tuo|tua|tuoi|tue|hai|sei|avevi|avresti|puoi|vuoi|potresti|volevi|"
+                    r"fammi|dimmi|scrivimi|mandami|riesci|pensi|sai)(?![\w.])", re.I)
+
+
+_INFORMATIVA = re.compile(r"questo messaggio è riservato.*|se l'hai ricevut\w+ per errore.*", re.I)
+
+
+def da_del_tu(testo):
+    """La mail da' del tu? Due segni (o un «ciao» che apre): una sigla sola non basta.
+    L'informativa in firma («se l'hai ricevuto per errore, ti chiediamo») non e' il nostro registro."""
+    t = _INFORMATIVA.sub("", " ".join((testo or "").split()))
+    segni = DEL_TU.findall(t)
+    return bool(segni) and (len(segni) >= 2 or t.lower().startswith("ciao"))
+
+
+def _sollecito(r, inviata):
+    """Una nostra mail dopo la loro che NON e' la consegna dell'analisi: un sollecito, cioe' un
+    follow-up gia' fatto. Vale anche se l'ha scritta Dre a mano da un'altra casella."""
+    at = (r.get("at") or "")[:19]
+    if not at or (inviata and at <= inviata):
+        return False                                # prima dell'analisi: non e' un sollecito
+    if inviata:
+        try:                                        # la consegna stessa: Smartlead e CRM la datano a qualche secondo di distanza
+            if abs((quando(at + "+00:00") - quando(inviata + "+00:00")).total_seconds()) < 1800:
+                return False
+        except ValueError:
+            pass
+    return not CONSEGNA.search(solo_suo(r.get("body") or "", con_firma=True)[:800])
+
+
 def ha_gia(p, righe):
     """I fatti che si leggono dal filo senza chiedere a nessuno."""
     loro = [r for r in righe if r["kind"] == "email_in" and not _segnaposto(r.get("body"))]
@@ -457,6 +492,13 @@ def ha_gia(p, righe):
     girato = sorted({e.lower() for e in EMAIL.findall(suo) if _rimando_vero(e.lower(), suo)
                      if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI) and e.lower().split("@")[-1] != dom} |
                     {e.lower() for e in EMAIL.findall(suo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
+    # 20/10, i tre follow-up sbagliati: cosa e' successo DOPO l'analisi, da una parte e dall'altra.
+    # Un nostro sollecito (anche a mano, da qualunque casella) E' il follow-up; una loro mail
+    # (non automatica) e' una conversazione. Si legge dal filo vero, non dalla scheda.
+    inviata = (p.get("analysis_sent_at") or "")[:19]
+    solleciti = [r for r in dopo if _sollecito(r, inviata)]
+    loro_dopo = [r for r in loro if inviata and (r.get("at") or "")[:19] > inviata
+                 and not AUTORISPOSTA.search((r.get("body") or "")[:1200])]
     return {
         # 17/10 (Dre): il messaggio e la firma separati, senza la nostra mail citata sotto. Prima era
         # un blocco solo, e chi lo leggeva (seconda testa, bozze) prendeva la firma per messaggio.
@@ -467,6 +509,11 @@ def ha_gia(p, righe):
         "ultima_loro_da": (ultima_loro or {}).get("mittente") or "", "ultima_nostra_a": (ultima_nostra or {}).get("a") or "",
         "scheda": _scheda_breve(p),
         "scritto_dopo_di_lei": len(dopo),
+        "ultima_loro_at": (ultima_loro or {}).get("at", "")[:19],
+        "nostre_dopo_analisi": [(r.get("at") or "")[:10] for r in solleciti],
+        "loro_dopo_analisi": (loro_dopo[-1].get("at") or "")[:10] if loro_dopo else "",
+        # il messaggio nostro senza firma: l'informativa GDPR in calce da' del tu a tutti
+        "ultima_nostra_del_tu": da_del_tu(solo_suo((ultima_nostra or {}).get("body") or "")),
         "analisi_ricevuta": bool(p.get("analysis_sent")) or bool(GIA_LETTA.search(testo)) or ("analisi" in nostre_testo and bool(dopo)),
         "analisi_gia_letta": bool(GIA_LETTA.search(testo)),
         # 28/9: solo le sue righe. La nostra mail citata sotto contiene le nostre
@@ -505,6 +552,17 @@ def regola_dura(gruppo, f, classificazione=None):
             return ("salta", "ha già ricevuto l'analisi: la ripresa promette un'analisi che ha già")
     if gruppo in ("RINVIO SCADUTO", "RICONTATTO OOO", "FOLLOW UP 1", "MINI FOLLOW UP") and f["analisi_gia_letta"] and gruppo != "MINI FOLLOW UP":
         return ("salta", "dice di aver già letto l'analisi: non gliela si rimanda come nuova")
+    if gruppo == "FOLLOW UP 1":
+        # 20/10 (caso 1): Dre aveva gia' sollecitato a mano 16 minuti prima; il codice ha letto il
+        # suo sollecito come punto di partenza e ne ha scritto un secondo. QUALSIASI nostra mail
+        # dopo l'analisi e' il follow-up gia' fatto. (caso 3): una loro mail dopo l'analisi e'
+        # una conversazione, non un silenzio: scrive Dre.
+        if f.get("nostre_dopo_analisi"):
+            g = f["nostre_dopo_analisi"][-1]
+            return ("salta", f"il follow-up c'è già stato: una nostra mail dopo l'analisi il {g[8:10]}/{g[5:7]} (anche a mano conta)")
+        if f.get("loro_dopo_analisi"):
+            g = f["loro_dopo_analisi"]
+            return ("salta", f"ha scritto lui dopo l'analisi (il {g[8:10]}/{g[5:7]}): è una conversazione, non un silenzio")
     if f["detto_no"]:
         if gruppo in GRUPPI:
             return ("salta", "nella sua ultima mail dice di no: nessun ricontatto")

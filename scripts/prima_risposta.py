@@ -187,6 +187,41 @@ def seguiti_gruppi():
     return set(seguiti.GRUPPI_DAL_CODICE)
 
 
+def sorella_servita(p):
+    """Un'altra scheda della stessa azienda ha gia' avuto il follow-up? (followup.py, 20/10)"""
+    import followup
+    return followup.sorella_servita(p)
+
+
+def _gg(iso):
+    return f"{str(iso)[8:10]}/{str(iso)[5:7]}"
+
+
+def seguito_cambiato(pr, letti, vecchia):
+    """IL FILO ADESSO, per un follow-up: (motivo, chiudere?). La bozza e' nata su una lettura di
+    giorni fa. 20/10, dai tre follow-up sbagliati: prima si guardava solo se NOI avevamo scritto
+    dopo la nascita della bozza, non se l'aveva fatto il LEAD (caso 3: «confermo indirizzo» il
+    19/10, follow-up partito il 20). Una sua mail nuova, o un nostro sollecito gia' fatto,
+    chiudono la proposta col motivo: non e' piu' un silenzio da rompere."""
+    gruppo = (vecchia or {}).get("gruppo")
+    nata = str(pr.get("at") or "")[:19]
+    loro = (letti.get("ultima_loro_at") or "")[:19]
+    if loro and nata and loro > nata:
+        return f"ha riscritto il {_gg(loro)}, dopo che la bozza era nata: scrive Dre", True
+    if (letti.get("ultima_loro_il"), (letti.get("ultima_loro") or "")[:150]) != (vecchia.get("ultima_loro_il"), (vecchia.get("ultima_loro") or "")[:150]):
+        return "ha riscritto dopo che la bozza era nata: scrive Dre", True
+    if gruppo == "FOLLOW UP 1":
+        if letti.get("loro_dopo_analisi"):
+            return f"ha scritto lui dopo l'analisi (il {_gg(letti['loro_dopo_analisi'])}): è una conversazione, scrive Dre", True
+        if letti.get("nostre_dopo_analisi"):
+            return f"un sollecito dopo l'analisi c'è già (il {_gg(letti['nostre_dopo_analisi'][-1])}, anche a mano conta): il follow-up è fatto", True
+    # per un follow-up noi abbiamo gia' scritto dopo di lei (l'analisi): conta solo se e'
+    # partito qualcosa DOPO che la bozza e' nata
+    if (letti.get("scritto_dopo_di_lei") or 0) > (vecchia.get("scritto_dopo_di_lei") or 0):
+        return "qualcuno di noi le ha gia' scritto dopo che la bozza era nata", True
+    return None, False
+
+
 def perche_no_seguito(pr, p):
     """Il cancello dei follow-up scritti dal codice. Vuota = passa."""
     import seguiti
@@ -194,6 +229,18 @@ def perche_no_seguito(pr, p):
     let = az.get("lettura") or {}
     gruppo = let.get("gruppo")
     no = []
+    # 20/10 (caso 3): la scheda sa gia' se ha scritto dopo la nascita della bozza (last_reply_at,
+    # dal sync), prima ancora di rileggere il filo. E dopo l'analisi, per il FOLLOW UP 1, una sua
+    # mail e' una conversazione. (caso 2): un'altra scheda della stessa azienda l'ha gia' avuto.
+    ultima = str((p or {}).get("last_reply_at") or "")[:19]
+    if ultima and str(pr.get("at") or "")[:19] and ultima > str(pr["at"])[:19]:
+        no.append(f"ha scritto il {_gg(ultima)}, dopo che la bozza era nata")
+    elif ultima and gruppo == "FOLLOW UP 1" and ultima > str((p or {}).get("analysis_sent_at") or "~")[:19]:
+        no.append(f"ha scritto il {_gg(ultima)}, dopo l'analisi: è una conversazione")
+    if (p or {}).get("id") and gruppo in ("FOLLOW UP 1", "FOLLOW UP SU MISURA"):
+        sorella = sorella_servita(p)
+        if sorella:
+            no.append(sorella)
     if pr.get("tipo") != "risposta" or str(pr.get("titolo") or "").startswith("Da guardare tu"):
         no.append("e' da guardare")
     if az.get("approvata_da") or az.get("prima_risposta"):
@@ -500,12 +547,9 @@ def main():
         except Exception as e:                                # noqa: BLE001
             print(f"  ?  {nome:34} filo non riletto ({str(e)[:60]}): resta a Dre"); continue
         vecchia = az.get("lettura") or {}
-        cambiato = None
+        cambiato, chiudi = None, False
         if SEGUITI:
-            # per un follow-up noi abbiamo gia' scritto dopo di lei (l'analisi): conta
-            # solo se e' partito qualcosa DOPO che la bozza e' nata
-            if (letti.get("scritto_dopo_di_lei") or 0) > (vecchia.get("scritto_dopo_di_lei") or 0):
-                cambiato = "qualcuno di noi le ha gia' scritto dopo che la bozza era nata"
+            cambiato, chiudi = seguito_cambiato(pr, letti, vecchia)
         elif letti.get("scritto_dopo_di_lei"):
             cambiato = "qualcuno di noi le ha gia' scritto dopo la sua ultima mail"
         elif (letti.get("ultima_loro_il"), (letti.get("ultima_loro") or "")[:150]) != (vecchia.get("ultima_loro_il"), (vecchia.get("ultima_loro") or "")[:150]):
@@ -538,6 +582,16 @@ def main():
                 az["ombra"] = {"esito": "partirebbe" if esito == "OK" else "resta a Dre", "motivo": motivo,
                                "il": il, "bozza": az.get("bozza")}
                 segna(pr, az)
+            continue
+        if esito != "OK" and chiudi:
+            # 20/10: un follow-up a chi ha riscritto, o a chi l'ha gia' avuto, non resta in Posta
+            # ad aspettare un clic: si chiude col motivo scritto, e se e' una conversazione scrive Dre
+            print(f"  ✋ {nome:34} chiusa: {motivo}")
+            if PROVA:
+                continue
+            az["prima_risposta"] = {"esito": "chiusa", "motivo": motivo, "il": il}
+            if segna(pr, az, {"stato": "no", "risposta": f"non mandata: {motivo}"[:300], "risposta_il": il}, prima_decisione=True):
+                di_clara("controllo", f"Follow-up a {nome} chiuso, non parte: {motivo}", prospect_id=p["id"], letto=True)
             continue
         if esito != "OK":
             restano += 1

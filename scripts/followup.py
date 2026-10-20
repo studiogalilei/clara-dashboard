@@ -21,6 +21,7 @@ USO
 """
 import datetime
 import os
+import re
 import sys
 import urllib.parse
 
@@ -47,11 +48,71 @@ QUANTI = 50
 CLASSI = "positivo,tiepido,da_classificare"
 
 
+PER_SEMPRE = re.compile(r"^NO:|doppion|fermat[oa] da dre|follow-?up gi[aà]'? fatt", re.I)
+
+
+def chiusa_per_sempre(risposta):
+    """Una proposta chiusa che NON si rifa' mai: rifiutata da Dre («NO: ...»), fermata da Dre, un
+    doppione (20/10, caso 2: la seconda scheda della stessa agenzia era stata chiusa come «Doppione»
+    il 15/10 e il giorno dopo il follow-up e' rinato, e stamattina e' partito), o un follow-up gia'
+    fatto a mano. Le chiusure tecniche (scritta senza lettura, 25/9) si rifanno."""
+    return bool(PER_SEMPRE.search((risposta or "").strip()))
+
+
 def gia_avute(*template):
-    """Chi ha gia' avuto quella proposta: aperta, mandata, o rifiutata da Dre («NO: ...»).
+    """Chi ha gia' avuto quella proposta: aperta, mandata, o chiusa per sempre (chiusa_per_sempre).
     Le proposte chiuse dagli script il 25/9 (scritte senza lettura) non contano: si rifanno."""
     rs = sb_tutte(f"/rest/v1/proposte?select=prospect_id,stato,risposta&azione->>template=in.({','.join(template)})&limit=5000") or []
-    return {x["prospect_id"] for x in rs if x["stato"] != "no" or (x.get("risposta") or "").startswith("NO:")}
+    return {x["prospect_id"] for x in rs if x["stato"] != "no" or chiusa_per_sempre(x.get("risposta"))}
+
+
+# LA FAMIGLIA (20/10, caso 2): due schede della stessa agenzia (il titolare dalla sua casella
+# privata, l'ufficio da info@) sono UNA azienda, e un follow-up le serve tutte e due. Stesso
+# dominio vero (non un servizio di posta) o stesso nome d'azienda: se una sorella l'ha gia'
+# avuto negli ultimi GIORNI_FAMIGLIA giorni, alle altre niente, ne' in coda ne' al cancello.
+GIORNI_FAMIGLIA = 60
+_FAMIGLIA = None
+
+
+def famiglia_servita(giorni=GIORNI_FAMIGLIA, template=("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")):
+    """Torna una funzione: scheda -> «chi della stessa azienda ha gia' il follow-up», o None."""
+    from stanza import dominio_vero, chiave_nome
+    da = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=giorni)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rs = sb_tutte(f"/rest/v1/proposte?select=prospect_id,stato,risposta,at&azione->>template=in.({','.join(template)})&at=gte.{da}&limit=5000") or []
+    servite = {}
+    for x in rs:
+        pid = x.get("prospect_id")
+        if pid and (x.get("stato") != "no" or chiusa_per_sempre(x.get("risposta"))):
+            servite[pid] = max(servite.get(pid, ""), x.get("at") or "")
+    schede = []
+    ids = sorted(servite)
+    for i in range(0, len(ids), 100):
+        schede += sb("GET", f"/rest/v1/prospects?select=id,email,company&id=in.({','.join(ids[i:i + 100])})") or []
+    per_dominio, per_azienda = {}, {}
+    for s in schede:
+        d, c = dominio_vero(s.get("email")), chiave_nome(s.get("company"))
+        if d:
+            per_dominio.setdefault(d, s)
+        if c:
+            per_azienda.setdefault(c, s)
+
+    def sorella(p):
+        p = p or {}
+        d, c = dominio_vero(p.get("email")), chiave_nome(p.get("company"))
+        for s in (per_dominio.get(d) if d else None, per_azienda.get(c) if c else None):
+            if s and s["id"] != p.get("id"):
+                at = servite.get(s["id"]) or ""
+                return f"stessa azienda di {s.get('company') or s.get('email')} ({s.get('email')}), che ha già il follow-up del {at[8:10]}/{at[5:7]}"
+        return None
+    return sorella
+
+
+def sorella_servita(p):
+    """La sorella gia' servita, con la famiglia letta una volta per corsa."""
+    global _FAMIGLIA
+    if _FAMIGLIA is None:
+        _FAMIGLIA = famiglia_servita()
+    return _FAMIGLIA(p)
 
 
 def con_bozza_aperta():
@@ -143,13 +204,16 @@ def calendario(prova, oggi):
     gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
     # 5/10: niente piu' finestra dei 30 giorni. Chi e' dovuto resta dovuto finche' il follow-up
     # non parte o non esce con un motivo: la finestra faceva sparire dal conto chi era indietro.
-    for p in sb_tutte(f"/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,coda{_fu()}"
+    sorella = _FAMIGLIA or famiglia_servita()       # la stessa regola della coda: una verita' sola
+    for p in sb_tutte(f"/rest/v1/prospects?select=id,email,company,analysis_sent_at,last_reply_at,coda{_fu()}"
                        f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                        f"&classificazione=in.({CLASSI})") or []:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
             continue
         if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
             continue
+        if sorella(p):
+            continue                                    # 20/10: la stessa azienda l'ha gia' avuto da un'altra scheda
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
         il, scelto = giorno_follow_up(inviata, p)
         if il <= fine:
@@ -249,9 +313,15 @@ def main():
                       f"&classificazione=in.({CLASSI})&order=analysis_sent_at.desc&limit=500") or []
     gia = gia_avute("FOLLOW%20UP%201", "FOLLOW%20UP%20SU%20MISURA")
     aperte = con_bozza_aperta()
+    global _FAMIGLIA
+    _FAMIGLIA = famiglia_servita()
     fatti = 0
     for p in righe:
         if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
+            continue
+        sorella = _FAMIGLIA(p)
+        if sorella:
+            print(f"  {(p.get('company') or p.get('email') or '')[:36]:36} niente: {sorella}")
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
         # 7/10: la stessa regola del calendario. Prima qui contava solo analisi+5, e il

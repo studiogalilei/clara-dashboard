@@ -85,9 +85,22 @@ def giorno_passato(frase, oggi=None):
         return True
 
 
+def _del_tu(letti):
+    """La nostra ultima mail nel filo da' del tu? Dalla lettura, o dal testo se la lettura e' vecchia."""
+    l = letti or {}
+    if "ultima_nostra_del_tu" in l:
+        return bool(l["ultima_nostra_del_tu"])
+    import lettura
+    return lettura.da_del_tu(l.get("ultima_nostra") or "")
+
+
 def testo(gruppo, p, letti, calendario, testo_file=None, giorno=None):
     """Il follow-up pronto, parola per parola. None se il codice non puo' scriverlo da solo."""
     if gruppo not in GRUPPI_DAL_CODICE:
+        return None
+    if _del_tu(letti):
+        # 20/10 (caso 1): Dre era passato al «tu» a mano, e il template col «lei» e' partito sopra.
+        # I template di Dre danno tutti del lei: dopo un tu nostro lo scrive una persona.
         return None
     if gruppo == "RINVIO SCADUTO" and ((letti or {}).get("analisi_ricevuta") or (p or {}).get("analysis_sent")):
         return None            # il template chiede di riscrivere la frase dell'analisi: non e' un lavoro da codice
