@@ -51,6 +51,7 @@ import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, sb_tutte, quando, proponi, _a_secco, URL, CHIAVE      # noqa: E402
+import foglio_lead                                                            # noqa: E402
 
 PROVA = _a_secco()
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -77,7 +78,7 @@ COMMERCIALE = "1ipPNIf8Ep-XFIZq23u4vG8V6xJgpuo5m"     # «2 Commerciale» nel Dr
 CHIAMATE = "1PWqTL7hhhPr6JaYNbBfadxnojPWAlWb6"        # «Chiamate» (l'ex «5 Riunioni»)
 NOME_FOGLIO = "Pipeline Studio Galilei"
 SCHEDA = "Pipeline"
-LAYOUT = 4                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco; 4: il blocco Progetti
+LAYOUT = 5                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco; 4: il blocco Progetti; 5: i link scheda e filo, il «prossimo» (20/10)
 PRIMA = 4                        # la prima riga degli elenchi (contando da 1): titolo, intestazioni delle fasi, titoli delle colonne
 RIGHE = 1000
 SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
@@ -109,16 +110,28 @@ GIALLE = set(DI_DRE) | {"cliente", "progetto", "importo", "consegna", "stato"}
 DETTAGLIO = {PREP: "Ha scritto", INVIATA: "Inviata", CONV: "Ultima sua", CONO: "Call", TECN: "Call", AVVIO: "Call"}
 
 
-def _blocchi():
+# I LINK E IL PROSSIMO (20/10, «io più il sistema»): accanto all'azienda due colonne strette, la
+# scheda nel Workspace e il filo su Smartlead; dove il sistema scrive (fino alla conversazione) il
+# giorno del prossimo messaggio in piano («gio 22/10»), vuoto se non ce n'e'.
+LINK = (("scheda", "", 50), ("filo", "", 34))
+CON_PROSSIMO = (PREP, INVIATA, CONV)
+
+
+def _blocchi(layout=None):
+    layout = layout or LAYOUT
     out, col = [], 0
     for i, fase in enumerate(FASI):
         campi = [("azienda", "Azienda", 170)]
+        if layout >= 5:
+            campi += list(LINK)
         if fase == PROVA_F:
             campi += [("costo", "Costo", 78), ("inizio", "Inizio", 86), ("fine", "Fine", 86)]
         elif fase == CLIENTE:
             campi += [("retainer", "Retainer al mese", 110)]
         else:
             campi += [("dettaglio", DETTAGLIO[fase], 84)]
+        if layout >= 5 and fase in CON_PROSSIMO:
+            campi += [("prossimo", "Prossimo", 70)]
         if fase == CONV:
             campi += [("scelta", "La tua scelta", 150)]
         campi += [("nota", "Note", 170), ("id", "id", 20)]
@@ -244,7 +257,7 @@ def salva_stato(st, fasi_app):
 # ── i dati ────────────────────────────────────────────────────────────
 
 CAMPI_P = ("id,company,name,email,stage,pipeline_stage,fuori,classificazione,analysis_sent,analysis_sent_at,"
-           "last_reply_at,awaiting_us,prova_inizio,prova_fine,sg_id")
+           "last_reply_at,awaiting_us,prova_inizio,prova_fine,sg_id,campaign_id,lead_id")
 
 
 def _pezzi(ids, n=80):
@@ -434,7 +447,10 @@ def calcola(dati, st, ora):
         for altro in pids:
             fasi_app[altro] = fase
         p, s = ps[pid], schede.get(pid) or {}
-        riga = {"id": pid, "pids": pids, "azienda": nome_azienda(p, s), "fase": fase}
+        riga = {"id": pid, "pids": pids, "azienda": nome_azienda(p, s), "fase": fase,
+                "scheda": foglio_lead.link_scheda(pid), "filo": foglio_lead.link_filo(p, (st.get("mappe") or {}).get(pid))}
+        if fase in CON_PROSSIMO and dati.get("piano"):
+            riga["prossimo"] = foglio_lead.prossimo_breve(pids, dati["piano"], ora)
         risposta = s.get("ultima_risposta") or p.get("last_reply_at")
         if fase in (PREP, CONV):
             t = quando(risposta) if risposta else None
@@ -671,8 +687,10 @@ def forma(sid, st):
     """La forma del foglio: una scheda «Pipeline» nuova, poi via le vecchie. Si fa alla nascita e
     quando cambia LAYOUT (dopo aver letto le scritture di Dre, che stanno nel database)."""
     info = _g("GET", f"{SHEETS}/{sid}?fields=sheets.properties")
-    vecchie = [s["properties"]["sheetId"] for s in info.get("sheets", [])]
-    nuovo = max(vecchie + [0]) + 1
+    tutte = [s["properties"]["sheetId"] for s in info.get("sheets", [])]
+    # la scheda «Clara» (clara_foglio.py) non si tocca: si rifa' solo la Pipeline
+    vecchie = [s["properties"]["sheetId"] for s in info.get("sheets", []) if s["properties"]["title"] != "Clara"]
+    nuovo = max(tutte + [0]) + 1
     R = []
     R.append({"updateSpreadsheetProperties": {
         "properties": {"title": NOME_FOGLIO, "locale": "it_IT", "timeZone": "Europe/Rome",
@@ -726,8 +744,10 @@ def forma(sid, st):
         for campo in x["campi"]:
             c = colonna(x, campo)
             rng = _campo(S, PRIMA - 1, RIGHE, c, c + 1)
-            if campo == "dettaglio":
+            if campo in ("dettaglio", "prossimo"):
                 R.append(_formato(rng, colore=TENUE, dim=9))
+            if campo in ("scheda", "filo"):
+                R.append(_formato(rng, colore=GRIGIO_CHIARO, dim=8, oriz="CENTER"))
             if campo in ("costo", "retainer", "importo"):
                 R.append(_formato(rng, numero={"type": "CURRENCY", "pattern": '#,##0 "€"'}, oriz="RIGHT"))
             if campo in ("inizio", "fine", "consegna"):
@@ -778,9 +798,10 @@ def forma(sid, st):
     print(f"foglio: forma fatta ({len(R)} istruzioni)")
 
 
-def leggi_celle(sid, con_progetti=True):
-    """Le celle di Dre del foglio, per lead: {pid: {campo: valore normalizzato}}."""
-    blocchi = [b for b in BLOCCHI if con_progetti or b["fase"] != PROGETTI]     # la forma 3 non ha il blocco Progetti
+def leggi_celle(sid, con_progetti=True, layout=None):
+    """Le celle di Dre del foglio, per lead: {pid: {campo: valore normalizzato}}. `layout`: la forma
+    che c'e' adesso nel foglio (si legge prima di rifarla)."""
+    blocchi = [b for b in (_blocchi(layout) if layout else BLOCCHI) if con_progetti or b["fase"] != PROGETTI]  # la forma 3 non ha Progetti
     rng = [f"{SCHEDA}!{lettera(b['da'])}{PRIMA}:{lettera(b['da'] + len(b['campi']) - 1)}{RIGHE}" for b in blocchi]
     q = "&".join("ranges=" + urllib.parse.quote(r) for r in rng)
     d = _g("GET", f"{SHEETS}/{sid}/values:batchGet?{q}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING")
@@ -1015,11 +1036,25 @@ def griglia(per_fase, mrr, ora, ignoti=(), date=None):
                 continue
             for j, campo in enumerate(x["campi"]):
                 v = lead.get(campo, "")
+                if campo in ("scheda", "filo"):
+                    riga[x["da"] + j] = collegamento(v, campo)
+                    continue
+                if campo == "prossimo":
+                    riga[x["da"] + j] = "'" + v if v else ""      # «gio 22/10» resta testo, non diventa una data
+                    continue
                 riga[x["da"] + j] = in_cella(campo, v) if campo in GIALLE else (lead["id"] if campo == "id" else testo(v))
             if x["fase"] != PROGETTI:
                 scritto[lead["id"]] = {**{c: lead.get(c, "") for c in x["campi"] if c in DI_DRE}, "fase": x["fase"]}
         righe.append(riga)
     return righe, scritto
+
+
+def collegamento(url, parola):
+    """Una cella con un link piccolo («scheda», «filo»); vuota se il link non c'e'. Il foglio e' in
+    italiano (locale it_IT): le formule scritte come da tastiera vogliono il punto e virgola."""
+    if not url or not str(url).startswith("https://") or '"' in str(url):
+        return ""
+    return f'=HYPERLINK("{url}";"{parola}")'
 
 
 def scrivi(sid, righe):
@@ -1225,10 +1260,10 @@ def main():
         if st.get("layout") == 1:
             celle, incollati, tolti = leggi_celle_v1(sid), [], []
         elif st.get("layout") < 4:
-            celle, incollati, tolti, _ = leggi_celle(sid, False)   # dalla 2 alla 3 gli elenchi stanno negli stessi blocchi
+            celle, incollati, tolti, _ = leggi_celle(sid, False, 4)   # dalla 2 alla 3 gli elenchi stanno negli stessi blocchi
             st["layout_vecchio"] = True
         else:
-            celle, incollati, tolti, prog_foglio = leggi_celle(sid)
+            celle, incollati, tolti, prog_foglio = leggi_celle(sid, True, st.get("layout"))
         scritte = scritture_di_dre(celle, st)
         mosse, ignoti = mosse_di_dre(incollati, tolti, st, dati)
         scritte += mosse
@@ -1239,7 +1274,15 @@ def main():
     if scritte and not PROVA:
         dati = leggi_dati()                        # gli effetti hanno cambiato le fasi
     # 2. poi il resto
+    try:
+        dati["piano"] = foglio_lead.leggi_piano()
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (il prossimo messaggio non letto: {str(e)[:120]})")
     per_fase, fasi_app = calcola(dati, st, ora)
+    # il filo: l'id della conversazione si chiede una volta e si ricorda
+    st.setdefault("mappe", {})
+    if not PROVA and foglio_lead.completa_mappe(dati["ps"], [r["id"] for f in FASI for r in per_fase[f]], st["mappe"]):
+        per_fase, fasi_app = calcola(dati, st, ora)
     mrr = sum(r["retainer"] for r in per_fase[CLIENTE] if isinstance(r["retainer"], (int, float)))
     print("foglio: " + " · ".join(f"{f} {len(per_fase[f])}" for f in FASI) + f" · MRR {euro(mrr)}")
     print("foglio: fuori dal percorso " + ", ".join(f"{x} {sum(1 for v in fasi_app.values() if v == x)}" for x in (ALTRE, FERMI)))
@@ -1272,6 +1315,13 @@ def main():
         print(f"call: non lette ({str(e)[:160]})")
     print(f"attesa: {promemoria_attesa(dati, st, ora)} promemoria")
     salva_stato(st, fasi_app)
+    # 4. la scheda «Clara»: il semaforo e cosa ha fatto Clara (un suo errore non ferma il foglio)
+    if sid and acceso and not PROVA:
+        try:
+            import clara_foglio
+            clara_foglio.scrivi(sid, ora)
+        except Exception as e:                                   # noqa: BLE001
+            print(f"clara: scheda non scritta ({str(e)[:160]})")
     print(f"foglio: giro in {int(time.time() - t0)}s")
     if not acceso:
         sys.exit("foglio: Google Sheets spento, serve accenderlo (console.cloud.google.com, progetto 686127567563)")

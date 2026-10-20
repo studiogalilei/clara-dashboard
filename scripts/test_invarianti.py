@@ -3758,6 +3758,155 @@ def _():
     assert chiamanti == ["conversazioni.py"], chiamanti
 
 
+@prova("foglio: link e prossimo (20/10): la scheda, il filo su Smartlead, il prossimo messaggio")
+def _():
+    import datetime, foglio as F, foglio_lead as L
+    assert L.link_scheda("x").endswith("#/s/lead/x")
+    assert L.link_filo({}) is None and L.link_filo({"company": "Aggiunto a mano"}) is None, "senza campagna niente filo"
+    assert L.link_filo({"campaign_id": 7, "lead_id": 9}, 123).endswith("/app/master-inbox?leadMap=123")
+    assert "filterCampaignId=7" in L.link_filo({"campaign_id": 7, "lead_id": 9, "email": "a" + "@b.it"})
+    ora = datetime.datetime(2026, 10, 20, 9, tzinfo=datetime.timezone.utc)            # martedi'
+    giovedi = "2026-10-22"
+    fu = {"id": 1, "prospect_id": "p1", "tipo": "risposta", "stato": "approvata", "titolo": "Bozza per X",
+          "azione": {"bozza": "Buongiorno, le riscrivo...", "parte_il": giovedi, "lettura": {"gruppo": "FOLLOW UP 1"}}}
+    m = L.prossimo_messaggio("p1", {"proposte": {"p1": [fu]}, "calendario": {}}, ora)
+    assert m and m[0].date().isoformat() == giovedi and m[1] == "follow-up" and m[2].startswith("Buongiorno"), m
+    assert L.prossimo_messaggio("p1", {"proposte": {}, "calendario": {}}, ora) is None
+    # una bozza aperta che aspetta una persona non e' in piano; un follow-up del codice si'
+    aperta = dict(fu, stato="aperta", azione=dict(fu["azione"], lettura={"gruppo": "INT-08"}))
+    assert L.prossimo_messaggio("p1", {"proposte": {"p1": [aperta]}, "calendario": {}}, ora) is None
+    aperta["azione"] = dict(fu["azione"], testo_dal_codice=True)
+    assert L.prossimo_messaggio("p1", {"proposte": {"p1": [aperta]}, "calendario": {}}, ora)[1] == "follow-up"
+    # una domanda a Dre non e' un messaggio; il calendario dei follow-up si'
+    domanda = dict(fu, titolo="Da guardare tu: X")
+    cal = {"p1": {"prospect_id": "p1", "gruppo": "FOLLOW UP 1", "il": "2026-10-23"}}
+    m = L.prossimo_messaggio("p1", {"proposte": {"p1": [domanda]}, "calendario": cal}, ora)
+    assert m[0].date().isoformat() == "2026-10-23" and m[2] == "", m
+    assert L.prossimo_breve(["p1"], {"proposte": {}, "calendario": cal}, ora) == "ven 23/10"
+    # nel foglio: le colonne strette dei link accanto all'azienda, il «prossimo» dove il sistema scrive
+    for b in F.BLOCCHI[:-1]:
+        assert b["campi"][:3] == ["azienda", "scheda", "filo"], b["campi"]
+    assert {b["fase"] for b in F.BLOCCHI if "prossimo" in b["campi"]} == {F.PREP, F.INVIATA, F.CONV}
+    dati = {"ps": {"a": {"id": "a", "company": "Prova srl", "last_reply_at": "2026-10-19T08:00:00+00:00",
+                         "analysis_sent_at": "2026-10-15T08:00:00+00:00", "campaign_id": 7, "lead_id": 9},
+                   "b": {"id": "b", "company": "A mano srl", "last_reply_at": "2026-10-19T08:00:00+00:00",
+                         "analysis_sent_at": "2026-10-19T09:00:00+00:00"}},
+            "schede": {}, "dec": {}, "clienti": {}, "agenda": [], "retainer": {}, "prova_costo": {}, "interesse": set(),
+            "piano": {"proposte": {}, "calendario": {"b": {"prospect_id": "b", "gruppo": "FOLLOW UP 1", "il": "2026-10-22"}}}}
+    st = {"scritto": {}, "dre": {}, "mano": {}, "attesa": {}, "call": {}, "mappe": {"a": 555}}
+    per_fase, _ = F.calcola(dati, st, ora)
+    righe, _ = F.griglia(per_fase, 0, ora)
+    b = next(x for x in F.BLOCCHI if x["fase"] == F.CONV)
+    riga = next(r for r in righe[F.PRIMA - 1:] if r[b["da"]] == "Prova srl")
+    assert riga[F.colonna(b, "filo")] == '=HYPERLINK("https://app.smartlead.ai/app/master-inbox?leadMap=555";"filo")', riga
+    assert riga[F.colonna(b, "scheda")].startswith('=HYPERLINK("') and '#/s/lead/a"' in riga[F.colonna(b, "scheda")]
+    b2 = next(x for x in F.BLOCCHI if x["fase"] == F.INVIATA)
+    riga2 = next(r for r in righe[F.PRIMA - 1:] if r[b2["da"]] == "A mano srl")
+    assert riga2[F.colonna(b2, "filo")] == "", "un lead senza filo: cella vuota, il foglio non cade"
+    assert riga2[F.colonna(b2, "prossimo")] == "'gio 22/10", "testo, non una data"
+
+
+@prova("scheda Clara (20/10): il semaforo vede i guasti che costano lead, il diario parla come Dre")
+def _():
+    import datetime, clara_foglio as C
+    roma = C.ROMA
+    alle = lambda h, m=0: datetime.datetime(2026, 10, 20, h, m, tzinfo=roma)        # noqa: E731
+    vuoto = lambda: {"si": [], "corse": {}, "operazioni": {}, "foglio_il": None, "conversazioni": None, "ultima_corsa": None}  # noqa: E731
+    assert C.semaforo(alle(11), vuoto()) == [], "nessun problema: verde"
+    # un si' arrivato 61 minuti fa alle 11, senza analisi: guasto. Lo stesso alle 23: niente
+    d = vuoto()
+    d["si"] = [{"prospect_id": "p1", "azienda": "Rossi srl", "quando": alle(9, 59)}]
+    g = C.semaforo(alle(11), d)
+    assert len(g) == 1 and "Rossi srl" in g[0]["cosa"] and g[0]["da"] == alle(9, 59) and g[0]["sta_facendo"], g
+    d["si"] = [{"prospect_id": "p1", "azienda": "Rossi srl", "quando": alle(21, 59)}]
+    assert C.semaforo(alle(23), d) == []
+    # arrivato alle 7: alle 8:30 non e' ancora fermo (l'invio parte alle 8), alle 9:01 si'
+    d["si"] = [{"prospect_id": "p1", "azienda": "Rossi srl", "quando": alle(7)}]
+    assert C.semaforo(alle(8, 30), d) == [] and len(C.semaforo(alle(9, 1), d)) == 1
+    # tre corse di manda in errore: l'invio e' fermo
+    d = vuoto()
+    d["operazioni"] = {"manda": {"chiave": "manda", "nome": "Clara manda", "attiva": True, "cadenza_minuti": 5}}
+    d["corse"] = {"manda": [{"at": alle(10, 50 - 5 * i), "esito": "errore", "dettaglio": "boh"} for i in range(3)]}
+    g = C.semaforo(alle(11), d)
+    assert len(g) == 1 and g[0]["chiave"] == "invio:manda" and g[0]["da"] == alle(10, 40), g
+    d["corse"]["manda"][0]["esito"] = "ok"
+    assert C.semaforo(alle(11), d) == [], "l'ultima corsa e' andata: non e' fermo"
+    # nessuna corsa da piu' di un'ora, in orario: fermo; di notte no
+    d["corse"] = {"manda": [{"at": alle(9, 50), "esito": "ok", "dettaglio": ""}]}
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["invio:manda"]
+    assert C.semaforo(alle(23), d) == [], "di notte il silenzio non e' un guasto"
+    # i crediti finiti: anche un'operazione qualunque, se l'ultima corsa lo dice
+    d["corse"] = {"manda": [{"at": alle(10, 55), "esito": "errore", "dettaglio": "Error code: 429 insufficient_quota"}]}
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["chiave:manda"]
+    # il foglio fermo da piu' di un'ora; il direttore fermo
+    d = vuoto()
+    d["foglio_il"] = alle(9, 50)
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["foglio"]
+    d = vuoto()
+    d["ultima_corsa"] = alle(10, 35)
+    assert C.semaforo(alle(11), d) == [], "25 minuti senza corse: la sentinella lo rianima, non e' ancora un guasto"
+    d["ultima_corsa"] = alle(10, 25)
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["direttore"]
+    # la conversazione senza notifica: spenta finche' la chiave non c'e'
+    d = vuoto()
+    d["conversazioni"] = {"p1": {"dal": alle(10, 30).isoformat(), "notificata": False, "azienda": "Rossi srl"},
+                          "p2": {"dal": alle(10, 30).isoformat(), "notificata": True}}
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["conversazione:p1"]
+    assert C.conversazioni_aperte({}) is None
+    # il diario: la riga piu' recente in alto, parole di Dre
+    eventi = {"analisi": [("p1", alle(9))], "fatte": [("p2", alle(10), "FOLLOW UP 1"), ("p3", alle(10, 30), "PROMEMORIA")],
+              "no": [("p4", alle(8))], "conversazioni": [("p5", alle(10, 45))], "call": [], "nomi": {
+                  "p1": "Uno srl", "p2": "Due srl", "p3": "Tre srl", "p4": "Quattro srl", "p5": "Cinque srl"}}
+    righe = C.diario(alle(11), eventi=eventi)
+    assert [r[1] for r in righe] == ["Cinque srl", "Tre srl", "Due srl", "Uno srl", "Quattro srl"], righe
+    cose = " ".join(r[2] for r in righe)
+    for frase in ("Analisi mandata", "Follow-up partito", "Ha detto no", "È entrato in conversazione"):
+        assert frase in cose, (frase, cose)
+    for tecnico in ("prospect", "proposta", "FOLLOW UP 1", "INT-", "classificazione"):
+        assert tecnico not in cose, tecnico
+    # la scheda Clara e i link leggono e basta: niente scritture nel database, niente mail
+    import re as _re
+    for nome in ("clara_foglio.py", "foglio_lead.py"):
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), nome), encoding="utf-8").read()
+        assert not _re.search(r'sb\("(?:POST|PATCH|DELETE)', src) and "proponi(" not in src and "import manda" not in src, nome
+        assert "method=" not in src and "data=" not in src, f"{nome}: a Smartlead solo domande (GET)"
+
+
+@prova("avvisi di guasto (20/10): una notifica alla prima volta, poi ogni 2 ore, poi «Risolto»")
+def _():
+    import datetime, avvisi as A
+    t0 = datetime.datetime(2026, 10, 20, 9, tzinfo=datetime.timezone.utc)
+    g = [{"chiave": "invio:manda", "cosa": "L'invio è fermo", "da": t0, "sta_facendo": "Riprova ogni 5 minuti."}]
+    note, st = A.decidi(g, {}, t0)
+    assert len(note) == 1 and "L'invio è fermo" in note[0][0] + note[0][1], note
+    note, st = A.decidi(g, st, t0 + datetime.timedelta(minutes=30))
+    assert note == [], "lo stesso guasto dopo 30 minuti: zitto"
+    note, st = A.decidi(g, st, t0 + datetime.timedelta(hours=2, minutes=1))
+    assert len(note) == 1, "dopo 2 ore: di nuovo"
+    note, st = A.decidi(g, st, t0 + datetime.timedelta(hours=2, minutes=20))
+    assert note == []
+    note, st = A.decidi([], st, t0 + datetime.timedelta(hours=3))
+    assert len(note) == 1 and note[0][0].startswith("Risolto") and "L'invio è fermo" in note[0][1] and st == {}, (note, st)
+    assert all(len(n[0]) <= 40 for n in note), "il titolo sta sul telefono senza tagli"
+    note, st = A.decidi([], st, t0 + datetime.timedelta(hours=3, minutes=10))
+    assert note == [], "risolto una volta sola"
+    # di notte (22-7:30) il telefono non suona: il guasto aspetta il mattino, se e' ancora vero
+    notte = datetime.datetime(2026, 10, 20, 21, 30, tzinfo=datetime.timezone.utc)        # 23:30 a Roma
+    note, st = A.decidi(g, {}, notte)
+    assert note == [] and st["invio:manda"]["ultimo"] is None
+    note, st = A.decidi(g, st, notte + datetime.timedelta(hours=8, minutes=10))         # 7:40
+    assert len(note) == 1 and not note[0][0].startswith("Ancora"), note
+    # nato e finito di notte: nessun «Risolto» per una cosa mai suonata
+    note, st = A.decidi(g, {}, notte)
+    note, st = A.decidi([], st, notte + datetime.timedelta(hours=1))
+    note2, st = A.decidi([], st, notte + datetime.timedelta(hours=9))
+    assert note == [] and note2 == [] and st == {}
+    # tre guasti nuovi insieme: una notifica sola, non tre
+    tre = [dict(g[0], chiave=f"si:{i}", cosa=f"Sì fermo {i}") for i in range(3)]
+    note, st = A.decidi(tre, {}, t0)
+    assert len(note) == 1 and "3" in note[0][0], note
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

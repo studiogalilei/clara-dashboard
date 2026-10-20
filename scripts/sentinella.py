@@ -18,6 +18,11 @@ Controlla, e per ogni guaio scrive un avviso nella chat di Clara (tipo
   4. operazioni in errore.
 Il risanamento del direttore bloccato (cancellare la corsa ferma) lo fa il
 workflow con gh, non questo script: la sentinella vede e dice, non opera.
+
+20/10 («io più il sistema»): il collaudo del 19/10 ha visto che la sentinella falliva senza
+arrivare a Dre (scriveva in Posta, che Dre non apre piu'). Ora, se il direttore e' fermo, chiama
+gli avvisi di guasto (scripts/avvisi.py): la notifica sul telefono parte da qui, perche' quando
+il direttore e' morto l'operazione «avvisi» non gira. Gli altri guasti li suona «avvisi».
 """
 import datetime
 import os
@@ -38,6 +43,15 @@ def _min_fa(iso):
         return (ADESSO - t).total_seconds() / 60
     except Exception:                                      # noqa: BLE001
         return None
+
+
+def avvisa_se_fermo():
+    """Il direttore fermo: la notifica la manda la sentinella (stesse regole e stesso stato degli
+    avvisi: una volta, poi ogni 2 ore, poi «Risolto», che arriva dal primo giro del direttore)."""
+    import avvisi
+    import clara_foglio
+    if any(g["chiave"] == "direttore" for g in clara_foglio.semaforo(ADESSO)):
+        avvisi.guasti(ora=ADESSO)
 
 
 def main():
@@ -68,6 +82,11 @@ def main():
         m = _min_fa(x.get("risposta_il") or x.get("at"))
         if m and m > 30:
             guai.append(f"proposta «{x['titolo'][:50]}» {x['stato']} da {int(m)} minuti e il postino non la prende")
+
+    try:
+        avvisa_se_fermo()
+    except Exception as e:                                 # noqa: BLE001
+        print("  (avviso di guasto non partito:", str(e)[:100] + ")")
 
     if not guai:
         print(f"sentinella: tutto opera ({len(ops)} operazioni, {len(attese)} attese fresche seguite)")
