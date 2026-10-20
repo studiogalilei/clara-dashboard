@@ -3763,7 +3763,7 @@ def _():
     import datetime, foglio as F, foglio_lead as L
     assert L.link_scheda("x").endswith("#/s/lead/x")
     assert L.link_filo({}) is None and L.link_filo({"company": "Aggiunto a mano"}) is None, "senza campagna niente filo"
-    assert L.link_filo({"campaign_id": 7, "lead_id": 9}, 123).endswith("/app/master-inbox?leadMap=123")
+    assert L.link_filo({"campaign_id": 7, "lead_id": 9}, 123).endswith("/app/master-inbox?action=INBOX&leadMap=123")
     assert "filterCampaignId=7" in L.link_filo({"campaign_id": 7, "lead_id": 9, "email": "a" + "@b.it"})
     ora = datetime.datetime(2026, 10, 20, 9, tzinfo=datetime.timezone.utc)            # martedi'
     giovedi = "2026-10-22"
@@ -3798,7 +3798,7 @@ def _():
     righe, _ = F.griglia(per_fase, 0, ora)
     b = next(x for x in F.BLOCCHI if x["fase"] == F.CONV)
     riga = next(r for r in righe[F.PRIMA - 1:] if r[b["da"]] == "Prova srl")
-    assert riga[F.colonna(b, "filo")] == '=HYPERLINK("https://app.smartlead.ai/app/master-inbox?leadMap=555";"filo")', riga
+    assert riga[F.colonna(b, "filo")] == '=HYPERLINK("https://app.smartlead.ai/app/master-inbox?action=INBOX&leadMap=555";"filo")', riga
     assert riga[F.colonna(b, "scheda")].startswith('=HYPERLINK("') and '#/s/lead/a"' in riga[F.colonna(b, "scheda")]
     b2 = next(x for x in F.BLOCCHI if x["fase"] == F.INVIATA)
     riga2 = next(r for r in righe[F.PRIMA - 1:] if r[b2["da"]] == "A mano srl")
@@ -4553,6 +4553,37 @@ def _():
     v, m = G.verdetto(c, None, rec, {"fa_ads": True, "annunci": 3, "giorni_ads": 400})
     assert v == "PARZIALE" and "poco" in m
     assert G.verdetto(c, None, rec, {"errore": "x"})[0] == "SI"       # non misurato: non boccia
+
+
+@prova("meta fit: il ticket pesa piu' di tutto, chi fa gia' Meta Ads sul serio e' NO, il canale consigliato (Dre, 20/10)")
+def _():
+    import googlefit as G
+    base = {"settore": "serramenti", "settore_uguale": True, "tipo": "B2C", "ticket_min": 2000, "ticket_max": 8000,
+            "visivo": True, "pubblico_definibile": True, "come_lo_cercano": "ricerca", "categoria_sensibile": ""}
+    rec = {"recensioni": 40}
+    assert G.verdetto_meta(base, rec, {"fa_meta_ads": False})[0] == "SI"
+    assert G.verdetto_meta(base, rec, {"fa_meta_ads": True, "annunci_attivi": 12, "giorni": 120})[0] == "NO"
+    assert G.verdetto_meta(base, rec, {"fa_meta_ads": True, "annunci_attivi": 2, "giorni": 400})[0] == "PARZIALE"
+    assert G.verdetto_meta(dict(base, ticket_max=200, vendita_possibile_online=False), rec)[0] == "NO"       # ticket basso, non online
+    assert G.verdetto_meta(dict(base, ticket_max=200, vendita_possibile_online=True), rec)[0] == "PARZIALE"  # e-commerce
+    assert G.verdetto_meta(dict(base, ticket_max=600), rec)[0] == "PARZIALE"                                  # ticket medio
+    assert G.verdetto_meta(dict(base, tipo="B2B", pubblico_definibile=False), rec)[0] == "NO"
+    assert G.verdetto_meta(dict(base, categoria_sensibile="armi"), rec)[0] == "NO"
+    v, m = G.verdetto_meta(dict(base, categoria_sensibile="casa"), rec)
+    assert v == "PARZIALE" and "limita" in m
+    assert G.verdetto_meta(dict(base, esclusione="agenzia"), rec)[0] == "NO"
+    assert G.verdetto_meta(base, rec, None)[0] == "SI"                                                        # non misurato: non boccia
+    assert G.canale("SI", "SI") == "entrambi" and G.canale("SI", "PARZIALE") == "Google" and G.canale("NO", "PARZIALE") == "Meta"
+    assert G.canale("NO", "NO") == "nessuno"
+    # gli annunci della Ad Library si attribuiscono per dominio o per nome della pagina, mai per somiglianza vaga
+    ads = [{"is_active": True, "start_date": "2026-01-01T00:00:00Z", "page_name": "Serramenti Rossi Srl", "snapshot": {"link_url": "https://x.example/"}},
+           {"is_active": True, "start_date": "2026-06-01T00:00:00Z", "page_name": "Altra Pagina", "snapshot": {"caption": "serramentirossi.example"}},
+           {"is_active": False, "start_date": "2025-01-01T00:00:00Z", "page_name": "Rossi Pizzeria", "snapshot": {}}]
+    oggi = datetime.datetime(2026, 10, 20, tzinfo=datetime.timezone.utc)
+    m = G.conta_meta_ads(ads, "Serramenti Rossi", "serramentirossi.example", oggi)
+    assert m["annunci_attivi"] == 2 and m["annunci_totali"] == 2 and m["giorni"] == 292, m
+    assert G.segnali_meta("<script src='https://connect.facebook.net/it_IT/fbevents.js'></script><a href='https://instagram.com/x'>")["pixel_meta"]
+    assert not G.segnali_meta("<a href='https://facebook.com/tr?id=1'>")["facebook"]
 
 
 def main():
