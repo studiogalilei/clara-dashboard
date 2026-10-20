@@ -37,6 +37,12 @@ MAPPE_PER_GIRO = 40              # le domande a Smartlead in un giro: le altre a
 ORA_INVIO = 9                    # un messaggio «per giovedi'» parte dalla mattina
 
 
+def promemoria_fermati():
+    """I promemoria delle call fermati (annullata per mail o a mano): dicono quale call e' saltata."""
+    from stanza import sb
+    return sb("GET", "/rest/v1/proposte?select=prospect_id,azione&ref=like.promemoria:*&stato=eq.no&limit=1000") or []
+
+
 def link_scheda(pid):
     """La scheda del lead nel Workspace (la stessa strada della notifica)."""
     import segnale_provvisorio as SP

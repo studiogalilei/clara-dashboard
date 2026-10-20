@@ -300,7 +300,7 @@ def leggi_dati():
     agenda = sb_tutte("/rest/v1/agenda?select=id,at,tipo,prospect_id,titolo&fonte=eq.gcal&prospect_id=not.is.null")
     # 20/10: una call annullata per mail (o fermata a mano) resta nel calendario, ma il suo promemoria e'
     # fermato con l'ora della call: quella call per il foglio non esiste piu'
-    annullate = call_annullate(sb("GET", "/rest/v1/proposte?select=prospect_id,azione&ref=like.promemoria:*&stato=eq.no&limit=1000") or [])
+    annullate = call_annullate(foglio_lead.promemoria_fermati())
     agenda = [a for a in agenda if not call_annullata(a, annullate)]
     ps = {p["id"]: p for p in sb_tutte(f"/rest/v1/prospects?select={CAMPI_P}&or=(pipeline_stage.not.is.null,stage.eq.cliente)")}
     servono = (set(schede) | set(dec) | set(clienti) | {a["prospect_id"] for a in agenda if a.get("tipo") in CALL}) - set(ps)
