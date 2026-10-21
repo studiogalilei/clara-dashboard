@@ -407,7 +407,7 @@ export function stessaBozza(a: string | null | undefined, b: string | null | und
 }
 
 /** La proposta aperta che ha le strade (la piu' recente): le mail (al massimo tre, mai due uguali, mai senza
- *  bozza) e gli altri gesti (al massimo due). Meno di due strade in tutto: niente «Decidi tu», resta il
+ *  bozza) e gli altri gesti (al massimo due). Senza mail e con meno di due gesti: niente strade, resta il
  *  messaggio in attesa com'era. */
 export function stradeDi(proposte: PropostaLead[]): ConStrade | null {
   const p = proposte.filter((x) => x.stato === 'aperta' && (x.tipo === 'risposta' || x.tipo === 'umano') && Array.isArray(x.strade) && x.strade.length)
@@ -419,7 +419,8 @@ export function stradeDi(proposte: PropostaLead[]): ConStrade | null {
     if (mail.length < MAX_MAIL && !mail.some((m) => stessaBozza(m.bozza, s.bozza))) mail.push(s)
   }
   const strade = [...mail, ...buone.filter((x) => x.azione !== 'manda').slice(0, MAX_ALTRE)]
-  if (strade.length < 2) return null
+  // 22/10: una mail che ha passato i controlli vale piu' della bozza ferma, anche da sola
+  if (strade.length < 2 && !mail.length) return null
   return { id: p.id, strade, caso: p.strade_caso ?? null, intento: p.intento ?? null, motivo: motivoFermo(p) }
 }
 

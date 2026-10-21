@@ -349,7 +349,8 @@ describe('le strade (21/10): «mi dà 2 o 3 strade e io scelgo, e lui procede»'
     expect(stradeDi([p({ strade: [{ ...MANDA, bozza: '' }, RINVIO] })])).toBeNull()
     expect(stradeDi([p({ strade: [{ ...MANDA, bozza: '' }, RINVIO, NIENTE] })])?.strade.map((s) => s.azione)).toEqual(['ricontatta', 'niente'])
     expect(stradeDi([p({ strade: null })])).toBeNull()
-    expect(stradeDi([p({ strade: [MANDA] })])).toBeNull()
+    expect(stradeDi([p({ strade: [RINVIO] })])).toBeNull()
+    expect(stradeDi([p({ strade: [MANDA] })])?.strade).toEqual([MANDA])     // una mail sola che regge si mostra lo stesso
     // le mail: al massimo tre, e mai due che partono con la stessa frase (il collaudo del 21/10 ne ha trovate due)
     const m = (bozza: string, etichetta: string): Strada => ({ ...MANDA, etichetta, bozza })
     const quattro = [m('Buongiorno,\n\nmi può girare il contatto?', 'Chiedi il contatto'), m('Buongiorno,\n\nmi può girare il contatto?\nGrazie mille.', 'Chiedi il contatto, grazie'),

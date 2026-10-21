@@ -81,7 +81,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         <p className="mt-1 text-[14px] text-tenue">{ultima ? `Ha scritto ${quando(ultima)}` : 'Non ha mai risposto'}</p>
         {/* 21/10: lo «Stato» della Conversazione del foglio, sola lettura (si cambia nel foglio, non qui) */}
         {d?.stato_conv && <p className="mt-1 text-[14px] text-tenue">Nel foglio: <span className="font-semibold text-inchiostro">{d.stato_conv}</span></p>}
-        {s?.attivita && <p className="mt-3 max-w-[65ch] text-[15px] leading-relaxed text-tenue">{s.attivita}</p>}
+        {/* 22/10 notte: con una bozza da decidere l'attivita' sta in due righe, cosi' la bozza sale */}
+        {s?.attivita && <p className={`mt-3 max-w-[65ch] text-[15px] leading-relaxed text-tenue ${strade || attesa ? 'line-clamp-2' : ''}`}>{s.attivita}</p>}
         <ProssimaCall call={dati.call} />
         {/* 22/10 notte: i contatti sono scesi sotto la conversazione; il numero resta a un tocco */}
         {telefoni[0] && (
