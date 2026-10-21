@@ -5075,6 +5075,18 @@ def _():
     assert direttore.corsia_di("strade") == "leggera"
 
 
+@prova("foglio: la risposta del lead vale anche se la scheda e' indietro (21/10, CEFOSMET)")
+def _():
+    import foglio as F
+    ora = datetime.datetime(2026, 10, 21, 11, tzinfo=datetime.timezone.utc)
+    p = {"id": "p1", "classificazione": "positivo", "last_reply_at": "2026-10-21T08:49:00+00:00",
+         "analysis_sent_at": "2026-10-19T13:22:00+00:00", "pipeline_stage": None, "stage": "risposto"}
+    s_vecchia = {"stato": "Analisi inviata", "ultima_risposta": "2026-10-16T11:39:00+00:00"}
+    assert F.fase_di(p, s_vecchia, None, [], None, None, ora=ora)[0] == F.CONV
+    assert F._piu_recente(None, "2026-10-21T08:49:00+00:00") == "2026-10-21T08:49:00+00:00"
+    assert F._piu_recente("2026-10-21T08:49:00+00:00", "2026-10-16T11:39:00+00:00") == "2026-10-21T08:49:00+00:00"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -354,6 +354,11 @@ def _stato12(s, d):
     return v if v in nomi else _ST["dai_vecchi"].get(v or "", None)
 
 
+def _piu_recente(*date):
+    buone = [x for x in date if x]
+    return max(buone, key=quando) if buone else None
+
+
 def fase_di(p, s, d, call, cliente, mano, interesse=False, ora=None):
     """(fase, etichetta fuori percorso). Una sola delle due. L'ordine:
     1. la fase decisa a mano da Dre (foglio), se dopo non ha cambiato lo stato nell'app;
@@ -390,7 +395,9 @@ def fase_di(p, s, d, call, cliente, mano, interesse=False, ora=None):
         return (CONO, TECN, AVVIO)[max(livelli)], None
     if stato in ("Assente", "Da ricontattare", "Nessuna risposta"):
         return None, FUORI[stato]
-    risposta = (s or {}).get("ultima_risposta") or p.get("last_reply_at")
+    # 21/10 (CEFOSMET): la scheda si era aggiornata due ore dopo la risposta e il foglio la teneva in
+    # «Analisi inviata». La data della sua ultima mail e' la piu' recente fra scheda e anagrafica.
+    risposta = _piu_recente((s or {}).get("ultima_risposta"), p.get("last_reply_at"))
     if not risposta:
         return None, FUORI["Nessuna risposta"]
     if quando(risposta) < ora - datetime.timedelta(days=FERMO_GIORNI):
