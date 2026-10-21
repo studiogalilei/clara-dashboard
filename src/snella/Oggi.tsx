@@ -43,7 +43,10 @@ export default function Oggi({ apri }: { apri: (id: string) => void }) {
   // 17/10: qui solo quello che riguarda una persona che ha scritto. I follow-up (li segue Clara)
   // e le domande sul sistema restano nella Posta: si contano in una riga, non si elencano.
   const tutte = dati?.domande ?? []
-  const diPersone = tutte.filter((d) => d.prospect_id && !eSeguito(d))
+  // 22/10: un «Da guardare tu» nato su un follow-up e' una decisione di Dre (ha le strade): si elenca;
+  // nella riga dei follow-up restano solo le mail del calendario che Clara segue da sola
+  const seguito = (d: Domanda) => d.tipo === 'risposta' && eSeguito(d)
+  const diPersone = tutte.filter((d) => d.prospect_id && !seguito(d))
   const domande = useMemo(() => perAzienda(diPersone.filter((d) => d.tipo === 'umano')),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dati])
@@ -51,7 +54,7 @@ export default function Oggi({ apri }: { apri: (id: string) => void }) {
     && adesso.getTime() - new Date(d.at).getTime() > BOZZA_FERMA_MIN * 60_000)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dati])
-  const altro = { seguiti: tutte.filter((d) => eSeguito(d)).length, sistema: tutte.filter((d) => !d.prospect_id).length }
+  const altro = { seguiti: tutte.filter(seguito).length, sistema: tutte.filter((d) => !d.prospect_id).length }
   const call = useMemo(() => {
     const oggi = giornoRoma(adesso)
     const fine = piuGiorni(oggi, 8)
