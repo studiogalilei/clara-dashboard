@@ -5489,6 +5489,46 @@ def _():
     assert 'enr["lettore"] = _per_enriched(l, c["classificazione"], adesso, ' in src_l, "la riclassifica deve dire di quale mail e' la lettura"
 
 
+@prova("la strada veloce (21/10): un passo che cade non ferma gli altri, la misura solo per una risposta nuova, il workflow mai annullato, il campanello la lancia")
+def _():
+    import risposta as R
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    # un passo che cade: si registra e si va avanti
+    R.REGISTRO.clear()
+    assert R.passo("rotto", lambda: 1 / 0) is None
+    assert R.passo("sano", lambda: 7) == 7
+    assert [r[0] for r in R.REGISTRO] == ["rotto", "sano"] and R.REGISTRO[0][1] == "errore" and R.REGISTRO[1][1] == "ok"
+    src = open(os.path.join(base, "scripts", "risposta.py"), encoding="utf-8").read()
+    corpo = src[src.index("def main():"):]
+    for pezzo in ("conversazioni", "schede.py", "foglio.py", "lampo.py", "misura("):
+        assert pezzo in corpo and f"passo(" in corpo, pezzo
+    assert corpo.count("passo(") >= 6, "ogni tratto passa da passo(): un errore non ferma gli altri"
+    # idempotente: la misura si scrive una volta, solo se e' questa corsa a far entrare la risposta
+    assert 'if not esito.get("nuova"):' in src and "if chiave in dati:" in src
+    # il lampo solo per un si' che aspetta noi senza analisi; mai mail da qui se non dai pezzi di sempre
+    assert R.serve_il_lampo({"cls": "positivo", "awaiting": True, "rec": {"analysis_sent": False}})
+    assert not R.serve_il_lampo({"cls": "positivo", "awaiting": True, "rec": {"analysis_sent": True}})
+    assert not R.serve_il_lampo({"cls": "negativo", "awaiting": True, "rec": {}})
+    assert "manda.py" not in src and "reply-email-thread" not in src, "la strada veloce non manda da sola"
+    # la misura entra nel diario della scheda Clara
+    import clara_foglio as CF
+    assert CF.riga_veloce(2.4) == "Risposta entrata dopo 2 minuti" and CF.riga_veloce(0.3).startswith("Risposta entrata in meno")
+    ora = dt_now = datetime.datetime(2026, 10, 21, 12, 0, tzinfo=datetime.timezone.utc)
+    ev = {"veloci": [("p1", dt_now - datetime.timedelta(minutes=3), 2.0)], "nomi": {"p1": "Azienda Finta"}}
+    assert any(c == "Risposta entrata dopo 2 minuti" for _, _, c in CF.diario(ora, eventi=ev))
+    # il workflow: un gruppo per lead, mai annullato, solo risposta.py, gli input mai dentro il bash
+    w = open(os.path.join(base, ".github", "workflows", "risposta.yml"), encoding="utf-8").read()
+    assert "group: risposta-${{ github.event.inputs.email }}" in w and "cancel-in-progress: false" in w
+    assert "cancel-in-progress: true" not in w and "schedule:" not in w
+    assert "python3 scripts/risposta.py --email \"$LEAD_EMAIL\"" in w and "SUPABASE_SERVICE_KEY" in w and "SMARTLEAD_API_KEY" in w
+    # il campanello: una risposta va alla strada veloce, il direttore solo se manca la mail
+    f = open(os.path.join(base, "supabase", "functions", "smartlead-webhook", "index.ts"), encoding="utf-8").read()
+    assert 'dispatch("risposta.yml"' in f and "to_email" in f and "lead_email" in f and "sl_lead_email" in f
+    # il sync per un lead usa lo stesso corpo del giro
+    s = open(os.path.join(base, "scripts", "sync_v2.py"), encoding="utf-8").read()
+    assert s.count("sincronizza_filo(") == 3, "una definizione, il giro e sincronizza_lead: nessuna copia"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

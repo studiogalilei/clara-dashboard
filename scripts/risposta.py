@@ -150,8 +150,19 @@ def misura(esito, bussato, partita):
         b = _utc(bussato)
         tratti["smartlead_al_campanello_s"] = int((b - ultima).total_seconds())
         tratti["campanello_alla_corsa_s"] = int((partita - b).total_seconds())
-    print(f"  risposta entrata dopo {minuti} minuti dalla mail" + (f" (campanello +{tratti['smartlead_al_campanello_s']}s, avvio corsa +{tratti['campanello_alla_corsa_s']}s)" if bussato else ""))
     pid = (esito.get("rec") or {}).get("id")
+    if not esito.get("nuova"):
+        # la risposta era gia' dentro (un giro del sync, o una corsa prima di questa): la misura vera
+        # e' quando e' entrata la riga, non adesso. Nel diario non si scrive: non l'ha fatta entrare questa corsa.
+        entrata = None
+        if pid:
+            r = sb("GET", f"/rest/v1/interactions?select=created_at&kind=eq.email_in&prospect_id=eq.{pid}"
+                          f"&at=eq.{ultima.strftime('%Y-%m-%dT%H:%M:%SZ')}&limit=1") or []
+            entrata = _utc(r[0]["created_at"]) if r and r[0].get("created_at") else None
+        gia = round((entrata - ultima).total_seconds() / 60, 1) if entrata else None
+        print(f"  risposta gia' nel sistema" + (f": era entrata {gia} minuti dopo la mail" if gia is not None else ""))
+        return gia
+    print(f"  risposta entrata dopo {minuti} minuti dalla mail" + (f" (campanello +{tratti['smartlead_al_campanello_s']}s, avvio corsa +{tratti['campanello_alla_corsa_s']}s)" if bussato else ""))
     if PROVA or not pid:
         print("  (prova: la misura non si scrive)" if PROVA else "  (lead senza scheda: la misura non si scrive)")
         return minuti
