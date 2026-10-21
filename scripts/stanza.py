@@ -536,6 +536,14 @@ def guarda_uscita(operazione, nome, uscita):
     return giu
 
 
+def per_dre(testo):
+    """Il punto in mezzo «·» come separatore e' bandito da Dre (20/10) in tutto quello che legge. Prima
+    lo toglieva solo la chat; la mail della sera e le notifiche lo portavano ancora («La giornata ·
+    mer 21/10»). Lo tolgono le due porte d'uscita verso di lui: la mail (segnale.manda_mail) e il
+    telefono (avvisa.avvisa)."""
+    return re.sub(r"[ \t]*·[ \t]*", ", ", testo or "")
+
+
 def senza_trattini(testo):
     """Il trattino lungo lo toglie il codice, non un secondo giro del modello (29/9).
     L'analisi di Naturalia e' stata bocciata cinque giri di fila, due ore, anche per

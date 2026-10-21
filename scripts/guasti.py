@@ -79,11 +79,11 @@ def decidi(guasti, stato, ora):
         note.append(("Ancora fermo" if ancora else "Si è fermato qualcosa", f"{g['cosa']}. {g['sta_facendo']}", g.get("pid")))
     elif da_suonare:
         note.append((f"{len(da_suonare)} cose ferme nel sistema",
-                     " · ".join(g["cosa"] for g, _ in da_suonare) + ". Il dettaglio è nella scheda Clara del foglio.", None))
+                     ". ".join(g["cosa"] for g, _ in da_suonare) + ". Il dettaglio è nella scheda Clara del foglio.", None))
     if len(risolti) == 1:
         note.append(("Risolto", f"{risolti[0]['cosa']}: il sistema è ripartito.", None))
     elif risolti:
-        note.append((f"Risolto: {len(risolti)} cose ripartite", " · ".join(v["cosa"] for v in risolti), None))
+        note.append((f"Risolto: {len(risolti)} cose ripartite", ". ".join(v["cosa"] for v in risolti), None))
     return note, nuovo
 
 

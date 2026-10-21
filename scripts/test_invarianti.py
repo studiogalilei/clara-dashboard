@@ -3438,7 +3438,7 @@ def _():
                        "prenotate": 0, "spostate": 0, "annullate": 1, "conversazioni": 5, "da_chiamare": 3},
             "aspettano": [], "domani": []}
     oggetto, testo, corpo = G.componi(ora, base, link=link)
-    assert oggetto == "La giornata · mar 20/10", oggetto
+    assert oggetto == "La giornata di mar 20/10", oggetto      # 22/10: niente «·» (bandito da Dre il 20/10)
     assert testo.splitlines()[0] == "Il sistema ha funzionato regolarmente." and "Soluzione" not in testo
     assert "31 risposte arrivate (5 sì, 15 no, 4 fuori ufficio)" in testo and "38 follow-up partiti" in testo and "1 call annullata" in testo
     assert "Niente da parte tua." in testo and "Nessuna call." in testo and testo.strip().splitlines()[-1] == "Niente da fare stasera: buona serata."
@@ -5886,6 +5886,24 @@ def _():
     assert "persona_dopo_analisi(" in leggi("manda.py")
     # il caldo della scheda lo dice il lettore come per la notifica, e solo finche' la palla e' sua
     assert "letto = lettore_di(p)" in leggi("schede.py") and "and not nostra_dopo" in leggi("schede.py")
+
+
+@prova("meno rumore a Dre (notte 22/10): prima di una call suona solo la scheda «Oggi alle», la giornata parte una volta sola anche se Gmail non risponde")
+def _():
+    qui = os.path.dirname(os.path.abspath(__file__))
+    prep = open(os.path.join(qui, "preparo.py"), encoding="utf-8").read()
+    assert '"overrides": []' in prep and '"method": "popup"' not in prep, "l'evento Prep non deve suonare"
+    gio = open(os.path.join(qui, "giornata.py"), encoding="utf-8").read()
+    i = gio.index("def main():")
+    corpo = gio[i:]
+    assert corpo.index('chiave=eq.giornata') < corpo.index("SP.manda_mail(") < corpo.index('"mandata_il": giorno'), \
+        "il segno «mandata oggi» si legge prima e si scrive dopo l'invio"
+    # il «·» non esce verso Dre: lo tolgono le due porte (mail e telefono)
+    import stanza as St
+    assert St.per_dre("La giornata · mer 21/10") == "La giornata, mer 21/10" and St.per_dre("a·b") == "a, b"
+    sp = open(os.path.join(qui, "segnale_provvisorio.py"), encoding="utf-8").read()
+    av = open(os.path.join(qui, "avvisa.py"), encoding="utf-8").read()
+    assert "per_dre(oggetto), per_dre(testo), per_dre(html_corpo)" in sp and "testo, titolo = per_dre(testo), per_dre(titolo)" in av
 
 
 def main():

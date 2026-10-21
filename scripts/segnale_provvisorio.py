@@ -203,6 +203,8 @@ def manda_mail(a, oggetto, testo, html_corpo):
     indirizzo (un lead, un collega, una lista) si ferma qui, prima di chiamare Google."""
     if (a or "").strip().lower() != DRE:
         raise NonPartita(f"il segnale provvisorio scrive solo a Dre, non a {a!r}")
+    from stanza import per_dre
+    oggetto, testo, html_corpo = per_dre(oggetto), per_dre(testo), per_dre(html_corpo)
     try:
         m = MIMEMultipart("alternative")
         m["To"] = DRE

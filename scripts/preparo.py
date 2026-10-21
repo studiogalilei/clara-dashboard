@@ -75,7 +75,9 @@ def su_google(cid, r, nome, testo, q, prova):
              "start": {"dateTime": inizio.isoformat(), "timeZone": "Europe/Rome"},
              "end": {"dateTime": q.isoformat(), "timeZone": "Europe/Rome"},
              "transparency": "transparent", "colorId": "5",
-             "reminders": {"useDefault": False, "overrides": [{"method": "popup", "minutes": 0}]}}
+             # notte del 22/10: senza notifica. Prima di una call a Dre arriva una cosa sola, la scheda
+             # «Oggi alle HH» (segnale); il «Prep» resta nel calendario da aprire, non suona
+             "reminders": {"useDefault": False, "overrides": []}}
     if prova:
         print(f"    [prova] evento Prep {nome} alle {inizio:%d/%m %H:%M}")
         return

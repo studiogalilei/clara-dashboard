@@ -30,7 +30,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb                                 # noqa: E402
+from stanza import env, sb, per_dre                        # noqa: E402
 
 DASHBOARD = env("DASHBOARD_URL") or "./"
 MITTENTE = "mailto:dramane@studiogalilei.com"
@@ -86,6 +86,7 @@ def utente(email):
 def avvisa(testo, titolo="Clara", url=None, a=None, tag=None):
     """Manda ai dispositivi iscritti di `a` (lista di user id; None = ai ceo). Torna quanti hanno ricevuto.
     Non alza mai per un dispositivo: un errore si scrive e si va avanti, un indirizzo morto si toglie."""
+    testo, titolo = per_dre(testo), per_dre(titolo)         # niente «·» sul telefono (22/10)
     privata = env("VAPID_PRIVATE")
     if not privata or os.environ.get("SENZA_PUSH"):
         return 0

@@ -364,7 +364,7 @@ def componi(ora, dati, link=None):
     """(oggetto, testo, html). `link` si passa nelle prove."""
     link = link or link_scheda
     e = html.escape
-    oggetto = f"La giornata · {giorno_breve(ora)}"
+    oggetto = f"La giornata di {giorno_breve(ora)}"
     righe_q = quadro(dati)
     riga_n = numeri(dati)
     asp = dati.get("aspettano") or []
@@ -385,8 +385,8 @@ def componi(ora, dati, link=None):
         h.append("<ul style='margin:0;padding-left:18px'>")
         for v in asp[:MAX_ASPETTANO]:
             url = link(v["pid"])
-            t.append(f"- {v['azienda']}: {v['perche']} · {url}")
-            h.append(f"<li style='margin:0 0 4px'>{e(v['azienda'])}: {e(v['perche'])} · <a href='{e(url)}'>scheda</a></li>")
+            t.append(f"- {v['azienda']}: {v['perche']}\n  {url}")
+            h.append(f"<li style='margin:0 0 4px'>{e(v['azienda'])}: {e(v['perche'])}, <a href='{e(url)}'>scheda</a></li>")
         h.append("</ul>")
         if len(asp) > MAX_ASPETTANO:
             resto = f"…e {_n(len(asp) - MAX_ASPETTANO, 'altro', 'altri')} che aspettano una tua decisione: li trovi nel foglio."
@@ -429,13 +429,23 @@ def main():
         print(f"(prova) Oggetto: {oggetto}\n\n{testo}\n\n(prova) niente mandato")
         return
     import segnale_provvisorio as SP
+    # notte del 22/10: «partita oggi» e' un fatto scritto da chi la manda (snella_numeri «giornata»),
+    # non solo una ricerca nella posta inviata: se Gmail non rispondeva, la mail partiva una seconda volta
+    giorno = ora.astimezone(ROMA).date().isoformat()
+    segno = (sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.giornata") or [{}])[0].get("dati") or {}
+    if segno.get("mandata_il") == giorno:
+        print(f"la mail di oggi è già partita ({oggetto}): non la rimando")
+        return
     try:
         if gia_partita(oggetto, inizio_giorno(ora)):
             print(f"la mail di oggi è già partita ({oggetto}): non la rimando")
             return
     except Exception as e:                                       # noqa: BLE001
-        print(f"  (non riesco a guardare la posta inviata: {str(e)[:100]}; mando lo stesso)")
+        print(f"  (non riesco a guardare la posta inviata: {str(e)[:100]}; il segno di oggi non c'e', la mando)")
     SP.manda_mail(SP.DRE, oggetto, testo, corpo)
+    sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave", [{"chiave": "giornata", "dati": {"mandata_il": giorno, "oggetto": oggetto},
+                                                              "aggiornato_il": ora.isoformat()}],
+       {"Prefer": "resolution=merge-duplicates,return=minimal"})
     print(f"mandata a Dre: {oggetto}\n\n{testo}")
 
 

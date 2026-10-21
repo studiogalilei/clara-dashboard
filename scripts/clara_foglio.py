@@ -577,9 +577,9 @@ def griglia(guasti, righe_diario, ora):
     Torna (valori, quante righe di guasto)."""
     from foglio import testo
     if guasti:
-        testa = f"Qualcosa si è fermato ({len(guasti)}) · aggiornato alle {_ora(ora)}"
+        testa = f"Qualcosa si è fermato ({len(guasti)}), aggiornato alle {_ora(ora)}"
     else:
-        testa = f"Tutto a posto · aggiornato alle {_ora(ora)}"
+        testa = f"Tutto a posto, aggiornato alle {_ora(ora)}"
     valori = [[testa, "", ""]]
     for g in guasti:
         valori.append([f"dalle {_ora(g['da'])}" if g["da"].astimezone(ROMA).date() == ora.astimezone(ROMA).date()
