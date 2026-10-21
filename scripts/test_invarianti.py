@@ -3922,7 +3922,7 @@ class _ConversazioniFinte:
             riga = {"id": "p1", "company": "Azienda Finta", "name": "Mario", "analysis_sent_at": self.analisi,
                     "stage": "in_follow_up", "pipeline_stage": None, "classificazione": "positivo", "fuori": False,
                     "no_followup": False, "last_reply_at": ultima}
-            if "lettore" in path:                   # la domanda dei caldi del lettore
+            if "caldo=eq.true" in path:             # la domanda dei caldi del lettore (22/10: le altre chiedono il lettore anche loro)
                 if not self.caldo or not self.risposte:
                     return []
                 prima = min(r["at"] for r in self.risposte)
@@ -5826,6 +5826,64 @@ def _():
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "direttore.py"), encoding="utf-8").read()
     assert "guarda_uscita(op[\"chiave\"], op[\"nome\"], uscita)" in src and "uscita[-2000:]" not in src
     assert src.index("file_del_comando(op.get(\"comando\"))") < src.index("subprocess.run(op[\"comando\"]")
+
+
+@prova("un fatto, una regola (notte 22/10): «l'ha scritta una macchina?» e «ha risposto dopo l'analisi» li decide stanza, per notifica, semaforo, foglio, postino e prima risposta")
+def _():
+    import stanza as St
+    let = lambda classe, autore=None, il="2026-10-21T07:25:09": {"fonte": "lettore", "classe": classe, "autore": autore, "risposta_il": il}  # noqa: E731
+    p = {"id": "p1", "analysis_sent_at": "2026-10-20T10:00:00+00:00", "last_reply_at": "2026-10-21T07:25:09+00:00", "classificazione": "da_classificare"}
+    assert St.scritta_da_macchina(p) is None, "nessuna lettura: non si sa"
+    assert St.scritta_da_macchina({**p, "classificazione": "ooo"}) is True
+    assert St.scritta_da_macchina({**p, "lettore": let("automatico")}) is True
+    assert St.scritta_da_macchina({**p, "lettore": let("da_classificare", "automatico")}) is True
+    assert St.scritta_da_macchina({**p, "classificazione": "ooo", "lettore": let("positivo", "persona")}) is False, "il lettore sulla sua ultima mail vince sulla classe"
+    assert St.scritta_da_macchina({**p, "lettore": let("automatico", il="2026-10-19T07:00:00")}) is None, "la lettura di una mail vecchia non vale"
+    # la mail chiesta deve essere la sua ultima
+    t = St.quando("2026-10-21T07:25:09+00:00")
+    assert St.scritta_da_macchina({**p, "lettore": let("ooo")}, t) is True
+    assert St.scritta_da_macchina({**p, "lettore": let("ooo")}, t - datetime.timedelta(hours=1)) is None
+    assert St.scritta_da_macchina({**p, "lettore": let("ooo")}, "2026-10-21T07:25:09+00:00") is True
+    # ha risposto dopo l'analisi, una persona
+    assert St.persona_dopo_analisi(p) is True
+    assert St.persona_dopo_analisi({**p, "classificazione": "ooo"}) is False, "un fuori ufficio non e' una conversazione"
+    assert St.persona_dopo_analisi({**p, "last_reply_at": "2026-10-19T07:00:00+00:00"}) is False, "prima dell'analisi"
+    assert St.persona_dopo_analisi({**p, "analysis_sent_at": None}) is False
+    # i campi che mancano li va a prendere (il postino e la prima risposta non li chiedevano: il controllo non scattava mai)
+    vero = St.sb
+    chiesti = []
+    try:
+        St.sb = lambda m, path, *a, **k: (chiesti.append(path), [{"analysis_sent_at": p["analysis_sent_at"], "last_reply_at": p["last_reply_at"], "classificazione": "positivo"}])[1]
+        assert St.persona_dopo_analisi({"id": "p1"}) is True and "analysis_sent_at" in chiesti[0]
+        import manda as M
+        pr = {"at": "2026-10-21T08:00:00+00:00", "azione": {"template": "FOLLOW UP 1"}}
+        assert M.superata(pr, {"id": "p1"}, "2026-10-21T07:25:09.000Z"), "FOLLOW UP 1 a chi ha risposto dopo l'analisi: fermo, anche senza analysis_sent_at nella select"
+    finally:
+        St.sb = vero
+    # la call annullata per mail diventa «annullata» nell'agenda: scheda, preparazione e categorie la vedono come il foglio
+    import orecchio as O
+    fatte = []
+    vero_o = O.sb
+    try:
+        O.sb = lambda m, path, *a, **k: (fatte.append((m, path, a[0] if a else None)), [{"id": 7}] if m == "GET" else None)[1]
+        assert O.segna_annullata("p1", St.quando("2026-10-21T13:00:00+00:00")) == 1
+        assert "tipo=neq.annullata" in fatte[0][1] and fatte[1][0] == "PATCH" and fatte[1][2] == {"tipo": "annullata"}, fatte
+    finally:
+        O.sb = vero_o
+    assert "segna_annullata(pid, inizio)" in open(O.__file__, encoding="utf-8").read()
+    # la notifica chiede al lettore, se ha letto quella mail, prima del gpt-5 del segnale
+    import conversazioni as Cv
+    r = {"at": p["last_reply_at"], "body": "Grazie, ci sentiamo la settimana prossima"}
+    assert Cv.persona({**p, "lettore": let("automatico")}, r) is False
+    assert Cv.persona({**p, "lettore": let("positivo", "persona")}, {**r, "body": "Sono fuori ufficio fino a lunedi'"}) is True
+    # chi decide lo stesso fatto usa la stessa regola
+    qui = os.path.dirname(os.path.abspath(__file__))
+    leggi = lambda f: open(os.path.join(qui, f), encoding="utf-8").read()  # noqa: E731
+    for f in ("conversazioni.py", "clara_foglio.py", "foglio.py"):
+        assert "scritta_da_macchina(" in leggi(f), f
+    assert "minutes=1 if persona else 5" not in leggi("foglio.py"), "il foglio non decide piu' con l'orologio"
+    assert 'get("analysis_sent_at") or "~"' not in leggi("prima_risposta.py") and "persona_dopo_analisi(p)" in leggi("prima_risposta.py")
+    assert "persona_dopo_analisi(" in leggi("manda.py")
 
 
 def main():

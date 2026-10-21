@@ -259,6 +259,51 @@ def lettore_di(p):
     return l
 
 
+MACCHINE = ("ooo", "automatico")
+
+
+def scritta_da_macchina(p, mail=None):
+    """UNA REGOLA SOLA PER «L'HA SCRITTA UNA PERSONA?» (notte del 22/10). Prima la decidevano in
+    quattro: le notifiche col gpt-5 del segnale, il semaforo con classe e lettore, il foglio con un
+    margine di 1 o 5 minuti dall'analisi, le bozze con una regex; il semaforo diventava rosso per
+    mail che la notifica aveva scartato, e il foglio teneva in «Analisi inviata» una persona.
+    Vale per la sua ULTIMA mail (last_reply_at; `mail`, se data, deve essere quella): True se e'
+    una macchina (fuori ufficio, risposta automatica: la classe o il lettore), False se il lettore
+    l'ha letta e l'ha scritta una persona, None se non si sa (nessuna lettura di quella mail).
+    Pura: chi chiama mette nella select classificazione, last_reply_at e enriched->lettore."""
+    p = p or {}
+    ultima = p.get("last_reply_at")
+    if mail is not None:
+        if not ultima or abs((quando(str(mail)) if isinstance(mail, str) else mail) - quando(ultima)) > datetime.timedelta(seconds=1):
+            return None
+    l = lettore_di(p)
+    if l:
+        return l.get("classe") in MACCHINE or l.get("autore") == "automatico"
+    if p.get("classificazione") in MACCHINE and ultima:
+        return True
+    return None
+
+
+def persona_dopo_analisi(p):
+    """Il lead ha risposto DOPO l'analisi, ed e' una persona (non un fuori ufficio): e' una
+    conversazione. La stessa domanda la facevano il postino e la prima risposta per non mandare il
+    FOLLOW UP 1 a chi aveva gia' risposto, ma leggevano analysis_sent_at senza averlo chiesto al
+    database: il controllo non e' mai scattato (trovato la notte del 22/10). Qui, se mancano i campi,
+    si vanno a prendere."""
+    p = p or {}
+    if p.get("id") and any(k not in p for k in ("analysis_sent_at", "last_reply_at", "classificazione")):
+        try:
+            fresco = (sb("GET", "/rest/v1/prospects?select=analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore"
+                                f"&id=eq.{p['id']}") or [{}])[0]
+            p = {**fresco, **{k: v for k, v in p.items() if v is not None}}
+        except Exception:                                        # noqa: BLE001
+            return True                          # nel dubbio e' una conversazione: niente follow-up
+    an, mail = p.get("analysis_sent_at"), p.get("last_reply_at")
+    if not an or not mail or quando(mail) <= quando(an):
+        return False
+    return not scritta_da_macchina(p)
+
+
 def mail_notificata(voce):
     """La mail del lead per cui e' partita (o e' stata tentata) l'ultima notifica «entrato in
     conversazione»: `ultima_notificata` (dal 21/10), o `dal` per le voci di prima (anche quelle

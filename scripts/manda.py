@@ -46,7 +46,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi, scritta_da_dre  # noqa: E402
+from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi, scritta_da_dre, persona_dopo_analisi  # noqa: E402
 
 BASE = "https://server.smartlead.ai/api/v1"
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")          # 6/10: non +2 fisso, se no d'inverno «mandata alle» e' un'ora indietro
@@ -424,8 +424,9 @@ def superata(pr, p, ultima_at):
         return f"ha riscritto il {quando_lei[8:10]}/{quando_lei[5:7]}, dopo che la bozza era nata ({nata[8:10]}/{nata[5:7]})"
     az = pr.get("azione") or {}
     if "FOLLOW UP 1" in ((az.get("template") or "") + (az.get("gruppo") or "")).upper():
-        inviata = str((p or {}).get("analysis_sent_at") or "")[:19]
-        if quando_lei and inviata and quando_lei > inviata:
+        # notte del 22/10: prima leggeva p.analysis_sent_at, che la select del postino non chiede: il
+        # controllo non scattava mai. Ora la regola unica, con l'ora vera della sua ultima mail su Smartlead
+        if quando_lei and persona_dopo_analisi({**(p or {}), "last_reply_at": quando_lei + "+00:00"}):
             return f"ha scritto il {quando_lei[8:10]}/{quando_lei[5:7]}, dopo l'analisi: è una conversazione, non un silenzio"
     return None
 

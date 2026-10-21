@@ -62,7 +62,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, quando, _a_secco, contattabile, lettore_di, tocca_a_dre, mail_notificata  # noqa: E402
+from stanza import sb, quando, _a_secco, contattabile, lettore_di, tocca_a_dre, mail_notificata, scritta_da_macchina  # noqa: E402
 import segnale_provvisorio as S                                 # noqa: E402
 from lettura import solo_suo                                    # noqa: E402
 from guasti import di_notte                                     # noqa: E402
@@ -88,7 +88,12 @@ def azienda(p):
 
 def persona(p, r):
     """True se la risposta l'ha scritta una persona, False se e' un'autorisposta (o e' vuota),
-    None se la lettura e' rimandata al giro dopo (il tetto delle letture pagate)."""
+    None se la lettura e' rimandata al giro dopo (il tetto delle letture pagate).
+    Notte del 22/10: se il lettore ha letto proprio questa mail decide lui (stanza.scritta_da_macchina,
+    la stessa regola del semaforo e del foglio); il gpt-5 del segnale resta solo dove il lettore non c'e'."""
+    v = scritta_da_macchina(p, r.get("at")) if r.get("at") else None
+    if v is not None:
+        return not v
     corpo = r.get("body") or ""
     if S.automatica(corpo):
         return False
@@ -166,7 +171,7 @@ def nostre_ultime(pids):
 
 def in_conversazione(pid):
     """Il lead ha una risposta di persona arrivata dopo l'analisi?"""
-    p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=eq.{pid}") or [None])[0]
+    p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore&id=eq.{pid}") or [None])[0]
     if not p:
         return False
     r = apertura(p, _risposte_dopo(p))
@@ -288,7 +293,7 @@ def giro(prova=None, dal=None):
     pids = sorted(ultima)
     schede = {}
     for i in range(0, len(pids), 80):
-        for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=in.({','.join(pids[i:i + 80])})") or []:
+        for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore&id=in.({','.join(pids[i:i + 80])})") or []:
             schede[p["id"]] = p
     nostre = nostre_ultime(pid for pid, p in schede.items() if p.get("analysis_sent_at"))
     suonano, cambiato = [], False
@@ -362,7 +367,7 @@ def giro(prova=None, dal=None):
         mail = mail_notificata(v)
         if not mail or ora - mail > RIPROVA:
             continue
-        p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=eq.{pid}") or [None])[0]
+        p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore&id=eq.{pid}") or [None])[0]
         r = risposta_calda(p, _z(mail)) if p else None
         if not r:
             continue

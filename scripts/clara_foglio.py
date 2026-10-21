@@ -48,7 +48,7 @@ import urllib.parse
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, contattabile, lettore_di, tocca_a_dre, mail_notificata  # noqa: E402
+from stanza import sb, sb_tutte, quando, contattabile, lettore_di, tocca_a_dre, mail_notificata, scritta_da_macchina  # noqa: E402
 from guasti import di_notte                                      # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -273,7 +273,6 @@ def guasto_si(s, ora):
     return g
 
 
-NON_PERSONA = ("ooo", "automatico")
 
 
 def _inizio_giorno(t):
@@ -296,12 +295,9 @@ def conversazioni_mute(ora, schede, nostre, stato):
     out = []
     for p in schede:
         an, mail = p.get("analysis_sent_at"), p.get("last_reply_at")
-        if not an or not mail or p.get("classificazione") in NON_PERSONA:
-            continue
+        if not an or not mail or scritta_da_macchina(p):
+            continue                                    # la stessa regola della notifica (22/10)
         an, mail = quando(an), quando(mail)
-        letto = lettore_di(p)
-        if letto and (letto.get("classe") in NON_PERSONA or letto.get("autore") == "automatico"):
-            continue
         v = (stato or {}).get(p["id"])
         v = v if isinstance(v, dict) else None
         gia = mail_notificata(v)

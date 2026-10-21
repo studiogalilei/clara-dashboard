@@ -59,7 +59,7 @@ import sys
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, quando, fit_bocciato  # noqa: E402
+from stanza import sb, di_clara, contattabile, quando, fit_bocciato, persona_dopo_analisi  # noqa: E402
 from bozze import ALLEGA_ANALISI                                   # noqa: E402  (20/10 sera: una regex sola, nel cancello)
 
 PROVA = "--prova" in sys.argv
@@ -238,7 +238,8 @@ def perche_no_seguito(pr, p):
     ultima = str((p or {}).get("last_reply_at") or "")[:19]
     if ultima and str(pr.get("at") or "")[:19] and ultima > str(pr["at"])[:19]:
         no.append(f"ha scritto il {_gg(ultima)}, dopo che la bozza era nata")
-    elif ultima and gruppo == "FOLLOW UP 1" and ultima > str((p or {}).get("analysis_sent_at") or "~")[:19]:
+    elif ultima and gruppo == "FOLLOW UP 1" and persona_dopo_analisi(p):
+        # notte del 22/10: prima leggeva analysis_sent_at, che la select non chiedeva: non scattava mai
         no.append(f"ha scritto il {_gg(ultima)}, dopo l'analisi: è una conversazione")
     if (p or {}).get("id") and gruppo in ("FOLLOW UP 1", "FOLLOW UP SU MISURA"):
         sorella = sorella_servita(p)

@@ -243,6 +243,21 @@ def applica(pid, ev, cosa, oggi, cellulare=None):
                 sb("POST", "/rest/v1/proposte", {"tipo": "umano", "stato": "no", "ref": riga["ref"], "prospect_id": pid, "azione": {"call_at": riga.get("call_at")},
                    "titolo": "Promemoria fermato: la call e' stata annullata per mail", "risposta": motivo,
                    "risposta_il": datetime.datetime.now(datetime.timezone.utc).isoformat()}, {"Prefer": "return=minimal"})
+    if cosa == "annulla" and inizio:
+        segna_annullata(pid, inizio)
+
+
+def segna_annullata(pid, inizio):
+    """LA CALL ANNULLATA STA IN UN POSTO SOLO (notte del 22/10): la riga dell'agenda diventa
+    «annullata», come quando l'evento sparisce dal calendario (calendario.py). Prima l'annullamento
+    per mail lo sapeva solo il foglio (dai promemoria fermati): la scheda diceva ancora «Call
+    fissata», la preparazione preparava la call e le categorie la tenevano. Torna quante righe."""
+    da = (inizio - datetime.timedelta(minutes=1)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    a = (inizio + datetime.timedelta(minutes=1)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    righe = sb("GET", f"/rest/v1/agenda?select=id&prospect_id=eq.{pid}&tipo=neq.annullata&at=gte.{da}&at=lte.{a}") or []
+    for r in righe:
+        sb("PATCH", f"/rest/v1/agenda?id=eq.{r['id']}", {"tipo": "annullata"}, {"Prefer": "return=minimal"})
+    return len(righe)
 
 
 def main():
