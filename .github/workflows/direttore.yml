@@ -10,6 +10,9 @@
 # una mail fa partire il direttore entro un minuto, e gli inviti del
 # calendario arrivano per mail. L'orologio passa a ogni venti minuti: e'
 # la rete di sicurezza, non piu' la strada principale.
+# 21/10: la risposta di un lead NON passa piu' da qui. Smartlead bussa e parte risposta.yml
+# (scripts/risposta.py: un lead solo, sotto i 3 minuti). Il direttore resta la rete: il sync
+# di Smartlead ha una corsia sua (sync), cosi' la leggera gira davvero ogni 5 minuti.
 name: direttore
 
 on:
@@ -125,4 +128,48 @@ jobs:
             python3 scripts/direttore.py --corsia pesante --forza "${{ github.event.inputs.forza }}"
           else
             python3 scripts/direttore.py --corsia pesante
+          fi
+
+  # 21/10: la terza corsia, solo il sync di Smartlead (4-6 minuti a giro). Prima stava nella
+  # leggera e la saturava: segnale, guasti e conversazioni giravano ogni 10-12 minuti invece di 5.
+  # Niente PDF qui: il sync non ne ha bisogno, e il giro parte 10 secondi prima.
+  sync:
+    concurrency:
+      group: direttore-sync
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pywebpush
+      - name: le operazioni dovute
+        env:
+          TZ: Europe/Rome
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAPI_KEY: ${{ secrets.OPENAPI_KEY }}
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
+          WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
+          GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
+          PLAYBOOK_OUTBOUND: ${{ secrets.PLAYBOOK_OUTBOUND }}
+          FORNITORE: openai
+          MODELLO_OPENAI: gpt-5
+          MODELLO_ANALISI: gpt-5
+        run: |
+          if [ -n "${{ github.event.inputs.forza }}" ]; then
+            python3 scripts/direttore.py --corsia sync --forza "${{ github.event.inputs.forza }}"
+          else
+            python3 scripts/direttore.py --corsia sync
           fi

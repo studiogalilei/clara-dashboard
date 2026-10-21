@@ -107,8 +107,9 @@ def _():
     assert S.attesa_da_sync(True, None, True, "2026-10-06T09:00:00") is True, "un lead nuovo aspetta"
     # e il sync deve avere awaiting_us nei lead che carica, se no ogni attesa sembra chiusa (6/10, 11:43)
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py")).read()
-    sel = src[src.index('rows = sb("GET", f"/rest/v1/prospects?select='):][:300]
-    assert "awaiting_us" in sel, "il sync carica i lead senza awaiting_us: chiude le attese di chi aspetta noi"
+    # 21/10: i campi stanno in CAMPI_PROSPECT, gli stessi per il giro e per la strada veloce (sincronizza_lead)
+    assert 'select={CAMPI_PROSPECT}&limit=1000' in src and 'select={CAMPI_PROSPECT}&email=eq.' in src
+    assert "awaiting_us" in S.CAMPI_PROSPECT.split(","), "il sync carica i lead senza awaiting_us: chiude le attese di chi aspetta noi"
 
 
 @prova("le categorie di Dre su Smartlead: dalla classe del Workspace, mai su soppressi, fuori o fuori target (6/10)")
@@ -1667,17 +1668,21 @@ def _():
     tutte = [op["chiave"] for op in (D.sb("GET", "/rest/v1/operazioni?select=chiave") or [])]
     assert tutte, "nessuna operazione letta"
     for c in tutte:
-        assert D.corsia_di(c) in ("leggera", "pesante")
-    for c in ("segnale", "manda", "prima_risposta", "sync_smartlead"):
+        assert D.corsia_di(c) in D.CORSIE
+    for c in ("segnale", "manda", "prima_risposta", "guasti", "schede", "foglio"):
         assert D.corsia_di(c) == "leggera", f"{c} non deve aspettare le analisi"
     for c in ("analisi", "lampo", "bozze", "googlefit"):
         assert D.corsia_di(c) == "pesante"
+    # 21/10: il sync ha la sua corsia, la leggera non e' piu' satura (collaudo: segnale ogni 10-12 minuti)
+    assert D.corsia_di("sync_smartlead") == "sync" and D.corsia_di("sync_completo") == "pesante"
     ora = dt.datetime(2026, 10, 15, 12, 0, tzinfo=M.ROMA)
     vecchia_appena_presa = {"at": "2026-10-14T09:00:00+02:00", "risposta_il": "2026-10-15T11:58:00+02:00"}
     assert M.eta_lucchetto(vecchia_appena_presa, ora) < M.LUCCHETTO_APPESO_MIN, "una bozza di ieri appena presa sembra appesa"
     assert M.eta_lucchetto({"at": "2026-10-15T11:00:00+02:00"}, ora) >= M.LUCCHETTO_APPESO_MIN
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".github", "workflows", "direttore.yml")).read()
     assert "--corsia leggera" in src and "--corsia pesante" in src and "group: direttore-leggera" in src
+    assert "--corsia sync" in src and "group: direttore-sync" in src, "il sync deve avere la sua corsia (21/10)"
+    assert "cancel-in-progress: true" not in src, "un giro del direttore non si annulla mai"
 
 
 @prova("il postino risponde a chi ha scritto, se e' della stessa azienda da un altro indirizzo (15/10, Techno Pool)")
@@ -2100,7 +2105,7 @@ def _():
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py"), encoding="utf-8").read()
     assert '"company_name": azienda_di(r)' in src, "la sincronizzazione deve leggere il nome con azienda_di"
     assert 'not (rec.get("company") or "").strip()' in src, "il nome si riempie solo se vuoto"
-    assert "select=id,email,company," in src, "senza company letto, il riempimento non sa se il nome c'e' gia'"
+    assert "company" in S.CAMPI_PROSPECT.split(","), "senza company letto, il riempimento non sa se il nome c'e' gia'"
 
 
 @prova("la preparazione della conoscitiva chiede da 8 a 10 domande dal generico al preciso, col linguaggio del settore (regola di Dre del 12/8, ripresa il 7/10)")
@@ -3050,7 +3055,9 @@ def _():
     for metodo, percorso in _re.findall(r'sb\(\s*"(POST|PATCH|DELETE|PUT)"\s*,\s*f?"([^"]+)"', sorgente):
         assert percorso.startswith("/rest/v1/{tabella}") or percorso.startswith("/rest/v1/snella_"), (metodo, percorso)
     assert 'scrivi("snella_schede"' in sorgente and 'scrivi("snella_numeri"' in sorgente
-    assert len(_re.findall(r"\bscrivi\(", sorgente)) == 3, "scrivi() usata fuori dalle due tabelle snella"
+    # 21/10: anche la scheda di un lead solo (uno(), la strada veloce) scrive snella_schede
+    assert all(t in ("snella_schede", "snella_numeri") for t in _re.findall(r'\bscrivi\("(\w+)"', sorgente)), "scrivi() usata fuori dalle due tabelle snella"
+    assert len(_re.findall(r"\bscrivi\(", sorgente)) == 4, "scrivi() usata fuori dalle due tabelle snella"
     # su Smartlead una sola porta, in sola lettura; niente manda.py, niente postino
     assert 'method="GET"' in sorgente and not _re.search(r'method="(POST|PATCH|DELETE|PUT)"', sorgente)
     assert "import manda" not in sorgente and "from manda" not in sorgente

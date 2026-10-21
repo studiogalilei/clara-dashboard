@@ -355,6 +355,9 @@ def data_ooo(testo):
 
 # ---------- stato attuale dal DB ----------
 LOCKED_STAGES = {"cliente", "call_fissata", "perso", "rinviato"}
+# i campi del lead che il sync legge: gli stessi per il giro (db_prospects) e per un lead solo (sincronizza_lead)
+CAMPI_PROSPECT = ("id,email,company,stage,fuori,classificazione,enriched,awaiting_us,"
+                  "analysis_sent,analysis_sent_at,no_followup,last_reply_at,followup_due")
 
 CALDI_GIORNI = 30          # una conversazione dove abbiamo scritto noi da meno di un mese
 CALDI_PER_GIRO = 15        # a rotazione, rete di sicurezza: le risposte nuove le dice la Master Inbox (21/10); 40 saturava la corsia
@@ -464,9 +467,7 @@ def db_prospects():
         # 6/10: awaiting_us mancava. La regola «chi aspetta noi si rilegge a ogni giro» (24/9) non
         # scattava mai, e attesa_da_sync leggeva ogni attesa come chiusa: il 6/10 tra le 11:43 e le
         # 11:55 il sync ha chiuso l'attesa a chi aspettava davvero noi (Oikos, Lucca Case, Grigna...)
-        rows = sb("GET", f"/rest/v1/prospects?select=id,email,company,stage,fuori,classificazione,enriched,awaiting_us,"
-                         f"analysis_sent,analysis_sent_at,no_followup,last_reply_at,followup_due"
-                         f"&limit=1000&offset={offset}") or []
+        rows = sb("GET", f"/rest/v1/prospects?select={CAMPI_PROSPECT}&limit=1000&offset={offset}") or []
         for r in rows:
             out[r["email"].lower()] = r
         if len(rows) < 1000:
@@ -521,15 +522,290 @@ def _casella_di(m):
 MODO_LETTORE = "spento"
 
 
-def main():
+def sincronizza_filo(em, lead, cid, nome_campagna, known, started, firma=None, anomalie=None):
+    """IL FILO DI UN LEAD, LETTO E SCRITTO (il corpo del giro, dal 7/7; estratto il 21/10 per la strada
+    veloce, scripts/risposta.py). Rilegge la message-history su Smartlead e scrive prospects (attesa,
+    classe, date, il lettore AI) e interactions (le sue mail e le nostre), con tutte le regole di
+    sempre: un no non si ribalta sullo stesso messaggio, una classe decisa da una persona non si
+    tocca, le nostre mail dopo la sua chiudono le bozze e segnano l'analisi. La usano il giro intero
+    (per campagna, dall'export) e sincronizza_lead (un lead solo, subito).
+    `lead`: {id, first_name, last_name, company_name, website, category, is_unsubscribed};
+    `firma`: la firma dell'export (None = non si tocca). Torna None se il filo non ha risposte o non
+    si legge, se no {"awaiting", "cls", "nuova", "ultima_risposta", "lettore_nuovo", "rec", "scritto"}.
+    """
+    scritto = False
+    lid = lead.get("id")
+    try:
+        h = sl_get(f"/campaigns/{cid}/leads/{lid}/message-history") or {}
+    except RuntimeError as e:
+        if anomalie is not None:
+            anomalie.append(f"thread illeggibile {em}: {e}")
+        return None
+    msgs = h.get("history") or []
+    replies = [m for m in msgs if m.get("type") == "REPLY"]
+    if not replies:
+        return None
+    last = msgs[-1]
+    last_reply = replies[-1]
+    awaiting = last.get("type") == "REPLY"
+    testo = testo_suo(last_reply.get("email_body"))
+    rec = known.get(em)
+    nuova = (last_reply.get("time") or "")[:19] > ((rec or {}).get("last_reply_at") or "")[:19]
+    # se il testo non decide, la categoria Smartlead suggerisce; un no resta no (6/10)
+    cls = classe_da_sync(last_reply.get("email_body"), lead.get("category"), (rec or {}).get("classificazione"), nuova)
+    cls_liste = cls
+    # LA CLARA INTELLIGENTE (20/10): il lettore AI legge la stessa risposta quando le liste la
+    # rileggerebbero (una risposta nuova, o un lead ancora da classificare). Una risposta gia'
+    # letta non si ripaga: la lettura sta in enriched.lettore con l'ora della risposta, e si
+    # richiama solo per una risposta NUOVA (lettore_da_chiamare, 21/10).
+    esito_lettore, lettore_nuovo = None, False
+    attuale = (rec or {}).get("classificazione")
+    ricalcola = nuova or not attuale or attuale == "da_classificare"
+    if MODO_LETTORE in ("ombra", "acceso") and ricalcola:
+        ora_risposta = (last_reply.get("time") or "")[:19]
+        prima = (((rec or {}).get("enriched") or {}).get("lettore") or {})
+        if not lettore_da_chiamare(prima, ora_risposta, datetime.now(timezone.utc)):
+            esito_lettore = prima if prima.get("fonte") == "lettore" else None
+        elif not DRY:
+            import lettore
+            esito_lettore = lettore.leggi_risposta(last_reply.get("email_body"), msgs, rec or {})
+            lettore_nuovo = True
+            if esito_lettore.get("fonte") == "lettore" and esito_lettore.get("classe") != cls_liste:
+                try:
+                    from stanza import di_clara
+                    di_clara("controllo", f"Lettore ({MODO_LETTORE}): {(lead.get('company_name') or em)[:40]}: liste «{cls_liste}», "
+                                          f"lettore «{esito_lettore.get('classe')}» ({esito_lettore.get('caso')}, {esito_lettore.get('sicurezza')}). "
+                                          f"{(esito_lettore.get('motivo') or '')[:200]}")
+                except Exception:                                    # noqa: BLE001
+                    pass
+        cls = classe_col_lettore(cls_liste, esito_lettore, MODO_LETTORE, testo)
+    ooo_until = data_ooo(testo) if cls == "ooo" else None
+    if cls == "ooo" and esito_lettore and esito_lettore.get("data") and MODO_LETTORE == "acceso":
+        ooo_until = esito_lettore["data"]
+
+    # se Dre ha classificato a mano ooo/rinvio/negativo/fuori_target/soppresso,
+    # l'autoreply non rimette il lead in coda risposta
+    manual_cls = (rec or {}).get("enriched", {}) or {}
+    if manual_cls.get("classificazione") == "manual" and                (rec or {}).get("classificazione") in ("ooo", "rinvio", "negativo", "fuori_target", "soppresso"):
+        awaiting = False
+    body_first_reply = (replies[0].get("time") or "")[:19]
+    body_last_reply = (last_reply.get("time") or "")[:19]
+    # 24/9: il sync notturno rimetteva in coda 119 risposte di giugno-luglio che
+    # la pulizia aveva chiuso (negativi, ferie, corpi vuoti). Una risposta
+    # vecchia di piu' di 30 giorni non «aspetta noi»: se nel CRM e' gia'
+    # chiusa, resta chiusa. E' materiale della ripresa, non della coda.
+    awaiting = attesa_da_sync(awaiting, rec, nuova, body_last_reply)
+    # 25/9: se nel CRM c'e' una risposta piu' recente (arrivata da Gmail, che Smartlead
+    # non vede), Smartlead non comanda: awaiting e last_reply restano quelli del CRM
+    gmail_dopo = bool(rec and (rec.get("last_reply_at") or "")[:19] > (body_last_reply or ""))
+    if gmail_dopo:
+        awaiting = bool(rec.get("awaiting_us"))
+
+    # 3. (25/9) enriched si rilegge ADESSO, non dall'elenco letto all'avvio: nel
+    # frattempo fit, analisi, rilettura e punto possono averci scritto
+    fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,deciso,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
+    enr = dict(fresco.get("enriched") or {})
+    deciso = fresco.get("deciso") or {}
+    patch = {
+        "enriched": {**enr, "sl_firma": firma if firma is not None else enr.get("sl_firma"), "sl_riletto_il": started},
+        "awaiting_us": awaiting,
+        "last_reply_at": (fresco.get("last_reply_at") if gmail_dopo else body_last_reply) or None,
+        "first_reply_at": body_first_reply or None,
+    }
+    if rec and not (rec.get("company") or "").strip() and lead.get("company_name"):
+        patch["company"] = lead["company_name"]   # solo se vuoto: un nome messo a mano non si tocca
+    if lead.get("is_unsubscribed"):
+        patch["no_followup"] = True   # unsubscribed su Smartlead: non si tocca piu'
+    if lettore_nuovo:
+        import lettore
+        patch["enriched"]["lettore"] = lettore._per_enriched(esito_lettore, cls_liste, started, (last_reply.get("time") or "")[:19])
+        if MODO_LETTORE == "acceso" and esito_lettore.get("fonte") == "lettore" and esito_lettore.get("non_scrivere") \
+                and "no_followup" not in deciso:
+            patch["no_followup"] = True   # «non scrivetemi»: nessuna mail automatica, mai piu'
+    # classificazione: solo se non corretta a mano
+    # 20/10: anche «deciso» (v78): una classe decisa da una persona e' murata nel database, e
+    # scriverla faceva cadere il giro intero (visto con la riclassifica del lettore)
+    manual = enr.get("classificazione") == "manual" or "classificazione" in deciso
+    lettura = enr.get("lettura") or {}
+    letta_dopo = bool((lettura.get("il") or "") >= (body_last_reply or "~")) if lettura else False
+    if not manual and not letta_dopo:
+        patch["classificazione"] = cls
+        if ooo_until:
+            patch["ooo_until"] = ooo_until
+    # stage: mai toccare i bloccati o i fuori
+    cur = rec or {}
+    if not cur.get("fuori") and cur.get("stage") not in LOCKED_STAGES:
+        if awaiting:
+            patch["stage"] = "risposto"
+        elif cur.get("analysis_sent"):
+            patch["stage"] = "in_follow_up"
+    # followup_due: 5gg dopo analisi (se inviata e lead in silenzio).
+    # MA solo se non e' gia' impostata PIU' AVANTI (es. FU2 a 15gg, rinvii):
+    # il sync propone, non sovrascrive il calendario deciso.
+    if cur.get("analysis_sent") and cur.get("analysis_sent_at") and not awaiting:
+        try:
+            d0 = datetime.fromisoformat(cur["analysis_sent_at"][:19])
+            proposta = (d0 + timedelta(days=6)).date().isoformat()   # Dre (9/9): follow-up a 6 giorni
+            esistente = cur.get("followup_due")
+            if not esistente or esistente < proposta:
+                patch["followup_due"] = proposta
+        except ValueError:
+            pass
+
+    if DRY:
+        print(f"    ~ {em}: awaiting={awaiting} cls={cls}" + (f" ooo->{ooo_until}" if ooo_until else ""))
+    else:
+        if rec:
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", patch)
+        else:
+            nuovo = {
+                "email": em,
+                "name": (lead.get("first_name") or "") + (" " + lead.get("last_name") if lead.get("last_name") else ""),
+                "company": lead.get("company_name"),
+                "website": lead.get("website"),
+                "campaign_id": cid, "lead_id": lid,
+                "campaign": nome_campagna, "stage": "risposto",
+                "source": "sync_v2", **patch,
+            }
+            created = sb("POST", "/rest/v1/prospects", nuovo,
+                         headers={"Prefer": "return=representation"})
+            rec = created[0] if isinstance(created, list) else created
+            known[em] = rec
+            # 25/9: chi risponde e non era nel CRM (lead caricato da CSV, mini campagne) e'
+            # normale, non un'anomalia: si crea e si dice, senza segnare il giro in errore
+            print(f"    nuovo nel CRM: {em} ({(nome_campagna or '')[:30]})")
+        # 24/9: quello che abbiamo mandato DOPO la sua ultima risposta (Dre da Smartlead,
+        # o una mini campagna di risposta) finisce nella storia come email_out, chiude
+        # la bozza aperta in Posta e, se dentro c'e' l'analisi, segna analysis_sent.
+        # 8/10, v78: TUTTO il filo nostro, non le ultime due dopo l'ultima risposta. Con
+        # 933 risposte e 318 mail nostre nel database la verita' su cosa e' partito stava
+        # solo su Smartlead, e il sistema nuovo impara da li' (il 43% delle risposte vere
+        # e' scritto a mano da Lorenzo). message_id e casella entrano con v78: finche' le
+        # colonne non ci sono si scrive come prima, senza rompere il giro.
+        tutte_nostre = sorted([m for m in msgs if m.get("type") == "SENT"], key=lambda m: m.get("time") or "")
+        nostre = [m for m in tutte_nostre if (m.get("time") or "") > (last_reply.get("time") or "")]
+        for m in tutte_nostre:
+            body = corpo_pulito(m.get("email_body"))[:3000]
+            if not DRY:
+                riga = {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19], "kind": "email_out", "body": body}
+                if _filo_intero():
+                    riga["message_id"] = m.get("message_id") or m.get("stats_id")
+                    riga["casella"] = _casella_di(m)
+                try:
+                    sb("POST", "/rest/v1/interactions", riga, headers={"Prefer": "resolution=ignore-duplicates"})
+                except RuntimeError:
+                    pass
+        if nostre and not DRY:
+            try:
+                # 25/9: solo le bozze scritte PRIMA della nostra ultima mail: una ripresa o un
+                # follow-up scritti dopo (per definizione dopo una nostra mail) restano aperti
+                ultima_nostra = (nostre[-1].get("time") or "")[:19]
+                chiuse = sb("PATCH", f"/rest/v1/proposte?prospect_id=eq.{rec['id']}&stato=eq.aperta&tipo=in.(risposta,umano)&at=lt.{ultima_nostra}",
+                            {"stato": "fatta", "risposta": "mandata da Smartlead (vista dal sync)", "risposta_il": datetime.utcnow().isoformat()},
+                            headers={"Prefer": "return=representation"}) or []
+                testo_nostro = " ".join(corpo_pulito(m.get("email_body")) for m in nostre).lower()
+                agg = {}
+                if consegna_analisi(testo_nostro):
+                    agg = {"analysis_sent": True, "analysis_sent_at": (nostre[-1].get("time") or "")[:19]}
+                if agg and not rec.get("analysis_sent"):
+                    sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", agg)
+                if chiuse:
+                    print(f"    ✓ {em}: risposta nostra vista, {len(chiuse)} bozze chiuse" + (", analisi segnata" if agg else ""))
+            except RuntimeError:
+                pass
+        # timeline: le reply come interactions (dedup su unique constraint)
+        for m in replies[-3:]:
+            body = corpo_pulito(m.get("email_body"))[:3000]      # intero: la lettura (25/9) legge da qui
+            try:
+                sb("POST", "/rest/v1/interactions",
+                   {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19],
+                    "kind": "email_in", "body": body},
+                   headers={"Prefer": "resolution=ignore-duplicates"})
+            except RuntimeError:
+                pass
+        scritto = True
+    # MEETING BOOKED A MANO (6/10, Dre): se su Smartlead segna lui «Meeting booked»
+    # su un lead che non e' ancora nel Workspace, nasce la proposta di portarlo in
+    # pipeline, con tutti i suoi dati. Il ref evita i doppioni per sempre.
+    if (lead.get("category") == "Meeting booked" and rec and not rec.get("fuori") and not DRY):
+        try:
+            sb("POST", "/rest/v1/proposte",
+               {"tipo": "avanza", "prospect_id": rec["id"], "ref": f"meeting-booked:{em}",
+                "titolo": f"{(lead.get('company_name') or em)[:60]}: su Smartlead e' Meeting booked. Lo porto in pipeline, in Conoscitiva?",
+                "perche": "L'hai segnato tu su Smartlead (categoria viola): confermi e va nel Workspace con la sua storia."})
+        except RuntimeError:
+            pass                                     # c'e' gia': il ref e' unico
+
+    return {"awaiting": awaiting, "cls": cls, "nuova": nuova, "ultima_risposta": body_last_reply,
+            "lettore_nuovo": lettore_nuovo, "rec": rec, "scritto": scritto, "lead": lead}
+
+
+
+
+def _leggi_modo_lettore():
     global MODO_LETTORE
-    started = datetime.now(timezone.utc).isoformat()   # col fuso: sul Mac di Dre l'ora di Roma finiva nel database come UTC (6/10)
-    print(f"SYNC V2 {'(DRY RUN)' if DRY else ''} — {started}")
     try:
         import lettore
         MODO_LETTORE = lettore.modo()
     except Exception as e:                                       # noqa: BLE001
         print(f"  lettore: non leggo la modalita' ({e}), resto sulle liste")
+    return MODO_LETTORE
+
+
+def _categorie_smartlead():
+    """{id: nome} delle categorie di Smartlead (l'export le scrive per nome, il lead per id)."""
+    try:
+        return {int(c["id"]): c.get("name") for c in (sl_get("/leads/fetch-categories") or []) if c.get("id")}
+    except Exception:                                            # noqa: BLE001
+        return {}
+
+
+def sincronizza_lead(email, campagna=None, started=None):
+    """UN LEAD SOLO, SUBITO (la strada veloce, 21/10). Dre: «TUTTE le cose le voglio in realtime».
+    Quando Smartlead bussa per una risposta, non si aspetta il giro per campagna (export di 19
+    campagne, 4-6 minuti, a rotazione): si chiede a Smartlead chi e' il lead (GET /leads/?email=),
+    si sceglie il filo della campagna indicata (o quello con l'ultima risposta) e si passa a
+    sincronizza_filo, LO STESSO corpo del giro. Niente logica nuova: solo niente attesa.
+    Torna l'esito di sincronizza_filo piu' {"campaign_id", "lead_id", "trovato"}; {"trovato": False}
+    se Smartlead non conosce il lead o non ha un filo con risposte."""
+    em = (email or "").strip().lower()
+    started = started or datetime.now(timezone.utc).isoformat()
+    if MODO_LETTORE == "spento":
+        _leggi_modo_lettore()
+    righe = sb("GET", f"/rest/v1/prospects?select={CAMPI_PROSPECT}&email=eq.{urllib.parse.quote(em)}&limit=1") or []
+    known = {em: righe[0]} if righe else {}
+    d = sl_get(f"/leads/?email={urllib.parse.quote(em)}")
+    if not isinstance(d, dict) or not d.get("id"):
+        return {"trovato": False, "perche": "Smartlead non conosce questo indirizzo"}
+    fili = [c for c in (d.get("lead_campaign_data") or []) if c.get("campaign_id")]
+    scelto = None
+    if campagna:
+        scelto = next((c for c in fili if str(c.get("campaign_id")) == str(campagna)), None)
+    if not scelto:
+        con_risposta = sorted((c for c in fili if c.get("last_reply_at")), key=lambda c: str(c["last_reply_at"]), reverse=True)
+        scelto = con_risposta[0] if con_risposta else None
+    if not scelto:
+        return {"trovato": False, "perche": "nessun filo con una risposta su Smartlead"}
+    cid = int(scelto["campaign_id"])
+    categorie = _categorie_smartlead() if scelto.get("lead_category_id") else {}
+    lead = {
+        "id": d.get("id"),
+        "first_name": d.get("first_name"), "last_name": d.get("last_name"),
+        "company_name": azienda_di({"company_name": d.get("company_name"), "custom_fields": d.get("custom_fields")}),
+        "website": d.get("website"),
+        "category": categorie.get(int(scelto.get("lead_category_id") or 0)),
+        "is_unsubscribed": bool(d.get("is_unsubscribed")),
+    }
+    esito = sincronizza_filo(em, lead, cid, scelto.get("campaign_name"), known, started)
+    if not esito:
+        return {"trovato": False, "perche": "il filo non ha risposte o non si legge", "campaign_id": cid, "lead_id": lead["id"]}
+    return {**esito, "trovato": True, "campaign_id": cid, "lead_id": lead["id"]}
+
+
+def main():
+    started = datetime.now(timezone.utc).isoformat()   # col fuso: sul Mac di Dre l'ora di Roma finiva nel database come UTC (6/10)
+    print(f"SYNC V2 {'(DRY RUN)' if DRY else ''} — {started}")
+    _leggi_modo_lettore()
     print(f"  lettore AI: {MODO_LETTORE}")
     known = db_prospects()
     print(f"  DB: {len(known)} prospects noti")
@@ -601,209 +877,14 @@ def main():
         print(f"  [{cid}] {c['name'][:38]:38s} lead={len(rows)} con_reply={len(with_reply)}" + (f" invariati={invariati}" if invariati else ""))
 
         for em, lead, wrap in with_reply:
-            lid = lead.get("id")
-            try:
-                h = sl_get(f"/campaigns/{cid}/leads/{lid}/message-history") or {}
-            except RuntimeError as e:
-                anomalies.append(f"thread illeggibile {em}: {e}")
-                continue
-            msgs = h.get("history") or []
-            replies = [m for m in msgs if m.get("type") == "REPLY"]
-            if not replies:
+            esito = sincronizza_filo(em, lead, cid, c.get("name"), known, started, wrap.get("_firma"), anomalies)
+            if not esito:
                 continue
             tot_replies += 1
-            last = msgs[-1]
-            last_reply = replies[-1]
-            awaiting = last.get("type") == "REPLY"
-            testo = testo_suo(last_reply.get("email_body"))
-            rec = known.get(em)
-            nuova = (last_reply.get("time") or "")[:19] > ((rec or {}).get("last_reply_at") or "")[:19]
-            # se il testo non decide, la categoria Smartlead suggerisce; un no resta no (6/10)
-            cls = classe_da_sync(last_reply.get("email_body"), lead.get("category"), (rec or {}).get("classificazione"), nuova)
-            cls_liste = cls
-            # LA CLARA INTELLIGENTE (20/10): il lettore AI legge la stessa risposta quando le liste la
-            # rileggerebbero (una risposta nuova, o un lead ancora da classificare). Una risposta gia'
-            # letta non si ripaga: la lettura sta in enriched.lettore con l'ora della risposta, e si
-            # richiama solo per una risposta NUOVA (lettore_da_chiamare, 21/10).
-            esito_lettore, lettore_nuovo = None, False
-            attuale = (rec or {}).get("classificazione")
-            ricalcola = nuova or not attuale or attuale == "da_classificare"
-            if MODO_LETTORE in ("ombra", "acceso") and ricalcola:
-                ora_risposta = (last_reply.get("time") or "")[:19]
-                prima = (((rec or {}).get("enriched") or {}).get("lettore") or {})
-                if not lettore_da_chiamare(prima, ora_risposta, datetime.now(timezone.utc)):
-                    esito_lettore = prima if prima.get("fonte") == "lettore" else None
-                elif not DRY:
-                    import lettore
-                    esito_lettore = lettore.leggi_risposta(last_reply.get("email_body"), msgs, rec or {})
-                    lettore_nuovo = True
-                    if esito_lettore.get("fonte") == "lettore" and esito_lettore.get("classe") != cls_liste:
-                        try:
-                            from stanza import di_clara
-                            di_clara("controllo", f"Lettore ({MODO_LETTORE}): {(lead.get('company_name') or em)[:40]}: liste «{cls_liste}», "
-                                                  f"lettore «{esito_lettore.get('classe')}» ({esito_lettore.get('caso')}, {esito_lettore.get('sicurezza')}). "
-                                                  f"{(esito_lettore.get('motivo') or '')[:200]}")
-                        except Exception:                                    # noqa: BLE001
-                            pass
-                cls = classe_col_lettore(cls_liste, esito_lettore, MODO_LETTORE, testo)
-            ooo_until = data_ooo(testo) if cls == "ooo" else None
-            if cls == "ooo" and esito_lettore and esito_lettore.get("data") and MODO_LETTORE == "acceso":
-                ooo_until = esito_lettore["data"]
-
-            # se Dre ha classificato a mano ooo/rinvio/negativo/fuori_target/soppresso,
-            # l'autoreply non rimette il lead in coda risposta
-            manual_cls = (rec or {}).get("enriched", {}) or {}
-            if manual_cls.get("classificazione") == "manual" and                (rec or {}).get("classificazione") in ("ooo", "rinvio", "negativo", "fuori_target", "soppresso"):
-                awaiting = False
-            body_first_reply = (replies[0].get("time") or "")[:19]
-            body_last_reply = (last_reply.get("time") or "")[:19]
-            # 24/9: il sync notturno rimetteva in coda 119 risposte di giugno-luglio che
-            # la pulizia aveva chiuso (negativi, ferie, corpi vuoti). Una risposta
-            # vecchia di piu' di 30 giorni non «aspetta noi»: se nel CRM e' gia'
-            # chiusa, resta chiusa. E' materiale della ripresa, non della coda.
-            awaiting = attesa_da_sync(awaiting, rec, nuova, body_last_reply)
-            # 25/9: se nel CRM c'e' una risposta piu' recente (arrivata da Gmail, che Smartlead
-            # non vede), Smartlead non comanda: awaiting e last_reply restano quelli del CRM
-            gmail_dopo = bool(rec and (rec.get("last_reply_at") or "")[:19] > (body_last_reply or ""))
-            if gmail_dopo:
-                awaiting = bool(rec.get("awaiting_us"))
-
-            # 3. (25/9) enriched si rilegge ADESSO, non dall'elenco letto all'avvio: nel
-            # frattempo fit, analisi, rilettura e punto possono averci scritto
-            fresco = (sb("GET", f"/rest/v1/prospects?select=enriched,deciso,classificazione,awaiting_us,last_reply_at&id=eq.{rec['id']}") or [{}])[0] if rec and not DRY else (rec or {})
-            enr = dict(fresco.get("enriched") or {})
-            deciso = fresco.get("deciso") or {}
-            patch = {
-                "enriched": {**enr, "sl_firma": wrap.get("_firma"), "sl_riletto_il": started},
-                "awaiting_us": awaiting,
-                "last_reply_at": (fresco.get("last_reply_at") if gmail_dopo else body_last_reply) or None,
-                "first_reply_at": body_first_reply or None,
-            }
-            if rec and not (rec.get("company") or "").strip() and lead.get("company_name"):
-                patch["company"] = lead["company_name"]   # solo se vuoto: un nome messo a mano non si tocca
-            if lead.get("is_unsubscribed"):
-                patch["no_followup"] = True   # unsubscribed su Smartlead: non si tocca piu'
-            if lettore_nuovo:
-                import lettore
-                patch["enriched"]["lettore"] = lettore._per_enriched(esito_lettore, cls_liste, started, (last_reply.get("time") or "")[:19])
-                if MODO_LETTORE == "acceso" and esito_lettore.get("fonte") == "lettore" and esito_lettore.get("non_scrivere") \
-                        and "no_followup" not in deciso:
-                    patch["no_followup"] = True   # «non scrivetemi»: nessuna mail automatica, mai piu'
-            # classificazione: solo se non corretta a mano
-            # 20/10: anche «deciso» (v78): una classe decisa da una persona e' murata nel database, e
-            # scriverla faceva cadere il giro intero (visto con la riclassifica del lettore)
-            manual = enr.get("classificazione") == "manual" or "classificazione" in deciso
-            lettura = enr.get("lettura") or {}
-            letta_dopo = bool((lettura.get("il") or "") >= (body_last_reply or "~")) if lettura else False
-            if not manual and not letta_dopo:
-                patch["classificazione"] = cls
-                if ooo_until:
-                    patch["ooo_until"] = ooo_until
-            # stage: mai toccare i bloccati o i fuori
-            cur = rec or {}
-            if not cur.get("fuori") and cur.get("stage") not in LOCKED_STAGES:
-                if awaiting:
-                    patch["stage"] = "risposto"
-                elif cur.get("analysis_sent"):
-                    patch["stage"] = "in_follow_up"
-            # followup_due: 5gg dopo analisi (se inviata e lead in silenzio).
-            # MA solo se non e' gia' impostata PIU' AVANTI (es. FU2 a 15gg, rinvii):
-            # il sync propone, non sovrascrive il calendario deciso.
-            if cur.get("analysis_sent") and cur.get("analysis_sent_at") and not awaiting:
-                try:
-                    d0 = datetime.fromisoformat(cur["analysis_sent_at"][:19])
-                    proposta = (d0 + timedelta(days=6)).date().isoformat()   # Dre (9/9): follow-up a 6 giorni
-                    esistente = cur.get("followup_due")
-                    if not esistente or esistente < proposta:
-                        patch["followup_due"] = proposta
-                except ValueError:
-                    pass
-
-            if DRY:
-                print(f"    ~ {em}: awaiting={awaiting} cls={cls}" + (f" ooo->{ooo_until}" if ooo_until else ""))
-            else:
-                if rec:
-                    sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", patch)
-                else:
-                    nuovo = {
-                        "email": em,
-                        "name": (lead.get("first_name") or "") + (" " + lead.get("last_name") if lead.get("last_name") else ""),
-                        "company": lead.get("company_name"),
-                        "website": lead.get("website"),
-                        "campaign_id": cid, "lead_id": lid,
-                        "campaign": c.get("name"), "stage": "risposto",
-                        "source": "sync_v2", **patch,
-                    }
-                    created = sb("POST", "/rest/v1/prospects", nuovo,
-                                 headers={"Prefer": "return=representation"})
-                    rec = created[0] if isinstance(created, list) else created
-                    known[em] = rec
-                    # 25/9: chi risponde e non era nel CRM (lead caricato da CSV, mini campagne) e'
-                    # normale, non un'anomalia: si crea e si dice, senza segnare il giro in errore
-                    print(f"    nuovo nel CRM: {em} ({c.get('name', '')[:30]})")
-                # 24/9: quello che abbiamo mandato DOPO la sua ultima risposta (Dre da Smartlead,
-                # o una mini campagna di risposta) finisce nella storia come email_out, chiude
-                # la bozza aperta in Posta e, se dentro c'e' l'analisi, segna analysis_sent.
-                # 8/10, v78: TUTTO il filo nostro, non le ultime due dopo l'ultima risposta. Con
-                # 933 risposte e 318 mail nostre nel database la verita' su cosa e' partito stava
-                # solo su Smartlead, e il sistema nuovo impara da li' (il 43% delle risposte vere
-                # e' scritto a mano da Lorenzo). message_id e casella entrano con v78: finche' le
-                # colonne non ci sono si scrive come prima, senza rompere il giro.
-                tutte_nostre = sorted([m for m in msgs if m.get("type") == "SENT"], key=lambda m: m.get("time") or "")
-                nostre = [m for m in tutte_nostre if (m.get("time") or "") > (last_reply.get("time") or "")]
-                for m in tutte_nostre:
-                    body = corpo_pulito(m.get("email_body"))[:3000]
-                    if not DRY:
-                        riga = {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19], "kind": "email_out", "body": body}
-                        if _filo_intero():
-                            riga["message_id"] = m.get("message_id") or m.get("stats_id")
-                            riga["casella"] = _casella_di(m)
-                        try:
-                            sb("POST", "/rest/v1/interactions", riga, headers={"Prefer": "resolution=ignore-duplicates"})
-                        except RuntimeError:
-                            pass
-                if nostre and not DRY:
-                    try:
-                        # 25/9: solo le bozze scritte PRIMA della nostra ultima mail: una ripresa o un
-                        # follow-up scritti dopo (per definizione dopo una nostra mail) restano aperti
-                        ultima_nostra = (nostre[-1].get("time") or "")[:19]
-                        chiuse = sb("PATCH", f"/rest/v1/proposte?prospect_id=eq.{rec['id']}&stato=eq.aperta&tipo=in.(risposta,umano)&at=lt.{ultima_nostra}",
-                                    {"stato": "fatta", "risposta": "mandata da Smartlead (vista dal sync)", "risposta_il": datetime.utcnow().isoformat()},
-                                    headers={"Prefer": "return=representation"}) or []
-                        testo_nostro = " ".join(corpo_pulito(m.get("email_body")) for m in nostre).lower()
-                        agg = {}
-                        if consegna_analisi(testo_nostro):
-                            agg = {"analysis_sent": True, "analysis_sent_at": (nostre[-1].get("time") or "")[:19]}
-                        if agg and not rec.get("analysis_sent"):
-                            sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", agg)
-                        if chiuse:
-                            print(f"    ✓ {em}: risposta nostra vista, {len(chiuse)} bozze chiuse" + (", analisi segnata" if agg else ""))
-                    except RuntimeError:
-                        pass
-                # timeline: le reply come interactions (dedup su unique constraint)
-                for m in replies[-3:]:
-                    body = corpo_pulito(m.get("email_body"))[:3000]      # intero: la lettura (25/9) legge da qui
-                    try:
-                        sb("POST", "/rest/v1/interactions",
-                           {"prospect_id": rec["id"], "at": (m.get("time") or "")[:19],
-                            "kind": "email_in", "body": body},
-                           headers={"Prefer": "resolution=ignore-duplicates"})
-                    except RuntimeError:
-                        pass
+            if esito["scritto"]:
                 updated += 1
-            # MEETING BOOKED A MANO (6/10, Dre): se su Smartlead segna lui «Meeting booked»
-            # su un lead che non e' ancora nel Workspace, nasce la proposta di portarlo in
-            # pipeline, con tutti i suoi dati. Il ref evita i doppioni per sempre.
-            if (lead.get("category") == "Meeting booked" and rec and not rec.get("fuori") and not DRY):
-                try:
-                    sb("POST", "/rest/v1/proposte",
-                       {"tipo": "avanza", "prospect_id": rec["id"], "ref": f"meeting-booked:{em}",
-                        "titolo": f"{(lead.get('company_name') or em)[:60]}: su Smartlead e' Meeting booked. Lo porto in pipeline, in Conoscitiva?",
-                        "perche": "L'hai segnato tu su Smartlead (categoria viola): confermi e va nel Workspace con la sua storia."})
-                except RuntimeError:
-                    pass                                     # c'e' gia': il ref e' unico
-            if awaiting and cls not in ("negativo",):
-                da_rispondere.append(f"{em} [{cls}] {lead.get('company_name') or ''}")
+            if esito["awaiting"] and esito["cls"] not in ("negativo",):
+                da_rispondere.append(f"{em} [{esito['cls']}] {lead.get('company_name') or ''}")
             time.sleep(0.12)
 
     ok = not anomalies

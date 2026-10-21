@@ -1,0 +1,89 @@
+# LA STRADA VELOCE (21/10/2026). Dre: «TUTTE le cose le voglio in realtime».
+#
+# Smartlead bussa (supabase/functions/smartlead-webhook) a ogni risposta di un lead, e questa
+# corsa fa UN lead solo, subito, in fila: il suo filo da Smartlead, il lettore AI, la notifica se
+# la palla e' a Dre, la scheda, il foglio, la riga «risposta entrata dopo N minuti» nella scheda
+# Clara, e se e' un si' senza analisi la catena del lampo. Niente attese fra i giri del direttore.
+#
+# Un gruppo per lead (risposta-<email>): due risposte dello stesso lead si mettono in fila, mai
+# una cancella l'altra; il cron del direttore non c'entra e non la annulla mai (prima il campanello
+# lanciava il direttore intero e 2 corse su 3 venivano annullate dalla sovrapposizione col cron).
+name: risposta
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "La mail del lead che ha risposto"
+        required: true
+      campagna:
+        description: "L'id della campagna Smartlead (vuoto = quella con l'ultima risposta)"
+        required: false
+        default: ""
+      evento:
+        description: "L'evento di Smartlead (EMAIL_REPLY)"
+        required: false
+        default: "EMAIL_REPLY"
+      oppure:
+        description: "Un secondo indirizzo da provare se Smartlead non conosce il primo"
+        required: false
+        default: ""
+      bussato:
+        description: "Quando Smartlead ha bussato (ISO, lo mette la funzione): per misurare l'avvio"
+        required: false
+        default: ""
+      prova:
+        description: "«1» = prova a secco: legge e misura, non scrive e non manda"
+        required: false
+        default: ""
+
+jobs:
+  risposta:
+    concurrency:
+      group: risposta-${{ github.event.inputs.email }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pywebpush
+      # l'analisi in PDF (il lampo, se e' un si' senza analisi): weasyprint vuole pango e cairo
+      - run: |
+          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null
+          pip install -q weasyprint pillow
+      - name: la strada veloce
+        env:
+          TZ: Europe/Rome
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAPI_KEY: ${{ secrets.OPENAPI_KEY }}
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
+          WEBHOOK_SEGRETO: ${{ secrets.WEBHOOK_SEGRETO }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          CALENDARIO_ICS: ${{ secrets.CALENDARIO_ICS }}
+          GRANOLA_API_KEY: ${{ secrets.GRANOLA_API_KEY }}
+          PLAYBOOK_OUTBOUND: ${{ secrets.PLAYBOOK_OUTBOUND }}
+          FORNITORE: openai
+          MODELLO_OPENAI: gpt-5
+          MODELLO_ANALISI: gpt-5
+          # gli input passano dall'ambiente, non dentro il comando: niente iniezioni nel bash
+          LEAD_EMAIL: ${{ github.event.inputs.email }}
+          LEAD_CAMPAGNA: ${{ github.event.inputs.campagna }}
+          LEAD_EVENTO: ${{ github.event.inputs.evento }}
+          LEAD_OPPURE: ${{ github.event.inputs.oppure }}
+          LEAD_BUSSATO: ${{ github.event.inputs.bussato }}
+          LEAD_PROVA: ${{ github.event.inputs.prova }}
+        run: |
+          extra=""
+          if [ "$LEAD_PROVA" = "1" ]; then extra="--prova"; fi
+          python3 scripts/risposta.py --email "$LEAD_EMAIL" --campagna "$LEAD_CAMPAGNA" --evento "$LEAD_EVENTO" --oppure "$LEAD_OPPURE" --bussato "$LEAD_BUSSATO" $extra

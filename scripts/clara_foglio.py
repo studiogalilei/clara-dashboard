@@ -423,8 +423,27 @@ def leggi_eventi(ora, giorni=2):
             call.append((a["prospect_id"], quando(a["creato_il"]), a["tipo"], "fissata", quando(a["at"])))
         if da <= quando(a["at"]) <= ora:
             call.append((a["prospect_id"], quando(a["at"]), a["tipo"], "fatta", quando(a["at"])))
-    pids = {x[0] for lista in (analisi, fatte, no, conv, call) for x in lista}
-    return {"analisi": analisi, "fatte": fatte, "no": no, "conversazioni": conv, "call": call, "nomi": _nomi(pids)}
+    # la strada veloce (21/10): «risposta entrata dopo N minuti», scritta da scripts/risposta.py
+    veloci = []
+    try:
+        for v in ((sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.risposte_veloci") or [{}])[0].get("dati") or {}).values():
+            if isinstance(v, dict) and v.get("pid") and v.get("entrata_il") and quando(v["entrata_il"]) >= da:
+                veloci.append((v["pid"], quando(v["entrata_il"]), v.get("minuti")))
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (le risposte veloci non lette: {str(e)[:80]})")
+    pids = {x[0] for lista in (analisi, fatte, no, conv, call, veloci) for x in lista}
+    return {"analisi": analisi, "fatte": fatte, "no": no, "conversazioni": conv, "call": call, "veloci": veloci, "nomi": _nomi(pids)}
+
+
+def riga_veloce(minuti):
+    """«Risposta entrata dopo N minuti»: la misura della strada veloce, in parole di Dre."""
+    try:
+        m = int(round(float(minuti)))
+    except (TypeError, ValueError):
+        return "Risposta entrata"
+    if m < 1:
+        return "Risposta entrata in meno di un minuto"
+    return f"Risposta entrata dopo {m} minut{'o' if m == 1 else 'i'}"
 
 
 def diario(ora, giorni=2, eventi=None):
@@ -448,6 +467,8 @@ def diario(ora, giorni=2, eventi=None):
         righe.append((t, pid, "Ha detto no"))
     for pid, t in ev.get("conversazioni") or []:
         righe.append((t, pid, "È entrato in conversazione"))
+    for pid, t, minuti in ev.get("veloci") or []:
+        righe.append((t, pid, riga_veloce(minuti)))
     for c in ev.get("call") or []:
         pid, t, tipo, come, at = c
         nome = TIPO_CALL.get(tipo, "")

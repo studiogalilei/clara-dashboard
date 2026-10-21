@@ -49,6 +49,7 @@ USO
   python3 scripts/schede.py --prova         calcola e stampa i conteggi, non scrive
   python3 scripts/schede.py --tutte         rifa' tutte le schede (non solo le cambiate)
   python3 scripts/schede.py --campagne      rifa' anche i numeri delle campagne adesso
+  python3 scripts/schede.py --uno <email>   la scheda di un lead solo, subito (la strada veloce, 21/10)
 """
 
 import datetime
@@ -200,6 +201,52 @@ def leggi_contesto(ora):
                                                  chiave="prospect_id")}
     return {"ps": ps, "agenda": agenda, "mail": mail, "segnali": segnali, "caldi": caldi, "intenti": intenti,
             "girati": girati, "clienti": clienti, "gia": gia}
+
+
+def contesto_uno(email, ora):
+    """Lo stesso contesto di leggi_contesto, ma per UN lead (la strada veloce, 21/10: la scheda
+    si rifa' subito quando risponde, senza aspettare il giro). Torna (ctx, pid) o (None, None)."""
+    em = (email or "").strip().lower()
+    ps = {p["id"]: p for p in sb("GET", f"/rest/v1/prospects?select={CAMPI_P}&email=eq.{urllib.parse.quote(em)}&limit=1") or []}
+    if not ps:
+        return None, None
+    pid = next(iter(ps))
+    agenda = sb("GET", f"/rest/v1/agenda?select=id,at,titolo,tipo,prospect_id,link,fonte,creato_il"
+                       f"&fonte=like.gcal*&prospect_id=eq.{pid}&at=gte.{_z(ora - datetime.timedelta(days=60))}") or []
+    mail = {pid: sb("GET", f"/rest/v1/interactions?select=id,prospect_id,at,kind&kind=in.(email_in,email_out)&prospect_id=eq.{pid}&limit=500") or []}
+    segnali, caldi = {}, {}
+    for s in sb("GET", f"/rest/v1/segnali_provvisori?select=prospect_id,interaction_id,tipo,quando,come&prospect_id=eq.{pid}") or []:
+        if s.get("come") != "prova":
+            segnali.setdefault(pid, set()).add(s["tipo"])
+            if s["tipo"] == "caldo":
+                caldi.setdefault(pid, set()).add(s.get("interaction_id"))
+    intenti, girati = {}, set()
+    for x in sb("GET", f"/rest/v1/proposte?select=prospect_id,at,azione->intento,azione->lettura->girato_a"
+                       f"&prospect_id=eq.{pid}&tipo=in.(risposta,umano)&order=at.asc") or []:
+        if x.get("intento"):
+            intenti[pid] = x["intento"]
+        if x.get("girato_a"):
+            girati.add(pid)
+    clienti = {r["prospect_id"] for r in sb("GET", f"/rest/v1/clienti?select=prospect_id&prospect_id=eq.{pid}") or []}
+    gia = {r["prospect_id"]: r for r in sb("GET", f"/rest/v1/snella_schede?select=prospect_id,impronta,aggiornata_il&prospect_id=eq.{pid}") or []}
+    return {"ps": ps, "agenda": agenda, "mail": mail, "segnali": segnali, "caldi": caldi, "intenti": intenti,
+            "girati": girati, "clienti": clienti, "gia": gia}, pid
+
+
+def uno(email):
+    """La scheda di un lead solo, rifatta adesso e scritta (i numeri restano al giro)."""
+    ora = adesso()
+    ctx, pid = contesto_uno(email, ora)
+    if not ctx:
+        print("schede: lead non trovato nel Workspace")
+        return None
+    scheda = costruisci(ctx, pid, ora)
+    print(f"schede: una scheda rifatta, stato «{scheda['stato']}»" + (", da chiamare" if scheda["da_chiamare"] else ""))
+    if PROVA:
+        print("(prova: non scrivo niente)")
+        return scheda
+    scrivi("snella_schede", [scheda], "prospect_id")
+    return scheda
 
 
 def call_di(ctx, pid):
@@ -700,4 +747,7 @@ def togli_spente(ctx):
 
 
 if __name__ == "__main__":
-    main()
+    if "--uno" in sys.argv:
+        uno(sys.argv[sys.argv.index("--uno") + 1])
+    else:
+        main()

@@ -19,6 +19,7 @@ I pezzi grossi restano ai loro giri: il lampo tocca al massimo LAMPO_MAX
 aziende per corsa, le piu' recenti, e salta chi ha gia' una proposta aperta.
 
 USO:  python3 scripts/lampo.py [--prova]
+      python3 scripts/lampo.py --email <email> [--prova]   la catena per un lead solo (la strada veloce, 21/10)
 """
 import datetime
 import os
@@ -48,21 +49,53 @@ def _corri(nome, argomenti, minuti=8):
         return False
 
 
+CAMPI = "id,email,company,name,last_reply_at,analysis_pdf,enriched"
+FILTRO = ("&awaiting_us=eq.true&fuori=eq.false&stage=not.in.(cliente,perso,call_fissata,rinviato)"
+          "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso,nervoso))")
+
+
 def fresche():
     da = urllib.parse.quote((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=FRESCA_ORE)).isoformat())
-    righe = sb("GET", "/rest/v1/prospects?select=id,email,company,name,last_reply_at,analysis_pdf,enriched"
-                      f"&awaiting_us=eq.true&fuori=eq.false&last_reply_at=gte.{da}"
-                      "&stage=not.in.(cliente,perso,call_fissata,rinviato)"
-                      "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso,nervoso))"
-                      "&order=last_reply_at.desc&limit=20") or []
+    righe = sb("GET", f"/rest/v1/prospects?select={CAMPI}{FILTRO}&last_reply_at=gte.{da}&order=last_reply_at.desc&limit=20") or []
     aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)&limit=1000") or [])}
     return [p for p in righe if p["id"] not in aperte][:LAMPO_MAX]
 
 
+def uno(email):
+    """UN LEAD SOLO (la strada veloce, 21/10: scripts/risposta.py lo chiama appena entra un si' senza
+    analisi). Gli stessi filtri di fresche(): aspetta noi, non e' chiuso, non ha una proposta aperta."""
+    em = (email or "").strip().lower()
+    righe = sb("GET", f"/rest/v1/prospects?select={CAMPI}{FILTRO}&email=eq.{urllib.parse.quote(em)}&limit=1") or []
+    if not righe:
+        print("lampo: questo lead non aspetta noi (o e' chiuso): niente da fare")
+        return []
+    p = righe[0]
+    aperte = sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=in.(aperta,approvata,in_invio)&limit=1") or []
+    if aperte:
+        print("lampo: ha gia' una proposta in corso: la porta avanti il suo giro")
+        return []
+    return [p]
+
+
+def catena(p, extra):
+    """La catena di un lead: fit, analisi, bozza. Gli stessi pezzi di sempre, senza attese."""
+    nome = (p.get("company") or p.get("name") or p["email"])[:40]
+    gf = (p.get("enriched") or {}).get("google_fit") or {}
+    print(f"  ─ {nome} (risposta delle {str(p['last_reply_at'])[11:16]})")
+    if not gf.get("sito_letto"):
+        _corri("googlefit.py", ["--uno", p["email"]] + extra)
+    if not p.get("analysis_pdf"):
+        _corri("analisi_auto.py", ["--email", p["email"]] + extra, minuti=12)
+    _corri("bozze.py", ["--email", p["email"]] + extra)
+
+
 def main():
-    care = fresche()
+    solo = sys.argv[sys.argv.index("--email") + 1] if "--email" in sys.argv else None
+    care = uno(solo) if solo else fresche()
     extra = ["--prova"] if PROVA else []
     if not care:
+        if solo:
+            return
         # niente di fresco, ma gli approvati rimasti (1/10: UG col PDF arrivato dopo)
         # non devono aspettare il giro di qualcun altro
         print("lampo: nessuna risposta fresca; passo comunque il testimone a postino e approvazioni")
@@ -74,18 +107,9 @@ def main():
     # IN PARALLELO (Dre, 2/10: «se scrivono piu' lead allo stesso tempo, li fa uno alla
     # volta o insieme? Dobbiamo accorciare»). Ogni lead ha la sua catena in un processo
     # suo: quattro insieme costano come uno. L'ordine dei pezzi dentro la catena resta.
-    def catena(p):
-        nome = (p.get("company") or p.get("name") or p["email"])[:40]
-        gf = (p.get("enriched") or {}).get("google_fit") or {}
-        print(f"  ─ {nome} (risposta delle {str(p['last_reply_at'])[11:16]})")
-        if not gf.get("sito_letto"):
-            _corri("googlefit.py", ["--uno", p["email"]] + extra)
-        if not p.get("analysis_pdf"):
-            _corri("analisi_auto.py", ["--email", p["email"]] + extra, minuti=12)
-        _corri("bozze.py", ["--email", p["email"]] + extra)
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=LAMPO_MAX) as pool:
-        list(pool.map(catena, care))
+        list(pool.map(lambda p: catena(p, extra), care))
     # i cancelli veri: approvazione (con tutti i freni) e postino, una volta per tutti
     _corri("prima_risposta.py", extra)
     _corri("manda.py", extra)

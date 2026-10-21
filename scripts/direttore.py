@@ -53,9 +53,17 @@ def adesso():
 # modello a lungo) e la leggera (tutto il resto, ogni 5 minuti). Il postino ha il lucchetto vero
 # (manda.prendi), quindi lampo e la corsia leggera possono girarlo insieme senza doppi invii.
 PESANTI = {"analisi", "lampo", "bozze", "googlefit", "sync_completo", "silenzi", "lezioni", "battito", "salute"}
+# LA TERZA CORSIA (21/10). Il sync di Smartlead dura 4-6 minuti con cadenza 5: nella leggera saturava
+# tutto, e segnale, guasti e conversazioni (cadenza 4-5) giravano ogni 10-12. Ora il sync ha la sua
+# corsia (direttore-sync) e la leggera gira davvero ogni 5 minuti. Le risposte dei lead arrivano
+# dalla strada veloce (risposta.yml, scripts/risposta.py): il sync e' la rete di sicurezza.
+SYNC = {"sync_smartlead"}
+CORSIE = ("leggera", "pesante", "sync")
 
 
 def corsia_di(chiave):
+    if chiave in SYNC:
+        return "sync"
     return "pesante" if chiave in PESANTI else "leggera"
 
 
@@ -125,7 +133,7 @@ def corri(op):
 def main():
     ops = sb("GET", "/rest/v1/operazioni?select=*&order=ordine.asc") or []
     corsia = sys.argv[sys.argv.index("--corsia") + 1] if "--corsia" in sys.argv else None
-    if corsia not in (None, "leggera", "pesante"):
+    if corsia is not None and corsia not in CORSIE:
         sys.exit(f"corsia sconosciuta: {corsia}")
     nella_corsia = lambda chiave: corsia is None or corsia_di(chiave) == corsia      # noqa: E731
     if "--stato" in sys.argv:
