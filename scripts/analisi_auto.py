@@ -208,7 +208,7 @@ def fatti_in_testo(s, p):
              f"Sito: {s['dominio']}",
              f"Persona: {persona(p) or 'non nota: non scrivere nessun nome di persona'}",
              f"Settore: {fit.get('settore')} | Provincia: "
-             + (s['provincia'] or "NON NOTA: non nominare provincia, citta' o comuni e non scrivere segnaposto come [comune]")
+             + (s['provincia'] or "NON NOTA: non nominare provincia, citta' o comuni; scrivi «la vostra zona»")
              + f" | Raggio: {fit.get('raggio')}",
              f"Cosa fa: {fit.get('cosa_fa')}",
              f"Ticket stimato: {fit.get('ticket')} | Vendita possibile online: {fit.get('vendita_possibile_online')}",
@@ -216,7 +216,8 @@ def fatti_in_testo(s, p):
              f"Da sistemare: {fit.get('da_sistemare')}",
              f"Nostra valutazione interna, da NON citare: {fit.get('verdetto')} ({fit.get('motivo')})",
              "NOTA: le etichette di questi fatti sono nostre. Nel testo per il cliente non scrivere mai «Tipo A», «Tipo B», "
-             "«fit», «verdetto», «cose scomode», «education», «Keyword Planner», ne' parole tra parentesi quadre."]
+             "«fit», «verdetto», «cose scomode», «education», ne' il nome dello strumento delle ricerche, ne' parole tra parentesi quadre. "
+             "Le parole che la gente cerca si chiamano «ricerche» o «parole cercate», mai in inglese."]
     if r:
         quando = data_it(r.get("raccolto_il"))
         if not raccolta_fresca(r):
@@ -254,7 +255,9 @@ def fatti_in_testo(s, p):
                     "valutazione fra i cluster qui sotto, se ci sono, altrimenti niente numero")
         else:
             come = "solo chi cerca davvero il servizio: e' lo stesso numero della mail, usalo cosi'"
-        righe.append(f"VOLUMI (Keyword Planner, settore x provincia, precalcolati): domanda {vol.get('tam'):,} ricerche/mese nella provincia "
+        # 21/10 sera: l'etichetta «Keyword Planner» stava nei fatti e il modello la ricopiava nel testo,
+        # poi il cancello la bocciava come parola nostra (tre si' fermi su sette nell'arretrato)
+        righe.append(f"VOLUMI (ricerche Google, settore x provincia, precalcolati): domanda {vol.get('tam'):,} ricerche/mese nella provincia "
                      f"({come}), "
                      f"CPC medio cima pagina {vol.get('cpc_medio')} €, mesi vivi {vol.get('mesi_vivi')}/12. "
                      f"Andamento mese per mese da settembre a agosto, 100 = media: {indice}. Cluster con volumi: "
@@ -310,8 +313,25 @@ Lunghezza: come l'esempio, 3-4 pagine di testo denso, frasi lunghe e naturali.
 """ % CHIUSURA
 
 
+# 21/10 sera: un si' approvato da Dre aspettava l'analisi da dodici ore, bocciata due volte per
+# «verificato»/«dal vivo» su una raccolta di un mese fa. L'avviso stava solo in coda ai fatti,
+# accanto alla data, mentre il manuale e l'esempio dicono «verificato dal vivo»: il modello copiava
+# l'esempio. La regola ora sta nelle istruzioni, PRIMA dei fatti, quando la raccolta e' vecchia.
+RACCOLTA_VECCHIA = """
+REGOLA DI QUESTA ANALISI, CHE VINCE SULL'ESEMPIO: i dati che abbiamo raccolto (annunci,
+Maps, tag del sito) sono di PIU' DI UNA SETTIMANA FA. Nel testo NON usare mai le parole
+«verificato», «verificata», «verificati», «verificate» ne' «dal vivo», e non scrivere la data
+della raccolta: per citarli scrivi «da quanto abbiamo visto» o «abbiamo controllato».
+"""
+
+
+def istruzione_per(s):
+    """Le istruzioni del modello per questa scheda: con la raccolta vecchia, la regola prima dei fatti."""
+    return ISTRUZIONE + ("" if raccolta_fresca(s.get("raccolta")) else RACCOLTA_VECCHIA)
+
+
 def chiedi(p, s, correzioni=None):
-    prompt = (cervello.ruolo("raccolta") + cervello.manuale("testa", "analisi") + "\n\n" + ISTRUZIONE + "\n\nI FATTI:\n" + fatti_in_testo(s, p))
+    prompt = (cervello.ruolo("raccolta") + cervello.manuale("testa", "analisi") + "\n\n" + istruzione_per(s) + "\n\nI FATTI:\n" + fatti_in_testo(s, p))
     if correzioni:
         prompt += "\n\nLA VERSIONE PRECEDENTE E' STATA BOCCIATA DAL CANCELLO. Correggi questi punti e rispondi di nuovo col JSON completo:\n- " + "\n- ".join(correzioni)
     grezzo = cervello._chiedi(prompt, MODELLO) or ""
@@ -375,6 +395,15 @@ def numeri_non_nei_fatti(tutto, fatti):
     noti = {n for n, _ in numeri_di(fatti)}
     # nei fatti le serie stanno anche come liste json: prendo tutte le cifre
     noti |= {_norma(x) for x in re.findall(r"\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?", fatti)}
+    # 21/10 sera: un CPC di 1.49 € scritto «circa 1,50 €» non e' un numero inventato, e' lo stesso
+    # arrotondato (un si' fermo bocciato due volte per «1.5€»). Vale solo per i decimali dei fatti.
+    decimali = set()
+    for x in noti:
+        try:
+            if "." in x:
+                decimali.add(float(x))
+        except ValueError:
+            pass
     fuori = []
     for n, unita in sorted(numeri_di(testo)):
         try:
@@ -382,6 +411,8 @@ def numeri_non_nei_fatti(tutto, fatti):
         except ValueError:
             continue
         if n in noti:
+            continue
+        if "." in n and any(abs(v - k) < 0.051 for k in decimali):
             continue
         if unita == "" and (v <= 12 or 2000 <= v <= 2035):
             continue
@@ -462,8 +493,44 @@ def errori_visibili(testo, fresca=True, nomi=()):
         if trovate:
             errs.append(f"{nome}: {', '.join(trovate[:6])}. {cosa}")
     if not fresca and DAL_VIVO.search(testo):
-        errs.append("«verificato»/«dal vivo» con una raccolta di piu' di una settimana fa: scrivi «da quanto abbiamo visto»")
+        errs.append(ERRORE_DAL_VIVO)
     return errs
+
+
+ERRORE_DAL_VIVO = "«verificato»/«dal vivo» con una raccolta di piu' di una settimana fa: scrivi «da quanto abbiamo visto»"
+_MESI = r"(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)"
+_DATA = r"(?:\s+(?:il|al|del)\s+\d{1,2}(?:\s+" + _MESI + r"|/\d{1,2})(?:\s+20\d\d)?)?"
+_VISTO = {"o": "visto", "a": "vista", "i": "visti", "e": "viste"}
+
+
+def _maiuscola_come(vecchio, nuovo):
+    return nuovo[:1].upper() + nuovo[1:] if vecchio[:1].isupper() else nuovo
+
+
+def senza_dal_vivo(testo):
+    """21/10 sera: la correzione che il codice sa fare da solo. «Verificato»/«dal vivo» con una
+    raccolta vecchia diventano il modo giusto di dirlo, e la data della raccolta se ne va:
+    «abbiamo verificato dal vivo il 22 settembre che» -> «da quanto abbiamo visto,»;
+    «verificata dal vivo» -> «vista»; «controllo dal vivo» -> «controllo». Le forme che non sa
+    sistemare restano, e il cancello le boccia ancora."""
+    t = re.sub(r"\b(?:lo |l')?abbiamo\s+verificat[oaie](?:\s+dal\s+vivo)?" + _DATA + r"\s+che\b",
+               lambda m: _maiuscola_come(m.group(0), "da quanto abbiamo visto,"), testo, flags=re.I)
+    t = re.sub(r"\b(abbiamo|ho)\s+verificat([oaie])(?:\s+dal\s+vivo)?" + _DATA,
+               lambda m: f"{m.group(1)} {_VISTO[m.group(2).lower()]}", t, flags=re.I)
+    t = re.sub(r"\b(verificat|controllat|rilevat|osservat)([oaie])\s+dal\s+vivo" + _DATA,
+               lambda m: _maiuscola_come(m.group(0), _VISTO[m.group(2).lower()]), t, flags=re.I)
+    t = re.sub(r"\bverificat([oaie])\b" + _DATA, lambda m: _maiuscola_come(m.group(0), _VISTO[m.group(1).lower()]), t, flags=re.I)
+    t = re.sub(r"\s+dal\s+vivo" + _DATA, "", t, flags=re.I)
+    t = re.sub(r"\bdal\s+vivo\b\s*", "", t, flags=re.I)
+    return t
+
+
+def correggi_da_solo(an, errori):
+    """Se l'unico motivo della bocciatura e' «verificato»/«dal vivo», lo corregge il codice invece
+    di fermare il si' (21/10 sera). Torna l'analisi corretta, o None se c'e' altro da correggere."""
+    if not an or not errori or any(e != ERRORE_DAL_VIVO for e in errori):
+        return None
+    return {**an, **{k: senza_dal_vivo(an[k]) for k in ("intro", "body") if isinstance(an.get(k), str)}}
 
 
 # ── il PDF ──────────────────────────────────────────────────────────
@@ -517,6 +584,26 @@ def _ripulisci(an):
     return an
 
 
+def _correggi_se_basta(an, errori, fatti, fresca):
+    """La correzione del codice prima di un altro giro del modello o della domanda a una persona."""
+    corretta = correggi_da_solo(an, errori)
+    if corretta is None:
+        return an, errori
+    rimasti = cancello(corretta, fatti, fresca)
+    print("    corretta da sola: «verificato»/«dal vivo» -> «da quanto abbiamo visto»" + (f", resta: {'; '.join(rimasti)[:120]}" if rimasti else ""))
+    return (corretta, rimasti) if not rimasti else (an, errori)
+
+
+def _chiudi_domande(p):
+    """L'analisi e' passata: la domanda «non passa il controllo, guardala tu» non serve piu'."""
+    try:
+        for pr in sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=eq.aperta&azione->analisi_ferma=not.is.null") or []:
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"stato": "fatta", "risposta": "Analisi rifatta, ha passato il controllo: il PDF è nella scheda.",
+                                                                 "risposta_il": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+    except Exception as e:                                       # noqa: BLE001
+        print(f"    (domanda sull'analisi non chiusa: {str(e)[:60]})")
+
+
 def lavora(p):
     nome = (p.get("company") or p.get("email"))[:40]
     s = scheda(p)
@@ -539,10 +626,12 @@ def lavora(p):
     fatti = fatti_in_testo(s, p)
     fresca = raccolta_fresca(s.get("raccolta"))
     errori = cancello(an, fatti, fresca) if an else ["risposta non in JSON"]
+    an, errori = _correggi_se_basta(an, errori, fatti, fresca)
     if errori:
         print(f"    bocciata una volta: {'; '.join(errori)[:160]}")
         an = _ripulisci(chiedi(p, s, errori))
         errori = cancello(an, fatti, fresca) if an else ["risposta non in JSON"]
+        an, errori = _correggi_se_basta(an, errori, fatti, fresca)
     if errori:
         # TRATTENUTA CON MOTIVO (da Galileo): non si pubblica, e il motivo resta
         # nella scheda, cosi' nessuno aspetta un PDF che non arriva
@@ -576,6 +665,7 @@ def lavora(p):
     for pr in sb("GET", f"/rest/v1/proposte?select=id,perche&prospect_id=eq.{p['id']}&tipo=eq.risposta&stato=eq.aperta&limit=3") or []:
         if "Analisi PDF pronta" not in (pr.get("perche") or ""):
             sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}", {"perche": ("Analisi PDF pronta, nella scheda. " + (pr.get("perche") or ""))[:280]})
+    _chiudi_domande(p)
     return True
 
 

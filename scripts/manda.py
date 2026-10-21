@@ -445,7 +445,8 @@ def main():
     for pr in approvate:
         az = pr.get("azione") or {}
         bozza = (az.get("bozza") or "").strip()
-        p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,campaign_id,lead_id,analysis_pdf,analysis_sent&id=eq.{pr['prospect_id']}") or [None])[0] if pr.get("prospect_id") else None
+        p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,campaign_id,lead_id,analysis_pdf,analysis_sent,"
+                       f"trattenuta:enriched->analisi->>trattenuta&id=eq.{pr['prospect_id']}") or [None])[0] if pr.get("prospect_id") else None
         # 29/9: il prezzo suggerito sta in cassaforte. Prima qui non arrivava proprio (la
         # scheda si leggeva senza enriched): il controllo «il prezzo non entra in una mail» era cieco
         p = con_soldi(p, soldi_clienti([p["id"]])) if p else p
@@ -521,7 +522,9 @@ def main():
                              f"aspetta l'analisi da {int(ferma_da)} ore e non arriva: guarda se il sito loro risponde, "
                              f"oppure togli l'allegato e mandala cosi'", prova)
                 continue
-            print(f"  {azienda}: aspetto l'analisi da {int(ferma_da)}h, riprovo al giro dopo"); continue
+            # 21/10 sera: il perche' dell'attesa sta nella riga (la scheda Clara lo dice in rosso dopo un'ora)
+            motivo = f" (l'analisi e' bocciata: {str(p.get('trattenuta'))[:100]})" if p.get("trattenuta") else ""
+            print(f"  {azienda}: aspetto l'analisi da {int(ferma_da)}h{motivo}, riprovo al giro dopo"); continue
         if p.get("analysis_pdf") and (prima_risposta or az.get("allega")):
             url = link_fresco(p["analysis_pdf"])
             try:

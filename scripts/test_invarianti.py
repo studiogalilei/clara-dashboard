@@ -5529,6 +5529,54 @@ def _():
     assert s.count("sincronizza_filo(") == 3, "una definizione, il giro e sincronizza_lead: nessuna copia"
 
 
+@prova("si' fermo (21/10 sera): servito solo quando l'analisi e' partita; il rosso non si spegne alle 21; l'approvata che aspetta dice perche'")
+def _():
+    import datetime, clara_foglio as C
+    roma = C.ROMA
+    alle = lambda h, m=0, g=21: datetime.datetime(2026, 10, g, h, m, tzinfo=roma)        # noqa: E731
+    vuoto = lambda si: {"si": si, "corse": {}, "operazioni": {}, "foglio_il": None, "conversazioni": None, "ultima_corsa": None}  # noqa: E731
+    vero_cont, vero_rimb = C.contattabile, C.rimbalzi_fermi
+    try:
+        C.contattabile = lambda p: True
+        C.rimbalzi_fermi = lambda ora, gia=(), **k: []
+        pos = [{"id": x, "company": f"Lead {x}", "classificazione": "positivo", "analysis_sent": False, "last_reply_at": alle(11, 47).isoformat(),
+                "analisi": {"trattenuta": "«verificato»/«dal vivo» con una raccolta di piu' di una settimana fa"} if x == "a" else None}
+               for x in ("a", "b", "c", "d")]
+        bozze = {"a": {"stato": "approvata", "approvata_il": alle(17, 47).isoformat()}, "b": {"stato": "aperta"},
+                 "c": {"stato": "in_invio"}, "d": {"stato": "fatta"}}
+        r = C.si_fermi(alle(23, 10), positivi=pos, dopo={}, bozze=bozze)
+        assert [x["prospect_id"] for x in r] == ["a", "b"], "una bozza approvata o aperta non serve il si'; in_invio e fatta si'"
+        g = C.semaforo(alle(23, 10), vuoto(r))
+        assert [x["pid"] for x in g] == ["a", "b"], "alle 23 il si' fermo resta rosso: non e' risolto, e' notte"
+        assert g[0]["cosa"].startswith("Il sì di Lead a aspetta l'analisi da 5 ore: «verificato»"), g[0]["cosa"]
+        assert "Posta" in g[0]["sta_facendo"] and g[1]["cosa"].startswith("Sì senza analisi"), g
+        # conta solo le ore di invio: arrivato alle 20:30, alle 23 e' passata mezz'ora d'invio, non e' rosso; alle 8:31 del giorno dopo si'
+        tardi = [{"prospect_id": "z", "azienda": "Z", "quando": alle(20, 30)}]
+        assert C.semaforo(alle(23), vuoto(tardi)) == [] and len(C.semaforo(alle(8, 31, 22), vuoto(tardi))) == 1
+        assert C._in_finestra(alle(20), alle(9, 0, 22)) == datetime.timedelta(hours=2)
+    finally:
+        C.contattabile, C.rimbalzi_fermi = vero_cont, vero_rimb
+
+
+@prova("analisi (21/10 sera): con la raccolta vecchia la regola sta prima dei fatti, e «verificato» lo corregge il codice invece di fermare il si'")
+def _():
+    import analisi_auto as A
+    assert "verificato" in A.istruzione_per({"raccolta": {"raccolto_il": "2026-09-01T00:00:00+00:00"}}).split("I FATTI")[0].lower().split("regola di questa analisi")[1]
+    assert A.istruzione_per({"raccolta": {"raccolto_il": datetime.datetime.now(datetime.timezone.utc).isoformat()}}) == A.ISTRUZIONE
+    assert A.senza_dal_vivo("Abbiamo verificato dal vivo il 22 settembre che non ci sono annunci.") == "Da quanto abbiamo visto, non ci sono annunci."
+    assert A.senza_dal_vivo("Come verificato dal vivo il 22/9, il voto e' alto. Le schede verificate.") == "Come visto, il voto e' alto. Le schede viste."
+    an = {"intro": "Lo abbiamo verificato sul sito.", "body": "<p>Dal controllo dal vivo emerge che</p>"}
+    c = A.correggi_da_solo(an, [A.ERRORE_DAL_VIVO])
+    assert c and not A.DAL_VIVO.search(c["intro"] + c["body"]), c
+    assert A.correggi_da_solo(an, [A.ERRORE_DAL_VIVO, "manca la tabella"]) is None, "con altri errori decide il modello, non il codice"
+    assert A.errori_visibili("da quanto abbiamo visto", fresca=False) == []
+    # un decimale dei fatti arrotondato non e' un numero inventato; un altro numero si'
+    assert A.numeri_non_nei_fatti("circa 1,50 € o 1,5 €, e 2,30 €", "CPC medio cima pagina 1.49 €") == ["2.30€"]
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "analisi_auto.py"), encoding="utf-8").read()
+    assert src.count("an, errori = _correggi_se_basta(an, errori, fatti, fresca)") == 2, "la correzione del codice va provata dopo ogni bocciatura"
+    assert "_chiudi_domande(p)" in src, "un'analisi passata chiude la domanda «non passa il controllo»"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

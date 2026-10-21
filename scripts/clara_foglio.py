@@ -12,7 +12,9 @@ una seconda, «Clara», scritta dal sistema a ogni giro del foglio (10 minuti):
   parole di Dre.
 
 IL SEMAFORO si accende solo per quello che costa lead o soldi (spec, punto 4):
-- un si' senza analisi da piu' di un'ora, contando solo l'orario di invio (8-21); conta anche un
+- un si' senza analisi da piu' di un'ora, contando solo l'orario di invio (8-21), che resta rosso
+  finche' l'analisi non e' partita (21/10 sera: alle 21 si spegneva da solo); una bozza approvata
+  senza PDF dice da quante ore aspetta l'analisi e perche' (guasto_si); conta anche un
   rimbalzo interno (INT-08/09, «mandatelo a questo indirizzo») ancora «da_classificare» (20/10).
   CHI E' UN SI' LO DICE IL LETTORE AI (20/10 sera): prospects.classificazione == positivo, che
   sync_v2 scrive dal lettore (scripts/lettore.py). Il segnale provvisorio non decide piu': la sera
@@ -82,9 +84,26 @@ def _nella_finestra(t):
     return ORE_INVIO[0] <= r.hour < ORE_INVIO[1]
 
 
-def _inizio_finestra(t):
-    r = t.astimezone(ROMA)
-    return datetime.datetime(r.year, r.month, r.day, ORE_INVIO[0], tzinfo=ROMA)
+def _in_finestra(da, a):
+    """Il tempo fra `da` e `a` che cade nell'orario di invio (8-21 di Roma). 21/10 sera: il rosso
+    di un si' fermo si spegneva alle 21 perche' il semaforo guardava solo se ADESSO e' orario di
+    invio, e la sera arrivava «Risolto» per due si' senza analisi. Il conto si fa sulle ore di
+    invio passate, e il guasto resta aperto finche' il si' non e' servito (la notte non suona:
+    lo decide guasti.di_notte)."""
+    if a <= da:
+        return datetime.timedelta(0)
+    tot = datetime.timedelta(0)
+    g = da.astimezone(ROMA).date()
+    while True:
+        apre = datetime.datetime(g.year, g.month, g.day, ORE_INVIO[0], tzinfo=ROMA)
+        if apre > a:
+            break
+        chiude = datetime.datetime(g.year, g.month, g.day, ORE_INVIO[1], tzinfo=ROMA)
+        inizio, fine = max(da, apre), min(a, chiude)
+        if fine > inizio:
+            tot += fine - inizio
+        g += datetime.timedelta(days=1)
+    return tot
 
 
 def _ora(t):
@@ -174,16 +193,23 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
     return out
 
 
+SERVITO = ("in_invio", "fatta")                           # la bozza sta partendo o e' partita: il si' e' servito
+GRADO = {"aperta": 1, "approvata": 2, "in_invio": 3, "fatta": 4}
+
+
 def si_fermi(ora, positivi=None, dopo=None, bozze=None):
     """I si' degli ultimi 3 giorni senza analisi e senza nessuna mail nostra dopo, piu' i rimbalzi
     interni ancora da classificare (rimbalzi_fermi). UN SI' E' CHI IL LETTORE HA MESSO «positivo»
     (prospects.classificazione, 20/10 sera): il segnale provvisorio non decide piu'. La sua ora e'
-    quella della sua ultima mail. `positivi`, `dopo` ({pid: ultima nostra mail}) e `bozze` (pid con
-    una bozza aperta, anche «da guardare tu») si passano solo nelle prove."""
+    quella della sua ultima mail. `positivi`, `dopo` ({pid: ultima nostra mail}) e `bozze` si passano
+    solo nelle prove: un insieme di pid (bozza aperta) o {pid: {"stato", "approvata_il"}}.
+    21/10 sera: UN SI' E' SERVITO SOLO QUANDO L'ANALISI E' PARTITA (analysis_sent, o una nostra mail
+    dopo la sua) o la bozza nata dopo il suo si' e' in_invio/fatta. Una bozza approvata che aspetta
+    l'analisi resta un si' fermo, col motivo per cui l'analisi non arriva (enriched.analisi.trattenuta)."""
     da = ora - datetime.timedelta(days=3)
     if positivi is None:
-        positivi = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,fuori,stage,pipeline_stage,no_followup,"
-                             f"classificazione,last_reply_at&classificazione=eq.positivo&last_reply_at=gte.{_z(da)}"
+        positivi = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,analysis_pdf,fuori,stage,pipeline_stage,no_followup,"
+                             f"classificazione,last_reply_at,analisi:enriched->analisi&classificazione=eq.positivo&last_reply_at=gte.{_z(da)}"
                              "&order=last_reply_at.desc&limit=500") or []
     ps = {p["id"]: p for p in positivi if p.get("last_reply_at") and p.get("classificazione") == "positivo"}
     if dopo is None:
@@ -195,10 +221,20 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
                 if x["prospect_id"] not in dopo or t > dopo[x["prospect_id"]]:
                     dopo[x["prospect_id"]] = t
     if bozze is None:
-        bozze = set()
+        bozze = {}
         for pezzo in _pezzi(ps):
-            bozze |= {x["prospect_id"] for x in sb("GET", f"/rest/v1/proposte?select=prospect_id&prospect_id=in.({pezzo})"
-                                                         "&tipo=in.(risposta,umano)&stato=in.(aperta,approvata,in_invio)") or []}
+            for x in sb("GET", f"/rest/v1/proposte?select=prospect_id,stato,at,approvata_il:azione->>approvata_il&prospect_id=in.({pezzo})"
+                               f"&tipo=in.(risposta,umano)&stato=in.(aperta,approvata,in_invio,fatta)&at=gte.{_z(da)}") or []:
+                p = ps.get(x["prospect_id"])
+                if not p or x.get("stato") not in GRADO:
+                    continue
+                if x["stato"] in SERVITO and quando(x["at"]) < quando(p["last_reply_at"]):
+                    continue                               # una bozza partita prima del suo si' non lo serve
+                prima = bozze.get(x["prospect_id"])
+                if not prima or GRADO[x["stato"]] > GRADO[prima["stato"]]:
+                    bozze[x["prospect_id"]] = {"stato": x["stato"], "approvata_il": x.get("approvata_il") or x.get("at")}
+    elif not isinstance(bozze, dict):
+        bozze = {pid: {"stato": "aperta"} for pid in bozze}
     out = []
     for p in sorted(ps.values(), key=lambda p: p["last_reply_at"]):
         t = quando(p["last_reply_at"])
@@ -207,9 +243,42 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
         # 21/10 (collaudo): una nostra mail PRIMA del suo si' (il follow-up a cui ha detto si') non lo chiude
         if dopo.get(p["id"]) and dopo[p["id"]] > t:
             continue                                       # gli abbiamo scritto: servito
+        b = bozze.get(p["id"]) or {}
+        if b.get("stato") in SERVITO:
+            continue                                       # la mail con l'analisi sta partendo o e' partita
+        an = p.get("analisi") if isinstance(p.get("analisi"), dict) else {}
         out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t,
-                    "bozza": p["id"] in bozze})
+                    "bozza": bool(b), "stato_bozza": b.get("stato"),
+                    "approvata_il": quando(b["approvata_il"]) if b.get("stato") == "approvata" and b.get("approvata_il") else None,
+                    "pdf": bool(p.get("analysis_pdf")), "motivo": str(an.get("trattenuta") or "")[:160]})
     return out + rimbalzi_fermi(ora, gia=set(ps))
+
+
+def guasto_si(s, ora):
+    """Pura. Il rosso di un si' fermo, o None. Conta solo le ore di invio passate (8-21) e resta
+    acceso fuori orario finche' il si' non e' servito (21/10 sera: alle 21 arrivava «Risolto» per
+    due si' senza analisi). Una bozza approvata senza PDF dice da quante ore aspetta l'analisi e
+    perche' non arriva, con cosa fare."""
+    if _in_finestra(s["quando"], ora) <= SI_FERMO:
+        return None
+    g = {"chiave": f"si:{s['prospect_id']}", "da": s["quando"], "pid": s["prospect_id"]}
+    if s.get("stato_bozza") == "approvata" and not s.get("pdf"):
+        ore = int((ora - (s.get("approvata_il") or s["quando"])).total_seconds() // 3600)
+        motivo = s.get("motivo") or ""
+        g["cosa"] = (f"Il sì di {s['azienda']} aspetta l'analisi da {ore} {'ora' if ore == 1 else 'ore'}"
+                     + (f": {motivo}" if motivo else ""))
+        g["sta_facendo"] = ("La risposta è approvata e parte appena c'è il PDF. Il controllo boccia l'analisi e da sola "
+                            "non riparte: nella Posta c'è la domanda sull'analisi, dillo ad Achille." if motivo else
+                            "La risposta è approvata e parte appena c'è il PDF: l'analisi è in coda. Se resta qui, guarda la sua scheda.")
+        return g
+    if s.get("stato_bozza") == "aperta" and s.get("pdf"):
+        g["cosa"] = f"Il sì di {s['azienda']} aspetta te: l'analisi è pronta, ha detto sì alle {_ora(s['quando'])}"
+        g["sta_facendo"] = "La risposta è scritta e l'analisi allegata: scegli la strada nella sua scheda e parte."
+        return g
+    g["cosa"] = f"Sì senza analisi: {s['azienda']}, ha detto sì alle {_ora(s['quando'])}"
+    g["sta_facendo"] = ("La risposta è scritta ma non parte da sola: va guardata nella sua scheda."
+                        if s.get("bozza") else "Il sistema riprova da solo a ogni giro. Se resta qui, guarda la sua scheda.")
+    return g
 
 
 NON_PERSONA = ("ooo", "automatico")
@@ -318,12 +387,9 @@ def semaforo(ora, dati=None):
                        "cosa": f"Il sistema è fermo: nessuna operazione da {_quanto(ora - dati['ultima_corsa'])}",
                        "sta_facendo": "La sentinella lo rianima da sola ogni 15 minuti."})
     for s in dati.get("si") or []:
-        partenza = max(s["quando"], _inizio_finestra(ora))
-        if _nella_finestra(ora) and ora - partenza > SI_FERMO:
-            guasti.append({"chiave": f"si:{s['prospect_id']}", "da": s["quando"], "pid": s["prospect_id"],
-                           "cosa": f"Sì senza analisi: {s['azienda']}, ha detto sì alle {_ora(s['quando'])}",
-                           "sta_facendo": ("La risposta è scritta ma non parte da sola: va guardata nella sua scheda."
-                                           if s.get("bozza") else "Il sistema riprova da solo a ogni giro. Se resta qui, guarda la sua scheda.")})
+        g = guasto_si(s, ora)
+        if g:
+            guasti.append(g)
     ops = dati.get("operazioni") or {}
     corse = dati.get("corse") or {}
     for chiave, op in ops.items():
