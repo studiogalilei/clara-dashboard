@@ -392,6 +392,105 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
         raise
 
 
+# ── I GUASTI: una porta sola per entrare, una sola per uscire (notte del 22/10) ──
+# Prima un errore preso dentro un giro restava un «print»: la corsa diceva «ok» e il semaforo verde
+# (16/10: OpenAI senza crediti, l'analisi diceva «0 pronte su 1» per ore). Ora chi vede un guasto lo
+# scrive qui, il semaforo della scheda Clara lo legge e guasti.py lo suona; lo toglie solo un fatto
+# (guarito: la prova dopo e' andata bene), mai il tempo che passa. `vale` (minuti) solo per chi lo
+# riscrive a ogni giro finche' e' vero (il segnale): se smette di riscriverlo, scade.
+GUASTI = "guasti_segnale"          # la chiave in snella_numeri (il nome viene dal primo che la usava)
+
+SERVIZIO_GIU = re.compile(
+    r"insufficient_quota|credit balance is too low|no credits remaining|credits? (?:exhausted|finit)|"
+    r"invalid_api_key|invalid x-api-key|authentication_error|invalid_grant|"
+    r"token (?:has )?(?:been )?(?:expired|revoked)|SUPABASE BLOCCATO|quota exceeded|"
+    r"\b40[12]\b[^\n]{0,80}(?:unauthori[sz]ed|invalid api|credit|billing|payment required)", re.I)
+FORNITORI = (("openai", "OpenAI"), ("anthropic", "Anthropic"), ("smartlead", "Smartlead"), ("google", "Google"),
+             ("gmail", "Google"), ("oauth", "Google"), ("searchapi", "SearchAPI"), ("supabase", "Supabase"))
+
+
+def servizi_giu(uscita):
+    """Pura. Le righe dell'uscita di un giro che dicono «un servizio esterno non ci fa entrare»
+    (crediti finiti, chiave o token scaduti): [(fornitore o «», riga)]. Si legge TUTTA l'uscita."""
+    out = []
+    for riga in (uscita or "").splitlines():
+        if SERVIZIO_GIU.search(riga):
+            chi = next((n for k, n in FORNITORI if k in riga.lower()), "")
+            out.append((chi, " ".join(riga.split())[:200]))
+    return out
+
+
+def _guasti_leggi():
+    r = sb("GET", f"/rest/v1/snella_numeri?select=dati&chiave=eq.{GUASTI}") or []
+    d = (r[0].get("dati") if r and isinstance(r[0], dict) else None) or {}
+    return d if isinstance(d, dict) else {}
+
+
+def _guasti_scrivi(dati):
+    ora = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave", [{"chiave": GUASTI, "dati": dati, "aggiornato_il": ora}],
+       {"Prefer": "resolution=merge-duplicates,return=minimal"})
+
+
+def guasto(chiave, testo, sta_facendo=None, vale=None, fornitore=None):
+    """Un guasto visto adesso: resta nel semaforo finche' qualcuno non chiama guarito(chiave)
+    (o, con `vale`, finche' viene riscritto entro quei minuti). Con `fornitore` (OpenAI, Anthropic...)
+    lo toglie solo la prova dal vivo di quel servizio (guasti.py, fumo.prova). Non alza mai: chi lo
+    chiama sta gia' gestendo un errore. In prova a secco stampa e non scrive."""
+    print(f"  GUASTO [{chiave}]: {' '.join(str(testo).split())[:200]}")
+    if _a_secco():
+        return
+    try:
+        dati = _guasti_leggi()
+        ora = datetime.datetime.now(datetime.timezone.utc)
+        prima = dati.get(chiave) if isinstance(dati.get(chiave), dict) else {}
+        vivo = prima.get("il") and (not prima.get("vale") or ora - quando(prima["il"]) < datetime.timedelta(minutes=prima["vale"]))
+        dati[chiave] = {"testo": str(testo)[:300], "il": ora.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "dal": (prima.get("dal") if vivo else None) or ora.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "sta_facendo": sta_facendo, "vale": vale, "fornitore": fornitore}
+        _guasti_scrivi(dati)
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (guasto non scritto nel semaforo: {str(e)[:120]})", file=sys.stderr)
+
+
+def guarito(chiave):
+    """La prova dopo e' andata bene: il guasto `chiave` (o tutti quelli che cominciano con «chiave:»)
+    esce dal semaforo. Non alza mai."""
+    if _a_secco():
+        return
+    try:
+        dati = _guasti_leggi()
+        via = [k for k in dati if k == chiave or k.startswith(chiave + ":")]
+        if via:
+            for k in via:
+                dati.pop(k, None)
+            _guasti_scrivi(dati)
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (guarito non scritto: {str(e)[:120]})", file=sys.stderr)
+
+
+def guarda_uscita(operazione, nome, uscita):
+    """Dopo ogni giro (direttore e strada veloce): se l'uscita dice che un servizio esterno non ci fa
+    entrare, e' un guasto anche se lo script e' finito «ok». Se si sa quale servizio, lo toglie solo
+    la prova dal vivo di quel servizio (guasti.py ogni 10 minuti): un giro senza lead da lavorare non
+    prova niente, e il «Risolto» sarebbe falso. Se non si sa, lo toglie il primo giro pulito."""
+    giu = servizi_giu(uscita)
+    chiave = f"servizio:{operazione}"
+    if giu:
+        chi = next((c for c, _ in giu if c), "")
+        guasto(chiave, f"{nome}: {('crediti ' + chi + ' finiti o chiave scaduta') if chi else 'crediti finiti o chiave scaduta'} ({giu[0][1][:120]})",
+               sta_facendo="Da solo non riparte: va ricaricato il conto o rinnovata la chiave (dillo ad Achille).",
+               fornitore=chi or None)
+    elif not _a_secco():
+        try:
+            v = _guasti_leggi().get(chiave)
+            if isinstance(v, dict) and not v.get("fornitore"):
+                guarito(chiave)
+        except Exception:                                        # noqa: BLE001
+            pass
+    return giu
+
+
 def senza_trattini(testo):
     """Il trattino lungo lo toglie il codice, non un secondo giro del modello (29/9).
     L'analisi di Naturalia e' stata bocciata cinque giri di fila, due ore, anche per

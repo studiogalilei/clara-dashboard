@@ -1166,7 +1166,8 @@ def _():
     # 1/10: chi sorveglia non tocca i dati, se no un bug del guardiano diventa un guaio doppio
     for vietato in ('"PATCH"', '"POST"', '"DELETE"', "proponi("):
         assert vietato not in t, f"la sentinella opera ({vietato}): deve solo vedere e avvisare"
-    assert "di_clara(" in t, "la sentinella non avvisa piu' nessuno"
+    # 22/10: avvisa dal telefono (guasti.giro) e solo del direttore fermo; i lead li giudica il semaforo
+    assert "guasti.giro(" in t and "awaiting_us" not in t and "di_clara(" not in t, "la sentinella avvisa del direttore, non giudica i lead"
     w = pathlib.Path(__file__).resolve().parent.parent.joinpath(".github", "workflows", "sentinella.yml").read_text(encoding="utf-8")
     assert "direttore.yml" in w and "cancel" in w, "la sentinella non rianima piu' il direttore bloccato"
 
@@ -4166,9 +4167,16 @@ def _():
     d["corse"] = {"manda": [{"at": alle(9, 50), "esito": "ok", "dettaglio": ""}]}
     assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["invio:manda"]
     assert C.semaforo(alle(23), d) == [], "di notte il silenzio non e' un guasto"
-    # i crediti finiti: anche un'operazione qualunque, se l'ultima corsa lo dice
-    d["corse"] = {"manda": [{"at": alle(10, 55), "esito": "errore", "dettaglio": "Error code: 429 insufficient_quota"}]}
-    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["chiave:manda"]
+    # i crediti finiti (notte del 22/10): li scrive il direttore fra i guasti, anche da una corsa «ok»,
+    # e restano finche' un fatto non li toglie, non 20 minuti come quelli che il segnale riscrive
+    d["corse"] = {"manda": [{"at": alle(10, 55), "esito": "ok", "dettaglio": ""}]}
+    d["segnale"] = {"servizio:manda": {"testo": "Clara manda: crediti OpenAI finiti o chiave scaduta", "il": alle(8).isoformat(),
+                                       "dal": alle(8).isoformat(), "vale": None, "fornitore": "OpenAI", "sta_facendo": "Da solo non riparte."},
+                    "gmail": {"testo": "Gmail ferma", "il": alle(9).isoformat(), "dal": alle(9).isoformat()}}
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["servizio:manda"], "quello del segnale, non riscritto da 2 ore, e' scaduto"
+    d["segnale"]["gmail"]["il"] = alle(10, 50).isoformat()
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["servizio:manda", "segnale:gmail"]
+    d.pop("segnale")
     # il foglio fermo da piu' di un'ora; il direttore fermo
     d = vuoto()
     d["foglio_il"] = alle(9, 50)
@@ -5754,6 +5762,70 @@ def _():
     # il rigioco non applica abitudini e scrive sulla stessa domanda
     src = open(S.__file__, encoding="utf-8").read()
     assert "con_abitudine=not RIFAI" in src and "and not RIFAI" in src
+
+
+@prova("nessun errore muto (notte 22/10): un servizio giu' e' un guasto anche da una corsa «ok», lo toglie un fatto e non il tempo; un file che manca non si lancia")
+def _():
+    import stanza as St
+    import direttore as D
+    # la riga che dice «crediti finiti» si trova ovunque stia nell'uscita, col nome del fornitore
+    uscita = "salto X\n  ! Rossi: RuntimeError: OpenAI 429: You have no credits remaining\n" + "riga\n" * 2000 + "analisi: 0 pronte su 1"
+    giu = St.servizi_giu(uscita)
+    assert giu and giu[0][0] == "OpenAI", giu
+    assert St.servizi_giu("Anthropic 401 authentication_error: invalid x-api-key")[0][0] == "Anthropic"
+    assert St.servizi_giu("Google: invalid_grant (token has been expired or revoked)")[0][0] == "Google"
+    # il testo di un lead non e' un guasto: «billing», «401», «crediti» in una risposta non suonano
+    for innocuo in ("«grazie, giriamo al billing»", "via Roma 401, Milano", "abbiamo pochi crediti formativi", "analisi: 0 pronte su 1"):
+        assert St.servizi_giu(innocuo) == [], innocuo
+    # il dettaglio della corsa tiene l'inizio e la fine: la riga presto non sparisce piu'
+    d = D.dettaglio_di(uscita)
+    assert len(d) < 2100 and "no credits remaining" in d and d.rstrip().endswith("analisi: 0 pronte su 1"), d[:200]
+    assert D.dettaglio_di("corta") == "corta"
+    # il file del comando: chi non c'e' non si lancia
+    assert D.file_del_comando("python3 scripts/giornata.py --forza") == "scripts/giornata.py"
+    assert D.file_del_comando(None) is None and D.file_del_comando("pull.py --max 1100") is None
+    # la porta dei guasti: scrive, guarisce, e con un fornitore non guarisce da sola
+    mem = {}
+    vero_sb, vero_secco = St.sb, St._a_secco
+    def finto(m, path, corpo=None, h=None):
+        if m == "GET":
+            return [{"dati": json.loads(json.dumps(mem))}] if mem else []
+        mem.clear(); mem.update(corpo[0]["dati"])
+    try:
+        St.sb, St._a_secco = finto, (lambda: False)
+        St.guarda_uscita("analisi", "La preparazione delle analisi", uscita)
+        assert mem["servizio:analisi"]["fornitore"] == "OpenAI" and "OpenAI" in mem["servizio:analisi"]["testo"] and mem["servizio:analisi"]["vale"] is None, mem
+        St.guarda_uscita("analisi", "La preparazione delle analisi", "analisi: 0 pronte su 0")
+        assert "servizio:analisi" in mem, "un giro senza lead non prova che OpenAI e' tornato: niente «Risolto» falso"
+        St.guarito("servizio:analisi")
+        assert "servizio:analisi" not in mem
+        St.guarda_uscita("bozze", "Le bozze", "Error: quota exceeded")
+        assert mem["servizio:bozze"]["fornitore"] is None
+        St.guarda_uscita("bozze", "Le bozze", "giganti buoni pronti: 0")
+        assert "servizio:bozze" not in mem, "senza fornitore lo toglie il primo giro pulito"
+        St.guasto("file:giornata", "manca il file")
+        St.guarito("file")
+        assert mem == {}, "guarito(prefisso) toglie tutti quelli che cominciano cosi'"
+    finally:
+        St.sb, St._a_secco = vero_sb, vero_secco
+    # chi si toglie solo provando dal vivo il servizio: un fornitore, o un servizio caduto al fumo
+    import guasti as G
+    scritti = {"servizio:analisi": {"fornitore": "OpenAI"}, "fumo:Smartlead": {}, "fumo:op:giornata": {}, "segnale:gmail": {}}
+    assert G.da_riprovare(scritti) == {"servizio:analisi": "OpenAI", "fumo:Smartlead": "Smartlead"}
+    import fumo as F
+    assert F.prova("Zeta") is None and set(F.DI_FORNITORE["Google"]) <= set(F.SERVIZI)
+    assert {n for _, n in St.FORNITORI} <= set(F.SERVIZI) | set(F.DI_FORNITORE), "ogni fornitore che il direttore riconosce ha la sua prova dal vivo"
+    # ogni comando scritto in una migrazione ha il suo file nel repo (20/10: giornata accesa prima del file)
+    import glob
+    import re as _re
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for sql in glob.glob(os.path.join(radice, "supabase", "*.sql")):
+        for f in _re.findall(r"python3 (scripts/\w+\.py)", open(sql, encoding="utf-8").read()):
+            assert os.path.exists(os.path.join(radice, f)), f"{os.path.basename(sql)} accende {f}, che non c'e'"
+    # il direttore legge TUTTA l'uscita e salta un comando senza file
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "direttore.py"), encoding="utf-8").read()
+    assert "guarda_uscita(op[\"chiave\"], op[\"nome\"], uscita)" in src and "uscita[-2000:]" not in src
+    assert src.index("file_del_comando(op.get(\"comando\"))") < src.index("subprocess.run(op[\"comando\"]")
 
 
 def main():

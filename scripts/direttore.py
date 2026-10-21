@@ -28,13 +28,14 @@ USO
 
 import datetime
 import os
+import re
 import subprocess
 import sys
 import time
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, quando                                      # noqa: E402
+from stanza import sb, quando, guasto, guarito, guarda_uscita      # noqa: E402
 DATABASE_BLOCCATO = False
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -88,9 +89,33 @@ def dovuta(op):
     return adesso() - u >= datetime.timedelta(minutes=op.get("cadenza_minuti", 60))
 
 
+def file_del_comando(comando):
+    """Il file che il comando lancia (python3 scripts/x.py ...), o None se non si capisce."""
+    m = re.search(r"(?:^|\s)(scripts/[\w./-]+\.(?:py|sh))\b", comando or "")
+    return m.group(1) if m else None
+
+
+def dettaglio_di(uscita):
+    """Quello che resta della corsa: l'inizio e la fine (notte del 22/10). Prima solo gli ultimi
+    2000 caratteri: la riga del guasto, se arrivava presto, spariva (la Master Inbox il 21/10)."""
+    if len(uscita) <= 2000:
+        return uscita
+    return uscita[:600] + "\n[...]\n" + uscita[-1350:]
+
+
 def corri(op):
     inizio = time.time()
     print(f"▶ {op['nome']}  ({op['comando']})")
+    # IL CODICE PRIMA DEL SUO FILE (notte del 22/10): il 20/10 «giornata» e' stata accesa nel database
+    # prima che il suo file arrivasse su main, e la corsa e' caduta. Un file che non c'e' non si lancia:
+    # e' un guasto con il suo nome, e si toglie da solo quando il file arriva.
+    f = file_del_comando(op.get("comando"))
+    if f and not os.path.exists(os.path.join(RADICE, f)):
+        guasto(f"file:{op['chiave']}", f"{op['nome']}: è accesa ma il suo file ({f}) non c'è ancora nel codice in cloud",
+               sta_facendo="Non la lancio finché il file non arriva: riprovo a ogni giro.")
+        print(f"  saltata: manca {f}")
+        return "saltata"
+    guarito(f"file:{op['chiave']}")
     try:
         r = subprocess.run(op["comando"], shell=True, cwd=RADICE, capture_output=True,
                            text=True, timeout=ATTESA_MAX)
@@ -101,7 +126,10 @@ def corri(op):
     except Exception as e:
         esito, uscita = "errore", str(e)
     durata = int((time.time() - inizio) * 1000)
-    dettaglio = uscita[-2000:]
+    dettaglio = dettaglio_di(uscita)
+    # un servizio esterno giu' (crediti, chiave, token) e' un guasto anche se lo script e' finito «ok»:
+    # si legge TUTTA l'uscita, non il dettaglio tagliato (16/10: OpenAI senza crediti, corse «ok» per ore)
+    guarda_uscita(op["chiave"], op["nome"], uscita)
     # 9/10: un database bloccato (402, quota finita) non e' un errore come gli altri: si
     # scrive in cima al run di GitHub con un'annotazione, cosi' si vede senza aprire i log.
     # Stanotte sessanta giri falliti in silenzio per cinque ore.

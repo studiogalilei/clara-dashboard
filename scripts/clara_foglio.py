@@ -43,7 +43,6 @@ USO
 """
 import datetime
 import os
-import re
 import sys
 import urllib.parse
 import zoneinfo
@@ -70,13 +69,6 @@ SEGNALE_VISTO = datetime.timedelta(minutes=20)              # il segnale gira og
 INVIO = {"sync_smartlead": "La lettura delle risposte da Smartlead", "analisi": "La preparazione delle analisi",
          "prima_risposta": "L'invio delle prime risposte", "seguiti": "L'invio dei follow-up",
          "manda": "L'invio delle mail"}
-# crediti finiti, chiave o token scaduti: da soli non si rimettono
-CHIAVE_SCADUTA = re.compile(r"insufficient_quota|credit balance|credits? (?:exhausted|finit)|billing|"
-                            r"\b402\b|invalid_api_key|invalid x-api-key|\b401\b[^\n]{0,40}(?:unauthori|invalid)|"
-                            r"invalid_grant|token (?:has )?(?:been )?(?:expired|revoked)|quota exceeded", re.I)
-
-FORNITORI = (("openai", "OpenAI"), ("anthropic", "Anthropic"), ("smartlead", "Smartlead"), ("google", "Google"),
-             ("searchapi", "SearchAPI"))
 
 
 def _nella_finestra(t):
@@ -397,12 +389,8 @@ def semaforo(ora, dati=None):
             continue
         cc = corse.get(chiave) or []
         nome = INVIO.get(chiave) or op.get("nome") or chiave
-        if cc and cc[0]["esito"] == "errore" and CHIAVE_SCADUTA.search(cc[0]["dettaglio"] or "") and ora - cc[0]["at"] < SILENZIO:
-            chi = next((n for k, n in FORNITORI if k in (cc[0]["dettaglio"] or "").lower()), "")
-            guasti.append({"chiave": f"chiave:{chiave}", "da": cc[0]["at"],
-                           "cosa": f"{nome}: crediti {chi + ' ' if chi else ''}finiti o chiave scaduta",
-                           "sta_facendo": "Da solo non riparte: va ricaricato il conto o rinnovata la chiave (dillo ad Achille)."})
-            continue
+        # crediti finiti e chiavi scadute: dalla notte del 22/10 li vede il direttore su TUTTA l'uscita
+        # di ogni corsa, anche «ok» (stanza.guarda_uscita), e arrivano qui fra i guasti scritti
         if chiave not in INVIO:
             continue
         if len(cc) >= 3 and all(c["esito"] == "errore" for c in cc[:3]):
@@ -444,12 +432,18 @@ def semaforo(ora, dati=None):
                 guasti.append({**g, "da": quando(g["da"])})
     # i guasti che il segnale provvisorio vede da dentro (Gmail ferma, memoria, calendario,
     # conversazioni): li scrive segnale_provvisorio._registra_guasto, restano rossi finche' li rivede
+    # Dalla notte del 22/10 e' la porta di tutti i guasti (stanza.guasto): un servizio giu' visto dal
+    # direttore, un file che manca, il fumo del mattino. Restano finche' un fatto non li toglie
+    # (stanza.guarito); scadono solo quelli che chi li scrive riscrive a ogni giro (`vale`, il segnale).
     for motivo, v in (dati.get("segnale") or {}).items():
-        if not isinstance(v, dict) or not v.get("il") or ora - quando(v["il"]) > SEGNALE_VISTO:
+        if not isinstance(v, dict) or not v.get("il"):
             continue
-        guasti.append({"chiave": f"segnale:{motivo}", "da": quando(v.get("dal") or v["il"]),
+        vale = v["vale"] if "vale" in v else SEGNALE_VISTO.total_seconds() / 60     # le voci di prima: 20 minuti
+        if vale and ora - quando(v["il"]) > datetime.timedelta(minutes=vale):
+            continue
+        guasti.append({"chiave": motivo if ":" in motivo else f"segnale:{motivo}", "da": quando(v.get("dal") or v["il"]),
                        "cosa": " ".join(str(v.get("testo") or motivo).split()).rstrip("."),
-                       "sta_facendo": "Il segnale riprova da solo ogni 5 minuti."})
+                       "sta_facendo": v.get("sta_facendo") or "Il segnale riprova da solo ogni 5 minuti."})
     guasti.sort(key=lambda g: g["da"])
     return guasti
 

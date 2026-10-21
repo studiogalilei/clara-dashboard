@@ -27,10 +27,9 @@ il direttore e' morto l'operazione «guasti» non gira. Gli altri guasti li suon
 import datetime
 import os
 import sys
-import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara                            # noqa: E402
+from stanza import sb                                      # noqa: E402
 
 ADESSO = datetime.datetime.now(datetime.timezone.utc)
 
@@ -55,49 +54,22 @@ def avvisa_se_fermo():
 
 
 def main():
-    guai = []
-
-    ops = sb("GET", "/rest/v1/operazioni?select=chiave,ultima_corsa,ultimo_esito&attiva=eq.true") or []
+    """Notte del 22/10: la sentinella fa UNA cosa, quella che solo lei puo' fare (guardare il direttore
+    da fuori). Prima giudicava anche i lead con regole sue («ha scritto da 45 minuti e non c'e' una
+    bozza»): dal 20/10 le conversazioni non hanno bozze per scelta, e dal 19/10 la sentinella era rossa
+    quasi a ogni giro su lead gia' in mano a Dre, in una chat che nessuno legge. Il resto lo giudica
+    il semaforo della scheda Clara, una volta sola."""
+    ops = sb("GET", "/rest/v1/operazioni?select=chiave,ultima_corsa&attiva=eq.true") or []
     fresche = [m for m in (_min_fa(o.get("ultima_corsa")) for o in ops) if m is not None]
-    if fresche and min(fresche) > 20:
-        guai.append(f"il direttore e' fermo: nessuna operazione da {int(min(fresche))} minuti")
-    for o in ops:
-        if o.get("ultimo_esito") == "errore":
-            guai.append(f"operazione «{o['chiave']}» in errore")
-
-    da = urllib.parse.quote((ADESSO - datetime.timedelta(hours=24)).isoformat())
-    attese = sb("GET", "/rest/v1/prospects?select=id,company,name,email,last_reply_at"
-                       f"&awaiting_us=eq.true&fuori=eq.false&last_reply_at=gte.{da}"
-                       "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso,nervoso))"
-                       "&order=last_reply_at.asc&limit=50") or []
-    con_proposta = {x["prospect_id"] for x in sb("GET", "/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)&limit=1000") or []}
-    for p in attese:
-        m = _min_fa(p["last_reply_at"])
-        if m and m > 45 and p["id"] not in con_proposta:
-            nome = p.get("company") or p.get("name") or p["email"]
-            guai.append(f"{nome}: ha scritto {int(m)} minuti fa e non c'e' ancora niente (ne' bozza, ne' freno)")
-
-    ferme = sb("GET", "/rest/v1/proposte?select=id,titolo,stato,risposta_il,at&stato=in.(approvata,in_invio)&limit=50") or []
-    for x in ferme:
-        m = _min_fa(x.get("risposta_il") or x.get("at"))
-        if m and m > 30:
-            guai.append(f"proposta «{x['titolo'][:50]}» {x['stato']} da {int(m)} minuti e il postino non la prende")
-
+    fermo = bool(fresche) and min(fresche) > 20
     try:
         avvisa_se_fermo()
     except Exception as e:                                 # noqa: BLE001
         print("  (avviso di guasto non partito:", str(e)[:100] + ")")
-
-    if not guai:
-        print(f"sentinella: tutto opera ({len(ops)} operazioni, {len(attese)} attese fresche seguite)")
+    if not fermo:
+        print(f"sentinella: il direttore gira ({len(ops)} operazioni accese)")
         return
-    print(f"sentinella: {len(guai)} guai")
-    for g in guai[:10]:
-        print("  !", g)
-    try:
-        di_clara("controllo", "SENTINELLA, qualcosa non opera:\n- " + "\n- ".join(guai[:8]), letto=False)
-    except Exception as e:                                 # noqa: BLE001
-        print("  (avviso non scritto:", str(e)[:60] + ")")
+    print(f"sentinella: il direttore e' fermo, nessuna operazione da {int(min(fresche))} minuti")
     sys.exit(1)        # il workflow della sentinella diventa rosso: si vede anche da GitHub
 
 

@@ -259,21 +259,10 @@ GUASTI_SEGNALE = "guasti_segnale"
 def _registra_guasto(motivo, testo):
     """Il guasto visto in questo giro, in snella_numeri («guasti_segnale»: {motivo: {testo, il, dal}}):
     lo legge il semaforo della scheda Clara (clara_foglio). Finche' il segnale lo rivede resta
-    rosso; se per 20 minuti non lo rivede, e' risolto. Non alza mai."""
-    try:
-        r = sb("GET", f"/rest/v1/snella_numeri?select=dati&chiave=eq.{GUASTI_SEGNALE}") or []
-        dati = (r[0].get("dati") if r and isinstance(r[0], dict) else None) or {}
-        if not isinstance(dati, dict):
-            dati = {}
-        prima = dati.get(motivo) if isinstance(dati.get(motivo), dict) else {}
-        ora = adesso()
-        dal = prima.get("dal") if prima.get("il") and ora - quando(prima["il"]) < datetime.timedelta(minutes=20) else None
-        dati[motivo] = {"testo": testo[:300], "il": _z(ora), "dal": dal or _z(ora)}
-        sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave",
-           [{"chiave": GUASTI_SEGNALE, "dati": dati, "aggiornato_il": _z(ora)}],
-           {"Prefer": "resolution=merge-duplicates,return=minimal"})
-    except Exception:                                            # noqa: BLE001
-        pass
+    rosso; se per 20 minuti non lo rivede, e' risolto. Non alza mai. Dalla notte del 22/10 passa
+    dalla porta di tutti (stanza.guasto), con la scadenza di 20 minuti che vale solo per lui."""
+    from stanza import guasto
+    guasto(motivo, testo, sta_facendo="Il segnale riprova da solo ogni 5 minuti.", vale=20)
 
 
 # ── la notifica sul telefono (17/10, ristretta il 20/10) ───────────
