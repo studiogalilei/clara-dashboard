@@ -331,11 +331,12 @@ def data_ooo(testo):
 LOCKED_STAGES = {"cliente", "call_fissata", "perso", "rinviato"}
 
 CALDI_GIORNI = 30          # una conversazione dove abbiamo scritto noi da meno di un mese
-CALDI_PER_GIRO = 40        # a rotazione: con ~100 fili caldi, ognuno si rilegge ogni 15 minuti circa
+CALDI_PER_GIRO = 15        # a rotazione, rete di sicurezza: le risposte nuove le dice la Master Inbox (21/10); 40 saturava la corsia
 
 
 FRESCHE_ORE = 6            # la finestra della Master Inbox: copre un ritardo di giri e il giro di notte
-FRESCHE_PAGINE = 6         # 6 x 50 = le ultime 300 risposte: piu' di una giornata piena
+FRESCHE_PAGINE = 15        # 15 x 20 = le ultime 300 risposte: piu' di una giornata piena
+MASTER_INBOX_LIMITE = 20   # 21/10 pomeriggio: Smartlead rifiuta limit > 20 (400) e il primo giro era muto
 
 
 def risposte_fresche(dal_iso, pagina=None):
@@ -347,8 +348,9 @@ def risposte_fresche(dal_iso, pagina=None):
     out = {}
     try:
         for n in range(FRESCHE_PAGINE):
-            d = pagina(n * 50, 50) if pagina else sl_post("/master-inbox/inbox-replies?fetch_message_history=false",
-                                                         {"offset": n * 50, "limit": 50, "sortBy": "REPLY_TIME_DESC"})
+            L = MASTER_INBOX_LIMITE
+            d = pagina(n * L, L) if pagina else sl_post("/master-inbox/inbox-replies?fetch_message_history=false",
+                                                       {"offset": n * L, "limit": L, "sortBy": "REPLY_TIME_DESC"})
             righe = (d or {}).get("data") or []
             if not righe:
                 break
@@ -364,12 +366,29 @@ def risposte_fresche(dal_iso, pagina=None):
                 if em not in out or t > out[em]["t"]:
                     out[em] = {"t": t, "lead_id": r.get("email_lead_id"), "campaign_id": r.get("email_campaign_id"),
                                "lead_map": r.get("email_lead_map_id")}
-            if fermati or len(righe) < 50:
+            if fermati or len(righe) < MASTER_INBOX_LIMITE:
                 break
     except Exception as e:                                   # noqa: BLE001
-        print(f"  master inbox non letta ({str(e)[:80]}): il giro va come prima")
+        print(f"  master inbox non letta ({str(e)[:160]}): il giro va come prima")
+        _segna_master_inbox(False, str(e)[:160])
         return {}
+    _segna_master_inbox(True, "")
     return out
+
+
+def _segna_master_inbox(ok, errore):
+    """Lo stato della Master Inbox in snella_numeri «sync» (giri_falliti di fila): il semaforo lo legge,
+    cosi' un fallimento ripetuto non resta muto (collaudo 21/10: 400 a ogni giro, nessuno lo vedeva)."""
+    if DRY:
+        return
+    try:
+        r = (sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.sync") or [{}])[0].get("dati") or {}
+        r["master_inbox"] = {"ok": ok, "errore": errore, "giri_falliti": 0 if ok else int((r.get("master_inbox") or {}).get("giri_falliti") or 0) + 1,
+                             "il": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave", [{"chiave": "sync", "dati": r}],
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    except Exception as e:                                   # noqa: BLE001
+        print(f"  (stato master inbox non scritto: {str(e)[:80]})")
 
 
 def da_rileggere_perche_fresca(em, known, fresche):

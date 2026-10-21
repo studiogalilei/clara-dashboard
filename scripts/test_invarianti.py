@@ -5101,9 +5101,32 @@ def _():
     assert S.da_rileggere_perche_fresca("a@x.invalid", known, f)          # ha riscritto dopo quella che conosciamo
     assert not S.da_rileggere_perche_fresca("b@x.invalid", known, f)      # gia' vista
     assert not S.da_rileggere_perche_fresca("zz@x.invalid", known, f)
+    assert S.MASTER_INBOX_LIMITE <= 20, "Smartlead rifiuta limit > 20 (400): il primo giro del 21/10 era muto"
+    chiamate = []
+    def conta(offset, limit):
+        chiamate.append((offset, limit)); return {"data": []}
+    S.risposte_fresche("2026-10-21T04:00:00", pagina=conta)
+    assert chiamate == [(0, S.MASTER_INBOX_LIMITE)], chiamate
     def rotta(offset, limit):
         raise RuntimeError("giu'")
     assert S.risposte_fresche("2026-10-21T04:00:00", pagina=rotta) == {}  # servizio giu': il giro va come prima
+
+
+@prova("semaforo e foglio: il si' a un nostro follow-up e' un si' fermo; una risposta 3 minuti dopo l'analisi e' conversazione (21/10)")
+def _():
+    import clara_foglio as CF, foglio as F
+    ora = datetime.datetime(2026, 10, 21, 10, tzinfo=datetime.timezone.utc)
+    t_si = "2026-10-21T07:47:00+00:00"
+    pos = [{"id": "p1", "company": "X", "last_reply_at": t_si, "analysis_sent_at": None, "analysis_sent": False, "classificazione": "positivo",
+            "fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False}]
+    from stanza import quando as _q
+    prima = {"p1": _q("2026-10-21T07:42:00+00:00")}   # il nostro follow-up, 5 minuti PRIMA del suo si'
+    dopo_ = {"p1": _q("2026-10-21T07:50:00+00:00")}   # una nostra mail DOPO il suo si'
+    assert any(g.get("prospect_id") == "p1" for g in CF.si_fermi(ora, positivi=pos, dopo=prima, bozze=set())), "il si' al follow-up va contato"
+    assert not CF.si_fermi(ora, positivi=pos, dopo=dopo_, bozze=set())
+    p = {"id": "p2", "classificazione": "positivo", "last_reply_at": "2026-10-15T10:03:00+00:00", "analysis_sent_at": "2026-10-15T10:00:00+00:00", "pipeline_stage": None, "stage": "risposto"}
+    assert F.fase_di(p, None, None, [], None, None, ora=ora)[0] == F.CONV
+    assert F.fase_di(dict(p, classificazione="ooo"), None, None, [], None, None, ora=ora)[0] == F.INVIATA
 
 
 def main():

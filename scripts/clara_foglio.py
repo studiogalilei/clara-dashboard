@@ -194,7 +194,8 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
         t = quando(p["last_reply_at"])
         if t < da or p.get("analysis_sent") or not contattabile(p):
             continue
-        if dopo.get(p["id"]) and dopo[p["id"]] >= t - datetime.timedelta(minutes=30):
+        # 21/10 (collaudo): una nostra mail PRIMA del suo si' (il follow-up a cui ha detto si') non lo chiude
+        if dopo.get(p["id"]) and dopo[p["id"]] > t:
             continue                                       # gli abbiamo scritto: servito
         out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t,
                     "bozza": p["id"] in bozze})

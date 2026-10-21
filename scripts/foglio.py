@@ -408,7 +408,11 @@ def fase_di(p, s, d, call, cliente, mano, interesse=False, ora=None):
     if stato == "Da chiamare" or (s or {}).get("da_chiamare"):
         return CONV, None
     if inviata:
-        return (CONV if quando(risposta) > inviata + datetime.timedelta(minutes=5) else INVIATA), None
+        # 21/10 (collaudo, Maori Group): una risposta di persona 3 minuti dopo l'analisi restava «Analisi
+        # inviata». I 5 minuti servivano per le autorisposte: ora le dice la classe (ooo), non l'orologio.
+        persona = p.get("classificazione") not in ("ooo",)
+        margine = datetime.timedelta(minutes=1 if persona else 5)
+        return (CONV if quando(risposta) > inviata + margine else INVIATA), None
     # senza analisi: nel percorso solo chi ha mostrato interesse (la lettura dell'AI, la
     # classificazione, «da chiamare»). Le altre risposte (autorisposte, «non ci interessa» non
     # ancora classificati, persone sbagliate) stanno nei conteggi: il 19/10 erano 45 su 51.
