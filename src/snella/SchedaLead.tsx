@@ -75,6 +75,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           {persona && <span className="text-inchiostro">{persona}</span>}
         </div>
         <p className="mt-1 text-[14px] text-tenue">{ultima ? `Ha scritto ${quando(ultima)}` : 'Non ha mai risposto'}</p>
+        {/* 21/10: lo «Stato» della Conversazione del foglio, sola lettura (si cambia nel foglio, non qui) */}
+        {d?.stato_conv && <p className="mt-1 text-[14px] text-tenue">Nel foglio: <span className="font-semibold text-inchiostro">{d.stato_conv}</span></p>}
         {s?.attivita && <p className="mt-3 max-w-[65ch] text-[15px] leading-relaxed text-tenue">{s.attivita}</p>}
         <ProssimaCall call={dati.call} />
       </header>

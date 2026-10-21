@@ -3164,9 +3164,9 @@ def _():
     assert "export function cellulareDi" in regole and "|| !cellulareDi(r.scheda)) continue" in regole
     oggi = open(os.path.join(radice, "src", "snella", "Oggi.tsx"), encoding="utf-8").read()
     assert "const primo = cellulareDi(s) ?? s?.telefoni[0]" in oggi
-    # le scelte a mano di Dre restano: il foglio scrive «Da chiamare» senza guardare il numero, e l'app non passa di qui
-    chiama = dict(F.effetti("scelta", "Da chiamare", datetime.date(2026, 10, 20)))["snella_lead"]
-    assert chiama["stato"] == "Da chiamare" and chiama["chiamata"] == "richiamare"
+    # le scelte a mano di Dre restano: il foglio non guarda il numero (21/10: la tendina «Da chiamare» non c'e' piu',
+    # lo «Stato» della Conversazione si salva e basta), e l'app non passa di qui
+    assert dict(F.effetti("stato_conv", "Vuole essere chiamato", datetime.date(2026, 10, 20)))["snella_lead"] == {"stato_conv": "Vuole essere chiamato"}
     assert "cellulare" not in open(F.__file__, encoding="utf-8").read().split("def effetti", 1)[1].split("\ndef ", 1)[0]
     # l'orecchio e il si' caldo passano dalla stessa riga
     assert "SP.passa_a_dre(pid, cellulare, ora)" in open(O.__file__, encoding="utf-8").read()
@@ -3627,29 +3627,105 @@ def _():
     assert F.testo("=IMPORTXML(1)").startswith("'") and F.testo("+39 333").startswith("'")
 
 
-@prova("foglio della pipeline: «Perso» e «Togli» rendono il lead non contattabile; «Da chiamare» lo porta in Oggi")
+@prova("foglio della pipeline: «Togli» rende il lead non contattabile; lo «Stato» della Conversazione si salva e basta")
 def _():
     import datetime, foglio as F
     from stanza import contattabile
     oggi = datetime.date(2026, 10, 19)
     lead = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo"}
     assert contattabile(lead)
-    for campo, valore in (("scelta", "Perso"), (F.SPOSTA, F.TOGLI)):
-        p = dict(lead)
-        for tabella, cosa in F.effetti(campo, valore, oggi):
-            if tabella == "prospects":
-                p.update(cosa)
-        assert not contattabile(p), (campo, valore, p)
-        assert ("snella_lead", {"stato": "Perso"}) in F.effetti(campo, valore, oggi)
+    p = dict(lead)
+    for tabella, cosa in F.effetti(F.SPOSTA, F.TOGLI, oggi):
+        if tabella == "prospects":
+            p.update(cosa)
+    assert not contattabile(p), p
+    assert ("snella_lead", {"stato": "Perso"}) in F.effetti(F.SPOSTA, F.TOGLI, oggi)
     p = dict(lead)
     for tabella, cosa in F.effetti(F.SPOSTA, F.CLIENTE, oggi):
         if tabella == "prospects":
             p.update(cosa)
     assert not contattabile(p), "un cliente spostato dal foglio non si contatta"
-    chiama = dict(F.effetti("scelta", "Da chiamare", oggi))["snella_lead"]
-    assert chiama["chiamata"] == "richiamare" and chiama["richiamare_il"] == "2026-10-19" and chiama["stato"] == "Da chiamare"
-    attesa = dict(F.effetti("scelta", "In attesa di risposta", oggi))
-    assert attesa["snella_lead"]["prossima_il"] == "2026-10-24" and attesa["attesa"]
+    # 21/10: la tendina «Stato» e' una parola di Dre, non un comando: niente stage, niente mail, solo la scheda
+    assert F.effetti("stato_conv", F.NO, oggi) == [("snella_lead", {"stato_conv": "Ha detto no"})]
+    assert F.effetti("stato_conv", "", oggi) == [("snella_lead", {"stato_conv": None})], "la cella svuotata da Dre svuota anche la scheda"
+    assert F.effetti("stato_conv", "Perso", oggi) == [], "un valore fuori tendina non si scrive"
+    assert "scelta" not in F.DI_DRE and not any("scelta" in b["campi"] for b in F.BLOCCHI), "«La tua scelta» non c'e' piu' (Dre, 21/10)"
+
+
+@prova("foglio, lo «Stato» della Conversazione (Dre, 21/10): la mappa dei casi; il sistema lo mette una volta all'ingresso, poi e' solo di Dre")
+def _():
+    import datetime, foglio as F
+    # la mappa caso -> stato, dalla carta del lettore
+    L = lambda caso, **k: {"fonte": "lettore", "caso": caso, **k}                                   # noqa: E731
+    assert len(F.STATI_CONV) == 9 and F.STATI_CONV[0] == "Ha proposto un orario" and F.STATI_CONV[-1] == "Ho risposto, aspetto"
+    assert all(v in F.STATI_CONV for v in F.STATO_DEL_CASO.values())
+    assert F.stato_dal_lettore(L("C15", caldo=True), True) == F.ORARIO                            # «possiamo sentirci il 23 alle 9»
+    assert F.stato_dal_lettore(L("C11"), True) == F.ACCETTATO and F.stato_dal_lettore(L("C12"), True) == F.ACCETTATO
+    assert F.stato_dal_lettore(L("C19"), True) == F.NO and F.stato_dal_lettore(L("C28"), True) == F.NO
+    assert F.stato_dal_lettore(L("C19"), False) == "", "un no prima dell'analisi non e' «ha detto no dopo l'analisi»"
+    assert F.stato_dal_lettore(L("C36"), True) == F.FA_SAPERE and F.stato_dal_lettore(L("C26"), True) == F.FA_SAPERE
+    assert F.stato_dal_lettore(L("C18"), True) == F.DOMANDE and F.stato_dal_lettore(L("C20"), True) == F.DOMANDE
+    assert F.stato_dal_lettore(L("C17"), True) == F.RIMANDA and F.stato_dal_lettore(L("C21"), False) == F.RIMANDA
+    assert F.stato_dal_lettore(L("C25", data="2027-01-10"), True) == F.RIMANDA, "«al momento no, risentiamoci a gennaio» rimanda"
+    assert F.stato_dal_lettore(L("C35"), True) == F.COLLEGA and F.stato_dal_lettore(L("C37"), True) == F.COLLEGA
+    assert F.stato_dal_lettore(L("C05", caldo=True), False) == F.CHIAMATO
+    assert F.stato_dal_lettore(L("C10", caldo=True, caldo_motivi=["propone_orario"]), False) == F.ORARIO
+    assert F.stato_dal_lettore(L("C01", caldo=True, caldo_motivi=["lascia_numero"], numero_nel_messaggio=True), True) == F.CHIAMATO, "fuori mappa ma ha lasciato il numero"
+    assert F.stato_dal_lettore(L("C16", caldo=True, caldo_motivi=["lascia_numero"]), True) == F.FA_SAPERE, "un caso in mappa tiene il suo stato"
+    for caso in ("C01", "C02", "C13", "C14", "C40", "C47", "C51"):
+        assert F.stato_dal_lettore(L(caso), True) == "", caso                                        # lo mette Dre
+    # un risponditore col numero «per urgenze» (caso vero del 21/10) non vuole essere chiamato
+    assert F.stato_dal_lettore(L("C47", caldo=True, numero_nel_messaggio=True), True) == ""
+    assert F.stato_dal_lettore(L("C16", caldo=True, numero_nel_messaggio=True, autore="automatico"), True) == ""
+    assert F.stato_dal_lettore({"fonte": "liste", "caso": "C15"}, True) == "" and F.stato_dal_lettore({}, True) == ""
+    assert "Ho risposto, aspetto" not in F.STATO_DEL_CASO.values(), "lo mette solo Dre"
+    # il giro: prima scrittura si', riscrittura no (anche se la lettura cambia), Dre vince, esce e rientra
+    ora = datetime.datetime(2026, 10, 21, 9, tzinfo=datetime.timezone.utc)
+    lett = {"fonte": "lettore", "caso": "C18", "classe": "da_classificare", "risposta_il": "2026-10-20T08:00:00"}
+    p = {"id": "a", "company": "Prova srl", "last_reply_at": "2026-10-20T08:00:00+00:00", "analysis_sent_at": "2026-10-12T08:00:00+00:00", "lettore": lett}
+    dati = {"ps": {"a": p}, "schede": {}, "dec": {}, "clienti": {}, "agenda": [], "retainer": {}, "prova_costo": {}, "interesse": set()}
+    st = {"scritto": {}, "dre": {}, "mano": {}, "attesa": {}, "call": {}, "stato_conv": {}}
+    per_fase, _ = F.calcola(dati, st, ora)
+    riga = per_fase[F.CONV][0]
+    assert riga["stato_conv"] == "", "prima dell'ingresso la cella e' vuota"
+    log = F.stati_all_ingresso(per_fase, dati, st, ora)
+    assert riga["stato_conv"] == F.DOMANDE and log and st["stato_conv"]["a"]["v"] == F.DOMANDE, (riga, st)
+    righe, scritto = F.griglia(per_fase, 0, ora)
+    b = next(x for x in F.BLOCCHI if x["fase"] == F.CONV)
+    assert righe[F.PRIMA - 1][F.colonna(b, "stato_conv")] == F.DOMANDE and scritto["a"]["stato_conv"] == F.DOMANDE
+    assert righe[2][F.colonna(b, "stato_conv")] == "Stato" and b["campi"].index("stato_conv") > b["campi"].index("prossimo")
+    # il lead riscrive e il lettore legge un'altra cosa: lo stato non si tocca
+    p["last_reply_at"] = "2026-10-21T08:00:00+00:00"
+    p["lettore"] = {"fonte": "lettore", "caso": "C19", "risposta_il": "2026-10-21T08:00:00"}
+    per_fase, _ = F.calcola(dati, st, ora)
+    assert F.stati_all_ingresso(per_fase, dati, st, ora) == [] and per_fase[F.CONV][0]["stato_conv"] == F.DOMANDE
+    # Dre lo cambia nel foglio: e' una sua scrittura, vince per sempre
+    st["scritto"] = scritto
+    assert F.scritture_di_dre({"a": {"stato_conv": F.DOMANDE}}, st) == []
+    assert F.scritture_di_dre({"a": {"stato_conv": F.ASPETTO}}, st) == [("a", "stato_conv", F.ASPETTO)]
+    st["dre"]["a"] = {"stato_conv": {"v": F.ASPETTO, "il": ora.isoformat()}}
+    per_fase, _ = F.calcola(dati, st, ora)
+    assert per_fase[F.CONV][0]["stato_conv"] == F.ASPETTO and F.stati_all_ingresso(per_fase, dati, st, ora) == []
+    # esce (call fissata) e rientra: lo stato di Dre e' ancora li'
+    dati["agenda"] = [{"id": 1, "at": "2026-10-22T09:00:00+00:00", "tipo": "conoscitiva", "prospect_id": "a"}]
+    per_fase, _ = F.calcola(dati, st, ora)
+    assert per_fase[F.CONO] and not per_fase[F.CONV]
+    dati["agenda"] = []
+    per_fase, _ = F.calcola(dati, st, ora)
+    assert per_fase[F.CONV][0]["stato_conv"] == F.ASPETTO
+    # Dre svuota la cella: resta vuota, il sistema non la riempie di nuovo
+    st["dre"]["a"] = {"stato_conv": {"v": "", "il": ora.isoformat()}}
+    per_fase, _ = F.calcola(dati, st, ora)
+    assert per_fase[F.CONV][0]["stato_conv"] == "" and F.stati_all_ingresso(per_fase, dati, st, ora) == []
+    # senza lettura del lettore sulla sua ultima mail: vuoto, lo mette Dre (e si riprova al giro dopo)
+    st2 = {"scritto": {}, "dre": {}, "mano": {}, "attesa": {}, "call": {}, "stato_conv": {}}
+    p["lettore"] = {"fonte": "lettore", "caso": "C18", "risposta_il": "2026-10-01T08:00:00"}
+    per_fase, _ = F.calcola(dati, st2, ora)
+    assert F.stati_all_ingresso(per_fase, dati, st2, ora) == [] and per_fase[F.CONV][0]["stato_conv"] == "" and st2["stato_conv"] == {}
+    # la legenda nella nota del titolo, senza «·»
+    assert "Stato: lo mette il sistema" in F.FRASE_USO and "·" not in F.FRASE_USO and not any("·" in v for v in F.STATI_CONV)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(F.__file__)), "foglio.py"), encoding="utf-8").read()
+    assert "STATI_CONV" in src.split("def forma(")[1].split("def leggi_celle(")[0], "la tendina nel foglio ha i nove valori"
 
 
 @prova("foglio della pipeline: spostare = copiare il nome in un'altra colonna, togliere = cancellarlo; un nome sconosciuto non fa niente (Dre, 19/10 sera)")
@@ -3752,7 +3828,7 @@ def _():
     assert set(_re.findall(r'proponi\("(\w+)"', codice)) == {"umano"}, "il foglio fa solo domande a Dre, mai bozze"
     oggi = datetime.date(2026, 10, 19)
     for campo in (*F.DI_DRE, F.SPOSTA):
-        for v in ("", "x", 100, "2026-10-21", F.TOGLI, *F.FASI, *F.SCELTE):
+        for v in ("", "x", 100, "2026-10-21", F.TOGLI, *F.FASI, *F.STATI_CONV):
             for tabella, _ in F.effetti(campo, v, oggi):
                 assert tabella in ("prospects", "snella_lead", "snella_note", "mano", "attesa"), (campo, v, tabella)
     import direttore

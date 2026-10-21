@@ -4401,3 +4401,90 @@ on conflict (chiave) do nothing;
 insert into snella_numeri (chiave, dati, aggiornato_il) values
   ('lettore', '{"modo": "ombra", "tetto_giorno": 2.0}'::jsonb, now())
 on conflict (chiave) do nothing;
+
+-- ─── schema_v96.sql ────────────────────────────────────────────
+
+-- schema_v96 (20/10/2026 sera): «La giornata», una mail sola a Dre alle 19.
+-- Dre: «metti delle regole anche alle mail che mi arrivano, perché me le manda un po' a caso. A chiusura
+-- della giornata voglio UNA mail, alle 19, che mi dica cosa è stato completato, per andare a letto sereno».
+-- Le mail di giornata del segnale provvisorio («Sì da servire», «Vuole sentirti», «Da guardare»,
+-- «Prenotato/Spostata/Cancellata») non partono piu'; resta solo la scheda prima di una call.
+-- Nessuna tabella nuova: una riga in operazioni (scripts/giornata.py, ore 19) e lo storico dei guasti
+-- risolti nel giorno dentro snella_numeri «guasti» (dati.risolti), che tiene guasti.py.
+
+insert into operazioni (chiave, nome, cosa, comando, cadenza_minuti, ora_preferita, ordine, attiva) values
+  ('giornata', 'La giornata, alle 19',
+   'Una mail sola a Dre a fine giornata: se il sistema ha funzionato (o cosa si e'' rotto e la soluzione), i numeri di oggi, cosa aspetta lui, le call di domani. L''unica mail di giornata insieme alla scheda prima di una call.',
+   'python3 scripts/giornata.py', 1440, '19:00', 25, true)
+on conflict (chiave) do nothing;
+
+-- ─── schema_v97.sql ────────────────────────────────────────────
+
+-- schema_v97 (21/10/2026 notte): le strade. Dre: «quando il sistema e' indeciso, mi da' 2 o 3 strade
+-- e io scelgo, e lui procede. Cosi' lo alleno anche».
+-- Nessuna tabella nuova: una riga in operazioni (scripts/strade.py, ogni 15 minuti, corsia leggera).
+-- Le strade vivono in proposte.azione.strade (lista, max 3) con strade_il; la scelta di Dre in
+-- proposte.azione.scelta (caso del lettore, intento, le strade proposte, quale ha scelto, quando);
+-- lo specchio leggibile delle ultime 30 scelte in snella_numeri «scelte_di_dre», il conto e il tetto
+-- di spesa (3 $ al giorno, uso_modelli scopo «strade») in snella_numeri «strade».
+-- (La riga e' stata inserita anche via REST la notte del 21/10: qui resta per lo storico e per chi
+-- rifa' il database da zero.)
+
+insert into operazioni (chiave, nome, cosa, comando, cadenza_minuti, ora_preferita, ordine, attiva) values
+  ('strade', 'Le strade, quando il sistema e'' indeciso',
+   'Per ogni risposta ferma «Da guardare tu» e per chi e'' in conversazione senza una nostra risposta da piu'' di un giorno, il modello propone a Dre 2 o 3 strade (manda con la bozza, ricontatta a una data, chiudi, chiama, niente). Dre ne tocca una nella scheda e il sistema la esegue; la scelta insegna al sistema. Tetto di spesa 3 $ al giorno.',
+   'python3 scripts/strade.py', 15, null, 3, true)
+on conflict (chiave) do nothing;
+
+comment on table snella_numeri is 'La versione snella (15/10): i numeri gia'' fatti dagli script (oggi, call, campagne, lettore, guasti, strade, scelte_di_dre).';
+
+select 'schema v97 applicato: le strade' as esito;
+
+-- ─── schema_v98.sql ────────────────────────────────────────────
+
+-- schema_v98 (21/10/2026): lo «Stato» della Conversazione nel foglio della pipeline.
+-- Dre, 21/10: nel blocco Conversazione la cella «La tua scelta» diventa una tendina «Stato» con nove
+-- valori (ha proposto un orario, meeting accettato, ha detto no, ci fa sapere, ha fatto domande,
+-- rimanda a una data, girato a un collega, vuole essere chiamato, ho risposto e aspetto).
+-- «Quando il sistema lo carica mette lo stato in base a quello che ha detto, SOLO quando lo carica;
+-- il resto gestisco io e modifico io»: scripts/foglio.py lo scrive una volta, all'ingresso in
+-- Conversazione, dalla lettura del lettore AI; da li' la cella e' di Dre.
+--
+-- Qui: la colonna snella_lead.stato_conv, cosi' la scheda azienda del Workspace lo mostra («Nel foglio:
+-- Ha fatto domande»). Lo scrive il foglio (chiave di servizio), non Dre nell'app: per questo NON conta
+-- come un suo tocco. aggiornato_il resta «l'ultima volta che Dre ha toccato il lead nell'app» (ci
+-- contano conversazioni.py, orecchio.py e foglio.py per dire «vince Dre»): una riga nata dal foglio con
+-- il solo stato_conv ha aggiornato_il nullo, e un cambio del solo stato_conv non lo muove.
+
+alter table snella_lead add column if not exists stato_conv text;
+alter table snella_lead drop constraint if exists snella_lead_stato_conv_check;
+alter table snella_lead add constraint snella_lead_stato_conv_check check (stato_conv is null or stato_conv in (
+  'Ha proposto un orario', 'Meeting accettato', 'Ha detto no', 'Ci fa sapere', 'Ha fatto domande',
+  'Rimanda a una data', 'Girato a un collega, con contatto', 'Vuole essere chiamato', 'Ho risposto, aspetto'));
+comment on column snella_lead.stato_conv is 'Lo «Stato» della Conversazione nel foglio della pipeline (scripts/foglio.py): lo mette il sistema una volta quando il lead entra, poi lo cambia Dre nel foglio. Sola lettura nell''app.';
+
+alter table snella_lead alter column aggiornato_il drop not null;
+comment on column snella_lead.aggiornato_il is 'L''ultima volta che Dre ha toccato il lead nell''app (stato, mossa, chiamata). Nullo se la riga e'' nata dal foglio col solo stato_conv.';
+
+create or replace function snella_toccata() returns trigger language plpgsql as $$
+begin
+  if tg_op = 'UPDATE' then
+    -- cambia solo stato_conv (il foglio): non e' un tocco di Dre
+    if (to_jsonb(new) - 'stato_conv' - 'aggiornato_il' - 'aggiornato_da') = (to_jsonb(old) - 'stato_conv' - 'aggiornato_il' - 'aggiornato_da') then
+      new.aggiornato_il = old.aggiornato_il;
+      new.aggiornato_da = old.aggiornato_da;
+      return new;
+    end if;
+  elsif new.stato_conv is not null and new.stato is null and new.prossima_mossa is null and new.prossima_il is null
+        and new.chiamata is null and new.chiamata_il is null and new.richiamare_il is null and new.responsabile is null then
+    -- una riga nata dal foglio col solo stato_conv: Dre non l'ha mai toccata
+    new.aggiornato_il = null;
+    new.aggiornato_da = null;
+    return new;
+  end if;
+  new.aggiornato_il = now();
+  new.aggiornato_da = auth.uid();
+  return new;
+end $$;
+
+select 'schema v98 applicato: lo Stato della Conversazione nel foglio' as esito;

@@ -9,16 +9,18 @@ approvato sta in docs/superpowers/specs/2026-10-19-foglio-pipeline-design.md («
 semplice, non complicarla, fai e basta»). L'app resta la scheda del lead; il foglio e' la vista.
 
 COSA FA, a ogni giro (il direttore, corsia leggera, ogni 10 minuti)
-1. LEGGE PRIMA DRE. Le celle gialle del foglio (la scelta della Conversazione, costo, inizio e
+1. LEGGE PRIMA DRE. Le celle gialle del foglio (lo «Stato» della Conversazione, costo, inizio e
    fine della Prova, il retainer, la «Nota per Achille») si confrontano con quello che il sistema
    ci aveva scritto: quello che e' diverso l'ha scritto Dre. Si salva nel database e da li' non si
    riscrive piu' (vince sempre Dre). Spostare e togliere si fa col copia e incolla (Dre, 19/10 sera):
    un nome d'azienda incollato nella colonna Azienda di un'altra fase (senza id nella colonna
    nascosta) e' uno spostamento; un nome cancellato dalla sua riga e' un «togli». Gli effetti:
    - spostato in una fase: la fase nel database (pipeline_stage, come la carta del Workspace) e lo
-     stato nell'app; tolto e «Perso»: perso, quindi mai piu' contattabile;
-   - «Da chiamare»: entra in Oggi da chiamare; «In attesa di risposta»: dopo 5 giorni senza
-     novita' un promemoria a Dre (nell'app; niente notifica dal 20/10);
+     stato nell'app; tolto: perso, quindi mai piu' contattabile;
+   - lo «Stato» della Conversazione (Dre, 21/10: nove voci, «quando il sistema lo carica mette lo
+     stato in base a quello che ha detto, SOLO quando lo carica; il resto gestisco io e modifico io»):
+     il sistema lo scrive una volta, all'ingresso in Conversazione, dalla lettura del lettore AI
+     (STATO_DEL_CASO); da li' la cella e' sua, e si salva in snella_lead.stato_conv per la scheda;
    - una nota: nelle note del lead nell'app, a nome di Dramane (le legge Achille);
    - inizio e fine della prova, il retainer: sulla scheda (il retainer va in cassaforte da solo).
 2. RISCRIVE IL RESTO. Una riga in alto (titolo, settimana, quando e' stato aggiornato, come si usa),
@@ -65,7 +67,6 @@ FASE_DI_STATO = _ST["fase_di_stato"]
 FUORI = _ST["fuori_percorso"]                      # stato -> etichetta del conteggio
 PREP, INVIATA, CONV, CONO, TECN, AVVIO, PROVA_F, CLIENTE = FASI
 TOGLI = "Togli dal foglio"
-SCELTE = ("Da chiamare", "In attesa di risposta", "Perso")
 ATTESA_GIORNI = 5
 CALL_GIORNI = 45
 FERMO_GIORNI = 60
@@ -78,7 +79,7 @@ COMMERCIALE = "1ipPNIf8Ep-XFIZq23u4vG8V6xJgpuo5m"     # «2 Commerciale» nel Dr
 CHIAMATE = "1PWqTL7hhhPr6JaYNbBfadxnojPWAlWb6"        # «Chiamate» (l'ex «5 Riunioni»)
 NOME_FOGLIO = "Pipeline Studio Galilei"
 SCHEDA = "Pipeline"
-LAYOUT = 5                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco; 4: il blocco Progetti; 5: i link scheda e filo, il «prossimo» (20/10)
+LAYOUT = 6                       # cambia la forma -> il foglio si ricostruisce (dopo aver letto Dre). 2: Dre, 19/10 sera, «less noise»; 3: via la settimana, la data di ogni blocco; 4: il blocco Progetti; 5: i link scheda e filo, il «prossimo» (20/10); 6: la tendina «Stato» della Conversazione (21/10)
 PRIMA = 4                        # la prima riga degli elenchi (contando da 1): titolo, intestazioni delle fasi, titoli delle colonne
 RIGHE = 1000
 SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
@@ -91,11 +92,91 @@ MESI = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", 
 # ── la forma: un blocco di colonne per fase ───────────────────────────
 # Le celle di Dre (gialle) e quelle del sistema. L'id del lead sta in una colonna nascosta: le
 # righe si riordinano a ogni giro, l'id dice di chi e' una cella che Dre ha scritto.
-DI_DRE = ("scelta", "costo", "inizio", "fine", "retainer", "nota")
+DI_DRE = ("stato_conv", "costo", "inizio", "fine", "retainer", "nota")
 # Spostare e togliere un lead (Dre, 19/10 sera: «"Sposta in" non serve, posso copiare e incollare nel
 # luogo giusto»): si copia il nome dell'azienda nella colonna Azienda di un'altra fase, o lo si cancella.
 SPOSTA = "sposta"                # il nome interno della mossa (effetti), non una colonna
-FRASE_USO = "Scrivi nelle celle gialle (le Note sono tue: Achille le legge). Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo."
+FRASE_USO = ("Scrivi nelle celle gialle (le Note sono tue: Achille le legge). "
+             "Stato: lo mette il sistema quando il lead entra in Conversazione, poi lo cambi tu. "
+             "Per spostare un lead copia il nome in un'altra colonna; per toglierlo cancellalo.")
+
+# LO «STATO» DELLA CONVERSAZIONE (Dre, 21/10, approvato): la tendina nel blocco Conversazione, in
+# quest'ordine. «Quando il sistema lo carica mette lo stato in base a quello che ha detto, SOLO quando
+# lo carica pero'; il resto gestisco io e modifico io». Quindi il sistema lo scrive UNA volta, quando il
+# lead entra in Conversazione (o alla prima costruzione per chi c'e' gia'), dalla lettura del lettore AI
+# sulla sua ultima mail; se il lettore non l'ha letta, la cella resta vuota e la mette Dre. Da li' la cella
+# e' solo sua: non si riscrive mai, nemmeno se il lead riscrive, e resta anche se cambia blocco e torna.
+STATI_CONV = (
+    "Ha proposto un orario",                 # 1. diverso dal nostro
+    "Meeting accettato",                     # 2. ha detto si' al nostro orario
+    "Ha detto no",                           # 3. dopo l'analisi
+    "Ci fa sapere",                          # 4. si sente con un collega, lo gira ad altri, «vi faccio sapere»
+    "Ha fatto domande",                      # 5. domande, obiezioni, prezzo
+    "Rimanda a una data",                    # 6. «risentiamoci a gennaio» (la data, se c'e', sta in «Prossimo»)
+    "Girato a un collega, con contatto",     # 7. col nome e l'indirizzo del collega
+    "Vuole essere chiamato",                 # 8. lascia il numero o chiede di essere chiamato, senza un orario
+    "Ho risposto, aspetto",                  # 9. lo mette solo Dre, dopo che ha scritto lui
+)
+ORARIO, ACCETTATO, NO, FA_SAPERE, DOMANDE, RIMANDA, COLLEGA, CHIAMATO, ASPETTO = STATI_CONV
+# La mappa caso del lettore (la carta in scripts/lettore_regole.json) -> stato. Quello che non c'e' resta
+# vuoto: lo mette Dre. I «no» valgono solo se la mail e' dopo l'analisi (prima non e' una conversazione).
+STATO_DEL_CASO = {
+    "C15": ORARIO,       # «L'ho letta, sentiamoci»: dopo l'analisi vuole una call (di solito con un giorno: «possiamo sentirci il 23 alle 9»)
+    "C11": ACCETTATO,    # «Ok per l'orario»: accetta (o sposta) l'orario che gli abbiamo proposto noi
+    "C12": ACCETTATO,    # «Ho prenotato dal calendario»
+    "C19": NO,           # «No, dopo l'analisi», senza discuterla
+    "C09": NO,           # «No, ma la mandi pure»: un no che accetta l'analisi
+    "C24": NO,           # «No, grazie»
+    "C25": NO,           # «Al momento no» (con una data di ricontatto diventa RIMANDA, vedi stato_dal_lettore)
+    "C27": NO,           # «Abbiamo gia' chi ci segue»
+    "C28": NO,           # «Non ci serve»: no motivato (budget, troppo lavoro, il settore)
+    "C22": NO,           # «Ora non e' il momento», senza una data («non e' un buon momento per investire»)
+    "C16": FA_SAPERE,    # «La guardo / l'ho girata / grazie»: «le faccio sapere», «l'ho sottoposta al titolare»
+    "C36": FA_SAPERE,    # «L'ho girata, vi contatteranno»: un collega col solo nome, senza indirizzo
+    "C26": FA_SAPERE,    # «No, ma vi terremo presenti»: «se valuteremo una collaborazione vi contatteremo»
+    "C04": FA_SAPERE,    # «Mandatela, se ci interessa vi cerchiamo noi»
+    "C18": DOMANDE,      # «Critica o domanda sull'analisi»
+    "C20": DOMANDE,      # «Non e' arrivata o allegato sbagliato»: risponde Dre
+    "C29": DOMANDE,      # «Un'obiezione da smontare» (Google non ha funzionato, «siete automatici»)
+    "C06": DOMANDE,      # «Si', e una domanda» (criteri, servizio, prezzo)
+    "C08": DOMANDE,      # «Chi siete? Di cosa si tratta?»
+    "C34": DOMANDE,      # «Controproposta» (equity, percentuale)
+    "C17": RIMANDA,      # «Interessante, ma piu' avanti» (a un momento o a una data: «dopo la stagione», «nei mesi invernali»)
+    "C21": RIMANDA,      # «Risentiamoci a una data»
+    "C35": COLLEGA,      # «Scriva a quest'altro indirizzo»: il collega con la sua mail
+    "C37": COLLEGA,      # «Mette in copia un collega»
+    "C05": CHIAMATO,     # «Si', e poi sentiamoci»: caldo, senza un orario
+    "C10": CHIAMATO,     # «Chiamami / proponetemi un giorno»: chiede la chiamata o lascia il numero (con un orario diventa ORARIO)
+    # tutto il resto (i si' semplici C01-C03, C07, la call da spostare C13, dopo la call C14, gli irritati, i fuori
+    # ufficio, gli automatici, le persone sbagliate, le risposte vuote): vuoto, lo mette Dre
+}
+# fra i no, questi rimandano se c'e' una data di ricontatto letta dal lettore
+NO_CON_DATA = {"C25", "C22", "C26"}
+# i messaggi di una macchina (cambio indirizzo, fuori ufficio, ricevute, rimbalzi): mai uno stato, nemmeno
+# se c'e' un numero «per urgenze» dentro (21/10: un risponditore col numero letto come caldo)
+CASI_AUTOMATICI = {"C38", "C43", "C44", "C45", "C46", "C47", "C48"}
+
+
+def stato_dal_lettore(l, dopo_analisi):
+    """Lo «Stato» della Conversazione dalla lettura del lettore AI sulla sua ultima mail (stanza.lettore_di),
+    o '' se non si sa: la tendina la riempie Dre. Pura: la provano le invarianti."""
+    l = l or {}
+    if l.get("fonte") != "lettore" or not l.get("caso"):
+        return ""
+    caso = l["caso"]
+    if caso in CASI_AUTOMATICI or l.get("autore") == "automatico":
+        return ""
+    stato = STATO_DEL_CASO.get(caso, "")
+    motivi = set(l.get("caldo_motivi") or [])
+    if stato in (NO, FA_SAPERE) and caso in NO_CON_DATA and l.get("data"):
+        stato = RIMANDA                            # «al momento no, risentiamoci a gennaio»
+    if stato == NO and not dopo_analisi:
+        return ""                                  # un no prima dell'analisi non e' «ha detto no dopo l'analisi»
+    if stato == CHIAMATO and ("propone_orario" in motivi or l.get("orario_iso")):
+        return ORARIO                              # «chiamami giovedi' alle 10» e' un orario proposto
+    if not stato and l.get("caldo") and (motivi & {"chiede_chiamata", "lascia_numero"} or l.get("numero_nel_messaggio")):
+        return CHIAMATO                            # un caso fuori mappa, ma ha chiesto di essere chiamato o ha lasciato il numero
+    return stato
 # Dre, 19/10 sera: «togli la roba della data settimana; metti sopra ogni cella una scritta dell'ultima volta
 # che e' stata modificata dal sistema, font piccolo grigio non invasivo». Sopra ogni blocco, nella riga del
 # titolo: l'ultima volta che il sistema ha cambiato qualcosa in quel blocco (non l'ora dell'ultimo giro).
@@ -133,7 +214,7 @@ def _blocchi(layout=None):
         if layout >= 5 and fase in CON_PROSSIMO:
             campi += [("prossimo", "Prossimo", 70)]
         if fase == CONV:
-            campi += [("scelta", "La tua scelta", 150)]
+            campi += [("stato_conv", "Stato", 200)] if layout >= 6 else [("scelta", "La tua scelta", 150)]
         campi += [("nota", "Note", 170), ("id", "id", 20)]
         out.append({"fase": fase, "da": col, "campi": [c[0] for c in campi], "titoli": [c[1] for c in campi],
                     "larghezze": [c[2] for c in campi]})
@@ -234,12 +315,13 @@ def testo(v):
 # ── lo stato del foglio nel database (snella_numeri, chiave «foglio») ──
 # scritto: quello che il sistema ha messo nelle celle di Dre l'ultima volta (per capire cosa ha
 # cambiato lui); dre: quello che ha scritto Dre, con la data (non si riscrive mai); mano: le fasi
-# decise a mano; attesa: chi e' «In attesa di risposta»; call: gli appunti delle call gia' visti.
+# decise a mano; attesa: chi era «In attesa di risposta» (tendina vecchia, fino al 21/10); call: gli
+# appunti delle call gia' visti; stato_conv: lo «Stato» della Conversazione messo dal sistema all'ingresso.
 
 def carica_stato():
     r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.foglio") or []
     st = (r[0]["dati"] if r else None) or {}
-    for k in ("scritto", "dre", "mano", "attesa", "call"):
+    for k in ("scritto", "dre", "mano", "attesa", "call", "stato_conv"):
         st.setdefault(k, {})
     return st
 
@@ -257,7 +339,7 @@ def salva_stato(st, fasi_app):
 # ── i dati ────────────────────────────────────────────────────────────
 
 CAMPI_P = ("id,company,name,email,stage,pipeline_stage,fuori,classificazione,analysis_sent,analysis_sent_at,"
-           "last_reply_at,awaiting_us,prova_inizio,prova_fine,sg_id,campaign_id,lead_id")
+           "last_reply_at,awaiting_us,prova_inizio,prova_fine,sg_id,campaign_id,lead_id,lettore:enriched->lettore")
 
 
 def _pezzi(ids, n=80):
@@ -462,6 +544,49 @@ def valore_dre(st, pids, campo):
     return max(scelte, key=lambda x: x.get("il") or "")["v"] if scelte else None
 
 
+def stato_conv_messo(st, pids):
+    """Lo «Stato» che il sistema ha messo una volta all'ingresso in Conversazione (st["stato_conv"]), per
+    uno qualunque dei contatti dell'azienda; '' se non l'ha mai messo. Resta anche se il lead cambia
+    blocco e torna: la cella e' di Dre, il sistema non la ricalcola."""
+    messi = [st["stato_conv"][pid] for pid in pids if (st.get("stato_conv") or {}).get(pid, {}).get("v")]
+    return max(messi, key=lambda x: x.get("il") or "")["v"] if messi else ""
+
+
+def dopo_analisi(p, s):
+    """La sua ultima mail e' arrivata dopo l'analisi? (la stessa regola di fase_di)"""
+    risposta = _piu_recente((s or {}).get("ultima_risposta"), p.get("last_reply_at"))
+    inviata = analisi_il(p, s)
+    return bool(risposta and inviata and quando(risposta) > inviata)
+
+
+def stati_all_ingresso(per_fase, dati, st, ora):
+    """Lo «Stato» della Conversazione, scritto dal sistema UNA volta (Dre, 21/10: «solo quando lo carica»):
+    per chi sta in Conversazione senza uno stato (ne' di Dre, ne' gia' messo dal sistema), dalla lettura del
+    lettore sulla sua ultima mail. Se il lettore non l'ha letta la cella resta vuota (la mette Dre) e si
+    riprova al giro dopo, finche' nessuno l'ha scritta. Mette il valore nella riga, lo ricorda in
+    st["stato_conv"] e lo salva in snella_lead.stato_conv (per la scheda). Torna le righe del log."""
+    log = []
+    for riga in per_fase.get(CONV) or []:
+        pids = riga.get("pids") or [riga["id"]]
+        if valore_dre(st, pids, "stato_conv") is not None or stato_conv_messo(st, pids):
+            continue                               # di Dre, o gia' messo: non si tocca piu'
+        p, s = dati["ps"].get(riga["id"]) or {}, dati["schede"].get(riga["id"]) or {}
+        l = lettore_di(p)
+        v = stato_dal_lettore(l, dopo_analisi(p, s))
+        if not v:
+            continue
+        riga["stato_conv"] = v
+        log.append(f"  stato all'ingresso: {riga['azienda'][:40]} -> «{v}» ({l.get('caso')})")
+        il = ora.isoformat()
+        for x in pids:
+            st["stato_conv"][x] = {"v": v, "il": il, "caso": l.get("caso"), "risposta_il": l.get("risposta_il")}
+        if PROVA:
+            continue                               # la memoria resta nel giro (non si salva), il database no
+        sb("POST", "/rest/v1/snella_lead?on_conflict=prospect_id", [{"prospect_id": x, "stato_conv": v} for x in pids],
+           {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    return log
+
+
 def calcola(dati, st, ora):
     """Le righe di ogni fase e i conteggi. Torna (per_fase {fase: [riga]}, fasi_app {pid: fase o etichetta})."""
     ps, schede, dec = dati["ps"], dati["schede"], dati["dec"]
@@ -505,7 +630,7 @@ def calcola(dati, st, ora):
             tutte = [a for x in pids for a in call_di.get(x, [])]
             riga["dettaglio"], riga["ordine"] = _dettaglio_call(tutte, fase, ora)
         # le celle di Dre: quello che ha scritto lui, se no quello che sa il sistema
-        sistema = {"sposta": "", "nota": "", "scelta": "",
+        sistema = {"sposta": "", "nota": "", "stato_conv": stato_conv_messo(st, pids),
                    "costo": next((dati["prova_costo"][x] for x in pids if x in dati["prova_costo"]), ""),
                    "inizio": p.get("prova_inizio") or "", "fine": p.get("prova_fine") or "",
                    "retainer": next((dati["retainer"][x] for x in pids if dati["retainer"].get(x)), "")}
@@ -557,17 +682,10 @@ def effetti(campo, valore, oggi):
         if stato:
             out.append(("snella_lead", {"stato": stato}))
         return out
-    if campo == "scelta":
-        if valore == "Perso":
-            return perso + [("mano", TOGLI)]
-        if valore == "Da chiamare":
-            return [("snella_lead", {"stato": "Da chiamare", "chiamata": "richiamare", "chiamata_il": adesso_iso,
-                                     "richiamare_il": oggi.isoformat()}), ("attesa", None)]
-        if valore == "In attesa di risposta":
-            return [("snella_lead", {"prossima_mossa": "Aspettare la sua risposta (dal foglio)", "responsabile": "Dramane",
-                                     "prossima_il": (oggi + datetime.timedelta(days=ATTESA_GIORNI)).isoformat()}),
-                    ("attesa", adesso_iso)]
-        return [("attesa", None)]
+    if campo == "stato_conv":
+        # lo Stato della Conversazione e' una parola di Dre, non un comando: si salva per la scheda e basta
+        # (21/10: «il resto gestisco io»). Un valore fuori tendina non si scrive (il database lo rifiuterebbe).
+        return [("snella_lead", {"stato_conv": valore or None})] if valore in STATI_CONV or valore == "" else []
     if campo == "nota":
         return [("snella_note", {"testo": valore, "tipo": "nota", "autore_nome": "Dramane"})] if valore else []
     if campo in ("inizio", "fine"):
@@ -797,8 +915,8 @@ def forma(sid, st):
                 R.append(_formato(rng, numero={"type": "DATE", "pattern": "dd/mm/yyyy"}))
             # le tendine e i controlli sulle celle di Dre
             regola = None
-            if campo == "scelta":
-                regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in SCELTE]},
+            if campo == "stato_conv":
+                regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in STATI_CONV]},
                           "strict": True, "showCustomUi": True}
             elif campo == "stato":
                 regola = {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in STATI_PROGETTO]},
@@ -1326,6 +1444,9 @@ def main():
     st.setdefault("mappe", {})
     if not PROVA and foglio_lead.completa_mappe(dati["ps"], [r["id"] for f in FASI for r in per_fase[f]], st["mappe"]):
         per_fase, fasi_app = calcola(dati, st, ora)
+    # lo «Stato» della Conversazione: il sistema lo mette una volta, all'ingresso (Dre, 21/10)
+    for r in stati_all_ingresso(per_fase, dati, st, ora):
+        print(r)
     mrr = sum(r["retainer"] for r in per_fase[CLIENTE] if isinstance(r["retainer"], (int, float)))
     print("foglio: " + " · ".join(f"{f} {len(per_fase[f])}" for f in FASI) + f" · MRR {euro(mrr)}")
     print("foglio: fuori dal percorso " + ", ".join(f"{x} {sum(1 for v in fasi_app.values() if v == x)}" for x in (ALTRE, FERMI)))

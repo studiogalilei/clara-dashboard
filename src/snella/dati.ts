@@ -35,8 +35,11 @@ export interface Scheda extends RigaLead { scheda: SchedaDati; filo: Messaggio[]
 export interface Decisione {
   prospect_id: string; stato: Stato | null; prossima_mossa: string | null; prossima_il: string | null
   chiamata: 'chiamato' | 'non_risponde' | 'richiamare' | null; chiamata_il: string | null
-  richiamare_il: string | null; tentativi: number; aggiornato_il?: string
+  richiamare_il: string | null; tentativi: number; aggiornato_il?: string | null
   responsabile?: Responsabile | null
+  /** 21/10: lo «Stato» della Conversazione nel foglio della pipeline (scripts/foglio.py). Lo mette il
+   *  sistema quando il lead entra, poi lo cambia Dre nel foglio: qui si legge e basta. */
+  stato_conv?: string | null
 }
 export interface Nota { id: number; prospect_id: string; testo: string; tipo: 'nota' | 'chiamata'; at: string; autore: string | null; autore_nome: string | null }
 

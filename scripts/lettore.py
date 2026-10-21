@@ -813,6 +813,8 @@ def leggi_filo(messaggi, idx, chiedi, analisi_nel_crm=False):
             "fonte": "lettore", "caso": l.get("caso"), "sicurezza": l.get("sicurezza"), "autore": l.get("autore"),
             "porta_aperta": bool(l.get("porta_aperta")), "data": data if data and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(data)) else None,
             "caldo_frase": l.get("caldo_frase") if d["caldo"] else None, "numeri": v["numeri"], "seconda": seconda,
+            # 21/10: i motivi del caldo e l'orario proposto servono al foglio per lo «Stato» della conversazione
+            "caldo_motivi": v["caldo_motivi"] if d["caldo"] else [], "orario_iso": l.get("orario_iso") or None,
             "analisi_mandata": p["fatti"]["analisi_mandata"], "costo": round(spesa, 6)}
 
 
@@ -1031,6 +1033,12 @@ def _per_enriched(l, liste, il, risposta_il=None):
     """Quello che resta nel lead: niente testo, solo la decisione e il perche'."""
     return {"classe": l.get("classe"), "caso": l.get("caso"), "sicurezza": l.get("sicurezza"), "caldo": bool(l.get("caldo")),
             "non_scrivere": bool(l.get("non_scrivere")), "fonte": l.get("fonte"), "motivo": (l.get("motivo") or "")[:300],
+            # 21/10: per lo «Stato» della conversazione nel foglio (foglio.stato_dal_lettore): i motivi del
+            # caldo (propone_orario, chiede_chiamata, lascia_numero), l'orario proposto, la data del rinvio,
+            # e se ha scritto un suo numero nel messaggio (non nella firma)
+            "caldo_motivi": list(l.get("caldo_motivi") or []), "orario_iso": l.get("orario_iso") or None,
+            "data": l.get("data") or None, "autore": l.get("autore"),
+            "numero_nel_messaggio": any((n or {}).get("dove") == "messaggio" for n in (l.get("numeri") or [])),
             "liste": liste, "letto_il": il, "risposta_il": risposta_il}
 
 
