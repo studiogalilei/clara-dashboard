@@ -5087,6 +5087,25 @@ def _():
     assert F._piu_recente("2026-10-21T08:49:00+00:00", "2026-10-16T11:39:00+00:00") == "2026-10-21T08:49:00+00:00"
 
 
+@prova("sync: una risposta nuova si vede dalla Master Inbox, non dalla rotazione (21/10, CEFOSMET)")
+def _():
+    import sync_v2 as S
+    def pagina(offset, limit):
+        tutte = [{"last_reply_time": "2026-10-21T08:49:00.000Z", "lead_email": "A@x.invalid", "email_lead_id": 1, "email_campaign_id": 9, "email_lead_map_id": 77},
+                 {"last_reply_time": "2026-10-21T07:00:00.000Z", "lead_email": "b@x.invalid", "email_lead_id": 2, "email_campaign_id": 9, "email_lead_map_id": 78},
+                 {"last_reply_time": "2026-10-20T20:00:00.000Z", "lead_email": "c@x.invalid", "email_lead_id": 3, "email_campaign_id": 9, "email_lead_map_id": 79}]
+        return {"data": tutte[offset:offset + limit]}
+    f = S.risposte_fresche("2026-10-21T04:00:00", pagina=pagina)
+    assert set(f) == {"a@x.invalid", "b@x.invalid"} and f["a@x.invalid"]["lead_map"] == 77, f   # c e' prima della finestra
+    known = {"a@x.invalid": {"last_reply_at": "2026-10-16T11:39:00+00:00"}, "b@x.invalid": {"last_reply_at": "2026-10-21T07:00:00+00:00"}}
+    assert S.da_rileggere_perche_fresca("a@x.invalid", known, f)          # ha riscritto dopo quella che conosciamo
+    assert not S.da_rileggere_perche_fresca("b@x.invalid", known, f)      # gia' vista
+    assert not S.da_rileggere_perche_fresca("zz@x.invalid", known, f)
+    def rotta(offset, limit):
+        raise RuntimeError("giu'")
+    assert S.risposte_fresche("2026-10-21T04:00:00", pagina=rotta) == {}  # servizio giu': il giro va come prima
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

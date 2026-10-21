@@ -34,7 +34,8 @@ STALE = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=30)).strftime("
 import csv as csvmod
 import io
 import json, os, re, sys, time, html as ihtml
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.error, urllib.parse, urllib.error
 from datetime import date, datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -94,6 +95,31 @@ SL_KEY = sl_key()
 SL_BASE = "https://server.smartlead.ai/api/v1"
 
 # ---------- http ----------
+def sl_post(path, corpo, tries=5):
+    """POST Smartlead (la Master Inbox), stessa chiave; retry piu' paziente (un 429 dopo gli export)."""
+    sep = "&" if "?" in path else "?"
+    url = f"{SL_BASE}{path}{sep}api_key={SL_KEY}"
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, data=json.dumps(corpo).encode(), method="POST",
+                                         headers={"User-Agent": "odyn-sync/2.0", "Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            corpo_err = ""
+            try:
+                corpo_err = e.read()[:120].decode("utf-8", "ignore")
+            except Exception:                                # noqa: BLE001
+                pass
+            if i == tries - 1:
+                raise RuntimeError(f"Smartlead POST fallita dopo {tries} tentativi: {path.split('?')[0]} (HTTP {e.code} {corpo_err})")
+            time.sleep(3.0 * (i + 1))
+        except Exception as e:
+            if i == tries - 1:
+                raise RuntimeError(f"Smartlead POST fallita dopo {tries} tentativi: {path.split('?')[0]} ({e})")
+            time.sleep(3.0 * (i + 1))
+
+
 def sl_get(path, tries=7):
     """GET Smartlead con retry robusto (401 transitori da rate-limit)."""
     sep = "&" if "?" in path else "?"
@@ -308,6 +334,52 @@ CALDI_GIORNI = 30          # una conversazione dove abbiamo scritto noi da meno 
 CALDI_PER_GIRO = 40        # a rotazione: con ~100 fili caldi, ognuno si rilegge ogni 15 minuti circa
 
 
+FRESCHE_ORE = 6            # la finestra della Master Inbox: copre un ritardo di giri e il giro di notte
+FRESCHE_PAGINE = 6         # 6 x 50 = le ultime 300 risposte: piu' di una giornata piena
+
+
+def risposte_fresche(dal_iso, pagina=None):
+    """21/10 (CEFOSMET): la sua seconda risposta delle 10:49 e' entrata alle 12:33, perche' l'export
+    non conta la seconda risposta e la rotazione dei fili caldi era lunga quasi due ore. La Master
+    Inbox di Smartlead (/master-inbox/inbox-replies, ordinata per ultima risposta) dice in UNA
+    chiamata chi ha risposto e quando: {email: {"t", "lead_id", "campaign_id", "lead_map"}} per le
+    risposte dopo `dal_iso`. Se il servizio non risponde, {} e il giro va come prima."""
+    out = {}
+    try:
+        for n in range(FRESCHE_PAGINE):
+            d = pagina(n * 50, 50) if pagina else sl_post("/master-inbox/inbox-replies?fetch_message_history=false",
+                                                         {"offset": n * 50, "limit": 50, "sortBy": "REPLY_TIME_DESC"})
+            righe = (d or {}).get("data") or []
+            if not righe:
+                break
+            fermati = False
+            for r in righe:
+                t = (r.get("last_reply_time") or "")[:19]
+                em = (r.get("lead_email") or "").strip().lower()
+                if not t or not em:
+                    continue
+                if t < dal_iso[:19]:
+                    fermati = True
+                    break
+                if em not in out or t > out[em]["t"]:
+                    out[em] = {"t": t, "lead_id": r.get("email_lead_id"), "campaign_id": r.get("email_campaign_id"),
+                               "lead_map": r.get("email_lead_map_id")}
+            if fermati or len(righe) < 50:
+                break
+    except Exception as e:                                   # noqa: BLE001
+        print(f"  master inbox non letta ({str(e)[:80]}): il giro va come prima")
+        return {}
+    return out
+
+
+def da_rileggere_perche_fresca(em, known, fresche):
+    """Vero se la Master Inbox ha per questo lead una risposta piu' nuova di quella che conosciamo."""
+    f = fresche.get(em)
+    if not f:
+        return False
+    return f["t"] > ((known.get(em) or {}).get("last_reply_at") or "")[:19]
+
+
 def fili_caldi(known, mandate_di_recente=frozenset()):
     """LA SECONDA RISPOSTA (7/10, caso La Bottega del Legno). Smartlead, nell'export e nelle
     statistiche, conta solo la prima risposta alla sequenza: quando il lead risponde DI NUOVO
@@ -415,6 +487,9 @@ def main():
     caldi = fili_caldi(known, mandate)
     if caldi:
         print(f"  fili caldi da rileggere a rotazione: {len(caldi)}")
+    fresche = risposte_fresche((datetime.now(timezone.utc) - timedelta(hours=FRESCHE_ORE)).isoformat())
+    nuove_fresche = {em for em in fresche if da_rileggere_perche_fresca(em, known, fresche)}
+    print(f"  master inbox: {len(fresche)} risposte nelle ultime {FRESCHE_ORE} ore, {len(nuove_fresche)} piu' nuove di quelle che conosciamo")
 
     camps = sl_get("/campaigns") or []
     # 15/10 (EnergetiKa): le campagne archiviate si leggono lo stesso. Un lead puo' rispondere in
@@ -458,7 +533,7 @@ def main():
                 # 24/9 (Dre: «il thread si aggiorna anche se non clicco»): chi aspetta noi si
                 # rilegge a ogni giro, perche' la nostra risposta manuale non cambia la firma
                 if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma) and not known[em].get("awaiting_us") \
-                        and em not in caldi:
+                        and em not in caldi and em not in nuove_fresche:
                     invariati += 1
                     continue
                 r["_firma"] = firma
