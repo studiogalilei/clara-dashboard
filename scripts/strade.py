@@ -36,6 +36,7 @@ USO
   python3 scripts/strade.py                  scrive le strade nelle proposte
   python3 scripts/strade.py --id 3453        solo quella proposta
   python3 scripts/strade.py --quanti 3
+  python3 scripts/strade.py --tetto 5        alza il tetto di spesa per questo giro (una tantum)
 """
 import datetime
 import json
@@ -55,7 +56,7 @@ PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 6
 SOLO_ID = int(sys.argv[sys.argv.index("--id") + 1]) if "--id" in sys.argv else None
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
-TETTO_GIORNO = 3.0                  # dollari al giorno, come il lettore (snella_numeri «strade»)
+TETTO_GIORNO = float(sys.argv[sys.argv.index("--tetto") + 1]) if "--tetto" in sys.argv else 3.0   # dollari al giorno, come il lettore (snella_numeri «strade»); --tetto 5 per una sera di recupero
 MAX_STRADE = 3
 MIN_STRADE = 2
 QUANTE_SCELTE = 30                  # le ultime scelte di Dre che entrano nel prompt

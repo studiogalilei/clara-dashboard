@@ -10,6 +10,7 @@ import { chiSono } from './lib/accessi'
 import Snella from './snella/Snella'
 import { inSnella } from './snella/uso'
 import { ascoltaNotifiche } from './lib/notifiche'
+import Aggiorna from './Aggiorna'
 
 // dopo un aggiornamento il pezzo vecchio non esiste piu': si ricarica una volta sola (come in App)
 const App = lazy(() => import('./App').catch((e) => {
@@ -65,11 +66,16 @@ export default function Radice() {
     return () => { vivo = false }
   }, [quale])
 
-  if (quale === null) return <div className="min-h-dvh bg-white" />
-  if (quale === 'snella') return <Snella />
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-fondo" />}>
-      <App />
-    </Suspense>
+    <>
+      <Aggiorna />
+      {quale === null ? <div className="min-h-dvh bg-white" />
+        : quale === 'snella' ? <Snella />
+          : (
+            <Suspense fallback={<div className="min-h-dvh bg-fondo" />}>
+              <App />
+            </Suspense>
+          )}
+    </>
   )
 }

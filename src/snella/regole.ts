@@ -523,3 +523,10 @@ export function scrittureChiusura(ora: Date = new Date()): {
     proposte: { stato: 'no', risposta: "NO: Dre dall'app, lead chiuso", risposta_il: ora.toISOString() },
   }
 }
+
+/** L'APP E' FERMA? (21/10 sera) La versione nuova si controlla, e la pagina si ricarica, solo quando nessun
+ *  campo di testo ha il fuoco: mai mentre Dre scrive una nota. `tag` e' il nome del tag dell'elemento attivo. */
+export function appFerma(tag: string | null | undefined, modificabile = false): boolean {
+  const t = (tag ?? '').toUpperCase()
+  return !(t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || modificabile)
+}

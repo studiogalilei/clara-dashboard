@@ -6,7 +6,7 @@ import {
   eSeguito, faseDi, giornoRoma, listaDaChiamare,
   messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando, recordScelta,
   infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
-  stradeDi, tasso, titoloDomanda, tonoStato,
+  stradeDi, tasso, titoloDomanda, tonoStato, appFerma,
   type LeadPerProssimo, type PropostaLead, type Strada,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
@@ -414,5 +414,18 @@ describe('le strade (21/10): «mi dà 2 o 3 strade e io scelgo, e lui procede»'
     expect(confermaStrada(RINVIO, false)).toMatch(/12 gen/)
     expect(confermaStrada(NIENTE, false)).toMatch(/si chiude/)
     expect(titoloDomanda('Decidi tu: Azienda B')).toBe('Azienda B')
+  })
+})
+
+describe("la versione nuova (21/10 sera): si controlla e si ricarica solo quando l'app è ferma", () => {
+  it('con un campo di testo a fuoco non è ferma; su un bottone, un link o niente sì', () => {
+    expect(appFerma('TEXTAREA')).toBe(false)
+    expect(appFerma('input')).toBe(false)
+    expect(appFerma('SELECT')).toBe(false)
+    expect(appFerma('DIV', true)).toBe(false)
+    expect(appFerma('BUTTON')).toBe(true)
+    expect(appFerma('A')).toBe(true)
+    expect(appFerma('BODY')).toBe(true)
+    expect(appFerma(null)).toBe(true)
   })
 })

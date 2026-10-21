@@ -5581,6 +5581,79 @@ def _():
     assert src.count("an, errori = _correggi_se_basta(an, errori, fatti, fresca)") == 2, "la correzione del codice va provata dopo ogni bocciatura"
     assert "_chiudi_domande(p)" in src, "un'analisi passata chiude la domanda «non passa il controllo»"
 
+@prova("la finestra di notte (21/10 sera): ogni approvata parte dalle 8 alle 21 di Roma, tranne se Dre ha premuto «Manda» negli ultimi 10 minuti")
+def _():
+    import manda as M
+    R_ = zoneinfo.ZoneInfo("Europe/Rome")
+    def a(h, m=0):
+        return datetime.datetime(2026, 10, 21, h, m, tzinfo=R_)
+    dre = lambda il: {"approvata_da": "Dre (app)", "approvata_il": il.astimezone(datetime.timezone.utc).isoformat()}  # noqa: E731
+    # il caso del 21/10: approvata alle 22:50, l'analisi arriva alle 23:24: non parte, aspetta le 8
+    assert not M.finestra_invio(dre(a(22, 50)), a(23, 24))[0], "approvata 34 minuti fa, di notte: aspetta le 8"
+    assert "parte alle 8" in M.finestra_invio(dre(a(22, 50)), a(23, 24))[1]
+    # Dre preme «Manda» adesso: la vuole adesso, anche di notte
+    assert M.finestra_invio(dre(a(23, 20)), a(23, 24))[0], "approvata 4 minuti fa da Dre: parte"
+    assert not M.finestra_invio(dre(a(23, 10)), a(23, 24))[0], "11 minuti fa: non e' piu' «adesso»"
+    # di giorno parte sempre
+    assert M.finestra_invio(dre(a(7, 0)), a(8, 0))[0] and M.finestra_invio(dre(a(7, 0)), a(20, 59))[0]
+    assert not M.finestra_invio(dre(a(7, 0)), a(21, 0))[0] and not M.finestra_invio(dre(a(7, 0)), a(7, 59))[0]
+    # le approvazioni automatiche non hanno l'eccezione dei 10 minuti
+    for chi in ("prima-risposta-automatica (decisione Dre 29/9)", "seguito-automatico (decisione Dre 29/9, strada A)",
+                "il sistema (abitudine di Dre: tre volte)", "Regola di Dre (19/10): il promemoria il giorno prima della conoscitiva"):
+        az = {"approvata_da": chi, "approvata_il": a(23, 20).isoformat()}
+        assert not M.finestra_invio(az, a(23, 24))[0], chi
+    assert not M.finestra_invio({**dre(a(23, 20)), "automatica": True}, a(23, 24))[0], "automatica: niente eccezione"
+    # i no gentili automatici: la loro finestra larga (prima_risposta.finestra)
+    gb = {"approvata_da": "prima-risposta-automatica (decisione Dre 29/9)", "automatica": True, "intento": "INT-GB", "approvata_il": a(7, 0).isoformat()}
+    assert M.finestra_invio(gb, a(7, 10))[0] and M.finestra_invio(gb, a(21, 25))[0] and not M.finestra_invio(gb, a(21, 40))[0]
+    # e il postino la guarda davvero, prima di toccare Smartlead
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "manda.py"), encoding="utf-8").read()
+    i_f = src.index("finestra_invio(az, datetime.datetime.now(")
+    assert i_f < src.index("ferma_da = (") < src.index('"/campaigns/{cid}/reply-email-thread"'), "la finestra si guarda prima di aspettare l'analisi e di spedire"
+
+
+@prova("ripulisci (21/10 sera): si chiude l'arretrato, si tengono le decisioni vive (approvate, strade, persone che hanno scritto da poco)")
+def _():
+    import ripulisci as R
+    ora = datetime.datetime(2026, 10, 21, 22, 0, tzinfo=datetime.timezone.utc)
+    vivo = {"id": "p1", "classificazione": "da_classificare", "stage": "risposto", "fuori": False, "no_followup": False, "last_reply_at": "2026-10-20T10:00:00+00:00", "enriched": {}}
+    def pr(**k):
+        base = {"id": 1, "tipo": "umano", "titolo": "Da guardare tu: Azienda, INT-01", "stato": "aperta", "at": "2026-10-20T12:00:00+00:00", "prospect_id": "p1", "perche": "si': dubbio", "azione": {}}
+        return {**base, **k}
+    # si tiene
+    assert R.verdetto(pr(stato="approvata", tipo="risposta"), vivo, ora)[0], "un'approvata parte"
+    assert R.verdetto(pr(), vivo, ora)[0], "una decisione recente su una persona vera resta"
+    assert R.verdetto(pr(at="2026-10-15T12:00:00+00:00", azione={"strade": [{"etichetta": "Rimanda a gennaio", "azione": "ricontatta"}]}), vivo, ora)[0], "con le strade resta, anche se vecchia"
+    assert R.verdetto(pr(at="2026-10-15T12:00:00+00:00"), vivo, ora)[0], "vecchia ma la persona ha riscritto dopo il 19/10: resta"
+    assert R.verdetto(pr(tipo="risposta", titolo="Follow up 1: Azienda, FOLLOW UP 1", at="2026-10-19T08:00:00+00:00"), vivo, ora)[0], "un follow-up di due giorni fa resta"
+    assert R.verdetto(pr(prospect_id=None, titolo="Salute del sistema"), None, ora)[0], "una domanda recente sul sistema resta"
+    # si chiude
+    muto = {**vivo, "last_reply_at": "2026-10-10T10:00:00+00:00"}
+    t, m = R.verdetto(pr(at="2026-10-15T12:00:00+00:00"), muto, ora); assert not t and "19/10" in m, m
+    t, m = R.verdetto(pr(prospect_id=None, titolo="Decisione 3: unisco?", at="2026-10-06T12:00:00+00:00"), None, ora); assert not t and "sistema" in m, m
+    for tipo in ("avanza", "nuovo", "richiesta"):
+        t, m = R.verdetto(pr(tipo=tipo, titolo="X: ci scriviamo", at="2026-10-16T12:00:00+00:00"), vivo, ora); assert not t and tipo in m, m
+    assert R.verdetto(pr(tipo="nuovo", titolo="X: ci scriviamo", at="2026-10-21T12:00:00+00:00"), vivo, ora)[0], "una nota del sistema di oggi resta tre giorni"
+    t, m = R.verdetto(pr(titolo="Ho imparato dalle tue correzioni", prospect_id=None, at="2026-10-15T12:00:00+00:00"), None, ora); assert not t, m
+    t, m = R.verdetto(pr(tipo="risposta", titolo="Follow up 1: Azienda, FOLLOW UP 1", at="2026-10-12T08:00:00+00:00"), vivo, ora); assert not t and "follow-up" in m, m
+    t, m = R.verdetto(pr(azione={"lettura": {"autorisposta": True}}), vivo, ora); assert not t and "autorisposta" in m, m
+    t, m = R.verdetto(pr(perche="si': e' un bounce / NDR"), vivo, ora); assert not t and "persona" in m, m
+    t, m = R.verdetto(pr(), {**vivo, "classificazione": "ooo"}, ora); assert not t and "ooo" in m, m
+    lettore = lambda caso, classe="da_classificare", sic="alta", porta=False: {**vivo, "enriched": {"lettore": {"fonte": "lettore", "caso": caso, "classe": classe, "sicurezza": sic, "porta_aperta": porta, "risposta_il": "2026-10-20T10:00:00"}}}  # noqa: E731
+    t, m = R.verdetto(pr(), lettore("C40"), ora); assert not t and "C40" in m, m
+    t, m = R.verdetto(pr(), lettore("C48"), ora); assert not t, m
+    l40 = lettore("C40"); l40["enriched"]["lettore"]["caldo"] = True
+    assert R.verdetto(pr(), l40, ora)[0], "persona sbagliata che lascia un numero (caldo): resta a Dre"
+    t, m = R.verdetto(pr(), lettore("C24", "negativo", "alta"), ora); assert not t and "no" in m, m
+    assert R.verdetto(pr(), lettore("C24", "negativo", "media"), ora)[0], "un no a sicurezza media resta a Dre"
+    assert R.verdetto(pr(), lettore("C25", "negativo", "alta", porta=True), ora)[0], "un no con uno spiraglio resta a Dre"
+    assert R.verdetto(pr(), lettore("C36"), ora)[0], "chi l'ha girata a un collega e' una persona: resta"
+    t, m = R.verdetto(pr(), {**vivo, "fuori": True}, ora); assert not t and "lead" in m, m
+    t, m = R.verdetto(pr(tipo="risposta", titolo="Bozza per Azienda, INT-01"), {**vivo, "last_reply_at": "2026-07-10T10:00:00+00:00"}, ora); assert not t and "45" in m, m
+    t, m = R.verdetto(pr(), None, ora); assert not t, m
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ripulisci.py"), encoding="utf-8").read()
+    assert "revisore.controlla(" in src and '"stato": "no"' in src and "import manda" not in src and "reply-email-thread" not in src and "smartlead" not in src.lower(), "chiude con motivo, passa dal Revisore, non manda mai"
+
 
 def main():
     falliti = 0

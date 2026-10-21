@@ -240,6 +240,44 @@ def eta_lucchetto(b, adesso=None):
 LUCCHETTO_APPESO_MIN = 30      # la cronologia di Smartlead arriva anche 20 minuti dopo l'invio
 
 
+# LA FINESTRA DI NOTTE (21/10/2026 sera, decisa da Achille). Una risposta approvata da Dre dall'app e'
+# partita alle 23:24: aspettava l'analisi, e la finestra 8-21 valeva solo per le approvazioni automatiche
+# (prima_risposta la guarda quando approva, non quando la mail parte). Adesso la guarda il postino, per
+# tutte: si manda solo dalle 8 alle 21, ora di Roma (i no gentili automatici, INT-GB, dalle 7 alle 21:30
+# come in prima_risposta.finestra). L'unica eccezione: Dre l'ha approvata negli ultimi 10 minuti, cioe'
+# ha appena premuto «Manda» e la vuole adesso.
+ORE_INVIO = (8, 21)
+ADESSO_DI_DRE_MIN = 10
+FIRME_AUTOMATICHE = ("il sistema", "prima-risposta", "seguito-automatico", "Regola di Dre")
+
+
+def approvata_da_persona(az):
+    """L'ha approvata una persona (Dre dall'app, dal Workspace, in chat), non un'operazione."""
+    chi = str((az or {}).get("approvata_da") or "")
+    return bool(chi) and not (az or {}).get("automatica") and not chi.startswith(FIRME_AUTOMATICHE)
+
+
+def finestra_invio(az, adesso):
+    """(puo' partire adesso, perche' no). `adesso` con fuso orario."""
+    az = az or {}
+    ora = adesso.astimezone(ROMA)
+    if az.get("intento") == "INT-GB" and az.get("automatica"):
+        dentro = 7 <= ora.hour < 21 or (ora.hour == 21 and ora.minute <= 30)
+    else:
+        dentro = ORE_INVIO[0] <= ora.hour < ORE_INVIO[1]
+    if dentro:
+        return True, ""
+    il = az.get("approvata_il")
+    if approvata_da_persona(az) and il:
+        try:
+            fa = (adesso - quando(il)).total_seconds() / 60
+        except Exception:                                         # noqa: BLE001
+            fa = None
+        if fa is not None and -2 <= fa <= ADESSO_DI_DRE_MIN:
+            return True, ""
+    return False, f"fuori dalla finestra {ORE_INVIO[0]}-{ORE_INVIO[1]} (sono le {ora:%H:%M} a Roma): parte alle {ORE_INVIO[0]}"
+
+
 def link_fresco(url):
     """Un link firmato nuovo (un giorno) per il PDF nel bucket: quello nella scheda
     puo' essere vecchio. Se non e' un file del bucket, resta com'e'."""
@@ -494,6 +532,10 @@ def main():
             else:
                 torna_aperta(pr, azienda, vecchia + ": rileggi il filo", prova)
             continue
+        # la finestra di notte (21/10 sera): dopo i cancelli che chiudono, prima di attendere l'analisi e di spedire
+        parte, fuori_orario = finestra_invio(az, datetime.datetime.now(datetime.timezone.utc))
+        if not parte:
+            print(f"  {azienda}: {fuori_orario}"); continue
         a = (p.get("email_alt") or [None])[0] or chi_ha_risposto(ultima, p["email"]) or p["email"]
         copia = in_copia(az)
         corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),

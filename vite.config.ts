@@ -14,7 +14,10 @@ export default defineConfig({
       disable: Boolean(process.env.SENZA_PWA),
       registerType: 'autoUpdate',
       // le notifiche le riceve public/push.js, importato dentro il service worker
-      workbox: { importScripts: ['push.js'], globIgnores: ['**/brand/**', '**/lab/**', '**/documento-*.js', '**/CompilaPdf-*.js', '**/pdf.worker*'], navigateFallbackDenylist: [/\/lab\//] },   // i pezzi pesanti si scaricano quando servono, non all'installazione
+      // 21/10 sera (Dre: «la cosa delle due alternative non c'e' in app sul telefono»): il service worker nuovo
+      // prende il posto del vecchio appena scaricato (skipWaiting, clientsClaim); l'app ricarica da sola quando
+      // e' ferma, se no mostra «Nuova versione: tocca per aggiornare» (src/Aggiorna.tsx), cosi' sul telefono non resta la versione vecchia fino al giorno dopo.
+      workbox: { skipWaiting: true, clientsClaim: true, importScripts: ['push.js'], globIgnores: ['**/brand/**', '**/lab/**', '**/documento-*.js', '**/CompilaPdf-*.js', '**/pdf.worker*'], navigateFallbackDenylist: [/\/lab\//] },   // i pezzi pesanti si scaricano quando servono, non all'installazione
       // LA WEB APP SUL TELEFONO (17/10): l'icona sulla Home apre la versione snella su Oggi
       // (chi non e' ceo viene portato da li' al Workspace completo, src/snella/Snella.tsx).
       // Bianca come la snella: la barra in alto e lo schermo d'apertura non lampeggiano di blu.

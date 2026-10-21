@@ -45,6 +45,7 @@ USO
   python3 scripts/lettore.py --conto            il conto del giorno nella scheda (l'operazione)
   python3 scripts/lettore.py --ombra [--giorni 3] lettore e liste sulle risposte vere, a video
   python3 scripts/lettore.py --riclassifica [--prova] [--cache FILE]  rilegge i positivi e i da classificare
+  python3 scripts/lettore.py --riclassifica --retroattivo [--prova]  solo chi ha ancora la classe dalle liste (21/10)
   python3 scripts/lettore.py --modo ombra|acceso  cambia la modalita'
 """
 import datetime
@@ -943,9 +944,12 @@ def ombra(giorni=3):
     return tab
 
 
-def riclassifica(prova=True, percorso_cache=None):
-    """Rilegge col lettore i lead oggi «positivo» o «da_classificare» (l'ultima risposta). Passa dal Revisore."""
-    from stanza import sb
+def riclassifica(prova=True, percorso_cache=None, retroattivo=False):
+    """Rilegge col lettore i lead oggi «positivo» o «da_classificare» (l'ultima risposta). Passa dal Revisore.
+    `retroattivo` (Dre, 21/10: «le leggi sono retroattive»): solo i lead vivi la cui classe viene ancora dalle
+    liste (nessuna lettura del lettore sulla loro ultima mail); la spesa va sotto lo scopo «retroattivo»,
+    fuori dal tetto del giorno del lettore."""
+    from stanza import sb, lettore_di
     import revisore
     cache = None
     if percorso_cache:
@@ -955,7 +959,12 @@ def riclassifica(prova=True, percorso_cache=None):
                    "&classificazione=in.(positivo,da_classificare)&last_reply_at=not.is.null&order=last_reply_at.desc&limit=1000") or []
     ps = [p for p in ps if not p.get("fuori") and (p.get("enriched") or {}).get("classificazione") != "manual"
           and "classificazione" not in (p.get("deciso") or {})]
-    print(f"RICLASSIFICA: {len(ps)} lead positivo o da classificare (non fuori, non corretti a mano)")
+    scopo = "lettore-riclassifica"
+    if retroattivo:
+        ps = [p for p in ps if not lettore_di(p) and not p.get("no_followup")
+              and p.get("stage") not in ("cliente", "perso") and p.get("pipeline_stage") not in ("cliente", "perso")]
+        scopo = "retroattivo"
+    print(f"RICLASSIFICA{' (retroattiva: solo chi ha ancora la classe dalle liste)' if retroattivo else ''}: {len(ps)} lead positivo o da classificare (non fuori, non corretti a mano)")
     cambi, spesa = [], 0.0
     for p in ps:
         try:
@@ -971,7 +980,7 @@ def riclassifica(prova=True, percorso_cache=None):
             k = hashlib.sha256(json.dumps([ruolo, istr, testo], ensure_ascii=False).encode()).hexdigest()[:32]
             if cache is not None and k in cache:
                 return cache[k], 0.0
-            uscita, c = chiedi_anthropic(ruolo, istr, testo, schema, registra="lettore-riclassifica")
+            uscita, c = chiedi_anthropic(ruolo, istr, testo, schema, registra=scopo)
             if cache is not None:
                 cache[k] = uscita
                 json.dump(cache, open(percorso_cache, "w", encoding="utf-8"))
@@ -979,7 +988,14 @@ def riclassifica(prova=True, percorso_cache=None):
         l = leggi_risposta(corpo, filo, p, chiedi=chiedi)
         spesa += l.get("costo") or 0
         nuova = classe_db(l)
-        if l["fonte"] != "lettore" or nuova == p.get("classificazione"):
+        if l["fonte"] != "lettore":
+            continue
+        if nuova == p.get("classificazione"):
+            # retroattivo (21/10): la classe non cambia, ma la lettura si salva nel lead (enriched.lettore), cosi'
+            # il foglio e la scheda la vedono e il sync non la ripaga
+            if retroattivo:
+                cambi.append({"id": p["id"], "email": p.get("email"), "azienda": (p.get("company") or "")[:40], "classificazione": p.get("classificazione"),
+                              "esito": nuova, "lettura": l, "last_reply_at": p.get("last_reply_at"), "verifica": f"{l.get('caso')} {l.get('sicurezza')} (classe uguale)"})
             continue
         # una risposta vecchia non si risveglia: verso un si' (o una ripresa) solo se ha risposto da poco.
         # Al contrario (un si' che era un no, un'autorisposta) si corregge sempre: ferma, non manda.
@@ -992,7 +1008,7 @@ def riclassifica(prova=True, percorso_cache=None):
                       "verifica": f"{l.get('caso')} {l.get('sicurezza')}"})
         print(f"  {p.get('classificazione'):15} -> {nuova:15} {(p.get('company') or '')[:34]:34} [{l.get('caso')}, {l.get('sicurezza')}]"
               f" {l['motivo'][:110]}")
-    print(f"\n{len(cambi)} cambi su {len(ps)}, spesa {spesa:.3f} $")
+    print(f"\n{len(cambi)} {'letture da salvare' if retroattivo else 'cambi'} su {len(ps)}, di cui {sum(1 for c in cambi if c['esito'] != c['classificazione'])} cambiano classe, spesa {spesa:.3f} $")
     if not cambi:
         return cambi
     if prova:
@@ -1051,7 +1067,8 @@ if __name__ == "__main__":
         ombra(int(a[a.index("--giorni") + 1]) if "--giorni" in a else 3)
     elif "--riclassifica" in a:
         riclassifica(prova="--prova" in a or os.environ.get("PROVA") == "1",
-                     percorso_cache=a[a.index("--cache") + 1] if "--cache" in a else None)
+                     percorso_cache=a[a.index("--cache") + 1] if "--cache" in a else None,
+                     retroattivo="--retroattivo" in a)
     elif "--modo" in a:
         cambia_modo(a[a.index("--modo") + 1])
     else:
