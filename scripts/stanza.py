@@ -404,7 +404,7 @@ SERVIZIO_GIU = re.compile(
     r"insufficient_quota|credit balance is too low|no credits remaining|credits? (?:exhausted|finit)|"
     r"invalid_api_key|invalid x-api-key|authentication_error|invalid_grant|"
     r"token (?:has )?(?:been )?(?:expired|revoked)|SUPABASE BLOCCATO|quota exceeded|"
-    r"\b40[12]\b[^\n]{0,80}(?:unauthori[sz]ed|invalid api|credit|billing|payment required)", re.I)
+    r"\b40[12]\b[^\n]{0,80}(?:unauthori[sz]ed|invalid api|credit balance|billing|payment required)", re.I)
 FORNITORI = (("openai", "OpenAI"), ("anthropic", "Anthropic"), ("smartlead", "Smartlead"), ("google", "Google"),
              ("gmail", "Google"), ("oauth", "Google"), ("searchapi", "SearchAPI"), ("supabase", "Supabase"))
 

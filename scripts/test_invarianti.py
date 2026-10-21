@@ -5775,7 +5775,7 @@ def _():
     assert St.servizi_giu("Anthropic 401 authentication_error: invalid x-api-key")[0][0] == "Anthropic"
     assert St.servizi_giu("Google: invalid_grant (token has been expired or revoked)")[0][0] == "Google"
     # il testo di un lead non e' un guasto: «billing», «401», «crediti» in una risposta non suonano
-    for innocuo in ("«grazie, giriamo al billing»", "via Roma 401, Milano", "abbiamo pochi crediti formativi", "analisi: 0 pronte su 1"):
+    for innocuo in ("«grazie, giriamo al billing»", "via Roma 401, Milano", "via Roma 401, ufficio crediti", "abbiamo pochi crediti formativi", "analisi: 0 pronte su 1"):
         assert St.servizi_giu(innocuo) == [], innocuo
     # il dettaglio della corsa tiene l'inizio e la fine: la riga presto non sparisce piu'
     d = D.dettaglio_di(uscita)
