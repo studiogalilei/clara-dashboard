@@ -3880,6 +3880,7 @@ class _ConversazioniFinte:
 
     def __init__(self, analisi_ore_fa=48, letture=None, stato=None):
         self.ora = datetime.datetime.now(datetime.timezone.utc)
+        self._ora_vera = self.ora                # l'ora del momento: la notte la prova solo chi fissa f.ora
         self.analisi = (self.ora - datetime.timedelta(hours=analisi_ore_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00") \
             if analisi_ore_fa is not None else None
         self.letture = letture or {}
@@ -3963,15 +3964,19 @@ class _ConversazioniFinte:
         import conversazioni as C
         import segnale_provvisorio as S
         import stanza as St
-        vero = (C.sb, S.sb, St.sb, S._chiedi_ai, S._push, S._restano_oggi, C.adesso)
+        vero = (C.sb, S.sb, St.sb, S._chiedi_ai, S._push, S._restano_oggi, C.adesso, C.di_notte)
         C.sb = S.sb = St.sb = self.sb
         # schede.py, importato da una prova prima, azzera le letture pagabili: qui servono
         S._chiedi_ai, S._push, S._restano_oggi, C.adesso = self.chiedi, self.push, lambda: 100, lambda: self.ora
+        # 21/10 sera: il finto usa l'ora vera, e dopo le 22 il giro taceva (regola della notte) e queste
+        # prove cadevano in CI. Con l'ora del momento si prova il giorno; la notte la prova chi fissa f.ora
+        notte_vera = vero[-1]
+        C.di_notte = (lambda ora: False if self.ora == self._ora_vera else notte_vera(ora))
         S.GIRO.update(pagate=0, memoria_rotta=False, sonda=False, giorno_restano=100, tetto_giorno=False)
         try:
             return C.giro(prova=prova)
         finally:
-            C.sb, S.sb, St.sb, S._chiedi_ai, S._push, S._restano_oggi, C.adesso = vero
+            C.sb, S.sb, St.sb, S._chiedi_ai, S._push, S._restano_oggi, C.adesso, C.di_notte = vero
 
 
 FUORI_UFFICIO = {"autorisposta": True, "caldo": False, "si": False, "frase": "", "telefono": "", "consiglio": ""}
