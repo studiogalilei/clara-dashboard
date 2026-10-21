@@ -31,7 +31,7 @@ import sys
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, quando                               # noqa: E402
+from stanza import sb, quando, guasto, guarito              # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 OGNI = datetime.timedelta(hours=2)
@@ -178,6 +178,40 @@ def storico(stato, nuovo, risolti, ora):
     return out
 
 
+def da_riprovare(scritti):
+    """Pura. {chiave: servizio} dei guasti che si tolgono solo provando dal vivo il servizio: un
+    «crediti finiti» visto dal direttore (fornitore) o un servizio caduto al fumo del mattino."""
+    out = {}
+    for k, v in (scritti or {}).items():
+        if not isinstance(v, dict):
+            continue
+        if v.get("fornitore"):
+            out[k] = v["fornitore"]
+        elif k.startswith("fumo:") and not k.startswith("fumo:op:"):
+            out[k] = k.split(":", 1)[1]
+    return out
+
+
+def riprova_servizi(scritti):
+    """IL RISOLTO VERO (notte del 22/10): un servizio giu' si toglie dal semaforo solo quando la sua
+    prova dal vivo (fumo.prova) risponde, non quando passano 20 minuti o un giro non lo usa. Torna i
+    guasti scritti senza quelli guariti adesso."""
+    rimasti = dict(scritti or {})
+    servizi = da_riprovare(rimasti)
+    if not servizi:
+        return rimasti
+    import fumo
+    esiti = {}
+    for k, servizio in servizi.items():
+        if servizio not in esiti:
+            esiti[servizio] = fumo.prova(servizio)
+        if esiti[servizio]:
+            guarito(k)
+            rimasti.pop(k, None)
+            print(f"  {servizio} risponde di nuovo: tolto {k}")
+    return rimasti
+
+
 def giro(prova=False, ora=None):
     import clara_foglio
     ora = ora or datetime.datetime.now(datetime.timezone.utc)
@@ -189,8 +223,13 @@ def giro(prova=False, ora=None):
     except Exception as e:                                       # noqa: BLE001
         print(f"  (controllo di completezza non fatto: {str(e)[:120]})")
         perse = []
+        if not prova:                                            # 22/10: non fatto non vuol dire «niente di perso»
+            guasto("completezza", f"Il controllo delle risposte perse non si è fatto: {str(e)[:120]}",
+                   sta_facendo="Riprovo ogni 10 minuti.", vale=30)
     perse_scritte = {"il": ora.isoformat(), "guasti": [dict(g, da=g["da"].isoformat()) for g in perse]}
     dati_semaforo["perse"] = perse_scritte
+    if not prova:
+        dati_semaforo["segnale"] = riprova_servizi(dati_semaforo.get("segnale") or {})
     aperti = clara_foglio.semaforo(ora, dati_semaforo)
     r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.guasti") or []
     dati = ((r[0].get("dati") if r else None) or {})

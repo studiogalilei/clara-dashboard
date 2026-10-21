@@ -368,7 +368,7 @@ FRESCHE_PAGINE = 15        # 15 x 20 = le ultime 300 risposte: piu' di una giorn
 MASTER_INBOX_LIMITE = 20   # 21/10 pomeriggio: Smartlead rifiuta limit > 20 (400) e il primo giro era muto
 
 
-def risposte_fresche(dal_iso, pagina=None, segna=True):
+def risposte_fresche(dal_iso, pagina=None, segna=True, alza=False):
     """21/10 (CEFOSMET): la sua seconda risposta delle 10:49 e' entrata alle 12:33, perche' l'export
     non conta la seconda risposta e la rotazione dei fili caldi era lunga quasi due ore. La Master
     Inbox di Smartlead (/master-inbox/inbox-replies, ordinata per ultima risposta) dice in UNA
@@ -401,6 +401,8 @@ def risposte_fresche(dal_iso, pagina=None, segna=True):
             if fermati or len(righe) < MASTER_INBOX_LIMITE:
                 break
     except Exception as e:                                   # noqa: BLE001
+        if alza:
+            raise                                            # il fumo del mattino (22/10): il guasto si vede, non diventa «nessuna risposta»
         print(f"  master inbox non letta ({str(e)[:160]}): il giro va come prima")
         if segna:
             _segna_master_inbox(False, str(e)[:160])
