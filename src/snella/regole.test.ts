@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead, Telefono } from './dati'
 import {
-  DA_APP, FASI, MAX_STRADE, NOTE_APP, allegaAnalisi, azioneApprovata, cellulareDi, cerca, chiamateInRitardo, confermaStrada, contaStati, dettaglioStrada,
+  DA_APP, FASI, MAX_ALTRE, MAX_MAIL, NOTE_APP, TESTO_VUOTO, conTestoDiDre, filoAlContrario, mailEGesti, stessaBozza, allegaAnalisi, azioneApprovata, cellulareDi, cerca, chiamateInRitardo, confermaStrada, contaStati, dettaglioStrada,
   eSeguito, faseDi, giornoRoma, listaDaChiamare,
   messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando, recordScelta,
   infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
@@ -343,13 +343,23 @@ describe('le strade (21/10): «mi dà 2 o 3 strade e io scelgo, e lui procede»'
   it('le strade sono della proposta aperta più recente che le ha; mai più di tre; una manda senza bozza non si mostra; meno di due non è «Decidi tu»', () => {
     const c = stradeDi([p(), p({ id: 8, at: '2026-10-21T21:00:00Z', strade: [RINVIO, NIENTE, CHIUDI, CHIAMA] }), p({ id: 9, at: '2026-10-21T23:00:00Z', stato: 'no' })])
     expect(c?.id).toBe(8)
-    expect(c?.strade).toHaveLength(MAX_STRADE)
+    expect(c?.strade).toHaveLength(MAX_ALTRE)                // i gesti senza mail: al massimo due
     expect(c?.caso).toBe('C36')
     expect(c?.motivo).toBe("L'ha girata a un collega senza l'indirizzo")
     expect(stradeDi([p({ strade: [{ ...MANDA, bozza: '' }, RINVIO] })])).toBeNull()
     expect(stradeDi([p({ strade: [{ ...MANDA, bozza: '' }, RINVIO, NIENTE] })])?.strade.map((s) => s.azione)).toEqual(['ricontatta', 'niente'])
     expect(stradeDi([p({ strade: null })])).toBeNull()
     expect(stradeDi([p({ strade: [MANDA] })])).toBeNull()
+    // le mail: al massimo tre, e mai due che partono con la stessa frase (il collaudo del 21/10 ne ha trovate due)
+    const m = (bozza: string, etichetta: string): Strada => ({ ...MANDA, etichetta, bozza })
+    const quattro = [m('Buongiorno,\n\nmi può girare il contatto?', 'Chiedi il contatto'), m('Buongiorno,\n\nmi può girare il contatto?\nGrazie mille.', 'Chiedi il contatto, grazie'),
+      m('Buongiorno,\n\ncapisco, allora le scrivo a gennaio.', 'Rispondi e rimanda'), m('Buongiorno,\n\nle lascio il calendario.', 'Proponi la call'), m('Buongiorno,\n\nultima.', 'Quarta')]
+    const tre = stradeDi([p({ strade: [...quattro, RINVIO, CHIUDI, NIENTE] })])!
+    const { mail, gesti } = mailEGesti(tre)
+    expect(mail.map((x) => x.etichetta)).toEqual(['Chiedi il contatto', 'Rispondi e rimanda', 'Proponi la call'])
+    expect(mail).toHaveLength(MAX_MAIL)
+    expect(gesti.map((x) => x.azione)).toEqual(['ricontatta', 'chiudi'])
+    for (const [i, a] of mail.entries()) for (const b of mail.slice(i + 1)) expect(stessaBozza(a.bozza, b.bozza)).toBe(false)
     expect(stradeDi([p({ stato: 'approvata' })])).toBeNull()
     // una domanda nata in conversazione non ha una bozza ferma: le strade ci sono lo stesso
     expect(stradeDi([p({ bozza: null, titolo: 'Decidi tu: Azienda A' })])?.motivo).toBe("L'ha girata a un collega senza l'indirizzo")
@@ -427,5 +437,65 @@ describe("la versione nuova (21/10 sera): si controlla e si ricarica solo quando
     expect(appFerma('A')).toBe(true)
     expect(appFerma('BODY')).toBe(true)
     expect(appFerma(null)).toBe(true)
+  })
+})
+
+describe('la bozza si modifica (22/10 notte, Dre: «mi scrive le bozze ma non posso modificarle»)', () => {
+  const ADESSO = new Date('2026-10-22T21:00:00Z')
+  const lead = { analysis_pdf: null as string | null, analysis_sent_at: '2026-10-19T09:00:00Z' as string | null }
+  const az = { bozza: 'Buongiorno,\n\nle scrivo io giovedì.', intento: 'INT-13', lettura: { coerenza: 'INCOERENTE' } }
+
+  it('il testo cambiato da Dre è quello che si salva; quello di Clara resta in bozza_originale e la bozza è segnata sua', () => {
+    const fuori = azioneApprovata(conTestoDiDre(az, '  Buongiorno,\n\nla chiamo io domani.  ', az.bozza, ADESSO), lead, ADESSO)
+    expect(fuori.bozza).toBe('Buongiorno,\n\nla chiamo io domani.')
+    expect(fuori.bozza_originale).toBe(az.bozza)
+    expect(fuori.modificata_da_dre).toBe(true)
+    expect(fuori.modificata_il).toBe('2026-10-22T21:00:00.000Z')
+    expect(fuori.approvata_da).toBe(DA_APP)
+    expect(fuori.lettura).toEqual(az.lettura)
+    expect(az).not.toHaveProperty('modificata_da_dre')
+  })
+  it("se non l'ha cambiato, l'azione resta com'è (anche se nel frattempo il sistema ha aggiornato l'orario); vuoto non parte", () => {
+    expect(conTestoDiDre(az, az.bozza + '\n', az.bozza, ADESSO)).toEqual(az)
+    const aggiornata = { ...az, bozza: 'Buongiorno,\n\nle scrivo io venerdì.' }
+    expect(conTestoDiDre(aggiornata, az.bozza, az.bozza, ADESSO).bozza).toBe(aggiornata.bozza)
+    expect(() => conTestoDiDre(az, '   ', az.bozza, ADESSO)).toThrow(TESTO_VUOTO)
+  })
+  it('una strada manda col testo cambiato: parte il testo del campo, la scelta lo ricorda; non cambiato: niente segno', () => {
+    const MANDA: Strada = { etichetta: 'Rispondi breve', perche: 'x', azione: 'manda', bozza: 'Buongiorno,\n\nversione di Clara.' }
+    const RINVIO: Strada = { etichetta: 'Rimanda a gennaio', perche: 'y', azione: 'ricontatta', data: '2027-01-12' }
+    const c = { id: 1, strade: [MANDA, RINVIO], caso: 'C10', intento: null, motivo: '' }
+    const s = scrittureStrada(c, MANDA, { bozza: 'ferma', bozza_originale: 'vecchissima' }, lead, ADESSO, 'Buongiorno,\n\nversione di Dre.')
+    const a = s.proposta.azione as Record<string, unknown>
+    expect(a.bozza).toBe('Buongiorno,\n\nversione di Dre.')
+    expect(a.bozza_originale).toBe(MANDA.bozza)
+    expect(a.modificata_da_dre).toBe(true)
+    expect(a.scelta).toMatchObject({ etichetta: 'Rispondi breve', modificata_da_dre: true })
+    const uguale = scrittureStrada(c, MANDA, { bozza: 'ferma' }, lead, ADESSO, MANDA.bozza!).proposta.azione as Record<string, unknown>
+    expect(uguale.bozza).toBe(MANDA.bozza)
+    expect(uguale).not.toHaveProperty('modificata_da_dre')
+    expect(uguale).not.toHaveProperty('bozza_originale')
+    expect(() => scrittureStrada(c, MANDA, {}, lead, ADESSO, '')).toThrow(TESTO_VUOTO)
+    // i gesti senza mail non guardano il testo
+    expect(scrittureStrada(c, RINVIO, {}, lead, ADESSO, 'qualunque').proposta.stato).toBe('no')
+    expect(NOTE_APP.mandato_cambiato.startsWith("Dall'app: ")).toBe(true)
+  })
+})
+
+describe("la conversazione al contrario (22/10 notte, Dre: «come l'ordine che ho su Smartlead»)", () => {
+  const m = (at: string | null, chi: 'lui' | 'noi', testo: string) => ({ at, chi, testo, citato: '' })
+  const filo = [m('2026-10-10T09:00:00Z', 'noi', 'prima nostra'), m('2026-10-12T09:00:00Z', 'lui', 'sì, me la mandi'),
+    m('2026-10-12T10:00:00Z', 'noi', "ecco l'analisi"), m('2026-10-20T09:00:00Z', 'lui', 'ultima sua')]
+  const testi = (v: ReturnType<typeof filoAlContrario<ReturnType<typeof m>>>) => v.map((x) => x.tipo === 'mail' ? x.m.testo : 'ANALISI')
+
+  it('dal più recente al più vecchio: in cima la sua ultima, sotto la nostra di prima, e così via', () => {
+    expect(testi(filoAlContrario(filo, { mandata: false, il: null }))).toEqual(['ultima sua', "ecco l'analisi", 'sì, me la mandi', 'prima nostra'])
+    expect(filo[0].testo).toBe('prima nostra')                 // il filo di partenza non si tocca
+  })
+  it("l'analisi è una riga nel suo punto del tempo; senza data in cima; dopo tutte in fondo", () => {
+    expect(testi(filoAlContrario(filo, { mandata: true, il: '2026-10-12T10:00:30Z' }))).toEqual(['ultima sua', 'ANALISI', "ecco l'analisi", 'sì, me la mandi', 'prima nostra'])
+    expect(filoAlContrario(filo, { mandata: true, il: null })[0].tipo).toBe('analisi')
+    expect(filoAlContrario(filo, { mandata: true, il: '2026-09-01T00:00:00Z' }).at(-1)?.tipo).toBe('analisi')
+    expect(filoAlContrario([], { mandata: true, il: '2026-10-12T10:00:00Z' })).toEqual([{ tipo: 'analisi' }])
   })
 })

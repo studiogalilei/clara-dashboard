@@ -5099,7 +5099,7 @@ def _():
 
 
 
-@prova("le strade (21/10): max 3, manda sempre con la bozza, chiama solo col cellulare, ricontatta con una data futura")
+@prova("le strade (21/10): al massimo due gesti senza mail, manda sempre con la bozza, chiama solo col cellulare, ricontatta con una data futura")
 def _():
     import strade as S
     oggi = datetime.date(2026, 10, 22)
@@ -5110,7 +5110,7 @@ def _():
     NIENTE = {"etichetta": "Lascia che si faccia vivo lui", "perche": "ci scrive lui", "azione": "niente"}
     buone, scartate = S.valida([MANDA, RINVIO, CHIUDI, CHIAMA, NIENTE], cellulare=True, oggi=oggi)
     assert [s["azione"] for s in buone] == ["manda", "ricontatta", "chiudi"], buone
-    assert any(m == "oltre la terza" for _, m in scartate)
+    assert any(m == "oltre il secondo gesto" for _, m in scartate)
     # manda senza bozza no; chiama senza cellulare no; ricontatta nel passato o senza data no; classe strana no; etichetta lunga no; doppie no
     buone, scartate = S.valida([{**MANDA, "bozza": ""}, CHIAMA, {**RINVIO, "data": "2026-10-22"}, {**RINVIO, "data": "ieri"}, {**CHIUDI, "classe": "soppresso"},
                                 {**NIENTE, "etichetta": "Una etichetta davvero troppo lunga per una carta sul telefono"}, NIENTE, NIENTE, {"etichetta": "Boh", "perche": "x", "azione": "boh"}],
@@ -5123,7 +5123,7 @@ def _():
     b, _ = S.valida([RINVIO, {**CHIUDI, "data": "2027-01-01"}], cellulare=False, oggi=oggi)
     assert set(b[0]) == {"etichetta", "perche", "azione", "bozza", "data", "classe", "intento"} and b[1]["data"] is None and b[0]["bozza"] is None
     # il tetto di spesa esiste ed e' quello detto a Dre (3 $), come il lettore
-    assert S.TETTO_GIORNO == 3.0 and S.MAX_STRADE == 3 and S.MIN_STRADE == 2
+    assert S.TETTO_GIORNO == 3.0 and S.MAX_MAIL == 3 and S.MAX_ALTRE == 2 and S.MIN_STRADE == 2
     # chi non e' una persona non ha strade
     assert not S.e_persona({"perche": "sì: autorisposta di servizio", "azione": {}}, {"classificazione": "ooo"})
     assert not S.e_persona({"perche": "decidi tu", "azione": {"lettura": {"autorisposta": True}}}, {"classificazione": "rinvio"})
@@ -5174,12 +5174,12 @@ def _():
     # l'app scrive le stesse cose: approvata da «Dre (app, strada: …)», nota «Dall'app: strada scelta: …», stati fra i 12
     radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     regole = open(os.path.join(radice, "src", "snella", "regole.ts"), encoding="utf-8").read()
-    assert "export function stradeDi" in regole and "export function scrittureStrada" in regole and "export const MAX_STRADE = 3" in regole
+    assert "export function stradeDi" in regole and "export function scrittureStrada" in regole and "export const MAX_MAIL = 3" in regole
     assert "strada: (etichetta: string) => `Dall'app: strada scelta: ${etichetta}`" in regole
     assert ", strada: ${scelta.etichetta})`" in regole and "scelta: scelta_record" in regole
     assert "stato: 'Da ricontattare'" in regole and "stato: 'Da chiamare', chiamata: 'richiamare'" in regole
     scheda = open(os.path.join(radice, "src", "snella", "SchedaLead.tsx"), encoding="utf-8").read()
-    assert 'titolo="Decidi tu"' in scheda and "Nessuna di queste" in scheda and "stradeDi(dati.proposte)" in scheda
+    assert 'titolo="Da decidere"' in scheda and "Nessuna di queste" in scheda and "stradeDi(dati.proposte)" in scheda
     # l'operazione e' registrata nello schema, ogni 15 minuti, in corsia leggera
     sql = open(os.path.join(radice, "supabase", "schema_v97.sql"), encoding="utf-8").read()
     assert "('strade'," in sql and "'python3 scripts/strade.py', 15," in sql
@@ -5653,6 +5653,107 @@ def _():
     t, m = R.verdetto(pr(), None, ora); assert not t, m
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ripulisci.py"), encoding="utf-8").read()
     assert "revisore.controlla(" in src and '"stato": "no"' in src and "import manda" not in src and "reply-email-thread" not in src and "smartlead" not in src.lower(), "chiude con motivo, passa dal Revisore, non manda mai"
+
+
+# ── 22/10 notte: «vorrei poterle MODIFICARE», «due-tre alternative», il testo di Dre non lo riscrive nessuno ──
+@prova("il testo di Dre (22/10): nessuno script lo riscrive, il postino lo passa dal cancello minimo, le sue correzioni insegnano")
+def _():
+    import stanza
+    import manda
+    import bozze
+    import strade as S
+    assert stanza.scritta_da_dre({"modificata_da_dre": True}) and not stanza.scritta_da_dre({}) and not stanza.scritta_da_dre(None)
+    # il cancello minimo: lo stile di Clara non vale per Dre, la sicurezza si'
+    sua = "Buongiorno Mario,\n\ngrazie, resto a disposizione per qualsiasi cosa."
+    assert manda.controlla(sua, None, di_dre=True) == [], manda.controlla(sua, None, di_dre=True)
+    assert manda.controlla(sua, None), "la stessa frase scritta da Clara cade sullo stile («a disposizione»)"
+    assert manda.controlla("Buongiorno {{nome}},\n\nci sentiamo.", None, di_dre=True) == ["segnaposto lasciato nel testo"]
+    assert manda.controlla("   ", None, di_dre=True) == ["il testo e' vuoto"]
+    assert manda.controlla("Buongiorno,\n\n[NOTA: chiedere a Dre]\nci sentiamo.", None, di_dre=True), "una riga interna non parte mai"
+    pz = {"enriched": {"prezzo": {"punto": 1200, "fascia": [900, 1500]}}, "pipeline_stage": None}
+    assert manda.controlla("Buongiorno,\n\nil canone e' 1.200 euro.", pz, di_dre=True), "il prezzo interno non entra nemmeno nel testo di Dre"
+    # il postino passa il segno al cancello, e non riscrive mai la bozza: la manda com'e'
+    src_m = open(manda.__file__, encoding="utf-8").read()
+    assert "di_dre=scritta_da_dre(az)" in src_m
+    assert 'az["bozza"] =' not in src_m and '"bozza": ' not in src_m.split("def main():")[1], "manda.py non scrive mai il testo"
+    # l'orario rinfrescato salta il testo di Dre (prima di guardarlo)
+    chiamate = []
+    vero = bozze.sb
+    try:
+        def finto(metodo, percorso, *a, **k):
+            chiamate.append((metodo, percorso))
+            if metodo == "GET" and "azione->>bozza" in percorso:
+                return [{"id": 1, "bozza": "Le propongo martedì 1 settembre alle 10:00.", "di_dre": "true"}]
+            return []
+        bozze.sb = finto
+        bozze.rinfresca_orari()
+    finally:
+        bozze.sb = vero
+    assert [m for m, _ in chiamate] == ["GET"] and "modificata_da_dre" in chiamate[0][1], chiamate
+    # niente strade sopra il testo di Dre, niente abitudine che lo sostituisce
+    scritti = []
+    vero_s = S.sb
+    try:
+        S.sb = lambda *a, **k: scritti.append(a)
+        S.applica_abitudine({"id": 1, "azione": {"modificata_da_dre": True, "bozza": "di Dre"}}, {"id": "p"},
+                            {"strade": [{"etichetta": "Manda", "azione": "manda", "bozza": "di Clara", "perche": "x"}],
+                             "abitudine": {"etichetta": "Manda", "azione": "manda"}, "caso": "C1", "lettura": ""},
+                            datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc))
+    finally:
+        S.sb = vero_s
+    assert scritti == [], scritti
+    src_s = open(S.__file__, encoding="utf-8").read()
+    assert 'if scritta_da_dre(pr.get("azione")):\n            print(' in src_s, "le domande col testo di Dre non prendono strade nuove"
+    import seguiti
+    assert 'if r["az"].get("modificata_da_dre"):\n            continue' in open(seguiti.__file__, encoding="utf-8").read()
+    # le sue correzioni insegnano: bozze.come_corregge_dre le legge dalla bozza originale, e entrano nel prompt delle strade
+    vero = bozze.sb
+    try:
+        bozze.sb = lambda metodo, percorso, *a, **k: [{"prospect_id": "p", "risposta_il": "2026-10-22T08:00:00+00:00", "risposta": "Mandata",
+                                                       "azione": {"bozza": "Buongiorno,\n\nversione di Dre.", "bozza_originale": "Buongiorno,\n\nversione di Clara.", "modificata_da_dre": True}}] if "proposte" in percorso else []
+        lez = bozze.come_corregge_dre()
+    finally:
+        bozze.sb = vero
+    assert "BOZZA DI CLARA: Buongiorno,\n\nversione di Clara." in lez and "VERSIONE DI DRE: Buongiorno,\n\nversione di Dre." in lez, lez
+    assert "bozze.come_corregge_dre()" in src_s
+    # l'app scrive proprio questi campi (src/snella/regole.ts)
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    regole = open(os.path.join(radice, "src", "snella", "regole.ts"), encoding="utf-8").read()
+    assert "bozza: t, bozza_originale: mostrato.trim(), modificata_da_dre: true" in regole
+    # lezioni.py confronta bozza_originale e bozza: la correzione fatta nell'app la trova senza altro
+    assert 'az.get("bozza_originale")' in open(os.path.join(radice, "scripts", "lezioni.py"), encoding="utf-8").read()
+
+
+@prova("le versioni della mail (22/10): fino a tre, mai due con lo stesso attacco, piu' al massimo due gesti; la stessa regola nell'app")
+def _():
+    import strade as S
+    oggi = datetime.date(2026, 10, 22)
+    m = lambda et, b: {"etichetta": et, "perche": "x", "azione": "manda", "bozza": b}   # noqa: E731
+    v = [m("Rispondi breve e proponi la call", "Buongiorno Mario,\n\ngrazie, le lascio il calendario per una call di venti minuti."),
+         m("Rispondi breve con la call", "Buongiorno Mario,\n\ngrazie, le lascio il calendario per una call di venti minuti.\nA presto."),
+         m("Rispondi all'obiezione sul budget", "Buongiorno Mario,\n\ncapisco il budget: l'analisi serve proprio a capire se vale la pena."),
+         m("Manda il materiale senza call", "Buongiorno Mario,\n\nle giro l'analisi in allegato, la legga con calma."),
+         m("Quarta versione in piu", "Buongiorno Mario,\n\nuna quarta strada che non serve a nessuno.")]
+    g = [{"etichetta": "Rimanda a gennaio", "perche": "x", "azione": "ricontatta", "data": "2027-01-12"},
+         {"etichetta": "Chiudi: non interessato", "perche": "x", "azione": "chiudi", "classe": "negativo"},
+         {"etichetta": "Lascia che si faccia vivo lui", "perche": "x", "azione": "niente"}]
+    buone, scartate = S.valida(v + g, cellulare=False, oggi=oggi)
+    mail = [b for b in buone if b["azione"] == "manda"]
+    assert [b["etichetta"] for b in mail] == ["Rispondi breve e proponi la call", "Rispondi all'obiezione sul budget", "Manda il materiale senza call"], mail
+    assert [b["azione"] for b in buone if b["azione"] != "manda"] == ["ricontatta", "chiudi"]
+    motivi = " | ".join(x for _, x in scartate)
+    assert "stesso attacco" in motivi and "oltre la terza mail" in motivi and "oltre il secondo gesto" in motivi, motivi
+    for i, a in enumerate(mail):
+        for b in mail[i + 1:]:
+            assert not S.stessa_bozza(a["bozza"], b["bozza"])
+    assert S.stessa_bozza("Buongiorno,\n\nCiao  a te.", "buongiorno,\nciao a te.") and not S.stessa_bozza("Buongiorno,\n\nuno.", "Buongiorno,\n\ndue.")
+    assert S.MAX_MAIL == 3 and S.MAX_ALTRE == 2
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    regole = open(os.path.join(radice, "src", "snella", "regole.ts"), encoding="utf-8").read()
+    assert "export const MAX_MAIL = 3" in regole and "export const MAX_ALTRE = 2" in regole and "export function stessaBozza" in regole
+    # il rigioco non applica abitudini e scrive sulla stessa domanda
+    src = open(S.__file__, encoding="utf-8").read()
+    assert "con_abitudine=not RIFAI" in src and "and not RIFAI" in src
 
 
 def main():

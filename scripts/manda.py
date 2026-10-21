@@ -46,7 +46,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi  # noqa: E402
+from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi, scritta_da_dre  # noqa: E402
 
 BASE = "https://server.smartlead.ai/api/v1"
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")          # 6/10: non +2 fisso, se no d'inverno «mandata alle» e' un'ora indietro
@@ -374,9 +374,21 @@ def in_copia(az):
     return {"cc": ", ".join(cc)} if cc else {}
 
 
-def controlla(bozza, p=None, gruppo=None, detto_no=False, cc=None, let=None, intento=None):
+RIGA_INTERNA = re.compile(r"\[(ESCALATION|NOTA|INTERNO|FERMATI)", re.I)
+
+
+def controlla(bozza, p=None, gruppo=None, detto_no=False, cc=None, let=None, intento=None, di_dre=False):
+    """I motivi per cui la bozza non parte (vuota = parte).
+    `di_dre` (22/10 notte): il testo l'ha scritto o cambiato Dre nell'app. Passa dal CANCELLO MINIMO: niente
+    testo vuoto, niente segnaposto o righe interne rimaste, chi va in copia controllato, il prezzo interno mai
+    in una mail. Le regole dello stile di Clara (bozze.cancello: chiusa, «a disposizione», call al messaggero...)
+    sono per le bozze di Clara: Dre scrive come vuole, e il suo testo non lo riscrive nessuno."""
+    if not (bozza or "").strip():
+        return ["il testo e' vuoto"]
     if "{{" in bozza or "}}" in bozza or "[[" in bozza:
         return ["segnaposto lasciato nel testo"]
+    if di_dre and RIGA_INTERNA.search(bozza):
+        return ["riga interna nel testo ([NOTA]/[ESCALATION]): il lead non deve vederla"]
     if cc:
         errori_cc = controlla_cc(cc, p, let)
         if errori_cc:
@@ -390,6 +402,8 @@ def controlla(bozza, p=None, gruppo=None, detto_no=False, cc=None, let=None, int
     for n in [pz.get("punto")] + list(pz.get("fascia") or []):
         if n and re.search(rf"\b{int(n):,}\b|\b{int(n)}\b|\b{int(n):,}\b".replace(",", r"[.,]"), bozza):
             return [f"il prezzo suggerito ({int(n)} €) e' interno: non entra in una mail"]
+    if di_dre:
+        return []
     try:
         import bozze
         # i gruppi del segugio hanno il prossimo tocco gia' programmato: il finale leggero e' voluto (Dre 30/9)
@@ -512,7 +526,7 @@ def main():
         if not az.get("approvata_da"):
             torna_aperta(pr, azienda, "non risulta chi l'ha approvata", prova); continue
         errori = controlla(bozza, p, gruppo=az.get("gruppo") or az.get("template"), detto_no=bool((az.get("lettura") or {}).get("detto_no")),
-                           cc=az.get("cc"), let=az.get("lettura"), intento=az.get("intento"))
+                           cc=az.get("cc"), let=az.get("lettura"), intento=az.get("intento"), di_dre=scritta_da_dre(az))
         if errori:
             torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
         cid, lid, ultima = thread(p)

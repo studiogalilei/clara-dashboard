@@ -48,7 +48,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import casi
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile, lettore_di  # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile, lettore_di, scritta_da_dre  # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
 
@@ -355,8 +355,10 @@ def rinfresca_orari():
     e si salva solo se il cancello non trova errori nuovi. Resta la traccia in azione.ritocco."""
     oggi = datetime.date.today()
     # prima solo il testo (il giro passa ogni pochi minuti): l'azione intera solo per chi va sistemata
-    for t in sb("GET", "/rest/v1/proposte?select=id,azione->>bozza&stato=eq.aperta&tipo=in.(risposta,umano)"
+    for t in sb("GET", "/rest/v1/proposte?select=id,azione->>bozza,di_dre:azione->>modificata_da_dre&stato=eq.aperta&tipo=in.(risposta,umano)"
                        "&azione->>bozza=not.is.null&limit=1000") or []:
+        if t.get("di_dre"):
+            continue                    # 22/10: il testo di Dre non lo riscrive nessuno, nemmeno l'orario
         vecchio = orario_scaduto(t.get("bozza"), oggi)
         if not vecchio:
             continue
@@ -364,6 +366,8 @@ def rinfresca_orari():
         if not x:
             continue
         a = dict(x.get("azione") or {})
+        if scritta_da_dre(a):
+            continue
         nuovo = proposta_giorno_ora()
         testo = a["bozza"].replace(vecchio, nuovo, 1)
         if set(cancello(testo)) - set(cancello(a["bozza"])):
@@ -657,8 +661,15 @@ def come_corregge_dre(quante=8):
         return ""
     lezioni = []
     for x in fatte:
-        bozza = ((x.get("azione") or {}).get("bozza") or "").strip()
+        az = x.get("azione") or {}
+        bozza = (az.get("bozza") or "").strip()
         if not bozza or not x.get("prospect_id"):
+            continue
+        # 22/10 notte: Dre cambia il testo nell'app; la versione di Clara resta in bozza_originale
+        if scritta_da_dre(az) and (az.get("bozza_originale") or "").strip() and az["bozza_originale"].strip() != bozza:
+            lezioni.append(f"BOZZA DI CLARA: {az['bozza_originale'].strip()[:350]}\nVERSIONE DI DRE: {bozza[:350]}")
+            if len(lezioni) >= quante:
+                break
             continue
         if x.get("risposta") and "pulizia" in x["risposta"]:
             continue

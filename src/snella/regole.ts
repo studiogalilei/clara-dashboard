@@ -374,7 +374,7 @@ export function motivoFermo(p: Pick<PropostaLead, 'titolo' | 'perche' | 'motivo_
 export const DA_APP = 'Dre (app)'
 /** Le note che restano sul lead dopo un gesto dalla scheda (snella_note): la traccia di cosa ha deciso Dre. */
 export const NOTE_APP = {
-  mandato: "Dall'app: mandato", non_mandato: "Dall'app: non mandato", chiuso: "Dall'app: chiuso, non interessato",
+  mandato: "Dall'app: mandato", mandato_cambiato: "Dall'app: mandato, col testo cambiato da Dre", non_mandato: "Dall'app: non mandato", chiuso: "Dall'app: chiuso, non interessato",
   strada: (etichetta: string) => `Dall'app: strada scelta: ${etichetta}`,
   nessuna_strada: "Dall'app: nessuna delle strade, chiuso senza fare nulla",
 } as const
@@ -387,19 +387,77 @@ export interface Strada {
   etichetta: string; perche: string; azione: AzioneStrada
   bozza?: string | null; data?: string | null; classe?: 'negativo' | 'fuori_target' | null; intento?: string | null
 }
-export const MAX_STRADE = 3
+/** 22/10 notte (Dre: «due-tre alternative di bozza da accettare, tipo ChatGPT»): fino a tre MAIL diverse da
+ *  scegliere, e sotto al massimo due gesti senza mail (rimanda, chiudi, chiama, niente). */
+export const MAX_MAIL = 3
+export const MAX_ALTRE = 2
 export interface ConStrade { id: number; strade: Strada[]; caso: string | null; intento: string | null; motivo: string }
 
-/** La proposta aperta che ha le strade (la piu' recente), con al massimo tre strade che reggono: una `manda`
- *  senza bozza non si mostra (non si puo' eseguire), oltre la terza si taglia. Meno di due: niente «Decidi tu»,
- *  restano i pulsanti di prima. */
+/** Il testo di una mail come si confronta: minuscolo, spazi uniti. */
+function piatto(t: string | null | undefined): string {
+  return (t ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+/** Due bozze sono «la stessa» se il testo e' uguale o se partono con la stessa frase (il collaudo del 21/10
+ *  ne ha trovate due con lo stesso attacco): a Dre servono alternative vere, non copie. */
+export function stessaBozza(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (piatto(a) === piatto(b)) return true
+  const pa = piatto(primaRiga(a ?? '', 400)), pb = piatto(primaRiga(b ?? '', 400))
+  return Boolean(pa) && pa === pb
+}
+
+/** La proposta aperta che ha le strade (la piu' recente): le mail (al massimo tre, mai due uguali, mai senza
+ *  bozza) e gli altri gesti (al massimo due). Meno di due strade in tutto: niente «Decidi tu», resta il
+ *  messaggio in attesa com'era. */
 export function stradeDi(proposte: PropostaLead[]): ConStrade | null {
   const p = proposte.filter((x) => x.stato === 'aperta' && (x.tipo === 'risposta' || x.tipo === 'umano') && Array.isArray(x.strade) && x.strade.length)
     .sort((a, b) => b.at.localeCompare(a.at))[0]
   if (!p) return null
-  const strade = (p.strade ?? []).filter((s) => s && s.etichetta && s.azione && (s.azione !== 'manda' || s.bozza?.trim())).slice(0, MAX_STRADE)
+  const buone = (p.strade ?? []).filter((s) => s && s.etichetta && s.azione && (s.azione !== 'manda' || s.bozza?.trim()))
+  const mail: Strada[] = []
+  for (const s of buone.filter((x) => x.azione === 'manda')) {
+    if (mail.length < MAX_MAIL && !mail.some((m) => stessaBozza(m.bozza, s.bozza))) mail.push(s)
+  }
+  const strade = [...mail, ...buone.filter((x) => x.azione !== 'manda').slice(0, MAX_ALTRE)]
   if (strade.length < 2) return null
   return { id: p.id, strade, caso: p.strade_caso ?? null, intento: p.intento ?? null, motivo: motivoFermo(p) }
+}
+
+/** Le strade divise come le vede Dre: in alto le mail da scegliere (la prima gia' aperta), sotto i gesti piccoli. */
+export function mailEGesti(c: ConStrade): { mail: Strada[]; gesti: Strada[] } {
+  return { mail: c.strade.filter((s) => s.azione === 'manda'), gesti: c.strade.filter((s) => s.azione !== 'manda') }
+}
+
+// ── il testo di Dre (22/10 notte, Dre: «mi scrive le bozze ma non posso modificarle») ──
+
+export const TESTO_VUOTO = 'Il testo è vuoto: scrivi la mail, oppure non mandarla.'
+
+/** Il testo che Dre manda e' quello nel campo, cosi' com'e'. Se l'ha cambiato rispetto a quello che vedeva
+ *  (`mostrato`): la bozza diventa la sua, quella di Clara resta in `bozza_originale` (da li' imparano
+ *  scripts/lezioni.py e bozze.come_corregge_dre) e `modificata_da_dre` dice a tutti gli script di non
+ *  toccarla piu' (il postino la passa dal cancello minimo, non dal giudice dello stile). Se non l'ha
+ *  cambiato, l'azione resta com'e' (anche se nel frattempo il sistema ha aggiornato l'orario). */
+export function conTestoDiDre(azione: Record<string, unknown>, testo: string, mostrato: string, ora: Date = new Date()): Record<string, unknown> {
+  const t = testo.trim()
+  if (!t) throw new Error(TESTO_VUOTO)
+  if (t === mostrato.trim()) return { ...azione }
+  return { ...azione, bozza: t, bozza_originale: mostrato.trim(), modificata_da_dre: true, modificata_il: ora.toISOString() }
+}
+
+// ── la conversazione al contrario (22/10 notte, Dre: «come l'ordine che ho su Smartlead») ──
+
+export type VoceFilo<M> = { tipo: 'mail'; m: M } | { tipo: 'analisi' }
+
+/** Il filo dal piu' recente al piu' vecchio, con l'analisi mandata come una riga nel suo punto del tempo
+ *  (sopra le mail piu' vecchie di lei). Un'analisi senza data va in cima. */
+export function filoAlContrario<M extends { at: string | null }>(filo: M[], analisi: { mandata: boolean; il: string | null }): Array<VoceFilo<M>> {
+  const voci: Array<VoceFilo<M>> = [...filo].reverse().map((m) => ({ tipo: 'mail' as const, m }))
+  if (!analisi.mandata) return voci
+  if (!analisi.il) return [{ tipo: 'analisi' }, ...voci]
+  const il = new Date(analisi.il).getTime()
+  const dove = voci.findIndex((v) => v.tipo === 'mail' && v.m.at != null && new Date(v.m.at).getTime() < il)
+  if (dove === -1) return [...voci, { tipo: 'analisi' }]
+  return [...voci.slice(0, dove), { tipo: 'analisi' }, ...voci.slice(dove)]
 }
 
 /** Che cosa dice la carta sotto l'etichetta: la data per ricontatta, la classe per chiudi. */
@@ -424,10 +482,10 @@ export function confermaStrada(s: Strada, allega: boolean): string {
 
 /** La scelta di Dre, com'e' scritta sulla proposta (azione.scelta): e' quello che il sistema rilegge per imparare
  *  (scripts/strade.py: caso del lettore, intento, le strade proposte, quale ha scelto, quando). */
-export function recordScelta(c: ConStrade, scelta: Strada | null, ora: Date = new Date()): Record<string, unknown> {
+export function recordScelta(c: ConStrade, scelta: Strada | null, ora: Date = new Date(), modificata = false): Record<string, unknown> {
   return {
     etichetta: scelta?.etichetta ?? 'Nessuna di queste', azione: scelta?.azione ?? 'nessuna', caso: c.caso, intento: c.intento,
-    strade: c.strade.map((s) => s.etichetta), il: ora.toISOString(),
+    strade: c.strade.map((s) => s.etichetta), il: ora.toISOString(), ...(modificata ? { modificata_da_dre: true } : {}),
   }
 }
 
@@ -444,9 +502,11 @@ export interface ScrittureStrada {
   togliCalendario: boolean
 }
 export function scrittureStrada(c: ConStrade, scelta: Strada | null, azione: Record<string, unknown>,
-  lead: { analysis_pdf: string | null; analysis_sent_at: string | null }, ora: Date = new Date()): ScrittureStrada {
+  lead: { analysis_pdf: string | null; analysis_sent_at: string | null }, ora: Date = new Date(), testo?: string): ScrittureStrada {
   const il = ora.toISOString()
-  const scelta_record = recordScelta(c, scelta, ora)
+  // 22/10 notte: per `manda` il testo che parte e' quello del campo (Dre puo' averlo cambiato)
+  const diDre = scelta?.azione === 'manda' && testo !== undefined ? conTestoDiDre({ bozza: scelta.bozza }, testo, scelta.bozza ?? '', ora) : null
+  const scelta_record = recordScelta(c, scelta, ora, Boolean(diDre?.modificata_da_dre))
   const chiusa = (risposta: string): Record<string, unknown> => ({ stato: 'no', risposta, risposta_il: il, azione: { ...azione, scelta: scelta_record } })
   if (!scelta) {
     return { lead: null, proposta: chiusa("NO: Dre dall'app, nessuna delle strade"), decisione: null, nota: NOTE_APP.nessuna_strada, togliCalendario: false }
@@ -458,7 +518,7 @@ export function scrittureStrada(c: ConStrade, scelta: Strada | null, azione: Rec
       // per la bozza vecchia (rinvii, date) non vale piu'
       const pulita = { ...azione }
       for (const k of ['dopo_invio', 'testo_dal_codice', 'bozza_modello', 'giorno_proposto', 'ritocco', 'bozza_originale']) delete pulita[k]
-      const az = azioneApprovata({ ...pulita, bozza: scelta.bozza, intento: scelta.intento || azione.intento, scelta: scelta_record }, lead, ora)
+      const az = azioneApprovata({ ...pulita, bozza: scelta.bozza, ...(diDre ?? {}), intento: scelta.intento || azione.intento, scelta: scelta_record }, lead, ora)
       az.approvata_da = `${DA_APP.slice(0, -1)}, strada: ${scelta.etichetta})`
       return { lead: null, proposta: { stato: 'approvata', azione: az }, decisione: null, nota, togliCalendario: false }
     }
@@ -496,8 +556,8 @@ export function allegaAnalisi(azione: { bozza?: unknown; allega?: unknown }, lea
   return !String(azione.bozza ?? '').includes(lead.analysis_pdf)
 }
 
-/** «MANDA»: com'e' `azione` dopo il si' di Dre dalla scheda. manda.py vuole `approvata_da`; il resto
- *  della bozza non si tocca (il testo non si modifica dalla scheda). */
+/** «MANDA»: com'e' `azione` dopo il si' di Dre dalla scheda. manda.py vuole `approvata_da`; il testo e'
+ *  quello che arriva (dal 22/10 Dre lo puo' cambiare: prima passa da conTestoDiDre). */
 export function azioneApprovata(azione: Record<string, unknown>, lead: { analysis_pdf: string | null; analysis_sent_at: string | null },
   ora: Date = new Date()): Record<string, unknown> {
   const out: Record<string, unknown> = { ...azione, approvata_da: DA_APP, approvata_il: ora.toISOString() }

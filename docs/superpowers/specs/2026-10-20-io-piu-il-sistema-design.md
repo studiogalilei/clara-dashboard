@@ -132,3 +132,24 @@ Come si scrive la scheda Clara (riusa la tabella `corse`, `registro`, `proposte`
 il «prossimo messaggio» (proposte aperte/approvate e le date dei follow-up in `followup.py`);
 il link al filo Smartlead (formato dell'URL della Master Inbox); come si riconosce «entrato in
 conversazione» (risposta arrivata dopo `analysis_sent_at`).
+
+## 22/10 notte: la bozza si modifica, le versioni, il filo al contrario
+Dre, 22/10: «vorrei poterle MODIFICARE», «due-tre alternative di bozza da accettare, tipo ChatGPT»,
+«i messaggi a ritroso, la bozza pronta in alto, come l'ordine che ho su Smartlead». Cambia la scelta
+«il testo non si modifica dalla scheda» del 20/10.
+- **Da decidere** (scheda, sotto il titolo): la bozza ferma è un campo di testo; «Manda» manda il testo
+  del campo. Se Dre l'ha cambiato: `azione.bozza` = il suo, `bozza_originale` = quello di Clara,
+  `modificata_da_dre` = vero. Da lì imparano `lezioni.py` e `bozze.come_corregge_dre` (che entra anche nel
+  prompt delle strade).
+- **Il testo di Dre non lo riscrive nessuno** (`stanza.scritta_da_dre`): né l'orario rinfrescato, né i
+  template, né le strade, né l'abitudine. Il postino lo passa dal **cancello minimo** (`manda.controlla`
+  con `di_dre`: vuoto, segnaposto, righe interne, chi va in copia, prezzo interno), non dalle regole dello
+  stile di Clara. La seconda testa non gira sul testo di Dre (come già per il «Manda» del 20/10). Restano i
+  controlli del postino: mai a chi non è contattabile, mai fuori dalla finestra, mai un filo superato.
+- **Le versioni**: `strade.py` propone fino a 3 mail diverse (mai lo stesso attacco: `stessa_bozza`, la
+  stessa regola dell'app) più al massimo 2 gesti senza mail; ognuna passa dal cancello e dalla seconda
+  testa. Nella scheda la prima è aperta e modificabile, le altre hanno «Usa questa», i gesti sono pulsanti
+  piccoli. `--rifai` rigioca le domande aperte senza abitudini.
+- **La conversazione dal più recente**: in cima la sua ultima mail, poi la nostra di prima, e indietro;
+  l'analisi è una riga col PDF nel suo punto del tempo. I contatti scendono sotto la conversazione; il
+  telefono resta a un tocco sotto il titolo.

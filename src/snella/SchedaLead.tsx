@@ -4,15 +4,19 @@
 // di Clara, col testo esatto e «Ferma»; la conversazione con l'analisi; stato e prossima azione; note.
 // 20/10 sera (Dre: «lo vedevo, ma non potevo agire»): un messaggio fermo che aspetta lui si decide qui,
 // «Manda» o «Non mandare», e il lead si chiude con «Chiudi: non interessato». Ogni gesto lascia una nota.
-import { useEffect, useState } from 'react'
+// 22/10 notte (Dre: «vorrei poterle MODIFICARE», «due-tre alternative tipo ChatGPT», «i messaggi a ritroso, la
+// bozza pronta in alto, come su Smartlead»): sotto il titolo la bozza da decidere, modificabile, con le altre
+// versioni da scegliere; poi il prossimo messaggio; poi la conversazione dal piu' recente; poi i contatti.
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, chiudiLead, fermaMessaggi, ioSono, leggiScheda, linkAnalisi, mandaDallApp, nonMandareDallApp,
   salvaDecisione, scegliStrada, togliNota,
   type Call, type Decisione, type Lead, type Messaggio, type Nota, type Scheda, type Telefono,
 } from './dati'
 import {
-  NOTE_APP, allegaAnalisi, azioneApprovata, confermaStrada, dettaglioStrada, giornoRoma, infoStato, messaggioInAttesa, nomeGiorno, nomeStato, ora,
-  prossimoMessaggio, quando, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, stradeDi, statoDi,
+  NOTE_APP, allegaAnalisi, azioneApprovata, confermaStrada, conTestoDiDre, dettaglioStrada, filoAlContrario, giornoRoma, infoStato, mailEGesti,
+  messaggioInAttesa, nomeGiorno, nomeStato, ora, prossimoMessaggio, quando, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve,
+  sitoCliccabile, stradeDi, statoDi,
   type ConStrade, type InAttesa, type Strada,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
@@ -57,8 +61,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
     filo.filter((m) => m.chi === 'noi' && m.at).map((m) => m.at!))
   // 20/10 sera, Dre: «lo vedevo, ma non potevo agire». Un messaggio fermo che aspetta lui si decide qui:
   // Manda o Non mandare. Se e' lo stesso del «prossimo messaggio», si mostra una volta sola.
-  // 21/10 (Dre: «mi dà 2 o 3 strade e io scelgo, e lui procede»): se il sistema ha scritto le strade, il blocco
-  // si chiama «Decidi tu» e le mostra come carte; senza strade restano i pulsanti di prima.
+  // 21/10 (Dre: «mi dà 2 o 3 strade e io scelgo, e lui procede»): se il sistema ha scritto le strade, le mail sono
+  // le versioni da scegliere e gli altri gesti stanno sotto; senza strade, la bozza ferma da sola (22/10: tutte modificabili).
   const strade = stradeDi(dati.proposte)
   const attesa = strade ? null : messaggioInAttesa(dati.proposte)
   const mostraProssimo = prossimo?.proposta == null || (prossimo.proposta !== attesa?.id && prossimo.proposta !== strade?.id)
@@ -79,38 +83,38 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         {d?.stato_conv && <p className="mt-1 text-[14px] text-tenue">Nel foglio: <span className="font-semibold text-inchiostro">{d.stato_conv}</span></p>}
         {s?.attivita && <p className="mt-3 max-w-[65ch] text-[15px] leading-relaxed text-tenue">{s.attivita}</p>}
         <ProssimaCall call={dati.call} />
+        {/* 22/10 notte: i contatti sono scesi sotto la conversazione; il numero resta a un tocco */}
+        {telefoni[0] && (
+          <a href={`tel:${telefoni[0].tel}`} aria-label={`Chiama ${telefoni[0].numero}`}
+             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-bordo bg-white px-4 text-[15px] font-semibold text-blu-scuro transition-colors duration-150 hover:bg-velo">
+            <Icona nome="telefono" className="h-4 w-4" /> <span className="tabular-nums">{telefoni[0].numero}</span>
+          </a>
+        )}
       </header>
 
-      <Contatti telefoni={telefoni} email={s?.email || b?.email || lead?.email || ''} lead={lead}
-                campagna={s?.campagna || b?.campagna || lead?.campaign || ''} />
-
-      {strade && (
-        <Blocco titolo="Decidi tu">
-          <DecidiTu id={id} con={strade} lead={lead ?? VUOTO}
-            onScelta={(scelta, r) => {
-              const s = scrittureStrada(strade, scelta, {}, lead ?? VUOTO)
+      {(strade || attesa) && (
+        <Blocco titolo="Da decidere">
+          <DaDecidere key={strade?.id ?? attesa?.id} id={id} con={strade} attesa={attesa} lead={lead ?? VUOTO}
+            onScelta={(scelta, r, testo) => {
+              const s = scrittureStrada(strade!, scelta, {}, lead ?? VUOTO, new Date(), testo)
+              const az = s.proposta.azione as Record<string, unknown> | undefined
               setDati((x) => x ? conNota({
                 ...x,
-                proposte: x.proposte.map((p) => p.id === strade.id ? { ...p, stato: String(s.proposta.stato), risposta: (s.proposta.risposta as string | undefined) ?? p.risposta } : p),
+                proposte: x.proposte.map((p) => p.id === strade!.id ? { ...p, stato: String(s.proposta.stato), risposta: (s.proposta.risposta as string | undefined) ?? p.risposta,
+                  bozza: (az?.bozza as string | undefined) ?? p.bozza } : p),
                 lead: x.lead && s.lead ? { ...x.lead, ...(s.lead as Partial<Lead>) } : x.lead,
                 decisione: r.decisione ?? x.decisione,
                 calendario: s.togliCalendario ? null : x.calendario,
               }, r.nota) : x)
               mostra({ testo: !scelta ? 'Chiuso senza fare nulla' : scelta.azione === 'manda' ? 'Parte al prossimo giro' : scelta.azione === 'ricontatta' ? 'Segnato: da ricontattare'
                 : scelta.azione === 'chiudi' ? 'Chiuso: non interessato' : scelta.azione === 'chiama' ? 'Da chiamare oggi' : 'Chiuso, nessun gesto' })
-            }} />
-        </Blocco>
-      )}
-
-      {attesa && (
-        <Blocco titolo="Messaggio in attesa di una decisione">
-          <MessaggioInAttesa id={id} attesa={attesa} lead={lead ?? VUOTO}
-            onMandato={(n) => {
-              setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa.id ? { ...p, stato: 'approvata' } : p) }, n) : x)
+            }}
+            onMandato={(n, testo) => {
+              setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa!.id ? { ...p, stato: 'approvata', bozza: testo } : p) }, n) : x)
               mostra({ testo: 'Parte al prossimo giro' })
             }}
             onNonMandato={(n) => {
-              setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa.id ? { ...p, stato: 'no', risposta: "NO: Dre dall'app" } : p) }, n) : x)
+              setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa!.id ? { ...p, stato: 'no', risposta: "NO: Dre dall'app" } : p) }, n) : x)
               mostra({ testo: 'Non parte' })
             }} />
         </Blocco>
@@ -129,10 +133,17 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
         </Blocco>
       )}
 
-      <Blocco titolo="La conversazione">
-        <Analisi a={analisi} />
-        {sc ? <div className="mt-4"><Filo filo={filo} lui={(s?.nome || sc.persona || '').trim().split(/\s+/)[0] || ''} /></div>
-          : <p className="mt-3 text-[15px] text-tenue">Le mail arrivano qui entro dieci minuti da quando salvi uno stato o una nota.</p>}
+      <Blocco titolo="La conversazione, dalla più recente">
+        {sc ? <Filo filo={filo} analisi={analisi} lui={(s?.nome || sc.persona || '').trim().split(/\s+/)[0] || ''} />
+          : <>
+              <Analisi a={analisi} />
+              <p className="mt-3 text-[15px] text-tenue">Le mail arrivano qui entro dieci minuti da quando salvi uno stato o una nota.</p>
+            </>}
+      </Blocco>
+
+      <Blocco titolo="Contatti">
+        <Contatti telefoni={telefoni} email={s?.email || b?.email || lead?.email || ''} lead={lead}
+                  campagna={s?.campagna || b?.campagna || lead?.campaign || ''} />
       </Blocco>
 
       <Blocco titolo="Stato e prossima azione">
@@ -191,9 +202,9 @@ function Contatti({ telefoni, email, lead, campagna }: { telefoni: Telefono[]; e
     ...(settore(lead?.sector) ? [{ icona: 'settore' as const, testo: settore(lead?.sector) }] : []),
     ...(campagna ? [{ icona: 'campagna' as const, testo: campagna, sotto: 'campagna' }] : []),
   ]
-  if (!righe.length) return null
+  if (!righe.length) return <p className="text-[15px] text-tenue">Nessun contatto oltre la mail.</p>
   return (
-    <section aria-label="Contatti" className="mt-6 rounded-2xl border border-bordo bg-white px-2 py-1">
+    <section aria-label="Contatti" className="rounded-2xl border border-bordo bg-white px-2 py-1">
       <ul className="grid sm:grid-cols-2 sm:gap-x-2">
         {righe.map((r) => {
           const dentro = (
@@ -260,7 +271,7 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
     <div className="overflow-hidden rounded-2xl border border-noi-bordo bg-white">
       <p className="border-b border-noi-bordo px-4 py-3 text-[16px] font-bold text-inchiostro">
         {prossimo.quando}
-        <span className="font-normal text-tenue"> · {prossimo.tipo}</span>
+        <span className="block text-[14px] font-normal text-tenue">{prossimo.tipo}</span>
       </p>
       <div className="px-4 py-3">
         {prossimo.testo ? <TestoMessaggio testo={prossimo.testo} />
@@ -329,84 +340,69 @@ function Conferma({ id, testo, si, lavoro, lavoroTesto, tono, onSi, onNo }: {
   )
 }
 
-/** Il messaggio fermo che aspetta Dre (20/10 sera): perche' e' fermo, il testo esatto, e due gesti.
- *  «Manda» lo approva (manda.py lo spedisce al giro dopo, con l'analisi se e' la prima risposta);
- *  «Non mandare» lo chiude. Tutti e due chiedono conferma; tutti e due lasciano una nota. */
-function MessaggioInAttesa({ id, attesa, lead, onMandato, onNonMandato }: {
-  id: string; attesa: InAttesa; lead: Lead; onMandato: (nota: Nota | null) => void; onNonMandato: (nota: Nota | null) => void
-}) {
-  const [chiedo, setChiedo] = useState<'manda' | 'no' | null>(null)
-  const [lavoro, setLavoro] = useState(false)
-  const [sbaglio, setSbaglio] = useState<string | null>(null)
-  const allega = allegaAnalisi({ bozza: attesa.testo }, lead)
-
-  async function fai(cosa: 'manda' | 'no') {
-    setLavoro(true); setSbaglio(null)
-    try {
-      if (cosa === 'manda') {
-        const r = await mandaDallApp(id, attesa.id, (az) => azioneApprovata(az, lead), NOTE_APP.mandato)
-        setChiedo(null); onMandato(r.nota)
-      } else {
-        const r = await nonMandareDallApp(id, attesa.id, scritturaNonMandare(), NOTE_APP.non_mandato)
-        setChiedo(null); onNonMandato(r.nota)
-      }
-    } catch (e) {
-      setSbaglio(`${cosa === 'manda' ? 'Non mandato' : 'Non chiuso'}: ${e instanceof Error ? e.message : e}`)
-    } finally {
-      setLavoro(false)
-    }
-  }
-
+/** Il campo della bozza (22/10 notte, Dre: «vorrei poterle MODIFICARE»): un testo vero, che cresce con quello che
+ *  c'e' scritto, a 16px (sotto, l'iPhone ingrandisce la pagina quando lo tocchi). */
+function CampoBozza({ id, valore, onCambia, disabled }: { id: string; valore: string; onCambia: (t: string) => void; disabled?: boolean }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const t = ref.current
+    if (!t) return
+    t.style.height = 'auto'
+    t.style.height = `${t.scrollHeight + 2}px`
+  }, [valore])
   return (
-    <div className="overflow-hidden rounded-2xl border border-attesa-bordo bg-white">
-      <div className="border-b border-attesa-bordo bg-attesa-fondo px-4 py-3">
-        <p className="text-[16px] font-bold text-attesa-testo">
-          Aspetta te
-          <span className="font-normal"> · {attesa.tipo}</span>
-        </p>
-        <p className="mt-0.5 max-w-[65ch] text-[14px] leading-snug text-attesa-testo">{attesa.motivo}</p>
-      </div>
-      <div className="px-4 py-3"><TestoMessaggio testo={attesa.testo} /></div>
-      {!chiedo && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-velo px-3 py-2">
-          <Bottone tipo="primo" onClick={() => setChiedo('manda')} disabled={lavoro}>Manda</Bottone>
-          <button onClick={() => setChiedo('no')} disabled={lavoro}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-no-testo transition-colors duration-150 hover:bg-no-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-no-testo disabled:opacity-50">
-            <Icona nome="divieto" className="h-4 w-4" /> Non mandare
-          </button>
-        </div>
-      )}
-      {chiedo === 'manda' && (
-        <Conferma id={`manda-${id}`} tono="noi" lavoro={lavoro} lavoroTesto="Mando…" si="Sì, manda"
-                  testo={allega ? 'Parte al prossimo giro, con analisi e presentazione. Confermi?' : 'Parte al prossimo giro. Confermi?'}
-                  onSi={() => void fai('manda')} onNo={() => setChiedo(null)} />
-      )}
-      {chiedo === 'no' && (
-        <Conferma id={`non-mandare-${id}`} tono="no" lavoro={lavoro} lavoroTesto="Chiudo…" si="Sì, non mandare"
-                  testo="Non parte e resta qui come non mandato. Confermi?"
-                  onSi={() => void fai('no')} onNo={() => setChiedo(null)} />
-      )}
-      {sbaglio && <p role="alert" className="px-4 pb-3 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
-    </div>
+    <textarea ref={ref} id={id} value={valore} onChange={(e) => onCambia(e.target.value)} rows={5} disabled={disabled} spellCheck
+              className="block w-full resize-none overflow-hidden rounded-xl border border-bordo bg-white px-3 py-2.5 text-[16px] leading-relaxed text-inchiostro outline-none transition-colors duration-150 focus:border-blu-scuro disabled:opacity-60" />
   )
 }
 
-/** «DECIDI TU» (21/10, Dre: «quando il sistema è indeciso, mi dà 2 o 3 strade e io scelgo, e lui procede. Così
- *  lo alleno anche»). Le 2-3 strade come carte: l'etichetta grande, il perche', il testo della mail da aprire se
- *  manda. Un tocco apre la conferma dentro la carta; il si' esegue (dati.scegliStrada) e lascia una nota.
- *  In fondo, sempre, «Nessuna di queste»: chiude la domanda senza fare nulla. */
-function DecidiTu({ id, con, lead, onScelta }: {
-  id: string; con: ConStrade; lead: Lead; onScelta: (scelta: Strada | null, r: { decisione: Decisione | null; nota: Nota | null }) => void
+type Gesto = number | 'nessuna' | 'no'
+
+/** DA DECIDERE (22/10 notte; prima «Messaggio in attesa» e «Decidi tu»). In alto la bozza pronta, gia' aperta e
+ *  modificabile: «Manda» manda il testo cosi' com'e' nel campo. Se le strade hanno piu' mail, le altre versioni
+ *  stanno sotto con «Usa questa» (come le due risposte di ChatGPT). Sotto ancora, piccoli, i gesti senza mail
+ *  (rimanda, chiudi, chiama, niente) e «Nessuna di queste» o «Non mandare». Ogni gesto chiede conferma e lascia
+ *  una nota; la scelta resta sulla proposta (azione.scelta), ed e' da li' che il sistema impara. */
+function DaDecidere({ id, con, attesa, lead, onScelta, onMandato, onNonMandato }: {
+  id: string; con: ConStrade | null; attesa: InAttesa | null; lead: Lead
+  onScelta: (scelta: Strada | null, r: { decisione: Decisione | null; nota: Nota | null }, testo?: string) => void
+  onMandato: (nota: Nota | null, testo: string) => void; onNonMandato: (nota: Nota | null) => void
 }) {
-  const [chiedo, setChiedo] = useState<number | 'nessuna' | null>(null)
+  const { mail: stradeMail, gesti } = con ? mailEGesti(con) : { mail: [] as Strada[], gesti: [] as Strada[] }
+  const mail: Array<{ strada: Strada | null; testo: string }> = con
+    ? stradeMail.map((st) => ({ strada: st, testo: (st.bozza ?? '').trim() }))
+    : attesa ? [{ strada: null, testo: attesa.testo }] : []
+  const [aperta, setAperta] = useState(0)
+  const [testi, setTesti] = useState<string[]>(() => mail.map((m) => m.testo))
+  const [chiedo, setChiedo] = useState<'manda' | Gesto | null>(null)
   const [lavoro, setLavoro] = useState(false)
   const [sbaglio, setSbaglio] = useState<string | null>(null)
+  const carta = useRef<HTMLDivElement>(null)
+  const scelta = mail[aperta]
+  const testo = testi[aperta] ?? ''
+  const cambiato = scelta ? testo.trim() !== scelta.testo.trim() : false
+  const allega = scelta ? allegaAnalisi({ bozza: testo }, lead) : false
+  const motivo = con?.motivo ?? attesa?.motivo ?? ''
 
-  async function fai(scelta: Strada | null) {
+  async function fai(cosa: 'manda' | Gesto) {
     setLavoro(true); setSbaglio(null)
     try {
-      const r = await scegliStrada(id, con.id, (azione) => scrittureStrada(con, scelta, azione, lead))
-      setChiedo(null); onScelta(scelta, r)
+      if (cosa === 'manda' && scelta?.strada && con) {
+        const st = scelta.strada
+        const r = await scegliStrada(id, con.id, (azione) => scrittureStrada(con, st, azione, lead, new Date(), testo))
+        setChiedo(null); onScelta(st, r, testo)
+      } else if (cosa === 'manda' && attesa) {
+        const r = await mandaDallApp(id, attesa.id, (az) => azioneApprovata(conTestoDiDre(az, testo, attesa.testo), lead),
+          cambiato ? NOTE_APP.mandato_cambiato : NOTE_APP.mandato)
+        setChiedo(null); onMandato(r.nota, testo.trim())
+      } else if (cosa === 'no' && attesa) {
+        const r = await nonMandareDallApp(id, attesa.id, scritturaNonMandare(), NOTE_APP.non_mandato)
+        setChiedo(null); onNonMandato(r.nota)
+      } else if (con && (cosa === 'nessuna' || typeof cosa === 'number')) {
+        const g = cosa === 'nessuna' ? null : gesti[cosa]
+        const r = await scegliStrada(id, con.id, (azione) => scrittureStrada(con, g, azione, lead))
+        setChiedo(null); onScelta(g, r)
+      }
     } catch (e) {
       setSbaglio(`Non fatto: ${e instanceof Error ? e.message : e}`)
     } finally {
@@ -414,55 +410,116 @@ function DecidiTu({ id, con, lead, onScelta }: {
     }
   }
 
+  function usa(i: number) {
+    setAperta(i); setChiedo(null); setSbaglio(null)
+    carta.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const piccolo = 'inline-flex min-h-11 items-center gap-1.5 rounded-full border bg-white px-3.5 text-[14px] font-semibold transition-colors duration-150 hover:bg-velo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blu-scuro disabled:opacity-50'
+  const altri: Array<{ chiave: Gesto; etichetta: string; dettaglio: string | null; rosso: boolean }> = [
+    ...gesti.map((g, i) => ({ chiave: i as Gesto, etichetta: g.etichetta, dettaglio: dettaglioStrada(g), rosso: g.azione === 'chiudi' })),
+    ...(con ? [{ chiave: 'nessuna' as Gesto, etichetta: 'Nessuna di queste', dettaglio: null, rosso: false }] : []),
+    ...(attesa ? [{ chiave: 'no' as Gesto, etichetta: 'Non mandare', dettaglio: null, rosso: true }] : []),
+  ]
+  const gestoAperto = altri.find((a) => a.chiave === chiedo)
+  const stradaAperta = gestoAperto && typeof gestoAperto.chiave === 'number' ? gesti[gestoAperto.chiave] : null
+
   return (
     <div>
-      <p className="mb-3 max-w-[65ch] text-[15px] leading-snug text-tenue">{con.motivo}</p>
-      <ol className="space-y-3">
-        {con.strade.map((s, i) => {
-          const manda = s.azione === 'manda' && s.bozza?.trim()
-          const allega = manda ? allegaAnalisi({ bozza: s.bozza }, lead) : false
-          const dettaglio = dettaglioStrada(s)
-          const aperta = chiedo === i
-          return (
-            <li key={`${s.azione}-${s.etichetta}`} className={`overflow-hidden rounded-2xl border bg-white ${aperta ? 'border-blu-scuro' : 'border-attesa-bordo'}`}>
-              <button onClick={() => setChiedo(aperta ? null : i)} disabled={lavoro} aria-expanded={aperta}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-velo focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blu-scuro disabled:opacity-50">
-                <span aria-hidden="true" className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-attesa-fondo text-[14px] font-bold text-attesa-testo">{i + 1}</span>
-                <span className="min-w-0">
-                  <span className="block text-[18px] font-bold leading-snug text-inchiostro">{s.etichetta}</span>
-                  <span className="mt-1 block max-w-[65ch] text-[15px] leading-snug text-tenue">{s.perche}</span>
-                  {dettaglio && <span className="mt-1 block text-[14px] font-semibold text-attesa-testo">{dettaglio}</span>}
-                </span>
-              </button>
-              {manda && (
-                <div className="border-t border-velo px-4 py-3">
-                  <TestoMessaggio testo={s.bozza!.trim()} righe={3} />
-                </div>
-              )}
-              {aperta && (
-                <Conferma id={`strada-${id}-${i}`} tono="noi" lavoro={lavoro} lavoroTesto="Faccio…" si={`Sì: ${s.etichetta.toLowerCase()}`}
-                          testo={confermaStrada(s, allega)} onSi={() => void fai(s)} onNo={() => setChiedo(null)} />
-              )}
-            </li>
-          )
-        })}
-      </ol>
-      <div className="mt-3 overflow-hidden rounded-2xl border border-bordo bg-white">
-        {chiedo !== 'nessuna' ? (
-          <div className="px-2 py-1">
-            <button onClick={() => setChiedo('nessuna')} disabled={lavoro}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-tenue transition-colors duration-150 hover:bg-velo hover:text-inchiostro focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blu-scuro disabled:opacity-50">
-              Nessuna di queste
-            </button>
-          </div>
+      <div ref={carta} className="scroll-mt-4 overflow-hidden rounded-2xl border border-attesa-bordo bg-white">
+        <div className="border-b border-attesa-bordo bg-attesa-fondo px-4 py-3">
+          <p className="text-[16px] font-bold text-attesa-testo">Aspetta te</p>
+          {motivo && <p className="mt-0.5 max-w-[65ch] text-[14px] leading-snug text-attesa-testo">{motivo}</p>}
+        </div>
+        {scelta ? (
+          <>
+            <div className="px-4 pb-1 pt-3">
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <label htmlFor={`bozza-${id}`} className="min-w-0 text-[16px] font-bold leading-snug text-inchiostro">
+                  {scelta.strada?.etichetta ?? (attesa?.tipo || 'La bozza')}
+                </label>
+                {mail.length > 1 && <span className="shrink-0 text-[13px] font-semibold text-tenue">{aperta + 1} di {mail.length}</span>}
+              </div>
+              {scelta.strada?.perche && <p className="mb-2 max-w-[65ch] text-[14px] leading-snug text-tenue">{scelta.strada.perche}</p>}
+              <CampoBozza id={`bozza-${id}`} valore={testo} disabled={lavoro}
+                          onCambia={(t) => setTesti((xs) => xs.map((x, i) => i === aperta ? t : x))} />
+              <div className="flex min-h-11 flex-wrap items-center gap-x-3 text-[13px] text-tenue">
+                {cambiato ? (
+                  <>
+                    <span className="font-semibold text-noi-testo">Cambiata da te: parte così</span>
+                    <button onClick={() => setTesti((xs) => xs.map((x, i) => i === aperta ? scelta.testo : x))} disabled={lavoro}
+                            className="inline-flex min-h-11 items-center font-semibold text-blu-scuro hover:underline">
+                      Torna al testo di Clara
+                    </button>
+                  </>
+                ) : <span>Tocca il testo per cambiarlo</span>}
+              </div>
+            </div>
+            {chiedo !== 'manda' ? (
+              <div className="flex flex-wrap items-center gap-2 border-t border-velo px-3 py-2">
+                <Bottone tipo="primo" onClick={() => setChiedo('manda')} disabled={lavoro || !testo.trim()}>Manda</Bottone>
+                {!testo.trim() && <span className="text-[14px] text-no-testo">Il testo è vuoto</span>}
+              </div>
+            ) : (
+              <Conferma id={`manda-${id}`} tono="noi" lavoro={lavoro} lavoroTesto="Mando…" si="Sì, manda"
+                        testo={`Parte al prossimo giro${allega ? ', con analisi e presentazione' : ''}${cambiato ? ', col testo cambiato da te' : ''}. Confermi?`}
+                        onSi={() => void fai('manda')} onNo={() => setChiedo(null)} />
+            )}
+          </>
         ) : (
-          <div className="-mt-px">
-            <Conferma id={`strada-${id}-nessuna`} tono="no" lavoro={lavoro} lavoroTesto="Chiudo…" si="Sì, nessuna"
-                      testo="Chiudo la domanda senza fare nulla: il lead resta com'è. Confermi?"
-                      onSi={() => void fai(null)} onNo={() => setChiedo(null)} />
-          </div>
+          <p className="px-4 py-3 text-[15px] text-tenue">Nessuna mail da mandare: scegli qui sotto cosa fare.</p>
         )}
       </div>
+
+      {mail.length > 1 && (
+        <div className="mt-4">
+          <h3 className="mb-2 text-[14px] font-semibold text-tenue">{mail.length === 2 ? "Un'altra versione" : 'Altre versioni'}</h3>
+          <ol className="space-y-3">
+            {mail.map((m, i) => i === aperta ? null : (
+              <li key={`${m.strada?.etichetta ?? 'bozza'}-${i}`} className="overflow-hidden rounded-2xl border border-bordo bg-white">
+                <div className="px-4 pt-3">
+                  <p className="text-[16px] font-bold leading-snug text-inchiostro">{m.strada?.etichetta}</p>
+                  {m.strada?.perche && <p className="mt-0.5 max-w-[65ch] text-[14px] leading-snug text-tenue">{m.strada.perche}</p>}
+                  <div className="mt-2"><TestoMessaggio testo={testi[i] ?? m.testo} righe={3} /></div>
+                </div>
+                <div className="border-t border-velo px-3 py-2">
+                  <Bottone onClick={() => usa(i)} disabled={lavoro}>Usa questa</Bottone>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {altri.length > 0 && (
+        <div className="mt-4">
+          <h3 className="mb-2 text-[14px] font-semibold text-tenue">{scelta ? 'Oppure' : 'Cosa fare'}</h3>
+          <div className="flex flex-wrap gap-2">
+            {altri.map((a) => (
+              <button key={String(a.chiave)} onClick={() => setChiedo(chiedo === a.chiave ? null : a.chiave)} disabled={lavoro} aria-expanded={chiedo === a.chiave}
+                      className={`${piccolo} ${a.rosso ? 'text-no-testo' : 'text-inchiostro'} ${chiedo === a.chiave ? 'border-blu-scuro' : 'border-bordo'}`}>
+                {a.rosso && <Icona nome="divieto" className="h-4 w-4" />}
+                {a.etichetta}
+              </button>
+            ))}
+          </div>
+          {gestoAperto && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-bordo bg-white">
+              {stradaAperta?.perche && (
+                <p className="px-4 pt-3 text-[14px] leading-snug text-tenue">
+                  {stradaAperta.perche}{gestoAperto.dettaglio ? ` ${gestoAperto.dettaglio}.` : ''}
+                </p>
+              )}
+              <Conferma id={`gesto-${id}`} tono={gestoAperto.rosso || gestoAperto.chiave === 'nessuna' ? 'no' : 'noi'} lavoro={lavoro} lavoroTesto="Faccio…"
+                        si={gestoAperto.chiave === 'no' ? 'Sì, non mandare' : gestoAperto.chiave === 'nessuna' ? 'Sì, nessuna' : `Sì: ${gestoAperto.etichetta.toLowerCase()}`}
+                        testo={gestoAperto.chiave === 'no' ? 'Non parte e resta qui come non mandato. Confermi?'
+                          : gestoAperto.chiave === 'nessuna' ? "Chiudo la domanda senza fare nulla: il lead resta com'è. Confermi?"
+                          : stradaAperta ? confermaStrada(stradaAperta, false) : 'Confermi?'}
+                        onSi={() => void fai(gestoAperto.chiave)} onNo={() => setChiedo(null)} />
+            </div>
+          )}
+        </div>
+      )}
       {sbaglio && <p role="alert" className="mt-2 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
     </div>
   )
@@ -519,7 +576,7 @@ function ProssimaCall({ call }: { call: Call[] }) {
       <p className="flex items-center gap-2 text-[15px] text-inchiostro">
         <Icona nome="ok" className="h-5 w-5 shrink-0 text-ok-testo" />
         <b className="text-ok-testo">Call {giorno === 'Oggi' || giorno === 'Domani' ? giorno.toLowerCase() : giorno.charAt(0).toLowerCase() + giorno.slice(1)} alle {ora(c.at)}</b>
-        {c.di_chi && <span className="text-tenue"> · nel calendario di {c.di_chi}</span>}
+        {c.di_chi && <span className="text-tenue">, nel calendario di {c.di_chi}</span>}
       </p>
       {c.meet && (
         <a href={c.meet} target="_blank" rel="noreferrer"
@@ -673,7 +730,7 @@ function Note({ id, note, onNota, onTolta, mostra }: {
           {note.map((n) => (
             <li key={n.id} className="border-l-2 border-bordo pl-3">
               <p className="flex items-center justify-between gap-2 text-[13px] text-tenue">
-                <span>{quando(n.at)}{n.autore_nome && ` · ${n.autore_nome}`}{n.tipo === 'chiamata' && ' · telefonata'}</span>
+                <span>{quando(n.at)}{n.autore_nome && `, ${n.autore_nome}`}{n.tipo === 'chiamata' && ', telefonata'}</span>
                 {io && n.autore === io && (
                   <button onClick={() => void togli(n)} aria-label="Cancella questa nota"
                           className="-my-2 inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-tenue hover:bg-velo hover:text-no-testo">
@@ -721,20 +778,30 @@ function Analisi({ a }: { a: Scheda['scheda']['analisi'] }) {
   )
 }
 
-function Filo({ filo, lui }: { filo: Messaggio[]; lui: string }) {
+/** LA CONVERSAZIONE AL CONTRARIO (22/10 notte, Dre: «voglio vedere i messaggi a ritroso, come su Smartlead»):
+ *  in cima la sua ultima mail, sotto la nostra prima di quella, e cosi' indietro. L'analisi e' una riga col PDF
+ *  nel suo punto del tempo. Le piu' vecchie oltre le prime quattro si aprono in fondo. */
+function Filo({ filo, analisi, lui }: { filo: Messaggio[]; analisi: Scheda['scheda']['analisi']; lui: string }) {
   const [tutto, setTutto] = useState(false)
-  if (!filo.length) return <p className="text-[15px] text-tenue">Nessuna mail.</p>
-  const nascosti = tutto ? 0 : Math.max(0, filo.length - 4)
+  const voci = filoAlContrario(filo, analisi)
+  if (!voci.length) return <p className="text-[15px] text-tenue">Nessuna mail.</p>
+  // si contano le mail, non la riga dell'analisi
+  let mail = 0
+  const fino = tutto ? -1 : voci.findIndex((v) => v.tipo === 'mail' && ++mail > 4)
+  const mostrate = fino === -1 ? voci : voci.slice(0, fino)
+  const nascoste = voci.length - mostrate.length
   return (
     <div>
-      {nascosti > 0 && (
-        <div className="mb-3">
-          <Bottone onClick={() => setTutto(true)}>{nascosti === 1 ? 'Mostra la mail prima' : `Mostra le ${nascosti} mail prima`}</Bottone>
+      <ol className="space-y-3">
+        {mostrate.map((v, i) => v.tipo === 'analisi'
+          ? <li key="analisi"><Analisi a={analisi} /></li>
+          : <Mail key={`${v.m.at}-${i}`} m={v.m} lui={lui} />)}
+      </ol>
+      {nascoste > 0 && (
+        <div className="mt-3">
+          <Bottone onClick={() => setTutto(true)}>{nascoste === 1 ? 'Mostra la mail più vecchia' : `Mostra le ${nascoste} più vecchie`}</Bottone>
         </div>
       )}
-      <ol className="space-y-3">
-        {filo.slice(nascosti).map((m, i) => <Mail key={`${m.at}-${i}`} m={m} lui={lui} />)}
-      </ol>
     </div>
   )
 }
@@ -760,7 +827,7 @@ function Mail({ m, lui: nome }: { m: Messaggio; lui: string }) {
       : 'ml-6 border-noi-bordo border-l-noi-segno bg-noi-fondo sm:ml-16'}`}>
       <p className="mb-2 flex flex-wrap items-baseline gap-x-2">
         <span className={`text-[15px] font-bold ${lui ? 'text-loro-testo' : 'text-noi-testo'}`}>
-          {lui ? `Loro${nome ? ` · ${nome}` : ''}` : 'Noi'}
+          {lui ? `Loro${nome ? ` (${nome})` : ''}` : 'Noi'}
         </span>
         <span className="text-[14px] text-inchiostro/75">{quando(m.at)}</span>
       </p>

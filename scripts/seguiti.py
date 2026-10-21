@@ -346,6 +346,8 @@ def converti(prova=True):
     for r in tenute:
         if prova:
             continue
+        if r["az"].get("modificata_da_dre"):
+            continue                    # 22/10: il testo di Dre non lo riscrive nessuno
         az = {**r["az"], "bozza_modello": r["az"].get("bozza"), "bozza": r["t"], "testo_dal_codice": True}
         if r.get("giorno"):
             az["giorno_proposto"] = r["giorno"]

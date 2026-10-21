@@ -31,12 +31,21 @@ nessuno a farlo. La proposta e' gia' il posto dove vive la decisione.)
 IL TETTO DI SPESA: 3 $ al giorno (snella_numeri «strade», come il lettore), da uso_modelli
 scopo «strade». Oltre, non si generano strade nuove; nella scheda restano i pulsanti di oggi.
 
+LE VERSIONI DELLA MAIL (22/10 notte, Dre: «quando qualcosa si inceppa, che mi prepari due-tre alternative di
+bozza da accettare, tipo ChatGPT»). Quando scrivere ha senso, le strade `manda` sono 2 o 3 versioni DIVERSE della
+mail (nel tono o nel contenuto, mai lo stesso attacco: due uguali sono una), ognuna passata dal cancello e dalla
+seconda testa; accanto, al massimo due gesti senza mail. Nell'app la prima e' gia' aperta e modificabile, le altre
+hanno «Usa questa». Una bozza che Dre ha cambiato (azione.modificata_da_dre) non si tocca piu': niente strade
+sopra, niente abitudine. Le sue correzioni (bozze.come_corregge_dre) entrano nel prompt: cosi' scrive come lui.
+
 USO
   python3 scripts/strade.py --prova          mostra le strade, non scrive
   python3 scripts/strade.py                  scrive le strade nelle proposte
   python3 scripts/strade.py --id 3453        solo quella proposta
   python3 scripts/strade.py --quanti 3
   python3 scripts/strade.py --tetto 5        alza il tetto di spesa per questo giro (una tantum)
+  python3 scripts/strade.py --rifai          rifa' le strade delle domande aperte anche se il filo non e' cambiato
+                                             (le riscrive sulla stessa domanda, senza abitudine: il rigioco del 22/10)
 """
 import datetime
 import json
@@ -50,14 +59,17 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, proponi, quando, senza_trattini, contattabile, lettore_di, fit_di, _a_secco  # noqa: E402
+from stanza import sb, sb_tutte, proponi, quando, senza_trattini, contattabile, lettore_di, fit_di, _a_secco, scritta_da_dre  # noqa: E402
 
 PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 6
 SOLO_ID = int(sys.argv[sys.argv.index("--id") + 1]) if "--id" in sys.argv else None
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 TETTO_GIORNO = float(sys.argv[sys.argv.index("--tetto") + 1]) if "--tetto" in sys.argv else 3.0   # dollari al giorno, come il lettore (snella_numeri «strade»); --tetto 5 per una sera di recupero
-MAX_STRADE = 3
+RIFAI = "--rifai" in sys.argv
+MAX_MAIL = 3                        # 22/10: fino a tre versioni della mail
+MAX_ALTRE = 2                       # e al massimo due gesti senza mail (rimanda, chiudi, chiama, niente)
+MAX_STRADE = MAX_MAIL + MAX_ALTRE
 MIN_STRADE = 2
 QUANTE_SCELTE = 30                  # le ultime scelte di Dre che entrano nel prompt
 TRE = 3                             # tre scelte uguali di fila sullo stesso caso: il sistema non chiede piu'
@@ -84,8 +96,30 @@ def chiave(strada):
     return (strada.get("azione"), normalizza(strada.get("etichetta")))
 
 
+def _piatto(t):
+    return " ".join(str(t or "").lower().split())
+
+
+def _attacco(t):
+    """La prima frase che dice qualcosa (senza «Buongiorno Mario,»): e' li' che due versioni si somigliano."""
+    for r in str(t or "").split("\n"):
+        r = r.strip()
+        if r and not re.match(r"(buongiorno|buonasera|salve|gentile|gentili|ciao|egregi[oa]|alla cortese)\b", r, re.I):
+            return _piatto(r)
+    return ""
+
+
+def stessa_bozza(a, b):
+    """Due versioni sono la stessa se il testo e' uguale o partono con la stessa frase (la stessa regola di
+    src/snella/regole.ts stessaBozza): a Dre servono alternative vere, non copie."""
+    if _piatto(a) == _piatto(b):
+        return True
+    aa, ab = _attacco(a), _attacco(b)
+    return bool(aa) and aa == ab
+
+
 def valida(strade, cellulare, oggi):
-    """Le strade che reggono, al massimo 3, e quelle scartate col motivo. Le regole che non si
+    """Le strade che reggono (fino a 3 mail e 2 gesti senza mail), e quelle scartate col motivo. Le regole che non si
     discutono: `manda` ha sempre una bozza; `chiama` solo con un cellulare; `ricontatta` ha una
     data vera, futura; `chiudi` una classe fra negativo e fuori_target; etichetta da 2 a 7 parole
     (il modello ne chiede 3-6, qui si lascia un filo di gioco); due strade uguali sono una."""
@@ -130,9 +164,15 @@ def valida(strade, cellulare, oggi):
         k = chiave(s)
         if k in viste:
             scartate.append((s, "doppia")); continue
+        if az == "manda" and any(b["azione"] == "manda" and stessa_bozza(b["bozza"], s["bozza"]) for b in buone):
+            scartate.append((s, "la stessa mail di un'altra versione (stesso attacco)")); continue
         viste.add(k)
         buone.append({k2: s.get(k2) for k2 in ("etichetta", "perche", "azione", "bozza", "data", "classe", "intento")})
-    return buone[:MAX_STRADE], scartate + [(s, "oltre la terza") for s in buone[MAX_STRADE:]]
+    mail = [b for b in buone if b["azione"] == "manda"]
+    altre = [b for b in buone if b["azione"] != "manda"]
+    tenute = mail[:MAX_MAIL] + altre[:MAX_ALTRE]
+    return ([b for b in buone if b in tenute],
+            scartate + [(s, "oltre la terza mail") for s in mail[MAX_MAIL:]] + [(s, "oltre il secondo gesto") for s in altre[MAX_ALTRE:]])
 
 
 def scelte_sul_caso(scelte, caso):
@@ -192,6 +232,7 @@ def esempi_per_prompt(scelte, quante=QUANTE_SCELTE):
         altre = [e for e in (s.get("strade") or []) if normalizza(e) != normalizza(s.get("etichetta"))]
         righe.append(f"- In un caso {caso}{f' ({nome})' if nome else ''}{spiraglio} Dre ha scelto: «{s.get('etichetta')}» ({s.get('azione')})"
                      + (f", scartando: {' / '.join(altre)}" if altre else "")
+                     + (" [e ha riscritto la mail a modo suo]" if s.get("modificata_da_dre") else "")
                      + (" [scelta automatica: tre volte uguale]" if s.get("automatica") else ""))
     if not righe:
         return ""
@@ -269,7 +310,7 @@ SCHEMA_STRADE = {
     "type": "object", "additionalProperties": False, "required": ["lettura", "strade"],
     "properties": {
         "lettura": {"type": "string", "description": "una riga: cosa vuole davvero questa persona"},
-        "strade": {"type": "array", "description": "da 2 a 3 strade", "items": {
+        "strade": {"type": "array", "description": "da 2 a 5 strade: fino a 3 versioni della mail (manda) e fino a 2 gesti senza mail", "items": {
             "type": "object", "additionalProperties": False,
             "required": ["etichetta", "perche", "azione", "intento", "bozza", "data", "classe"],
             "properties": {
@@ -287,8 +328,17 @@ ISTRUZIONE = """IL GIOCO DELLE STRADE (Dre, 21/10: «quando il sistema e' indeci
 scelgo, e lui procede. Cosi' lo alleno anche»).
 
 Il sistema non sapeva cosa fare con questa persona: la risposta che aveva preparato e' ferma. Il tuo
-lavoro: proporre a Dre 2 o 3 STRADE diverse davvero (non tre varianti della stessa mail), ognuna un
-gesto che si capisce in un secondo sul telefono. Dre ne tocca una e il sistema la esegue.
+lavoro: proporre a Dre le STRADE, ognuna un gesto che si capisce in un secondo sul telefono. Dre ne tocca
+una (e la mail la puo' ritoccare) e il sistema la esegue.
+
+LE VERSIONI DELLA MAIL (Dre, 22/10: «due-tre alternative di bozza da accettare, tipo ChatGPT quando ti da'
+due risposte da scegliere»). Se scrivere adesso ha senso, proponi 2 o 3 strade `manda`: versioni DIVERSE
+davvero, nel contenuto (cosa dici, cosa chiedi, il prossimo passo) o nel tono (piu' breve e asciutta, piu'
+calda, piu' diretta). Mai lo stesso attacco: ogni versione comincia con una frase diversa dopo il saluto.
+Ognuna ha la sua etichetta che dice la differenza («Rispondi breve e proponi la call», «Rispondi
+all'obiezione sul budget», «Manda il materiale senza call»). Poi, se servono, al massimo DUE gesti senza
+mail (ricontatta, chiudi, chiama, niente). Se scrivere non ha senso (un no cortese senza niente a cui
+rispondere), niente mail: solo i gesti, 2 o 3.
 
 LE AZIONI (una per strada):
 - manda: scriviamo noi, adesso. Porta la bozza completa.
@@ -311,7 +361,7 @@ LE REGOLE:
 2. perche: UNA riga in italiano semplice, detta a Dre («gli dai ragione e…», «lo riprendi quando…»): cosa succede
    se la sceglie e perche' ha senso. Niente codici interni (INT-xx, Cxx), niente gergo, niente «il sistema».
 3. Le strade devono essere alternative vere, con esiti diversi. Se c'e' una sola strada sensata, affiancala
-   a «ricontatta» o a «niente»: non inventare una terza strada stupida. Mai piu' di tre.
+   a «ricontatta» o a «niente»: non inventare una strada stupida. Mai piu' di tre mail e due gesti.
 4. La bozza (solo per manda), nello stile di Dre: «lei», corta (5-9 righe), genuina, zero vendita, zero
    fuffa, nessuna firma, mai il trattino lungo, mai note interne fra parentesi quadre, mai un indirizzo
    email al posto del nome. Risponde a quello che ha scritto davvero lui, nell'ordine, senza ripetere cose
@@ -331,10 +381,12 @@ LE REGOLE:
 
 
 def _sistema():
+    import bozze
     import cervello
+    # 22/10 notte: come Dre corregge le bozze (anche quelle cambiate nell'app): le versioni partono gia' da li'
     return (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template")
             + cervello.istruzione("contesto") + cervello.istruzione("chat") + cervello.istruzione("bozze")
-            + "\n\n" + ISTRUZIONE)
+            + bozze.come_corregge_dre() + "\n\n" + ISTRUZIONE)
 
 
 def chiedi_modello(sistema, testo, registra="strade"):
@@ -435,22 +487,23 @@ def testo_per(p, pr, letti, righe, scelte, cellulare, ora):
             + f"\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO ({letti.get('ultima_loro_il')}):\n{(letti.get('ultima_loro') or '')[:2500]}")
 
 
-def genera(p, pr, letti, righe, scelte, cellulare, ora, sistema=None):
+def genera(p, pr, letti, righe, scelte, cellulare, ora, sistema=None, con_abitudine=True):
     """Le strade per una proposta (o per un lead in conversazione, pr=None). Torna
     {strade, lettura, caso, intento, abitudine, scartate, costo} o None con il motivo stampato."""
     import bozze
     import lettura
     sistema = sistema or _sistema()
     caso, lett = caso_di(p, pr)
-    ab = abitudine(scelte, caso)
+    ab = abitudine(scelte, caso) if con_abitudine else None
     oggi = ora.astimezone(ROMA).date()
     testo = testo_per(p, pr, letti, righe, scelte, cellulare, ora)
     costo = 0.0
     scartate_tutte = []
     buone = []
+    prima = None                    # le strade del primo giro, se il secondo (per piu' versioni) va peggio
     letture = ""
     for giro in range(2):
-        if giro:
+        if giro and scartate_tutte:
             testo += "\n\nLE STRADE PRECEDENTI NON REGGEVANO: " + "; ".join(f"«{s.get('etichetta')}»: {m}" for s, m in scartate_tutte[-6:]) + ". Rifalle correggendo solo quello."
         risposta, c = chiedi_modello(sistema, testo)
         costo += c
@@ -479,8 +532,18 @@ def genera(p, pr, letti, righe, scelte, cellulare, ora, sistema=None):
             ab = None
             testo += "\n\nL'ABITUDINE NON SI APPLICA stavolta: proponi 2 o 3 strade come al solito."
             continue
+        # 22/10: una sola mail non e' una scelta. Se la mail ha senso, si chiede una volta sola di affiancarle
+        # una o due versioni diverse; se di nuovo non reggono, va bene cosi'.
+        if not giro and sum(1 for s in buone if s["azione"] == "manda") == 1:
+            testo += ("\n\nC'E' UNA SOLA VERSIONE DELLA MAIL. Rifai le strade con 2 o 3 versioni della mail diverse nel "
+                      "contenuto o nel tono, ognuna con un attacco diverso e la sua etichetta, piu' i gesti che servono.")
+            prima = list(buone)
+            continue
         if len(buone) >= MIN_STRADE:
             break
+    if prima and not ab:
+        voto = lambda xs: (len(xs) >= MIN_STRADE, sum(1 for x in xs if x["azione"] == "manda"), len(xs))  # noqa: E731
+        buone = max(buone, prima, key=voto)
     if not buone or (len(buone) < MIN_STRADE and not ab):
         print(f"      niente strade che reggono (ne restano {len(buone)}): " + "; ".join(f"{s.get('etichetta')}: {m[:80]}" for s, m in scartate_tutte[-4:]))
         return None
@@ -508,6 +571,8 @@ def applica_abitudine(pr, p, esito, ora):
     """Tre scelte uguali sullo stesso caso: il sistema prende quella strada da solo e lo scrive.
     `manda`: la proposta prende la bozza e passa approvata (il postino la manda, con analisi e
     presentazione come alla prima risposta). Le altre azioni sono le stesse scritture dell'app."""
+    if scritta_da_dre(pr.get("azione")):
+        return                      # 22/10: il testo di Dre non lo sostituisce nessuno
     s = esito["strade"][0]
     ab = esito["abitudine"]
     perche = f"Presa da sola: tre volte di fila su questo caso ({esito['caso']}) Dre ha scelto «{ab['etichetta']}»."
@@ -655,7 +720,10 @@ def main():
         if not p:
             continue
         nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
-        if not filo_cambiato(pr, p):
+        if scritta_da_dre(pr.get("azione")):
+            print(f"  {nome:34} niente strade: la mail l'ha scritta Dre, non si tocca")
+            continue
+        if not RIFAI and not filo_cambiato(pr, p):
             continue
         if not e_persona(pr, p):
             print(f"  {nome:34} niente strade: non c'e' una persona (autorisposta o casella di servizio)")
@@ -666,7 +734,7 @@ def main():
         lavori.append((pr, p, nome))
     # 2. le conversazioni ferme senza una domanda
     occupati = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)&prospect_id=not.is.null&limit=1000") or [])}
-    if not SOLO_ID:
+    if not SOLO_ID and not RIFAI:
         for p in conversazioni_ferme(ora, occupati):
             lavori.append((None, p, (p.get("company") or p.get("name") or p.get("email") or "")[:34]))
     if not lavori:
@@ -699,7 +767,7 @@ def main():
         except Exception:                                        # noqa: BLE001
             cellulare = None
         try:
-            esito = genera(p, pr, letti, righe, scelte, bool(cellulare), ora, sistema)
+            esito = genera(p, pr, letti, righe, scelte, bool(cellulare), ora, sistema, con_abitudine=not RIFAI)
         except Exception as e:                                   # noqa: BLE001
             print(f"  {nome:34} il modello non ha risposto: {str(e)[:100]}"); continue
         if not esito:
@@ -710,7 +778,8 @@ def main():
             fatte += 1; continue
         # dove scrivere: sulla proposta (prima generazione), su una domanda nuova (il lead ha riscritto,
         # o non c'era una domanda), o da soli (abitudine)
-        rifare = bool(pr and (pr.get("azione") or {}).get("strade"))
+        # --rifai: il lead non ha riscritto, le strade nuove stanno sulla stessa domanda
+        rifare = bool(pr and (pr.get("azione") or {}).get("strade")) and not RIFAI
         nuova = None
         if rifare or not pr:
             let = {**letti, "coerenza": "n/a", "coerenza_motivo": "", "gruppo": None}

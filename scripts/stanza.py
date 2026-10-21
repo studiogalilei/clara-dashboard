@@ -235,6 +235,13 @@ def contattabile(p):
     return True
 
 
+def scritta_da_dre(az):
+    """IL TESTO DI DRE NON SI TOCCA (22/10 notte, Dre: «vorrei poterle MODIFICARE»). Una bozza che Dre ha
+    cambiato nell'app porta azione.modificata_da_dre: nessuno script la riscrive (orari rinfrescati, template,
+    strade, abitudini), e il postino la passa dal cancello minimo, non dal giudice dello stile."""
+    return bool((az or {}).get("modificata_da_dre"))
+
+
 def lettore_di(p):
     """LA LETTURA DEL LETTORE AI SULLA SUA ULTIMA MAIL (20/10 sera). sync_v2 la salva in
     enriched.lettore con l'ora della risposta letta (risposta_il): vale solo se e' quella della
