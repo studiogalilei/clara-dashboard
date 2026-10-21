@@ -1,29 +1,40 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""IN CONVERSAZIONE — l'unica notifica sul telefono di Dre (20/10/2026).
+"""IN CONVERSAZIONE — l'unica notifica sul telefono di Dre (20/10/2026, rifatta il 21/10).
 
 PERCHE'
 Dre, 20/10: «fino all'analisi fa tutto il sistema; quando uno risponde dopo l'analisi e' in
 conversazione e passa a me». E: «se risponde e' in conversazione», anche un no. Il telefono
 suona solo per questo: tutte le altre notifiche (si' da servire, prenotazioni, bozze pronte,
 promemoria del foglio) sono state tolte, le mail restano come sono.
+Dre, 21/10: «chiunque risponda dopo l'analisi deve essere riportato, questo non puo' sbagliare,
+e deve essere veloce».
 
-LA REGOLA
+LA REGOLA (stanza.tocca_a_dre, una sola per chi suona e per il semaforo)
 Un lead e' IN CONVERSAZIONE quando ha una risposta scritta da una PERSONA arrivata dopo
 `analysis_sent_at`. Non contano: le risposte arrivate prima dell'analisi, le autorisposte e i
 fuori ufficio (la regex collaudata del segnale, poi la lettura AI del segnale, dalla sua memoria:
 la stessa risposta non si ripaga mai). Se l'AI non risponde si suona lo stesso: mai silenzio.
 
-UNA NOTIFICA PER CONVERSAZIONE, NON PER MESSAGGIO
-Lo stato sta in snella_numeri, chiave «conversazioni»: {pid: {"dal": iso, "aperta_il": iso, "notificata": bool, ...}}.
-«dal» e' la prima risposta di persona dopo l'analisi; «aperta_il» e' quando questo giro l'ha vista
-(20/10 sera: il semaforo misura la notifica mancante da qui, non dalla mail; un si' caldo letto ore
-dopo la sua mail non e' un guasto al primo giro). Si scrive «notificata: false» PRIMA di
-suonare e «true» quando almeno un dispositivo l'ha presa: una conversazione con «false» e' una
-notifica non arrivata (la legge il semaforo della scheda Clara) e si riprova al giro dopo, per
-un giorno. Un lead che riscrive mentre la conversazione e' aperta non suona di nuovo.
-Una conversazione cominciata prima della finestra (o, alla prima accensione, piu' di 2 ore fa)
-si segna senza suonare: e' il passato, Dre lo sa.
+LA NOTIFICA SUONA OGNI VOLTA CHE LA PALLA TORNA A DRE (21/10)
+Il 20/10 suonava una volta per conversazione e poi taceva per 120 giorni: chi riscriveva dopo
+la risposta di Dre restava muto (il 19/10, e le 7 voci «silenziose» del 20/10). Ora:
+- c'e' una mail del lead (persona) piu' recente della nostra ultima mail (interactions
+  email_out, cioe' Dre da Smartlead o l'analisi, e i follow-up) e piu' recente dell'ultima mail
+  sua gia' notificata: suona;
+- due mail sue di fila senza una nostra in mezzo: una sola notifica;
+- un'autorisposta non suona; la stessa mail non suona due volte.
+Lo stato sta in snella_numeri, chiave «conversazioni»: {pid: {"dal", "aperta_il", "notificata",
+"il", "ultima_notificata", "nostra_dopo", ...}}. «dal» e' la prima mail di persona dopo l'analisi;
+«ultima_notificata» l'ora della mail del lead notificata (si scrive PRIMA di suonare, con
+«notificata: false»; «true» quando almeno un dispositivo l'ha presa: una voce con «false» e' una
+notifica non arrivata, si riprova al giro dopo, per un giorno); «nostra_dopo» l'ora della nostra
+risposta arrivata dopo quella mail (la palla e' tornata al lead). Le voci vecchie (solo «dal»,
+anche le «silenziose» del 20/10) valgono come notificate: il passato non suona, la prossima mail
+nuova dopo una nostra risposta si'.
+
+DI NOTTE (22-7:30, come i guasti) non suona: lo stato non si tocca e alle 7:30 il giro la trova
+e la suona. Una conversazione piu' vecchia di 2 ore alla prima accensione si segna senza suonare.
 
 IL SI' CALDO (20/10 sera). Dre: «fino all'analisi fa tutto il sistema; quando tocca a me voglio la
 notifica». Un si' che il lettore AI legge CALDO («mi mandi tutto e poi ci sentiamo», un numero
@@ -51,9 +62,10 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, quando, _a_secco, contattabile, lettore_di  # noqa: E402
+from stanza import sb, quando, _a_secco, contattabile, lettore_di, tocca_a_dre, mail_notificata  # noqa: E402
 import segnale_provvisorio as S                                 # noqa: E402
 from lettura import solo_suo                                    # noqa: E402
+from guasti import di_notte                                     # noqa: E402
 
 CHIAVE = "conversazioni"
 FINESTRA = datetime.timedelta(hours=48)     # le risposte che si guardano a ogni giro
@@ -109,12 +121,47 @@ def apertura(p, risposte, e_persona=persona):
     return None
 
 
+def ultima_persona(p, risposte, soglia, e_persona=persona):
+    """L'ultima risposta di PERSONA arrivata dopo `soglia` (la riga di interactions), dalla piu'
+    recente: un'autorisposta in cima non nasconde la persona sotto. None se non c'e',
+    S.RIMANDATA se una lettura e' rimandata al giro dopo. Sotto la soglia (l'analisi, la mail
+    gia' notificata, la nostra ultima) non si legge niente: non puo' suonare comunque."""
+    for r in sorted(risposte, key=lambda x: x.get("at") or "", reverse=True):
+        if not r.get("at") or quando(r["at"]) <= soglia:
+            continue
+        v = e_persona(p, r)
+        if v is None:
+            return S.RIMANDATA
+        if v:
+            return r
+    return None
+
+
 def _risposte_dopo(p):
     an = p.get("analysis_sent_at")
     if not an:
         return []
     return sb("GET", f"/rest/v1/interactions?select=id,prospect_id,at,body&kind=eq.email_in&prospect_id=eq.{p['id']}"
                      f"&at=gt.{urllib.parse.quote(_z(quando(an)))}&order=at.asc&limit=200") or []
+
+
+def nostre_ultime(pids):
+    """La nostra ultima mail per lead: {pid: datetime}. Sono le interactions email_out (tutto il
+    filo nostro su Smartlead, Dre compreso: le scrive il sync) e i follow-up. Si guarda indietro
+    quanto lo stato (TIENI): una nostra risposta di 4 giorni fa conta anche se la finestra delle
+    mail del lead e' di 48 ore."""
+    out = {}
+    pids = sorted(p for p in pids if p)
+    da = urllib.parse.quote(_z(adesso() - TIENI))
+    for i in range(0, len(pids), 80):
+        for r in sb("GET", f"/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup)"
+                           f"&prospect_id=in.({','.join(pids[i:i + 80])})&at=gte.{da}&order=at.desc&limit=5000") or []:
+            if not r.get("at"):
+                continue
+            t = quando(r["at"])
+            if r["prospect_id"] not in out or t > out[r["prospect_id"]]:
+                out[r["prospect_id"]] = t
+    return out
 
 
 def in_conversazione(pid):
@@ -182,8 +229,8 @@ def caldi_del_lettore(da, stato):
 
 
 def risposta_calda(p, dal):
-    """La sua mail letta calda: la prima email_in da `dal` (l'ora della risposta letta dal lettore,
-    o il «dal» dello stato)."""
+    """La sua mail da `dal` in poi: la prima email_in da quell'ora (l'ora della risposta letta dal
+    lettore, il «dal» dello stato, o la mail notificata da riprovare)."""
     if not dal:
         return None
     t = quando(dal if str(dal).endswith("Z") or "+" in str(dal) else str(dal) + "+00:00")
@@ -208,10 +255,21 @@ def da_chiamare(pid, inizio, p=None):
 
 # ── il giro ────────────────────────────────────────────────────────
 
+def _voce_nuova(v, mail, ora, caldo=False):
+    """La voce dello stato prima di suonare: «non notificata» per quella mail. «dal» e «aperta_il»
+    restano quelli della prima volta; «silenziosa» e «caldo» della volta prima cadono."""
+    voce = {k: x for k, x in (v or {}).items() if k not in ("silenziosa", "caldo", "il")}
+    voce.update({"dal": voce.get("dal") or _z(mail), "aperta_il": voce.get("aperta_il") or _z(ora),
+                 "ultima_notificata": _z(mail), "nostra_dopo": None, "notificata": False})
+    if caldo:
+        voce["caldo"] = True
+    return voce
+
+
 def giro(prova=None, dal=None):
-    """Chi e' entrato in conversazione e non ha ancora la sua notifica: la manda (una per lead).
-    Torna la lista [(pid, azienda, dal, frase)] di chi suona (o suonerebbe, in prova).
-    `dal` (solo in prova): da quando guardare, partendo da uno stato vuoto."""
+    """Chi ha la palla da Dre e non ha ancora la sua notifica: la manda (una per mail del lead).
+    Torna la lista [(pid, azienda, mail, frase)] di chi suona (o suonerebbe, in prova; di notte:
+    chi suonera' alle 7:30). `dal` (solo in prova): da quando guardare, partendo da uno stato vuoto."""
     prova = _a_secco() if prova is None else prova
     ora = adesso()
     if dal is not None and not prova:
@@ -219,37 +277,53 @@ def giro(prova=None, dal=None):
     stato = {} if dal is not None else leggi_stato()
     prima_volta = stato is None
     stato = dict(stato or {})
+    notte = di_notte(ora)
     da = dal or ora - FINESTRA
     righe = [r for r in sb("GET", f"/rest/v1/interactions?select=id,prospect_id,at&kind=eq.email_in&prospect_id=not.is.null"
                                   f"&at=gte.{urllib.parse.quote(_z(da))}&order=at.asc&limit=3000") or []
              if r.get("at") and quando(r["at"]) >= da]
-    nuovi = sorted({r["prospect_id"] for r in righe} - set(stato))
-    schede = {}
-    for i in range(0, len(nuovi), 80):
-        for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=in.({','.join(nuovi[i:i + 80])})") or []:
-            schede[p["id"]] = p
     ultima = {}
     for r in righe:
         ultima[r["prospect_id"]] = max(ultima.get(r["prospect_id"], ""), r["at"])
+    pids = sorted(ultima)
+    schede = {}
+    for i in range(0, len(pids), 80):
+        for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=in.({','.join(pids[i:i + 80])})") or []:
+            schede[p["id"]] = p
+    nostre = nostre_ultime(pid for pid, p in schede.items() if p.get("analysis_sent_at"))
     suonano, cambiato = [], False
     for pid, p in schede.items():
         an = p.get("analysis_sent_at")
-        if not an or quando(ultima[pid]) <= quando(an):
-            continue                                    # nessuna risposta nuova dopo l'analisi
-        r = apertura(p, _risposte_dopo(p))
+        if not an:
+            continue
+        an = quando(an)
+        v = stato.get(pid) if isinstance(stato.get(pid), dict) else None
+        gia = mail_notificata(v)
+        nostra = nostre.get(pid)
+        # la nostra risposta dopo la mail notificata: la palla e' tornata al lead, si segna
+        if v is not None and gia and nostra and nostra > gia and (not v.get("nostra_dopo") or quando(v["nostra_dopo"]) < nostra):
+            stato[pid] = v = {**v, "nostra_dopo": _z(nostra)}
+            cambiato = True
+        if not tocca_a_dre(v, quando(ultima[pid]), nostra, an):
+            continue                                    # nemmeno l'ultima mail (persona o no) fa tornare la palla
+        soglia = max([an] + [t for t in (gia, nostra) if t])
+        r = ultima_persona(p, _risposte_dopo(p), soglia)
         if not r or r == S.RIMANDATA:
             continue
-        inizio = quando(r["at"])
-        voce = {"dal": _z(inizio), "aperta_il": _z(ora), "notificata": False}
-        if inizio < da or (prima_volta and ora - inizio > SEMINA):
-            stato[pid] = {**voce, "notificata": True, "silenziosa": True}   # il passato: si segna e basta
+        mail = quando(r["at"])
+        if not tocca_a_dre(v, mail, nostra, an):
+            continue
+        if prima_volta and ora - mail > SEMINA:
+            stato[pid] = {**_voce_nuova(v, mail, ora), "notificata": True, "silenziosa": True}   # il passato: si segna e basta
             cambiato = True
             continue
         detto = frase(r)[:120]
-        print(f"  in conversazione: {azienda(p)} dal {inizio.astimezone(S.ROMA):%d/%m %H:%M} «{detto}»")
-        suonano.append((pid, azienda(p), inizio, detto))
-        if prova:
+        print(f"  in conversazione: {azienda(p)} dal {mail.astimezone(S.ROMA):%d/%m %H:%M} «{detto}»"
+              + (" (di notte: suona alle 7:30)" if notte else ""))
+        suonano.append((pid, azienda(p), mail, detto))
+        if prova or notte:
             continue
+        voce = _voce_nuova(v, mail, ora)
         stato[pid] = voce                               # prima si scrive «non notificata», poi si suona
         scrivi_stato(stato)
         if suona(pid, p, r):
@@ -261,44 +335,46 @@ def giro(prova=None, dal=None):
         r = risposta_calda(p, (p.get("lettore") or {}).get("risposta_il"))
         if not r:
             continue
-        inizio = quando(r["at"])
-        voce = {"dal": _z(inizio), "aperta_il": _z(ora), "notificata": False, "caldo": True}
-        if inizio < da or (prima_volta and ora - inizio > SEMINA):
-            stato[pid] = {**voce, "notificata": True, "silenziosa": True}
+        mail = quando(r["at"])
+        if prima_volta and ora - mail > SEMINA:
+            stato[pid] = {**_voce_nuova(None, mail, ora, caldo=True), "notificata": True, "silenziosa": True}
             cambiato = True
             continue
         detto = frase(r)[:120]
-        print(f"  si' caldo, passa a Dre: {azienda(p)} dal {inizio.astimezone(S.ROMA):%d/%m %H:%M} «{detto}»")
-        suonano.append((pid, azienda(p), inizio, detto))
-        if prova:
+        print(f"  si' caldo, passa a Dre: {azienda(p)} dal {mail.astimezone(S.ROMA):%d/%m %H:%M} «{detto}»"
+              + (" (di notte: suona alle 7:30)" if notte else ""))
+        suonano.append((pid, azienda(p), mail, detto))
+        if prova or notte:
             continue
-        scritto = da_chiamare(pid, inizio, p)
+        scritto = da_chiamare(pid, mail, p)
         if scritto:
             print(f"    «{scritto}» nell'app, da oggi" + ("" if scritto == "Da chiamare" else " (nessun cellulare: gli scrive Dre)"))
+        voce = _voce_nuova(None, mail, ora, caldo=True)
         stato[pid] = voce
         scrivi_stato(stato)
         if suona(pid, p, r, caldo=True):
             stato[pid] = {**voce, "notificata": True, "il": _z(adesso())}
         cambiato = True
-    # le notifiche non arrivate si riprovano, per un giorno
+    # le notifiche non arrivate si riprovano, per un giorno (non di notte)
     for pid, v in list(stato.items()):
-        if prova or v.get("notificata") or pid in {s[0] for s in suonano}:
+        if prova or notte or not isinstance(v, dict) or v.get("notificata") or pid in {s[0] for s in suonano}:
             continue
-        if ora - quando(v["dal"]) > RIPROVA:
+        mail = mail_notificata(v)
+        if not mail or ora - mail > RIPROVA:
             continue
         p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at&id=eq.{pid}") or [None])[0]
-        r = (risposta_calda(p, v["dal"]) if v.get("caldo") else apertura(p, _risposte_dopo(p))) if p else None
-        if not r or r == S.RIMANDATA:
+        r = risposta_calda(p, _z(mail)) if p else None
+        if not r:
             continue
         if suona(pid, p, r, caldo=bool(v.get("caldo"))):
             stato[pid] = {**v, "notificata": True, "il": _z(adesso())}
             cambiato = True
-    vecchie = [pid for pid, v in stato.items() if ora - quando(v.get("dal") or _z(ora)) > TIENI]
+    vecchie = [pid for pid, v in stato.items() if not isinstance(v, dict) or ora - (mail_notificata(v) or ora) > TIENI]
     for pid in vecchie:
         stato.pop(pid)
     if not prova and (cambiato or prima_volta or vecchie):
         scrivi_stato(stato)
-    print(f"conversazioni: {len(suonano)} {'suonerebbero' if prova else 'nuove'}, {len(stato)} in memoria")
+    print(f"conversazioni: {len(suonano)} {'suonerebbero' if prova else 'aspettano le 7:30' if notte else 'nuove'}, {len(stato)} in memoria")
     return suonano
 
 

@@ -22,8 +22,15 @@ IL SEMAFORO si accende solo per quello che costa lead o soldi (spec, punto 4):
   da un'ora in orario; crediti finiti o chiave scaduta (l'ultima corsa lo dice);
 - il direttore fermo (nessuna operazione da 20 minuti);
 - il foglio non aggiornato da un'ora;
-- un lead entrato in conversazione senza notifica partita (la chiave «conversazioni» in
-  snella_numeri, scritta da chi manda la notifica: se manca, questo controllo e' spento).
+- un lead entrato in conversazione senza notifica partita: SI MISURA DALLA MAIL DEL LEAD
+  (prospects.last_reply_at), non da quando il giro l'ha vista (21/10, collaudo: il semaforo era
+  cieco su un ritardo di due ore). Rosso se una risposta di persona dopo l'analisi ha piu' di 30
+  minuti, la palla e' di Dre (stanza.tocca_a_dre, la stessa regola di chi suona) e la notifica
+  per quella mail non e' partita; di notte (22-7:30) si aspetta il mattino;
+- la Master Inbox di Smartlead che non risponde da 3 giri del sync (snella_numeri «sync» →
+  master_inbox, scritto da sync_v2): le risposte nuove entrano in ritardo (21/10);
+- una risposta vista sulla Master Inbox che non e' entrata nel sistema (il controllo di
+  completezza di guasti.risposte_perse, scritto in snella_numeri «guasti» → perse);
 - i guasti che il segnale provvisorio vede da dentro (Gmail ferma, memoria, calendario...),
   scritti da segnale_provvisorio._registra_guasto in snella_numeri «guasti_segnale».
 Gli stessi guasti li suona sul telefono scripts/guasti.py (una volta, poi ogni 2 ore, poi «Risolto»).
@@ -40,7 +47,8 @@ import urllib.parse
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, contattabile, lettore_di  # noqa: E402
+from stanza import sb, sb_tutte, quando, contattabile, lettore_di, tocca_a_dre, mail_notificata  # noqa: E402
+from guasti import di_notte                                      # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 SCHEDA = "Clara"
@@ -49,10 +57,12 @@ SI_FERMO = datetime.timedelta(minutes=60)
 FOGLIO_FERMO = datetime.timedelta(minutes=60)
 SILENZIO = datetime.timedelta(minutes=60)
 DIRETTORE_FERMO = datetime.timedelta(minutes=30)        # la sentinella lo rianima a 20; alle 5 c'e' un buco normale di 22
-CONVERSAZIONE_SENZA_NOTIFICA = datetime.timedelta(hours=1)   # conversazioni.py riprova ogni 5 minuti per 24 ore: un'ora senza riuscirci e' un guasto
-# misurata da «aperta_il» (quando il giro l'ha vista), non da «dal» (la sua mail): un si' caldo letto
-# ore dopo la mail accendeva il rosso al primo giro, e Dre riceveva «si e' fermato qualcosa» al posto
-# della notifica giusta (20/10 sera)
+CONVERSAZIONE_SENZA_NOTIFICA = datetime.timedelta(minutes=30)   # dalla MAIL del lead (21/10): il sync e il giro delle conversazioni stanno in 15 minuti
+CONVERSAZIONI_FINESTRA = datetime.timedelta(hours=48)           # le mail dei lead che si guardano (come conversazioni.FINESTRA)
+NOSTRE_INDIETRO = datetime.timedelta(days=120)                  # quanto si guarda indietro per la nostra ultima mail (come conversazioni.TIENI)
+MASTER_INBOX_GIRI = 3                                           # giri del sync falliti di fila prima del rosso
+MASTER_INBOX_VECCHIO = datetime.timedelta(hours=1)              # uno stato piu' vecchio non parla di adesso (il sync fermo lo dice un altro rosso)
+PERSE_VECCHIE = datetime.timedelta(minutes=30)                  # il controllo di completezza vale se e' di questo giro dei guasti
 SEGNALE_VISTO = datetime.timedelta(minutes=20)              # il segnale gira ogni 4-5 minuti: se non lo rivede, e' risolto
 # le operazioni che portano le mail: se si fermano, si perdono lead
 INVIO = {"sync_smartlead": "La lettura delle risposte da Smartlead", "analisi": "La preparazione delle analisi",
@@ -202,6 +212,75 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
     return out + rimbalzi_fermi(ora, gia=set(ps))
 
 
+NON_PERSONA = ("ooo", "automatico")
+
+
+def _inizio_giorno(t):
+    """Le 7:30 di Roma del giorno in cui il telefono torna a suonare (guasti.di_notte)."""
+    r = t.astimezone(ROMA)
+    mattino = datetime.datetime(r.year, r.month, r.day, 7, 30, tzinfo=ROMA)
+    return mattino + datetime.timedelta(days=1) if r.hour >= 22 else mattino
+
+
+def conversazioni_mute(ora, schede, nostre, stato):
+    """Pura. Le conversazioni che aspettano una notifica da troppo (21/10): per ogni lead con
+    l'analisi mandata e l'ultima mail (prospects.last_reply_at) dopo l'analisi, scritta da una
+    persona (la classe non e' ooo e il lettore, se l'ha letta, non dice automatico), se la palla
+    e' di Dre (stanza.tocca_a_dre, con la nostra ultima mail e lo stato di chi suona) e la mail
+    ha piu' di 30 minuti, contando dalle 7:30 se e' arrivata di notte, e adesso non e' notte.
+    Una voce dello stato «non notificata» per quella mail e' la notifica tentata e non arrivata:
+    conta come mancante. Torna [{"prospect_id", "azienda", "quando", "caldo"}]."""
+    if di_notte(ora):
+        return []
+    out = []
+    for p in schede:
+        an, mail = p.get("analysis_sent_at"), p.get("last_reply_at")
+        if not an or not mail or p.get("classificazione") in NON_PERSONA:
+            continue
+        an, mail = quando(an), quando(mail)
+        letto = lettore_di(p)
+        if letto and (letto.get("classe") in NON_PERSONA or letto.get("autore") == "automatico"):
+            continue
+        v = (stato or {}).get(p["id"])
+        v = v if isinstance(v, dict) else None
+        gia = mail_notificata(v)
+        if v is not None and gia == mail and v.get("notificata"):
+            continue                                    # notificata, proprio questa
+        if not (v is not None and gia == mail and not v.get("notificata")) and not tocca_a_dre(v, mail, nostre.get(p["id"]), an):
+            continue                                    # la palla non e' di Dre: nessuna notifica da aspettare
+        partenza = max(mail, _inizio_giorno(mail)) if di_notte(mail) else mail
+        if ora - partenza <= CONVERSAZIONE_SENZA_NOTIFICA:
+            continue
+        out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()),
+                    "quando": mail, "caldo": bool(v and v.get("caldo"))})
+    return sorted(out, key=lambda x: x["quando"])
+
+
+def _nostre_ultime(ora, pids):
+    """La nostra ultima mail per lead (email_out: tutto il filo nostro su Smartlead, Dre compreso;
+    e i follow-up), guardando indietro quanto lo stato delle conversazioni."""
+    out = {}
+    for pezzo in _pezzi(pids):
+        for x in sb("GET", f"/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup)&prospect_id=in.({pezzo})"
+                           f"&at=gte.{_z(ora - NOSTRE_INDIETRO)}&order=at.desc&limit=5000") or []:
+            if not x.get("at"):
+                continue
+            t = quando(x["at"])
+            if x["prospect_id"] not in out or t > out[x["prospect_id"]]:
+                out[x["prospect_id"]] = t
+    return out
+
+
+def leggi_conversazioni_mute(ora, stato):
+    """I dati per conversazioni_mute dal database: le schede con l'analisi e una mail del lead
+    nella finestra, e la nostra ultima mail per ciascuna."""
+    schede = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore"
+                       f"&analysis_sent_at=not.is.null&last_reply_at=gte.{_z(ora - CONVERSAZIONI_FINESTRA)}&limit=1000") or []
+    schede = [p for p in schede if quando(p["last_reply_at"]) > quando(p["analysis_sent_at"])]
+    nostre = _nostre_ultime(ora, [p["id"] for p in schede]) if schede else {}
+    return conversazioni_mute(ora, schede, nostre, stato or {})
+
+
 def leggi_semaforo(ora):
     ops = {o["chiave"]: o for o in sb("GET", "/rest/v1/operazioni?select=chiave,nome,attiva,cadenza_minuti") or []}
     corse = {}
@@ -219,12 +298,12 @@ def leggi_semaforo(ora):
     r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.guasti_segnale") or []
     segnale = (r[0].get("dati") if r else None) or {}
     conv = conversazioni_aperte()
-    if conv:
-        mute = [pid for pid, v in conv.items() if isinstance(v, dict) and not v.get("notificata")]
-        nomi = _nomi(mute) if mute else {}
-        conv = {pid: (dict(v, azienda=nomi.get(pid)) if pid in nomi else v) for pid, v in conv.items()}
+    numeri = {x["chiave"]: (x.get("dati") or {}) for x in sb("GET", "/rest/v1/snella_numeri?select=chiave,dati&chiave=in.(sync,guasti)") or []}
     return {"si": si_fermi(ora), "corse": corse, "operazioni": ops, "foglio_il": foglio_il,
-            "conversazioni": conv, "ultima_corsa": ultima, "segnale": segnale}
+            "conversazioni": conv, "ultima_corsa": ultima, "segnale": segnale,
+            "conversazioni_mute": leggi_conversazioni_mute(ora, conv) if conv is not None else [],
+            "master_inbox": (numeri.get("sync") or {}).get("master_inbox"),
+            "perse": (numeri.get("guasti") or {}).get("perse")}
 
 
 # ── il semaforo ───────────────────────────────────────────────────────
@@ -278,15 +357,25 @@ def semaforo(ora, dati=None):
         guasti.append({"chiave": "foglio", "da": dati["foglio_il"],
                        "cosa": f"Il foglio non si aggiorna da {_quanto(ora - dati['foglio_il'])}",
                        "sta_facendo": "Riprova da solo ogni 10 minuti."})
-    for pid, v in (dati.get("conversazioni") or {}).items():
-        if not isinstance(v, dict) or v.get("notificata") or not v.get("dal"):
-            continue
-        dal = quando(v["dal"])
-        if ora - quando(v.get("aperta_il") or v["dal"]) > CONVERSAZIONE_SENZA_NOTIFICA:
-            chi = v.get("azienda") or "Un lead"
-            guasti.append({"chiave": f"conversazione:{pid}", "da": dal, "pid": pid,
-                           "cosa": f"{chi} {'vuole sentirti' if v.get('caldo') else 'è in conversazione'} ma la notifica non è partita",
-                           "sta_facendo": "La trovi nel foglio, in Conversazione: rispondi da Smartlead."})
+    # la conversazione senza notifica, misurata dalla mail del lead (21/10): conversazioni_mute
+    for m in dati.get("conversazioni_mute") or []:
+        guasti.append({"chiave": f"conversazione:{m['prospect_id']}", "da": m["quando"], "pid": m["prospect_id"],
+                       "cosa": f"{m['azienda']} {'vuole sentirti' if m.get('caldo') else 'ha risposto dopo l’analisi alle ' + _ora(m['quando'])}"
+                               " ma la notifica non è partita",
+                       "sta_facendo": "La trovi nel foglio, in Conversazione: rispondi da Smartlead. Il giro delle notifiche riprova ogni 5 minuti."})
+    # la Master Inbox di Smartlead rifiutata da 3 giri del sync (21/10): le risposte nuove entrano in ritardo
+    mi = dati.get("master_inbox")
+    if isinstance(mi, dict) and not mi.get("ok") and int(mi.get("giri_falliti") or 0) >= MASTER_INBOX_GIRI \
+            and mi.get("il") and ora - quando(mi["il"]) <= MASTER_INBOX_VECCHIO:
+        guasti.append({"chiave": "master_inbox", "da": quando(mi.get("dal") or mi["il"]),
+                       "cosa": "Smartlead non dice più chi ha risposto (Master Inbox): le risposte nuove arrivano in ritardo",
+                       "sta_facendo": "Il sync torna alla rotazione (ogni filo riletto entro un paio d'ore); se dura, controllare la chiave Smartlead."})
+    # le risposte viste su Smartlead e non entrate nel sistema (guasti.risposte_perse, l'ultimo giro)
+    perse = dati.get("perse")
+    if isinstance(perse, dict) and perse.get("il") and ora - quando(perse["il"]) <= PERSE_VECCHIE:
+        for g in perse.get("guasti") or []:
+            if isinstance(g, dict) and g.get("chiave") and g.get("da"):
+                guasti.append({**g, "da": quando(g["da"])})
     # i guasti che il segnale provvisorio vede da dentro (Gmail ferma, memoria, calendario,
     # conversazioni): li scrive segnale_provvisorio._registra_guasto, restano rossi finche' li rivede
     for motivo, v in (dati.get("segnale") or {}).items():
@@ -324,8 +413,9 @@ def leggi_eventi(ora, giorni=2):
           if str(r.get("dopo") or "").strip('"') in NO]
     conv = []
     for pid, v in (conversazioni_aperte() or {}).items():
-        if isinstance(v, dict) and v.get("dal") and quando(v["dal"]) >= da:
-            conv.append((pid, quando(v["dal"])))
+        t = mail_notificata(v)                          # l'ultima mail notificata (21/10): anche chi riscrive dopo la risposta di Dre
+        if t and t >= da:
+            conv.append((pid, t))
     call = []
     for a in sb_tutte("/rest/v1/agenda?select=id,prospect_id,at,tipo,creato_il&fonte=like.gcal*&prospect_id=not.is.null"
                       f"&tipo=in.(conoscitiva,tecnica,avvio)&or=(at.gte.{_z(da)},creato_il.gte.{_z(da)})"):

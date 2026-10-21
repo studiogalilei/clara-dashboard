@@ -252,6 +252,40 @@ def lettore_di(p):
     return l
 
 
+def mail_notificata(voce):
+    """La mail del lead per cui e' partita (o e' stata tentata) l'ultima notifica «entrato in
+    conversazione»: `ultima_notificata` (dal 21/10), o `dal` per le voci di prima (anche quelle
+    «silenziose» del 20/10: il passato vale come notificato). None se la voce non c'e'."""
+    if not isinstance(voce, dict):
+        return None
+    t = voce.get("ultima_notificata") or voce.get("dal")
+    return quando(t) if t else None
+
+
+def tocca_a_dre(voce, mail, nostra, analisi):
+    """LA PALLA TORNA A DRE (21/10). Dre: «chiunque risponda dopo l'analisi deve essere riportato,
+    questo non puo' sbagliare». La notifica suona ogni volta che la palla torna a lui, non una
+    volta per conversazione (il 19 e il 20/10 chi riscriveva dopo la sua risposta restava muto).
+    `mail`: l'ultima mail di PERSONA del lead; `nostra`: la nostra ultima mail (Dre da Smartlead,
+    un follow-up, l'analisi), None se nessuna; `analisi`: analysis_sent_at; `voce`: lo stato in
+    snella_numeri «conversazioni» per quel lead (None se mai visto). Tutti datetime.
+    - prima dell'analisi, o senza analisi: no;
+    - se la nostra ultima mail e' dopo la sua: la palla e' sua, no;
+    - mai notificato: si';
+    - la stessa mail, o due sue di fila senza una nostra in mezzo: no (una sola);
+    - lui riscrive dopo una nostra mail arrivata dopo la mail gia' notificata: si'."""
+    if not analisi or not mail or mail <= analisi:
+        return False
+    if nostra and nostra >= mail:
+        return False
+    gia = mail_notificata(voce)
+    if gia is None:
+        return True
+    if mail <= gia:
+        return False
+    return bool(nostra and nostra > gia)
+
+
 def fit_di(p):
     """IL GOOGLE FIT, LETTO IN UN MODO SOLO (7/10). Prima c'erano due gerarchie: il
     triage e la prima risposta leggevano il fit nuovo prima del vecchio, bozze.py e

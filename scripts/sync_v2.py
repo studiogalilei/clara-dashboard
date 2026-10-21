@@ -36,6 +36,7 @@ import io
 import json, os, re, sys, time, html as ihtml
 import urllib.request
 import urllib.error, urllib.parse, urllib.error
+import zoneinfo
 from datetime import date, datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -302,6 +303,31 @@ def classe_col_lettore(cls_liste, lettura, modo, testo=""):
     return cls
 
 
+def lettore_da_chiamare(prima, ora_risposta, adesso):
+    """IL LETTORE SI PAGA SOLO PER UNA RISPOSTA NUOVA (21/10, collaudo: 130 chiamate in 12 ore per
+    17 risposte nuove, 0,22 $ l'ora anche alle 3 di notte, il tetto dei 5 $ verso le 22). La
+    rilettura a rotazione della stessa mail (un lead fermo «da_classificare», una lettura vecchia)
+    non si ripaga: si rilegge solo se `ora_risposta` (last_reply_time di Smartlead, [:19]) e' piu'
+    recente di enriched.lettore.risposta_il. Una lettura senza risposta_il (la riclassifica di
+    prima del 21/10) si rifa' una volta. Una ricaduta sulle liste (tetto raggiunto, modello giu':
+    fonte != lettore) si riprova una volta al giorno (Roma), quando il tetto riparte, non a ogni giro."""
+    prima = prima or {}
+    if not prima.get("risposta_il"):
+        return True
+    if ora_risposta[:19] > prima["risposta_il"][:19]:
+        return True
+    if ora_risposta[:19] < prima["risposta_il"][:19]:
+        return False
+    if prima.get("fonte") == "lettore":
+        return False
+    letto = prima.get("letto_il")
+    if not letto:
+        return True
+    from stanza import quando
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    return quando(letto).astimezone(roma).date() < adesso.astimezone(roma).date()
+
+
 def data_ooo(testo):
     """Prova a leggere 'fino al X luglio' / 'until July X' -> date ISO, se no None."""
     t = testo.lower()
@@ -339,13 +365,16 @@ FRESCHE_PAGINE = 15        # 15 x 20 = le ultime 300 risposte: piu' di una giorn
 MASTER_INBOX_LIMITE = 20   # 21/10 pomeriggio: Smartlead rifiuta limit > 20 (400) e il primo giro era muto
 
 
-def risposte_fresche(dal_iso, pagina=None):
+def risposte_fresche(dal_iso, pagina=None, segna=True):
     """21/10 (CEFOSMET): la sua seconda risposta delle 10:49 e' entrata alle 12:33, perche' l'export
     non conta la seconda risposta e la rotazione dei fili caldi era lunga quasi due ore. La Master
     Inbox di Smartlead (/master-inbox/inbox-replies, ordinata per ultima risposta) dice in UNA
-    chiamata chi ha risposto e quando: {email: {"t", "lead_id", "campaign_id", "lead_map"}} per le
-    risposte dopo `dal_iso`. Se il servizio non risponde, {} e il giro va come prima."""
+    chiamata chi ha risposto e quando: {email: {"t", "lead_id", "campaign_id", "lead_map",
+    "campagna"}} per le risposte dopo `dal_iso`. Se il servizio non risponde, {} e il giro va
+    come prima. Lo stato (ok / giri falliti) si scrive in snella_numeri «sync» solo nel giro vero
+    (`segna`, e mai con una `pagina` finta: le prove non toccano il database)."""
     out = {}
+    segna = segna and pagina is None
     try:
         for n in range(FRESCHE_PAGINE):
             L = MASTER_INBOX_LIMITE
@@ -365,26 +394,31 @@ def risposte_fresche(dal_iso, pagina=None):
                     break
                 if em not in out or t > out[em]["t"]:
                     out[em] = {"t": t, "lead_id": r.get("email_lead_id"), "campaign_id": r.get("email_campaign_id"),
-                               "lead_map": r.get("email_lead_map_id")}
+                               "lead_map": r.get("email_lead_map_id"), "campagna": r.get("email_campaign_name")}
             if fermati or len(righe) < MASTER_INBOX_LIMITE:
                 break
     except Exception as e:                                   # noqa: BLE001
         print(f"  master inbox non letta ({str(e)[:160]}): il giro va come prima")
-        _segna_master_inbox(False, str(e)[:160])
+        if segna:
+            _segna_master_inbox(False, str(e)[:160])
         return {}
-    _segna_master_inbox(True, "")
+    if segna:
+        _segna_master_inbox(True, "")
     return out
 
 
 def _segna_master_inbox(ok, errore):
-    """Lo stato della Master Inbox in snella_numeri «sync» (giri_falliti di fila): il semaforo lo legge,
-    cosi' un fallimento ripetuto non resta muto (collaudo 21/10: 400 a ogni giro, nessuno lo vedeva)."""
+    """Lo stato della Master Inbox in snella_numeri «sync» (giri_falliti di fila, «dal» la prima
+    fallita): il semaforo lo legge e accende il rosso al terzo giro, cosi' un fallimento ripetuto
+    non resta muto (collaudo 21/10: 400 a ogni giro, nessuno lo vedeva)."""
     if DRY:
         return
     try:
         r = (sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.sync") or [{}])[0].get("dati") or {}
-        r["master_inbox"] = {"ok": ok, "errore": errore, "giri_falliti": 0 if ok else int((r.get("master_inbox") or {}).get("giri_falliti") or 0) + 1,
-                             "il": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        prima = r.get("master_inbox") or {}
+        adesso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        r["master_inbox"] = {"ok": ok, "errore": errore, "giri_falliti": 0 if ok else int(prima.get("giri_falliti") or 0) + 1,
+                             "il": adesso, "dal": None if ok else (prima.get("dal") if prima.get("giri_falliti") and not prima.get("ok") else None) or adesso}
         sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave", [{"chiave": "sync", "dati": r}],
            {"Prefer": "resolution=merge-duplicates,return=minimal"})
     except Exception as e:                                   # noqa: BLE001
@@ -589,15 +623,16 @@ def main():
             cls_liste = cls
             # LA CLARA INTELLIGENTE (20/10): il lettore AI legge la stessa risposta quando le liste la
             # rileggerebbero (una risposta nuova, o un lead ancora da classificare). Una risposta gia'
-            # letta non si ripaga: la lettura sta in enriched.lettore con l'ora della risposta.
+            # letta non si ripaga: la lettura sta in enriched.lettore con l'ora della risposta, e si
+            # richiama solo per una risposta NUOVA (lettore_da_chiamare, 21/10).
             esito_lettore, lettore_nuovo = None, False
             attuale = (rec or {}).get("classificazione")
             ricalcola = nuova or not attuale or attuale == "da_classificare"
             if MODO_LETTORE in ("ombra", "acceso") and ricalcola:
                 ora_risposta = (last_reply.get("time") or "")[:19]
                 prima = (((rec or {}).get("enriched") or {}).get("lettore") or {})
-                if prima.get("risposta_il") == ora_risposta and prima.get("fonte") == "lettore":
-                    esito_lettore = prima
+                if not lettore_da_chiamare(prima, ora_risposta, datetime.now(timezone.utc)):
+                    esito_lettore = prima if prima.get("fonte") == "lettore" else None
                 elif not DRY:
                     import lettore
                     esito_lettore = lettore.leggi_risposta(last_reply.get("email_body"), msgs, rec or {})

@@ -988,7 +988,7 @@ def riclassifica(prova=True, percorso_cache=None):
         if nuova in ("positivo", "rinvio") and vecchia:
             continue
         cambi.append({"id": p["id"], "email": p.get("email"), "azienda": (p.get("company") or "")[:40],
-                      "classificazione": p.get("classificazione"), "esito": nuova, "lettura": l,
+                      "classificazione": p.get("classificazione"), "esito": nuova, "lettura": l, "last_reply_at": p.get("last_reply_at"),
                       "verifica": f"{l.get('caso')} {l.get('sicurezza')}"})
         print(f"  {p.get('classificazione'):15} -> {nuova:15} {(p.get('company') or '')[:34]:34} [{l.get('caso')}, {l.get('sicurezza')}]"
               f" {l['motivo'][:110]}")
@@ -1010,7 +1010,8 @@ def riclassifica(prova=True, percorso_cache=None):
         l = c["lettura"]
         fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{c['id']}") or [{}])[0]
         enr = dict(fresco.get("enriched") or {})
-        enr["lettore"] = _per_enriched(l, c["classificazione"], adesso)
+        # con l'ora della mail letta (21/10): senza, il sync la rileggeva a pagamento al giro dopo
+        enr["lettore"] = _per_enriched(l, c["classificazione"], adesso, (c.get("last_reply_at") or "")[:19] or None)
         patch = {"classificazione": c["esito"], "enriched": enr}
         if l.get("non_scrivere"):
             patch["no_followup"] = True

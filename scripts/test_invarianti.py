@@ -3882,9 +3882,14 @@ class _ConversazioniFinte:
         self.caldo = False                          # il lettore AI ha letto calda la sua ultima mail (20/10 sera)
         self.snella_lead = {}                       # le decisioni nell'app (quello che scrive «Da chiamare»)
 
-    def scrive(self, testo, minuti_fa=30, pid="p1"):
+    def scrive(self, testo, minuti_fa=30, pid="p1", kind="email_in"):
         at = (self.ora - datetime.timedelta(minutes=minuti_fa)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        self.risposte.append({"id": f"i{len(self.risposte) + 1}", "prospect_id": pid, "at": at, "created_at": at, "body": testo, "kind": "email_in"})
+        self.risposte.append({"id": f"i{len(self.risposte) + 1}", "prospect_id": pid, "at": at, "created_at": at, "body": testo, "kind": kind})
+        return at
+
+    def rispondiamo(self, minuti_fa=30, pid="p1"):
+        """Una mail nostra (Dre da Smartlead, o un follow-up): la palla torna al lead."""
+        return self.scrive("Buongiorno, le rispondo volentieri...", minuti_fa=minuti_fa, pid=pid, kind="email_out")
 
     def sb(self, m, path, corpo=None, *a, **k):
         import re as _re
@@ -3893,9 +3898,18 @@ class _ConversazioniFinte:
         if path.startswith("/rest/v1/interactions"):
             rr = [dict(r) for r in self.risposte]
             pid = _re.search(r"prospect_id=eq\.([^&]+)", path)
-            return [r for r in rr if not pid or r["prospect_id"] == pid.group(1)]
+            pids = _re.search(r"prospect_id=in\.\(([^)]*)\)", path)
+            kind = _re.search(r"kind=eq\.([a-z_]+)", path)
+            kinds = _re.search(r"kind=in\.\(([^)]*)\)", path)
+            da = _re.search(r"at=gte?\.([^&]+)", path)
+            rr = [r for r in rr if not pid or r["prospect_id"] == pid.group(1)]
+            rr = [r for r in rr if not pids or r["prospect_id"] in pids.group(1).split(",")]
+            rr = [r for r in rr if not kind or r["kind"] == kind.group(1)]
+            rr = [r for r in rr if not kinds or r["kind"] in kinds.group(1).split(",")]
+            rr = [r for r in rr if not da or r["at"][:19] >= da.group(1)[:19]]
+            return sorted(rr, key=lambda r: r["at"])
         if path.startswith("/rest/v1/prospects"):
-            ultima = max((r["at"] for r in self.risposte), default=None)
+            ultima = max((r["at"] for r in self.risposte if r["kind"] == "email_in"), default=None)
             riga = {"id": "p1", "company": "Azienda Finta", "name": "Mario", "analysis_sent_at": self.analisi,
                     "stage": "in_follow_up", "pipeline_stage": None, "classificazione": "positivo", "fuori": False,
                     "no_followup": False, "last_reply_at": ultima}
@@ -4029,12 +4043,19 @@ def _():
     f.scrive("Grazie, ci risentiamo a novembre", minuti_fa=300)
     f.giro()
     assert f.notifiche == [] and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
-    # una conversazione cominciata giorni fa (prima della finestra) non suona alla risposta nuova
+    # 21/10: una conversazione cominciata giorni fa e MAI notificata (non e' nello stato) suona alla
+    # risposta nuova: la palla e' di Dre e nessuno gliel'ha detto (prima: «e' il passato», e restava muta)
     f = _ConversazioniFinte(analisi_ore_fa=24 * 10, stato={})
     f.scrive("Grazie, ci risentiamo a novembre", minuti_fa=60 * 24 * 5)
     f.scrive("Eccomi, ora possiamo sentirci", minuti_fa=10)
     f.giro()
-    assert f.notifiche == [] and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+    assert len(f.notifiche) == 1 and f.stato["p1"]["notificata"] is True and "Eccomi" in f.notifiche[0]["testo"], (f.notifiche, f.stato)
+    # ...ma se gli avevamo gia' risposto dopo l'ultima sua, no
+    f = _ConversazioniFinte(analisi_ore_fa=24 * 10, stato={})
+    f.scrive("Grazie, ci risentiamo a novembre", minuti_fa=60 * 24 * 5)
+    f.rispondiamo(minuti_fa=60 * 24 * 4)
+    f.giro()
+    assert f.notifiche == [] and "p1" not in f.stato, (f.notifiche, f.stato)
 
 
 @prova("notifiche: sul telefono suona solo la conversazione; segnali, prenotazioni, bozze e foglio restano mail o Posta")
@@ -4145,17 +4166,20 @@ def _():
     assert C.semaforo(alle(11), d) == [], "25 minuti senza corse: la sentinella lo rianima, non e' ancora un guasto"
     d["ultima_corsa"] = alle(10, 25)
     assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["direttore"]
-    # la conversazione senza notifica: spenta finche' la chiave non c'e'
+    # la conversazione senza notifica (21/10: dalla mail del lead, 30 minuti; il dettaglio nella prova del 21/10)
     d = vuoto()
-    d["conversazioni"] = {"p1": {"dal": alle(9, 50).isoformat(), "notificata": False, "azienda": "Rossi srl"},
-                          "p2": {"dal": alle(9, 50).isoformat(), "notificata": True},
-                          "p3": {"dal": alle(10, 30).isoformat(), "notificata": False}}
-    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["conversazione:p1"], "senza notifica da piu' di un'ora; mezz'ora no (riprova)"
-    # 20/10 sera: si misura da quando il giro l'ha aperta, non dalla sua mail (il si' caldo letto ore dopo)
-    d["conversazioni"] = {"p4": {"dal": alle(7).isoformat(), "aperta_il": alle(10, 50).isoformat(), "notificata": False, "caldo": True, "azienda": "Calda srl"},
-                          "p5": {"dal": alle(7).isoformat(), "aperta_il": alle(9, 50).isoformat(), "notificata": False, "caldo": True, "azienda": "Calda srl"}}
+    z = lambda t: t.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")   # noqa: E731
+    schede = [{"id": "p1", "company": "Rossi srl", "analysis_sent_at": z(alle(8)), "last_reply_at": z(alle(9, 50)), "classificazione": "positivo"},
+              {"id": "p3", "company": "Bianchi srl", "analysis_sent_at": z(alle(8)), "last_reply_at": z(alle(10, 35)), "classificazione": "positivo"}]
+    stato = {"p1": {"dal": z(alle(9, 50)), "ultima_notificata": z(alle(9, 50)), "notificata": False},
+             "p2": {"dal": z(alle(9, 50)), "ultima_notificata": z(alle(9, 50)), "notificata": True}}
+    d["conversazioni_mute"] = C.conversazioni_mute(alle(11), schede, {}, stato)
+    assert [x["chiave"] for x in C.semaforo(alle(11), d)] == ["conversazione:p1"], "senza notifica da piu' di mezz'ora; 25 minuti no (riprova)"
+    # il si' caldo: la voce lo dice, e il semaforo lo scrive
+    stato = {"p4": {"dal": z(alle(7)), "ultima_notificata": z(alle(7)), "notificata": False, "caldo": True}}
+    d["conversazioni_mute"] = C.conversazioni_mute(alle(11), [dict(schede[0], id="p4", company="Calda srl", last_reply_at=z(alle(7)))], {}, stato)
     g = C.semaforo(alle(11), d)
-    assert [x["chiave"] for x in g] == ["conversazione:p5"] and "vuole sentirti" in g[0]["cosa"], g
+    assert [x["chiave"] for x in g] == ["conversazione:p4"] and "vuole sentirti" in g[0]["cosa"] and g[0]["da"] == alle(7), g
     # i guasti del segnale provvisorio confluiscono qui: rossi finche' il segnale li rivede (20 minuti)
     d = vuoto()
     d["segnale"] = {"gmail": {"testo": "Il segnale non riesce a mandarti la mail", "il": alle(10, 55).isoformat(), "dal": alle(9).isoformat()},
@@ -5203,6 +5227,259 @@ def _():
     p = {"id": "p2", "classificazione": "positivo", "last_reply_at": "2026-10-15T10:03:00+00:00", "analysis_sent_at": "2026-10-15T10:00:00+00:00", "pipeline_stage": None, "stage": "risposto"}
     assert F.fase_di(p, None, None, [], None, None, ora=ora)[0] == F.CONV
     assert F.fase_di(dict(p, classificazione="ooo"), None, None, [], None, None, ora=ora)[0] == F.INVIATA
+
+
+# ── 21/10: «chiunque risponda dopo l'analisi deve essere riportato, non può sbagliare, e deve essere veloce» ──
+
+@prova("conversazione (21/10): la regola pura, la palla torna a Dre: riscrive dopo la nostra risposta suona, due sue di fila una sola")
+def _():
+    from stanza import tocca_a_dre
+    t = lambda h, m=0: datetime.datetime(2026, 10, 21, h, m, tzinfo=datetime.timezone.utc)   # noqa: E731
+    an = t(9)
+    assert tocca_a_dre(None, t(10), None, an), "prima mail di persona dopo l'analisi, mai notificato: suona"
+    assert not tocca_a_dre(None, t(8), None, an), "prima dell'analisi no"
+    assert not tocca_a_dre(None, t(10), None, None), "senza analisi no"
+    assert not tocca_a_dre(None, t(10), t(10, 30), an), "Dre ha gia' risposto: la palla non e' sua"
+    v = {"dal": "2026-10-21T10:00:00Z", "ultima_notificata": "2026-10-21T10:00:00Z", "notificata": True}
+    assert not tocca_a_dre(v, t(10), None, an), "la stessa mail non suona due volte"
+    assert not tocca_a_dre(v, t(10, 20), None, an), "due sue di fila senza la nostra in mezzo: una sola"
+    assert tocca_a_dre(v, t(11), t(10, 30), an), "Dre risponde alle 10:30, lui riscrive alle 11: suona"
+    assert not tocca_a_dre(v, t(10, 20), t(10, 30), an), "la nostra e' dopo la sua: niente"
+    assert not tocca_a_dre(v, t(11), t(9, 50), an), "la nostra e' prima della mail gia' notificata: non conta"
+    # una voce silenziosa del 20/10 (solo «dal»): vale come notificata
+    sil = {"dal": "2026-10-21T10:00:00Z", "notificata": True, "silenziosa": True}
+    assert not tocca_a_dre(sil, t(10), None, an) and not tocca_a_dre(sil, t(10, 20), None, an)
+    assert tocca_a_dre(sil, t(11), t(10, 30), an)
+    # una voce con la notifica non arrivata: la stessa mail la riprova chi suona, non questa regola
+    assert not tocca_a_dre(dict(v, notificata=False), t(10), None, an)
+
+
+@prova("conversazione (21/10): se il lead riscrive dopo la risposta di Dre suona di nuovo; due sue di fila una sola; autorisposta no")
+def _():
+    f = _ConversazioniFinte(stato={})
+    f.scrive("Grazie per l'analisi, ci sentiamo la settimana prossima", minuti_fa=40)
+    f.giro()
+    assert len(f.notifiche) == 1 and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+    prima = f.stato["p1"]["ultima_notificata"]
+    assert prima and prima[:16] == f.risposte[0]["at"][:16], f.stato
+    f.scrive("Ah, dimenticavo: ci mandi anche un preventivo?", minuti_fa=30)
+    f.giro(); f.giro()
+    assert len(f.notifiche) == 1, "due sue di fila senza la nostra in mezzo: una sola"
+    nostra = f.rispondiamo(minuti_fa=20)
+    f.giro()
+    assert len(f.notifiche) == 1, "la nostra risposta non fa suonare"
+    assert f.stato["p1"]["nostra_dopo"] and f.stato["p1"]["nostra_dopo"][:16] == nostra[:16], f.stato
+    f.scrive("Perfetto, allora giovedi' alle 10 va bene?", minuti_fa=10)
+    f.giro()
+    assert len(f.notifiche) == 2, f"dopo la risposta di Dre la palla e' tornata a lui: deve suonare ({len(f.notifiche)})"
+    assert "giovedi" in f.notifiche[1]["testo"] and f.stato["p1"]["ultima_notificata"][:16] == f.risposte[-1]["at"][:16], (f.notifiche, f.stato)
+    f.giro()
+    assert len(f.notifiche) == 2, "la stessa mail non suona due volte"
+    f.rispondiamo(minuti_fa=5)
+    f.scrive("Sono fuori ufficio fino al 30 ottobre, rispondero' al mio rientro.", minuti_fa=2)
+    f.giro()
+    assert len(f.notifiche) == 2, "un'autorisposta dopo la nostra non suona"
+    assert "caldo" not in f.stato["p1"] and "silenziosa" not in f.stato["p1"]
+
+
+@prova("conversazione (21/10): le voci silenziose del 20/10 non suonano per il passato, suonano alla prossima mail dopo la nostra risposta")
+def _():
+    f = _ConversazioniFinte(stato={})
+    dal = f.scrive("Grazie per l'analisi, interessante", minuti_fa=180)
+    f.stato = {"p1": {"dal": dal.replace("+00:00", "Z"), "notificata": True, "silenziosa": True}}
+    f.giro()
+    assert f.notifiche == [], "il passato non suona"
+    f.scrive("Un'altra cosa: avete un listino?", minuti_fa=150)
+    f.giro()
+    assert f.notifiche == [], "due sue di fila: la voce silenziosa vale come notificata"
+    f.rispondiamo(minuti_fa=120)
+    f.giro()
+    assert f.notifiche == []
+    f.scrive("Grazie Andrea, allora ci sentiamo lunedi'", minuti_fa=10)
+    f.giro()
+    assert len(f.notifiche) == 1 and "lunedi" in f.notifiche[0]["testo"], f.notifiche
+    assert f.stato["p1"]["notificata"] is True and "silenziosa" not in f.stato["p1"] and f.stato["p1"]["dal"] == dal.replace("+00:00", "Z"), f.stato
+    # una voce vecchia con la nostra risposta fuori dalla finestra delle 48 ore: la nostra conta lo stesso
+    f = _ConversazioniFinte(analisi_ore_fa=24 * 8, stato={})
+    dal = f.scrive("Grazie per l'analisi", minuti_fa=60 * 24 * 6)
+    f.stato = {"p1": {"dal": dal.replace("+00:00", "Z"), "notificata": True, "il": dal}}
+    f.rispondiamo(minuti_fa=60 * 24 * 4)
+    f.scrive("Eccomi, scusi il ritardo: possiamo sentirci?", minuti_fa=15)
+    f.giro()
+    assert len(f.notifiche) == 1, f.notifiche
+
+
+@prova("conversazione (21/10): di notte (22-7:30) non suona, suona alle 7:30; la prova a secco lo dice")
+def _():
+    import zoneinfo
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    f = _ConversazioniFinte(stato={})
+    f.ora = datetime.datetime(2026, 10, 21, 23, 10, tzinfo=roma).astimezone(datetime.timezone.utc)
+    f.analisi = (f.ora - datetime.timedelta(hours=30)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    f.scrive("Grazie, letta ora: ci sentiamo domani", minuti_fa=20)
+    chi = f.giro(prova=True)
+    assert len(chi) == 1 and f.notifiche == [], chi
+    f.giro()
+    assert f.notifiche == [] and not (f.stato.get("p1") or {}).get("ultima_notificata"), (f.notifiche, f.stato)
+    f.ora = datetime.datetime(2026, 10, 22, 7, 20, tzinfo=roma).astimezone(datetime.timezone.utc)
+    f.giro()
+    assert f.notifiche == [], "alle 7:20 e' ancora notte"
+    f.ora = datetime.datetime(2026, 10, 22, 7, 31, tzinfo=roma).astimezone(datetime.timezone.utc)
+    f.giro()
+    assert len(f.notifiche) == 1 and f.stato["p1"]["notificata"] is True, (f.notifiche, f.stato)
+    f.giro()
+    assert len(f.notifiche) == 1
+
+
+@prova("semaforo (21/10): la Master Inbox che non risponde da 3 giri e' un guasto rosso, con la soluzione")
+def _():
+    import clara_foglio as C
+    alle = lambda h, m=0: datetime.datetime(2026, 10, 21, h, m, tzinfo=C.ROMA)        # noqa: E731
+    vuoto = lambda: {"si": [], "corse": {}, "operazioni": {}, "foglio_il": None, "conversazioni": None, "ultima_corsa": None}  # noqa: E731
+    d = vuoto()
+    d["master_inbox"] = {"ok": False, "errore": "HTTP 400", "giri_falliti": 3, "il": alle(10, 55).isoformat(), "dal": alle(10, 30).isoformat()}
+    g = C.semaforo(alle(11), d)
+    assert [x["chiave"] for x in g] == ["master_inbox"] and g[0]["da"] == alle(10, 30), g
+    assert "Smartlead non dice più chi ha risposto" in g[0]["cosa"] and "Master Inbox" in g[0]["cosa"] and "ritardo" in g[0]["cosa"], g[0]
+    assert "rotazione" in g[0]["sta_facendo"] and "chiave Smartlead" in g[0]["sta_facendo"], g[0]
+    d["master_inbox"]["giri_falliti"] = 2
+    assert C.semaforo(alle(11), d) == [], "due giri falliti: si riprova ancora"
+    d["master_inbox"] = {"ok": True, "errore": "", "giri_falliti": 0, "il": alle(10, 55).isoformat()}
+    assert C.semaforo(alle(11), d) == []
+    d["master_inbox"] = {"ok": False, "errore": "HTTP 400", "giri_falliti": 9, "il": alle(6).isoformat(), "dal": alle(5).isoformat()}
+    assert C.semaforo(alle(11), d) == [], "uno stato vecchio di ore non e' un guasto di adesso (il sync fermo lo dice un altro rosso)"
+    # il sync scrive «dal» alla prima fallita e lo tiene finche' non torna ok
+    import sync_v2 as S
+    scritte = []
+    vero = S.sb
+    S.sb = lambda m, path, corpo=None, headers=None: (scritte.append(corpo) if m == "POST" else [{"dati": {"master_inbox": (scritte[-1][0]["dati"]["master_inbox"] if scritte else {})}}])
+    vero_dry = S.DRY
+    try:
+        S.DRY = False
+        S._segna_master_inbox(False, "HTTP 400")
+        S._segna_master_inbox(False, "HTTP 400")
+        mi = scritte[-1][0]["dati"]["master_inbox"]
+        assert mi["giri_falliti"] == 2 and mi["dal"] and mi["dal"] == scritte[0][0]["dati"]["master_inbox"]["dal"], scritte
+        S._segna_master_inbox(True, "")
+        mi = scritte[-1][0]["dati"]["master_inbox"]
+        assert mi["giri_falliti"] == 0 and mi["ok"] and not mi.get("dal"), mi
+        # una pagina finta (le prove) non scrive lo stato nel database vero
+        n = len(scritte)
+        S.risposte_fresche("2026-10-21T04:00:00", pagina=lambda o, l: {"data": []})
+        def rotta(o, l):
+            raise RuntimeError("giu'")
+        S.risposte_fresche("2026-10-21T04:00:00", pagina=rotta)
+        assert len(scritte) == n, "la prova con la pagina finta ha scritto lo stato della Master Inbox nel database"
+    finally:
+        S.sb, S.DRY = vero, vero_dry
+
+
+@prova("semaforo (21/10): «conversazione senza notifica» si misura dalla mail del lead, 30 minuti, fuori dalla notte")
+def _():
+    import clara_foglio as C
+    from stanza import quando as _q
+    alle = lambda h, m=0, g=21: datetime.datetime(2026, 10, g, h, m, tzinfo=C.ROMA)        # noqa: E731
+    z = lambda t: t.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")   # noqa: E731
+    an = z(alle(9))
+    scheda = lambda pid, mail, **k: {"id": pid, "company": f"Azienda {pid}", "analysis_sent_at": an, "last_reply_at": z(mail),       # noqa: E731
+                                      "classificazione": "positivo", **k}
+    # mail di persona alle 10:00, nessuna notifica: alle 10:20 no, alle 10:31 rosso
+    s = [scheda("p1", alle(10))]
+    assert C.conversazioni_mute(alle(10, 20), s, {}, {}) == []
+    m = C.conversazioni_mute(alle(10, 31), s, {}, {})
+    assert len(m) == 1 and m[0]["prospect_id"] == "p1" and m[0]["quando"] == _q(z(alle(10))) and m[0]["azienda"] == "Azienda p1", m
+    # notificata per quella mail: no; tentata ma non arrivata: rosso; notificata una mail precedente: rosso
+    assert C.conversazioni_mute(alle(11), s, {}, {"p1": {"dal": z(alle(10)), "ultima_notificata": z(alle(10)), "notificata": True}}) == []
+    assert len(C.conversazioni_mute(alle(11), s, {}, {"p1": {"dal": z(alle(10)), "ultima_notificata": z(alle(10)), "notificata": False}})) == 1
+    gia = {"p1": {"dal": z(alle(9, 30)), "ultima_notificata": z(alle(9, 30)), "notificata": True}}
+    assert C.conversazioni_mute(alle(11), s, {}, gia) == [], "la seconda mail di fila senza la nostra in mezzo non aspetta una notifica"
+    assert len(C.conversazioni_mute(alle(11), s, {"p1": _q(z(alle(9, 45)))}, gia)) == 1, "Dre ha risposto alle 9:45 e lui alle 10: la notifica doveva partire"
+    # Dre ha gia' risposto dopo la sua mail: niente da notificare
+    assert C.conversazioni_mute(alle(11), s, {"p1": _q(z(alle(10, 5)))}, {}) == []
+    # la voce silenziosa del 20/10 per quella stessa mail: vale come notificata
+    assert C.conversazioni_mute(alle(11), s, {}, {"p1": {"dal": z(alle(10)), "notificata": True, "silenziosa": True}}) == []
+    # non e' una persona: il lettore dice automatico, o la classe e' ooo; prima dell'analisi no
+    assert C.conversazioni_mute(alle(11), [scheda("p1", alle(10), lettore={"fonte": "lettore", "classe": "automatico", "risposta_il": z(alle(10))[:19]})], {}, {}) == []
+    assert C.conversazioni_mute(alle(11), [scheda("p1", alle(10), classificazione="ooo")], {}, {}) == []
+    assert C.conversazioni_mute(alle(11), [scheda("p1", alle(8, 50))], {}, {}) == []
+    assert C.conversazioni_mute(alle(11), [dict(scheda("p1", alle(10)), analysis_sent_at=None)], {}, {}) == []
+    # di notte: una mail alle 23 non e' un guasto alle 23:40 ne' alle 7:45 del giorno dopo; alle 8:05 si'
+    notte = [scheda("p1", alle(23))]
+    assert C.conversazioni_mute(alle(23, 40), notte, {}, {}) == []
+    assert C.conversazioni_mute(alle(7, 45, g=22), notte, {}, {}) == []
+    assert len(C.conversazioni_mute(alle(8, 5, g=22), notte, {}, {})) == 1
+    # nel semaforo: rosso con l'azienda, da = la sua mail; chi e' gia' notificato non c'e' piu'
+    vuoto = lambda: {"si": [], "corse": {}, "operazioni": {}, "foglio_il": None, "conversazioni": None, "ultima_corsa": None}  # noqa: E731
+    d = vuoto()
+    d["conversazioni_mute"] = C.conversazioni_mute(alle(11), s, {}, {})
+    g = C.semaforo(alle(11), d)
+    assert [x["chiave"] for x in g] == ["conversazione:p1"] and g[0]["pid"] == "p1" and g[0]["da"] == _q(z(alle(10))), g
+    assert "Azienda p1" in g[0]["cosa"] and "notifica" in g[0]["cosa"] and "Smartlead" in g[0]["sta_facendo"], g[0]
+    # il semaforo non misura piu' da «aperta_il»
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "clara_foglio.py"), encoding="utf-8").read()
+    assert "aperta_il" not in src.split("def semaforo")[1].split("\ndef ")[0], "il semaforo misura dalla mail del lead, non da quando il giro l'ha vista"
+    assert C.CONVERSAZIONE_SENZA_NOTIFICA <= datetime.timedelta(minutes=30)
+
+
+@prova("guasti (21/10): una risposta sulla Master Inbox che non e' entrata nel sistema e' un rosso con l'azienda")
+def _():
+    import guasti as G
+    from stanza import quando as _q
+    ora = datetime.datetime(2026, 10, 21, 10, tzinfo=datetime.timezone.utc)
+    t = lambda m: (ora - datetime.timedelta(minutes=m)).strftime("%Y-%m-%dT%H:%M:%S")     # noqa: E731
+    fresche = {"a@x.invalid": {"t": t(40), "lead_id": 1, "campaign_id": 9, "lead_map": 1, "campagna": "Campagna A"},
+               "b@x.invalid": {"t": t(40), "lead_id": 2, "campaign_id": 9, "lead_map": 2, "campagna": "Campagna A"},
+               "c@x.invalid": {"t": t(5), "lead_id": 3, "campaign_id": 9, "lead_map": 3, "campagna": "Campagna A"},
+               "d@x.invalid": {"t": t(40), "lead_id": 4, "campaign_id": 9, "lead_map": 4, "campagna": "Campagna A"},
+               "e@x.invalid": {"t": t(40), "lead_id": 5, "campaign_id": 9, "lead_map": 5, "campagna": "Campagna A"}}
+    schede = {"a@x.invalid": {"id": "pa", "company": "Entrata srl", "last_reply_at": t(40) + "+00:00"},
+              "b@x.invalid": {"id": "pb", "company": "Indietro srl", "last_reply_at": t(300) + "+00:00"},
+              "c@x.invalid": {"id": "pc", "company": "Fresca srl", "last_reply_at": t(300) + "+00:00"},
+              "e@x.invalid": {"id": "pe", "company": "Avanti srl", "last_reply_at": t(30) + "+00:00"}}
+    perse = G.risposte_perse(ora, fresche, schede)
+    assert [x["chiave"] for x in perse] == ["persa:pb", "persa:sl:4"], perse
+    assert "Indietro srl" in perse[0]["cosa"] and "non è entrata" in perse[0]["cosa"] and perse[0]["da"] == _q(t(40) + "+00:00") and perse[0]["pid"] == "pb", perse[0]
+    assert "Campagna A" in perse[1]["cosa"] and not perse[1].get("pid"), perse[1]
+    assert perse[0]["sta_facendo"], perse[0]
+    for g in perse:
+        assert "@" not in g["cosa"] and "@" not in g["chiave"], "mai la mail del lead in un avviso"
+    # entro 20 minuti e' il ritardo normale del sync, non un guasto; chi ha un last_reply piu' avanti e' a posto
+    assert G.RITARDO_NORMALE >= datetime.timedelta(minutes=15)
+    # il semaforo le mostra (dalla chiave «guasti» in snella_numeri, se fresche)
+    import clara_foglio as C
+    d = {"si": [], "corse": {}, "operazioni": {}, "foglio_il": None, "conversazioni": None, "ultima_corsa": None,
+         "perse": {"il": ora.isoformat(), "guasti": [dict(g, da=g["da"].isoformat()) for g in perse]}}
+    g = C.semaforo(ora, d)
+    assert [x["chiave"] for x in g] == ["persa:pb", "persa:sl:4"] and g[0]["da"] == _q(t(40) + "+00:00"), g
+    d["perse"]["il"] = (ora - datetime.timedelta(hours=2)).isoformat()
+    assert C.semaforo(ora, d) == [], "un controllo vecchio di ore non vale"
+    # risposte_fresche porta anche il nome della campagna (per l'avviso di chi non e' nel sistema)
+    import sync_v2 as S
+    f = S.risposte_fresche("2026-10-21T04:00:00", pagina=lambda o, l: {"data": [{"last_reply_time": "2026-10-21T08:49:00.000Z", "lead_email": "A@x.invalid",
+                                                                                   "email_lead_id": 1, "email_campaign_id": 9, "email_lead_map_id": 77,
+                                                                                   "email_campaign_name": "Campagna A"}]})
+    assert f["a@x.invalid"]["campagna"] == "Campagna A", f
+
+
+@prova("lettore (21/10): si paga solo per una risposta NUOVA, mai per la rilettura a rotazione della stessa mail")
+def _():
+    import sync_v2 as S
+    oggi = datetime.datetime(2026, 10, 21, 10, tzinfo=datetime.timezone.utc)
+    letta = {"fonte": "lettore", "classe": "da_classificare", "risposta_il": "2026-10-15T14:47:49", "letto_il": "2026-10-15T14:50:00+00:00"}
+    assert S.lettore_da_chiamare({}, "2026-10-15T14:47:49", oggi), "mai letta: si legge"
+    assert not S.lettore_da_chiamare(letta, "2026-10-15T14:47:49", oggi), "la stessa mail, gia' letta dal lettore: non si ripaga (anche se e' da_classificare)"
+    assert S.lettore_da_chiamare(letta, "2026-10-21T09:00:00", oggi), "una risposta piu' nuova: si legge"
+    assert not S.lettore_da_chiamare(letta, "2026-10-15T14:00:00", oggi), "una risposta piu' vecchia di quella letta: no"
+    assert S.lettore_da_chiamare(dict(letta, risposta_il=None), "2026-10-15T14:47:49", oggi), "la riclassifica vecchia non diceva di quale mail: una volta si rilegge"
+    # ricaduta sulle liste (tetto, modello giu'): si riprova una volta al giorno, non a ogni giro
+    liste = {"fonte": "liste", "classe": "da_classificare", "risposta_il": "2026-10-21T08:00:00", "letto_il": "2026-10-21T08:05:00+00:00"}
+    assert not S.lettore_da_chiamare(liste, "2026-10-21T08:00:00", oggi), "oggi e' gia' ricaduto sulle liste: non si riprova a ogni giro"
+    assert S.lettore_da_chiamare(liste, "2026-10-21T08:00:00", oggi + datetime.timedelta(days=1)), "il giorno dopo (tetto nuovo) si riprova"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py"), encoding="utf-8").read()
+    assert "lettore_da_chiamare(prima, ora_risposta" in src, "il sync deve passare dalla regola"
+    assert 'prima.get("risposta_il") == ora_risposta and prima.get("fonte")' not in src, "la vecchia cache (che rileggeva le liste e i da_classificare) e' sparita"
+    src_l = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lettore.py"), encoding="utf-8").read()
+    assert 'enr["lettore"] = _per_enriched(l, c["classificazione"], adesso, ' in src_l, "la riclassifica deve dire di quale mail e' la lettura"
 
 
 def main():

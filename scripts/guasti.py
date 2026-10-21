@@ -16,6 +16,10 @@ snella_numeri, chiave «guasti»: «aperti» adesso e «risolti» nelle ultime 4
 della sera, scripts/giornata.py). Se un avviso suona spesso si ripara la causa, non si zittisce.
 Gira ogni 10 minuti (operazione «guasti»); lo chiama anche la sentinella, dal suo workflow,
 quando il direttore e' fermo (allora questa operazione non gira).
+A ogni giro fa anche IL CONTROLLO DI COMPLETEZZA (21/10): le risposte che la Master Inbox di
+Smartlead mostra nelle ultime 2 ore devono stare nel database (prospects.last_reply_at): una che
+manca da piu' di 20 minuti e' un rosso con l'azienda (risposte_perse; il risultato resta nella
+chiave «guasti», «perse», e lo legge anche la scheda Clara).
 
 USO
   python3 scripts/guasti.py           suona quello che c'e' da suonare
@@ -110,6 +114,56 @@ def suona(titolo, testo, pid=None):
 
 TIENI_RISOLTI = datetime.timedelta(hours=48)
 
+# ── il controllo di completezza (21/10): Smartlead contro il database ──
+FRESCHE_ORE = 2                                        # le risposte della Master Inbox che si confrontano
+RITARDO_NORMALE = datetime.timedelta(minutes=20)       # il sync parte ogni 5 minuti e dura fino a 6: entro 20 non e' un guasto
+
+
+def risposte_perse(ora, fresche, schede):
+    """Pura. Le risposte che Smartlead mostra nella Master Inbox (sync_v2.risposte_fresche:
+    {email: {"t", "campagna", ...}}) e che il sistema NON ha: nessuna scheda per quella mail, o
+    prospects.last_reply_at piu' vecchio della risposta. Le risposte piu' giovani di RITARDO_NORMALE
+    aspettano il sync. Torna guasti come quelli del semaforo, mai con la mail del lead dentro."""
+    out = []
+    for em, f in (fresche or {}).items():
+        t = f.get("t")
+        if not t:
+            continue
+        t = quando(t + "+00:00" if len(t) == 19 else t)
+        if ora - t < RITARDO_NORMALE:
+            continue
+        p = (schede or {}).get(em)
+        if p and (p.get("last_reply_at") or "")[:19] >= f["t"][:19]:
+            continue
+        if p:
+            chi = " ".join((p.get("company") or p.get("name") or "un lead").split())
+            out.append({"chiave": f"persa:{p['id']}", "da": t, "pid": p["id"],
+                        "cosa": f"Una risposta su Smartlead non è entrata nel sistema: {chi}, alle {t.astimezone(ROMA):%H:%M}",
+                        "sta_facendo": "Il sync la riprende da solo a ogni giro; intanto la trovi su Smartlead."})
+        else:
+            dove = f.get("campagna") or "una campagna"
+            out.append({"chiave": f"persa:sl:{f.get('lead_id') or f.get('lead_map') or '?'}", "da": t,
+                        "cosa": f"Una risposta su Smartlead non è entrata nel sistema: un lead di «{dove}», alle {t.astimezone(ROMA):%H:%M}",
+                        "sta_facendo": "Il sync la riprende da solo a ogni giro; intanto la trovi su Smartlead."})
+    return sorted(out, key=lambda g: g["da"])
+
+
+def leggi_perse(ora):
+    """Il controllo di completezza sui dati veri: la Master Inbox delle ultime 2 ore contro le
+    schede. Se Smartlead non risponde torna [] (lo dice il rosso della Master Inbox)."""
+    import urllib.parse
+    import sync_v2
+    fresche = sync_v2.risposte_fresche((ora - datetime.timedelta(hours=FRESCHE_ORE)).strftime("%Y-%m-%dT%H:%M:%S"), segna=False)
+    if not fresche:
+        return []
+    schede = {}
+    mails = sorted(fresche)
+    for i in range(0, len(mails), 50):
+        for p in sb("GET", "/rest/v1/prospects?select=id,email,company,name,last_reply_at"
+                           f"&email=in.({urllib.parse.quote(','.join(mails[i:i + 50]))})") or []:
+            schede[(p.get("email") or "").lower()] = p
+    return risposte_perse(ora, fresche, schede)
+
 
 def storico(stato, nuovo, risolti, ora):
     """Pura. I guasti risolti, per la mail della sera (giornata.py): un guasto che era nello stato e
@@ -127,7 +181,17 @@ def storico(stato, nuovo, risolti, ora):
 def giro(prova=False, ora=None):
     import clara_foglio
     ora = ora or datetime.datetime.now(datetime.timezone.utc)
-    aperti = clara_foglio.semaforo(ora)
+    dati_semaforo = clara_foglio.leggi_semaforo(ora)
+    # il controllo di completezza (21/10): Smartlead contro il database, a ogni giro dei guasti;
+    # il risultato resta nella chiave «guasti» (perse) cosi' lo vede anche la scheda Clara
+    try:
+        perse = leggi_perse(ora)
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (controllo di completezza non fatto: {str(e)[:120]})")
+        perse = []
+    perse_scritte = {"il": ora.isoformat(), "guasti": [dict(g, da=g["da"].isoformat()) for g in perse]}
+    dati_semaforo["perse"] = perse_scritte
+    aperti = clara_foglio.semaforo(ora, dati_semaforo)
     r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.guasti") or []
     dati = ((r[0].get("dati") if r else None) or {})
     stato = dati.get("aperti") or {}
@@ -141,7 +205,8 @@ def giro(prova=False, ora=None):
             suona(titolo, testo, pid)
     if not prova:
         sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave",
-           [{"chiave": "guasti", "dati": {"aperti": nuovo, "risolti": risolti, "giro": ora.isoformat()}, "aggiornato_il": ora.isoformat()}],
+           [{"chiave": "guasti", "dati": {"aperti": nuovo, "risolti": risolti, "giro": ora.isoformat(), "perse": perse_scritte},
+             "aggiornato_il": ora.isoformat()}],
            {"Prefer": "resolution=merge-duplicates,return=minimal"})
     return note
 
