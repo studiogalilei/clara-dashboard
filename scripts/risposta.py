@@ -36,6 +36,7 @@ USO
   python3 scripts/risposta.py --email <email> [--campagna <id>] [--prova]
   --oppure <email2>   un secondo indirizzo da provare se Smartlead non conosce il primo
   --bussato <iso>     quando Smartlead ha bussato (per misurare l'avvio di GitHub)
+  --risposta-il <iso> l'ora della mail detta dal campanello (time_replied): se il filo e' indietro si riprova
   --prova             legge e misura, non scrive e non manda (vale per tutti i pezzi)
 """
 import datetime
@@ -106,7 +107,7 @@ def _sotto(nome, argomenti, minuti):
 
 # ── 1. il filo da Smartlead, con le funzioni del sync ────────────────────
 
-def sincronizza(email, campagna, oppure, bussato):
+def sincronizza(email, campagna, oppure, risposta_il):
     import sync_v2 as S
     if PROVA:
         S.DRY = True                               # la prova a secco del sync, qualunque sia la riga di comando
@@ -118,9 +119,10 @@ def sincronizza(email, campagna, oppure, bussato):
             esito["email"] = oppure
     esito.setdefault("email", email)
     # Smartlead ha bussato per una mail che nel filo non c'e' ancora? (la storia arriva un attimo dopo)
-    if bussato and esito.get("trovato") and not esito.get("nuova"):
+    # Si riprova una volta, solo se il campanello ha detto l'ora della mail e il filo e' piu' vecchio.
+    if risposta_il and esito.get("trovato") and not esito.get("nuova"):
         ultima = _utc(esito.get("ultima_risposta"))
-        if ultima and _utc(bussato) - ultima > datetime.timedelta(minutes=10):
+        if ultima and _utc(risposta_il) - ultima > datetime.timedelta(minutes=1):
             print(f"  il filo non ha ancora la mail nuova: riprovo fra {ATTESA_RIPROVA} secondi")
             time.sleep(ATTESA_RIPROVA)
             esito = {**esito, **S.sincronizza_lead(esito["email"], campagna)}
@@ -229,11 +231,12 @@ def main():
     campagna = arg("--campagna")
     oppure = (arg("--oppure") or "").strip().lower() or None
     bussato = arg("--bussato")
+    risposta_il = arg("--risposta-il")
     evento = arg("--evento") or "EMAIL_REPLY"
     partita = adesso()
     print(f"STRADA VELOCE {'(prova) ' if PROVA else ''}per un lead, evento {evento}, {partita:%H:%M:%S} UTC")
 
-    esito = passo("filo da Smartlead (sync + lettore)", lambda: sincronizza(email, campagna, oppure, bussato))
+    esito = passo("filo da Smartlead (sync + lettore)", lambda: sincronizza(email, campagna, oppure, risposta_il))
     if not esito:
         registra(email, None, None, partita)
         sys.exit(2)

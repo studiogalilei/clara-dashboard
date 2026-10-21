@@ -32,6 +32,10 @@ on:
         description: "Quando Smartlead ha bussato (ISO, lo mette la funzione): per misurare l'avvio"
         required: false
         default: ""
+      risposta_il:
+        description: "L'ora della mail del lead (time_replied di Smartlead)"
+        required: false
+        default: ""
       prova:
         description: "«1» = prova a secco: legge e misura, non scrive e non manda"
         required: false
@@ -82,8 +86,9 @@ jobs:
           LEAD_EVENTO: ${{ github.event.inputs.evento }}
           LEAD_OPPURE: ${{ github.event.inputs.oppure }}
           LEAD_BUSSATO: ${{ github.event.inputs.bussato }}
+          LEAD_RISPOSTA_IL: ${{ github.event.inputs.risposta_il }}
           LEAD_PROVA: ${{ github.event.inputs.prova }}
         run: |
           extra=""
           if [ "$LEAD_PROVA" = "1" ]; then extra="--prova"; fi
-          python3 scripts/risposta.py --email "$LEAD_EMAIL" --campagna "$LEAD_CAMPAGNA" --evento "$LEAD_EVENTO" --oppure "$LEAD_OPPURE" --bussato "$LEAD_BUSSATO" $extra
+          python3 scripts/risposta.py --email "$LEAD_EMAIL" --campagna "$LEAD_CAMPAGNA" --evento "$LEAD_EVENTO" --oppure "$LEAD_OPPURE" --bussato "$LEAD_BUSSATO" --risposta-il "$LEAD_RISPOSTA_IL" $extra

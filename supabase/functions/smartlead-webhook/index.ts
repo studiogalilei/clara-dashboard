@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
         evento,
         oppure: oppure.includes("@") && oppure !== email ? oppure : "",
         bussato: new Date().toISOString(),
+        risposta_il: String(corpo.time_replied ?? corpo.event_timestamp ?? ""),
       };
       const stato = await dispatch("risposta.yml", inputs);
       console.log(`smartlead EMAIL_REPLY → risposta.yml (campagna ${inputs.campagna || "?"}): github ${stato}`);
