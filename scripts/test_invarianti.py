@@ -5884,6 +5884,8 @@ def _():
     assert "minutes=1 if persona else 5" not in leggi("foglio.py"), "il foglio non decide piu' con l'orologio"
     assert 'get("analysis_sent_at") or "~"' not in leggi("prima_risposta.py") and "persona_dopo_analisi(p)" in leggi("prima_risposta.py")
     assert "persona_dopo_analisi(" in leggi("manda.py")
+    # il caldo della scheda lo dice il lettore come per la notifica, e solo finche' la palla e' sua
+    assert "letto = lettore_di(p)" in leggi("schede.py") and "and not nostra_dopo" in leggi("schede.py")
 
 
 def main():

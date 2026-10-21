@@ -66,7 +66,7 @@ import zoneinfo
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, env, _a_secco         # noqa: E402
+from stanza import sb, sb_tutte, quando, env, _a_secco, lettore_di  # noqa: E402
 import lettura as L                                            # noqa: E402
 import segnale_provvisorio as S                                # noqa: E402
 import categorie_smartlead as C                                # noqa: E402
@@ -74,7 +74,7 @@ import categorie_smartlead as C                                # noqa: E402
 PROVA = "--prova" in sys.argv or _a_secco()
 TUTTE = "--tutte" in sys.argv
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
-VERSIONE = "schede6"                     # cambia la forma della scheda -> si rifanno tutte (6: Da chiamare solo col cellulare, 20/10 sera)
+VERSIONE = "schede7"                     # cambia la forma della scheda -> si rifanno tutte (7: il caldo lo dice il lettore, 22/10 notte)
 GIORNI_ATTIVI = 60
 VECCHIE_PER_GIRO = 30
 FRESCA = datetime.timedelta(hours=1)     # una risposta piu' giovane di cosi': la scheda si rifa' a ogni giro
@@ -150,7 +150,7 @@ def a_pezzi(ids, n=80):
 
 CAMPI_P = ("id,company,name,email,classificazione,stage,pipeline_stage,fuori,no_followup,awaiting_us,"
            "last_reply_at,updated_at,campaign,campaign_id,followup_due,ooo_until,next_action_date,sg_id,"
-           "phone,role,analysis_sent,analysis_sent_at,analysis_pdf")
+           "phone,role,analysis_sent,analysis_sent_at,analysis_pdf,lettore:enriched->lettore")
 # l'impronta guarda questi campi, non updated_at: il sync tocca la scheda a ogni giro (la firma di
 # Smartlead in enriched) e con updated_at si rifacevano 100 schede ogni 10 minuti per niente.
 # Quello che cambia solo in enriched (il Google Fit) arriva col giro delle schede vecchie di un giorno.
@@ -425,6 +425,15 @@ def costruisci(ctx, pid, ora):
     # e', lui non si chiama. Senza lettura dell'ultima il segnale resta (meglio una chiamata in piu').
     segnalato = vale_il_caldo(tipi, ctx.get("caldi", {}).get(pid, set()), ultima and ultima["id"], lettura)
     caldo = segnalato or bool(lettura and lettura.get("caldo"))
+    # Notte del 22/10: se il lettore ha letto la sua ultima mail, il caldo lo dice lui, come per la
+    # notifica e il foglio (prima qui decideva il gpt-5 del segnale, e la scheda diceva «Da chiamare»
+    # dove la notifica e il foglio dicevano altro). Il segnale resta solo dove il lettore non c'e'.
+    # E vale finche' la palla e' sua: se dopo la sua mail calda gli abbiamo scritto (l'analisi, un
+    # follow-up) e lui tace, non e' piu' una chiamata da fare.
+    letto = lettore_di(p)
+    if letto:
+        nostra_dopo = any(r["kind"] == "email_out" and ultima and (r.get("at") or "") > (ultima.get("at") or "") for r in righe)
+        segnalato, caldo = False, bool(letto.get("caldo")) and not nostra_dopo
     if caldo and stato in ("Analisi inviata", "Da rispondere"):
         stato = "Da chiamare"
     # 20/10 sera: «Da chiamare» solo con un cellulare suo (firma o scheda, mai il sito). Senza, la
@@ -438,7 +447,7 @@ def costruisci(ctx, pid, ora):
     perche = []
     if segnalato:
         perche.append("Segnalato caldo")
-    if lettura and lettura.get("caldo") and (lettura.get("telefono") or "").strip():
+    if caldo and lettura and lettura.get("caldo") and (lettura.get("telefono") or "").strip():
         perche.append("Ha lasciato il numero")
     elif not perche and (caldo or stato == "Da chiamare"):
         perche.append("Ha chiesto una chiamata")
