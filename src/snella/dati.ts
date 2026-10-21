@@ -4,7 +4,7 @@
 // le tabelle del sistema vecchio, non manda mail, non scrive su Smartlead.
 import { supabase } from '../lib/supabase'
 import statiJson from './stati.json'
-import type { LeadPerProssimo, PropostaLead } from './regole'
+import type { LeadPerProssimo, PropostaLead, ScrittureStrada } from './regole'
 
 /** I 12 stati della pipeline (Dre, 19/10), nell'ordine e nei gruppi: la fonte unica e' stati.json
  *  (la leggono anche scripts/schede.py e il database, snella_stati). Nient'altro. */
@@ -149,7 +149,8 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
     // follow-up (scripts/followup.py) il giorno del prossimo
     supabase.from('prospects').select(CAMPI_LEAD).eq('id', id).abortSignal(entro()).maybeSingle(),
     // 20/10 sera: anche titolo, perche' e motivo del controllo, per dire perche' un messaggio e' fermo
-    supabase.from('proposte').select('id,tipo,stato,at,risposta,titolo,perche,bozza:azione->>bozza,template:azione->>template,motivo_controllo:azione->lettura->>coerenza_motivo,ombra:azione->>ombra')
+    // 21/10: e le strade (scripts/strade.py), con quando e il caso del lettore su cui sono nate
+    supabase.from('proposte').select('id,tipo,stato,at,risposta,titolo,perche,bozza:azione->>bozza,template:azione->>template,motivo_controllo:azione->lettura->>coerenza_motivo,ombra:azione->>ombra,strade:azione->strade,strade_il:azione->>strade_il,strade_caso:azione->>strade_caso,intento:azione->>intento')
       .eq('prospect_id', id).order('at', { ascending: false }).limit(100).abortSignal(entro()),
     supabase.from('seguiti_calendario').select('gruppo,il').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
   ])
@@ -249,6 +250,35 @@ export async function chiudiLead(id: string, proposte: number[], scritture: {
   if (c.error) guasto(c.error)
   const decisione = await salvaDecisione(id, scritture.decisione)
   return { decisione, nota: await notaDelGesto(id, nota) }
+}
+
+/** UNA STRADA SCELTA (21/10, Dre: «mi dà 2 o 3 strade e io scelgo, e lui procede»). Le scritture le decide
+ *  regole.scrittureStrada (pure, provate); qui si fanno nell'ordine: il lead, la proposta (solo se e' ancora
+ *  aperta: se nel frattempo e' partita o chiusa, lo si dice), lo stato di Dre, il calendario, la nota.
+ *  La scelta resta sulla proposta (azione.scelta): e' da li' che il sistema impara. */
+export async function scegliStrada(id: string, proposta: number, costruisci: (azione: Record<string, unknown>) => ScrittureStrada):
+  Promise<{ decisione: Decisione | null; nota: Nota | null }> {
+  // l'azione viva della proposta si rilegge adesso: la strada ci si appoggia sopra (bozza, lettura, scelta)
+  const r = await supabase.from('proposte').select('stato,azione').eq('id', proposta).abortSignal(entro()).single()
+  if (r.error) guasto(r.error)
+  const viva = r.data as { stato: string; azione: Record<string, unknown> | null } | null
+  if (viva?.stato !== 'aperta') throw new Error(NON_PIU_IN_ATTESA)
+  const scritture = costruisci(viva.azione ?? {})
+  if (scritture.lead) {
+    const l = await supabase.from('prospects').update(scritture.lead).eq('id', id).select('id').abortSignal(entro())
+    if (l.error) guasto(l.error)
+    if (!l.data?.length) throw new Error('il database non mi lascia scrivere su questo lead')
+  }
+  const u = await supabase.from('proposte').update(scritture.proposta).eq('id', proposta).eq('stato', 'aperta').select('id').abortSignal(entro())
+  if (u.error) guasto(u.error)
+  if (!u.data?.length) throw new Error(NON_PIU_IN_ATTESA)
+  let decisione: Decisione | null = null
+  if (scritture.decisione) decisione = await salvaDecisione(id, scritture.decisione)
+  if (scritture.togliCalendario) {
+    const c = await supabase.from('seguiti_calendario').delete().eq('prospect_id', id).abortSignal(entro())
+    if (c.error) guasto(c.error)
+  }
+  return { decisione, nota: await notaDelGesto(id, scritture.nota) }
 }
 
 // ── TUTTI (19/10): il foglio con tutti i prospect, una pagina alla volta dal database ──

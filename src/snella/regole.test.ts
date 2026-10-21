@@ -2,11 +2,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Decisione, Domanda, RigaLead, Telefono } from './dati'
 import {
-  DA_APP, FASI, NOTE_APP, allegaAnalisi, azioneApprovata, cellulareDi, cerca, chiamateInRitardo, contaStati, eSeguito, faseDi, giornoRoma, listaDaChiamare,
-  messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando,
-  infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
-  tasso, titoloDomanda, tonoStato,
-  type LeadPerProssimo, type PropostaLead,
+  DA_APP, FASI, MAX_STRADE, NOTE_APP, allegaAnalisi, azioneApprovata, cellulareDi, cerca, chiamateInRitardo, confermaStrada, contaStati, dettaglioStrada,
+  eSeguito, faseDi, giornoRoma, listaDaChiamare,
+  messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando, recordScelta,
+  infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
+  stradeDi, tasso, titoloDomanda, tonoStato,
+  type LeadPerProssimo, type PropostaLead, type Strada,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
 import statiJson from './stati.json'
@@ -322,6 +323,96 @@ describe('risolvere da soli un lead fermo (20/10 sera): Manda, Non mandare, Chiu
     // chiuso: niente follow-up da nessuna strada
     const lp: LeadPerProssimo = { analysis_sent_at: '2026-10-15T09:00:00Z', last_reply_at: '2026-10-14T09:00:00Z', fuori: false, stage: 'risposto', awaiting_us: false, ...c.lead }
     expect(prossimoMessaggio(lp, [], { gruppo: 'FOLLOW UP 1', il: '2026-10-22' }, [], ADESSO)).toBeNull()
-    for (const n of Object.values(NOTE_APP)) expect(n.startsWith("Dall'app: ")).toBe(true)
+    for (const n of Object.values(NOTE_APP)) expect((typeof n === 'function' ? n('x') : n).startsWith("Dall'app: ")).toBe(true)
+  })
+})
+
+describe('le strade (21/10): «mi dà 2 o 3 strade e io scelgo, e lui procede»', () => {
+  const ADESSO = new Date('2026-10-21T22:00:00Z')        // le 24 a Roma: oggi a Roma e' gia' il 22
+  const lead = { analysis_pdf: 'https://x.supabase.co/storage/v1/object/vault/analisi/a.pdf', analysis_sent_at: null as string | null }
+  const MANDA: Strada = { etichetta: 'Chiedi il contatto del collega', perche: 'Ci ha girato a un collega senza darci la mail.', azione: 'manda', bozza: 'Buongiorno,\n\nmi può girare il contatto?', intento: 'INT-08' }
+  const RINVIO: Strada = { etichetta: 'Rimanda a gennaio', perche: 'Ha detto che ora non è il momento.', azione: 'ricontatta', data: '2027-01-12' }
+  const CHIUDI: Strada = { etichetta: 'Chiudi: non interessato', perche: 'Un no cortese, senza spiragli.', azione: 'chiudi', classe: 'negativo' }
+  const CHIAMA: Strada = { etichetta: 'Chiamalo tu oggi', perche: 'Ha lasciato il cellulare.', azione: 'chiama' }
+  const NIENTE: Strada = { etichetta: 'Lascia che si faccia vivo lui', perche: 'Ha detto che ci scrive lui.', azione: 'niente' }
+  const p = (cambia: Partial<PropostaLead> = {}): PropostaLead => ({
+    id: 7, tipo: 'umano', stato: 'aperta', at: '2026-10-21T20:00:00Z', bozza: 'La bozza ferma', template: 'INT-08', risposta: null,
+    titolo: 'Da guardare tu: Azienda A, INT-08', perche: "Decidi tu: l'ha girata a un collega senza l'indirizzo", strade: [MANDA, RINVIO, CHIUDI], strade_caso: 'C36', intento: 'INT-08', ...cambia,
+  })
+
+  it('le strade sono della proposta aperta più recente che le ha; mai più di tre; una manda senza bozza non si mostra; meno di due non è «Decidi tu»', () => {
+    const c = stradeDi([p(), p({ id: 8, at: '2026-10-21T21:00:00Z', strade: [RINVIO, NIENTE, CHIUDI, CHIAMA] }), p({ id: 9, at: '2026-10-21T23:00:00Z', stato: 'no' })])
+    expect(c?.id).toBe(8)
+    expect(c?.strade).toHaveLength(MAX_STRADE)
+    expect(c?.caso).toBe('C36')
+    expect(c?.motivo).toBe("L'ha girata a un collega senza l'indirizzo")
+    expect(stradeDi([p({ strade: [{ ...MANDA, bozza: '' }, RINVIO] })])).toBeNull()
+    expect(stradeDi([p({ strade: [{ ...MANDA, bozza: '' }, RINVIO, NIENTE] })])?.strade.map((s) => s.azione)).toEqual(['ricontatta', 'niente'])
+    expect(stradeDi([p({ strade: null })])).toBeNull()
+    expect(stradeDi([p({ strade: [MANDA] })])).toBeNull()
+    expect(stradeDi([p({ stato: 'approvata' })])).toBeNull()
+    // una domanda nata in conversazione non ha una bozza ferma: le strade ci sono lo stesso
+    expect(stradeDi([p({ bozza: null, titolo: 'Decidi tu: Azienda A' })])?.motivo).toBe("L'ha girata a un collega senza l'indirizzo")
+  })
+  it('manda: la proposta prende quella bozza e passa approvata da «Dre (app, strada: …)», con la scelta sopra; i resti della bozza vecchia spariscono', () => {
+    const c = stradeDi([p()])!
+    const s = scrittureStrada(c, MANDA, { bozza: 'La bozza ferma', intento: 'INT-99', lettura: { coerenza: 'INCOERENTE' }, dopo_invio: { classificazione: 'rinvio' }, giorno_proposto: 'x' }, lead, ADESSO)
+    expect(s.proposta.stato).toBe('approvata')
+    const az = s.proposta.azione as Record<string, unknown>
+    expect(az.bozza).toBe(MANDA.bozza)
+    expect(az.intento).toBe('INT-08')
+    expect(az.approvata_da).toBe('Dre (app, strada: Chiedi il contatto del collega)')
+    expect(az.approvata_il).toBe('2026-10-21T22:00:00.000Z')
+    expect(az.allega).toBe(true)                            // l'analisi non e' mai partita
+    expect(az.lettura).toEqual({ coerenza: 'INCOERENTE' })  // la lettura resta: e' la storia
+    expect(az).not.toHaveProperty('dopo_invio')
+    expect(az).not.toHaveProperty('giorno_proposto')
+    expect(az.scelta).toMatchObject({ etichetta: MANDA.etichetta, azione: 'manda', caso: 'C36', intento: 'INT-08', strade: [MANDA.etichetta, RINVIO.etichetta, CHIUDI.etichetta], il: '2026-10-21T22:00:00.000Z' })
+    expect(s.lead).toBeNull(); expect(s.decisione).toBeNull(); expect(s.togliCalendario).toBe(false)
+    expect(s.nota).toBe("Dall'app: strada scelta: Chiedi il contatto del collega")
+    // analisi gia' mandata: niente allegato doppio
+    expect((scrittureStrada(c, MANDA, {}, { ...lead, analysis_sent_at: '2026-10-19T09:00:00Z' }, ADESSO).proposta.azione as Record<string, unknown>).allega).toBeUndefined()
+  })
+  it('ricontatta: il lead è un rinvio alla data, «Da ricontattare» con la data, la proposta chiusa «rinvio scelto da Dre», il calendario dei follow-up svuotato', () => {
+    const s = scrittureStrada(stradeDi([p()])!, RINVIO, {}, lead, ADESSO)
+    expect(s.lead).toEqual({ next_action_date: '2027-01-12', classificazione: 'rinvio', coda: null })
+    expect(s.proposta).toMatchObject({ stato: 'no', risposta: 'rinvio scelto da Dre: 2027-01-12' })
+    expect(s.decisione).toEqual({ stato: 'Da ricontattare', prossima_il: '2027-01-12', prossima_mossa: 'Rimanda a gennaio' })
+    expect(STATI).toContain(s.decisione!.stato)
+    expect(s.togliCalendario).toBe(true)
+    expect((s.proposta.azione as Record<string, unknown>).scelta).toMatchObject({ azione: 'ricontatta', etichetta: 'Rimanda a gennaio' })
+  })
+  it('chiudi: come «Chiudi: non interessato», con la classe della strada; chiama: «Da chiamare» oggi; niente e nessuna: solo la proposta si chiude', () => {
+    const c = stradeDi([p()])!
+    const ch = scrittureStrada(c, CHIUDI, {}, lead, ADESSO)
+    expect(ch.lead).toEqual({ classificazione: 'negativo', no_followup: true, coda: null })
+    expect(ch.decisione).toEqual({ stato: 'Non interessato' })
+    expect(ch.proposta).toMatchObject({ stato: 'no', risposta: "NO: Dre dall'app, lead chiuso" })
+    expect(ch.togliCalendario).toBe(true)
+    expect(scrittureStrada(c, { ...CHIUDI, classe: 'fuori_target' }, {}, lead, ADESSO).lead).toMatchObject({ classificazione: 'fuori_target' })
+    const te = scrittureStrada(c, CHIAMA, {}, lead, ADESSO)
+    expect(te.lead).toBeNull()
+    expect(te.decisione).toEqual({ stato: 'Da chiamare', chiamata: 'richiamare', chiamata_il: '2026-10-21T22:00:00.000Z', richiamare_il: '2026-10-22' })
+    expect(te.proposta.stato).toBe('no')
+    const ni = scrittureStrada(c, NIENTE, {}, lead, ADESSO)
+    expect(ni.lead).toBeNull(); expect(ni.decisione).toBeNull(); expect(ni.proposta).toMatchObject({ stato: 'no', risposta: "NO: Dre dall'app, strada: niente" })
+    const ne = scrittureStrada(c, null, {}, lead, ADESSO)
+    expect(ne.lead).toBeNull(); expect(ne.decisione).toBeNull(); expect(ne.togliCalendario).toBe(false)
+    expect(ne.proposta).toMatchObject({ stato: 'no', risposta: "NO: Dre dall'app, nessuna delle strade" })
+    expect((ne.proposta.azione as Record<string, unknown>).scelta).toMatchObject({ etichetta: 'Nessuna di queste', azione: 'nessuna', strade: [MANDA.etichetta, RINVIO.etichetta, CHIUDI.etichetta] })
+    expect(ne.nota).toBe(NOTE_APP.nessuna_strada)
+    // ogni scelta si registra, e ogni gesto lascia una nota che comincia con «Dall'app: »
+    for (const s of [ch, te, ni, ne]) expect(s.nota.startsWith("Dall'app: ")).toBe(true)
+    expect(recordScelta(c, RINVIO, ADESSO).strade).toHaveLength(3)
+  })
+  it('la carta dice cosa succede, e la conferma è una riga', () => {
+    expect(dettaglioStrada(RINVIO)).toBe('Lo riprendiamo il 12 gen')
+    expect(dettaglioStrada(CHIUDI)).toMatch(/non interessato/i)
+    expect(dettaglioStrada({ ...CHIUDI, classe: 'fuori_target' })).toMatch(/non è un cliente/i)
+    expect(dettaglioStrada(MANDA)).toBeNull()
+    expect(confermaStrada(MANDA, true)).toMatch(/analisi e presentazione/)
+    expect(confermaStrada(RINVIO, false)).toMatch(/12 gen/)
+    expect(confermaStrada(NIENTE, false)).toMatch(/si chiude/)
+    expect(titoloDomanda('Decidi tu: Azienda B')).toBe('Azienda B')
   })
 })

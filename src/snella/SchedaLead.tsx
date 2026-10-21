@@ -7,12 +7,13 @@
 import { useEffect, useState } from 'react'
 import {
   GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, chiudiLead, fermaMessaggi, ioSono, leggiScheda, linkAnalisi, mandaDallApp, nonMandareDallApp,
-  salvaDecisione, togliNota,
+  salvaDecisione, scegliStrada, togliNota,
   type Call, type Decisione, type Lead, type Messaggio, type Nota, type Scheda, type Telefono,
 } from './dati'
 import {
-  NOTE_APP, allegaAnalisi, azioneApprovata, giornoRoma, infoStato, messaggioInAttesa, nomeGiorno, nomeStato, ora, prossimoMessaggio, quando,
-  scritturaNonMandare, scrittureChiusura, sitoBreve, sitoCliccabile, statoDi, type InAttesa,
+  NOTE_APP, allegaAnalisi, azioneApprovata, confermaStrada, dettaglioStrada, giornoRoma, infoStato, messaggioInAttesa, nomeGiorno, nomeStato, ora,
+  prossimoMessaggio, quando, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, stradeDi, statoDi,
+  type ConStrade, type InAttesa, type Strada,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
@@ -56,8 +57,11 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
     filo.filter((m) => m.chi === 'noi' && m.at).map((m) => m.at!))
   // 20/10 sera, Dre: «lo vedevo, ma non potevo agire». Un messaggio fermo che aspetta lui si decide qui:
   // Manda o Non mandare. Se e' lo stesso del «prossimo messaggio», si mostra una volta sola.
-  const attesa = messaggioInAttesa(dati.proposte)
-  const mostraProssimo = !attesa || prossimo?.proposta !== attesa.id
+  // 21/10 (Dre: «mi dà 2 o 3 strade e io scelgo, e lui procede»): se il sistema ha scritto le strade, il blocco
+  // si chiama «Decidi tu» e le mostra come carte; senza strade restano i pulsanti di prima.
+  const strade = stradeDi(dati.proposte)
+  const attesa = strade ? null : messaggioInAttesa(dati.proposte)
+  const mostraProssimo = prossimo?.proposta == null || (prossimo.proposta !== attesa?.id && prossimo.proposta !== strade?.id)
   const daChiudere = dati.proposte.filter((p) => (p.stato === 'aperta' || p.stato === 'approvata') && (p.tipo === 'risposta' || p.tipo === 'umano')).map((p) => p.id)
   const conNota = (x: NonNullable<typeof dati>, n: Nota | null) => n ? { ...x, note: [n, ...x.note] } : x
 
@@ -77,6 +81,24 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
 
       <Contatti telefoni={telefoni} email={s?.email || b?.email || lead?.email || ''} lead={lead}
                 campagna={s?.campagna || b?.campagna || lead?.campaign || ''} />
+
+      {strade && (
+        <Blocco titolo="Decidi tu">
+          <DecidiTu id={id} con={strade} lead={lead ?? VUOTO}
+            onScelta={(scelta, r) => {
+              const s = scrittureStrada(strade, scelta, {}, lead ?? VUOTO)
+              setDati((x) => x ? conNota({
+                ...x,
+                proposte: x.proposte.map((p) => p.id === strade.id ? { ...p, stato: String(s.proposta.stato), risposta: (s.proposta.risposta as string | undefined) ?? p.risposta } : p),
+                lead: x.lead && s.lead ? { ...x.lead, ...(s.lead as Partial<Lead>) } : x.lead,
+                decisione: r.decisione ?? x.decisione,
+                calendario: s.togliCalendario ? null : x.calendario,
+              }, r.nota) : x)
+              mostra({ testo: !scelta ? 'Chiuso senza fare nulla' : scelta.azione === 'manda' ? 'Parte al prossimo giro' : scelta.azione === 'ricontatta' ? 'Segnato: da ricontattare'
+                : scelta.azione === 'chiudi' ? 'Chiuso: non interessato' : scelta.azione === 'chiama' ? 'Da chiamare oggi' : 'Chiuso, nessun gesto' })
+            }} />
+        </Blocco>
+      )}
 
       {attesa && (
         <Blocco titolo="Messaggio in attesa di una decisione">
@@ -112,7 +134,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
       </Blocco>
 
       <Blocco titolo="Stato e prossima azione">
-        <Decidi id={id} sistema={sistema} suggerita={suggerita} decisione={d} onSalvato={(nuova) => {
+        {/* 21/10: dopo un gesto che cambia lo stato (una strada, Chiudi) il modulo si rifa' con i valori nuovi */}
+        <Decidi key={d?.aggiornato_il ?? 'nuova'} id={id} sistema={sistema} suggerita={suggerita} decisione={d} onSalvato={(nuova) => {
           setDati((x) => x ? { ...x, decisione: nuova } : x)
           mostra({ testo: 'Salvato' })
         }} />
@@ -267,11 +290,11 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
 }
 
 /** Il testo di una mail di Clara: le prime righe, il resto a richiesta. */
-function TestoMessaggio({ testo }: { testo: string }) {
+function TestoMessaggio({ testo, righe: quante = RIGHE_MESSAGGIO }: { testo: string; righe?: number }) {
   const [intero, setIntero] = useState(false)
   const righe = testo.split('\n')
-  const lungo = righe.length > RIGHE_MESSAGGIO + 2
-  const mostrato = lungo && !intero ? righe.slice(0, RIGHE_MESSAGGIO).join('\n').trimEnd() + '…' : testo
+  const lungo = righe.length > quante + 2
+  const mostrato = lungo && !intero ? righe.slice(0, quante).join('\n').trimEnd() + '…' : testo
   return (
     <>
       <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-inchiostro">{mostrato}</p>
@@ -362,6 +385,83 @@ function MessaggioInAttesa({ id, attesa, lead, onMandato, onNonMandato }: {
                   onSi={() => void fai('no')} onNo={() => setChiedo(null)} />
       )}
       {sbaglio && <p role="alert" className="px-4 pb-3 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
+    </div>
+  )
+}
+
+/** «DECIDI TU» (21/10, Dre: «quando il sistema è indeciso, mi dà 2 o 3 strade e io scelgo, e lui procede. Così
+ *  lo alleno anche»). Le 2-3 strade come carte: l'etichetta grande, il perche', il testo della mail da aprire se
+ *  manda. Un tocco apre la conferma dentro la carta; il si' esegue (dati.scegliStrada) e lascia una nota.
+ *  In fondo, sempre, «Nessuna di queste»: chiude la domanda senza fare nulla. */
+function DecidiTu({ id, con, lead, onScelta }: {
+  id: string; con: ConStrade; lead: Lead; onScelta: (scelta: Strada | null, r: { decisione: Decisione | null; nota: Nota | null }) => void
+}) {
+  const [chiedo, setChiedo] = useState<number | 'nessuna' | null>(null)
+  const [lavoro, setLavoro] = useState(false)
+  const [sbaglio, setSbaglio] = useState<string | null>(null)
+
+  async function fai(scelta: Strada | null) {
+    setLavoro(true); setSbaglio(null)
+    try {
+      const r = await scegliStrada(id, con.id, (azione) => scrittureStrada(con, scelta, azione, lead))
+      setChiedo(null); onScelta(scelta, r)
+    } catch (e) {
+      setSbaglio(`Non fatto: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setLavoro(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-3 max-w-[65ch] text-[15px] leading-snug text-tenue">{con.motivo}</p>
+      <ol className="space-y-3">
+        {con.strade.map((s, i) => {
+          const manda = s.azione === 'manda' && s.bozza?.trim()
+          const allega = manda ? allegaAnalisi({ bozza: s.bozza }, lead) : false
+          const dettaglio = dettaglioStrada(s)
+          const aperta = chiedo === i
+          return (
+            <li key={`${s.azione}-${s.etichetta}`} className={`overflow-hidden rounded-2xl border bg-white ${aperta ? 'border-blu-scuro' : 'border-attesa-bordo'}`}>
+              <button onClick={() => setChiedo(aperta ? null : i)} disabled={lavoro} aria-expanded={aperta}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-velo focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blu-scuro disabled:opacity-50">
+                <span aria-hidden="true" className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-attesa-fondo text-[14px] font-bold text-attesa-testo">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-[18px] font-bold leading-snug text-inchiostro">{s.etichetta}</span>
+                  <span className="mt-1 block max-w-[65ch] text-[15px] leading-snug text-tenue">{s.perche}</span>
+                  {dettaglio && <span className="mt-1 block text-[14px] font-semibold text-attesa-testo">{dettaglio}</span>}
+                </span>
+              </button>
+              {manda && (
+                <div className="border-t border-velo px-4 py-3">
+                  <TestoMessaggio testo={s.bozza!.trim()} righe={3} />
+                </div>
+              )}
+              {aperta && (
+                <Conferma id={`strada-${id}-${i}`} tono="noi" lavoro={lavoro} lavoroTesto="Faccio…" si={`Sì: ${s.etichetta.toLowerCase()}`}
+                          testo={confermaStrada(s, allega)} onSi={() => void fai(s)} onNo={() => setChiedo(null)} />
+              )}
+            </li>
+          )
+        })}
+      </ol>
+      <div className="mt-3 overflow-hidden rounded-2xl border border-bordo bg-white">
+        {chiedo !== 'nessuna' ? (
+          <div className="px-2 py-1">
+            <button onClick={() => setChiedo('nessuna')} disabled={lavoro}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-tenue transition-colors duration-150 hover:bg-velo hover:text-inchiostro focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blu-scuro disabled:opacity-50">
+              Nessuna di queste
+            </button>
+          </div>
+        ) : (
+          <div className="-mt-px">
+            <Conferma id={`strada-${id}-nessuna`} tono="no" lavoro={lavoro} lavoroTesto="Chiudo…" si="Sì, nessuna"
+                      testo="Chiudo la domanda senza fare nulla: il lead resta com'è. Confermi?"
+                      onSi={() => void fai(null)} onNo={() => setChiedo(null)} />
+          </div>
+        )}
+      </div>
+      {sbaglio && <p role="alert" className="mt-2 text-[14px] font-semibold text-no-testo">{sbaglio}</p>}
     </div>
   )
 }

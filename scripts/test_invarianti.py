@@ -4987,6 +4987,94 @@ def _():
 
 
 
+@prova("le strade (21/10): max 3, manda sempre con la bozza, chiama solo col cellulare, ricontatta con una data futura")
+def _():
+    import strade as S
+    oggi = datetime.date(2026, 10, 22)
+    MANDA = {"etichetta": "Chiedi il contatto del collega", "perche": "ci ha girato a un collega", "azione": "manda", "bozza": "Buongiorno,\n\nmi può girare il contatto del collega? Appena ce l'ho scrivo io a lui.", "intento": "INT-08"}
+    RINVIO = {"etichetta": "Rimanda a gennaio", "perche": "non è il momento", "azione": "ricontatta", "data": "2027-01-12"}
+    CHIUDI = {"etichetta": "Chiudi: non interessato", "perche": "un no cortese", "azione": "chiudi", "classe": "negativo"}
+    CHIAMA = {"etichetta": "Chiamalo tu oggi", "perche": "ha lasciato il cellulare", "azione": "chiama"}
+    NIENTE = {"etichetta": "Lascia che si faccia vivo lui", "perche": "ci scrive lui", "azione": "niente"}
+    buone, scartate = S.valida([MANDA, RINVIO, CHIUDI, CHIAMA, NIENTE], cellulare=True, oggi=oggi)
+    assert [s["azione"] for s in buone] == ["manda", "ricontatta", "chiudi"], buone
+    assert any(m == "oltre la terza" for _, m in scartate)
+    # manda senza bozza no; chiama senza cellulare no; ricontatta nel passato o senza data no; classe strana no; etichetta lunga no; doppie no
+    buone, scartate = S.valida([{**MANDA, "bozza": ""}, CHIAMA, {**RINVIO, "data": "2026-10-22"}, {**RINVIO, "data": "ieri"}, {**CHIUDI, "classe": "soppresso"},
+                                {**NIENTE, "etichetta": "Una etichetta davvero troppo lunga per una carta sul telefono"}, NIENTE, NIENTE, {"etichetta": "Boh", "perche": "x", "azione": "boh"}],
+                               cellulare=False, oggi=oggi)
+    assert [s["azione"] for s in buone] == ["niente"], buone
+    motivi = " | ".join(m for _, m in scartate)
+    for atteso in ("manda senza una bozza", "chiama senza un cellulare", "gia' passata", "senza una data vera", "classe che non esiste", "parole", "doppia", "azione sconosciuta"):
+        assert atteso in motivi, (atteso, motivi)
+    # la forma: solo le chiavi che l'app conosce, data e classe pulite dove non servono
+    b, _ = S.valida([RINVIO, {**CHIUDI, "data": "2027-01-01"}], cellulare=False, oggi=oggi)
+    assert set(b[0]) == {"etichetta", "perche", "azione", "bozza", "data", "classe", "intento"} and b[1]["data"] is None and b[0]["bozza"] is None
+    # il tetto di spesa esiste ed e' quello detto a Dre (3 $), come il lettore
+    assert S.TETTO_GIORNO == 3.0 and S.MAX_STRADE == 3 and S.MIN_STRADE == 2
+    # chi non e' una persona non ha strade
+    assert not S.e_persona({"perche": "sì: autorisposta di servizio", "azione": {}}, {"classificazione": "ooo"})
+    assert not S.e_persona({"perche": "decidi tu", "azione": {"lettura": {"autorisposta": True}}}, {"classificazione": "rinvio"})
+    assert S.e_persona({"perche": "Decidi tu: dice no ma tiene la porta aperta", "azione": {"lettura": {"autorisposta": False}}}, {"classificazione": "rinvio"})
+    # una generazione sola: si rifa' solo se il lead ha riscritto dopo
+    pr = {"azione": {"strade": [RINVIO, NIENTE], "strade_il": "2026-10-21T22:00:00+00:00"}}
+    assert not S.filo_cambiato(pr, {"last_reply_at": "2026-10-20T10:00:00+00:00"})
+    assert S.filo_cambiato(pr, {"last_reply_at": "2026-10-22T08:00:00+00:00"})
+    assert S.filo_cambiato({"azione": {}}, {"last_reply_at": "2026-10-20T10:00:00+00:00"})
+
+
+@prova("l'allenamento (21/10): la strada che Dre sceglie di solito va prima; tre uguali di fila sullo stesso caso e il sistema non chiede piu'; le scelte entrano nei prompt")
+def _():
+    import strade as S
+    import bozze
+    scelta = lambda caso, et, az, il, strade=None, porta=False: {"caso": caso, "etichetta": et, "azione": az, "il": il, "strade": strade or [et, "Chiudi: non interessato"], "porta_aperta": porta}   # noqa: E731
+    scelte = [scelta("C27", "Rimanda a gennaio", "ricontatta", "2026-10-25T10:00:00+00:00", porta=True),
+              scelta("C27", "Rimanda a gennaio", "ricontatta", "2026-10-24T10:00:00+00:00"),
+              scelta("C26", "Lascia che si faccia vivo lui", "niente", "2026-10-23T10:00:00+00:00"),
+              scelta("C27", "Rimanda a gennaio", "ricontatta", "2026-10-22T10:00:00+00:00"),
+              scelta("C27", "Chiudi: non interessato", "chiudi", "2026-10-21T10:00:00+00:00")]
+    strade = [{"etichetta": "Chiudi: non interessato", "azione": "chiudi"}, {"etichetta": "Rispondi all'obiezione", "azione": "manda"}, {"etichetta": "Rimanda a gennaio", "azione": "ricontatta"}]
+    # la solita prima, il resto nell'ordine del modello
+    assert [s["etichetta"] for s in S.ordina(strade, scelte, "C27")] == ["Rimanda a gennaio", "Chiudi: non interessato", "Rispondi all'obiezione"]
+    assert [s["etichetta"] for s in S.ordina(strade, scelte, "C99")] == [s["etichetta"] for s in strade]
+    assert [s["etichetta"] for s in S.ordina(strade, scelte, None)] == [s["etichetta"] for s in strade]
+    # stessa azione, etichetta diversa: viene prima lo stesso (seconda fascia)
+    assert S.ordina([strade[0], {"etichetta": "Riprendi a febbraio", "azione": "ricontatta"}], scelte, "C27")[0]["etichetta"] == "Riprendi a febbraio"
+    # tre uguali DI FILA sullo stesso caso: abitudine; quattro con una diversa in mezzo no; senza caso mai
+    assert S.abitudine(scelte, "C27") == {"azione": "ricontatta", "etichetta": "Rimanda a gennaio"}
+    assert S.abitudine(scelte, "C26") is None
+    assert S.abitudine([scelte[4]] + scelte[:2], "C27") is None
+    assert S.abitudine(scelte, None) is None and S.abitudine(scelte, "") is None
+    assert S.abitudine(scelte[:3] + [scelta("C27", "rimanda a gennaio.", "ricontatta", "2026-10-20T10:00:00+00:00")], "C27") is not None, "maiuscole e punto non contano"
+    # gli esempi nel prompt, con le parole che Dre ha chiesto
+    testo = S.esempi_per_prompt(scelte)
+    assert "In un caso C27" in testo and "con spiraglio Dre ha scelto: «Rimanda a gennaio» (ricontatta)" in testo, testo
+    assert "scartando: Chiudi: non interessato" in testo
+    assert S.esempi_per_prompt([]) == ""
+    # e arrivano anche alle bozze (bozze.main li aggiunge a LEZIONI)
+    src = open(bozze.__file__, encoding="utf-8").read()
+    assert "strade.esempi_per_prompt(" in src and "LEZIONI += " in src
+    # la scelta ha la stessa forma dall'app e dal sistema (caso, intento, le strade, quale, quando)
+    r = S.record_scelta([{"etichetta": "A"}, {"etichetta": "B"}], {"etichetta": "A", "azione": "niente"}, "C26", "INT-06", datetime.datetime(2026, 10, 22, 8, tzinfo=datetime.timezone.utc))
+    assert r == {"etichetta": "A", "azione": "niente", "caso": "C26", "intento": "INT-06", "strade": ["A", "B"], "il": "2026-10-22T08:00:00+00:00", "porta_aperta": False}
+    # l'automatica non insegna (si rafforzerebbe da sola): e' segnata
+    assert S.record_scelta([], {"etichetta": "A", "azione": "niente"}, "C26", None, datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc), automatica=True)["automatica"] is True
+    # l'app scrive le stesse cose: approvata da «Dre (app, strada: …)», nota «Dall'app: strada scelta: …», stati fra i 12
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    regole = open(os.path.join(radice, "src", "snella", "regole.ts"), encoding="utf-8").read()
+    assert "export function stradeDi" in regole and "export function scrittureStrada" in regole and "export const MAX_STRADE = 3" in regole
+    assert "strada: (etichetta: string) => `Dall'app: strada scelta: ${etichetta}`" in regole
+    assert ", strada: ${scelta.etichetta})`" in regole and "scelta: scelta_record" in regole
+    assert "stato: 'Da ricontattare'" in regole and "stato: 'Da chiamare', chiamata: 'richiamare'" in regole
+    scheda = open(os.path.join(radice, "src", "snella", "SchedaLead.tsx"), encoding="utf-8").read()
+    assert 'titolo="Decidi tu"' in scheda and "Nessuna di queste" in scheda and "stradeDi(dati.proposte)" in scheda
+    # l'operazione e' registrata nello schema, ogni 15 minuti, in corsia leggera
+    sql = open(os.path.join(radice, "supabase", "schema_v97.sql"), encoding="utf-8").read()
+    assert "('strade'," in sql and "'python3 scripts/strade.py', 15," in sql
+    import direttore
+    assert direttore.corsia_di("strade") == "leggera"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

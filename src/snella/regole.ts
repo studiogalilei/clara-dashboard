@@ -226,7 +226,7 @@ export function numero(n: number | null | undefined): string | null {
  *  «Follow up 1: X, FOLLOW UP 1»): resta il nome dell'azienda. */
 export function titoloDomanda(t: string): string {
   return t.replace(/,?\s*INT-\d+\b/g, '').replace(/,?\s*(MINI\s+)?FOLLOW UP\s*\d*\s*$/i, '')
-    .replace(/^Da guardare tu:\s*/i, '').replace(/^Bozza per\s+/i, '').replace(/^(mini\s+)?follow up\s*\d*:\s*/i, '').trim()
+    .replace(/^(Da guardare tu|Decidi tu):\s*/i, '').replace(/^Bozza per\s+/i, '').replace(/^(mini\s+)?follow up\s*\d*:\s*/i, '').trim()
 }
 
 /** Una domanda della Posta che e' un follow-up (o una ripresa): non e' una persona che aspetta. */
@@ -238,7 +238,7 @@ export function eSeguito(d: Pick<Domanda, 'titolo' | 'intento'>): boolean {
  *  dice INCOERENTE», «CANCELLO: ...», «INT-08»). Vuoto se non resta niente. */
 export function spiegaDomanda(perche: string | null | undefined): string {
   let t = (perche ?? '').replace(/\s+/g, ' ')
-  t = t.replace(/^\s*s[iì]['’]?\s*:\s*/i, '')
+  t = t.replace(/^\s*s[iì]['’]?\s*:\s*/i, '').replace(/^\s*decidi tu\s*:\s*/i, '')
   t = t.replace(/,?\s*CANCELLO:.*$/i, '')
   t = t.replace(/la seconda testa dice INCOERENTE:\s*/i, 'il controllo ha fermato la bozza: ')
   t = t.replace(/\(?\bINT-\d+\b\)?/g, '').replace(/\s+([,.;:])/g, '$1').replace(/\s{2,}/g, ' ').trim()
@@ -264,6 +264,8 @@ export interface LeadPerProssimo {
 export interface PropostaLead {
   id: number; tipo: string; stato: string; at: string; bozza: string | null; template: string | null; risposta: string | null
   titolo?: string | null; perche?: string | null; motivo_controllo?: string | null; ombra?: string | null
+  /** le strade proposte da scripts/strade.py (21/10), con quando e il caso del lettore su cui sono nate */
+  strade?: Strada[] | null; strade_il?: string | null; strade_caso?: string | null; intento?: string | null
 }
 export interface Prossimo {
   quando: string; giorno: string | null; tipo: string
@@ -366,12 +368,124 @@ export function motivoFermo(p: Pick<PropostaLead, 'titolo' | 'perche' | 'motivo_
   if (controllo) return `Il controllo ha fermato la bozza: ${controllo}`
   const ombra = (p.ombra ?? '').replace(/\s+/g, ' ').trim()
   if (ombra) return ombra.charAt(0).toUpperCase() + ombra.slice(1)
-  return /^Da guardare tu/i.test(p.titolo ?? '') ? 'Clara non era sicura: la guardi tu.' : 'Aspetta un tuo sì.'
+  return /^(Da guardare tu|Decidi tu)/i.test(p.titolo ?? '') ? 'Clara non era sicura: la guardi tu.' : 'Aspetta un tuo sì.'
 }
 
 export const DA_APP = 'Dre (app)'
 /** Le note che restano sul lead dopo un gesto dalla scheda (snella_note): la traccia di cosa ha deciso Dre. */
-export const NOTE_APP = { mandato: "Dall'app: mandato", non_mandato: "Dall'app: non mandato", chiuso: "Dall'app: chiuso, non interessato" } as const
+export const NOTE_APP = {
+  mandato: "Dall'app: mandato", non_mandato: "Dall'app: non mandato", chiuso: "Dall'app: chiuso, non interessato",
+  strada: (etichetta: string) => `Dall'app: strada scelta: ${etichetta}`,
+  nessuna_strada: "Dall'app: nessuna delle strade, chiuso senza fare nulla",
+} as const
+
+// ── le strade (21/10, Dre: «quando il sistema è indeciso, mi dà 2 o 3 strade e io scelgo, e lui procede») ──
+
+export type AzioneStrada = 'manda' | 'ricontatta' | 'chiudi' | 'chiama' | 'niente'
+/** Una strada come la scrive scripts/strade.py: un gesto (etichetta), una riga di perche', e cosa fa il sistema. */
+export interface Strada {
+  etichetta: string; perche: string; azione: AzioneStrada
+  bozza?: string | null; data?: string | null; classe?: 'negativo' | 'fuori_target' | null; intento?: string | null
+}
+export const MAX_STRADE = 3
+export interface ConStrade { id: number; strade: Strada[]; caso: string | null; intento: string | null; motivo: string }
+
+/** La proposta aperta che ha le strade (la piu' recente), con al massimo tre strade che reggono: una `manda`
+ *  senza bozza non si mostra (non si puo' eseguire), oltre la terza si taglia. Meno di due: niente «Decidi tu»,
+ *  restano i pulsanti di prima. */
+export function stradeDi(proposte: PropostaLead[]): ConStrade | null {
+  const p = proposte.filter((x) => x.stato === 'aperta' && (x.tipo === 'risposta' || x.tipo === 'umano') && Array.isArray(x.strade) && x.strade.length)
+    .sort((a, b) => b.at.localeCompare(a.at))[0]
+  if (!p) return null
+  const strade = (p.strade ?? []).filter((s) => s && s.etichetta && s.azione && (s.azione !== 'manda' || s.bozza?.trim())).slice(0, MAX_STRADE)
+  if (strade.length < 2) return null
+  return { id: p.id, strade, caso: p.strade_caso ?? null, intento: p.intento ?? null, motivo: motivoFermo(p) }
+}
+
+/** Che cosa dice la carta sotto l'etichetta: la data per ricontatta, la classe per chiudi. */
+export function dettaglioStrada(s: Strada): string | null {
+  if (s.azione === 'ricontatta' && s.data) return `Lo riprendiamo il ${dataCorta(s.data)}`
+  if (s.azione === 'chiudi') return s.classe === 'fuori_target' ? 'Non è un cliente per noi' : 'Non interessato, Clara non gli scrive più'
+  if (s.azione === 'chiama') return 'Passa fra quelli da chiamare oggi'
+  if (s.azione === 'niente') return 'Nessun messaggio, si aspetta'
+  return null
+}
+
+/** La domanda prima di eseguire una strada, in una riga. */
+export function confermaStrada(s: Strada, allega: boolean): string {
+  switch (s.azione) {
+    case 'manda': return allega ? 'Parte al prossimo giro, con analisi e presentazione. Confermi?' : 'Parte al prossimo giro. Confermi?'
+    case 'ricontatta': return `Oggi niente: Clara lo riprende il ${dataCorta(s.data)}. Confermi?`
+    case 'chiudi': return 'Lo chiudo: Clara non gli scrive più. Confermi?'
+    case 'chiama': return 'Lo metto fra quelli da chiamare oggi. Confermi?'
+    default: return 'Nessun gesto: la domanda si chiude. Confermi?'
+  }
+}
+
+/** La scelta di Dre, com'e' scritta sulla proposta (azione.scelta): e' quello che il sistema rilegge per imparare
+ *  (scripts/strade.py: caso del lettore, intento, le strade proposte, quale ha scelto, quando). */
+export function recordScelta(c: ConStrade, scelta: Strada | null, ora: Date = new Date()): Record<string, unknown> {
+  return {
+    etichetta: scelta?.etichetta ?? 'Nessuna di queste', azione: scelta?.azione ?? 'nessuna', caso: c.caso, intento: c.intento,
+    strade: c.strade.map((s) => s.etichetta), il: ora.toISOString(),
+  }
+}
+
+/** Le scritture per una strada scelta (pure: le fa dati.scegliStrada, nell'ordine lead, proposta, decisione).
+ *  `manda`: la proposta prende quella bozza e passa approvata da «Dre (app, strada: …)»; il postino la manda, con
+ *  l'analisi solo se non e' mai partita. `ricontatta`: il lead e' un rinvio alla data, «Da ricontattare». `chiudi`:
+ *  come «Chiudi: non interessato». `chiama`: «Da chiamare» oggi. `niente` e «nessuna»: la domanda si chiude. */
+export interface ScrittureStrada {
+  lead: Record<string, unknown> | null
+  proposta: Record<string, unknown>
+  decisione: Partial<Decisione> | null
+  nota: string
+  /** il calendario dei follow-up si svuota (chiuso o rinviato: il prossimo tocco lo decide Dre) */
+  togliCalendario: boolean
+}
+export function scrittureStrada(c: ConStrade, scelta: Strada | null, azione: Record<string, unknown>,
+  lead: { analysis_pdf: string | null; analysis_sent_at: string | null }, ora: Date = new Date()): ScrittureStrada {
+  const il = ora.toISOString()
+  const scelta_record = recordScelta(c, scelta, ora)
+  const chiusa = (risposta: string): Record<string, unknown> => ({ stato: 'no', risposta, risposta_il: il, azione: { ...azione, scelta: scelta_record } })
+  if (!scelta) {
+    return { lead: null, proposta: chiusa("NO: Dre dall'app, nessuna delle strade"), decisione: null, nota: NOTE_APP.nessuna_strada, togliCalendario: false }
+  }
+  const nota = NOTE_APP.strada(scelta.etichetta)
+  switch (scelta.azione) {
+    case 'manda': {
+      // la bozza della strada prende il posto di quella ferma; quello che il postino farebbe «dopo l'invio»
+      // per la bozza vecchia (rinvii, date) non vale piu'
+      const pulita = { ...azione }
+      for (const k of ['dopo_invio', 'testo_dal_codice', 'bozza_modello', 'giorno_proposto', 'ritocco', 'bozza_originale']) delete pulita[k]
+      const az = azioneApprovata({ ...pulita, bozza: scelta.bozza, intento: scelta.intento || azione.intento, scelta: scelta_record }, lead, ora)
+      az.approvata_da = `${DA_APP.slice(0, -1)}, strada: ${scelta.etichetta})`
+      return { lead: null, proposta: { stato: 'approvata', azione: az }, decisione: null, nota, togliCalendario: false }
+    }
+    case 'ricontatta':
+      return {
+        lead: { next_action_date: scelta.data, classificazione: 'rinvio', coda: null },
+        proposta: chiusa(`rinvio scelto da Dre: ${scelta.data}`),
+        decisione: { stato: 'Da ricontattare', prossima_il: scelta.data ?? null, prossima_mossa: scelta.etichetta },
+        nota, togliCalendario: true,
+      }
+    case 'chiudi': {
+      const c2 = scrittureChiusura(ora)
+      return {
+        lead: { ...c2.lead, classificazione: scelta.classe ?? 'negativo' },
+        proposta: chiusa(c2.proposte.risposta), decisione: c2.decisione, nota, togliCalendario: true,
+      }
+    }
+    case 'chiama':
+      return {
+        lead: null, proposta: chiusa("NO: Dre dall'app, lo chiama lui"),
+        decisione: { stato: 'Da chiamare', chiamata: 'richiamare', chiamata_il: il, richiamare_il: giornoRoma(ora) },
+        nota, togliCalendario: false,
+      }
+    default:
+      return { lead: null, proposta: chiusa("NO: Dre dall'app, strada: niente"), decisione: null, nota, togliCalendario: false }
+  }
+}
 
 /** L'analisi va in allegato? Se c'e' il PDF, non e' ancora stata mandata e la bozza non la porta gia'
  *  (il postino manda.py la allega alla prima risposta; qui lo si scrive, cosi' e' detto). A chi l'ha gia'

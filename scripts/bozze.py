@@ -997,6 +997,16 @@ def main():
     LEZIONI = come_corregge_dre()
     if LEZIONI:
         print(f"  (Clara ha {LEZIONI.count('BOZZA DI CLARA') + LEZIONI.count('SCARTATA')} correzioni di Dre da cui partire)")
+    # 21/10: le strade che Dre sceglie nella scheda (scripts/strade.py) sono lezioni anche per le bozze:
+    # «in un caso C27 con spiraglio Dre ha scelto: Rimanda a gennaio». Si importa qui, non in cima: strade importa bozze.
+    try:
+        import strade
+        scelte = strade.scelte_di_dre()
+        LEZIONI += strade.esempi_per_prompt(scelte)
+        if scelte:
+            print(f"  (e {len(scelte)} strade scelte da Dre)")
+    except Exception as e:                                        # noqa: BLE001
+        print(f"  (le strade scelte da Dre non si leggono: {str(e)[:60]})")
     CAMPI = ("id,name,company,email,email_alt,classificazione,stage,analysis_sent,analysis_sent_at,analysis_pdf,"
              "last_reply_at,sector,city,enriched,campaign_id,lead_id,coda,coda_il,next_action_date,campaign")
     persone = sb("GET", "/rest/v1/prospects?awaiting_us=eq.true&fuori=eq.false"
