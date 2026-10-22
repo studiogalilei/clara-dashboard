@@ -658,7 +658,9 @@ def conversazioni_ferme(ora, con_proposta):
     ps = [p for p in ps if p["id"] not in con_proposta and p.get("stage") not in INTOCCABILI
           and "usa" not in (p.get("campaign") or "").lower() and (p.get("last_reply_at") or "") > (p.get("analysis_sent_at") or "")]
     risposte = bozze.risposte_dopo_analisi(ps)
-    return [p for p in ps if bozze.in_conversazione(p, risposte.get(p["id"]))]
+    # 22/10: una domanda gia' chiusa su questa mail (Dre ha scelto, o le strade l'hanno superata) non rinasce
+    chiuse = bozze.domande_chiuse(p["id"] for p in ps)
+    return [p for p in ps if bozze.in_conversazione(p, risposte.get(p["id"])) and not bozze.domanda_chiusa(p, chiuse.get(p["id"]))]
 
 
 # ── 7. il giro ─────────────────────────────────────────────────────────────────

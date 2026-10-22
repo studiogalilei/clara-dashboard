@@ -999,6 +999,60 @@ def risposte_dopo_analisi(ps):
     return out
 
 
+QUESTE_DOMANDE = ("Da guardare tu", "Decidi tu")
+
+
+def _istante(iso):
+    """La data del database come istante: senza fuso e' UTC (le scritture di Roma hanno il +02:00)."""
+    try:
+        t = quando(iso)
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+
+
+def domanda_chiusa(p, chiuse):
+    """UNA DOMANDA CHIUSA VALE FINO ALLA SUA PROSSIMA MAIL (22/10, la proposta rinata tre volte in una notte).
+    Le strade chiudevano un «Da guardare tu» (autorisposta, gli abbiamo gia' risposto, una scelta di Dre o
+    dell'abitudine), il lead restava «in attesa» e il giro dopo qui ne nasceva un'altra uguale, che le strade
+    richiudevano. Chi chiude la domanda e' tanti (strade, l'app, l'abitudine, la pulizia): la regola sta qui,
+    dove la domanda nasce. Torna la domanda chiusa DOPO la sua ultima mail, o None. Non conta quella chiusa
+    perche' ne e' nata una nuova sulla sua mail nuova (le strade: «ha riscritto dopo»)."""
+    ultima = _istante(p.get("last_reply_at"))
+    if not ultima:
+        return None
+    for c in chiuse or []:
+        if not str(c.get("titolo") or "").startswith(QUESTE_DOMANDE) or c.get("stato") != "no":
+            continue
+        if str(c.get("risposta") or "").startswith("superata: ha riscritto dopo"):
+            continue
+        il = _istante(c.get("risposta_il"))
+        if il and il >= ultima:
+            return c
+    return None
+
+
+def domande_chiuse(ids):
+    """Le domande chiuse senza mandare niente, per lead, in una lettura sola."""
+    out = {}
+    ids = sorted({i for i in ids if i})
+    for i in range(0, len(ids), 80):
+        for c in sb("GET", "/rest/v1/proposte?select=prospect_id,titolo,stato,risposta,risposta_il&stato=eq.no&risposta_il=not.is.null"
+                           f"&or=(titolo.ilike.Da%20guardare%20tu*,titolo.ilike.Decidi%20tu*)&prospect_id=in.({','.join(ids[i:i + 80])})") or []:
+            out.setdefault(c["prospect_id"], []).append(c)
+    return out
+
+
+def no_concorde_ammesso(p):
+    """IL NO «CONCORDE» NON SCAVALCA IL LETTORE (22/10, un «No, grazie» sparito). La regex e il vecchio
+    cervello d'accordo bastavano a far diventare negativo un lead in silenzio, anche quando il lettore AI
+    (che decide il senso dal 12/10) aveva letto la stessa mail e l'aveva passata a Dre: niente proposta,
+    attesa chiusa, nessuno lo vedeva. Il no da solo vale solo se il lettore non ha letto quella mail, o
+    se dice no anche lui. Se no la bozza nasce ferma («Da guardare tu») e le strade la portano a Dre."""
+    l = lettore_di(p)
+    return not l or l.get("classe") in ("negativo", "soppresso")
+
+
 def main():
     global LEZIONI
     print("LE BOZZE" + (" (prova: non scrive niente)" if PROVA else ""))
@@ -1050,9 +1104,14 @@ def main():
     non_contattabili = []
     # 20/10: chi ha risposto di persona dopo l'analisi e' in conversazione e scrive Dre
     risposte_dopo = risposte_dopo_analisi(persone + in_coda)
-    conversazioni = []
+    chiuse = domande_chiuse(p["id"] for p in persone) if not SOLO else {}
+    conversazioni, gia_decise = [], []
     for p in persone:
         if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
+            continue
+        decisa = domanda_chiusa(p, chiuse.get(p["id"]))
+        if decisa:
+            gia_decise.append((p, decisa))
             continue
         if in_conversazione(p, risposte_dopo.get(p["id"])):
             conversazioni.append(p)
@@ -1133,6 +1192,10 @@ def main():
     for p in conversazioni:
         print(f"  {'':15} {(p.get('company') or p.get('email') or '')[:34]:34} {CONVERSAZIONE}")
         esito_coda(p, CONVERSAZIONE)
+    for p, d in gia_decise:
+        motivo = f"la domanda su questa mail e' gia' stata chiusa il {(d.get('risposta_il') or '')[:10]} ({(d.get('risposta') or '')[:120]}): si riapre se riscrive"
+        print(f"  {'':15} {(p.get('company') or p.get('email') or '')[:34]:34} {motivo}")
+        esito_coda(p, motivo)
 
     def lavora(coppia):
         p, gruppo = coppia
@@ -1144,6 +1207,9 @@ def main():
             return (p, gruppo, nome, None, [f"lettura non riuscita: {str(e)[:80]}"], None, None)
         # 2. LE REGOLE DURE
         dura = lettura.regola_dura(gruppo, letti, p.get("classificazione"))
+        if dura and dura[0] == "fermati" and "ma la classe non lo dice" in dura[1] and letti.get("detto_no_sicuro") and not no_concorde_ammesso(p):
+            l = lettore_di(p)
+            dura = ("fermati", f"sembra un no, ma il lettore l'ha passata a te ({l.get('caso')}, sicurezza {l.get('sicurezza')}): decidi tu")
         if dura and dura[0] == "fermati" and "ma la classe non lo dice" in dura[1] and letti.get("detto_no_sicuro"):
             # 5/10, casainromagna (Donatella): «abbiamo gia' chi ci fornisce questo servizio»
             # con la classe ferma a positivo. Le due teste concordi su un no non si

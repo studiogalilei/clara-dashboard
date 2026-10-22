@@ -5926,6 +5926,33 @@ def _():
     assert "and not scritta_da_macchina(p)" in sch, "una macchina non e' mai calda"
 
 
+@prova("una domanda chiusa non rinasce sulla stessa mail, e il no «concorde» non scavalca il lettore che l'ha passata a Dre (turno del 22/10)")
+def _():
+    import bozze as B
+    p = {"id": "p1", "last_reply_at": "2026-10-22T01:10:00+00:00"}
+    chiusa = {"titolo": "Da guardare tu: un lead, INT-01", "stato": "no", "risposta": "superata: l'ultima mail loro e' un'autorisposta", "risposta_il": "2026-10-22T03:20:00+02:00"}
+    assert B.domanda_chiusa(p, [chiusa]), "chiusa dopo la sua ultima mail: la bozza non rinasce"
+    assert B.domanda_chiusa(p, [{**chiusa, "titolo": "Decidi tu: un lead"}]), "anche la domanda delle strade"
+    assert not B.domanda_chiusa({**p, "last_reply_at": "2026-10-22T02:00:00+00:00"}, [chiusa]), "ha riscritto dopo (01:20 UTC < 02:00): si riapre"
+    assert not B.domanda_chiusa(p, [{**chiusa, "risposta_il": "2026-10-22T01:00:00"}]), "chiusa prima della sua mail: non conta (senza fuso e' UTC)"
+    assert not B.domanda_chiusa(p, [{**chiusa, "risposta": "superata: ha riscritto dopo, le strade sono sulla domanda nuova"}])
+    assert not B.domanda_chiusa(p, [{**chiusa, "titolo": "Follow-up: un lead"}]), "solo le domande, non i follow-up"
+    assert not B.domanda_chiusa(p, [{**chiusa, "stato": "fatta"}]) and not B.domanda_chiusa({"id": "x"}, [chiusa])
+    ora = "2026-10-22T01:10:00"
+    a_dre = {"enriched": {"lettore": {"fonte": "lettore", "classe": "da_classificare", "caso": "C24", "risposta_il": ora}}, "last_reply_at": ora + "+00:00"}
+    assert not B.no_concorde_ammesso(a_dre), "il lettore l'ha passata a Dre: regex e cervello non la chiudono da soli"
+    assert B.no_concorde_ammesso({"enriched": {"lettore": {**a_dre["enriched"]["lettore"], "classe": "negativo"}}, "last_reply_at": ora})
+    assert B.no_concorde_ammesso({"enriched": {}, "last_reply_at": ora}), "senza lettura del lettore resta la regola del 5/10"
+    assert B.no_concorde_ammesso({"enriched": {"lettore": {**a_dre["enriched"]["lettore"], "risposta_il": "2026-10-20T09:00:00"}}, "last_reply_at": ora}), "la lettura di una mail vecchia non conta"
+    src = open(B.__file__, encoding="utf-8").read()
+    i = src.index("def lavora(coppia)")
+    assert src.index("not no_concorde_ammesso(p)", i) < src.index('{"classificazione": "negativo"}', i), "il controllo del lettore viene prima della riclassifica"
+    assert "domanda_chiusa(p, chiuse.get(p[\"id\"]))" in src
+    st = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "strade.py"), encoding="utf-8").read()
+    assert "bozze.domanda_chiusa(p, chiuse.get(p[\"id\"]))" in st, "anche le conversazioni ferme: una domanda chiusa non rinasce"
+
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
