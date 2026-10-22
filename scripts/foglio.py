@@ -552,6 +552,20 @@ def stato_conv_messo(st, pids):
     return max(messi, key=lambda x: x.get("il") or "")["v"] if messi else ""
 
 
+def riletta(st, pids, l, v):
+    """Pura. Lo «Stato» messo dal sistema va corretto? Si', solo se la lettura di adesso e' della
+    STESSA mail di quella che l'aveva messo (risposta_il uguale) e porta a uno stato diverso (un caso
+    diverso, o lo stesso caso riletto senza il «caldo»). Una mail nuova non lo cambia: la regola di Dre
+    resta «lo mette una volta, quando entra»."""
+    messi = [(st.get("stato_conv") or {}).get(x) for x in pids]
+    messi = [m for m in messi if isinstance(m, dict) and m.get("v")]
+    if not messi or not l or not v:
+        return False
+    m = max(messi, key=lambda x: x.get("il") or "")
+    stessa = (m.get("risposta_il") or "")[:19] == (l.get("risposta_il") or "")[:19] != ""
+    return stessa and m.get("v") != v
+
+
 def dopo_analisi(p, s):
     """La sua ultima mail e' arrivata dopo l'analisi? (la stessa regola di fase_di)"""
     risposta = _piu_recente((s or {}).get("ultima_risposta"), p.get("last_reply_at"))
@@ -568,11 +582,15 @@ def stati_all_ingresso(per_fase, dati, st, ora):
     log = []
     for riga in per_fase.get(CONV) or []:
         pids = riga.get("pids") or [riga["id"]]
-        if valore_dre(st, pids, "stato_conv") is not None or stato_conv_messo(st, pids):
-            continue                               # di Dre, o gia' messo: non si tocca piu'
+        if valore_dre(st, pids, "stato_conv") is not None:
+            continue                               # di Dre: non si tocca piu'
         p, s = dati["ps"].get(riga["id"]) or {}, dati["schede"].get(riga["id"]) or {}
         l = lettore_di(p)
         v = stato_dal_lettore(l, dopo_analisi(p, s))
+        if stato_conv_messo(st, pids) and not riletta(st, pids, l, v):
+            continue                               # gia' messo dal sistema: non si tocca piu'...
+        # ...salvo che sia stato messo da una lettura poi superata della STESSA mail (22/10 notte: il
+        # lettore la rilegge, la riclassifica la corregge) e Dre non l'abbia toccato: si corregge
         if not v:
             continue
         riga["stato_conv"] = v

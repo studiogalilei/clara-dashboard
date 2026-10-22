@@ -66,7 +66,7 @@ import zoneinfo
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, env, _a_secco, lettore_di  # noqa: E402
+from stanza import sb, sb_tutte, quando, env, _a_secco, lettore_di, scritta_da_macchina  # noqa: E402
 import lettura as L                                            # noqa: E402
 import segnale_provvisorio as S                                # noqa: E402
 import categorie_smartlead as C                                # noqa: E402
@@ -165,7 +165,9 @@ def leggi_contesto(ora):
     agenda = sb_tutte(f"/rest/v1/agenda?select=id,at,titolo,tipo,prospect_id,link,fonte,creato_il"
                       f"&fonte=like.gcal*&at=gte.{_z(ora - datetime.timedelta(days=60))}")
     # chi Dre ha toccato: una decisione o una nota (17/10: anche solo una nota tiene viva la scheda)
-    toccati = {r["prospect_id"] for r in sb_tutte("/rest/v1/snella_lead?select=prospect_id", chiave="prospect_id")}
+    # 22/10: con lo «Stato» della conversazione (foglio): se Dre ha scritto «Ha detto no», l'app non dice «Da chiamare»
+    conv = {r["prospect_id"]: r.get("stato_conv") for r in sb_tutte("/rest/v1/snella_lead?select=prospect_id,stato_conv", chiave="prospect_id")}
+    toccati = set(conv)
     toccati |= {r["prospect_id"] for r in sb_tutte("/rest/v1/snella_note?select=id,prospect_id")}
     vicine = {a["prospect_id"] for a in agenda if a.get("prospect_id") and quando(a["at"]) >= ora - datetime.timedelta(days=1)}
     mancano = (toccati | vicine) - set(ps)
@@ -200,7 +202,7 @@ def leggi_contesto(ora):
     gia = {r["prospect_id"]: r for r in sb_tutte("/rest/v1/snella_schede?select=prospect_id,impronta,aggiornata_il",
                                                  chiave="prospect_id")}
     return {"ps": ps, "agenda": agenda, "mail": mail, "segnali": segnali, "caldi": caldi, "intenti": intenti,
-            "girati": girati, "clienti": clienti, "gia": gia}
+            "girati": girati, "clienti": clienti, "gia": gia, "conv": conv}
 
 
 def contesto_uno(email, ora):
@@ -229,8 +231,9 @@ def contesto_uno(email, ora):
             girati.add(pid)
     clienti = {r["prospect_id"] for r in sb("GET", f"/rest/v1/clienti?select=prospect_id&prospect_id=eq.{pid}") or []}
     gia = {r["prospect_id"]: r for r in sb("GET", f"/rest/v1/snella_schede?select=prospect_id,impronta,aggiornata_il&prospect_id=eq.{pid}") or []}
+    conv = {r["prospect_id"]: r.get("stato_conv") for r in sb("GET", f"/rest/v1/snella_lead?select=prospect_id,stato_conv&prospect_id=eq.{pid}") or []}
     return {"ps": ps, "agenda": agenda, "mail": mail, "segnali": segnali, "caldi": caldi, "intenti": intenti,
-            "girati": girati, "clienti": clienti, "gia": gia}, pid
+            "girati": girati, "clienti": clienti, "gia": gia, "conv": conv}, pid
 
 
 def uno(email):
@@ -260,7 +263,7 @@ def impronta(ctx, pid):
     pezzi = (VERSIONE, json.dumps([p.get(c) for c in CAMPI_IMPRONTA], default=str), str(len(mm)), max((m.get("at") or "" for m in mm), default=""),
              ",".join(sorted(ctx["segnali"].get(pid, set()))), ctx["intenti"].get(pid) or "",
              "g" if pid in ctx["girati"] else "", "c" if pid in ctx["clienti"] else "",
-             ",".join(sorted(a["at"] for a in call_di(ctx, pid))))
+             ",".join(sorted(a["at"] for a in call_di(ctx, pid))), (ctx.get("conv") or {}).get(pid) or "")
     return hashlib.sha256("|".join(pezzi).encode()).hexdigest()[:20]
 
 
@@ -430,10 +433,21 @@ def costruisci(ctx, pid, ora):
     # dove la notifica e il foglio dicevano altro). Il segnale resta solo dove il lettore non c'e'.
     # E vale finche' la palla e' sua: se dopo la sua mail calda gli abbiamo scritto (l'analisi, un
     # follow-up) e lui tace, non e' piu' una chiamata da fare.
+    # Una macchina non e' mai calda (un risponditore con «ci indichi un orario»: stanza.scritta_da_macchina).
     letto = lettore_di(p)
     if letto:
         nostra_dopo = any(r["kind"] == "email_out" and ultima and (r.get("at") or "") > (ultima.get("at") or "") for r in righe)
-        segnalato, caldo = False, bool(letto.get("caldo")) and not nostra_dopo
+        segnalato, caldo = False, bool(letto.get("caldo")) and not nostra_dopo and not scritta_da_macchina(p)
+    # LO STATO DELLA CONVERSAZIONE DEL FOGLIO VINCE (22/10, il lead in pensione): Dre aveva scritto «Ha detto
+    # no» nel foglio e l'app diceva ancora «Da chiamare». Un no detto nel foglio non si chiama.
+    # E nell'altro verso: «Vuole essere chiamato» nel foglio e' da chiamare (col cellulare, come sempre).
+    conv = (ctx.get("conv") or {}).get(pid)
+    if conv == "Ha detto no":
+        segnalato, caldo = False, False
+        if stato in ("Da chiamare", "Da rispondere", "Analisi inviata"):
+            stato = "Non interessato"
+    elif conv == "Vuole essere chiamato":
+        caldo = True
     if caldo and stato in ("Analisi inviata", "Da rispondere"):
         stato = "Da chiamare"
     # 20/10 sera: «Da chiamare» solo con un cellulare suo (firma o scheda, mai il sito). Senza, la

@@ -227,8 +227,8 @@ def caldi_del_lettore(da, stato):
         if p["id"] in stato or p.get("classificazione") != "positivo":
             continue
         l = lettore_di(p)
-        if not l or not l.get("caldo") or not contattabile(p):
-            continue
+        if not l or not l.get("caldo") or scritta_da_macchina(p) or not contattabile(p):
+            continue                                    # 22/10: un risponditore («ci indichi un orario») non e' caldo
         out.append(p)
     return out
 

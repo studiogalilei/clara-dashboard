@@ -5906,6 +5906,23 @@ def _():
     assert "per_dre(oggetto), per_dre(testo), per_dre(html_corpo)" in sp and "testo, titolo = per_dre(testo), per_dre(titolo)" in av
 
 
+@prova("lo «Stato» del foglio e l'app dicono la stessa cosa (22/10, il lead in pensione): un no nel foglio non si chiama, uno stato messo su una lettura superata si corregge finche' Dre non lo tocca")
+def _():
+    import foglio as F
+    st = {"stato_conv": {"p1": {"v": "Vuole essere chiamato", "il": "2026-10-21T10:00:00", "caso": "C36", "risposta_il": "2026-10-15T15:21:40"}}, "dre": {}}
+    l = {"fonte": "lettore", "caso": "C36", "caldo": False, "risposta_il": "2026-10-15T15:21:40"}
+    assert F.riletta(st, ["p1"], l, "Girato a un collega, con contatto"), "stessa mail, letta di nuovo: si corregge"
+    assert not F.riletta(st, ["p1"], {**l, "risposta_il": "2026-10-20T09:00:00"}, "Ha detto no"), "una mail nuova non cambia lo stato messo all'ingresso"
+    assert not F.riletta(st, ["p1"], l, "Vuole essere chiamato") and not F.riletta(st, ["p1"], l, "")
+    src = open(F.__file__, encoding="utf-8").read()
+    i = src.index("def stati_all_ingresso")
+    assert src.index('valore_dre(st, pids, "stato_conv") is not None', i) < src.index("riletta(st, pids, l, v)", i), "Dre vince prima di tutto"
+    # la scheda legge lo stato del foglio: «Ha detto no» non e' «Da chiamare», «Vuole essere chiamato» si'
+    sch = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "schede.py"), encoding="utf-8").read()
+    assert 'conv == "Ha detto no"' in sch and 'conv == "Vuole essere chiamato"' in sch and "stato_conv" in sch
+    assert "and not scritta_da_macchina(p)" in sch, "una macchina non e' mai calda"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
