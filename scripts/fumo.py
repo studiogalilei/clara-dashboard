@@ -148,15 +148,38 @@ def operazioni():
         try:
             if f.endswith(".py"):
                 compile(open(percorso, encoding="utf-8").read(), f, "exec")
-            out.append((op["chiave"], op.get("nome"), None))
         except SyntaxError as e:
             out.append((op["chiave"], op.get("nome"), f"non si compila: riga {e.lineno}, {e.msg}"))
+            continue
+        nome = os.path.basename(f)[:-3]
+        out.append((op["chiave"], op.get("nome"), prova_a_secco(nome) if nome in PROVE else None))
     return out
 
 
+# Le operazioni che si provano anche dal vivo in --prova: leggono i dati veri e non scrivono ne' pagano
+# un modello (misurato la notte del 22/10: 0 chiamate pagate, 2 minuti e mezzo in tutto). Le altre
+# (sync, analisi, bozze, lettore, strade) pagano o durano troppo: per loro valgono i servizi qui sopra.
+PROVE = ("guasti", "clara_foglio", "giornata", "schede", "manda", "conversazioni", "promemoria", "orecchio", "foglio")
+
+
+def prova_a_secco(nome):
+    """None se il giro in --prova di scripts/<nome>.py finisce bene, se no il problema in una riga."""
+    import subprocess
+    try:
+        r = subprocess.run([sys.executable, os.path.join("scripts", f"{nome}.py"), "--prova"], cwd=RADICE, capture_output=True,
+                           text=True, timeout=300, env={**os.environ, "PROVA": "1"})
+    except subprocess.TimeoutExpired:
+        return "la prova a secco non finisce in 5 minuti"
+    uscita = (r.stdout or "") + (r.stderr or "")
+    if r.returncode != 0 or "Traceback" in uscita:
+        righe = [x for x in uscita.strip().splitlines() if x.strip()]
+        return f"la prova a secco cade: {(righe[-1] if righe else 'uscita ' + str(r.returncode))[:160]}"
+    return None
+
+
 def main():
-    prova_a_secco = _a_secco()
-    print(f"FUMO {'(prova) ' if prova_a_secco else ''}{datetime.datetime.now(datetime.timezone.utc):%Y-%m-%d %H:%M} UTC")
+    a_secco = _a_secco()
+    print(f"FUMO {'(prova) ' if a_secco else ''}{datetime.datetime.now(datetime.timezone.utc):%Y-%m-%d %H:%M} UTC")
     caduti = 0
     for nome, f in SERVIZI.items():
         inizio = time.time()
@@ -170,14 +193,16 @@ def main():
             print(f"  CADUTO {nome:10} {testo}")
             guasto(f"fumo:{nome}", f"{nome} non risponde come il sistema se lo aspetta: {testo}",
                    sta_facendo="La prova del mattino lo ha visto dal vivo. Riprovo domattina; se resta, dillo ad Achille.")
-    for chiave, nome, problema in operazioni():
+    ops = operazioni()
+    for chiave, nome, problema in ops:
         if problema:
             caduti += 1
             print(f"  CADUTA {chiave:18} {problema}")
             guasto(f"fumo:op:{chiave}", f"{nome or chiave}: {problema}",
-                   sta_facendo="Il direttore non la lancia finché non è a posto. Dillo ad Achille.")
+                   sta_facendo="La prova del mattino l'ha vista cadere: dillo ad Achille.")
         else:
             guarito(f"fumo:op:{chiave}")
+    print(f"  {len(ops)} operazioni accese guardate (file e compilazione; {', '.join(PROVE)} anche in prova a secco)")
     print(f"fumo: {caduti} cadut{'o' if caduti == 1 else 'i'}")
 
 

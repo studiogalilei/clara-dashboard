@@ -5814,6 +5814,9 @@ def _():
     assert G.da_riprovare(scritti) == {"servizio:analisi": "OpenAI", "fumo:Smartlead": "Smartlead"}
     import fumo as F
     assert F.prova("Zeta") is None and set(F.DI_FORNITORE["Google"]) <= set(F.SERVIZI)
+    for nome in F.PROVE:                    # le prove a secco del mattino: script veri che sanno stare a secco
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{nome}.py"), encoding="utf-8").read()
+        assert "--prova" in src or "_a_secco" in src or "PROVA" in src, nome
     assert {n for _, n in St.FORNITORI} <= set(F.SERVIZI) | set(F.DI_FORNITORE), "ogni fornitore che il direttore riconosce ha la sua prova dal vivo"
     # ogni comando scritto in una migrazione ha il suo file nel repo (20/10: giornata accesa prima del file)
     import glob
