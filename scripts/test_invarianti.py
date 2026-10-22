@@ -5988,6 +5988,23 @@ def _():
     assert "classificazione" in LA.CAMPI and "enriched" in LA.CAMPI and "last_reply_at" in LA.CAMPI, "la regola unica legge questi campi"
 
 
+@prova("in campagna solo mail personali: info@, amministrazione@, la casella col nome della ditta o della sede non entrano (Dre, 22/10)")
+def _():
+    import stanza as S
+    no = [("info@ditta.invalid", None, "", "", ""), ("amministrazione2@ditta.invalid", None, "", "", ""), ("m.rossi@ditta.invalid", "yes", "", "", ""),
+          ("direzione+canned.response@ditta.invalid", None, "", "", ""), ("milano@ditta.invalid", None, "Anna", "Bianchi", "Ditta"),
+          ("ditta@ditta-srl.invalid", None, "Ditta", "Impianti", "Ditta Srl"), ("sapori@saporiantichi.invalid", None, "Sapori", "Srl", "SaporiAntichi srl"),
+          ("greenbox@verpacken.invalid", None, "Greenbox", "", "Green Box")]
+    si = [("mario.rossi@ditta.invalid", None, "Mario", "Rossi", "Ditta"), ("matteo@matteofantoni.invalid", None, "Matteo", "Fantoni", "Matteo Fantoni Studio"),
+          ("luca@ditta.invalid", None, "Luca", "Verdi", "Ditta"), ("f.cesabianchi@studio.invalid", None, "Francesca", "Bianchi", "Studio")]
+    for e, r, n, c, a in no:
+        assert not S.mail_personale(e, r, n, c, a), e
+    for e, r, n, c, a in si:
+        assert S.mail_personale(e, r, n, c, a), e
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carica_lead.py"), encoding="utf-8").read()
+    assert "stanza.mail_personale(" in src and "/pause" in src and "DELETE" not in src.split('"""', 2)[2], "il caricamento usa la regola unica e la pausa, mai DELETE"
+
+
 
 def main():
     falliti = 0

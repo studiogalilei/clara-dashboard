@@ -205,6 +205,42 @@ def sito_vero(p):
     return ""
 
 
+MAIL_GENERICHE = set("""info infos informazioni contatti contatto contact contacts amministrazione amministrativo commerciale commerciali
+segreteria direzione vendite vendita sales marketing grafica qualita candidature direttore osteria catering corso areatecnica boss it
+com presidenza retail hello office admin ufficio uffici booking eventi evento prenotazioni prenota prenotazione reception hr jobs job
+lavoro lavora press stampa ordini ordine acquisti support supporto assistenza help noreply no-reply mail email posta web servizi servizio
+clienti customer customercare service shop store negozio studio agenzia hotel ristorante accoglienza fatture fatturazione pec legal legale
+tecnico ufficiotecnico export import logistica produzione progetti progettazione staff team welcome ciao benvenuti mkt comunicazione
+didattica corsi formazione iscrizioni orientamento ammin amm adm account accounting general generale main""".split())
+
+
+CITTA_CASELLE = {"milano", "roma", "torino", "napoli", "firenze", "bologna", "venezia", "genova", "verona", "padova", "bari", "palermo"}
+FORME_SOCIETA = {"srl", "spa", "snc", "sas", "srls", "impianti", "technologies", "office", "marketing", "group", "italia"}
+
+
+def mail_personale(email, role=None, nome=None, cognome=None, azienda=None):
+    """SOLO MAIL PERSONALI IN CAMPAGNA (Dre, 22/10): una casella di persona (nome.cognome@, m.rossi@),
+    mai info@, amministrazione@, commerciale@... che rispondono poco e abbassano il tasso di risposta.
+    `role` e' la colonna dei file di Lorenzo (yes = casella di ruolo)."""
+    e = (email or "").strip().lower()
+    if "@" not in e or str(role or "").strip().lower() == "yes":
+        return False
+    loc = e.split("@")[0]
+    base = re.split(r"[.+_\-0-9]", loc)[0]
+    if "+" in loc or loc in MAIL_GENERICHE or base in MAIL_GENERICHE or loc.rstrip("0123456789") in MAIL_GENERICHE:
+        return False
+    if loc in CITTA_CASELLE:                                   # milano@ditta.invalid: una sede, non una persona
+        return False
+    stem = e.split("@")[1].split(".")[0]
+    if loc == stem or loc == stem.split("-")[0]:               # tecsa@tecsa-srl.invalid: la casella dell'azienda
+        return False
+    # nei file di Lorenzo una casella aziendale ha come «nome» l'azienda: Greenbox, Sapori Srl, Teco Technologies
+    n, c, a = chiave_nome(nome), chiave_nome(cognome), chiave_nome(azienda)
+    if n and a and (n == a or (loc == n and n in a and c in FORME_SOCIETA)):
+        return False
+    return True
+
+
 def contattabile(p):
     """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
     (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa
