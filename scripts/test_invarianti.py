@@ -5972,6 +5972,22 @@ def _():
     assert "bozze.domanda_chiusa(p, chiuse.get(p[\"id\"]))" in st, "anche le conversazioni ferme: una domanda chiusa non rinasce"
 
 
+@prova("il lampo non serve le macchine: una risposta automatica o un fuori ufficio non paga l'analisi e non fa nascere bozze (turno del 22/10)")
+def _():
+    import lampo as LA
+    ora = "2026-10-22T09:22:08"
+    auto = {"classificazione": "da_classificare", "last_reply_at": ora + "+00:00",
+            "enriched": {"lettore": {"fonte": "lettore", "classe": "automatico", "autore": "automatico", "caso": "C47", "risposta_il": ora}}}
+    assert not LA.di_persona(auto), "il lettore dice automatico: anche se la classe non e' ancora ooo, niente lampo"
+    assert not LA.di_persona({"classificazione": "ooo", "last_reply_at": ora, "enriched": {}}), "un fuori ufficio riprende la sequenza, non il lampo"
+    si = {**auto, "enriched": {"lettore": {**auto["enriched"]["lettore"], "classe": "positivo", "autore": "persona", "caso": "C01"}}}
+    assert LA.di_persona(si), "un si' di una persona resta nel lampo"
+    assert LA.di_persona({"classificazione": "positivo", "last_reply_at": ora, "enriched": {}}), "senza lettura del lettore resta com'era"
+    src = open(LA.__file__, encoding="utf-8").read()
+    assert "and di_persona(p)]" in src and "if not di_persona(p):" in src, "sia il giro (fresche) sia la strada veloce (uno)"
+    assert "classificazione" in LA.CAMPI and "enriched" in LA.CAMPI and "last_reply_at" in LA.CAMPI, "la regola unica legge questi campi"
+
+
 
 def main():
     falliti = 0

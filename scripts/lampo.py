@@ -28,7 +28,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb                                      # noqa: E402
+from stanza import sb, scritta_da_macchina                 # noqa: E402
 
 PROVA = "--prova" in sys.argv
 FRESCA_ORE = int(sys.argv[sys.argv.index("--ore") + 1]) if "--ore" in sys.argv else 6          # oltre, ci pensano i giri normali: il lampo e' per chi aspetta adesso
@@ -49,16 +49,26 @@ def _corri(nome, argomenti, minuti=8):
         return False
 
 
-CAMPI = "id,email,company,name,last_reply_at,analysis_pdf,enriched"
+CAMPI = "id,email,company,name,classificazione,last_reply_at,analysis_pdf,enriched"
 FILTRO = ("&awaiting_us=eq.true&fuori=eq.false&stage=not.in.(cliente,perso,call_fissata,rinviato)"
           "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso,nervoso))")
+
+
+def di_persona(p):
+    """UNA MACCHINA NON ASPETTA L'ANALISI (turno del 22/10). Il filtro qui sotto toglieva i no ma non le
+    risposte automatiche: «Grazie per averci contattato, risponderò il prima possibile» entrava nella
+    catena, si pagava l'analisi e nasceva una bozza di prima risposta (INT-01) per chi non aveva scritto
+    niente; un fuori ufficio con la data di rientro diventava una domanda per Dre. Prima_risposta le
+    fermava, ma restavano in Posta. Chi l'ha scritta lo dice la regola unica (stanza.scritta_da_macchina,
+    lettore compreso): per un fuori ufficio riprende la sequenza di Smartlead, non il lampo."""
+    return not scritta_da_macchina(p)
 
 
 def fresche():
     da = urllib.parse.quote((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=FRESCA_ORE)).isoformat())
     righe = sb("GET", f"/rest/v1/prospects?select={CAMPI}{FILTRO}&last_reply_at=gte.{da}&order=last_reply_at.desc&limit=20") or []
     aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)&limit=1000") or [])}
-    return [p for p in righe if p["id"] not in aperte][:LAMPO_MAX]
+    return [p for p in righe if p["id"] not in aperte and di_persona(p)][:LAMPO_MAX]
 
 
 def uno(email):
@@ -70,6 +80,9 @@ def uno(email):
         print("lampo: questo lead non aspetta noi (o e' chiuso): niente da fare")
         return []
     p = righe[0]
+    if not di_persona(p):
+        print("lampo: l'ultima mail e' una risposta automatica, non un si': niente analisi e niente bozza")
+        return []
     aperte = sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=in.(aperta,approvata,in_invio)&limit=1") or []
     if aperte:
         print("lampo: ha gia' una proposta in corso: la porta avanti il suo giro")
