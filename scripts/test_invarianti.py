@@ -6116,6 +6116,7 @@ def _():
     assert 'corpo["attendees"] = [{"email": CARLO}]' in src
     assert '"?sendUpdates=all" if carlo and not gia' in src, "l'invito parte solo se Carlo non l'aveva gia': niente mail ogni ora"
     assert 'p.pop("canone", None)' in src and "bilancio, prezzo suggerito, valori e importi qui non entrano" in src
+    assert 'q.astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m alle %H:%M")' in src, "l'ora della call in ora di Roma"
 
 
 

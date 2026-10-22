@@ -253,7 +253,9 @@ def main():
         if not dati:
             continue
         q = quando(r["at"])
-        etichetta = q.strftime("%d/%m alle %H:%M") if q else ""
+        # l'ora come la legge una persona: Roma, non UTC (22/10: diceva 10:00 per una call alle 11)
+        from zoneinfo import ZoneInfo
+        etichetta = q.astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m alle %H:%M") if q else ""
         print(f"  {nome}: {etichetta}, {r.get('tipo')}")
         if prova:
             fatte += 1
