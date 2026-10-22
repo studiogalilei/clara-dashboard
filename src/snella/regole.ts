@@ -323,6 +323,21 @@ export function prossimoMessaggio(lead: LeadPerProssimo, proposte: PropostaLead[
   return nel(piuGiorni(inviata, GIORNI_FOLLOWUP), 'FOLLOW UP 1')
 }
 
+// ── il prossimo follow-up, detto dal sistema (22/10) ──
+
+/** La nota del prossimo follow-up di un lead con l'analisi mandata, come la scrive scripts/followup.py
+ *  (snella_numeri «follow_up»: lo stesso calcolo che lo mette in coda): «Prossimo follow-up: gio 23/10»
+ *  o «Nessun follow-up: ha detto no». L'app non la rifa': la legge. */
+export interface NotaFollowUp { nota: string; il: string | null; gruppo: string | null }
+
+/** La prossima azione di una riga di «Tutti»: quella di Dre se l'ha scritta; per chi e' in «Analisi
+ *  inviata» la nota del sistema (cosa ha in programma, e quando); se no quella di sempre. */
+export function mossaDiRiga(r: { stato: string; mossa: string | null; mossa_il: string | null; mossa_tua: boolean },
+  nota: NotaFollowUp | null | undefined): { mossa: string | null; il: string | null } {
+  if (r.mossa_tua || r.stato !== 'Analisi inviata' || !nota?.nota) return { mossa: r.mossa, il: r.mossa_il }
+  return { mossa: nota.nota, il: nota.il }
+}
+
 /** Il sito com'e' scritto nel database, reso un link che si apre: «esempio.it» → «https://esempio.it».
  *  Quello che non sembra un sito (spazi, niente punto) torna null. */
 export function sitoCliccabile(s: string | null | undefined): string | null {

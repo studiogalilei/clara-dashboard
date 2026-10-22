@@ -285,13 +285,42 @@ def _data(v):
     return t[:10] if m else t
 
 
+# LA RIGA DEL SISTEMA NELLE NOTE (Dre, 22/10: «nelle note di chi ha l'analisi, cosa ha in programma il
+# sistema»). La colonna Note e' di Dre: il sistema ci aggiunge in fondo UNA riga sua, sempre con lo stesso
+# attacco («Prossimo follow-up: gio 23/10», «Nessun follow-up: ha detto no»), che viene da followup.py
+# (snella_numeri «follow_up», lo stesso calcolo che mette in coda). Quando si legge la cella quella riga
+# si toglie: non e' mai una nota di Dre, e quello che scrive lui resta suo.
+RIGA_SISTEMA = re.compile(r"^\s*(?:Prossimo follow-up|Nessun follow-up)\b.*$", re.M)
+
+
+def senza_riga_sistema(v):
+    return "\n".join(r for r in RIGA_SISTEMA.sub("", str(v if v is not None else "")).splitlines() if r.strip()).strip()
+
+
+def nota_con_sistema(nota_dre, riga):
+    """La cella Note: la nota di Dre (se c'e') e sotto la riga del sistema."""
+    nota_dre = str(nota_dre or "").strip()
+    return f"{nota_dre}\n{riga}" if nota_dre and riga else (riga or nota_dre)
+
+
+def nota_del_sistema(pids, follow_up):
+    """La riga del sistema per un'azienda: fra i suoi contatti il follow-up piu' vicino in programma, se
+    no il motivo del contatto principale (il primo)."""
+    note = [(follow_up or {}).get(x) for x in pids]
+    note = [n for n in note if isinstance(n, dict) and n.get("nota")]
+    con_data = [n for n in note if n.get("il")]
+    if con_data:
+        return min(con_data, key=lambda n: n["il"])["nota"]
+    return note[0]["nota"] if note else ""
+
+
 def norma(campo, v):
     """Il valore di una cella di Dre come si salva e si confronta."""
     if campo in ("costo", "retainer", "importo"):
         return _numero(v)
     if campo in ("inizio", "fine", "consegna"):
         return _data(v)
-    return " ".join(str(v if v is not None else "").split()) if campo != "nota" else str(v if v is not None else "").strip()
+    return " ".join(str(v if v is not None else "").split()) if campo != "nota" else senza_riga_sistema(v)
 
 
 def in_cella(campo, v):
@@ -637,6 +666,8 @@ def calcola(dati, st, ora):
                 "scheda": foglio_lead.link_scheda(pid), "filo": foglio_lead.link_filo(p, (st.get("mappe") or {}).get(pid))}
         if fase in CON_PROSSIMO and dati.get("piano"):
             riga["prossimo"] = foglio_lead.prossimo_breve(pids, dati["piano"], ora)
+        if fase == INVIATA:
+            riga["nota_sistema"] = nota_del_sistema([pid] + [x for x in pids if x != pid], dati.get("follow_up"))
         risposta = s.get("ultima_risposta") or p.get("last_reply_at")
         if fase in (PREP, CONV):
             t = quando(risposta) if risposta else None
@@ -1221,6 +1252,9 @@ def griglia(per_fase, mrr, ora, ignoti=(), date=None):
                 if campo == "prossimo":
                     riga[x["da"] + j] = "'" + v if v else ""      # «gio 22/10» resta testo, non diventa una data
                     continue
+                if campo == "nota" and lead.get("nota_sistema"):
+                    riga[x["da"] + j] = testo(nota_con_sistema(v, lead["nota_sistema"]))
+                    continue
                 riga[x["da"] + j] = in_cella(campo, v) if campo in GIALLE else (lead["id"] if campo == "id" else testo(v))
             if x["fase"] != PROGETTI:
                 scritto[lead["id"]] = {**{c: lead.get(c, "") for c in x["campi"] if c in DI_DRE}, "fase": x["fase"]}
@@ -1453,6 +1487,11 @@ def main():
     if scritte and not PROVA:
         dati = leggi_dati()                        # gli effetti hanno cambiato le fasi
     # 2. poi il resto
+    try:
+        # 22/10: la riga del sistema nelle Note delle analisi inviate (followup.py la calcola)
+        dati["follow_up"] = ((sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.follow_up") or [{}])[0] or {}).get("dati") or {}
+    except Exception as e:                                       # noqa: BLE001
+        print(f"  (le note del prossimo follow-up non lette: {str(e)[:120]})")
     try:
         dati["piano"] = foglio_lead.leggi_piano()
     except Exception as e:                                       # noqa: BLE001

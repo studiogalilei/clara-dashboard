@@ -27,6 +27,8 @@ import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, sb_tutte, giorno_scelto, colonna_c_e           # noqa: E402
+import zoneinfo                                                       # noqa: E402
+ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 
 GIORNI = 5
 
@@ -46,6 +48,32 @@ def giorno_follow_up(inviata, p):
     return inviata + datetime.timedelta(days=GIORNI), False
 QUANTI = 50
 CLASSI = "positivo,tiepido,da_classificare"
+
+
+def regola_follow_up_1(p, gia, aperte, sorella, nostra_dopo=None):
+    """IL PRIMO FOLLOW-UP DI QUESTO LEAD: (giorno, perche') se e' in programma, (None, motivo) se no.
+    Una regola sola (22/10, Dre: «nelle note cosa ha in programma il sistema»): la usa chi lo mette in
+    coda (main), chi lo mette in calendario (calendario) e quindi chi lo mostra (il foglio, l'app).
+    `p` ha gia' passato i filtri della select (analisi mandata, classe buona, niente «fuori»);
+    `nostra_dopo`: la nostra ultima mail dopo l'analisi, se c'e' (un sollecito gia' fatto, anche a mano)."""
+    if not p.get("analysis_sent_at"):
+        return None, "l'analisi non risulta mandata"
+    if p["id"] in gia:
+        return None, "il follow-up c'è già stato"
+    if p.get("coda"):
+        return None, "in coda"
+    if p["id"] in aperte:
+        return None, "la bozza è già scritta"
+    if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
+        return None, "ha scritto lui dopo l'analisi"         # non e' un silenzio
+    s = sorella(p) if sorella else None
+    if s:
+        return None, s                                       # 20/10: la stessa azienda l'ha gia' avuto da un'altra scheda
+    if nostra_dopo:
+        return None, f"gli abbiamo già riscritto il {str(nostra_dopo)[8:10]}/{str(nostra_dopo)[5:7]}"
+    inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
+    il, scelto = giorno_follow_up(inviata, p)
+    return il, ("giorno scelto da Dre" if scelto else f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
 
 
 PER_SEMPRE = re.compile(r"^NO:|doppion|fermat[oa] da dre|follow-?up gi[aà]'? fatt", re.I)
@@ -163,6 +191,122 @@ def mini_followup(prova, oggi):
 
 
 ORIZZONTE = 21          # giorni in avanti nel calendario dei follow-up
+GIORNI_BREVI = ("lun", "mar", "mer", "gio", "ven", "sab", "dom")
+
+
+def nostre_dopo_analisi():
+    """{pid: la nostra ultima mail partita dal giorno dopo l'analisi}: un sollecito gia' fatto (anche a
+    mano) vuol dire niente FOLLOW UP 1 (la stessa regola di main, letta una volta per tutti)."""
+    ps = {p["id"]: p["analysis_sent_at"] for p in (sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at&analysis_sent=eq.true"
+                                                             "&analysis_sent_at=not.is.null") or [])}
+    out = {}
+    if not ps:
+        return out
+    primo = min(ps.values())[:10]
+    for i in sb_tutte(f"/rest/v1/interactions?select=prospect_id,at&kind=in.(email_out,followup)&at=gt.{primo}") or []:
+        a = ps.get(i.get("prospect_id"))
+        # la stessa soglia di main: dal giorno dopo l'analisi (at > «giorno dopo», come stringa)
+        if a and i.get("at") and i["at"] > (datetime.date.fromisoformat(a[:10]) + datetime.timedelta(days=1)).isoformat():
+            out[i["prospect_id"]] = max(out.get(i["prospect_id"], ""), i["at"])
+    return out
+
+
+def giorno_detto(il, oggi):
+    """«oggi», «domani», «gio 23/10»."""
+    if il <= oggi:
+        return "oggi"
+    if il == oggi + datetime.timedelta(days=1):
+        return "domani"
+    return f"{GIORNI_BREVI[il.weekday()]} {il:%d/%m}"
+
+
+MOTIVI_CLASSE = {"negativo": "ha detto no", "soppresso": "ha chiesto di non essere contattato", "nervoso": "ha risposto male",
+                 "fuori_target": "fuori target", "persona_sbagliata": "non è la persona giusta"}
+MOTIVI_STADIO = {"cliente": "è cliente", "perso": "segnato perso", "call_fissata": "la call è fissata", "rinviato": "rinviato a mano"}
+
+
+def motivo_nessuno(p, gia_il, perche_regola=None, seguiti_spenti=False):
+    """Perche' un lead con l'analisi mandata non ha nessun follow-up in programma, in parole di Dre.
+    Pura (la provano le invarianti). `gia_il`: quando e' partito il suo follow-up, se c'e' stato."""
+    if seguiti_spenti:
+        return "i follow-up automatici sono spenti"
+    if p.get("stage") in MOTIVI_STADIO:
+        return MOTIVI_STADIO[p["stage"]]
+    if p.get("pipeline_stage"):
+        return "è in pipeline"
+    if p.get("classificazione") in MOTIVI_CLASSE:
+        return MOTIVI_CLASSE[p["classificazione"]]
+    if p.get("fuori"):
+        return "tolto dal percorso"
+    if p.get("no_followup"):
+        return "fermato (niente follow-up su questo lead)"
+    if p.get("last_reply_at") and p.get("analysis_sent_at") and p["last_reply_at"] > p["analysis_sent_at"]:
+        return "ha risposto dopo l'analisi, la conversazione è tua"
+    if p.get("awaiting_us"):
+        return "aspetta una nostra risposta"
+    if gia_il:
+        return f"il follow-up è partito il {gia_il[8:10]}/{gia_il[5:7]}, non ne sono previsti altri"
+    if p.get("classificazione") == "rinvio":
+        return "ha chiesto di risentirci" + (f" il {p['next_action_date'][8:10]}/{p['next_action_date'][5:7]}, data prima del 7/10: la decidi tu"
+                                             if p.get("next_action_date") else ", senza una data")
+    if perche_regola and perche_regola not in ("in coda", "la bozza è già scritta"):
+        return perche_regola
+    return "nessuno in programma"
+
+
+def note_follow_up(righe, lontani, perche_niente, oggi):
+    """LA NOTA DEL PROSSIMO FOLLOW-UP (Dre, 22/10), per ogni lead con l'analisi mandata:
+    «Prossimo follow-up: gio 23/10» o «Nessun follow-up: <motivo>». Viene dallo stesso calcolo che
+    mette in coda e in calendario (regola_follow_up_1, i passi di calendario): il foglio e l'app la
+    leggono da snella_numeri «follow_up», non la rifanno. {pid: {"nota", "il", "gruppo"}}"""
+    ps = sb_tutte("/rest/v1/prospects?select=id,analysis_sent_at,last_reply_at,awaiting_us,no_followup,fuori,stage,pipeline_stage,"
+                  "classificazione,next_action_date&analysis_sent=eq.true") or []
+    # le bozze di follow-up gia' scritte: pronte (partono da sole) o ferme a Dre
+    bozze = {}
+    for x in sb_tutte("/rest/v1/proposte?select=prospect_id,tipo,titolo,stato,parte:azione->>parte_il,gruppo:azione->lettura->>gruppo"
+                      "&stato=in.(aperta,approvata,in_invio)&tipo=in.(risposta,umano)") or []:
+        if x.get("prospect_id") and x.get("gruppo"):
+            bozze[x["prospect_id"]] = x
+    partiti = {}
+    for x in sb_tutte("/rest/v1/proposte?select=prospect_id,risposta_il&stato=eq.fatta"
+                      "&azione->>template=in.(FOLLOW%20UP%201,FOLLOW%20UP%20SU%20MISURA,MINI%20FOLLOW%20UP)") or []:
+        if x.get("prospect_id") and x.get("risposta_il"):
+            partiti[x["prospect_id"]] = max(partiti.get(x["prospect_id"], ""), x["risposta_il"])
+    try:
+        ops = {o["chiave"]: o for o in (sb("GET", "/rest/v1/operazioni?select=chiave,attiva,ultima_corsa&chiave=in.(seguiti,followup)") or [])}
+        spenti = not (ops.get("seguiti") or {}).get("attiva")
+        # chi mette in coda (followup.py) gira una volta al giorno, la mattina: un follow-up dovuto che
+        # non e' ancora in coda, se il giro di oggi e' gia' passato, parte domani (non «oggi»)
+        giro = (ops.get("followup") or {}).get("ultima_corsa")
+        giro_fatto = bool(giro) and datetime.datetime.fromisoformat(giro.replace("Z", "+00:00")).astimezone(ROMA).date() >= oggi
+    except Exception:                                         # noqa: BLE001
+        spenti, giro_fatto = False, False
+    sera = datetime.datetime.now(ROMA).hour >= 20                # dopo le 20 una mail in coda parte domattina (finestra 8-21)
+    out = {}
+    for p in ps:
+        pid = p["id"]
+        b = bozze.get(pid)
+        r = righe.get(pid) or lontani.get(pid)
+        if b:
+            if b.get("tipo") == "umano" or str(b.get("titolo") or "").startswith("Da guardare tu"):
+                out[pid] = {"nota": "Nessun follow-up automatico: la bozza è ferma, aspetta te nella scheda", "il": None, "gruppo": b["gruppo"]}
+                continue
+            parte = str(b.get("parte") or "")[:10]
+            il = datetime.date.fromisoformat(parte) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", parte) and parte > oggi.isoformat() else oggi
+            out[pid] = {"nota": f"Prossimo follow-up: {giorno_detto(il, oggi)}, è già scritto", "il": il.isoformat(), "gruppo": b["gruppo"]}
+            continue
+        if r and not spenti and not (p.get("stage") in MOTIVI_STADIO or p.get("classificazione") in MOTIVI_CLASSE or p.get("no_followup") or p.get("fuori")):
+            il = r["il"] if isinstance(r["il"], datetime.date) else datetime.date.fromisoformat(str(r["il"])[:10])
+            in_coda_gia = str(r.get("perche") or "").startswith("in coda")
+            if "aspetta l'analisi" in str(r.get("perche") or ""):
+                out[pid] = {"nota": f"Nessun follow-up per ora: {r['perche']}", "il": None, "gruppo": r["gruppo"]}
+                continue
+            if il <= oggi and ((giro_fatto and not in_coda_gia) or sera):
+                il = oggi + datetime.timedelta(days=1)
+            out[pid] = {"nota": f"Prossimo follow-up: {giorno_detto(il, oggi)}", "il": il.isoformat(), "gruppo": r["gruppo"]}
+            continue
+        out[pid] = {"nota": "Nessun follow-up: " + motivo_nessuno(p, partiti.get(pid), perche_niente.get(pid), spenti), "il": None, "gruppo": None}
+    return out
 
 
 def calendario(prova, oggi):
@@ -190,6 +334,7 @@ def calendario(prova, oggi):
             righe[pid] = {"prospect_id": pid, "gruppo": gruppo, "il": il, "perche": perche[:200]}
 
     fine = oggi + datetime.timedelta(days=ORIZZONTE)
+    lontani = {}
     # 1. gia' in coda: la bozza arriva al prossimo giro delle bozze
     for p in sb("GET", "/rest/v1/prospects?select=id,coda,coda_il,analysis_pdf&coda=not.is.null&fuori=eq.false"
                        "&stage=not.in.(cliente,perso,call_fissata,rinviato)&limit=1000") or []:
@@ -205,20 +350,19 @@ def calendario(prova, oggi):
     # 5/10: niente piu' finestra dei 30 giorni. Chi e' dovuto resta dovuto finche' il follow-up
     # non parte o non esce con un motivo: la finestra faceva sparire dal conto chi era indietro.
     sorella = _FAMIGLIA or famiglia_servita()       # la stessa regola della coda: una verita' sola
+    nostre = nostre_dopo_analisi()
+    perche_niente = {}
     for p in sb_tutte(f"/rest/v1/prospects?select=id,email,company,analysis_sent_at,last_reply_at,coda{_fu()}"
                        f"&analysis_sent=eq.true&awaiting_us=eq.false&no_followup=eq.false&fuori=eq.false&stage=neq.perso"
                        f"&classificazione=in.({CLASSI})") or []:
-        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
+        il, perche = regola_follow_up_1(p, gia, aperte, sorella, nostre.get(p["id"]))
+        if il is None:
+            perche_niente[p["id"]] = perche
             continue
-        if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
-            continue
-        if sorella(p):
-            continue                                    # 20/10: la stessa azienda l'ha gia' avuto da un'altra scheda
-        inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
-        il, scelto = giorno_follow_up(inviata, p)
+        # 22/10: la nota dice il giorno anche oltre l'orizzonte (un giorno scelto da Dre fra un mese)
+        lontani[p["id"]] = {"il": max(il, oggi), "gruppo": "FOLLOW UP 1"}
         if il <= fine:
-            metti(p["id"], "FOLLOW UP 1", max(il, oggi),
-                  "giorno scelto da Dre" if scelto else f"analisi mandata il {inviata:%d/%m}, nessuna risposta")
+            metti(p["id"], "FOLLOW UP 1", max(il, oggi), perche)
     # il giorno scelto da Dre vale per OGNI gruppo, non solo per il FOLLOW UP 1 (revisione 7/10:
     # spostare un rinvio dallo schermo tornava indietro al ricalcolo orario)
     scelti = ({x["id"]: giorno_scelto(x) for x in (sb_tutte("/rest/v1/prospects?select=id,follow_up_il&follow_up_il=not.is.null") or [])}
@@ -246,14 +390,25 @@ def calendario(prova, oggi):
             continue
         if p.get("next_action_date") and not p.get("coda"):
             q = datetime.date.fromisoformat(p["next_action_date"][:10])
+            if q < MOTORE_RINVII_DAL and p["id"] not in scelti:
+                continue                    # 22/10: il motore dei rinvii non li riprende (li decide Dre): niente promesse
+
             il = con_dre(p["id"], q + datetime.timedelta(days=1))
             metti(p["id"], "RINVIO SCADUTO", max(il, oggi),
                   "giorno scelto da Dre" if p["id"] in scelti else f"aveva detto di risentirci il {q:%d/%m}")
     print(f"calendario dei follow-up: {len(righe)} nei prossimi {ORIZZONTE} giorni")
+    note = note_follow_up(righe, lontani, perche_niente, oggi)
+    print(f"note del prossimo follow-up: {len(note)} analisi inviate, "
+          f"{sum(1 for n in note.values() if n['il'])} con un follow-up in programma")
     if prova:
         for r in sorted(righe.values(), key=lambda r: r["il"])[:15]:
             print(f"    {r['il']:%d/%m} {r['gruppo']:15} {r['perche']}")
+        for pid, n in list(note.items())[:15]:
+            print(f"    {pid[:8]} {n['nota']}")
         return len(righe)
+    sb("POST", "/rest/v1/snella_numeri?on_conflict=chiave",
+       [{"chiave": "follow_up", "dati": note, "aggiornato_il": datetime.datetime.now(datetime.timezone.utc).isoformat()}],
+       {"Prefer": "resolution=merge-duplicates,return=minimal"})
     adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     corpo = [{**r, "il": r["il"].isoformat(), "aggiornato_il": adesso} for r in righe.values()]
     for i in range(0, len(corpo), 200):
@@ -317,23 +472,19 @@ def main():
     _FAMIGLIA = famiglia_servita()
     fatti = 0
     for p in righe:
-        if not p.get("analysis_sent_at") or p["id"] in gia or p.get("coda") or p["id"] in aperte:
+        # 7/10 e 22/10: la stessa regola del calendario e delle note (regola_follow_up_1), non una copia
+        il, perche = regola_follow_up_1(p, gia, aperte, _FAMIGLIA)
+        if il is None:
+            if perche.startswith("stessa azienda"):
+                print(f"  {(p.get('company') or p.get('email') or '')[:36]:36} niente: {perche}")
             continue
-        sorella = _FAMIGLIA(p)
-        if sorella:
-            print(f"  {(p.get('company') or p.get('email') or '')[:36]:36} niente: {sorella}")
+        if il > oggi:
             continue
         inviata = datetime.date.fromisoformat(p["analysis_sent_at"][:10])
-        # 7/10: la stessa regola del calendario. Prima qui contava solo analisi+5, e il
-        # giorno spostato da Dre governava lo schermo ma non la coda
-        if giorno_follow_up(inviata, p)[0] > oggi:
-            continue
-        if p.get("last_reply_at") and p["last_reply_at"] > p["analysis_sent_at"]:
-            continue                                        # ha scritto lui dopo l'analisi: non e' un silenzio
-        dopo = sb("GET", f"/rest/v1/interactions?select=id&prospect_id=eq.{p['id']}&kind=in.(email_out,followup)"
+        dopo = sb("GET", f"/rest/v1/interactions?select=at&prospect_id=eq.{p['id']}&kind=in.(email_out,followup)"
                          f"&at=gt.{(inviata + datetime.timedelta(days=1)).isoformat()}&limit=1") or []
         if dopo:
-            continue                                        # un follow-up c'e' gia' stato
+            continue                                        # un follow-up c'e' gia' stato (stessa regola: nostre_dopo_analisi)
         azienda = p.get("company") or p.get("email")
         print(f"  {azienda[:36]:36} analisi del {inviata:%d/%m}  → in coda FOLLOW UP 1")
         if prova:

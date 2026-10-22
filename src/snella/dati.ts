@@ -4,7 +4,7 @@
 // le tabelle del sistema vecchio, non manda mail, non scrive su Smartlead.
 import { supabase } from '../lib/supabase'
 import statiJson from './stati.json'
-import type { LeadPerProssimo, PropostaLead, ScrittureStrada } from './regole'
+import type { LeadPerProssimo, NotaFollowUp, PropostaLead, ScrittureStrada } from './regole'
 
 /** I 12 stati della pipeline (Dre, 19/10), nell'ordine e nei gruppi: la fonte unica e' stati.json
  *  (la leggono anche scripts/schede.py e il database, snella_stati). Nient'altro. */
@@ -141,8 +141,16 @@ export async function leggiTelefoni(ids: string[]): Promise<Map<string, SchedaDa
 
 const CAMPI_NOTA = 'id,prospect_id,testo,tipo,at,autore,autore_nome'
 
-export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null; lead: Lead | null; proposte: PropostaLead[]; calendario: { gruppo: string; il: string } | null }> {
-  const [s, d, n, c, p, pr, cal] = await Promise.all([
+/** Tutte le note del prossimo follow-up (scripts/followup.py, snella_numeri «follow_up»), per «Tutti».
+ *  Se non si leggono, la lista si apre lo stesso con la prossima azione di sempre. */
+export async function leggiNoteFollowUp(): Promise<Record<string, NotaFollowUp>> {
+  const r = await supabase.from('snella_numeri').select('dati').eq('chiave', 'follow_up').abortSignal(entro()).maybeSingle()
+  if (r.error) return {}
+  return ((r.data as { dati: Record<string, NotaFollowUp> } | null)?.dati) ?? {}
+}
+
+export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; decisione: Decisione | null; note: Nota[]; call: Call[]; base: RigaBase | null; lead: Lead | null; proposte: PropostaLead[]; calendario: { gruppo: string; il: string } | null; followUp: NotaFollowUp | null }> {
+  const [s, d, n, c, p, pr, cal, fu] = await Promise.all([
     supabase.from('snella_schede').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_lead').select('*').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
     supabase.from('snella_note').select(CAMPI_NOTA).eq('prospect_id', id).order('at', { ascending: false }).limit(200).abortSignal(entro()),
@@ -156,6 +164,8 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
     supabase.from('proposte').select('id,tipo,stato,at,risposta,titolo,perche,bozza:azione->>bozza,template:azione->>template,motivo_controllo:azione->lettura->>coerenza_motivo,ombra:azione->>ombra,strade:azione->strade,strade_il:azione->>strade_il,strade_caso:azione->>strade_caso,intento:azione->>intento')
       .eq('prospect_id', id).order('at', { ascending: false }).limit(100).abortSignal(entro()),
     supabase.from('seguiti_calendario').select('gruppo,il').eq('prospect_id', id).abortSignal(entro()).maybeSingle(),
+    // 22/10: cosa ha in programma il sistema per lui (la nota di scripts/followup.py, solo la sua chiave)
+    supabase.from('snella_numeri').select(`f:dati->"${id.replace(/[^0-9a-f-]/gi, '')}"`).eq('chiave', 'follow_up').abortSignal(entro()).maybeSingle(),
   ])
   if (s.error) guasto(s.error)
   if (d.error) guasto(d.error)
@@ -171,7 +181,9 @@ export async function leggiScheda(id: string): Promise<{ scheda: Scheda | null; 
   return { scheda: s.data as Scheda | null, decisione: d.data as Decisione | null, note: (n.data ?? []) as Nota[],
            call: tutte.filter((x) => x.prospect_id === id), base,
            lead: p.data as Lead | null, proposte: (pr.data ?? []) as PropostaLead[],
-           calendario: (cal.data as { gruppo: string; il: string } | null) ?? null }
+           calendario: (cal.data as { gruppo: string; il: string } | null) ?? null,
+           // la nota non e' indispensabile: se non si legge, la scheda si apre lo stesso
+           followUp: fu.error ? null : ((fu.data as { f: NotaFollowUp | null } | null)?.f ?? null) }
 }
 
 /** La riga del lead che legge la scheda (prospects). */

@@ -8,8 +8,8 @@
 // scheda. Il telefono non scarica 13.500 righe: il database filtra, conta e manda 80 righe alla
 // volta (supabase/schema_v92.sql, snella_tutti_pagina); le altre arrivano scorrendo.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { STATI, leggiTutti, type FiltriTutti, type PaginaTutti, type RigaTutti } from './dati'
-import { dataCorta, giornoRoma, nomeStato, numero, quando, tonoStato } from './regole'
+import { STATI, leggiNoteFollowUp, leggiTutti, type FiltriTutti, type PaginaTutti, type RigaTutti } from './dati'
+import { dataCorta, giornoRoma, mossaDiRiga, nomeStato, numero, quando, tonoStato, type NotaFollowUp } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, Vuoto } from './pezzi'
 import { TONO } from './toni'
 
@@ -56,6 +56,9 @@ export default function Tutti({ apri }: { apri: (id: string) => void }) {
   const [caricando, setCaricando] = useState(!dalla)
   const [altre, setAltre] = useState(false)
   const [errore, setErrore] = useState<string | null>(null)
+  // 22/10: cosa ha in programma il sistema per chi ha l'analisi (scripts/followup.py); senza, la lista resta com'era
+  const [note, setNote] = useState<NoteFU>({})
+  useEffect(() => { void leggiNoteFollowUp().then(setNote).catch(() => setNote({})) }, [])
   const giro = useRef(0)
   const stato = useRef({ righe, conti, chiave })
   stato.current = { righe, conti, chiave }
@@ -207,11 +210,11 @@ export default function Tutti({ apri }: { apri: (id: string) => void }) {
               <>
                 <p aria-live="polite" className="mb-2 text-[14px] text-tenue">
                   {totale != null && <b className="font-semibold text-inchiostro">{numero(totale)} {totale === 1 ? 'prospect' : 'prospect'}</b>}
-                  {totale != null && righe.length < totale && <> · ne vedi {numero(righe.length)}</>}
-                  {' '}· l'ultima novità in cima
-                  <span className="hidden lg:inline"> · in grigio responsabile e prossima azione di default dello stato, in nero quelli scritti da te</span>
+                  {totale != null && righe.length < totale && <>, ne vedi {numero(righe.length)}</>}
+                  {totale != null ? '. ' : ''}L'ultima novità in cima.
+                  <span className="hidden lg:inline"> In grigio responsabile e prossima azione di default dello stato, in nero quelli scritti da te</span>
                 </p>
-                {largo ? <Tabella righe={righe} apri={apri} /> : <Lista righe={righe} apri={apri} />}
+                {largo ? <Tabella righe={righe} apri={apri} note={note} /> : <Lista righe={righe} apri={apri} note={note} />}
                 <div ref={fondo} className="mt-3 text-center">
                   {errore && <p role="alert" className="mb-2 text-[14px] font-semibold text-no-testo">Non riesco a leggere le altre righe: {errore}</p>}
                   {!finite && (
@@ -247,6 +250,14 @@ function quandoMossa(r: RigaTutti): string {
   return r.mossa_il ? giorno(r.mossa_il) : ''
 }
 
+type NoteFU = Record<string, NotaFollowUp>
+
+/** La riga con la prossima azione giusta: per chi e' in «Analisi inviata» quella del sistema (22/10). */
+function conNota(r: RigaTutti, note: NoteFU): RigaTutti {
+  const m = mossaDiRiga(r, note[r.prospect_id])
+  return m.mossa === r.mossa && m.il === r.mossa_il ? r : { ...r, mossa: m.mossa, mossa_il: m.il }
+}
+
 /** «21 ott»; con l'anno se non e' quest'anno («30 dic 25»): nel foglio ci sono date vecchie. */
 function giorno(d: string): string {
   const anno = d.slice(0, 4)
@@ -259,7 +270,7 @@ function Novita({ r }: { r: RigaTutti }) {
   if (!r.novita) return <span className="text-spento">mai risposto</span>
   const noi = Boolean(r.ultima_nostra && (!r.ultima_risposta || r.ultima_nostra > r.ultima_risposta))
   return (
-    <span title={[r.ultima_risposta && `Sua ultima risposta: ${quando(r.ultima_risposta)}`, r.ultima_nostra && `Nostra ultima mail: ${quando(r.ultima_nostra)}`].filter(Boolean).join(' · ')}>
+    <span title={[r.ultima_risposta && `Sua ultima risposta: ${quando(r.ultima_risposta)}`, r.ultima_nostra && `Nostra ultima mail: ${quando(r.ultima_nostra)}`].filter(Boolean).join(', ')}>
       <b className={`font-semibold ${noi ? 'text-noi-testo' : 'text-loro-testo'}`}>{noi ? 'Noi' : 'Loro'}</b>{' '}
       <span className="text-inchiostro">{quando(r.novita).replace(' alle ', ' ')}</span>
     </span>
@@ -269,7 +280,8 @@ function Novita({ r }: { r: RigaTutti }) {
 /** Il computer: una tabella vera, l'intestazione resta su mentre scorri. Da 1280 punti tutte le
  *  colonne; fra 1024 e 1280 (col menu a sinistra restano 730 punti) persona, campagna e telefono
  *  si leggono passandoci sopra col mouse e nella scheda: nove colonne li' non si leggerebbero. */
-function Tabella({ righe, apri }: { righe: RigaTutti[]; apri: (id: string) => void }) {
+function Tabella({ righe: grezze, apri, note }: { righe: RigaTutti[]; apri: (id: string) => void; note: NoteFU }) {
+  const righe = grezze.map((r) => conNota(r, note))
   const th = 'sticky top-0 z-10 border-b border-bordo bg-white px-2.5 py-2.5 text-left text-[13px] font-semibold text-tenue'
   const td = 'border-b border-velo px-2.5 py-2 align-middle'
   const largo = 'hidden xl:table-cell'
@@ -293,23 +305,23 @@ function Tabella({ righe, apri }: { righe: RigaTutti[]; apri: (id: string) => vo
           <tr key={r.prospect_id} onClick={() => apri(r.prospect_id)} className="cursor-pointer hover:bg-velo">
             <td className={td}>
               <button onClick={(e) => { e.stopPropagation(); apri(r.prospect_id) }}
-                      title={[r.azienda || r.email, r.persona, r.campagna, r.telefono].filter(Boolean).join(' · ')}
+                      title={[r.azienda || r.email, r.persona, r.campagna, r.telefono].filter(Boolean).join(', ')}
                       className="block w-full truncate text-left font-bold text-inchiostro hover:underline">
                 {r.azienda || r.email}
               </button>
             </td>
-            <td className={`${td} ${largo} truncate text-inchiostro`} title={r.persona || ''}>{r.persona || <span className="text-spento">·</span>}</td>
+            <td className={`${td} ${largo} truncate text-inchiostro`} title={r.persona || ''}>{r.persona || ''}</td>
             <td className={td}><PillolaStato stato={r.stato} /></td>
             <td className={`${td} truncate whitespace-nowrap`}><Novita r={r} /></td>
-            <td className={`${td} ${largo} truncate text-tenue`} title={r.campagna || ''}>{r.campagna || '·'}</td>
-            <td className={`${td} truncate ${r.responsabile_tuo ? 'text-inchiostro' : 'text-tenue'}`}>{r.responsabile || '·'}</td>
-            <td className={`${td} truncate ${r.mossa_tua ? 'text-inchiostro' : 'text-tenue'}`} title={r.mossa || ''}>{r.mossa || <span className="text-spento">·</span>}</td>
+            <td className={`${td} ${largo} truncate text-tenue`} title={r.campagna || ''}>{r.campagna || ''}</td>
+            <td className={`${td} truncate ${r.responsabile_tuo ? 'text-inchiostro' : 'text-tenue'}`}>{r.responsabile || ''}</td>
+            <td className={`${td} truncate ${r.mossa_tua ? 'text-inchiostro' : 'text-tenue'}`} title={r.mossa || ''}>{r.mossa || ''}</td>
             <td className={`${td} truncate whitespace-nowrap ${r.richiamare_il || r.mossa_tua ? 'font-semibold text-inchiostro' : 'text-tenue'}`} title={quandoMossa(r)}>
               {r.richiamare_il && <Icona nome="telefono" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
               {r.richiamare_il && <span className="sr-only">Richiamare il </span>}
               {r.richiamare_il ? giorno(r.richiamare_il) : r.mossa_il ? giorno(r.mossa_il) : ''}
             </td>
-            <td className={`${td} ${largo} truncate whitespace-nowrap tabular-nums text-inchiostro`}>{r.telefono || <span className="text-spento">·</span>}</td>
+            <td className={`${td} ${largo} truncate whitespace-nowrap tabular-nums text-inchiostro`}>{r.telefono || ''}</td>
           </tr>
         ))}
       </tbody>
@@ -318,7 +330,8 @@ function Tabella({ righe, apri }: { righe: RigaTutti[]; apri: (id: string) => vo
 }
 
 /** Il telefono: una lista compatta, un tocco apre la scheda. */
-function Lista({ righe, apri }: { righe: RigaTutti[]; apri: (id: string) => void }) {
+function Lista({ righe: grezze, apri, note }: { righe: RigaTutti[]; apri: (id: string) => void; note: NoteFU }) {
+  const righe = grezze.map((r) => conNota(r, note))
   return (
     <ul className="divide-y divide-velo overflow-hidden rounded-2xl border border-bordo bg-white">
       {righe.map((r) => {
@@ -333,7 +346,7 @@ function Lista({ righe, apri }: { righe: RigaTutti[]; apri: (id: string) => void
               <span className="mt-1 flex min-w-0 items-center gap-2 text-[14px]">
                 <PillolaStato stato={r.stato} />
                 {q && <span className={`shrink-0 ${r.richiamare_il || r.mossa_tua ? 'font-semibold text-inchiostro' : 'text-tenue'}`}>{q}</span>}
-                {r.responsabile && <span className={`min-w-0 truncate ${r.responsabile_tuo ? 'text-inchiostro' : 'text-tenue'}`}>{q ? '· ' : ''}{r.responsabile}</span>}
+                {r.responsabile && <span className={`min-w-0 truncate ${r.responsabile_tuo ? 'text-inchiostro' : 'text-tenue'}`}>{q ? ', ' : ''}{r.responsabile}</span>}
               </span>
               {r.mossa && <span className={`mt-0.5 block truncate text-[14px] ${r.mossa_tua ? 'text-inchiostro' : 'text-tenue'}`}>{r.mossa}</span>}
             </button>

@@ -6,7 +6,7 @@ import {
   eSeguito, faseDi, giornoRoma, listaDaChiamare,
   messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando, recordScelta,
   infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
-  stradeDi, tasso, titoloDomanda, tonoStato, appFerma,
+  stradeDi, tasso, titoloDomanda, tonoStato, appFerma, mossaDiRiga,
   type LeadPerProssimo, type PropostaLead, type Strada,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
@@ -498,5 +498,19 @@ describe("la conversazione al contrario (22/10 notte, Dre: «come l'ordine che h
     expect(filoAlContrario(filo, { mandata: true, il: null })[0].tipo).toBe('analisi')
     expect(filoAlContrario(filo, { mandata: true, il: '2026-09-01T00:00:00Z' }).at(-1)?.tipo).toBe('analisi')
     expect(filoAlContrario([], { mandata: true, il: '2026-10-12T10:00:00Z' })).toEqual([{ tipo: 'analisi' }])
+  })
+})
+
+describe('il prossimo follow-up detto dal sistema (22/10)', () => {
+  const riga = { stato: 'Analisi inviata', mossa: 'Fare follow-up', mossa_il: '2026-10-20', mossa_tua: false }
+  const nota = { nota: 'Prossimo follow-up: gio 23/10', il: '2026-10-23', gruppo: 'FOLLOW UP 1' }
+  it('chi ha l\'analisi mostra cosa ha in programma il sistema, con la sua data', () => {
+    expect(mossaDiRiga(riga, nota)).toEqual({ mossa: 'Prossimo follow-up: gio 23/10', il: '2026-10-23' })
+    expect(mossaDiRiga(riga, { nota: 'Nessun follow-up: ha detto no', il: null, gruppo: null })).toEqual({ mossa: 'Nessun follow-up: ha detto no', il: null })
+  })
+  it('quello che scrive Dre vince, e negli altri stati resta la prossima azione di sempre', () => {
+    expect(mossaDiRiga({ ...riga, mossa: 'Chiamarlo', mossa_tua: true }, nota)).toEqual({ mossa: 'Chiamarlo', il: '2026-10-20' })
+    expect(mossaDiRiga({ ...riga, stato: 'Da chiamare' }, nota)).toEqual({ mossa: 'Fare follow-up', il: '2026-10-20' })
+    expect(mossaDiRiga(riga, null)).toEqual({ mossa: 'Fare follow-up', il: '2026-10-20' })
   })
 })

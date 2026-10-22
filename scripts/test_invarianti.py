@@ -3275,6 +3275,35 @@ def _():
     assert open(os.path.join(qui, "clara.py")).read().count('json.dumps(dati).replace("\\\\u0000", "")') >= 1
 
 
+@prova("il prossimo follow-up nelle Note: una regola sola per chi lo manda e chi lo mostra, e la nota di Dre resta sua (Dre, 22/10)")
+def _():
+    import followup as F, foglio as G
+    oggi = datetime.date(2026, 10, 22)
+    p = {"id": "x", "analysis_sent_at": "2026-10-19T09:00:00+00:00", "last_reply_at": None, "coda": None}
+    assert F.regola_follow_up_1(p, set(), set(), None) == (datetime.date(2026, 10, 24), "analisi mandata il 19/10, nessuna risposta")
+    assert F.regola_follow_up_1(p, {"x"}, set(), None)[0] is None
+    assert F.regola_follow_up_1({**p, "last_reply_at": "2026-10-20T10:00:00+00:00"}, set(), set(), None) == (None, "ha scritto lui dopo l'analisi")
+    assert F.regola_follow_up_1(p, set(), set(), None, "2026-10-21T08:00:00+00:00")[1] == "gli abbiamo già riscritto il 21/10"
+    assert F.giorno_detto(datetime.date(2026, 10, 23), oggi) == "domani" and F.giorno_detto(datetime.date(2026, 10, 27), oggi) == "mar 27/10"
+    assert F.giorno_detto(datetime.date(2026, 10, 20), oggi) == "oggi"
+    assert F.motivo_nessuno({"classificazione": "negativo"}, None) == "ha detto no"
+    assert F.motivo_nessuno({}, "2026-10-20T09:00:00+00:00") == "il follow-up è partito il 20/10, non ne sono previsti altri"
+    assert F.motivo_nessuno({"classificazione": "negativo"}, None, seguiti_spenti=True) == "i follow-up automatici sono spenti"
+    # chi mette in coda e il calendario usano la stessa regola, non una copia
+    src = open(F.__file__, encoding="utf-8").read()
+    assert src.count("= regola_follow_up_1(p, gia, aperte") == 2, "main e calendario devono chiamare la stessa regola"
+    assert '"chiave": "follow_up"' in src
+    # il foglio: la riga del sistema sotto la nota di Dre, e quando si rilegge la cella resta solo la sua
+    cella = G.nota_con_sistema("chiamarlo lunedi", "Prossimo follow-up: gio 23/10")
+    assert cella == "chiamarlo lunedi\nProssimo follow-up: gio 23/10"
+    assert G.norma("nota", cella) == "chiamarlo lunedi", "la riga del sistema non diventa mai una nota di Dre"
+    assert G.norma("nota", "Nessun follow-up: ha detto no") == ""
+    assert G.nota_con_sistema("", "Nessun follow-up: ha detto no") == "Nessun follow-up: ha detto no"
+    fu = {"a": {"nota": "Nessun follow-up: ha detto no", "il": None}, "b": {"nota": "Prossimo follow-up: mar 27/10", "il": "2026-10-27"}}
+    assert G.nota_del_sistema(["a", "b"], fu) == "Prossimo follow-up: mar 27/10", "fra i contatti dell'azienda vince il follow-up in programma"
+    assert "·" not in cella
+
+
 @prova("due alternative per la call: domani finche' ha posti liberi, poi un altro giorno; «domani» vale solo il giorno in cui e' scritto (Dre, 22/10)")
 def _():
     import bozze as Bz, orari as O, seguiti as S, manda as M, types

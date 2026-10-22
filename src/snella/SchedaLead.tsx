@@ -17,7 +17,7 @@ import {
   NOTE_APP, allegaAnalisi, azioneApprovata, confermaStrada, conTestoDiDre, dettaglioStrada, filoAlContrario, giornoRoma, infoStato, mailEGesti,
   messaggioInAttesa, nomeGiorno, nomeStato, ora, prossimoMessaggio, quando, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve,
   sitoCliccabile, stradeDi, statoDi,
-  type ConStrade, type InAttesa, type Strada,
+  type ConStrade, type InAttesa, type NotaFollowUp, type Strada,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
@@ -79,6 +79,8 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           {persona && <span className="text-inchiostro">{persona}</span>}
         </div>
         <p className="mt-1 text-[14px] text-tenue">{ultima ? `Ha scritto ${quando(ultima)}` : 'Non ha mai risposto'}</p>
+        {/* 22/10 (Dre): cosa ha in programma il sistema, la stessa riga delle Note del foglio (scripts/followup.py) */}
+        {dati.followUp?.nota && <p className="mt-1 text-[14px] font-semibold text-inchiostro">{dati.followUp.nota}</p>}
         {/* 21/10: lo «Stato» della Conversazione del foglio, sola lettura (si cambia nel foglio, non qui) */}
         {d?.stato_conv && <p className="mt-1 text-[14px] text-tenue">Nel foglio: <span className="font-semibold text-inchiostro">{d.stato_conv}</span></p>}
         {/* 22/10 notte: con una bozza da decidere l'attivita' sta in due righe, cosi' la bozza sale */}
@@ -123,9 +125,9 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
 
       {mostraProssimo && (
         <Blocco titolo="Il prossimo messaggio di Clara">
-          <ProssimoMessaggio id={id} prossimo={prossimo} fermato={Boolean(lead?.no_followup)} chiuso={chiuso} onFermato={(partite) => {
+          <ProssimoMessaggio id={id} prossimo={prossimo} nota={dati.followUp} fermato={Boolean(lead?.no_followup)} chiuso={chiuso} onFermato={(partite) => {
             setDati((x) => x ? {
-              ...x, calendario: null, lead: x.lead ? { ...x.lead, no_followup: true, coda: null } : x.lead,
+              ...x, calendario: null, followUp: x.followUp ? { nota: 'Nessun follow-up: fermato (niente follow-up su questo lead)', il: null, gruppo: null } : null, lead: x.lead ? { ...x.lead, no_followup: true, coda: null } : x.lead,
               proposte: x.proposte.map((p) => prossimo?.da_chiudere.includes(p.id) && (p.stato === 'aperta' || p.stato === 'approvata')
                 ? { ...p, stato: 'no', risposta: 'NO: fermato da Dre' } : p),
             } : x)
@@ -239,17 +241,19 @@ const RIGHE_MESSAGGIO = 8
 
 /** Il prossimo messaggio che Clara gli mandera': quando, il testo esatto (se e' gia' scritto) e
  *  «Ferma», che chiede conferma prima di fermare questo e i messaggi automatici dopo. */
-function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
-  id: string; prossimo: ReturnType<typeof prossimoMessaggio>; fermato: boolean; chiuso: boolean; onFermato: (partite: number) => void
+function ProssimoMessaggio({ id, prossimo, nota, fermato, chiuso, onFermato }: {
+  id: string; prossimo: ReturnType<typeof prossimoMessaggio>; nota: NotaFollowUp | null; fermato: boolean; chiuso: boolean; onFermato: (partite: number) => void
 }) {
   const [chiedo, setChiedo] = useState(false)
   const [lavoro, setLavoro] = useState(false)
   const [sbaglio, setSbaglio] = useState<string | null>(null)
+  // 22/10: senza una mail gia' scritta, il quando lo dice il sistema (la nota di followup.py), non un conto rifatto qui
+  const delSistema = prossimo?.proposta == null ? nota : null
 
-  if (!prossimo) {
+  if (!prossimo || (delSistema && !delSistema.il)) {
     return (
       <p className="text-[15px] text-tenue">
-        {chiuso ? 'Nessun messaggio automatico.'
+        {delSistema?.nota ? delSistema.nota : chiuso ? 'Nessun messaggio automatico.'
           : fermato ? 'Fermato: Clara non gli scrive finché non risponde lui.' : 'Nessun messaggio in programma.'}
       </p>
     )
@@ -271,7 +275,7 @@ function ProssimoMessaggio({ id, prossimo, fermato, chiuso, onFermato }: {
   return (
     <div className="overflow-hidden rounded-2xl border border-noi-bordo bg-white">
       <p className="border-b border-noi-bordo px-4 py-3 text-[16px] font-bold text-inchiostro">
-        {prossimo.quando}
+        {delSistema?.il ? delSistema.nota : prossimo.quando}
         <span className="block text-[14px] font-normal text-tenue">{prossimo.tipo}</span>
       </p>
       <div className="px-4 py-3">
