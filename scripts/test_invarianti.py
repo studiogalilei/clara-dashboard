@@ -6057,6 +6057,16 @@ def _():
     assert "stanza.mail_personale(" in src and "/pause" in src and "DELETE" not in src.split('"""', 2)[2], "il caricamento usa la regola unica e la pausa, mai DELETE"
 
 
+@prova("la prep delle call tecniche arriva anche a Carlo, una volta, e i soldi non ci sono (Dre, 22/10)")
+def _():
+    import preparo as PR
+    assert PR.CON_CARLO == ("tecnica",), "solo le tecniche: le conoscitive restano di Dre"
+    src = open(PR.__file__, encoding="utf-8").read()
+    assert 'corpo["attendees"] = [{"email": CARLO}]' in src
+    assert '"?sendUpdates=all" if carlo and not gia' in src, "l'invito parte solo se Carlo non l'aveva gia': niente mail ogni ora"
+    assert 'p.pop("canone", None)' in src and "bilancio, prezzo suggerito, valori e importi qui non entrano" in src
+
+
 
 def main():
     falliti = 0

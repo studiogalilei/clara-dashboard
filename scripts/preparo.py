@@ -45,6 +45,12 @@ from google_api import g                                   # noqa: E402
 # libero (non blocca il tempo), dentro la preparazione intera e il link alla scheda.
 CAL = "https://www.googleapis.com/calendar/v3"
 PADRONE = env("GOOGLE_UTENTE") or "dramane@studiogalilei.com"
+# LA PREP ANCHE A CARLO (Dre, 22/10: «inserisci in automatico a Carlo le prep per le call tecniche,
+# come le vedo anch'io»). Le call tecniche le fa lui: l'evento Prep di quelle call lo invita, cosi'
+# gli compare nel suo calendario con la stessa preparazione. Nella preparazione i soldi non entrano
+# gia' dal 29/9, quindi non esce niente di riservato. Le conoscitive restano solo di Dre.
+CARLO = env("CARLO_EMAIL") or "carlo.dprogetti@gmail.com"
+CON_CARLO = ("tecnica",)
 
 
 def calendario_prep(prova):
@@ -78,15 +84,25 @@ def su_google(cid, r, nome, testo, q, prova):
              # notte del 22/10: senza notifica. Prima di una call a Dre arriva una cosa sola, la scheda
              # «Oggi alle HH» (segnale); il «Prep» resta nel calendario da aprire, non suona
              "reminders": {"useDefault": False, "overrides": []}}
+    carlo = (r.get("tipo") or "") in CON_CARLO
+    if carlo:
+        corpo["attendees"] = [{"email": CARLO}]
+        corpo["guestsCanModify"] = False
     if prova:
-        print(f"    [prova] evento Prep {nome} alle {inizio:%d/%m %H:%M}")
+        print(f"    [prova] evento Prep {nome} alle {inizio:%d/%m %H:%M}" + (f" con Carlo" if carlo else ""))
         return
+    base = f"{CAL}/calendars/{urllib.parse.quote(cid)}/events"
     try:
-        g("POST", f"{CAL}/calendars/{urllib.parse.quote(cid)}/events", corpo, email=PADRONE)
+        # l'invito a Carlo parte una volta, quando l'evento nasce
+        g("POST", base + ("?sendUpdates=all" if carlo else ""), corpo, email=PADRONE)
     except RuntimeError as e:
         if "409" in str(e) or "duplicate" in str(e).lower():
             try:
-                g("PUT", f"{CAL}/calendars/{urllib.parse.quote(cid)}/events/{eid}", corpo, email=PADRONE)
+                # c'era gia': si aggiorna in silenzio, e Carlo riceve l'invito solo se non l'aveva
+                prima = g("GET", f"{base}/{eid}", email=PADRONE) or {}
+                gia = any((a.get("email") or "").lower() == CARLO.lower() for a in prima.get("attendees") or [])
+                avvisa = "?sendUpdates=all" if carlo and not gia else "?sendUpdates=none"
+                g("PUT", f"{base}/{eid}{avvisa}", corpo, email=PADRONE)
             except RuntimeError as e2:
                 print(f"    l'evento Prep non si aggiorna: {str(e2)[:120]}")
         else:
