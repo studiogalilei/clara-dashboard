@@ -262,13 +262,24 @@ def e_persona(pr, p):
     return True
 
 
-def filo_cambiato(pr, p):
-    """Le strade ci sono gia': si rifanno solo se il lead ha riscritto dopo."""
+ORE_RIPROVA = 24                     # strade che non reggono: si riprova dopo un giorno, o se il lead riscrive
+
+
+def filo_cambiato(pr, p, ora=None):
+    """Le strade ci sono gia': si rifanno solo se il lead ha riscritto dopo.
+    NIENTE GIRA IN TONDO (22/10, Achille di turno): una proposta su cui le strade non reggono veniva
+    ripagata a ogni giro, ogni 20 minuti, uguale: nella notte 3,17 $ su una sola domanda, e il tetto
+    del giorno finito alle 4:30 per tutti gli altri. Il fallimento ora si ricorda (strade_fallite_il):
+    si riprova solo se il lead ha riscritto dopo, o passato un giorno."""
     az = (pr or {}).get("azione") or {}
+    ultima = (p or {}).get("last_reply_at") or ""
+    fallite = az.get("strade_fallite_il") or ""
+    if not az.get("strade") and fallite:
+        ora = ora or datetime.datetime.now(datetime.timezone.utc)
+        return (bool(ultima) and quando(ultima) > quando(fallite)) or (ora - quando(fallite)) >= datetime.timedelta(hours=ORE_RIPROVA)
     il = az.get("strade_il") or ""
     if not az.get("strade") or not il:
         return True
-    ultima = (p or {}).get("last_reply_at") or ""
     return bool(ultima) and quando(ultima) > quando(il)
 
 
@@ -627,6 +638,23 @@ def salva(pr, p, esito, ora, nuova_domanda=None):
     return pid
 
 
+FALLITE = {}                         # conversazioni ferme senza proposta: prospect_id -> quando le strade non hanno retto
+
+
+def segna_fallite(pr, ora, p=None):
+    """Le strade non reggono: lo si scrive sulla proposta, cosi' il giro dopo non la ripaga uguale
+    (filo_cambiato). La proposta resta a Dre come prima, coi pulsanti di sempre. Per una conversazione
+    ferma senza proposta il ricordo sta in snella_numeri «strade» (conversazioni_fallite)."""
+    if PROVA:
+        return
+    if not pr:
+        if p:
+            FALLITE[p["id"]] = ora.isoformat()
+        return
+    sb("PATCH", f"/rest/v1/proposte?id=eq.{pr['id']}&stato=eq.aperta",
+       {"azione": {**(pr.get("azione") or {}), "strade_fallite_il": ora.isoformat()}})
+
+
 def chiudi_superata(pr, motivo, ora):
     print(f"      si chiude: {motivo}")
     if PROVA:
@@ -660,6 +688,8 @@ def conversazioni_ferme(ora, con_proposta):
     risposte = bozze.risposte_dopo_analisi(ps)
     # 22/10: una domanda gia' chiusa su questa mail (Dre ha scelto, o le strade l'hanno superata) non rinasce
     chiuse = bozze.domande_chiuse(p["id"] for p in ps)
+    # 22/10: una conversazione su cui le strade non hanno retto non si ripaga a ogni giro (filo_cambiato)
+    ps = [p for p in ps if not FALLITE.get(p["id"]) or filo_cambiato({"azione": {"strade_fallite_il": FALLITE[p["id"]]}}, p, ora)]
     return [p for p in ps if bozze.in_conversazione(p, risposte.get(p["id"])) and not bozze.domanda_chiusa(p, chiuse.get(p["id"]))]
 
 
@@ -670,6 +700,8 @@ def conto(speso, generate, aperte_con_strade, scelte, note=None):
         return
     r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.strade") or []
     st = dict((r[0].get("dati") if r else None) or {})
+    soglia = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)).isoformat()
+    st["conversazioni_fallite"] = {k: v for k, v in {**(st.get("conversazioni_fallite") or {}), **FALLITE}.items() if v >= soglia}
     st.update({"tetto_giorno": TETTO_GIORNO, "speso_oggi": round(speso, 4) if speso is not None else None,
                "generate_nel_giro": generate, "aperte_con_strade": aperte_con_strade, "scelte_di_dre": len(scelte),
                "ultimo_giro": datetime.datetime.now(datetime.timezone.utc).isoformat()})
@@ -703,6 +735,11 @@ def main():
     if scelte:
         print(f"  (Dre ha fatto {len(scelte)} scelte da cui imparare)")
     speso = spesa_di_oggi()
+    try:
+        r = sb("GET", "/rest/v1/snella_numeri?select=dati&chiave=eq.strade") or []
+        FALLITE.update(((r[0].get("dati") or {}) if r else {}).get("conversazioni_fallite") or {})
+    except Exception:                                            # noqa: BLE001
+        pass
     aperte = proposte_da_guardare()
     con_strade = sum(1 for pr in aperte if (pr.get("azione") or {}).get("strade"))
     if speso is not None and speso >= TETTO_GIORNO:
@@ -725,7 +762,7 @@ def main():
         if scritta_da_dre(pr.get("azione")):
             print(f"  {nome:34} niente strade: la mail l'ha scritta Dre, non si tocca")
             continue
-        if not RIFAI and not filo_cambiato(pr, p):
+        if not RIFAI and not filo_cambiato(pr, p, ora):
             continue
         if not e_persona(pr, p):
             print(f"  {nome:34} niente strade: non c'e' una persona (autorisposta o casella di servizio)")
@@ -773,6 +810,7 @@ def main():
         except Exception as e:                                   # noqa: BLE001
             print(f"  {nome:34} il modello non ha risposto: {str(e)[:100]}"); continue
         if not esito:
+            segna_fallite(pr, ora, p)
             continue
         speso = (speso or 0.0) + esito["costo"]
         stampa(nome, esito)

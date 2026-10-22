@@ -5151,6 +5151,16 @@ def _():
     assert not S.filo_cambiato(pr, {"last_reply_at": "2026-10-20T10:00:00+00:00"})
     assert S.filo_cambiato(pr, {"last_reply_at": "2026-10-22T08:00:00+00:00"})
     assert S.filo_cambiato({"azione": {}}, {"last_reply_at": "2026-10-20T10:00:00+00:00"})
+    # niente gira in tondo (turno del 22/10): strade che non reggono non si ripagano a ogni giro
+    import datetime as _dt
+    ora = _dt.datetime(2026, 10, 22, 6, 0, tzinfo=_dt.timezone.utc)
+    fallita = {"azione": {"strade_fallite_il": "2026-10-22T00:13:00+00:00"}}
+    assert not S.filo_cambiato(fallita, {"last_reply_at": "2026-10-21T20:00:00+00:00"}, ora), "fallita e il lead non ha riscritto: si aspetta"
+    assert S.filo_cambiato(fallita, {"last_reply_at": "2026-10-22T05:00:00+00:00"}, ora), "il lead ha riscritto: si riprova"
+    assert S.filo_cambiato(fallita, {"last_reply_at": "2026-10-21T20:00:00+00:00"}, ora + _dt.timedelta(hours=S.ORE_RIPROVA)), "passato un giorno: si riprova"
+    src_s = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "strade.py"), encoding="utf-8").read()
+    assert "if not esito:\n            segna_fallite(pr, ora, p)" in src_s and "filo_cambiato(pr, p, ora)" in src_s, "il giro deve ricordare il fallimento"
+    assert "FALLITE.get(p[\"id\"])" in src_s and "conversazioni_fallite" in src_s, "anche le conversazioni ferme senza proposta"
 
 
 @prova("l'allenamento (21/10): la strada che Dre sceglie di solito va prima; tre uguali di fila sullo stesso caso e il sistema non chiede piu'; le scelte entrano nei prompt")
