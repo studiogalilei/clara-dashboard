@@ -11,7 +11,7 @@ export interface Invio { proposta: number; prospect: string; approvata: Date; az
 
 const OGNI_MS = 5000
 
-export function BarraInvio({ invio, chiudi }: { invio: Invio; chiudi: () => void }) {
+export function BarraInvio({ invio, chiudi, finita: alla_fine }: { invio: Invio; chiudi: () => void; finita?: () => void }) {
   const [p, setP] = useState<PropostaInvio | null>(null)
   const [analisiPronta, setAnalisiPronta] = useState(true)
   const [ora, setOra] = useState(() => new Date())
@@ -26,7 +26,10 @@ export function BarraInvio({ invio, chiudi }: { invio: Invio; chiudi: () => void
         const r = await leggiInvio(invio.proposta, invio.prospect)
         if (!vivo) return
         setP(r.proposta); setAnalisiPronta(r.analisiPronta); setRete(false)
-        if (r.proposta && ['fatta', 'no', 'aperta'].includes(r.proposta.stato)) finita.current = true
+        if (r.proposta && ['fatta', 'no', 'aperta'].includes(r.proposta.stato)) {
+          finita.current = true
+          alla_fine?.()                     // la scheda sotto si rilegge: niente piu' «Parte a minuti» quando e' gia' finita
+        }
       } catch {
         if (vivo) setRete(true)
       }
@@ -36,7 +39,7 @@ export function BarraInvio({ invio, chiudi }: { invio: Invio; chiudi: () => void
     const vis = () => { if (document.visibilityState === 'visible') { setOra(new Date()); void guarda() } }
     document.addEventListener('visibilitychange', vis)
     return () => { vivo = false; window.clearInterval(t); document.removeEventListener('visibilitychange', vis) }
-  }, [invio.proposta, invio.prospect])
+  }, [invio.proposta, invio.prospect, alla_fine])
 
   const s: StatoInvio = statoInvio(p, { approvata: invio.approvata, ora, aspettaAnalisi: !analisiPronta })
   // «Inviata» resta qualche secondo e poi se ne va da sola; un errore resta finche' Dre non lo chiude

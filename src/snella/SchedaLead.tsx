@@ -29,6 +29,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
   // 22/10: dopo «Manda» o «Usa questa» la barra dell'invio, che segue lo stato vero fino a «Inviata»
   const [invio, setInvio] = useState<Invio | null>(null)
   const chiudiInvio = useCallback(() => setInvio(null), [])
+  const rilegge = useCallback(() => { void rifai() }, [rifai])
 
   useEffect(() => { window.scrollTo(0, 0) }, [id])
 
@@ -183,7 +184,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           Apri nel Workspace completo <Icona nome="esterno" className="h-4 w-4" />
         </a>
       </p>
-      {invio ? <BarraInvio invio={invio} chiudi={chiudiInvio} /> : avviso}
+      {invio ? <BarraInvio invio={invio} chiudi={chiudiInvio} finita={rilegge} /> : avviso}
     </article>
   )
 }
