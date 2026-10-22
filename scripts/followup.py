@@ -249,7 +249,9 @@ def motivo_nessuno(p, gia_il, perche_regola=None, seguiti_spenti=False):
     if p.get("classificazione") == "rinvio":
         return "ha chiesto di risentirci" + (f" il {p['next_action_date'][8:10]}/{p['next_action_date'][5:7]}, data prima del 7/10: la decidi tu"
                                              if p.get("next_action_date") else ", senza una data")
-    if perche_regola and perche_regola not in ("in coda", "la bozza è già scritta"):
+    if perche_regola == "la bozza è già scritta":
+        return "c'è una sua bozza aperta, il follow-up si programma quando è chiusa"
+    if perche_regola and perche_regola != "in coda":
         return perche_regola
     return "nessuno in programma"
 

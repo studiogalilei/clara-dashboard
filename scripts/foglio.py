@@ -668,6 +668,10 @@ def calcola(dati, st, ora):
             riga["prossimo"] = foglio_lead.prossimo_breve(pids, dati["piano"], ora)
         if fase == INVIATA:
             riga["nota_sistema"] = nota_del_sistema([pid] + [x for x in pids if x != pid], dati.get("follow_up"))
+            if not riga["nota_sistema"] and dati.get("follow_up"):
+                # l'analisi la sa la scheda ma non la riga del lead: il motivo con la stessa regola
+                import followup
+                riga["nota_sistema"] = "Nessun follow-up: " + followup.motivo_nessuno(p, None)
         risposta = s.get("ultima_risposta") or p.get("last_reply_at")
         if fase in (PREP, CONV):
             t = quando(risposta) if risposta else None
