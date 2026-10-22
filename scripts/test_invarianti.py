@@ -3326,6 +3326,18 @@ def _():
     assert "·" not in cella
 
 
+@prova("la barra dell'invio nell'app dice la finestra vera del postino e legge lo stato dal database, mai un timer (Dre, 22/10)")
+def _():
+    import manda as M
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    r = open(os.path.join(base, "src", "snella", "regole.ts"), encoding="utf-8").read()
+    assert f"FINESTRA_INVIO = [{M.ORE_INVIO[0]}, {M.ORE_INVIO[1]}] as const" in r, "la finestra dell'app deve essere quella di manda.py"
+    assert M.ADESSO_DI_DRE_MIN == 10 and "minuti > 10" in r
+    b = open(os.path.join(base, "src", "snella", "Invio.tsx"), encoding="utf-8").read()
+    assert "leggiInvio(" in b and "stato === 'fatta'" in r, "«Inviata» viene da proposte.stato, non da un orologio"
+    assert "·" not in b
+
+
 @prova("due alternative per la call: domani finche' ha posti liberi, poi un altro giorno; «domani» vale solo il giorno in cui e' scritto (Dre, 22/10)")
 def _():
     import bozze as Bz, orari as O, seguiti as S, manda as M, types

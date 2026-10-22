@@ -6,7 +6,7 @@ import {
   eSeguito, faseDi, giornoRoma, listaDaChiamare,
   messaggioInAttesa, motivoFermo, nomeGiorno, perAzienda, piuGiorni, primaRiga, quando, recordScelta,
   infoStato, nomeStato, prossimoMessaggio, scrittoDopo, scritturaNonMandare, scrittureChiusura, scrittureStrada, sitoBreve, sitoCliccabile, spiegaDomanda, statoDi,
-  stradeDi, tasso, titoloDomanda, tonoStato, appFerma, mossaDiRiga,
+  stradeDi, tasso, titoloDomanda, tonoStato, appFerma, mossaDiRiga, statoInvio,
   type LeadPerProssimo, type PropostaLead, type Strada,
 } from './regole'
 import { GRUPPI, INFO_STATI, STATI } from './dati'
@@ -512,5 +512,39 @@ describe('il prossimo follow-up detto dal sistema (22/10)', () => {
     expect(mossaDiRiga({ ...riga, mossa: 'Chiamarlo', mossa_tua: true }, nota)).toEqual({ mossa: 'Chiamarlo', il: '2026-10-20' })
     expect(mossaDiRiga({ ...riga, stato: 'Da chiamare' }, nota)).toEqual({ mossa: 'Fare follow-up', il: '2026-10-20' })
     expect(mossaDiRiga(riga, null)).toEqual({ mossa: 'Fare follow-up', il: '2026-10-20' })
+  })
+})
+
+describe('la barra dell\'invio legge lo stato vero (22/10)', () => {
+  const approvata = new Date('2026-10-22T13:00:00Z')          // le 15 a Roma
+  const dopo = (min: number) => new Date(approvata.getTime() + min * 60_000)
+  const ctx = (min: number, aspettaAnalisi = false) => ({ approvata, ora: dopo(min), aspettaAnalisi })
+  it('approvata: la barra avanza col tempo tipico ma non arriva mai in fondo da sola', () => {
+    const a = statoInvio({ stato: 'approvata', risposta: null, risposta_il: null }, ctx(1))
+    const b = statoInvio({ stato: 'approvata', risposta: null, risposta_il: null }, ctx(60))
+    expect(a.fase).toBe('parte')
+    expect(a.frase).toContain("Puoi chiudere l'app")
+    expect(b.progresso).toBeGreaterThan(a.progresso)
+    expect(b.progresso).toBeLessThan(1)
+    expect(b.frase).toContain('più del solito')
+  })
+  it('«Inviata» solo quando il database dice fatta, con l\'ora vera', () => {
+    const s = statoInvio({ stato: 'fatta', risposta: 'Mandata da Clara alle 15:03', risposta_il: '2026-10-22T13:03:00Z' }, ctx(3))
+    expect(s).toMatchObject({ fase: 'inviata', titolo: 'Inviata', progresso: 1 })
+    expect(s.frase).toBe('Partita alle 15:03.')
+    expect(statoInvio({ stato: 'in_invio', risposta: null, risposta_il: null }, ctx(2)).fase).toBe('partendo')
+  })
+  it('un errore si dice in parole semplici, col motivo del postino', () => {
+    const s = statoInvio({ stato: 'aperta', risposta: 'Non mandata: il PDF dell\'analisi non si apre', risposta_il: null }, ctx(5))
+    expect(s.fase).toBe('ferma')
+    expect(s.frase).toBe("il PDF dell'analisi non si apre")
+  })
+  it('di sera parte domattina; senza analisi aspetta il PDF', () => {
+    const sera = { approvata: new Date('2026-10-22T20:00:00Z'), ora: new Date('2026-10-22T20:20:00Z'), aspettaAnalisi: false }
+    expect(statoInvio({ stato: 'approvata', risposta: null, risposta_il: null }, sera).titolo).toBe('Parte domattina alle 8')
+    expect(statoInvio({ stato: 'approvata', risposta: null, risposta_il: null }, ctx(2, true)).fase).toBe('analisi')
+    for (const x of [statoInvio(null, ctx(0)), statoInvio({ stato: 'approvata', risposta: null, risposta_il: null }, sera)]) {
+      expect(x.titolo + x.frase).not.toContain('·')
+    }
   })
 })

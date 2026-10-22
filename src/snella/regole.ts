@@ -606,3 +606,63 @@ export function appFerma(tag: string | null | undefined, modificabile = false): 
   const t = (tag ?? '').toUpperCase()
   return !(t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || modificabile)
 }
+
+// ── la barra dell'invio (22/10) ──
+
+/** Quanto ci mette davvero una mail approvata da una persona a partire (misurato il 22/10 su proposte, dalle
+ *  8 alle 20): mediana 2,4-4,9 minuti, 8 su 10 entro 8-9 minuti, 19 su 20 entro 10-22. La spedisce manda.py nei
+ *  giri del direttore in cloud, ogni pochi minuti: l'app non c'entra, si puo' chiudere. */
+export const INVIO_TIPICO_MIN = 4.5
+export const INVIO_LUNGO_MIN = 25
+/** La finestra del postino (scripts/manda.py, ORE_INVIO e ADESSO_DI_DRE_MIN): dalle 8 alle 21 di Roma; fuori,
+ *  parte solo se un giro passa entro 10 minuti dal «Manda» di una persona, se no la mattina dopo alle 8. */
+export const FINESTRA_INVIO = [8, 21] as const
+
+export interface StatoInvio {
+  fase: 'parte' | 'partendo' | 'inviata' | 'ferma' | 'notte' | 'analisi'
+  titolo: string; frase: string
+  /** da 0 a 1: segue il tempo vero tipico, arriva a 1 solo quando il database dice «fatta» */
+  progresso: number
+}
+export interface PropostaInvio { stato: string; risposta: string | null; risposta_il: string | null }
+
+function oraRoma(d: Date): number {
+  return Number(new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', hour12: false }).format(d)) % 24
+}
+function hhmm(d: Date): string {
+  return new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' }).format(d)
+}
+
+/** Lo stato vero dell'invio di una proposta approvata, in parole: lo legge dal database (proposte), non da
+ *  un timer. «fatta» = partita (manda.py), «no» o di nuovo «aperta» = non partita col motivo che ha scritto
+ *  il postino. `aspettaAnalisi`: prima risposta e il PDF non c'e' ancora (il postino aspetta). */
+export function statoInvio(p: PropostaInvio | null, ctx: { approvata: Date; ora: Date; aspettaAnalisi: boolean }): StatoInvio {
+  const minuti = Math.max(0, (ctx.ora.getTime() - ctx.approvata.getTime()) / 60_000)
+  const curva = 0.9 * (1 - Math.exp(-minuti / INVIO_TIPICO_MIN))
+  const chiudi = "Puoi chiudere l'app: l'invio continua da solo."
+  const motivo = (t: string | null) => (t ?? '').replace(/^\s*(NO:\s*)?(non mandata:\s*)?/i, '').trim()
+  if (p?.stato === 'fatta') {
+    return { fase: 'inviata', titolo: 'Inviata', frase: p.risposta_il ? `Partita alle ${hhmm(new Date(p.risposta_il))}.` : 'Partita.', progresso: 1 }
+  }
+  if (p?.stato === 'no') {
+    return { fase: 'ferma', titolo: 'Non partita', frase: motivo(p.risposta) || 'Il sistema l\'ha fermata.', progresso: 0 }
+  }
+  if (p?.stato === 'aperta') {
+    return { fase: 'ferma', titolo: 'Non partita: è tornata a te', frase: motivo(p.risposta) || 'Riaprila nella scheda.', progresso: 0 }
+  }
+  const h = oraRoma(ctx.ora)
+  if ((h < FINESTRA_INVIO[0] || h >= FINESTRA_INVIO[1]) && p?.stato !== 'in_invio') {
+    return { fase: 'notte', titolo: minuti > 10 ? 'Parte domattina alle 8' : 'Fuori orario',
+             frase: (minuti > 10 ? 'Di sera la mail aspetta la mattina. ' : 'Se non parte nei prossimi minuti, parte domattina alle 8. ') + chiudi,
+             progresso: Math.min(curva, 0.15) }
+  }
+  if (ctx.aspettaAnalisi && p?.stato !== 'in_invio') {
+    return { fase: 'analisi', titolo: "Aspetta l'analisi", frase: `Parte da sola appena l'analisi è pronta. ${chiudi}`, progresso: Math.min(curva, 0.2) }
+  }
+  if (p?.stato === 'in_invio') {
+    return { fase: 'partendo', titolo: 'Sta partendo', frase: chiudi, progresso: Math.max(curva, 0.92) }
+  }
+  return { fase: 'parte', titolo: 'Attendi qualche minuto: stiamo inviando la mail',
+           frase: minuti > INVIO_LUNGO_MIN ? `Ci sta mettendo più del solito (di solito 3-10 minuti). ${chiudi}` : chiudi,
+           progresso: curva }
+}

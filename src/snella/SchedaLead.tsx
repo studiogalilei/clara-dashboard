@@ -7,7 +7,7 @@
 // 22/10 notte (Dre: «vorrei poterle MODIFICARE», «due-tre alternative tipo ChatGPT», «i messaggi a ritroso, la
 // bozza pronta in alto, come su Smartlead»): sotto il titolo la bozza da decidere, modificabile, con le altre
 // versioni da scegliere; poi il prossimo messaggio; poi la conversazione dal piu' recente; poi i contatti.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   GRUPPI, INFO_STATI, RESPONSABILI, aggiungiNota, chiudiLead, fermaMessaggi, ioSono, leggiScheda, linkAnalisi, mandaDallApp, nonMandareDallApp,
   salvaDecisione, scegliStrada, togliNota,
@@ -21,10 +21,14 @@ import {
 } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
 import { linkCompleto, useAvviso, useDati } from './uso'
+import { BarraInvio, type Invio } from './Invio'
 
 export default function SchedaLead({ id, indietro }: { id: string; indietro: () => void }) {
   const { dati, setDati, errore, caricando, rifai } = useDati(() => leggiScheda(id), [id])
   const { mostra, vista: avviso } = useAvviso()
+  // 22/10: dopo «Manda» o «Usa questa» la barra dell'invio, che segue lo stato vero fino a «Inviata»
+  const [invio, setInvio] = useState<Invio | null>(null)
+  const chiudiInvio = useCallback(() => setInvio(null), [])
 
   useEffect(() => { window.scrollTo(0, 0) }, [id])
 
@@ -109,12 +113,13 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
                 decisione: r.decisione ?? x.decisione,
                 calendario: s.togliCalendario ? null : x.calendario,
               }, r.nota) : x)
-              mostra({ testo: !scelta ? 'Chiuso senza fare nulla' : scelta.azione === 'manda' ? 'Parte al prossimo giro' : scelta.azione === 'ricontatta' ? 'Segnato: da ricontattare'
+              if (scelta?.azione === 'manda') { setInvio({ proposta: strade!.id, prospect: id, approvata: new Date(), azienda }); return }
+              mostra({ testo: !scelta ? 'Chiuso senza fare nulla' : scelta.azione === 'ricontatta' ? 'Segnato: da ricontattare'
                 : scelta.azione === 'chiudi' ? 'Chiuso: non interessato' : scelta.azione === 'chiama' ? 'Da chiamare oggi' : 'Chiuso, nessun gesto' })
             }}
             onMandato={(n, testo) => {
               setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa!.id ? { ...p, stato: 'approvata', bozza: testo } : p) }, n) : x)
-              mostra({ testo: 'Parte al prossimo giro' })
+              setInvio({ proposta: attesa!.id, prospect: id, approvata: new Date(), azienda })
             }}
             onNonMandato={(n) => {
               setDati((x) => x ? conNota({ ...x, proposte: x.proposte.map((p) => p.id === attesa!.id ? { ...p, stato: 'no', risposta: "NO: Dre dall'app" } : p) }, n) : x)
@@ -178,7 +183,7 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
           Apri nel Workspace completo <Icona nome="esterno" className="h-4 w-4" />
         </a>
       </p>
-      {avviso}
+      {invio ? <BarraInvio invio={invio} chiudi={chiudiInvio} /> : avviso}
     </article>
   )
 }

@@ -4,7 +4,7 @@
 // le tabelle del sistema vecchio, non manda mail, non scrive su Smartlead.
 import { supabase } from '../lib/supabase'
 import statiJson from './stati.json'
-import type { LeadPerProssimo, NotaFollowUp, PropostaLead, ScrittureStrada } from './regole'
+import type { LeadPerProssimo, NotaFollowUp, PropostaInvio, PropostaLead, ScrittureStrada } from './regole'
 
 /** I 12 stati della pipeline (Dre, 19/10), nell'ordine e nei gruppi: la fonte unica e' stati.json
  *  (la leggono anche scripts/schede.py e il database, snella_stati). Nient'altro. */
@@ -380,4 +380,17 @@ export async function linkAnalisi(a: SchedaDati['analisi']): Promise<string | nu
     if (data?.signedUrl) return data.signedUrl
   }
   return a.link || null
+}
+
+/** L'INVIO DAL VERO (22/10): lo stato della proposta approvata (lo scrive manda.py: approvata, in_invio, fatta;
+ *  di nuovo aperta o «no» col motivo se non parte) e se l'analisi in PDF c'e' (alla prima risposta il postino
+ *  la aspetta). Sola lettura. */
+export async function leggiInvio(proposta: number, prospect: string): Promise<{ proposta: PropostaInvio | null; analisiPronta: boolean }> {
+  const [p, l] = await Promise.all([
+    supabase.from('proposte').select('stato,risposta,risposta_il').eq('id', proposta).abortSignal(entro()).maybeSingle(),
+    supabase.from('prospects').select('analysis_pdf,analysis_sent_at').eq('id', prospect).abortSignal(entro()).maybeSingle(),
+  ])
+  if (p.error) guasto(p.error)
+  const lead = (l.data as { analysis_pdf: string | null; analysis_sent_at: string | null } | null)
+  return { proposta: (p.data as PropostaInvio | null) ?? null, analisiPronta: Boolean(lead?.analysis_pdf || lead?.analysis_sent_at) }
 }
