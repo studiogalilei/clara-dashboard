@@ -6160,6 +6160,14 @@ def _():
     assert 'q.astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m alle %H:%M")' in src, "l'ora della call in ora di Roma"
 
 
+@prova("una bozza in viaggio conta come doppione: approvata o in invio blocca la gemella, i follow-up restano liberi (22/10)")
+def _():
+    import stanza as S, inspect
+    src = inspect.getsource(S.proponi)
+    assert "stato=in.(aperta,approvata,in_invio)" in src, "una bozza approvata o in invio conta come doppione"
+    assert "stato=eq.fatta" not in src, "le fatte non bloccano qui: i follow-up sono risposte dopo una risposta (li filtra bozze.gia_servita)"
+
+
 
 def main():
     falliti = 0

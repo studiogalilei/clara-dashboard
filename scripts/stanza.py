@@ -452,7 +452,11 @@ def proponi(tipo, titolo, prospect_id=None, perche=None, azione=None, owner=None
         if gia:
             return None
     elif prospect_id:
-        gia = sb("GET", f"/rest/v1/proposte?select=id&stato=eq.aperta"
+        # 22/10: contava solo le aperte. Una bozza «sì» e' rinata 18 secondi dopo che la prima era
+        # partita (in_invio/fatta): il giro aveva letto il lead prima dell'invio. Ora conta anche quella
+        # in viaggio (approvata, in_invio). Le gia' fatte le guarda bozze.gia_servita, che sa
+        # distinguere una risposta doppia da un follow-up voluto.
+        gia = sb("GET", f"/rest/v1/proposte?select=id&stato=in.(aperta,approvata,in_invio)"
                         f"&tipo=eq.{tipo}&prospect_id=eq.{prospect_id}&limit=1")
         if gia:
             return None
