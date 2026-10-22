@@ -1388,7 +1388,7 @@ def _():
     assert R.parte_sua("mandi") == "mandi", "una risposta corta ma vera si legge"
 
 
-@prova("la stessa ora non si propone a piu' di tre persone insieme (caso mercoledi' 7 alle 16, 6/10)")
+@prova("la stessa ora si propone a piu' lead: la verita' e' il calendario vero, niente contatori (Dre, 22/10)")
 def _():
     import bozze as Bz
     vero = Bz.sb
@@ -1397,11 +1397,9 @@ def _():
     try:
         Bz.sb = lambda m, path, corpo=None, h=None: []
         primo = Bz.proposta_giorno_ora()
-        Bz.sb = lambda m, path, corpo=None, h=None: ([{"giorno_proposto": primo}] * 3 if "proposte" in path else [])
-        secondo = Bz.proposta_giorno_ora()
-        assert secondo != primo, f"proposto di nuovo {primo} con tre bozze aperte che lo propongono gia'"
-        Bz.sb = lambda m, path, corpo=None, h=None: ([{"giorno_proposto": primo}] * 2 if "proposte" in path else [])
-        assert Bz.proposta_giorno_ora() == primo, "con due bozze l'ora resta libera"
+        Bz.sb = lambda m, path, corpo=None, h=None: ([{"giorno_proposto": primo}] * 10 if "proposte" in path else [])
+        assert Bz.proposta_giorno_ora() == primo, "un orario gia' offerto ad altri resta proponibile finche' il calendario e' libero"
+        assert "MAX_PER_ORARIO" not in open(Bz.__file__, encoding="utf-8").read()
     finally:
         Bz.sb = vero
         Bz.occupato_google = vero_occ
@@ -3277,10 +3275,64 @@ def _():
     assert open(os.path.join(qui, "clara.py")).read().count('json.dumps(dati).replace("\\\\u0000", "")') >= 1
 
 
-@prova("orari offerti: contano anche le mail gia' partite (16/10)")
+@prova("due alternative per la call: domani finche' ha posti liberi, poi un altro giorno; «domani» vale solo il giorno in cui e' scritto (Dre, 22/10)")
 def _():
-    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py")).read()
-    assert "and(stato.eq.fatta,risposta_il.gte.{dieci})" in src
+    import bozze as Bz, orari as O, seguiti as S, manda as M, types
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    vero_sb, vero_dt, vero_occ = Bz.sb, Bz.datetime, Bz.occupato_google
+
+    def il(anno, mese, giorno):
+        class Finto(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.datetime(anno, mese, giorno, 8, 0, tzinfo=datetime.timezone.utc).astimezone(tz)
+        Bz.datetime = types.SimpleNamespace(datetime=Finto, timedelta=datetime.timedelta, timezone=datetime.timezone, date=datetime.date)
+    try:
+        Bz.sb = lambda m, path, corpo=None, h=None: []
+        Bz.occupato_google = lambda da, a: []
+        il(2026, 10, 21)                                         # mercoledi'
+        e = Bz.due_orari()
+        assert e == "giovedì 22 ottobre alle 14:30 oppure venerdì 23 ottobre alle 10", e
+        assert Bz.orari_da_proporre()[1] == "domani alle 14:30 oppure venerdì 23 ottobre alle 10", Bz.orari_da_proporre()
+        # domani pieno nel calendario vero: niente «domani», il primo giorno libero e un altro
+        Bz.occupato_google = lambda da, a: [(datetime.datetime(2026, 10, 22, 0, 0, tzinfo=roma), datetime.datetime(2026, 10, 22, 23, 0, tzinfo=roma))]
+        e = Bz.due_orari()
+        assert e.startswith("venerdì 23 ottobre alle 14:30 oppure martedì 27 ottobre alle 10"), e
+        assert "domani" not in Bz.orari_da_proporre()[1]
+        # venerdi': domani e' sabato, quindi martedi' e mercoledi' (mai weekend, mai lunedi')
+        Bz.occupato_google = lambda da, a: []
+        il(2026, 10, 23)
+        assert Bz.due_orari().startswith("martedì 27 ottobre alle 14:30 oppure mercoledì 28 ottobre"), Bz.due_orari()
+    finally:
+        Bz.sb, Bz.datetime, Bz.occupato_google = vero_sb, vero_dt, vero_occ
+    # il testo: «domani» e' rispetto al giorno della scrittura, e passa il giorno dopo
+    e = "giovedì 22 ottobre alle 14:30 oppure venerdì 23 ottobre alle 10"
+    assert O.a_parole(e, datetime.date(2026, 10, 21)) == "domani alle 14:30 oppure venerdì 23 ottobre alle 10"
+    assert O.a_parole(e, datetime.date(2026, 10, 20)) == e, "scritto due giorni prima non e' «domani»"
+    assert not O.scaduto("domani alle 15 oppure venerdì 23 ottobre alle 10", datetime.date(2026, 10, 21), datetime.date(2026, 10, 21))
+    assert O.scaduto("domani alle 15 oppure venerdì 23 ottobre alle 10", datetime.date(2026, 10, 21), datetime.date(2026, 10, 22)), \
+        "«domani» scritto ieri e' oggi: non parte cosi'"
+    m = O.frase_proposta("Le propongo una breve videochiamata conoscitiva domani alle 15:30 oppure venerdì 23 ottobre alle 11, ma per comodità")
+    assert m and m.group(0) == "domani alle 15:30 oppure venerdì 23 ottobre alle 11", m
+    assert O.frase_proposta("le avevo scritto martedì 29 settembre alle 10 e non ci siamo sentiti") is None, "un ricordo non e' una proposta"
+    # il template di Dre con due giorni: «nel caso non abbia disponibilità», non «quel giorno»
+    finto = ("## INTERESSATO (3/7)\n```\nSalve,\nVa bene perfetto, vi inoltro qui l'analisi.\nLe propongo domani alle 15:30, ma per comodità le allego qui il calendario così può scegliere l'orario più comodo oppure un altro giorno nel caso domani non abbia disponibilità.\n"
+             "📅 Calendario: https://calendar.app.google/VECCHIO\nA presto,\n```\n")
+    t = S.risposta("INT-01", {}, {}, "https://cal/N", giorno="domani alle 15:30 oppure venerdì 23 ottobre alle 11", testo_file=finto, garanzia=False)
+    assert "Le propongo una breve videochiamata conoscitiva domani alle 15:30 oppure venerdì 23 ottobre alle 11, ma per comodità" in t, t
+    assert "nel caso non abbia disponibilità" in t and "quel giorno" not in t and "·" not in t, t
+    # le bozze vecchie con un orario solo prendono le due alternative (retroattivo); il postino non manda un orario passato
+    vero_due = Bz.due_orari
+    try:
+        Bz.due_orari = lambda da=1: "giovedì 22 ottobre alle 14:30 oppure venerdì 23 ottobre alle 10"
+        r = Bz.orari_nuovi("Salve,\n\nLe propongo una breve videochiamata conoscitiva martedì 27 ottobre alle 15, ma per comodità le allego il calendario nel caso quel giorno non abbia disponibilità.",
+                           {}, "2026-10-21T10:00:00+00:00", datetime.date(2026, 10, 21))
+    finally:
+        Bz.due_orari = vero_due
+    assert r and "conoscitiva domani alle 14:30 oppure venerdì 23 ottobre alle 10, ma" in r[0] and "nel caso non abbia" in r[0], r
+    assert Bz.orari_nuovi("Le propongo domani alle 15 oppure venerdì 23 ottobre alle 10.", {}, "2026-10-21T10:00:00+00:00", datetime.date(2026, 10, 21)) is None
+    src = open(M.__file__, encoding="utf-8").read()
+    assert "orari.frase_proposta(bozza)" in src and "if not scritta_da_dre(az):" in src
 
 
 @prova("posta: un servizio di posta (aruba.it) non indica un'azienda, un rapporto DMARC non e' una mail (17/10)")

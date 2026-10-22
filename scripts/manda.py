@@ -47,6 +47,7 @@ import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, di_clara, contattabile, quando, soldi_clienti, con_soldi, scritta_da_dre, persona_dopo_analisi  # noqa: E402
+import orari                                                       # noqa: E402  (22/10: gli orari proposti, puri)
 
 BASE = "https://server.smartlead.ai/api/v1"
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")          # 6/10: non +2 fisso, se no d'inverno «mandata alle» e' un'ora indietro
@@ -530,6 +531,16 @@ def main():
                            cc=az.get("cc"), let=az.get("lettura"), intento=az.get("intento"), di_dre=scritta_da_dre(az))
         if errori:
             torna_aperta(pr, azienda, "; ".join(errori)[:200], prova); continue
+        # 22/10, LE DUE ALTERNATIVE: «domani alle 15:30» vale solo il giorno in cui e' scritto. Un si'
+        # approvato la sera che aspetta l'analisi parte la mattina dopo: il suo «domani» e' diventato oggi.
+        # Non parte; il giro delle bozze (bozze.rinfresca_orari) rifa' gli orari e al giro dopo parte.
+        # Il testo di Dre no: i suoi orari li ha scritti lui.
+        if not scritta_da_dre(az):
+            frase = orari.frase_proposta(bozza)
+            oggi_roma = datetime.datetime.now(ROMA).date()
+            if frase and orari.scaduto(frase.group(0), orari.scritti_il(az, pr.get("at")) or oggi_roma, oggi_roma):
+                print(f"  {azienda}: propone {frase.group(0)}, ormai passato o di oggi: aspetto che il giro delle bozze rifaccia gli orari")
+                continue
         cid, lid, ultima = thread(p)
         if not ultima:
             torna_aperta(pr, azienda, "non trovo il suo thread su Smartlead", prova); continue

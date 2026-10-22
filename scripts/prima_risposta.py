@@ -401,10 +401,13 @@ def rilettura_seguito(pr, p, letti):
     import bozze
     az = pr.get("azione") or {}
     gruppo = (az.get("lettura") or {}).get("gruppo")
+    import orari
     giorno = az.get("giorno_proposto")
-    if giorno and seguiti.giorno_passato(giorno):
+    rif = orari.scritti_il(az, pr.get("at")) or datetime.date.today()
+    # 22/10: due orari; basta che uno sia passato (anche «domani» scritto ieri) e va rifatta
+    if giorno and (seguiti.giorno_passato(giorno) or orari.scaduto(giorno, rif, datetime.date.today())):
         return "STOP", f"propone {giorno}, che e' gia' passato: va rifatta"
-    ora = seguiti.testo(gruppo, p, letti, bozze.CALENDARIO, giorno=giorno)
+    ora = seguiti.testo(gruppo, p, letti, bozze.CALENDARIO, giorno=orari.a_parole(giorno, rif) if giorno else None)
     if not ora:
         return "STOP", "il codice non sa piu' scriverlo da solo (template o regola cambiati)"
     if ora.strip() != (az.get("bozza") or "").strip():

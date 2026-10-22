@@ -282,7 +282,9 @@ def risposta(intento, p, letti, calendario, giorno=None, attacco=None, periodo=N
             return None                  # il giorno lo decide il calendario di Dre
         # 14/10 (Dre): la call si chiama per nome, «breve videochiamata conoscitiva»
         t = re.sub(r"Le propongo domani alle \d{1,2}(?::\d{2})?", f"Le propongo una breve videochiamata conoscitiva {giorno}", t)
-        t = t.replace("nel caso domani non abbia disponibilità", "nel caso quel giorno non abbia disponibilità")
+        # 22/10: i giorni proposti sono due («domani alle 15:30 oppure venerdì 24 ottobre alle 11»)
+        t = t.replace("nel caso domani non abbia disponibilità", "nel caso non abbia disponibilità" if " oppure " in giorno
+                      else "nel caso quel giorno non abbia disponibilità")
     t = re.sub(r"https://calendar\.app\.google/[A-Za-z0-9]+", calendario, t).replace("{{CALENDARIO}}", calendario)
     if garanzia is None:
         try:
@@ -331,11 +333,11 @@ def converti(prova=True):
         if not p:
             continue
         _, letti = lettura.leggi(p)
-        giorno = bozze.proposta_giorno_ora() if gruppo == "RICONTATTO OOO" else None
+        esteso, giorno = bozze.orari_da_proporre() if gruppo == "RICONTATTO OOO" else (None, None)
         t = testo(gruppo, p, letti, bozze.CALENDARIO, giorno=giorno)
         print(f"  {gruppo:15} {(p.get('company') or p['email'])[:32]:32} {'-> testo di Dre' if t else 'resta com e (il codice non sa scriverlo)'}")
         if t:
-            righe.append({"id": pr["id"], "azienda": p.get("company") or p["email"], "email": p["email"], "t": t, "az": az, "giorno": giorno})
+            righe.append({"id": pr["id"], "azienda": p.get("company") or p["email"], "email": p["email"], "t": t, "az": az, "giorno": esteso})
     if not righe:
         print("niente da convertire"); return 0
     import revisore
@@ -350,7 +352,8 @@ def converti(prova=True):
             continue                    # 22/10: il testo di Dre non lo riscrive nessuno
         az = {**r["az"], "bozza_modello": r["az"].get("bozza"), "bozza": r["t"], "testo_dal_codice": True}
         if r.get("giorno"):
-            az["giorno_proposto"] = r["giorno"]
+            import datetime
+            az.update({"giorno_proposto": r["giorno"], "orari_scritti_il": datetime.date.today().isoformat()})
         if sb("PATCH", f"/rest/v1/proposte?id=eq.{r['id']}&stato=eq.aperta", {"azione": az}, {"Prefer": "return=representation"}):
             n += 1
     print(f"convertite {n} di {len(righe)}" + (" (prova: niente scritto)" if prova else ""))

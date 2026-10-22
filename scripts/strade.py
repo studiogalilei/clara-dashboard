@@ -491,7 +491,7 @@ def testo_per(p, pr, letti, righe, scelte, cellulare, ora):
               "Proponi SOLO quella strada, fatta bene (con la bozza se e' manda): il sistema la prende da solo.") if ab else ""
     return (esempi_per_prompt(scelte) + ab_txt
             + f"\n\nOGGI: {ora.astimezone(ROMA):%A %d %B %Y}. CELLULARE: {'si' if cellulare else 'no'}. "
-            f"SLOT PROPONIBILE (se serve una data per la call): {bozze.proposta_giorno_ora()}. {{{{CALENDARIO}}}} = {bozze.CALENDARIO}"
+            f"ORARI PROPONIBILI (se serve una data per la call, sempre tutti e due, scritti cosi'): {bozze.orari_da_proporre()[1]}. {{{{CALENDARIO}}}} = {bozze.CALENDARIO}"
             f"\n\nLA SCHEDA:\n{json.dumps(fatti_di(p, letti, righe), ensure_ascii=False)}"
             f"\n\nIL LETTORE AI HA LETTO LA SUA ULTIMA MAIL COSI': {lettore_txt}"
             + cosa_aveva

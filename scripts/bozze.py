@@ -51,6 +51,7 @@ import cervello                                            # noqa: E402
 from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile, lettore_di, scritta_da_dre  # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
+import orari                                               # noqa: E402
 
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROVA = "--prova" in sys.argv
@@ -291,7 +292,6 @@ def playbook():
         "PLAYBOOK_OUTBOUND del workflow")
 
 
-MAX_PER_ORARIO = 3        # quante bozze aperte possono proporre la stessa ora (6/10)
 _MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
          "settembre", "ottobre", "novembre", "dicembre"]
 
@@ -347,38 +347,93 @@ def orario_scaduto(testo, oggi):
     return m.group(0) if giorno <= oggi else None
 
 
+def orari_nuovi(testo, az, nata_il, oggi):
+    """GLI ORARI DI UNA BOZZA CHE NON PUO' PARTIRE COSI' (6/10 e 22/10): (testo nuovo, esteso nuovo, perche'),
+    o None se va bene com'e'. Si rifanno quando uno degli orari proposti e' oggi o passato (anche
+    «domani» scritto ieri: e' oggi), e quando ne propone uno solo (la regola del 22/10, retroattiva:
+    sempre due alternative). Cambia solo la frase degli orari, e «nel caso quel giorno» diventa
+    «nel caso» (i giorni ora sono due)."""
+    m = orari.frase_proposta(testo)
+    if not m:
+        return None
+    rif = orari.scritti_il(az, nata_il) or oggi
+    vecchia = m.group(0)
+    letti = orari.leggi(vecchia, rif)
+    if not letti:
+        return None
+    scaduta = any(d <= oggi for d, _, _ in letti)
+    if not scaduta and len(letti) >= 2:
+        return None
+    # chi ha gia' l'analisi e ha detto «piu' avanti» (INT-05/06, 15 giorni, Dre 7/10) resta lontano
+    da = az.get("orari_da_giorni")
+    primo = letti[0][0]
+    if not da:
+        da = (primo - oggi).days if (primo - rif).days >= 10 and primo > oggi else 1
+    e = due_orari(max(1, int(da)))
+    parole = orari.a_parole(e, oggi)
+    nuovo = (testo[:m.start()] + parole + testo[m.end():]).replace(orari.DISPONIBILITA_VECCHIA, orari.DISPONIBILITA)
+    if nuovo == testo:
+        return None
+    perche = (f"proponeva {vecchia}, gia' passato: orari spostati ai prossimi buchi liberi" if scaduta
+              else f"proponeva solo {vecchia}: due alternative (regola di Dre del 22/10)")
+    return nuovo, e, perche
+
+
 def rinfresca_orari():
     """GLI ORARI SCADUTI (6/10). Le bozze «da guardare tu» aspettano Dre anche per giorni, e intanto
     l'orario proposto passa: stanotte undici proponevano il 29/9, l'1/10, il 2/10 o il giorno stesso.
     Approvate cosi', il lead avrebbe ricevuto un invito per un giorno gia' passato. A ogni giro una
-    bozza aperta con l'orario di oggi o passato prende il prossimo buco libero; cambia solo l'orario,
-    e si salva solo se il cancello non trova errori nuovi. Resta la traccia in azione.ritocco."""
-    oggi = datetime.date.today()
+    bozza aperta con l'orario di oggi o passato prende i prossimi buchi liberi; cambia solo l'orario,
+    e si salva solo se il cancello non trova errori nuovi. Resta la traccia in azione.ritocco.
+    22/10: anche le approvate non ancora partite (un si' approvato la sera che aspetta l'analisi
+    parte la mattina dopo: il suo «domani» sarebbe diventato oggi), anche le versioni delle strade,
+    e una bozza con un orario solo prende le due alternative (regola retroattiva). Torna quante."""
+    oggi = datetime.datetime.now(zoneinfo.ZoneInfo("Europe/Rome")).date()
+    n = 0
     # prima solo il testo (il giro passa ogni pochi minuti): l'azione intera solo per chi va sistemata
-    for t in sb("GET", "/rest/v1/proposte?select=id,azione->>bozza,di_dre:azione->>modificata_da_dre&stato=eq.aperta&tipo=in.(risposta,umano)"
+    for t in sb("GET", "/rest/v1/proposte?select=id,at,azione->>bozza,di_dre:azione->>modificata_da_dre,scritti:azione->>orari_scritti_il,"
+                       "strade:azione->strade&stato=in.(aperta,approvata)&tipo=in.(risposta,umano)"
                        "&azione->>bozza=not.is.null&limit=1000") or []:
         if t.get("di_dre"):
             continue                    # 22/10: il testo di Dre non lo riscrive nessuno, nemmeno l'orario
-        vecchio = orario_scaduto(t.get("bozza"), oggi)
-        if not vecchio:
+        rif = {"orari_scritti_il": t.get("scritti")}
+        tocca = orari_nuovi(t.get("bozza"), rif, t.get("at"), oggi) or any(
+            orari_nuovi(s.get("bozza"), rif, t.get("at"), oggi) for s in (t.get("strade") or []) if isinstance(s, dict) and s.get("bozza"))
+        if not tocca:
             continue
-        x = (sb("GET", f"/rest/v1/proposte?select=id,azione&id=eq.{t['id']}&stato=eq.aperta") or [None])[0]
+        x = (sb("GET", f"/rest/v1/proposte?select=id,at,stato,azione&id=eq.{t['id']}&stato=in.(aperta,approvata)") or [None])[0]
         if not x:
             continue
         a = dict(x.get("azione") or {})
         if scritta_da_dre(a):
             continue
-        nuovo = proposta_giorno_ora()
-        testo = a["bozza"].replace(vecchio, nuovo, 1)
-        if set(cancello(testo)) - set(cancello(a["bozza"])):
+        cambi = []
+        r = orari_nuovi(a.get("bozza"), a, x.get("at"), oggi)
+        if r and not (set(cancello(r[0])) - set(cancello(a["bozza"]))):
+            cambi.append(r[2])
+            a.update({"bozza_originale": a.get("bozza_originale") or a["bozza"], "bozza": r[0], "giorno_proposto": r[1]})
+        strade = []
+        for s in a.get("strade") or []:
+            rs = orari_nuovi(s.get("bozza"), a, x.get("at"), oggi) if isinstance(s, dict) and s.get("bozza") else None
+            if rs and not (set(cancello(rs[0])) - set(cancello(s["bozza"]))):
+                s = {**s, "bozza": rs[0]}
+                cambi.append(f"strada «{s.get('etichetta')}»: {rs[2]}")
+            strade.append(s)
+        if not cambi:
             continue
+        if a.get("strade"):
+            a["strade"] = strade
+        n += 1
         if PROVA:
-            print(f"  orario scaduto nella bozza {x['id']}: {vecchio} -> {nuovo}")
+            print(f"  orari da rifare nella bozza {x['id']} ({x['stato']}): " + "; ".join(cambi))
             continue
-        a.update({"bozza_originale": a.get("bozza_originale") or a["bozza"], "bozza": testo, "giorno_proposto": nuovo,
+        a.update({"orari_scritti_il": oggi.isoformat(),
                   "ritocco": {"il": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-                              "da": "rinfresca_orari", "perche": f"proponeva {vecchio}, gia' passato: orario spostato al prossimo buco libero"}})
-        sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}&stato=eq.aperta", {"azione": a})
+                              "da": "rinfresca_orari", "perche": "; ".join(cambi)[:300]}})
+        sb("PATCH", f"/rest/v1/proposte?id=eq.{x['id']}&stato=eq.{x['stato']}", {"azione": a})
+    if n:
+        print(f"  orari rifatti in {n} bozze" + (" (prova: niente scritto)" if PROVA else ""))
+    return n
 
 
 def festivo(g):
@@ -416,17 +471,17 @@ def occupato_google(da, a):
         return []
 
 
-def proposta_giorno_ora(da_giorni=1):
-    """Playbook 1.0, cap. 2: futuro, feriale, mai lo stesso giorno; scritto sempre «giorno + data».
+def _slot_liberi(da_giorni=1):
+    """Il motore degli orari: (primo, cerca) dove `primo` e' il primo buco libero di Dre (datetime di
+    Roma, o None) e `cerca(dal_giorno, fasce)` trova il primo buco libero da quel giorno in poi.
+
+    Playbook 1.0, cap. 2: futuro, feriale, mai lo stesso giorno; scritto sempre «giorno + data».
     14/10 (Dre: «la velocita' e' tutto... il giorno successivo oppure max 2/3 giorni dopo,
     sempre in settimana»): non piu' 48 ore avanti, ma il primo giorno lavorativo utile da
     domani, e dentro i primi tre giorni vince il giorno piu' vicino, non il pomeriggio.
     24/9 (Dre: «per decidere l'ora ha guardato il mio calendario?»): adesso si'.
     Il primo buco libero di Dre nei prossimi giorni feriali, fra le 10 e le
     16:30, saltando la pausa pranzo, a un'ora di distanza da ogni evento suo."""
-    giorni = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
-    mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
-            "settembre", "ottobre", "novembre", "dicembre"]
     # 6/10: il fuso vero di Roma, non +2 fisso. Dal 25/10 (ora solare) il +2 confrontava le
     # call proposte col calendario di Dre spostate di un'ora, e una call alle 14:30 poteva
     # finire proprio sopra un suo impegno alle 14:30.
@@ -436,23 +491,10 @@ def proposta_giorno_ora(da_giorni=1):
     while d.weekday() >= 5:
         d += datetime.timedelta(days=1)
     occupati = []
-    # GLI ORARI GIA' PROPOSTI (6/10): il primo buco libero di Dre lo prendevano tutte le bozze
-    # scritte nello stesso giorno, e quattro prime risposte proponevano mercoledi' 7 alle 16.
-    # Se due dicono si', Dre ha due call alla stessa ora. Un orario offerto in tre bozze aperte
-    # (o approvate e non ancora partite) conta come occupato.
-    offerti = {}
-    try:
-        # 16/10: anche le mail gia' partite negli ultimi 10 giorni. Prima un orario offerto smetteva
-        # di contare appena la mail partiva, e la bozza dopo poteva riproporlo come libero.
-        dieci = (oggi - datetime.timedelta(days=10)).isoformat()
-        for x in sb("GET", "/rest/v1/proposte?select=azione->>giorno_proposto"
-                           f"&or=(stato.in.(aperta,approvata,in_invio),and(stato.eq.fatta,risposta_il.gte.{dieci}))"
-                           "&azione->>giorno_proposto=not.is.null&limit=1000") or []:
-            t = quando_proposto(x.get("giorno_proposto"), oggi.year, roma)
-            if t:
-                offerti[t] = offerti.get(t, 0) + 1
-    except Exception:
-        offerti = {}
+    # GLI ORARI GIA' PROPOSTI: dal 6/10 al 22/10 un orario offerto in tre bozze contava come occupato.
+    # Dre, 22/10: «va bene proporre gli stessi orari a piu' lead nello stesso giorno: quando qualcuno
+    # prenota, quello slot e' occupato nel calendario e non si propone piu'». La verita' e' il calendario
+    # vero al momento in cui si scrive la mail: niente contatori, niente prenotazioni provvisorie.
     try:
         da = (d - datetime.timedelta(days=1)).isoformat(); a = (d + datetime.timedelta(days=15)).isoformat()
         for ev in sb("GET", f"/rest/v1/agenda?select=at,fonte,owner&at=gte.{da}&at=lte.{a}&limit=300") or []:
@@ -467,31 +509,74 @@ def proposta_giorno_ora(da_giorni=1):
     # di Dre: Google dice quando e' occupato, inviti compresi. L'agenda resta come riserva.
     occupati += occupato_google(datetime.datetime(d.year, d.month, d.day, tzinfo=roma) - datetime.timedelta(days=1),
                                 datetime.datetime(d.year, d.month, d.day, tzinfo=roma) + datetime.timedelta(days=15))
-    # Documento Gold (Dre): pomeriggio preferito, mai weekend, mai lunedi' a meno
-    # che lo propongano loro. Quindi prima i pomeriggi della settimana, poi le mattine.
+
+    def libero(t):
+        # libero se la call (fino a un'ora) finisce prima dell'impegno o comincia dopo che e' finito
+        return all(t >= fine or t + datetime.timedelta(hours=1) <= inizio for inizio, fine in occupati)
+
+    def giorno_buono(g):
+        # Documento Gold (Dre): mai weekend, mai lunedi' a meno che lo propongano loro
+        return not (g.weekday() >= 5 or g.weekday() == 0 or festivo(g))
+
+    # Documento Gold (Dre): pomeriggio preferito. Quindi prima i pomeriggi della settimana, poi le mattine.
     # 6/10: prima la settimana (pomeriggi, poi mattine), poi la seguente. Cercando tutti i pomeriggi
     # di due settimane prima delle mattine, con molte bozze aperte si saltava a una settimana dopo
     # (Cosimo, appena detto si', finiva a martedi' 13) mentre giovedi' mattina era libero.
     pomeriggi = ((14, 30), (15, 0), (15, 30), (16, 0), (16, 30))
     mattine = ((10, 0), (10, 30), (11, 0), (11, 30), (12, 0))
-    # 14/10: nei primi tre giorni un giorno alla volta (pomeriggio, poi mattina), cosi' domani mattina
-    # batte giovedi' pomeriggio; solo se sono pieni si torna alla ricerca larga.
-    vicini = [((salto,), pomeriggi + mattine) for salto in range(0, 3)]
-    for quali, fascia in (*vicini, (range(3, 7), pomeriggi), (range(3, 7), mattine), (range(7, 14), pomeriggi), (range(7, 14), mattine)):
-      for salto in quali:
-        g = d + datetime.timedelta(days=salto)
-        if g.weekday() >= 5 or g.weekday() == 0 or festivo(g):
-            continue
-        for ora, minuti in fascia:
-            t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
-            if offerti.get(t, 0) >= MAX_PER_ORARIO:
-                continue
-            # libero se la call (fino a un'ora) finisce prima dell'impegno o comincia dopo che e' finito
-            if all(t >= fine or t + datetime.timedelta(hours=1) <= inizio for inizio, fine in occupati):
-                return f"{giorni[g.weekday()]} {g.day} {mesi[g.month - 1]} alle {ora}" + (f":{minuti:02d}" if minuti else "")
-    while d.weekday() in (0, 5, 6) or festivo(d):
-        d += datetime.timedelta(days=1)
-    return f"{giorni[d.weekday()]} {d.day} {mesi[d.month - 1]} alle 15"
+
+    def cerca(dal, prima=None):
+        """Il primo buco libero dal giorno `dal`: nei primi tre giorni un giorno alla volta (14/10: cosi'
+        domani mattina batte giovedi' pomeriggio), poi la ricerca larga. `prima` = le fasce in ordine."""
+        prima = prima or (pomeriggi, mattine)
+        vicini = [((salto,), prima[0] + prima[1]) for salto in range(0, 3)]
+        for quali, fascia in (*vicini, (range(3, 7), prima[0]), (range(3, 7), prima[1]), (range(7, 14), prima[0]), (range(7, 14), prima[1])):
+            for salto in quali:
+                g = dal + datetime.timedelta(days=salto)
+                if not giorno_buono(g):
+                    continue
+                for ora, minuti in fascia:
+                    t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
+                    if libero(t):
+                        return t
+        return None
+
+    def ripiego(dal):
+        g = dal
+        while not giorno_buono(g):
+            g += datetime.timedelta(days=1)
+        return datetime.datetime(g.year, g.month, g.day, 15, 0, tzinfo=roma)
+
+    return d, cerca, ripiego, (pomeriggi, mattine)
+
+
+def proposta_giorno_ora(da_giorni=1):
+    """Il primo buco libero di Dre, scritto con la data: «giovedì 23 ottobre alle 15:30».
+    Per le mail si usa due_orari (le due alternative, Dre 22/10); questo resta il primo dei due."""
+    d, cerca, ripiego, _ = _slot_liberi(da_giorni)
+    return orari.scritto(cerca(d) or ripiego(d))
+
+
+def due_orari(da_giorni=1):
+    """LE DUE ALTERNATIVE (Dre, 22/10: «proponi sempre due alternative: domani alle HH:MM oppure
+    <giorno> <data> alle HH:MM; domani finche' ha posti liberi, fa percepire che e' qualcosa di piu'
+    importante»). Il primo e' il primo buco libero da domani (la regola del 14/10: domani, se ha un
+    posto libero nel calendario vero di Dre; se no il primo giorno lavorativo libero); il secondo e'
+    un altro giorno, il primo libero dopo, nell'altra fascia (pomeriggio -> mattina) perche' sia
+    davvero un'alternativa. Torna l'esteso («giovedì 23 ottobre alle 15:30 oppure venerdì 24 ottobre
+    alle 11»): come si scrive nella mail lo dice orari.a_parole, il giorno in cui la mail si scrive."""
+    d, cerca, ripiego, (pomeriggi, mattine) = _slot_liberi(da_giorni)
+    primo = cerca(d) or ripiego(d)
+    dopo = primo.date() + datetime.timedelta(days=1)
+    altra = (mattine, pomeriggi) if (primo.hour, primo.minute) in pomeriggi else (pomeriggi, mattine)
+    secondo = cerca(dopo, altra) or ripiego(dopo)
+    return orari.esteso([primo, secondo])
+
+
+def orari_da_proporre(da_giorni=1):
+    """(esteso da salvare, come si scrive oggi nella mail)."""
+    e = due_orari(da_giorni)
+    return e, orari.a_parole(e, datetime.datetime.now(zoneinfo.ZoneInfo("Europe/Rome")).date())
 
 
 ISTRUZIONE = """Sei Clara. Prepari la risposta con l'identita' di Lorenzo; la manda lui
@@ -771,7 +856,7 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
         fatti["gruppo"] = gruppo
         fatti["template_da_usare"] = gruppo
     prompt = (cervello.ruolo("preparatore") + cervello.manuale("testa", "outbound", "template") + cervello.istruzione("contesto") + listino_testo() + "\n\n" + ISTRUZIONE + cervello.istruzione("chat") + cervello.istruzione("bozze") + LEZIONI + casi.simili(ultimo) +
-              f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, slot da proporre = {proposta_giorno_ora()}, oggi e' {datetime.date.today():%A %d %B %Y}"
+              f"\n\nVALORI DA USARE: {{{{CALENDARIO}}}} = {CALENDARIO}, orari da proporre per la call (sempre tutti e due, scritti cosi') = {orari_da_proporre()[1]}, oggi e' {datetime.date.today():%A %d %B %Y}"
               f"\n\nLA SCHEDA:\n{fatti}\n\nL'ULTIMO MESSAGGIO CHE HA SCRITTO:\n{ultimo[:2500]}")
     if riprova:
         prompt += f"\n\nLA BOZZA PRECEDENTE NON E' PASSATA IL CANCELLO PER: {riprova}. Riscrivila correggendo solo quello."
@@ -848,7 +933,10 @@ def testo_di_dre(b, p, letti):
         return b
     # chi ha gia' l'analisi e dice «piu' avanti»: la data a due settimane (Dre, 7/10)
     dopo_analisi = b.get("intento") in ("INT-05", "INT-06") and bool((p or {}).get("analysis_sent"))
-    giorno = proposta_giorno_ora(seguiti.GIORNI_DOPO_ANALISI if dopo_analisi else 1)
+    # 22/10: sempre due alternative («domani alle 15:30 oppure venerdì 24 ottobre alle 11»); nella mail
+    # le parole di oggi, nella proposta l'esteso con le date (orari.py)
+    da_giorni = seguiti.GIORNI_DOPO_ANALISI if dopo_analisi else 1
+    esteso, giorno = orari_da_proporre(da_giorni)
     # 20/10: nel rimbalzo interno la nuova persona va in copia, e lo decide il codice dal testo suo
     cc = in_copia(letti, p) if b.get("intento") in seguiti.RIMBALZI else []
     comp = seguiti.risposta(b.get("intento"), p, letti, CALENDARIO, giorno=giorno, attacco=b.get("attacco"),
@@ -857,7 +945,8 @@ def testo_di_dre(b, p, letti):
     if comp:
         # il giorno si salva solo se il testo lo propone davvero (INT-23 no: conterebbe nel tetto
         # dei tre per orario un'offerta che non c'e')
-        b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": giorno if giorno and giorno in comp else None,
+        b = {**b, "bozza_modello": b["bozza"], "bozza": comp, "dal_codice": True, "giorno": esteso if giorno and giorno in comp else None,
+             "orari_da_giorni": da_giorni,
              "nota": f"il template di Dre parola per parola ({b.get('intento')}); " + (b.get("nota") or "")}
         if cc:
             b["cc"] = cc
@@ -1269,11 +1358,11 @@ def main():
         # 3. LA BOZZA. I follow-up col template li scrive il codice, parola per parola
         # (Dre 29/9, strada A): il modello qui non scrive niente. Se il codice non
         # puo' (template assente, riscrittura richiesta) scrive il motore di sempre.
-        giorno = proposta_giorno_ora() if gruppo == "RICONTATTO OOO" else None
+        esteso, giorno = orari_da_proporre() if gruppo == "RICONTATTO OOO" else (None, None)
         dal_codice = seguiti.testo(gruppo, p, letti, CALENDARIO, giorno=giorno) if gruppo else None
         if dal_codice:
             b = {"intento": gruppo, "template": gruppo, "fermati": "no", "nota": "Modello fisso di Dre, usato parola per parola",
-                 "bozza": dal_codice, "dal_codice": True, "giorno": giorno}
+                 "bozza": dal_codice, "dal_codice": True, "giorno": esteso}
         else:
             b = chiedi_bozza(p, letti["ultima_loro"], gruppo=gruppo, letti=letti)
         if not b:
@@ -1364,7 +1453,9 @@ def main():
             if b.get("dal_codice"):
                 azione["testo_dal_codice"] = True
                 if b.get("giorno"):
-                    azione["giorno_proposto"] = b["giorno"]
+                    # 22/10: l'esteso con le date e il giorno della scrittura («domani» vale solo oggi)
+                    azione.update({"giorno_proposto": b["giorno"], "orari_scritti_il": datetime.date.today().isoformat(),
+                                   "orari_da_giorni": b.get("orari_da_giorni") or 1})
                 if b.get("bozza_modello"):
                     azione["bozza_modello"] = b["bozza_modello"]
                 if b.get("dopo_invio"):
