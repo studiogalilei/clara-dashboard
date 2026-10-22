@@ -28,7 +28,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, scritta_da_macchina                 # noqa: E402
+from stanza import sb, scritta_da_macchina, persona_dopo_analisi  # noqa: E402
 
 PROVA = "--prova" in sys.argv
 FRESCA_ORE = int(sys.argv[sys.argv.index("--ore") + 1]) if "--ore" in sys.argv else 6          # oltre, ci pensano i giri normali: il lampo e' per chi aspetta adesso
@@ -49,7 +49,7 @@ def _corri(nome, argomenti, minuti=8):
         return False
 
 
-CAMPI = "id,email,company,name,classificazione,last_reply_at,analysis_pdf,enriched"
+CAMPI = "id,email,company,name,classificazione,last_reply_at,analysis_pdf,analysis_sent_at,enriched"
 FILTRO = ("&awaiting_us=eq.true&fuori=eq.false&stage=not.in.(cliente,perso,call_fissata,rinviato)"
           "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso,nervoso))")
 
@@ -60,8 +60,12 @@ def di_persona(p):
     catena, si pagava l'analisi e nasceva una bozza di prima risposta (INT-01) per chi non aveva scritto
     niente; un fuori ufficio con la data di rientro diventava una domanda per Dre. Prima_risposta le
     fermava, ma restavano in Posta. Chi l'ha scritta lo dice la regola unica (stanza.scritta_da_macchina,
-    lettore compreso): per un fuori ufficio riprende la sequenza di Smartlead, non il lampo."""
-    return not scritta_da_macchina(p)
+    lettore compreso): per un fuori ufficio riprende la sequenza di Smartlead, non il lampo.
+    E DOPO L'ANALISI LA CONVERSAZIONE E' DI DRE (turno del 22/10, ore 15): chi risponde dopo aver
+    ricevuto l'analisi resta «aspetta noi» finche' Dre non gli scrive, e il lampo lo riprendeva a ogni
+    giro per sei ore (36 corse a vuoto su un lead solo). La catena del lampo finisce all'analisi: una
+    conversazione la porta la notifica, non il lampo (stanza.persona_dopo_analisi, la regola unica)."""
+    return not scritta_da_macchina(p) and not persona_dopo_analisi(p)
 
 
 def fresche():
@@ -81,7 +85,7 @@ def uno(email):
         return []
     p = righe[0]
     if not di_persona(p):
-        print("lampo: l'ultima mail e' una risposta automatica, non un si': niente analisi e niente bozza")
+        print("lampo: risposta automatica o conversazione dopo l'analisi (e' di Dre): niente da fare")
         return []
     aperte = sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=in.(aperta,approvata,in_invio)&limit=1") or []
     if aperte:

@@ -1184,6 +1184,28 @@ def _():
         assert pezzo in t, f"la catena ha perso un pezzo: {pezzo}"
 
 
+@prova("il lampo finisce all'analisi: una conversazione dopo l'analisi e' di Dre, non torna a ogni giro")
+def _():
+    import lampo
+    # turno del 22/10, ore 15: un lead caldo che rispondeva dopo l'analisi restava «aspetta noi» e il
+    # lampo lo riprendeva ogni 10 minuti per sei ore (36 corse a vuoto)
+    persona = {"classificazione": "positivo", "enriched": {"lettore": {"autore": "persona", "classe": "positivo"}}}
+    conv = {**persona, "analysis_sent_at": "2026-10-22T06:04:13+00:00", "last_reply_at": "2026-10-22T07:18:15+00:00"}
+    assert not lampo.di_persona(conv), "il lampo riprende una conversazione dopo l'analisi"
+    si = {**persona, "analysis_sent_at": None, "last_reply_at": "2026-10-22T07:18:15+00:00"}
+    assert lampo.di_persona(si), "il lampo salta un si' senza analisi"
+    assert "analysis_sent_at" in lampo.CAMPI, "il lampo deve leggere analysis_sent_at insieme al lead"
+
+
+@prova("il sync non cade se il campanello ha appena creato lo stesso lead (409)")
+def _():
+    import pathlib
+    t = pathlib.Path(__file__).resolve().parent.joinpath("sync_v2.py").read_text(encoding="utf-8")
+    i = t.index('sb("POST", "/rest/v1/prospects"')
+    blocco = t[i - 200:i + 900]
+    assert "except RuntimeError" in blocco and " 409 " in blocco, "un 409 sul lead nuovo fa cadere tutto il giro del sync"
+
+
 @prova("leggono in due: un freno basta da solo, un via mai da un dubbio")
 def _():
     import lettura as L

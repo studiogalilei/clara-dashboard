@@ -669,9 +669,19 @@ def sincronizza_filo(em, lead, cid, nome_campagna, known, started, firma=None, a
                 "campaign": nome_campagna, "stage": "risposto",
                 "source": "sync_v2", **patch,
             }
-            created = sb("POST", "/rest/v1/prospects", nuovo,
-                         headers={"Prefer": "return=representation"})
-            rec = created[0] if isinstance(created, list) else created
+            try:
+                created = sb("POST", "/rest/v1/prospects", nuovo,
+                             headers={"Prefer": "return=representation"})
+                rec = created[0] if isinstance(created, list) else created
+            except RuntimeError as e:
+                # 22/10: il campanello (risposta.py) puo' creare lo stesso lead mentre il giro e'
+                # a meta': il 409 faceva cadere tutto il sync. Il lead c'e' gia': si aggiorna quello.
+                if " 409 " not in str(e):
+                    raise
+                rec = (sb("GET", f"/rest/v1/prospects?select=*&email=eq.{urllib.parse.quote(em)}&limit=1") or [None])[0]
+                if not rec:
+                    raise
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{rec['id']}", patch)
             known[em] = rec
             # 25/9: chi risponde e non era nel CRM (lead caricato da CSV, mini campagne) e'
             # normale, non un'anomalia: si crea e si dice, senza segnare il giro in errore
