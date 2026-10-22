@@ -387,10 +387,15 @@ export async function linkAnalisi(a: SchedaDati['analisi']): Promise<string | nu
  *  la aspetta). Sola lettura. */
 export async function leggiInvio(proposta: number, prospect: string): Promise<{ proposta: PropostaInvio | null; analisiPronta: boolean }> {
   const [p, l] = await Promise.all([
-    supabase.from('proposte').select('stato,risposta,risposta_il').eq('id', proposta).abortSignal(entro()).maybeSingle(),
-    supabase.from('prospects').select('analysis_pdf,analysis_sent_at').eq('id', prospect).abortSignal(entro()).maybeSingle(),
+    supabase.from('proposte').select('stato,risposta,risposta_il,allega:azione->>allega').eq('id', proposta).abortSignal(entro()).maybeSingle(),
+    supabase.from('prospects').select('analysis_pdf,analysis_sent').eq('id', prospect).abortSignal(entro()).maybeSingle(),
   ])
   if (p.error) guasto(p.error)
-  const lead = (l.data as { analysis_pdf: string | null; analysis_sent_at: string | null } | null)
-  return { proposta: (p.data as PropostaInvio | null) ?? null, analisiPronta: Boolean(lead?.analysis_pdf || lead?.analysis_sent_at) }
+  const pr = p.data as (PropostaInvio & { allega: string | null }) | null
+  const lead = l.data as { analysis_pdf: string | null; analysis_sent: boolean | null } | null
+  // la stessa condizione di manda.py: aspetta il PDF solo alla prima risposta (analisi mai mandata) o se la
+  // mail deve allegarla, e il PDF non c'e' ancora
+  const allega = pr?.allega === 'true'
+  const aspetta = Boolean(lead) && (!lead!.analysis_sent || allega) && !lead!.analysis_pdf
+  return { proposta: pr ? { stato: pr.stato, risposta: pr.risposta, risposta_il: pr.risposta_il } : null, analisiPronta: !aspetta }
 }
