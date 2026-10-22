@@ -1197,6 +1197,35 @@ def _():
     assert "analysis_sent_at" in lampo.CAMPI, "il lampo deve leggere analysis_sent_at insieme al lead"
 
 
+@prova("le bozze rileggono il database prima di scrivere: una mail gia' servita dalla strada veloce non riceve una seconda bozza")
+def _():
+    import bozze as B
+    vero = B.sb
+    def finto(prospect, proposte):
+        return lambda m, path, *a, **k: [prospect] if "/prospects?" in path else proposte
+    try:
+        # turno del 22/10, ore 15: INT-01 mandata alle 13:19:03, la seconda nata alle 13:19:26
+        B.sb = finto({"awaiting_us": False, "last_reply_at": "2026-10-22T13:06:32+00:00"},
+                     [{"id": 1, "at": "2026-10-22T13:17:51+00:00", "stato": "fatta", "tipo": "risposta"}])
+        assert B.gia_servita({"id": "x"}), "una mail gia' servita riceve una seconda bozza"
+        B.sb = finto({"awaiting_us": True, "last_reply_at": "2026-10-22T13:06:32+00:00"},
+                     [{"id": 1, "at": "2026-10-22T13:10:00+00:00", "stato": "approvata"}])
+        assert B.gia_servita({"id": "x"}), "accanto a una proposta approvata ne nasce un'altra"
+        B.sb = finto({"awaiting_us": True, "last_reply_at": "2026-10-22T13:06:32+00:00"},
+                     [{"id": 1, "at": "2026-10-20T09:00:00+00:00", "stato": "fatta", "tipo": "risposta"}])
+        assert B.gia_servita({"id": "x"}) is None, "una risposta vecchia blocca la bozza a una mail nuova"
+        B.sb = finto({"awaiting_us": True, "last_reply_at": "2026-10-09T11:44:56+00:00"},
+                     [{"id": 1, "at": "2026-10-09T16:16:00+00:00", "stato": "fatta", "tipo": "umano"}])
+        assert B.gia_servita({"id": "x"}) is None, "una decisione chiusa (l'analisi rifatta) conta come una mail partita"
+        B.sb = finto({"awaiting_us": False, "coda_il": "2026-10-22T08:00:00+00:00", "last_reply_at": "2026-10-01T08:00:00+00:00"}, [])
+        assert B.gia_servita({"id": "x"}, "FOLLOW UP 1") is None, "un follow-up in coda non aspetta che il lead scriva"
+    finally:
+        B.sb = vero
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bozze.py"), encoding="utf-8").read()
+    i = src.index('pid = proponi("umano" if ferma else "risposta"')
+    assert "gia_servita(p, gruppo)" in src[i - 300:i], "il giro delle bozze scrive senza rileggere"
+
+
 @prova("il sync non cade se il campanello ha appena creato lo stesso lead (409)")
 def _():
     import pathlib

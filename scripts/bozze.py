@@ -1164,6 +1164,29 @@ def no_concorde_ammesso(p):
     return not l or l.get("classe") in ("negativo", "soppresso")
 
 
+def gia_servita(p, gruppo=None):
+    """LA FOTOGRAFIA INVECCHIA (turno del 22/10, ore 15). Il giro legge chi aspetta all'inizio e scrive
+    minuti dopo, quando il modello ha finito: intanto la strada veloce (lampo, manda) puo' aver gia'
+    risposto alla stessa mail. Una seconda INT-01 e' nata 23 secondi dopo l'invio della prima: il
+    postino l'ha fermata («l'analisi risulta gia' mandata»), ma restava aperta in Posta. Qui, appena
+    prima di scrivere, si rilegge il database: torna il motivo per non scrivere, o None."""
+    try:
+        fresco = (sb("GET", f"/rest/v1/prospects?select=awaiting_us,last_reply_at,coda,coda_il&id=eq.{p['id']}") or [{}])[0]
+        proposte = sb("GET", f"/rest/v1/proposte?select=id,at,stato,tipo&prospect_id=eq.{p['id']}"
+                             "&stato=in.(aperta,approvata,in_invio,fatta)&order=at.desc&limit=5") or []
+    except Exception:                                            # noqa: BLE001
+        return None                       # se non si legge, decidono i cancelli di sempre (database, postino)
+    if any(x["stato"] in ("aperta", "approvata", "in_invio") for x in proposte):
+        return "nel frattempo e' nata un'altra proposta per lui"
+    dal = (fresco.get("coda_il") if gruppo else fresco.get("last_reply_at")) or ""
+    if dal and any(_istante(x["at"]) and _istante(x["at"]) >= _istante(dal) for x in proposte
+                   if x["stato"] == "fatta" and x.get("tipo") == "risposta"):          # una mail partita, non una decisione
+        return "nel frattempo gli abbiamo gia' risposto"
+    if not gruppo and fresco.get("awaiting_us") is False:
+        return "nel frattempo non aspetta piu' noi"
+    return None
+
+
 def main():
     global LEZIONI
     print("LE BOZZE" + (" (prova: non scrive niente)" if PROVA else ""))
@@ -1474,6 +1497,10 @@ def main():
             inviata = p.get("analysis_sent_at") or ""
             if p.get("analysis_pdf") and inviata and inviata < (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)).isoformat():
                 azione["allega"] = True
+            servita = gia_servita(p, gruppo)
+            if servita:
+                print(f"      non la scrivo: {servita}")
+                continue
             pid = proponi("umano" if ferma else "risposta", titolo, prospect_id=p["id"], perche=perche, azione=azione)
             if pid and gruppo:
                 sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None})
