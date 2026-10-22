@@ -6168,6 +6168,32 @@ def _():
     assert "stato=eq.fatta" not in src, "le fatte non bloccano qui: i follow-up sono risposte dopo una risposta (li filtra bozze.gia_servita)"
 
 
+@prova("l'ispettore non grida al lupo: il no conta se e' arrivato prima del passo, e un rimbalzo non e' una risposta (22/10)")
+def _():
+    import ispettore as I, datetime as D
+    t = D.datetime(2026, 10, 22, 12, 4, tzinfo=D.timezone.utc)
+    assert I.risposta_vera({"reply_time": "2026-10-22T11:05:36Z", "is_bounced": True}) is None, "un rimbalzo non e' una risposta"
+    assert I.risposta_vera({"reply_time": "2026-10-22T11:05:36Z", "is_bounced": False})
+    assert I.no_prima_di({"id": "x", "last_reply_at": "2026-10-22T11:00:00Z"}, t), "no alle 11, passo alle 12:04: grave"
+    assert I.no_prima_di({"id": "x", "last_reply_at": None}, t), "classe senza risposta: vale da sempre"
+    vero_sb = I.sb
+    I.sb = lambda *a, **k: []
+    try:
+        assert not I.no_prima_di({"id": "x", "last_reply_at": "2026-10-22T12:06:00Z"}, t), "passo alle 12:04, no alle 12:06: non e' un no ignorato"
+        riga = {"sent_time": "2026-10-22T12:04:00Z", "lead_email": "a@b.it", "sequence_number": 3, "_campagna": "c", "_cid": 1,
+                "email_subject": "x", "email_message": "y"}
+        p = {"id": "x", "classificazione": "negativo", "fuori": False, "last_reply_at": "2026-10-22T12:06:00Z", "_cliente": False}
+        g, _ = I.controlla_sequenze([riga], {"a@b.it": p}, set(), t - D.timedelta(hours=1))
+        assert not [k for k, _ in g if k.startswith("no:")], g
+        p["last_reply_at"] = "2026-10-22T11:00:00Z"
+        g, _ = I.controlla_sequenze([riga], {"a@b.it": p}, set(), t - D.timedelta(hours=1))
+        assert [k for k, _ in g if k.startswith("no:")], "il no vero resta grave"
+    finally:
+        I.sb = vero_sb
+    src = open(I.__file__, encoding="utf-8").read().split("def risposta_vera", 1)[1].split("\n", 3)[3]
+    assert 'r.get("reply_time")' not in src and "r[\"reply_time\"]" not in src, "ogni reply_time di Smartlead passa da risposta_vera"
+
+
 
 def main():
     falliti = 0

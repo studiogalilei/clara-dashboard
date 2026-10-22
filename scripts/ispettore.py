@@ -163,6 +163,23 @@ def quando(iso):
         return None
 
 
+def risposta_vera(r):
+    """L'ora della risposta di una riga di Smartlead, o None: un rimbalzo ha reply_time ma non e' una risposta."""
+    return None if r.get("is_bounced") else quando(r.get("reply_time"))
+
+
+def no_prima_di(p, t):
+    """Il lead aveva gia' risposto prima dell'invio delle `t`? Il «no» conta solo se e' arrivato prima:
+    un passo partito alle 12:04 a chi dice no alle 12:06 non e' un passo a chi aveva detto no."""
+    ultima = quando(p.get("last_reply_at"))
+    if not ultima:
+        return True          # classe messa senza una risposta (es. fuori target): vale da sempre
+    if ultima < t:
+        return True
+    return bool(sb("GET", f"/rest/v1/interactions?select=id&prospect_id=eq.{p['id']}&kind=eq.email_in"
+                          f"&at=lt.{urllib.parse.quote(t.isoformat())}&limit=1"))
+
+
 def pulito(html):
     t = re.sub(r"(?is)<(style|script)[^>]*>.*?</\1>", " ", str(html or ""))
     t = re.sub(r"(?i)<br\s*/?>|</p>|</div>", "\n", t)
@@ -240,7 +257,7 @@ def controlla_sequenze(righe, per, dom_clienti, da):
             gravi.append((f"dominio:{mail}:{passo}", f"{chi}: stessa azienda di un cliente ({dominio(mail)}), ha ricevuto la sequenza ({dove})"))
         elif p and p.get("stage") in PIPELINE:
             gravi.append((f"pipeline:{mail}:{passo}", f"{chi} e' in pipeline ({p['stage']}) e ha ricevuto la sequenza ({dove})"))
-        elif p and (p.get("classificazione") in HA_DETTO_NO or p.get("fuori")):
+        elif p and (p.get("fuori") or (p.get("classificazione") in HA_DETTO_NO and no_prima_di(p, t))):
             gravi.append((f"no:{mail}:{passo}", f"{chi} aveva detto no ({p.get('classificazione') or 'fuori'}) e ha ricevuto la sequenza ({dove})"))
         elif p and passo >= 2 and quando(p.get("last_reply_at")) and quando(p["last_reply_at"]) < t:
             attenzione.append((f"dopo_risposta:{mail}:{passo}", f"{chi}: follow-up di sequenza partito DOPO che aveva risposto ({dove})"))
@@ -320,7 +337,7 @@ def controlla_salute(campagne, righe, per):
     # risposte arrivate su Smartlead che Clara non ha visto
     giorno = ADESSO - datetime.timedelta(hours=24)
     for r in righe:
-        t = quando(r.get("reply_time"))
+        t = risposta_vera(r)
         if not t or t < giorno or (ADESSO - t).total_seconds() < 3600:
             continue
         mail = str(r.get("lead_email") or "").lower()
@@ -348,17 +365,17 @@ def numeri(campagne, righe, fuori_28):
             xs = [r for r in rr if quando(r.get("sent_time")) and quando(r["sent_time"]) >= da]
             # una persona conta una volta: ha risposto a qualunque passo
             persone = {str(r.get("lead_email")).lower() for r in xs if r.get("sequence_number") == 1}
-            risposto = {str(r.get("lead_email")).lower() for r in rr if r.get("reply_time")} & persone
+            risposto = {str(r.get("lead_email")).lower() for r in rr if risposta_vera(r)} & persone
             voce[finestra] = {"nuovi": len(persone), "risposte": len(risposto),
                               "tasso": round(len(risposto) * 100 / len(persone), 2) if persone else None,
                               "rimbalzi": sum(1 for r in xs if r.get("is_bounced"))}
         for passo in sorted({r.get("sequence_number") or 1 for r in rr}):
             xs = [r for r in rr if (r.get("sequence_number") or 1) == passo and quando(r.get("sent_time")) and quando(r["sent_time"]) >= ventotto]
-            rp = sum(1 for r in xs if quando(r.get("reply_time")) and quando(r["reply_time"]) >= quando(r["sent_time"]))
+            rp = sum(1 for r in xs if risposta_vera(r) and risposta_vera(r) >= quando(r["sent_time"]))
             varianti = collections.Counter(str(r.get("seq_variant_id")) for r in xs)
             voce["passi"][str(passo)] = {"inviati_28g": len(xs), "risposte_dopo": rp, "varianti": dict(varianti)}
         out["oggi"]["inviati"] += sum(1 for r in rr if quando(r.get("sent_time")) and quando(r["sent_time"]).astimezone(ROMA).date() == oggi)
-        out["oggi"]["risposte"] += sum(1 for r in rr if quando(r.get("reply_time")) and quando(r["reply_time"]).astimezone(ROMA).date() == oggi)
+        out["oggi"]["risposte"] += sum(1 for r in rr if risposta_vera(r) and risposta_vera(r).astimezone(ROMA).date() == oggi)
         out["campagne"].append(voce)
     # dopo l'analisi: chi la riceve risponde entro 7 giorni? (giugno 21%, luglio-ottobre 8-15%)
     analisi = [x for x in fuori_28 if "breve presentazione dei nostri servizi" in (x.get("body") or "")
