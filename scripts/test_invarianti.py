@@ -5046,6 +5046,16 @@ def _():
     assert not Bz.fermati_sullo_slot("no") and not Bz.fermati_sullo_slot("") and not Bz.fermati_sullo_slot(None)
     assert not Bz.fermati_sullo_slot("si': nella sua ultima mail sembra dire di no"), "un dubbio sulla persona resta"
     assert 'fermati_sullo_slot(b.get("fermati"))' in src and 'b.get("dal_codice") and b.get("giorno")' in src, "vale solo col giorno scelto dal codice"
+    # 22/10 (turno): il PDF che non c'e' ancora non ferma un si' davanti a Dre: lo aspetta prima_risposta
+    assert Bz.fermati_sul_pdf("sì: analisi PDF da generare prima dell’invio")
+    assert Bz.fermati_sul_pdf("sì: manca il PDF dell’analisi da allegare prima di mandare")
+    assert Bz.fermati_sul_pdf("sì: analisi da preparare e allegare prima di inviare")
+    assert not Bz.fermati_sul_pdf("sì: analisi da generare; nella sua ultima mail sembra dire di no"), "un dubbio sulla persona resta"
+    assert not Bz.fermati_sul_pdf("sì: l'analisi l'ha già avuta") and not Bz.fermati_sul_pdf("no") and not Bz.fermati_sul_pdf(None)
+    assert not Bz.fermati_sul_pdf("si': l'ultima mail loro è un'autorisposta, non una persona")
+    assert 'not gruppo and not niente_analisi and fermati_sul_pdf(b.get("fermati"))' in src, "solo prime risposte con un'analisi che puo' nascere"
+    import prima_risposta as _PR
+    assert Bz.PDF_CLASSI == _PR.CLASSI_OK and Bz.PDF_INTENTI == _PR.INTENTI_OK, "solo i si' che la prima risposta serve: il resto resta a Dre, mai una bozza che nessuno manda"
 
 
 @prova("conversazione (20/10 sera): un sì CALDO prima dell'analisi suona e passa a Dre: «Da chiamare» col cellulare, «Da rispondere» senza; un sì non caldo no")

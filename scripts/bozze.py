@@ -908,6 +908,28 @@ def fermati_sullo_slot(fermati):
     return bool(f) and not f.lower().startswith("no") and bool(SLOT.search(f))
 
 
+PDF_DA_FARE = re.compile(r"\b(?:analisi|pdf)\b.*\b(?:da (?:generare|preparare|fare|creare)|manca|mancante|non (?:c'?\W?e'?|è|e') (?:ancora )?(?:pronta|pronto|disponibile|generat)|non c'?\W?(?:è|e') ancora|in attesa)"
+                         r"|\b(?:manca|mancano|in attesa d)\w*\b.*\b(?:analisi|pdf)\b", re.I)
+
+
+PDF_CLASSI, PDF_INTENTI = ("positivo", "tiepido"), ("INT-01", "INT-03", "INT-23")   # = prima_risposta
+
+
+def fermati_sul_pdf(fermati):
+    """L'ANALISI CHE NON C'E' ANCORA NON E' UN DUBBIO PER DRE (22/10, Achille di turno). Un si' arrivato
+    prima che l'operazione analisi avesse fatto il PDF: il modello fermava la mail («analisi PDF da
+    generare prima dell'invio») e la proposta nasceva «Da guardare tu», ferma per sempre anche quando
+    il PDF arrivava venti minuti dopo (un si' C03 fermo dal 21/10 12:21). Ad aspettare il PDF ci pensa
+    gia' prima_risposta («l'analisi in PDF non c'e'»), e guasti suona se un si' resta senza analisi.
+    Vale solo se OGNI motivo del fermati parla del PDF: un dubbio sulla persona resta."""
+    f = " ".join((fermati or "").split())
+    if not f or f.lower().startswith("no"):
+        return False
+    corpo = re.sub(r"^(?:s[iì]'?|yes)\s*[:,.-]?\s*", "", f, flags=re.I)
+    pezzi = [x.strip() for x in re.split(r"[;|]|, CANCELLO", corpo) if x.strip()]
+    return bool(pezzi) and all(PDF_DA_FARE.search(x) for x in pezzi)
+
+
 def ricomponi_senza_attacco(b, b_modello, p, letti, gruppo, componi=None, giudica=None):
     """LA SECONDA TESTA BOCCIA L'ATTACCO, NON IL TEMPLATE (20/10 sera). Fino all'analisi fa tutto
     il sistema: se il template di Dre composto dal codice e' INCOERENTE solo per l'attacco che il
@@ -1267,6 +1289,10 @@ def main():
             b = testo_di_dre(b, p, letti)
         if b.get("dal_codice") and b.get("giorno") and fermati_sullo_slot(b.get("fermati")):
             b = {**b, "fermati": "no", "nota": f"il modello si fermava per lo slot ({b.get('fermati')}): il giorno lo sceglie il codice sul calendario di Dre (14/10); " + (b.get("nota") or "")}
+        # solo i si' che prima_risposta serve da sola (stesse classi e intenti): il resto resta a Dre
+        if not gruppo and not niente_analisi and fermati_sul_pdf(b.get("fermati")) \
+                and p.get("classificazione") in PDF_CLASSI and b.get("intento") in PDF_INTENTI:
+            b = {**b, "fermati": "no", "nota": f"il modello si fermava per il PDF ({b.get('fermati')}): lo aspetta prima_risposta, e se tarda suona il semaforo; " + (b.get("nota") or "")}
         if not gruppo and b.get("intento") in seguiti.RIMBALZI and "cc" not in b:
             # il codice non ha potuto comporre il template (azienda senza nome): la copia resta
             # quella decisa dal testo suo, e la seconda testa controlla che la bozza la dica
