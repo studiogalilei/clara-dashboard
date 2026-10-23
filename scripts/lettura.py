@@ -65,6 +65,11 @@ NOSTRI = ("studiogalilei", "galilei", "odyn", "smartlead")
 # un indirizzo e poi lo mette sotto i saluti (lettura.ha_gia, 23/10)
 ANNUNCIA_INDIRIZZO = re.compile(r"\b(scrivo|giro|lascio|indico|passo|riporto|ecco)\b[^.?!\n]{0,80}?"
                                 r"\b(e-?mail|mail|indirizz\w*|contatt\w*|riferiment\w*)\b", re.I)
+# «dovrebbe parlarne con il Sig. Mario» e sotto, su una riga sua, mario@: il rimando a una persona
+# col nome, e il suo indirizzo che la firma nascondeva (23/10, un rimbalzo fermo dalla seconda testa)
+RIMANDA_PERSONA = re.compile(r"\b(?:parl\w*|sentir\w*|sentit\w*|rivolg\w*|chied\w*|contatt\w*|scriv\w*|rifer\w*)\s+"
+                             r"(?:con|a|di|al|alla|allo)?\s*(?:il|la|lo|l')?\s*(?:sig\.?r?a?\.?|signor\w*|dott\.?(?:ssa)?|ing\.?|geom\.?)?\s*"
+                             r"([A-Za-zÀ-ÿ]{3,20})\b", re.I)
 
 
 def _segnaposto(b):
@@ -462,6 +467,24 @@ def _sollecito(r, inviata):
     return not CONSEGNA.search(solo_suo(r.get("body") or "", con_firma=True)[:800])
 
 
+
+def dalla_firma(suo, firma, mie, chi_scrive, rimando_vero=lambda e, t: True):
+    """GLI INDIRIZZI SOTTO I SALUTI CHE IL MESSAGGIO INDICA (23/10). Una regola sola per i due modi in
+    cui una persona ci gira a un collega mettendo l'indirizzo dove la firma lo nasconde:
+    - annuncia un indirizzo («le scrivo la mail della titolare»): valgono quelli in firma che non sono
+      suoi (ne' la sua mail, ne' chi scrive, ne' una pec, ne' nostri);
+    - nomina una persona con un verbo di rimando («dovrebbe parlarne con il Sig. Mario»): vale solo
+      l'indirizzo in firma col nome di quella persona dentro (mario@), mai un altro.
+    Mai quello di chi scrive (il suo indirizzo in firma non e' un passaggio di persona)."""
+    buoni = [e.lower() for e in EMAIL.findall(firma or "")
+             if e.lower() not in mie and e.lower() != chi_scrive and not any(n in e.lower() for n in NOSTRI)
+             and rimando_vero(e.lower(), "")]
+    if ANNUNCIA_INDIRIZZO.search(suo or ""):
+        return sorted(set(buoni))
+    nomi = {m.group(1).lower() for m in RIMANDA_PERSONA.finditer(suo or "")}
+    return sorted({e for e in buoni if any(n in re.split(r"[^a-zà-ÿ]+", e.split("@")[0]) for n in nomi)})
+
+
 def ha_gia(p, righe):
     """I fatti che si leggono dal filo senza chiedere a nessuno."""
     loro = [r for r in righe if r["kind"] == "email_in" and not _segnaposto(r.get("body"))]
@@ -507,12 +530,9 @@ def ha_gia(p, righe):
     # rimbalzo partiva senza copia e la seconda testa lo fermava. Se il messaggio ANNUNCIA un
     # indirizzo, quelli in firma che non sono suoi (ne' la sua mail, ne' il suo nome, ne' una pec)
     # valgono come «ci ha girato a».
-    if not girato and ANNUNCIA_INDIRIZZO.search(suo):
-        firma = dividi(testo)[1]
-        chi_scrive = ((ultima_loro or {}).get("mittente") or "").strip().lower()
-        girato = sorted({e.lower() for e in EMAIL.findall(firma)
-                         if e.lower() not in mie and e.lower() != chi_scrive and not any(n in e.lower() for n in NOSTRI)
-                         and _rimando_vero(e.lower(), "")})
+    if not girato:
+        girato = dalla_firma(suo, dividi(testo)[1], mie, ((ultima_loro or {}).get("mittente") or "").strip().lower(),
+                             _rimando_vero)
     # 20/10, i tre follow-up sbagliati: cosa e' successo DOPO l'analisi, da una parte e dall'altra.
     # Un nostro sollecito (anche a mano, da qualunque casella) E' il follow-up; una loro mail
     # (non automatica) e' una conversazione. Si legge dal filo vero, non dalla scheda.

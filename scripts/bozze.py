@@ -48,7 +48,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import casi
 import cervello                                            # noqa: E402
-from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile, lettore_di, scritta_da_dre  # noqa: E402
+from stanza import sb, proponi, quando, senza_trattini, sb_tutte, fit_di, fit_bocciato, contattabile, lettore_di, scritta_da_dre, RIMBALZI_LETTORE  # noqa: E402
 import lettura                                             # noqa: E402
 import seguiti                                             # noqa: E402
 import orari                                               # noqa: E402
@@ -972,6 +972,23 @@ def testo_di_dre(b, p, letti):
     return b
 
 
+def rimbalzo_senza_nessuno(b, p, letti, gruppo=None):
+    """UN RIMBALZO SENZA NESSUNO A CUI RIMBALZARE NON E' UN RIMBALZO (23/10). «Buongiorno! Mail
+    corretta» con l'indirizzo personale in firma: il lettore legge C02 (conferma la mail, un si'),
+    il modello delle bozze INT-09 («scrivo a questo indirizzo») e la proposta restava a Dre come
+    rimbalzo. Se nessuno va in copia (girato_a vuoto), non c'e' un destinatario nuovo e il lettore
+    dice un si' che non e' un passaggio (non C35/C37), la prima risposta e' INT-01."""
+    if not b or gruppo or b.get("intento") not in seguiti.RIMBALZI:
+        return b
+    l = lettore_di(p)
+    if l.get("classe") != "positivo" or l.get("caso") in RIMBALZI_LETTORE or not l.get("caso"):
+        return b
+    if (letti or {}).get("girato_a") or (letti or {}).get("destinatario"):
+        return b
+    return {**b, "intento": "INT-01", "template": "INT-01",
+            "nota": f"il lettore legge {l.get('caso')} e nessuno e' da mettere in copia: un si', INT-01, non un rimbalzo; " + (b.get("nota") or "")}
+
+
 def intento_col_lettore(b, p, gruppo=None):
     """IL SENSO LO DECIDE IL LETTORE (20/10 sera). Un si' caldo («mi mandi tutto e poi ci sentiamo»,
     caso C05) il modello delle bozze lo leggeva INT-23 (il materiale senza la call): la bozza partiva
@@ -1008,8 +1025,11 @@ def fermati_sullo_slot(fermati):
     return bool(f) and not f.lower().startswith("no") and bool(SLOT.search(f))
 
 
-PDF_DA_FARE = re.compile(r"\b(?:analisi|pdf)\b.*\b(?:da (?:generare|preparare|fare|creare)|manca|mancante|non (?:c'?\W?e'?|è|e') (?:ancora )?(?:pronta|pronto|disponibile|generat)|non c'?\W?(?:è|e') ancora|in attesa)"
-                         r"|\b(?:manca|mancano|in attesa d)\w*\b.*\b(?:analisi|pdf)\b", re.I)
+PDF_DA_FARE = re.compile(r"\b(?:analisi|pdf)\b.*\b(?:da (?:generare|preparare|fare|creare)|manca|mancante|non (?:(?:c'?\W?e'?|è|e') )?(?:ancora )?(?:pronta|pronto|disponibile|generat)|non c'?\W?(?:è|e') ancora|in attesa)"
+                         r"|\b(?:manca|mancano|in attesa d)\w*\b.*\b(?:analisi|pdf)\b"
+                         # 23/10: «analisi PDF non pronta; serve generarla e allegarla prima dell'invio»: il
+                         # secondo pezzo parla del PDF col pronome, e il si' restava a Dre per sempre
+                         r"|^(?:serve |va |bisogna |occorre |prima )?(?:generarl[ao]|allegarl[ao]|prepararl[ao]|crearl[ao])\b", re.I)
 
 
 PDF_CLASSI, PDF_INTENTI = ("positivo", "tiepido"), ("INT-01", "INT-03", "INT-23")   # = prima_risposta
@@ -1402,6 +1422,7 @@ def main():
         if not b:
             return (p, gruppo, nome, None, [], letti, None)
         b = intento_col_lettore(b, p, gruppo)
+        b = rimbalzo_senza_nessuno(b, p, letti, gruppo)
         b_modello = None if b.get("dal_codice") else dict(b)     # il testo del modello, per ricomporre senza attacco
         niente_analisi = analisi_impossibile(p)     # 7/10: regola unica, decisione di Dre compresa
         # IL TESTO DI DRE (29/9: «basta seguire questo tutte le volte possibili»): se per

@@ -152,7 +152,7 @@ def _nomi(pids):
 
 
 RIMBALZI = ("INT-08", "INT-09")
-RIMBALZI_LETTORE = ("C35", "C37")       # «scriva a quest'altro indirizzo», «mette in copia un collega»
+from stanza import RIMBALZI_LETTORE                      # noqa: E402,F401  C35, C37: un passaggio a un collega
 
 
 def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):

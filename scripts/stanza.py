@@ -278,6 +278,10 @@ def scritta_da_dre(az):
     return bool((az or {}).get("modificata_da_dre"))
 
 
+# I casi del lettore che sono un passaggio a un collega: C35 «scriva a quest'altro indirizzo», C37 «mette
+# in copia un collega». Una lista sola: la usano il foglio (clara_foglio) e le bozze (bozze.rimbalzo_senza_nessuno).
+RIMBALZI_LETTORE = ("C35", "C37")
+
 def lettore_di(p):
     """LA LETTURA DEL LETTORE AI SULLA SUA ULTIMA MAIL (20/10 sera). sync_v2 la salva in
     enriched.lettore con l'ora della risposta letta (risposta_il): vale solo se e' quella della

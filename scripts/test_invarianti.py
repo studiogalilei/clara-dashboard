@@ -6294,6 +6294,46 @@ def _():
     assert not ispettore.in_finestra(dt.datetime(2026, 10, 23, 3, 0, tzinfo=roma))
 
 
+@prova("un collega nominato e il suo indirizzo sotto, dove la firma lo nasconde, va in copia; mai chi scrive, mai un altro indirizzo in firma (turno del 23/10)")
+def _():
+    import lettura as L
+    mie = {"luca@esempio.invalid"}
+    # il caso vero: «Dovrebbe parlarne con il Sig. mario» e l'indirizzo su una riga sua
+    assert L.dalla_firma("Salve Dovrebbe parlarne con il Sig. mario", "mario@esempio.invalid", mie, "luca@esempio.invalid") == ["mario@esempio.invalid"]
+    # il nome del collega deve stare nell'indirizzo: un altro in firma non passa
+    assert L.dalla_firma("Dovrebbe parlarne con il Sig. Mario", "ufficio@esempio.invalid", mie, "luca@esempio.invalid") == []
+    # chi scrive col suo indirizzo personale in firma («Mail corretta» firmato Paolo) non e' un rimbalzo
+    assert L.dalla_firma("Buongiorno! Mail corretta", "Paolo Rossi 333 paolo@esempio.invalid", {"info@esempio.invalid"}, "info@esempio.invalid") == []
+    # l'annuncio del 23/10 mattina resta: gli indirizzi in firma che non sono suoi
+    assert L.dalla_firma("le scrivo il nominativo della titolare e il suo indirizzo mail", "anna@esempio.invalid", mie, "luca@esempio.invalid") == ["anna@esempio.invalid"]
+    assert L.dalla_firma("le scrivo il suo indirizzo mail", "luca@esempio.invalid", mie, "luca@esempio.invalid") == []
+
+
+@prova("un rimbalzo senza nessuno da mettere in copia e un si' del lettore (non C35/C37) e' INT-01, non resta a Dre (turno del 23/10)")
+def _():
+    import bozze as B
+    si = {"enriched": {"lettore": {"classe": "positivo", "caso": "C02", "fonte": "lettore", "autore": "persona"}}}
+    b = {"intento": "INT-09", "template": "INT-09", "bozza": "x", "nota": ""}
+    assert B.rimbalzo_senza_nessuno(b, si, {"girato_a": []})["intento"] == "INT-01"
+    assert B.rimbalzo_senza_nessuno(b, si, {"girato_a": ["a@esempio.invalid"]}) is b, "con qualcuno in copia resta un rimbalzo"
+    assert B.rimbalzo_senza_nessuno(b, si, {"girato_a": [], "destinatario": "a@esempio.invalid"}) is b
+    c35 = {"enriched": {"lettore": {**si["enriched"]["lettore"], "caso": "C35"}}}
+    assert B.rimbalzo_senza_nessuno(b, c35, {"girato_a": []}) is b, "il lettore dice passaggio: resta a chi lo decide"
+    assert B.rimbalzo_senza_nessuno(b, si, {"girato_a": []}, gruppo="FOLLOW UP 1") is b
+    import inspect
+    assert "rimbalzo_senza_nessuno(b, p, letti, gruppo)" in inspect.getsource(B), "il motore deve usarla davvero"
+    import clara_foglio, stanza
+    assert clara_foglio.RIMBALZI_LETTORE is stanza.RIMBALZI_LETTORE, "una lista sola"
+
+
+@prova("«analisi PDF non pronta; serve generarla e allegarla» non e' un dubbio per Dre: il si' aspetta il PDF (turno del 23/10)")
+def _():
+    import bozze as B
+    assert B.fermati_sul_pdf("sì: analisi PDF non pronta; serve generarla e allegarla prima dell’invio")
+    assert not B.fermati_sul_pdf("sì: analisi PDF non pronta; chiede il prezzo")
+    assert not B.fermati_sul_pdf("sì: serve capire chi e' il titolare")
+
+
 
 def main():
     falliti = 0
