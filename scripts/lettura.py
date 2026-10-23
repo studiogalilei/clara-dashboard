@@ -64,8 +64,14 @@ NOSTRI = ("studiogalilei", "galilei", "odyn", "smartlead")
 
 
 def _segnaposto(b):
-    b = (b or "").strip()
-    return len(b) < 60 or b.lower().startswith("risposta ricevuta") or "smartlead" in b.lower()[:80]
+    """La notifica al posto della risposta vera («Risposta ricevuta (Smartlead)») o un corpo vuoto.
+    23/10 (controllo del venerdi'): qui c'era anche «meno di 60 caratteri», e una risposta corta
+    spariva dal filo come se non ci fosse: «mandali pure grazie» e «Ok va bene. Grazie» erano si'
+    mai serviti da 8 e 11 giorni, e la stessa sorte toccava a «Cancellami» e a «quando siete
+    disponibili per una call?». Corta non vuol dire vuota (la stessa regola del 17/10 in bozze):
+    e' un segnaposto solo se non c'e' una parola."""
+    t = " ".join((b or "").split()).lower()
+    return not re.search(r"[a-zà-ÿ]{2,}", t) or t.startswith("risposta ricevuta") or "smartlead" in t[:80]
 
 
 def _smartlead(p):

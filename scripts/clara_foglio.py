@@ -64,6 +64,10 @@ NOSTRE_INDIETRO = datetime.timedelta(days=120)                  # quanto si guar
 MASTER_INBOX_GIRI = 3                                           # giri del sync falliti di fila prima del rosso
 MASTER_INBOX_VECCHIO = datetime.timedelta(hours=1)              # uno stato piu' vecchio non parla di adesso (il sync fermo lo dice un altro rosso)
 PERSE_VECCHIE = datetime.timedelta(minutes=30)                  # il controllo di completezza vale se e' di questo giro dei guasti
+# 23/10 (controllo del venerdi'): i si' fermi si guardavano solo negli ultimi 3 giorni, e un si' mai servito
+# usciva dal semaforo in silenzio al quarto giorno (due si' del 12 e del 15/10 senza analisi, nessun avviso).
+# Una cosa ferma deve avvisare finche' non si muove (28/9): due settimane, poi e' storia da controllo del venerdi'
+SI_INDIETRO = datetime.timedelta(days=14)
 SEGNALE_VISTO = datetime.timedelta(minutes=20)              # il segnale gira ogni 4-5 minuti: se non lo rivede, e' risolto
 # le operazioni che portano le mail: se si fermano, si perdono lead
 INVIO = {"sync_smartlead": "La lettura delle risposte da Smartlead", "analisi": "La preparazione delle analisi",
@@ -190,7 +194,7 @@ GRADO = {"aperta": 1, "approvata": 2, "in_invio": 3, "fatta": 4}
 
 
 def si_fermi(ora, positivi=None, dopo=None, bozze=None):
-    """I si' degli ultimi 3 giorni senza analisi e senza nessuna mail nostra dopo, piu' i rimbalzi
+    """I si' degli ultimi 14 giorni (SI_INDIETRO) senza analisi e senza nessuna mail nostra dopo, piu' i rimbalzi
     interni ancora da classificare (rimbalzi_fermi). UN SI' E' CHI IL LETTORE HA MESSO «positivo»
     (prospects.classificazione, 20/10 sera): il segnale provvisorio non decide piu'. La sua ora e'
     quella della sua ultima mail. `positivi`, `dopo` ({pid: ultima nostra mail}) e `bozze` si passano
@@ -198,7 +202,7 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
     21/10 sera: UN SI' E' SERVITO SOLO QUANDO L'ANALISI E' PARTITA (analysis_sent, o una nostra mail
     dopo la sua) o la bozza nata dopo il suo si' e' in_invio/fatta. Una bozza approvata che aspetta
     l'analisi resta un si' fermo, col motivo per cui l'analisi non arriva (enriched.analisi.trattenuta)."""
-    da = ora - datetime.timedelta(days=3)
+    da = ora - SI_INDIETRO
     if positivi is None:
         positivi = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,analysis_pdf,fuori,stage,pipeline_stage,no_followup,"
                              f"classificazione,last_reply_at,analisi:enriched->analisi&classificazione=eq.positivo&last_reply_at=gte.{_z(da)}"

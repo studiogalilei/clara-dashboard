@@ -6194,6 +6194,43 @@ def _():
     assert 'r.get("reply_time")' not in src and "r[\"reply_time\"]" not in src, "ogni reply_time di Smartlead passa da risposta_vera"
 
 
+@prova("una risposta corta non e' un segnaposto: «mandali pure grazie» resta nel filo (23/10)")
+def _():
+    import lettura as L, rilettura as R
+    for vero in ("salve Lorenzo mandali pure grazie saluti", "Ok va bene. Grazie ------ Messaggio Originale ------",
+                 "Cancellami", "Buongiorno, quando siete disponibili per una call?", "Per me va bene --------", "No Thanks!"):
+        assert not L._segnaposto(vero), vero
+        assert not R.segnaposto(vero), "la rilettura usa la stessa regola: " + vero
+    for finto in ("Risposta ricevuta (Smartlead)", "", "   ", "--------", "Reply via Smartlead notification"):
+        assert L._segnaposto(finto), finto
+    # il filo li tiene: ha_gia legge l'ultima mail loro anche se e' corta
+    righe = [{"kind": "email_out", "at": "2026-10-12T07:41:00", "body": "Buongiorno, le mando l'analisi?"},
+             {"kind": "email_in", "at": "2026-10-12T07:56:00", "body": "salve Lorenzo mandali pure grazie saluti"}]
+    vero_sl = L.secondo_lettore
+    try:
+        L.secondo_lettore = lambda t: {}
+        f = L.ha_gia({"id": "x", "email": "a@b.it"}, righe)
+    finally:
+        L.secondo_lettore = vero_sl
+    assert "mandali pure" in f["ultima_loro"], f["ultima_loro"]
+
+
+@prova("un si' senza analisi resta nel semaforo oltre i 3 giorni, finche' non e' servito (23/10)")
+def _():
+    import datetime, clara_foglio as C
+    ora = datetime.datetime(2026, 10, 23, 10, 0, tzinfo=datetime.timezone.utc)
+    vero_cont, vero_rimb = C.contattabile, C.rimbalzi_fermi
+    try:
+        C.contattabile = lambda p: True
+        C.rimbalzi_fermi = lambda ora, gia=(), **k: []
+        pos = [{"id": "v", "company": "Vecchio Si'", "classificazione": "positivo", "analysis_sent": False, "fuori": False,
+                "last_reply_at": (ora - datetime.timedelta(days=8)).isoformat()}]
+        assert [x["azienda"] for x in C.si_fermi(ora, positivi=pos, dopo={}, bozze=set())] == ["Vecchio Si'"]
+    finally:
+        C.contattabile, C.rimbalzi_fermi = vero_cont, vero_rimb
+    assert C.SI_INDIETRO >= datetime.timedelta(days=7)
+
+
 
 def main():
     falliti = 0

@@ -295,8 +295,9 @@ def mossa_del_sistema(caso):
         return {**out, "mossa": "NON_RISPONDERE", "chi": "da solo", "perche": "no concorde: riclassificata negativo, attesa chiusa"}
     if dura and dura[0] == "salta":
         return {**out, "mossa": "NON_RISPONDERE", "chi": "da solo", "perche": "saltata: " + dura[1]}
-    if len((f.get("ultima_loro") or "").strip()) < 30:
-        return {**out, "mossa": "NON_RISPONDERE", "chi": "da solo", "perche": "saltata: «l'ultima mail loro e' vuota o illeggibile» (meno di 30 caratteri)"}
+    # la stessa soglia di bozze.py (17/10): corta non vuol dire vuota, si salta solo se non c'e' una parola
+    if not re.search(r"[A-Za-zÀ-ÿ]{2,}", (f.get("ultima_loro") or "").split("  [firma di chi scrive")[0]):
+        return {**out, "mossa": "NON_RISPONDERE", "chi": "da solo", "perche": "saltata: «l'ultima mail loro e' vuota o illeggibile»"}
     bozze = _prepara_bozze()                                        # 4. la bozza di Clara (il modello)
     _LOCALE.righe, _LOCALE.testo_metro = righe, " ".join(caso["testo_metro"].split())
     try:

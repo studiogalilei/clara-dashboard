@@ -65,8 +65,8 @@ def segnaposto(testo):
     parole del modello (5/10: «messaggio di sistema», «testo non disponibile», «automatico
     senza contenuto» passavano il controllo e la classe cambiava ogni notte: Efficasa da
     positivo a «da capire», Bank Station fuori target col blocco dei follow-up acceso)."""
-    t = " ".join((testo or "").split()).lower()
-    return len(t) < 60 or t.startswith("risposta ricevuta") or "smartlead" in t[:80]
+    import lettura                                  # 23/10: la regola vive in un posto solo
+    return lettura._segnaposto(testo)
 
 
 def parte_sua(testo):
