@@ -6334,6 +6334,16 @@ def _():
     assert not B.fermati_sul_pdf("sì: serve capire chi e' il titolare")
 
 
+@prova("a un'agenzia che vende capannoni alle aziende la mail non dice «chi vuole vendere casa» (turno del 23/10)")
+def _():
+    import mercato as M
+    b2b = {"sector": "agenzie_immobiliari", "city": "Milano", "company": "X Immobiliare per l'Impresa",
+           "descrizione": "Vende e affitta capannoni, magazzini logistici e immobili commerciali alle aziende."}
+    assert M.riga_per_mail(b2b) == ""
+    misto = {**b2b, "company": "X", "descrizione": "Agenzia che vende immobili residenziali e commerciali a privati."}
+    assert "vendere casa" in M.riga_per_mail(misto), "chi lavora anche con le case resta com'era"
+
+
 
 def main():
     falliti = 0

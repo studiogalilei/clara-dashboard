@@ -269,9 +269,24 @@ def particolarita(r):
     return None
 
 
+IMPRESE = re.compile(r"capannon|commercial|industrial|logistic|per l.impresa|uffici|retail", re.I)
+PRIVATI = re.compile(r"residenzial|\bcas[ae]\b|abitazion|privat|appartament|turistic|vacanz|ville\b", re.I)
+
+
+def solo_imprese(p):
+    """Un'agenzia immobiliare che lavora solo con le aziende (capannoni, uffici, commerciale) e mai
+    con chi ha una casa: dalla descrizione e dal nome, mai indovinato."""
+    d = (p or {}).get("descrizione") or ""
+    return bool(IMPRESE.search(f"{d} {(p or {}).get('company') or ''}")) and not PRIVATI.search(d)
+
+
 def riga_per_mail(p):
     """Il pezzo dopo «L'analisi è centrata sulla comunicazione su Google»: «: <dato>» o ""."""
     sett, prov = settore_e_provincia(p)
+    if SINONIMI.get(norm(sett or ""), norm(sett or "")) in CHI_COMPRA and solo_imprese(p):
+        # 23/10: un'agenzia che vende capannoni e immobili commerciali alle aziende non parla a «chi vuole
+        # vendere casa»: la seconda testa fermava il si'. Nessuna riga, piuttosto che una sbagliata.
+        return ""
     if SINONIMI.get(norm(sett or ""), norm(sett or "")) in CHI_COMPRA:
         # 14/10: niente numero di chi compra, ma la mail dice a chi parla l'analisi (63 PDF su 67 lo fanno)
         return ", in particolare su chi vuole vendere casa o farla valutare" + (" " + luogo(prov) if prov else "")
