@@ -34,7 +34,10 @@ _TITOLI = {"FOLLOW UP 1": r"##\s*FOLLOW UP 1\s*\n", "MINI FOLLOW UP": r"MINI FOL
 _MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
          "settembre", "ottobre", "novembre", "dicembre"]
 _NON_NOMI = {"salve", "buongiorno", "gentile", "ciao", "info", "amministrazione", "ufficio", "segreteria",
-             "direzione", "marketing", "commerciale", "staff", "team", "admin", "contatti", "vendite"}
+             "direzione", "marketing", "commerciale", "staff", "team", "admin", "contatti", "vendite",
+             # 23/10: «la titolare dell'agenzia» dava «Dell, piacere»: articoli e preposizioni non sono nomi
+             "dell", "della", "dello", "delle", "degli", "del", "dei", "nell", "nella", "alla", "all", "sua", "suo",
+             "nostra", "nostro", "mia", "mio", "che", "per", "con", "agenzia", "azienda", "ditta", "studio"}
 
 
 def template(gruppo, testo_file=None):

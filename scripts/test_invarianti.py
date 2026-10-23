@@ -4803,6 +4803,14 @@ def _():
     # il nome solo se sta nel testo suo: «Mattia» si', «Giovanni» (inventato dal modello) no
     assert bozze.nome_nuovo(letti, "Metto in copia Mattia a info@nuova-azienda.invalid") == "Mattia"
     assert bozze.nome_nuovo({**letti, "ultima_loro": "mandi pure a info@nuova-azienda.invalid"}, "Metto in copia Giovanni") == ""
+    # 23/10: l'intento si legge intero, non tagliato a 7 caratteri
+    assert bozze.intento_da("INT-08 (rimbalzo a un collega)") == "INT-08" and bozze.intento_da(" int-09") == "INT-09"
+    assert bozze.intento_da("INT-08") in seguiti.RIMBALZI and bozze.intento_da("") == "?" and bozze.intento_da(None) == "?"
+    # 23/10: «la titolare dell'agenzia» non e' una persona che si chiama Dell
+    titolare = {**letti, "ultima_loro": "le scrivo la mail della titolare dell’agenzia, il suo indirizzo mail  [firma di chi scrive, non fa parte del messaggio: Cordiali Saluti]"}
+    assert bozze.nome_nuovo(titolare, "Metto in copia valentina@nuova-azienda.invalid") == "", bozze.nome_nuovo(titolare)
+    assert not seguiti._nome_vero("Dell") and not seguiti._nome_vero("Della") and seguiti._nome_vero("Valentina")
+    assert bozze.nome_nuovo({**letti, "ultima_loro": "scriva alla titolare Valentina a info@nuova-azienda.invalid"}) == "Valentina"
     t = seguiti.risposta("INT-08", p, letti, bozze.CALENDARIO, cc=cc, nome_nuovo="Mattia")
     assert t and "Metto in copia Mattia (info@nuova-azienda.invalid)" in t and "(la trova allegata)" in t and "Mattia, piacere:" in t, t
     assert "F.lli Prova appare oggi su Google" in t and bozze.CALENDARIO in t

@@ -884,13 +884,21 @@ def chiedi_bozza(p, ultimo, riprova=None, gruppo=None, letti=None):
         fermati = "si': preflight " + campi["PREFLIGHT"]
     bozza = bozza.replace("{{CALENDARIO}}", CALENDARIO).replace("{{ CALENDARIO }}", CALENDARIO)
     bozza = senza_trattini(bozza)          # 29/9: lo toglie il codice, non un secondo giro del modello
-    return {"intento": campi.get("INTENTO", "?")[:7], "template": gruppo or campi.get("INTENTO", ""),
+    return {"intento": intento_da(campi.get("INTENTO")), "template": gruppo or campi.get("INTENTO", ""),
             "fermati": fermati, "nota": campi.get("NOTA", ""), "bozza": bozza,
             "attacco": campi.get("ATTACCO", ""), "periodo": "" if campi.get("PERIODO", "-").strip() in ("-", "") else campi.get("PERIODO", ""),
             "lettura_di_clara": campi.get("LETTURA", ""), "ha_gia_di_clara": campi.get("HA_GIA", "")}
 
 
 LEZIONI = ""
+
+
+def intento_da(v):
+    """Il codice dell'intento dalla riga del modello. 23/10: «INT-08 (rimbalzo)» tagliato a 7
+    caratteri dava «INT-08 », che non e' un rimbalzo: niente copia, niente template di Dre, e la
+    seconda testa fermava la mail per una copia mancante."""
+    m = re.search(r"INT-(?:\d{2}|GB)", v or "", re.I)
+    return m.group(0).upper() if m else "?"
 
 
 def in_copia(letti, p):
@@ -919,6 +927,9 @@ def nome_nuovo(letti, bozza_modello=None):
     if mb:
         candidati.append(mb.group(1))
     for c in candidati:
+        # 23/10: un nome si scrive con la maiuscola («titolare dell'agenzia» non e' «Dell»)
+        if not c[:1].isupper():
+            continue
         nome = c[:1].upper() + c[1:].lower()
         if seguiti._nome_vero(nome) and re.search(rf"\b{re.escape(c)}\b", suo, re.I):
             return nome
