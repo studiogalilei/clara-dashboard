@@ -505,7 +505,21 @@ def consigli(num, campagne, problemi):
 
 
 # ── il giro ─────────────────────────────────────────────────────────
+# LA FINESTRA (23/10). Dal 22/10 sera GitHub saltava gli orari dell'ispettore (nessuna corsa dalle
+# 00:43 alle 11 di Roma del 23/10): ora lo fa partire il direttore ogni ora, che gira anche di notte.
+# La finestra di prima (8-21 di Roma) la tiene lui; le richieste esplicite passano sempre.
+FORZATO = any(a in sys.argv for a in ("--prova", "--pagella", "--consigli", "--semina"))
+
+
+def in_finestra(ora_roma=None):
+    ora_roma = ora_roma or ORA_ROMA
+    return 8 <= ora_roma.hour < 22
+
+
 def main():
+    if not FORZATO and not in_finestra():
+        print(f"ispettore: fuori finestra ({ORA_ROMA:%H:%M} di Roma, gira dalle 8 alle 22): niente da fare")
+        return
     stato = leggi_stato()
     detti = {k: v for k, v in (stato.get("detti") or {}).items()
              if quando(v) and (ADESSO - quando(v)).total_seconds() < 7 * 86400}

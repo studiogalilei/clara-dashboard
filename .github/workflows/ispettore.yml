@@ -2,10 +2,11 @@
 # risposte scritte a mano, caselle, rimbalzi) e lo confronta col Workspace. Guarda e dice,
 # non tocca: su Smartlead solo letture, le campagne le cambia Dre. Ogni ora dalle 8 alle
 # 21 di Roma; dalle 18 la pagella del giorno, il lunedi' i consigli (scripts/ispettore.py).
+# 23/10: il giro di ogni ora lo fa partire il direttore (operazione «ispettore»): l'orologio di
+# GitHub saltava gli orari per ore (nessuna corsa dalle 00:43 alle 11 del 23/10). Qui resta la
+# partenza a mano, per la pagella o i consigli forzati.
 name: ispettore
 on:
-  schedule:
-    - cron: "41 5-19 * * *"
   workflow_dispatch:
     inputs:
       cosa:

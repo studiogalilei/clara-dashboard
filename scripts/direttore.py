@@ -53,7 +53,8 @@ def adesso():
 # Ora due corsie girano in parallelo, ognuna mai due volte insieme: la pesante (quello che usa il
 # modello a lungo) e la leggera (tutto il resto, ogni 5 minuti). Il postino ha il lucchetto vero
 # (manda.prendi), quindi lampo e la corsia leggera possono girarlo insieme senza doppi invii.
-PESANTI = {"analisi", "lampo", "bozze", "googlefit", "sync_completo", "silenzi", "lezioni", "battito", "salute"}
+PESANTI = {"analisi", "lampo", "bozze", "googlefit", "sync_completo", "silenzi", "lezioni", "battito", "salute",
+           "ispettore"}   # 23/10: l'ispettore parte da qui, GitHub ne saltava gli orari
 # LA TERZA CORSIA (21/10). Il sync di Smartlead dura 4-6 minuti con cadenza 5: nella leggera saturava
 # tutto, e segnale, guasti e conversazioni (cadenza 4-5) giravano ogni 10-12. Ora il sync ha la sua
 # corsia (direttore-sync) e la leggera gira davvero ogni 5 minuti. Le risposte dei lead arrivano

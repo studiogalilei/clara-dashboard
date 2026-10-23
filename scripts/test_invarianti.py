@@ -2398,7 +2398,7 @@ def _():
     assert any("DOPO che aveva risposto" in t for _, t in attenzione)
     assert not any("OK" == t.split(":")[0] for _, t in gravi + attenzione), "il lead pulito non va segnalato"
     wf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".github", "workflows", "ispettore.yml")).read()
-    assert "schedule" in wf and "contents: read" in wf and "scripts/ispettore.py" in wf
+    assert "workflow_dispatch" in wf and "contents: read" in wf and "scripts/ispettore.py" in wf
 
 
 @prova("il Manuale di Clara applicato (12/10): niente indirizzi di lead nel repo, niente DELETE su Smartlead, festività, privacy, regole")
@@ -6276,6 +6276,22 @@ def _():
     assert "googlefit.giudizio_ads" in src and "googlefit.giudizio_meta_ads" in src, "le stesse soglie del fit, una fonte sola"
     assert '"serio" in (g, m)' in src and "/pause" in src and "DELETE" not in src
     assert 'x["status"] != "STARTED"' in src, "solo chi non ha ricevuto nessuna mail"
+
+
+@prova("l'ispettore parte dal direttore, non dall'orologio di GitHub che salta gli orari, e tiene la sua finestra 8-22 (turno del 23/10)")
+def _():
+    import direttore, ispettore, datetime as dt
+    RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert direttore.corsia_di("ispettore") == "pesante"
+    wf = open(os.path.join(RADICE, ".github/workflows/ispettore.yml")).read()
+    assert "schedule:" not in wf and "workflow_dispatch" in wf, "un solo orologio: il direttore"
+    sql = open(os.path.join(RADICE, "supabase/schema_v102.sql")).read()
+    assert "'python3 scripts/ispettore.py', 60" in sql
+    roma = ispettore.ROMA
+    assert ispettore.in_finestra(dt.datetime(2026, 10, 23, 8, 0, tzinfo=roma))
+    assert ispettore.in_finestra(dt.datetime(2026, 10, 23, 21, 59, tzinfo=roma))
+    assert not ispettore.in_finestra(dt.datetime(2026, 10, 23, 22, 0, tzinfo=roma))
+    assert not ispettore.in_finestra(dt.datetime(2026, 10, 23, 3, 0, tzinfo=roma))
 
 
 
