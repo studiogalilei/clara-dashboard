@@ -5462,6 +5462,9 @@ def _():
     assert tocca_a_dre(v, t(11), t(10, 30), an), "Dre risponde alle 10:30, lui riscrive alle 11: suona"
     assert not tocca_a_dre(v, t(10, 20), t(10, 30), an), "la nostra e' dopo la sua: niente"
     assert not tocca_a_dre(v, t(11), t(9, 50), an), "la nostra e' prima della mail gia' notificata: non conta"
+    # 23/10: il giorno dopo riscrive (sposta la call) e Dre gli aveva risposto al telefono: suona di nuovo
+    assert tocca_a_dre(v, t(10) + datetime.timedelta(days=1), t(9, 50), an), "riscrive il giorno dopo: suona"
+    assert not tocca_a_dre(v, t(12, 59), None, an) and tocca_a_dre(v, t(13, 1), None, an), "oltre tre ore suona, prima no"
     # una voce silenziosa del 20/10 (solo «dal»): vale come notificata
     sil = {"dal": "2026-10-21T10:00:00Z", "notificata": True, "silenziosa": True}
     assert not tocca_a_dre(sil, t(10), None, an) and not tocca_a_dre(sil, t(10, 20), None, an)

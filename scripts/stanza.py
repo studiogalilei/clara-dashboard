@@ -350,6 +350,9 @@ def mail_notificata(voce):
     return quando(t) if t else None
 
 
+RISCRIVE_DOPO = datetime.timedelta(hours=3)
+
+
 def tocca_a_dre(voce, mail, nostra, analisi):
     """LA PALLA TORNA A DRE (21/10). Dre: «chiunque risponda dopo l'analisi deve essere riportato,
     questo non puo' sbagliare». La notifica suona ogni volta che la palla torna a lui, non una
@@ -361,7 +364,10 @@ def tocca_a_dre(voce, mail, nostra, analisi):
     - se la nostra ultima mail e' dopo la sua: la palla e' sua, no;
     - mai notificato: si';
     - la stessa mail, o due sue di fila senza una nostra in mezzo: no (una sola);
-    - lui riscrive dopo una nostra mail arrivata dopo la mail gia' notificata: si'."""
+    - lui riscrive dopo una nostra mail arrivata dopo la mail gia' notificata: si';
+    - 23/10: lui riscrive piu' di RISCRIVE_DOPO dopo la mail gia' notificata, anche senza una nostra
+      in mezzo: si'. Dre spesso risponde al telefono, non da Smartlead (un lead con la call fissata
+      che il giorno dopo scrive per spostarla restava muto). Le raffiche di pochi minuti restano una."""
     if not analisi or not mail or mail <= analisi:
         return False
     if nostra and nostra >= mail:
@@ -371,7 +377,7 @@ def tocca_a_dre(voce, mail, nostra, analisi):
         return True
     if mail <= gia:
         return False
-    return bool(nostra and nostra > gia)
+    return bool(nostra and nostra > gia) or mail - gia > RISCRIVE_DOPO
 
 
 def fit_di(p):
