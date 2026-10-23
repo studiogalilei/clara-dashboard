@@ -61,6 +61,10 @@ GIA_LETTA = re.compile(r"(ho|abbiamo|avevo|avevamo) (letto|visto|ricevuto|guarda
 SERVIZIO = re.compile(r"^(assistenza|supporto|support|helpdesk|help|ticket|noreply|no-reply|donotreply|customercare|customer\.?service|servizioclienti)@", re.I)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.I)
 NOSTRI = ("studiogalilei", "galilei", "odyn", "smartlead")
+# «le scrivo la mail della titolare», «le giro il suo indirizzo», «ecco il contatto»: chi annuncia
+# un indirizzo e poi lo mette sotto i saluti (lettura.ha_gia, 23/10)
+ANNUNCIA_INDIRIZZO = re.compile(r"\b(scrivo|giro|lascio|indico|passo|riporto|ecco)\b[^.?!\n]{0,80}?"
+                                r"\b(e-?mail|mail|indirizz\w*|contatt\w*|riferiment\w*)\b", re.I)
 
 
 def _segnaposto(b):
@@ -498,6 +502,16 @@ def ha_gia(p, righe):
     girato = sorted({e.lower() for e in EMAIL.findall(suo) if _rimando_vero(e.lower(), suo)
                      if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI) and e.lower().split("@")[-1] != dom} |
                     {e.lower() for e in EMAIL.findall(suo) if e.lower().split("@")[-1] == dom and e.lower() not in mie})
+    # 23/10 (un si' fermo dal 9/10): «le scrivo il nominativo della titolare e il suo indirizzo
+    # mail», e l'indirizzo sta sotto, dopo «Cordiali saluti», dove la firma lo nascondeva. Il
+    # rimbalzo partiva senza copia e la seconda testa lo fermava. Se il messaggio ANNUNCIA un
+    # indirizzo, quelli in firma che non sono suoi (ne' la sua mail, ne' il suo nome, ne' una pec)
+    # valgono come «ci ha girato a».
+    if not girato and ANNUNCIA_INDIRIZZO.search(suo):
+        firma = dividi(testo)[1]
+        girato = sorted({e.lower() for e in EMAIL.findall(firma)
+                         if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI)
+                         and _rimando_vero(e.lower(), "")})
     # 20/10, i tre follow-up sbagliati: cosa e' successo DOPO l'analisi, da una parte e dall'altra.
     # Un nostro sollecito (anche a mano, da qualunque casella) E' il follow-up; una loro mail
     # (non automatica) e' una conversazione. Si legge dal filo vero, non dalla scheda.

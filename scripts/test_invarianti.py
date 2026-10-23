@@ -3267,6 +3267,30 @@ def _():
     assert schede.dividi("<div>Ciao<br>a presto</div><style>p{color:red}</style>")[0] == "Ciao\na presto"
 
 
+@prova("rimbalzo: l'indirizzo annunciato e messo sotto i saluti e' un «ci ha girato a» (23/10)")
+def _():
+    import lettura
+    vero = lettura.secondo_lettore
+    lettura.secondo_lettore = lambda t: None
+    p = {"email": "monica@agenzia-prova.invalid", "name": "Monica"}
+    def girato(corpo):
+        righe = [{"kind": "email_out", "at": "2026-10-05T07:00", "body": "Salve, le avevo scritto"},
+                 {"kind": "email_in", "at": "2026-10-09T11:39", "body": corpo, "mittente": p["email"]}]
+        return lettura.ha_gia(p, righe)["girato_a"]
+    try:
+        annuncio = ("Buonasera le scrivo la mail della titolare dell'agenzia alla quale puo' interessare. "
+                    "Le scrivo il nominativo della titolare e il suo indirizzo mail\n\nCordiali Saluti\nValentina Prova\n"
+                    "Mail: valentina@agenzia-prova.invalid")
+        assert girato(annuncio) == ["valentina@agenzia-prova.invalid"], girato(annuncio)
+        # senza annuncio un indirizzo in firma resta firma
+        assert girato("Grazie, ci penso.\n\nCordiali Saluti\nValentina Prova\nMail: valentina@agenzia-prova.invalid") == []
+        # annunciato, ma in firma ci sono solo il suo indirizzo, una mail col suo nome o una pec: nessuno
+        assert girato("Le scrivo il mio contatto\n\nCordiali saluti\nMonica\nmonica@agenzia-prova.invalid") == []
+        assert girato("Le lascio il contatto\n\nCordiali saluti\nMonica\nmonica.r@posta-prova.invalid\nagenzia@pec-prova.invalid") == []
+    finally:
+        lettura.secondo_lettore = vero
+
+
 @prova("seconda testa: vede a chi era partita la nostra ultima mail e chi ha scritto la loro (16/10)")
 def _():
     import lettura
