@@ -3273,9 +3273,9 @@ def _():
     vero = lettura.secondo_lettore
     lettura.secondo_lettore = lambda t: None
     p = {"email": "monica@agenzia-prova.invalid", "name": "Monica"}
-    def girato(corpo):
+    def girato(corpo, mittente=p["email"]):
         righe = [{"kind": "email_out", "at": "2026-10-05T07:00", "body": "Salve, le avevo scritto"},
-                 {"kind": "email_in", "at": "2026-10-09T11:39", "body": corpo, "mittente": p["email"]}]
+                 {"kind": "email_in", "at": "2026-10-09T11:39", "body": corpo, "mittente": mittente}]
         return lettura.ha_gia(p, righe)["girato_a"]
     try:
         annuncio = ("Buonasera le scrivo la mail della titolare dell'agenzia alla quale puo' interessare. "
@@ -3287,6 +3287,9 @@ def _():
         # annunciato, ma in firma ci sono solo il suo indirizzo, una mail col suo nome o una pec: nessuno
         assert girato("Le scrivo il mio contatto\n\nCordiali saluti\nMonica\nmonica@agenzia-prova.invalid") == []
         assert girato("Le lascio il contatto\n\nCordiali saluti\nMonica\nmonica.r@posta-prova.invalid\nagenzia@pec-prova.invalid") == []
+        # chi scrive da un altro indirizzo e lo mette in firma: e' suo, non un collega
+        assert girato("Giro la vostra mail al direttore\n\nCordiali saluti\nFabio Prova\nmail: f.prova@agenzia-prova.invalid",
+                      mittente="f.prova@agenzia-prova.invalid") == []
     finally:
         lettura.secondo_lettore = vero
 

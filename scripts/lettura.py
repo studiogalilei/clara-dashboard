@@ -509,8 +509,9 @@ def ha_gia(p, righe):
     # valgono come «ci ha girato a».
     if not girato and ANNUNCIA_INDIRIZZO.search(suo):
         firma = dividi(testo)[1]
+        chi_scrive = ((ultima_loro or {}).get("mittente") or "").strip().lower()
         girato = sorted({e.lower() for e in EMAIL.findall(firma)
-                         if e.lower() not in mie and not any(n in e.lower() for n in NOSTRI)
+                         if e.lower() not in mie and e.lower() != chi_scrive and not any(n in e.lower() for n in NOSTRI)
                          and _rimando_vero(e.lower(), "")})
     # 20/10, i tre follow-up sbagliati: cosa e' successo DOPO l'analisi, da una parte e dall'altra.
     # Un nostro sollecito (anche a mano, da qualunque casella) E' il follow-up; una loro mail
