@@ -3,6 +3,7 @@
   python3 scripts/carica_lead.py lista.csv --campagna 4003942          # prova a secco: solo conteggi
   python3 scripts/carica_lead.py lista.csv --campagna 4003942 --vero   # carica
   python3 scripts/carica_lead.py --pausa-generiche [--vero]            # mette in pausa le generiche mai contattate
+  python3 scripts/carica_lead.py --controlla-ads 4003943 4003947 [--vero]  # pausa a chi fa gia' Ads sul serio
 
 Le regole, tutte prima di caricare:
 - solo mail personali (stanza.mail_personale) e verificate (colonna result = ok, se c'e');
@@ -144,14 +145,69 @@ def pausa_generiche(vero):
         stanza.guasto("carica_lead", f"pausa generiche: {err} errori su {len(da_fermare)}")
 
 
+def controlla_ads(cids, vero):
+    """SOLO CHI NON FA ADS O LI FA MALE (Dre, 20/10 e 23/10: «investono si', ma che fanno male: uno con
+    15 campagne su Google e 5 su Meta non puo' fare meglio»). Per i lead non ancora contattati delle
+    campagne indicate misura Google (Transparency Center) e Meta (Ad Library) con le stesse soglie
+    del fit (googlefit.giudizio_ads / giudizio_meta_ads) e mette in pausa chi li fa sul serio.
+    Chi li fa poco resta: e' il target. Chi non si riesce a misurare resta, e si conta."""
+    import pull, googlefit
+    esiti, da_fermare = collections.Counter(), []
+    for cid in cids:
+        for x in lead_di(cid):
+            if x["status"] != "STARTED" or x.get("lead_category_id"):
+                continue
+            l = x["lead"]
+            dom = stanza.dominio_vero(l.get("email")) or ""
+            sito = (l.get("website") or "").lower().replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+            dom = sito or dom
+            azienda = ((l.get("custom_fields") or {}).get("azienda") or l.get("company_name") or "").strip()
+            try:
+                g, _ = googlefit.giudizio_ads(pull.fa_ads(dom) if dom else None)
+            except Exception:                                 # noqa: BLE001
+                g = None
+            try:
+                m, _ = googlefit.giudizio_meta_ads(googlefit.fa_meta_ads(azienda, dom))
+            except Exception:                                 # noqa: BLE001
+                m = None
+            if "serio" in (g, m):
+                esiti["fa Ads sul serio: in pausa"] += 1
+                da_fermare.append((cid, l["id"]))
+            elif "poco" in (g, m):
+                esiti["fa Ads poco: resta (target)"] += 1
+            elif g == "no" and m in ("no", None):
+                esiti["non fa Ads: resta"] += 1
+            else:
+                esiti["non misurato: resta"] += 1
+    for k, v in esiti.most_common():
+        print(f"  {k}: {v}")
+    if not vero:
+        print("prova a secco: niente in pausa (aggiungi --vero)")
+        return
+    ok = err = 0
+    for cid, lid in da_fermare:
+        try:
+            sl_post(f"/campaigns/{cid}/leads/{lid}/pause", {})
+            ok += 1
+        except RuntimeError:
+            err += 1
+        time.sleep(0.25)
+    print(f"in pausa {ok}, errori {err}")
+    if err:
+        stanza.guasto("carica_lead", f"pausa di chi fa Ads: {err} errori su {len(da_fermare)}")
+
+
 if __name__ == "__main__":
     a = argparse.ArgumentParser()
     a.add_argument("file", nargs="?")
     a.add_argument("--campagna", type=int)
     a.add_argument("--vero", action="store_true")
     a.add_argument("--pausa-generiche", action="store_true")
+    a.add_argument("--controlla-ads", type=int, nargs="+", metavar="CAMPAGNA")
     o = a.parse_args()
-    if o.pausa_generiche:
+    if o.controlla_ads:
+        controlla_ads(o.controlla_ads, o.vero)
+    elif o.pausa_generiche:
         pausa_generiche(o.vero)
     elif o.file and o.campagna:
         carica(o.file, o.campagna, o.vero)

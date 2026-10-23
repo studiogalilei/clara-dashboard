@@ -6266,6 +6266,15 @@ def _():
     assert C.SI_INDIETRO >= datetime.timedelta(days=7)
 
 
+@prova("investono si', ma male: il controllo Ads dei lead in attesa usa le soglie del fit e mette in pausa solo chi le fa sul serio (Dre, 23/10)")
+def _():
+    import carica_lead as C, inspect
+    src = inspect.getsource(C.controlla_ads)
+    assert "googlefit.giudizio_ads" in src and "googlefit.giudizio_meta_ads" in src, "le stesse soglie del fit, una fonte sola"
+    assert '"serio" in (g, m)' in src and "/pause" in src and "DELETE" not in src
+    assert 'x["status"] != "STARTED"' in src, "solo chi non ha ricevuto nessuna mail"
+
+
 
 def main():
     falliti = 0
