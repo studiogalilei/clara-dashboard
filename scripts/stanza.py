@@ -241,6 +241,29 @@ def mail_personale(email, role=None, nome=None, cognome=None, azienda=None):
     return True
 
 
+def call_in_agenda(p, call=None):
+    """UN SI' CON LA CALL PRENOTATA E' SERVITO (24/10, un lead di autonoleggio). Dre l'aveva chiamato
+    e aveva prenotato la call il 23/10; il calendario l'aveva messo in «Call fissata», ma il semaforo
+    contava ancora il suo si' come fermo («l'analisi e' pronta, aspetta te») e il telefono suonava
+    ogni due ore. Il segnale provvisorio lo sapeva dal 13/10; il semaforo riscritto il 20/10 no.
+    Non basta la fase: un lead che ha annullato tutte le call resta in «call_fissata» (lo stesso
+    giorno, un'azienda da richiamare lunedi'). Vale una call vera in agenda, fatta o da fare, non
+    annullata. `call` (le righe di agenda del lead) si passa per non rileggerla o nelle prove."""
+    if not p or p.get("stage") != "call_fissata":
+        return False
+    if call is None:
+        if not p.get("id"):
+            return False
+        try:
+            call = sb("GET", f"/rest/v1/agenda?select=at&prospect_id=eq.{p['id']}&tipo=in.({','.join(TIPI_CALL)})&limit=1") or []
+        except Exception:                                        # noqa: BLE001
+            return False                                         # nel dubbio il si' resta da servire
+    return bool(call)
+
+
+TIPI_CALL = ("conoscitiva", "tecnica", "avvio")
+
+
 def contattabile(p):
     """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
     (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa

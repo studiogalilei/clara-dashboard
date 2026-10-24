@@ -100,7 +100,7 @@ from email.mime.text import MIMEText
 from email.header import Header
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, contattabile, quando, _a_secco, env      # noqa: E402
+from stanza import sb, contattabile, call_in_agenda, quando, _a_secco, env      # noqa: E402
 from lettura import AUTORISPOSTA, solo_suo                       # noqa: E402
 
 DRE = "dramane@studiogalilei.com"           # mittente e UNICO destinatario, sempre
@@ -490,10 +490,21 @@ def primo_servizio(pid, dal):
     return min(tempi) if tempi else None
 
 
+# 24/10: la risposta di Google Calendar a un invito («Accettato: Chiamata tecnica... ha accettato
+# l'invito») porta nel testo l'invito intero, firma e cellulare del lead compresi: il numero la faceva
+# passare per una persona e il semaforo suonava «ha risposto dopo l'analisi, notifica non partita»
+INVITO = re.compile(r"\bha (accettato|rifiutato|accettato provvisoriamente) (l'|il tuo )?invito\b|"
+                    r"\bhas (accepted|declined|tentatively accepted) this invitation\b|"
+                    r"invito da google calendar|invitation from google calendar", re.I)
+
+
 def automatica(testo):
     """Un'autorisposta ovvia, che non vale una lettura. Mai se c'e' un numero nel testo:
-    «sono fuori, rientro il 20, mi chiami al 333...» e' una persona, la legge l'AI."""
+    «sono fuori, rientro il 20, mi chiami al 333...» e' una persona, la legge l'AI.
+    La risposta del calendario a un invito e' una macchina anche col numero (INVITO)."""
     t = (testo or "")[:1500]
+    if INVITO.search(t):
+        return True
     return bool(AUTORISPOSTA.search(t) or AUTOMATICHE.search(t)) and not telefono_nel_testo(solo_suo(testo, con_firma=True))
 
 
@@ -582,7 +593,7 @@ def valuta(p, risposte, ora, gia=frozenset(), storico=False):
     visto = max(quando(r["at"]), quando(r.get("created_at") or r["at"]))
     if ora - visto < ATTESA_SI:
         return {**s, "tipo": "attesa"}                   # il sistema ha ancora qualche minuto
-    if p.get("stage") == "call_fissata":
+    if call_in_agenda(p):
         return None                                      # la call c'e' gia': un si' qui non e' da servire (visto il 13/10)
     servito = primo_servizio(p["id"], quando(r["at"]))
     if servito and (not storico or servito <= visto + ATTESA_SI + OROLOGIO):

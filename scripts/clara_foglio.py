@@ -48,7 +48,7 @@ import urllib.parse
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, sb_tutte, quando, contattabile, lettore_di, tocca_a_dre, mail_notificata, scritta_da_macchina  # noqa: E402
+from stanza import sb, sb_tutte, quando, contattabile, call_in_agenda, lettore_di, tocca_a_dre, mail_notificata, scritta_da_macchina  # noqa: E402
 from guasti import di_notte                                      # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -183,7 +183,7 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
         if letto and letto.get("caso") not in RIMBALZI_LETTORE:
             continue                                   # il lettore l'ha letta e non e' un rimbalzo
         t = quando(p["last_reply_at"])
-        if ora - t > datetime.timedelta(days=3) or not contattabile(p):
+        if ora - t > datetime.timedelta(days=3) or not contattabile(p) or call_in_agenda(p):
             continue
         out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t, "bozza": True})
     return out
@@ -236,6 +236,8 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
         t = quando(p["last_reply_at"])
         if t < da or p.get("analysis_sent") or not contattabile(p):
             continue
+        if call_in_agenda(p):
+            continue                                       # Dre l'ha chiamato e la call e' in agenda: servito (24/10)
         # 21/10 (collaudo): una nostra mail PRIMA del suo si' (il follow-up a cui ha detto si') non lo chiude
         if dopo.get(p["id"]) and dopo[p["id"]] > t:
             continue                                       # gli abbiamo scritto: servito
@@ -339,7 +341,20 @@ def leggi_conversazioni_mute(ora, stato):
                        f"&analysis_sent_at=not.is.null&last_reply_at=gte.{_z(ora - CONVERSAZIONI_FINESTRA)}&limit=1000") or []
     schede = [p for p in schede if quando(p["last_reply_at"]) > quando(p["analysis_sent_at"])]
     nostre = _nostre_ultime(ora, [p["id"] for p in schede]) if schede else {}
-    return conversazioni_mute(ora, schede, nostre, stato or {})
+    return [m for m in conversazioni_mute(ora, schede, nostre, stato or {}) if not _mail_automatica(m)]
+
+
+def _mail_automatica(m):
+    """24/10: quando il lettore non ha letto la mail, la notifica guarda il testo (segnale_provvisorio
+    .automatica: fuori ufficio, risposte del calendario) e non suona; il semaforo deve fare lo stesso,
+    se no grida «notifica non partita» per la conferma di un invito."""
+    import segnale_provvisorio as S
+    try:
+        r = sb("GET", f"/rest/v1/interactions?select=body&kind=eq.email_in&prospect_id=eq.{m['prospect_id']}"
+                      f"&at=eq.{_z(m['quando'])}&limit=1") or []
+    except Exception:                                            # noqa: BLE001
+        return False                                             # nel dubbio il rosso resta
+    return bool(r) and S.automatica(r[0].get("body"))
 
 
 def leggi_semaforo(ora):

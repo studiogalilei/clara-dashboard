@@ -6345,6 +6345,45 @@ def _():
 
 
 
+@prova("un si' con la call in agenda non e' fermo, e la call in agenda non lascia indietro l'app ne' la Posta (24/10)")
+def _():
+    import datetime, clara_foglio as C, calendario as K, stanza
+    alle = lambda h, m=0: datetime.datetime(2026, 10, 23, h, m, tzinfo=C.ROMA)    # noqa: E731
+    vero_cont, vero_rimb, vero_call = C.contattabile, C.rimbalzi_fermi, C.call_in_agenda
+    try:
+        C.contattabile = lambda p: True
+        C.call_in_agenda = lambda p: stanza.call_in_agenda(p, [{"at": "x"}])
+        C.rimbalzi_fermi = lambda ora, gia=(), **k: []
+        pos = [{"id": "a", "company": "Con La Call", "classificazione": "positivo", "analysis_sent": False, "stage": "call_fissata",
+                "last_reply_at": alle(9).isoformat()},
+               {"id": "b", "company": "Senza Call", "classificazione": "positivo", "analysis_sent": False, "stage": "risposto",
+                "last_reply_at": alle(9).isoformat()}]
+        assert [x["azienda"] for x in C.si_fermi(alle(15), positivi=pos, dopo={}, bozze=set())] == ["Senza Call"]
+    finally:
+        C.contattabile, C.rimbalzi_fermi, C.call_in_agenda = vero_cont, vero_rimb, vero_call
+    assert stanza.call_in_agenda({"stage": "call_fissata"}, [{"at": "x"}]) and not stanza.call_in_agenda({"stage": "risposto"}, [{"at": "x"}])
+    assert not stanza.call_in_agenda({"stage": "call_fissata"}, []), "chi ha annullato tutte le call non ha la call in agenda"
+    cambio, chiudere = K.da_pulire({"stato": "Da chiamare"}, [{"id": 1, "ref": None}, {"id": 2, "ref": "call-fuori-posto:x"}])
+    assert cambio["stato"] == "Call fissata" and cambio["richiamare_il"] is None and chiudere == [1]
+    for gia in ("Call fissata", "Proposta inviata", "Non interessato", None):
+        assert K.da_pulire({"stato": gia} if gia else None, [])[0] is None, f"una call in agenda non riporta indietro «{gia}»"
+    src = open(K.__file__, encoding="utf-8").read()
+    assert "dopo_la_call_fissata(prova)" in src, "il calendario non pulisce piu' dopo la call fissata"
+
+
+@prova("la risposta del calendario a un invito e' una macchina anche col cellulare nel testo, una persona che accetta no (24/10)")
+def _():
+    import segnale_provvisorio as S
+    invito = ("Accettato: Chiamata Tecnica e proposta - lun 26 ott 2026 4:15PM\n\nMario Rossi ha accettato l'invito.\n"
+              "Mario Rossi\nCell: +39 333 123 4567")
+    assert S.automatica(invito)
+    assert S.automatica("Accepted: Call\nMario Rossi has accepted this invitation. 333 1234567")
+    assert not S.automatica("Accettato: ci sentiamo lunedi', mi chiami al 333 1234567")
+    assert not S.automatica("Ho accettato la vostra proposta, chiamatemi al 333 1234567")
+    import clara_foglio as C
+    assert "_mail_automatica(m)" in open(C.__file__, encoding="utf-8").read(), "il semaforo non guarda piu' il testo come la notifica"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

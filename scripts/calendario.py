@@ -41,7 +41,7 @@ import urllib.request
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, di_clara, quando, sb_tutte, proponi       # noqa: E402
+from stanza import env, sb, di_clara, quando, sb_tutte, proponi, call_in_agenda, TIPI_CALL       # noqa: E402
 
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
 INDIETRO = 400      # giorni di storia da tenere (il tracciato)
@@ -485,6 +485,66 @@ def fasi_dalle_call(prova):
     return spostate
 
 
+# gli stati dell'app che una call in agenda supera (stati.json): da qui si va solo avanti
+PRIMA_DELLA_CALL_APP = ("Da chiamare", "Da rispondere", "Analisi inviata")
+
+
+def da_pulire(decisione, proposte):
+    """Pura. Cosa resta indietro su un lead che ha la call in agenda: la riga dell'app (snella_lead)
+    ancora in uno stato di prima della call, e le bozze aperte per lui. Le proposte che nascono qui
+    («ha prenotato una call, ma per noi era...», ref call-fuori-posto) sono la domanda giusta e restano.
+    Torna (cambio della riga o None, [id delle proposte da chiudere])."""
+    cambio = None
+    if decisione and decisione.get("stato") in PRIMA_DELLA_CALL_APP:
+        cambio = {"stato": "Call fissata", "chiamata": None, "richiamare_il": None, "prossima_mossa": None, "prossima_il": None}
+    chiudere = [x["id"] for x in proposte or [] if not str(x.get("ref") or "").startswith("call-fuori-posto")]
+    return cambio, chiudere
+
+
+def dopo_la_call_fissata(prova):
+    """CON LA CALL IN AGENDA NIENTE RESTA INDIETRO (24/10, un lead di autonoleggio). Dre l'aveva
+    chiamato e aveva prenotato la call; la scheda era passata in «Call fissata» ma l'app diceva
+    ancora «Da chiamare, richiamare il 23/10», la bozza con l'analisi restava aperta in Posta e il
+    semaforo suonava ogni due ore «il si' aspetta te». fasi_dalle_call sposta solo la fase e solo
+    una volta: questo passo gira a ogni giro su tutti quelli in «Call fissata», cosi' ripara anche
+    i casi vecchi. Solo avanti: tocca la riga dell'app solo se e' in uno stato di prima della call."""
+    ps = sb("GET", "/rest/v1/prospects?select=id,company,name,stage&stage=eq.call_fissata&limit=500") or []
+    if not ps:
+        return 0
+    ids = ",".join(p["id"] for p in ps)
+    call = {}
+    for x in sb("GET", f"/rest/v1/agenda?select=prospect_id&tipo=in.({','.join(TIPI_CALL)})&prospect_id=in.({ids})") or []:
+        call.setdefault(x["prospect_id"], []).append(x)
+    # solo chi ha una call vera (stanza.call_in_agenda): chi le ha annullate tutte resta com'e'
+    ps = [p for p in ps if call_in_agenda(p, call.get(p["id"], []))]
+    if not ps:
+        return 0
+    ids = ",".join(p["id"] for p in ps)
+    decisioni = {d["prospect_id"]: d for d in sb("GET", f"/rest/v1/snella_lead?select=prospect_id,stato&prospect_id=in.({ids})") or []}
+    aperte = {}
+    for x in sb("GET", f"/rest/v1/proposte?select=id,prospect_id,ref&stato=eq.aperta&tipo=in.(risposta,umano)&prospect_id=in.({ids})") or []:
+        aperte.setdefault(x["prospect_id"], []).append(x)
+    adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    toccati = 0
+    for p in ps:
+        cambio, chiudere = da_pulire(decisioni.get(p["id"]), aperte.get(p["id"]))
+        if not cambio and not chiudere:
+            continue
+        nome = p.get("company") or p.get("name") or p["id"]
+        print(f"  call in agenda: {nome}" + (f", nell'app {decisioni[p['id']]['stato']} -> Call fissata" if cambio else "")
+              + (f", {len(chiudere)} bozze chiuse" if chiudere else ""))
+        toccati += 1
+        if prova:
+            continue
+        if cambio:
+            sb("PATCH", f"/rest/v1/snella_lead?prospect_id=eq.{p['id']}&stato=in.({','.join(PRIMA_DELLA_CALL_APP)})".replace(" ", "%20"),
+               {**cambio, "aggiornato_il": adesso})
+        for i in chiudere:
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{i}&stato=eq.aperta",
+               {"stato": "no", "risposta": "superata: la call e' in agenda, il resto si dice in call", "risposta_il": adesso})
+    return toccati
+
+
 # fra la risposta e la call: da qui una conoscitiva in agenda porta in «Call fissata»
 PRIMA_DELLA_CALL = ("risposto", "analisi_inviata", "in_follow_up")
 
@@ -582,6 +642,7 @@ def main():
     print(f"calendario ({fonte}): {nuovi} nuovi, {aggiornati} aggiornati, {annullati} annullati, {saltati} personali saltati, {len(eventi)} letti")
     calendari_persone(prova, prospects)
     fasi_dalle_call(prova)
+    dopo_la_call_fissata(prova)
 
 
 if __name__ == "__main__":
