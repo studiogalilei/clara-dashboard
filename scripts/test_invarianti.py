@@ -765,7 +765,7 @@ def _():
     assert "approvata" not in ombra and "di_clara" not in ombra, "in ombra non si approva e non si fa rumore"
 
 
-@prova("una call in agenda sposta la scheda solo in avanti, e solo per una conoscitiva")
+@prova("una call in agenda (conoscitiva, tecnica, avvio) sposta la scheda solo in avanti")
 def _():
     import pathlib
     import calendario as C
@@ -775,7 +775,7 @@ def _():
     for f in ("cliente", "perso", "rinviato", "nuovo", "call_fissata"):
         assert f not in C.PRIMA_DELLA_CALL, f"una call in agenda potrebbe spostare un {f}"
     src = pathlib.Path(C.__file__).read_text(encoding="utf-8")
-    assert "tipo=eq.conoscitiva" in src, "solo le conoscitive spostano la fase"
+    assert "tipo=in.({','.join(TIPI_CALL)})" in src, "ogni call in agenda (conoscitiva, tecnica, avvio) sposta la fase (24/10)"
     assert "pipeline_stage" in src and "&stage=eq." in src, "non deve toccare chi e' in pipeline, ne' chi e' cambiato nel frattempo"
     assert "fasi_dalle_call(prova)" in src, "il calendario non chiama piu' il passo delle fasi"
 
@@ -6367,6 +6367,11 @@ def _():
     assert cambio["stato"] == "Call fissata" and cambio["richiamare_il"] is None and chiudere == [1]
     for gia in ("Call fissata", "Proposta inviata", "Non interessato", None):
         assert K.da_pulire({"stato": gia} if gia else None, [])[0] is None, f"una call in agenda non riporta indietro «{gia}»"
+    assert K.per_nome_attaccato("Call Tecnica e proposta ; StudioGalilei -Klavzarfi", [("klavzarfisioterapiamilano", "k"), ("innova", "i")]) == "k"
+    assert K.per_nome_attaccato("Chiamata conoscitiva STUDIOGALILEI - DORTENZIO", [("dortenzioit", "d"), ("dortenzio", "d")]) == "d"
+    assert K.per_nome_attaccato("Proposta di collaborazione Studiogalilei x InnovalexAI", [("innova", "i")]) is None, "mai al contrario"
+    assert K.per_nome_attaccato("Chiamata conoscitiva StudioGalilei - Rossi", [("rossimobili", "a"), ("rossiauto", "b")]) is None, "solo se e' una"
+    assert K.pezzi_del_nome("StudioGalilei - Chiamata conoscitiva  (Mario Rossi)") == [], "la persona fra parentesi non e' un'azienda"
     src = open(K.__file__, encoding="utf-8").read()
     assert "dopo_la_call_fissata(prova)" in src, "il calendario non pulisce piu' dopo la call fissata"
 

@@ -38,6 +38,7 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+import unicodedata
 import zoneinfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -256,6 +257,15 @@ def riconosci(evento, prospects):
                 return pid, "titolo"
             if len(comuni) >= 2 and comuni == parole:
                 return pid, "titolo"
+    # 24/10, Dre: «deve guardare anche le call che setto e il nome delle call». Le call che mette lui
+    # si chiamano «Chiamata conoscitiva STUDIOGALILEI - DORTENZIO», «Call Tecnica e proposta ;
+    # StudioGalilei - Klavzarfisioterapia»: il nome dell'azienda e' il pezzo dopo il trattino, attaccato.
+    # La regola delle parole sopra non lo leggeva se il marchio non era la prima parola («Paolo Klavzar
+    # Fisioterapista»). Solo per le call, e solo se il pezzo porta a UNA sola azienda.
+    if tipo_evento(evento) != "altro" and prospects.get("attaccati"):
+        pid = per_nome_attaccato(evento["titolo"], prospects["attaccati"])
+        if pid:
+            return pid, "nome della call"
     # 30/9: Marco Morselli ha prenotato la conoscitiva con la sua Gmail. Niente email,
     # niente dominio, niente azienda nel titolo: nessuno sapeva che era Prima Classe
     # Home Service, e la scheda non si e' mossa. Il suo nome pero' stava nella firma
@@ -268,6 +278,43 @@ def riconosci(evento, prospects):
         if len(trovati) == 1:
             return trovati.pop(), "nome nelle mail"
     return None, None
+
+
+SEPARATORI = re.compile(r"\s*(?:[-\u2013\u2014|;:+*/]|\bx\b)\s*", re.I)
+
+
+def _attaccato(testo):
+    """«Energia Eco Finbi» -> «energiaecofinbi»: solo lettere e cifre, senza accenti."""
+    t = unicodedata.normalize("NFKD", (testo or "").lower())
+    return re.sub(r"[^a-z0-9]", "", t)
+
+
+def pezzi_del_nome(titolo):
+    """I pezzi del titolo che possono essere un'azienda: si taglia sui separatori, si toglie quello
+    fra parentesi (la persona) e i pezzi fatti solo di parole vuote («Chiamata conoscitiva STUDIOGALILEI»)."""
+    t = re.sub(r"\([^)]*\)", " ", titolo or "")
+    out = []
+    for pezzo in SEPARATORI.split(t):
+        parole = [w for w in re.findall(r"[a-z0-9\u00e0-\u00fa]+", pezzo.lower()) if len(w) > 2]
+        if not parole or all(w in PAROLE_VUOTE or w in ("con", "per", "della", "del") for w in parole):
+            continue
+        a = _attaccato(" ".join(w for w in parole if w not in PAROLE_VUOTE))
+        if len(a) >= 5:
+            out.append(a)
+    return out
+
+
+def per_nome_attaccato(titolo, attaccati):
+    """Pura. Il prospect il cui nome attaccato (azienda o sito) coincide con un pezzo del titolo, o
+    comincia con lui (almeno 6 lettere: «klavzarfi» -> «klavzarfisioterapiamilano»), mai il contrario.
+    Solo se e' uno."""
+    trovati = set()
+    for pezzo in pezzi_del_nome(titolo):
+        for chiave, pid in attaccati:
+            # mai al contrario: «InnovalexAI» comincia con «innova», ma non e' l'azienda Innova
+            if chiave == pezzo or (len(pezzo) >= 6 and chiave.startswith(pezzo)):
+                trovati.add(pid)
+    return trovati.pop() if len(trovati) == 1 else None
 
 
 def prenotato_da(evento):
@@ -348,8 +395,13 @@ def carica_prospects():
     for _, parole, _m in aziende:
         for w in parole:
             conta[w] = conta.get(w, 0) + 1
+    attaccati = []
+    for p in righe:
+        for chiave in {_attaccato(p.get("company")), _attaccato((sito(p.get("website")) or "").rsplit(".", 1)[0])}:
+            if len(chiave) >= 5:
+                attaccati.append((chiave, p["id"]))
     return {"email": per_email, "dominio": per_dominio, "sito": per_sito, "aziende": aziende, "conta": conta, "nomi": nomi,
-            "cerca_nome": _cerca_nome}
+            "cerca_nome": _cerca_nome, "attaccati": attaccati}
 
 
 # ---------- scrittura ----------
@@ -446,7 +498,9 @@ def fasi_dalle_call(prova):
     e solo per una conoscitiva futura, cosi' un evento attaccato all'azienda
     sbagliata («visita medica», un follow-up interno) non sposta nessuno."""
     adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    call = sb("GET", f"/rest/v1/agenda?select=at,titolo,prospect_id&tipo=eq.conoscitiva&prospect_id=not.is.null"
+    # 24/10, Dre: «se no non capisce che ci sono gia' call: non facciamo mandare mail a chi e' gia' in call».
+    # Non solo la conoscitiva: anche una tecnica o una call di avvio in agenda fermano tutto.
+    call = sb("GET", f"/rest/v1/agenda?select=at,titolo,prospect_id,tipo&tipo=in.({','.join(TIPI_CALL)})&prospect_id=not.is.null"
                      f"&at=gte.{urllib.parse.quote(adesso)}&order=at") or []
     prima = {}
     for c in call:
@@ -472,8 +526,8 @@ def fasi_dalle_call(prova):
         if prova:
             continue
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}&stage=eq.{p['stage']}",
-           {"stage": "call_fissata", "next_action": "Call conoscitiva", "next_action_date": quando_roma.date().isoformat()})
-        di_clara("controllo", f"{nome}: ha una call conoscitiva il {quando_roma:%d/%m alle %H:%M}, l'ho messa in «Call fissata».",
+           {"stage": "call_fissata", "next_action": f"Call {c.get('tipo') or 'conoscitiva'}", "next_action_date": quando_roma.date().isoformat()})
+        di_clara("controllo", f"{nome}: ha una call {c.get('tipo') or 'conoscitiva'} il {quando_roma:%d/%m alle %H:%M}, l'ho messa in «Call fissata».",
                  prospect_id=p["id"], letto=True)
         if p.get("classificazione") in ("fuori_target", "negativo", "nervoso") or p.get("no_followup"):
             proponi("umano", f"{nome} ha prenotato una call, ma per noi era {p.get('classificazione') or 'bloccato'}",
