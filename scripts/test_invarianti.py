@@ -5984,6 +5984,13 @@ def _():
     # il testo di un lead non e' un guasto: «billing», «401», «crediti» in una risposta non suonano
     for innocuo in ("«grazie, giriamo al billing»", "via Roma 401, Milano", "via Roma 401, ufficio crediti", "abbiamo pochi crediti formativi", "analisi: 0 pronte su 1"):
         assert St.servizi_giu(innocuo) == [], innocuo
+    # 26/10 sera: il racconto di un guasto gia' scritto (la mail delle 19, guasti.py, la stampa di
+    # guasto()) non e' un guasto nuovo; l'errore vero accanto si vede ancora
+    eco = ('È successo: Il segnale provvisorio: crediti finiti o chiave scaduta ("message": "You have no credits remaining. Add cred), dalle 13:01 alle 13:27.\n'
+           '  ! La giornata, alle 19: crediti OpenAI finiti o chiave scaduta (no credits remaining)\n'
+           '  GUASTO [servizio:x]: OpenAI 429 insufficient_quota')
+    assert St.servizi_giu(eco) == [], St.servizi_giu(eco)
+    assert St.servizi_giu(eco + "\nRuntimeError: OpenAI 429: You have no credits remaining")[0][0] == "OpenAI"
     # il dettaglio della corsa tiene l'inizio e la fine: la riga presto non sparisce piu'
     d = D.dettaglio_di(uscita)
     assert len(d) < 2100 and "no credits remaining" in d and d.rstrip().endswith("analisi: 0 pronte su 1"), d[:200]

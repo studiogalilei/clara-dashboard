@@ -527,12 +527,20 @@ FORNITORI = (("openai", "OpenAI"), ("anthropic", "Anthropic"), ("smartlead", "Sm
              ("gmail", "Google"), ("oauth", "Google"), ("searchapi", "SearchAPI"), ("supabase", "Supabase"))
 
 
+# 26/10 sera: la mail delle 19 racconta i guasti del giorno («È successo: ... crediti finiti o chiave
+# scaduta ("no credits remaining")») e il direttore la leggeva come un guasto vivo della giornata.
+# Una riga che riporta un guasto gia' scritto (il testo di guarda_uscita, la stampa di guasto()) e' un
+# racconto, non l'errore di un servizio: chi l'ha visto davvero l'ha gia' scritto nel semaforo.
+ECO_DI_GUASTO = re.compile(r"finiti o chiave scaduta|GUASTO \[", re.I)
+
+
 def servizi_giu(uscita):
     """Pura. Le righe dell'uscita di un giro che dicono «un servizio esterno non ci fa entrare»
-    (crediti finiti, chiave o token scaduti): [(fornitore o «», riga)]. Si legge TUTTA l'uscita."""
+    (crediti finiti, chiave o token scaduti): [(fornitore o «», riga)]. Si legge TUTTA l'uscita.
+    Le righe che raccontano un guasto gia' scritto (ECO_DI_GUASTO) non contano."""
     out = []
     for riga in (uscita or "").splitlines():
-        if SERVIZIO_GIU.search(riga):
+        if SERVIZIO_GIU.search(riga) and not ECO_DI_GUASTO.search(riga):
             chi = next((n for k, n in FORNITORI if k in riga.lower()), "")
             out.append((chi, " ".join(riga.split())[:200]))
     return out
