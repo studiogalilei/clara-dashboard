@@ -267,8 +267,70 @@ TETTO_USCITA = {"lettura": 1500, "bozza": 16000, "default": 16000}
 SFORZO = {"lettura": "low", "bozza": "medium", "default": "medium"}
 
 
+# IL RIPIEGO SU CLAUDE (Dre, 26/10/2026: «puoi generare tu le analisi direttamente claude?»).
+# Alle 12:01 OpenAI ha finito i crediti e si sono fermati insieme analisi, prima risposta, bozze e
+# Revisore: un fornitore solo teneva in ostaggio tutto. Da qui, quando OpenAI dice «a secco» (non
+# «vai piano»), la stessa domanda va a Claude con la chiave API dello Studio, quella del lettore. Il
+# giro dopo riprova OpenAI una volta sola: ricaricato il conto, torna da solo. Il ripiego ha un tetto
+# al giorno; oltre, il guasto suona come prima («quota exceeded» lo legge stanza.servizi_giu).
+MODELLO_RIPIEGO = "claude-sonnet-5"
+TETTO_RIPIEGO = 5.0                # dollari al giorno, ora di Roma
+SCOPO_RIPIEGO = "ripiego_openai"
+_RIPIEGO = {"attivo": False, "detto": False}
+
+
+def openai_a_secco(codice, messaggio):
+    """Pura. Il 429 di OpenAI di solito e' «vai troppo veloce»: e' a secco solo se lo dice."""
+    return codice in (402, 429) and bool(re.search(r"insufficient_quota|no credits remaining|exceeded your current quota",
+                                                     messaggio or "", re.I))
+
+
+def _chiedi_ripiego(prompt, formato=None, tetto=None):
+    """La stessa domanda a Claude (API Anthropic). formato: lo schema JSON di OpenAI, se c'e'."""
+    import lettore
+    chiave = _env("ANTHROPIC_API_KEY")
+    if not chiave:
+        raise RuntimeError("OpenAI a secco e manca ANTHROPIC_API_KEY per il ripiego: quota exceeded")
+    speso = lettore.spesa_di_oggi(SCOPO_RIPIEGO)
+    if speso is not None and speso >= TETTO_RIPIEGO:
+        raise RuntimeError(f"OpenAI a secco e ripiego su Claude al tetto del giorno ({speso:.2f} $ su "
+                           f"{TETTO_RIPIEGO:.0f} $): quota exceeded")
+    if not _RIPIEGO["detto"]:
+        _RIPIEGO["detto"] = True
+        print("  (OpenAI senza credito: questo giro scrive Claude)")
+    corpo = {"model": MODELLO_RIPIEGO, "max_tokens": int(tetto or TETTO_USCITA["default"]),
+             "messages": [{"role": "user", "content": prompt}]}
+    if formato:
+        corpo["output_config"] = {"format": {"type": "json_schema", "schema": formato["json_schema"]["schema"]}}
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=json.dumps(corpo).encode(), method="POST",
+                                 headers={"x-api-key": chiave, "anthropic-version": "2023-06-01",
+                                          "content-type": "application/json"})
+    for tentativo in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=ATTESA_LUNGA) as r:
+                d = json.load(r)
+            break
+        except urllib.error.HTTPError as e:
+            msg = f"Claude {e.code}: {e.read()[:200].decode(errors='replace')}"
+            if e.code in (429, 500, 502, 503, 529) and tentativo < 2:
+                time.sleep(5 * (tentativo + 1))
+                continue
+            raise RuntimeError(msg)
+        except (urllib.error.URLError, TimeoutError, socket.timeout) as e:
+            raise RuntimeError(f"Claude rete: {str(e)[:120]}")
+    u = d.get("usage") or {}
+    nuovi, fuori = int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0)
+    lettore._registra(SCOPO_RIPIEGO, MODELLO_RIPIEGO, nuovi, int(u.get("cache_read_input_tokens") or 0),
+                      int(u.get("cache_creation_input_tokens") or 0), fuori)
+    if d.get("stop_reason") not in ("end_turn", "stop_sequence"):
+        raise RuntimeError(f"Claude: risposta incompleta ({d.get('stop_reason')})")
+    return "".join(b.get("text", "") for b in d.get("content") or [] if b.get("type") == "text")
+
+
 def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sforzo=None):
     fornitore = fornitore or (FORNITORE if FORNITORE in COMPATIBILI else "openai")
+    if fornitore == "openai" and _RIPIEGO["attivo"]:
+        return _chiedi_ripiego(prompt, formato, tetto)
     dove, nome_chiave = COMPATIBILI[fornitore]
     chiave = _env(nome_chiave)
     if not chiave:
@@ -296,6 +358,9 @@ def _chiedi_openai(prompt, modello, formato=None, fornitore=None, tetto=None, sf
             break
         except urllib.error.HTTPError as e:
             ultimo = f"OpenAI {e.code}: {e.read()[:200].decode(errors='replace')}"
+            if fornitore == "openai" and openai_a_secco(e.code, ultimo):
+                _RIPIEGO["attivo"] = True
+                return _chiedi_ripiego(prompt, formato, tetto)
             # 520 e' un guasto di Cloudflare davanti a OpenAI, 400 «something
             # went wrong reading your request» capita su siti con caratteri
             # strani: entrambi passano al secondo tentativo (22/9, visti in cloud)

@@ -6389,6 +6389,48 @@ def _():
     assert "_mail_automatica(m)" in open(C.__file__, encoding="utf-8").read(), "il semaforo non guarda piu' il testo come la notifica"
 
 
+@prova("OpenAI a secco passa la stessa domanda a Claude, un «vai piano» no, e oltre il tetto il guasto suona (26/10)")
+def _():
+    import io, json as J, urllib.error, urllib.request
+    import cervello as C, lettore as L
+    assert not C.openai_a_secco(429, "Rate limit reached for gpt-5 on tokens per min"), "un «vai piano» non e' a secco"
+    assert C.openai_a_secco(429, "You have no credits remaining. Add credits")
+    assert C.openai_a_secco(429, '"code": "insufficient_quota"')
+    viste = []
+
+    def finto(req, timeout=None):
+        viste.append(req)
+        if "openai" in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 429, "x", {}, io.BytesIO(b'{"error":{"message":"You have no credits remaining."}}'))
+        return io.BytesIO(J.dumps({"stop_reason": "end_turn", "content": [{"type": "text", "text": "{\"ok\": 1}"}],
+                                   "usage": {"input_tokens": 10, "output_tokens": 5}}).encode())
+    vero = (urllib.request.urlopen, C._env, L.spesa_di_oggi, L._registra, dict(C._RIPIEGO))
+    try:
+        urllib.request.urlopen = finto
+        C._env = lambda n: "k"
+        L._registra = lambda *a, **k: None
+        L.spesa_di_oggi = lambda scopo="lettore": 0.0
+        C._RIPIEGO.update(attivo=False, detto=True)
+        schema = {"type": "json_schema", "json_schema": {"name": "x", "schema": {"type": "object"}}}
+        assert C._chiedi_openai("domanda", "gpt-5", formato=schema, fornitore="openai") == '{"ok": 1}'
+        corpo = J.loads(viste[-1].data)
+        assert "anthropic" in viste[-1].full_url and corpo["messages"][0]["content"] == "domanda"
+        assert corpo["output_config"]["format"]["schema"] == {"type": "object"}, "lo schema JSON passa a Claude"
+        n = len(viste)
+        C._chiedi_openai("altra", "gpt-5", fornitore="openai")
+        assert len(viste) == n + 1, "a secco una volta, nello stesso giro non si riprova OpenAI"
+        L.spesa_di_oggi = lambda scopo="lettore": C.TETTO_RIPIEGO
+        try:
+            C._chiedi_openai("terza", "gpt-5", fornitore="openai")
+            assert False, "oltre il tetto non si spende"
+        except RuntimeError as e:
+            import stanza
+            assert stanza.servizi_giu(str(e)), "oltre il tetto il guasto deve suonare"
+    finally:
+        urllib.request.urlopen, C._env, L.spesa_di_oggi, L._registra = vero[:4]
+        C._RIPIEGO.clear(); C._RIPIEGO.update(vero[4])
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
