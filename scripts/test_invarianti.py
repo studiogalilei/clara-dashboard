@@ -6463,6 +6463,22 @@ def _():
         "un punto vero chiude la frase: l'allegato della frase dopo non e' l'analisi"
 
 
+@prova("un errore su un lead non e' un verdetto: si riprova dopo mezz'ora e la coda resta (26/10, OpenAI senza crediti)")
+def _():
+    import bozze as B
+    ora = datetime.datetime(2026, 10, 26, 14, 0, tzinfo=datetime.timezone.utc)
+    err = {"motivo": B.ERRORE_LEAD + ", il giro continua: OpenAI 429", "il": "2026-10-26T13:29:02+00:00"}
+    assert not B.esito_vero(err), "un errore in lettura_esito non fa saltare il lead come gia' letto"
+    assert B.esito_vero({"motivo": "non c'è nessuno a cui scrivere", "il": "2026-10-26T13:29:02+00:00"})
+    assert B.errore_recente({"enriched": {"errore_bozza": {"il": "2026-10-26T13:45:00+00:00"}}}, ora), "appena andato in errore: si aspetta"
+    assert not B.errore_recente({"enriched": {"errore_bozza": {"il": "2026-10-26T13:00:00+00:00"}}}, ora), "dopo mezz'ora si riprova"
+    assert not B.errore_recente({"enriched": {}}, ora)
+    src = open(os.path.join(os.path.dirname(__file__), "bozze.py"), encoding="utf-8").read()
+    i = src.index("def esito_coda(")
+    corpo = src[i:src.index("for p, motivo in fuori_coda", i)]
+    assert corpo.index("startswith(ERRORE_LEAD)") < corpo.index('"coda": None'), "l'errore esce prima di svuotare la coda"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

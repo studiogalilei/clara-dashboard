@@ -1074,6 +1074,25 @@ def ricomponi_senza_attacco(b, b_modello, p, letti, gruppo, componi=None, giudic
 
 
 CHIUDONO = ("non c'è nessuno a cui scrivere", "nessun ricontatto")
+# UN ERRORE NON E' UN VERDETTO (26/10, OpenAI senza crediti). L'errore su un lead finiva in
+# lettura_esito come un motivo qualunque: il lead risultava «gia' letto» e il giro non lo
+# riprendeva piu' finche' non riscriveva, e chi era in coda perdeva la coda. Ora l'errore
+# resta in enriched.errore_bozza e il lead si riprova dopo RIPROVA_DOPO (non ogni 5 minuti).
+ERRORE_LEAD = "errore su questo lead"
+RIPROVA_DOPO = datetime.timedelta(minutes=30)
+
+
+def errore_recente(p, ora=None):
+    """Pura. Il lead e' andato in errore da meno di RIPROVA_DOPO: si aspetta, poi si riprova."""
+    e = (p.get("enriched") or {}).get("errore_bozza") or {}
+    il = _istante(e.get("il")) if isinstance(e, dict) else None
+    ora = ora or datetime.datetime.now(datetime.timezone.utc)
+    return bool(il) and ora - il < RIPROVA_DOPO
+
+
+def esito_vero(esito):
+    """Pura. Un lettura_esito che vale come verdetto (non un errore di prima del 26/10)."""
+    return isinstance(esito, dict) and not str(esito.get("motivo") or "").startswith(ERRORE_LEAD)
 
 
 def chiudi_attesa(p, motivo):
@@ -1102,7 +1121,7 @@ def chiudi_attese_senza_risposta():
         # chiusura dell'attesa («mai toccare chi e' fuori o soppresso»). Decide Dre.
         if c in ("soppresso", "fuori_target", "nervoso"):
             continue
-        if isinstance(esito, dict) and any(k in (esito.get("motivo") or "") for k in CHIUDONO) \
+        if esito_vero(esito) and any(k in (esito.get("motivo") or "") for k in CHIUDONO) \
                 and (esito.get("il") or "") >= (p.get("last_reply_at") or "")[:19]:
             chiudi_attesa(p, esito["motivo"]); n += 1
     return n
@@ -1258,7 +1277,7 @@ def main():
     def gia_letta(p):
         """Saltata con motivo dopo la sua ultima mail: non si rilegge ogni cinque minuti."""
         e = (p.get("enriched") or {}).get("lettura_esito") or {}
-        return bool(e.get("il")) and e["il"] >= (p.get("last_reply_at") or "")[:19] and not SOLO
+        return esito_vero(e) and bool(e.get("il")) and e["il"] >= (p.get("last_reply_at") or "")[:19] and not SOLO
 
     # IL TETTO PER GIRO (1/10): il giro delle bozze moriva a 2400 secondi col direttore
     # fermo dietro (2 ore senza invii). Meglio un giro corto che finisce e riparte:
@@ -1274,7 +1293,8 @@ def main():
     chiuse = domande_chiuse(p["id"] for p in persone) if not SOLO else {}
     conversazioni, gia_decise = [], []
     for p in persone:
-        if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p):
+        if p["id"] in aperte or p.get("stage") in INTOCCABILI or p.get("coda") or "usa" in (p.get("campaign") or "").lower() or gia_letta(p) \
+                or (errore_recente(p) and not SOLO):
             continue
         decisa = domanda_chiusa(p, chiuse.get(p["id"]))
         if decisa:
@@ -1308,7 +1328,7 @@ def main():
         if in_conversazione(p, risposte_dopo.get(p["id"])):
             fuori_coda.append((p, "non si ricontatta: " + CONVERSAZIONE))
             continue
-        if p["id"] in aperte or p.get("coda") not in lettura.GRUPPI:
+        if p["id"] in aperte or p.get("coda") not in lettura.GRUPPI or (errore_recente(p) and not SOLO):
             continue
         candidate.append((p, p["coda"]))
     # CHI E' PRONTO PASSA DAVANTI (27/9). Il giro ne serve venticinque, e il
@@ -1334,6 +1354,10 @@ def main():
         fresco = (sb("GET", f"/rest/v1/prospects?select=enriched&id=eq.{p['id']}") or [{}])[0]
         arr = dict(fresco.get("enriched") or {})
         adesso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        if motivo.startswith(ERRORE_LEAD):
+            arr["errore_bozza"] = {"motivo": motivo, "il": adesso}   # la coda e l'attesa restano: si riprova
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": arr})
+            return
         if p.get("coda"):
             arr["coda_esito"] = {"gruppo": p.get("coda"), "motivo": motivo, "il": adesso}
             sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"coda": None, "enriched": arr})
@@ -1477,7 +1501,7 @@ def main():
         except Exception as e:                                # noqa: BLE001
             p, gruppo = coppia
             nome = (p.get("company") or p.get("name") or p.get("email") or "")[:34]
-            return (p, gruppo, nome, None, [], None, ("salta", f"errore su questo lead, il giro continua: {str(e)[:120]}"))
+            return (p, gruppo, nome, None, [], None, ("salta", f"{ERRORE_LEAD}, il giro continua: {str(e)[:120]}"))
     with ThreadPoolExecutor(max_workers=IN_PARALLELO) as pool:
         esiti = list(pool.map(lavora_sicuro, candidate))
     for p, gruppo, nome, b, errori, letti, dura in esiti:
