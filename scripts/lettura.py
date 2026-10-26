@@ -654,6 +654,7 @@ def coerenza(f, bozza, gruppo=None, cc=None):
     cc = [str(c).strip().lower() for c in (cc or []) if str(c).strip()]
     try:
         import cervello
+        import orari
         prompt = f"""Sei la SECONDA TESTA di Studio Galilei. Un altro sistema ha scritto una mail a un'azienda.
 Il tuo lavoro e' UNO: dire se la bozza e' coerente con quello che l'azienda ci ha scritto per ultimo
 e con quello che noi le abbiamo gia' scritto. Non correggi, non riscrivi: giudichi.
@@ -671,6 +672,8 @@ la mail parte a={f.get('destinatario') or 'lo stesso indirizzo del thread'}, in 
 Guarda gli indirizzi: se la nostra ultima mail e' partita a un indirizzo diverso da quello di chi ci ha scritto, dire
 che non gli era arrivata direttamente e' vero. Un messaggio che dice «questo indirizzo verra' disattivato» o «scrivete
 d'ora in poi a ...», mandato subito dopo la nostra, e' la risposta automatica di quella casella.
+
+{orari.calendario_per_giudici()}
 
 QUELLO CHE SAPPIAMO DELL'AZIENDA (scheda e analisi): {f.get('scheda') or '(niente)'}
 

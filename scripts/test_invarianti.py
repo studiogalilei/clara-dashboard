@@ -6441,6 +6441,23 @@ def _():
     assert "motivo=MOTIVO" in src, "il Revisore delle etichette deve ricevere il motivo intero"
 
 
+@prova("chi giudica una mail ha il calendario vero, e una sigla come C.L.M. non spezza «analisi ... allegata» (26/10)")
+def _():
+    import datetime as D
+    import bozze, orari
+    cal = orari.calendario_per_giudici(D.date(2026, 10, 26))
+    assert "OGGI E' lunedì 26 ottobre 2026" in cal and "mercoledì 28 ottobre" in cal, "il 28/10/2026 e' mercoledi'"
+    assert "giovedì 28" not in cal
+    qui = os.path.dirname(os.path.abspath(__file__))
+    for f in ("prima_risposta.py", "lettura.py"):
+        assert "orari.calendario_per_giudici()" in open(os.path.join(qui, f), encoding="utf-8").read(), \
+            f"il giudice di {f} deve avere il calendario: i giorni della settimana a memoria li sbaglia"
+    t = "abbiamo preparato un'analisi esterna gratuita su come c.l.m. appare oggi su google (la trova allegata)"
+    assert bozze.ALLEGA_ANALISI.search(t), "il template INT-08 con una sigla nel nome dice che l'analisi e' allegata"
+    assert not bozze.ALLEGA_ANALISI.search("abbiamo fatto un'analisi. poi la vediamo in call. allegata la presentazione"), \
+        "un punto vero chiude la frase: l'allegato della frase dopo non e' l'analisi"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

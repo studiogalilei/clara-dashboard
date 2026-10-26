@@ -33,6 +33,20 @@ DISPONIBILITA_VECCHIA = "nel caso quel giorno non abbia disponibilità"
 DISPONIBILITA = "nel caso non abbia disponibilità"
 
 
+def calendario_per_giudici(oggi=None, giorni=21):
+    """Il calendario che legge chi giudica una mail (26/10). Il Revisore della prima risposta ha
+    fermato un si' perche' «il 28 ottobre 2026 e' giovedi', non mercoledi'»: era mercoledi', e la data
+    l'aveva scritta il codice dal calendario vero. Un modello non sa che giorno e' oggi e i giorni
+    della settimana li conta a memoria: glieli da' il codice, e gli dice di non ricontarli."""
+    oggi = oggi or datetime.date.today()
+    righe = [f"{GIORNI[d.weekday()]} {d.day} {MESI[d.month - 1]}"
+             for d in (oggi + datetime.timedelta(days=i) for i in range(1, giorni + 1))]
+    return (f"OGGI E' {GIORNI[oggi.weekday()]} {oggi.day} {MESI[oggi.month - 1]} {oggi.year}. "
+            f"I prossimi giorni, dal calendario vero: {', '.join(righe)}. "
+            "Le date e i giorni della settimana nella mail li ha scritti il codice da questo calendario: "
+            "controllali solo contro questo elenco, mai a memoria.")
+
+
 def scritto(t):
     """Un orario con la data: «giovedì 23 ottobre alle 15:30» (alle 15 senza «:00»)."""
     return f"{GIORNI[t.weekday()]} {t.day} {MESI[t.month - 1]} alle {t.hour}" + (f":{t.minute:02d}" if t.minute else "")

@@ -121,7 +121,9 @@ PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato
 # LA BOZZA DICE CHE L'ANALISI E' ALLEGATA (nata in prima_risposta il 29/9, qui dal 20/10 sera perche'
 # la usa anche il cancello). 2/10: il gigante buono dice «gliela lasciamo in allegato», e «le lascio»
 # non bastava. 20/10: un punto dentro una parola (F.lli, S.r.l., www.sito.it) non chiude la frase.
-_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w))"
+# 26/10: nemmeno il punto dopo una sigla di lettere singole (C.L.M., S.p.A.): «su come C.L.M. appare
+# oggi su Google (la trova allegata)» e' il template INT-08 di Dre, e il cancello lo fermava.
+_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w)|(?<=\b\w)\.)"
 ALLEGA_ANALISI = re.compile(rf"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*{_NEL_PERIODO}{{0,60}}\banalisi\b|"
                             r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"
                             rf"\banalisi\b{_NEL_PERIODO}{{0,120}}(?:in allegato|allegat|qui sotto)")

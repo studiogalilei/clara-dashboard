@@ -419,6 +419,7 @@ def revisore(pr, p, letti):
     """Il Revisore rilegge la mail sapendo che partira' davvero, senza nessuno dopo di lui."""
     try:
         import cervello
+        import orari
         az = pr.get("azione") or {}
         azienda = p.get("company") or p.get("name") or p["email"]
         prompt = f"""{cervello.ruolo("revisore")}Sei il REVISORE di Studio Galilei. Questa mail PARTIRA' DAVVERO, in automatico,
@@ -438,6 +439,8 @@ agevolata come leva» (parole sue: il «senza software» del 29/9 vale per le al
 saluto ai no), e il link del calendario in fondo SENZA proporre una data. Tutto questo e' voluto.
 I numeri di zona (ricerche al mese, recensioni) vengono dal fit misurato dal codice: sono ammessi.
 {_template_approvati()}
+
+{orari.calendario_per_giudici()}
 
 A CHI: {azienda} ({p['email']}), classificato {p.get('classificazione')}, intento {az.get('intento')}.
 IN COPIA (cc, messa dal codice, non dalla frase): {', '.join(str(c) for c in (az.get('cc') or [])) or 'nessuno'}.
