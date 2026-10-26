@@ -6431,6 +6431,16 @@ def _():
         C._RIPIEGO.clear(); C._RIPIEGO.update(vero[4])
 
 
+@prova("il motivo delle etichette dice tutto il piano (no, si', rinvio, collega, Conoscitiva), non solo chi prenota (26/10)")
+def _():
+    import categorie_smartlead as C
+    m = C.MOTIVO.lower()
+    for parola in ("classe", "no", "analisi", "rinvio", "collega", "conoscitiva", "nessuna mail"):
+        assert parola in m, f"il motivo al Revisore non copre «{parola}»"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "categorie_smartlead.py"), encoding="utf-8").read()
+    assert "motivo=MOTIVO" in src, "il Revisore delle etichette deve ricevere il motivo intero"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

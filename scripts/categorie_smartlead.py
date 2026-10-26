@@ -299,6 +299,14 @@ def pezzo_del_giro(righe, quanti=PER_GIRO):
     return tenute[:quanti], tenute[quanti:]
 
 
+# 26/10: il motivo dice tutto il piano, non un pezzo. Diceva solo «chi prenota passa a Conoscitiva»
+# e una seconda testa attenta (Claude, quando OpenAI era a secco) fermava giustamente un giro fatto
+# quasi tutto di «No, grazie» e «Analisi»: il motivo non lo copriva, e le etichette restavano indietro.
+MOTIVO = ("Dre ha creato i 12 filtri del manuale v2 il 12/10: ogni lead che ha risposto prende su Smartlead "
+          "l'etichetta della sua classe nel Workspace (no, si', analisi, rinvio, collega, e chi prenota "
+          "passa a Conoscitiva); cambia solo l'etichetta, nessuna mail e nessuna pausa")
+
+
 def main():
     righe = da_allineare()
     conta = {}
@@ -322,7 +330,7 @@ def main():
     from revisore import controlla
     righe = controlla("scrivo la categoria di Dre su Smartlead (solo l'etichetta, nessuna mail)", righe,
                       chiave=lambda r: r["email"], irreversibile=False,
-                      motivo="Dre ha creato i 12 filtri del manuale v2 il 12/10 e ha chiesto che chi prenota passi da solo a Conoscitiva")
+                      motivo=MOTIVO)
     ids = id_categorie()
     fatti, saltati = 0, []
     for r in righe:
