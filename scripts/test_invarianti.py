@@ -265,6 +265,11 @@ def _():
     assert L.DETTO_NO.search("la ringrazio ma non è di nostro interesse")
     assert L.AUTORISPOSTA.search("CONFERMIAMO L'AVVENUTA RICEZIONE. PROVVEDEREMO AD EVADERLA")
     assert L.GIA_LETTA.search("la ringrazio per il materiale che mi ha trasmesso")
+    # 26/10: chi chiede l'analisi non l'ha gia' ricevuta, e nemmeno chi dice di non averla
+    assert not L.GIA_LETTA.search("Può inviarci tranquillamente l'analisi che ha preparato; saremo lieti di prenderne visione")
+    assert not L.GIA_LETTA.search("purtroppo non ho ricevuto l'analisi, me la rimanda?")
+    assert L.GIA_LETTA.search("ho letto l'analisi che ci ha inviato, interessante")
+    assert L.GIA_LETTA.search("grazie, l'analisi che mi ha mandato e' chiara")
 
 
 @prova("bozze: ogni proposta «risposta» porta la lettura (il database la rifiuta altrimenti, schema_v58)")

@@ -54,8 +54,12 @@ DETTO_NO = re.compile(NO_INTERESSATO + "|" + (r"non (siamo|sono|siam) interessat
                       r"non (e'|è) di (nostro|mio) interesse|non (rientra|ci rientra) nei (nostri|miei)|non (ne )?abbiamo (la )?necessit|"
                       r"(siamo|sono) gi[àa] (seguit|copert|a posto)|"
                       r"non (siamo|sono) alla ricerca|non (ci|mi) serve|non (e'|è) (il|un) (nostro|mio) (obiettivo|interesse)").replace(" ", r"\s+"), re.I)
-GIA_LETTA = re.compile(r"(ho|abbiamo|avevo|avevamo) (letto|visto|ricevuto|guardato|dato un.occhiata|analizzato)[^.\n]{0,40}analisi|"
-                       r"grazie (per|dell)[^.\n]{0,20}analisi|l.analisi (che|ricevuta|inviata)|"
+# 26/10 (un si' fermo a Dre): «puo' inviarci l'analisi che ha preparato» era letto come «l'ho gia'
+# ricevuta e letta», e la seconda testa bocciava la prima risposta. «l'analisi che» vale solo se
+# dopo c'e' chi l'ha mandata; «non ho ricevuto l'analisi» non e' averla ricevuta.
+GIA_LETTA = re.compile(r"(?<!non )(?<!mai )(ho|abbiamo|avevo|avevamo) (letto|visto|ricevuto|guardato|dato un.occhiata|analizzato)[^.\n]{0,40}analisi|"
+                       r"grazie (per|dell)[^.\n]{0,20}analisi|"
+                       r"l.analisi (che (mi|ci) (ha|avete|aveva|avevate) (inviat|mandat|trasmess|girat|fatto aver)\w*|ricevuta|inviata)|"
                        r"(per il|del) materiale (che|ricevuto|inviato)|materiale che (mi|ci) ha (trasmesso|inviato|mandato)|"
                        r"(letto|visto|guardato) (il|la) (documento|report|analisi|presentazione)", re.I)
 SERVIZIO = re.compile(r"^(assistenza|supporto|support|helpdesk|help|ticket|noreply|no-reply|donotreply|customercare|customer\.?service|servizioclienti)@", re.I)
