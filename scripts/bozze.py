@@ -1095,6 +1095,15 @@ def esito_vero(esito):
     return isinstance(esito, dict) and not str(esito.get("motivo") or "").startswith(ERRORE_LEAD)
 
 
+def letta_dopo_ultima(p):
+    """Pura. Il lead ha gia' un verdetto scritto dopo la sua ultima mail: non si rilegge finche' non
+    riscrive. La regola unica del giro delle bozze e del lampo (turno del 27/10: il lampo chiamava
+    bozze --email, che salta questo controllo, e rileggeva la stessa risposta vuota ogni 10 minuti
+    per sei ore)."""
+    e = (p.get("enriched") or {}).get("lettura_esito") or {}
+    return esito_vero(e) and bool(e.get("il")) and e["il"] >= (p.get("last_reply_at") or "")[:19]
+
+
 def chiudi_attesa(p, motivo):
     """NESSUNO A CUI RISPONDERE (29/9): l'attesa si chiude col motivo nella scheda.
     Chi riscrive torna da solo (il sync rimette l'attesa). Prima restavano «in
@@ -1276,8 +1285,7 @@ def main():
 
     def gia_letta(p):
         """Saltata con motivo dopo la sua ultima mail: non si rilegge ogni cinque minuti."""
-        e = (p.get("enriched") or {}).get("lettura_esito") or {}
-        return esito_vero(e) and bool(e.get("il")) and e["il"] >= (p.get("last_reply_at") or "")[:19] and not SOLO
+        return letta_dopo_ultima(p) and not SOLO
 
     # IL TETTO PER GIRO (1/10): il giro delle bozze moriva a 2400 secondi col direttore
     # fermo dietro (2 ore senza invii). Meglio un giro corto che finisce e riparte:

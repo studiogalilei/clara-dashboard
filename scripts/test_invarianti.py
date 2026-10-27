@@ -6504,6 +6504,20 @@ def _():
     assert "if not COMPLETO and em in known" not in src, "il salto dei fili invariati passa dal tempo del completo"
 
 
+@prova("il lampo non rilegge una risposta che le bozze hanno gia' giudicato (27/10)")
+def _():
+    import bozze as B
+    p = {"last_reply_at": "2026-10-27T08:01:31+00:00",
+         "enriched": {"lettura_esito": {"motivo": "l'ultima mail loro e' vuota o illeggibile", "il": "2026-10-27T10:00:52+00:00"}}}
+    assert B.letta_dopo_ultima(p), "verdetto dopo l'ultima mail: gia' letta"
+    assert not B.letta_dopo_ultima({**p, "last_reply_at": "2026-10-27T11:00:00+00:00"}), "se riscrive si rilegge"
+    err = {**p, "enriched": {"lettura_esito": {"motivo": B.ERRORE_LEAD + ": x", "il": "2026-10-27T10:00:52+00:00"}}}
+    assert not B.letta_dopo_ultima(err), "un errore non e' un verdetto"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lampo.py"), encoding="utf-8").read()
+    corpo = src.split("def fresche")[1].split("\ndef ")[0]
+    assert "letta_dopo_ultima" in corpo, "il lampo usa la stessa regola del giro delle bozze"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

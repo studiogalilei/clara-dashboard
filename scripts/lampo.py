@@ -72,7 +72,11 @@ def fresche():
     da = urllib.parse.quote((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=FRESCA_ORE)).isoformat())
     righe = sb("GET", f"/rest/v1/prospects?select={CAMPI}{FILTRO}&last_reply_at=gte.{da}&order=last_reply_at.desc&limit=20") or []
     aperte = {x["prospect_id"] for x in (sb("GET", "/rest/v1/proposte?select=prospect_id&stato=in.(aperta,approvata,in_invio)&limit=1000") or [])}
-    return [p for p in righe if p["id"] not in aperte and di_persona(p)][:LAMPO_MAX]
+    # GIA' GIUDICATA (turno del 27/10): una risposta vuota, con il verdetto delle bozze scritto dopo,
+    # tornava a ogni giro per sei ore: bozze --email non guarda il verdetto. La regola e' quella del
+    # giro delle bozze (bozze.letta_dopo_ultima): si riprende solo se riscrive.
+    from bozze import letta_dopo_ultima
+    return [p for p in righe if p["id"] not in aperte and not letta_dopo_ultima(p) and di_persona(p)][:LAMPO_MAX]
 
 
 def uno(email):
