@@ -6486,6 +6486,24 @@ def _():
     assert corpo.index("startswith(ERRORE_LEAD)") < corpo.index('"coda": None'), "l'errore esce prima di svuotare la coda"
 
 
+@prova("il giro completo ha un tempo suo, sotto quello del direttore, e la coda ruota (27/10)")
+def _():
+    import sync_v2 as S
+    import direttore as D
+    assert S.TEMPO_COMPLETO + 5 * 60 <= D.ATTESA_MAX, "il sync completo deve finire da solo prima che il direttore lo fermi"
+    S.COMPLETO = True
+    try:
+        assert S.completo_ancora(0, 60) and not S.completo_ancora(0, S.TEMPO_COMPLETO + 1)
+    finally:
+        S.COMPLETO = "--completo" in sys.argv
+    c = list(range(18))
+    giorni = [datetime.date(2026, 10, 27) + datetime.timedelta(days=i) for i in range(18)]
+    assert len({S.ruota_campagne(c, g)[0] for g in giorni}) == 18, "in 18 giorni ogni campagna apre il giro una volta"
+    assert sorted(S.ruota_campagne(c, giorni[0])) == c, "ruotare non perde campagne"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py"), encoding="utf-8").read()
+    assert "if not COMPLETO and em in known" not in src, "il salto dei fili invariati passa dal tempo del completo"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

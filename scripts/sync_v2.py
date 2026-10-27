@@ -49,6 +49,25 @@ DRY = "--dry-run" in sys.argv
 # minuti a meno di uno e puo' girare ogni 15. Il giro completo (--completo)
 # resta una volta al giorno, per non fidarsi mai di una firma sola.
 COMPLETO = "--completo" in sys.argv
+# IL GIRO COMPLETO HA UN TEMPO SUO (27/10). Rileggeva tutti i fili in fila e ci metteva sempre di
+# piu' (da 29 a 38 minuti in una settimana): il 27/10 il direttore l'ha fermato a 40 minuti e il giro
+# e' finito in errore senza dire fin dove era arrivato. Ora, passati 30 minuti, il resto lo fa come il
+# giro veloce (rilegge solo i fili cambiati), e ogni giorno parte da una campagna diversa, cosi' la
+# coda non resta sempre la stessa.
+TEMPO_COMPLETO = 30 * 60
+
+
+def completo_ancora(inizio, adesso):
+    """Il giro completo rilegge anche i fili invariati finche' non ha finito il suo tempo."""
+    return COMPLETO and adesso - inizio < TEMPO_COMPLETO
+
+
+def ruota_campagne(camps, giorno):
+    """Le campagne dalla posizione del giorno in poi: la coda del giro completo cambia ogni giorno."""
+    if not camps:
+        return camps
+    k = giorno.toordinal() % len(camps)
+    return camps[k:] + camps[:k]
 
 # ---------- config ----------
 
@@ -838,7 +857,11 @@ def main():
     # giusto), e saltandole la sua risposta non entrava mai. Sono poche: tre in tutto il 15/10.
     camps = [c for c in camps
              if "best campaign" not in (c.get("name") or "").lower()]
+    if COMPLETO:
+        camps = ruota_campagne(camps, date.today())
     print(f"  campagne da controllare: {len(camps)}")
+    inizio_giro = time.time()
+    finito_il_tempo = None
 
     tot_scanned = 0
     tot_replies = 0
@@ -873,7 +896,10 @@ def main():
             if rc > 0 or known_replied:
                 # 24/9 (Dre: «il thread si aggiorna anche se non clicco»): chi aspetta noi si
                 # rilegge a ogni giro, perche' la nostra risposta manuale non cambia la firma
-                if not COMPLETO and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma) and not known[em].get("awaiting_us") \
+                tutto = completo_ancora(inizio_giro, time.time())
+                if COMPLETO and not tutto and finito_il_tempo is None:
+                    finito_il_tempo = c.get("name") or str(cid)
+                if not tutto and em in known and ((known[em].get("enriched") or {}).get("sl_firma") == firma) and not known[em].get("awaiting_us") \
                         and em not in caldi and em not in nuove_fresche:
                     invariati += 1
                     continue
@@ -901,6 +927,9 @@ def main():
 
     ok = not anomalies
     print(f"\n{'='*60}")
+    if finito_il_tempo:
+        print(f"  giro completo: dopo {TEMPO_COMPLETO // 60} minuti, da «{finito_il_tempo[:40]}» in poi "
+              "riletti solo i fili cambiati; domani si parte da un'altra campagna")
     print(f"  lead scansionati: {tot_scanned} | thread con reply: {tot_replies} | aggiornati: {updated}")
     if da_rispondere:
         print(f"\n  DA RISPONDERE ADESSO ({len(da_rispondere)}):")
