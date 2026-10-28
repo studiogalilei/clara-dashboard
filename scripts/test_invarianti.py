@@ -6530,6 +6530,23 @@ def _():
     assert "letta_dopo_ultima" in corpo, "il lampo usa la stessa regola del giro delle bozze"
 
 
+@prova("un rimbalzo con l'analisi pronta dice che aspetta Dre, non «senza analisi» (28/10)")
+def _():
+    import clara_foglio as C
+    vero_cont = C.contattabile
+    try:
+        C.contattabile = lambda p: True
+        ora = datetime.datetime(2026, 10, 28, 13, 20, tzinfo=datetime.timezone.utc)
+        base = {"classificazione": "da_classificare", "analysis_sent": False, "last_reply_at": "2026-10-28T10:40:46+00:00"}
+        schede = [{**base, "id": "a", "company": "Con Pdf", "analysis_pdf": "https://x/a.pdf"}, {**base, "id": "b", "company": "Senza Pdf"}]
+        r = {x["azienda"]: x for x in C.rimbalzi_fermi(ora, proposte=[{"prospect_id": "a", "stato": "aperta"}, {"prospect_id": "b"}], schede=schede)}
+        assert r["Con Pdf"]["pdf"] and r["Con Pdf"]["stato_bozza"] == "aperta", r
+        assert "aspetta te" in C.guasto_si(r["Con Pdf"], ora)["cosa"], C.guasto_si(r["Con Pdf"], ora)
+        assert C.guasto_si(r["Senza Pdf"], ora)["cosa"].startswith("Sì senza analisi")
+    finally:
+        C.contattabile = vero_cont
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

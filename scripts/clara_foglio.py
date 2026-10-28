@@ -163,17 +163,24 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
     sua mail. 20/10 sera: se il lettore AI ha letto la sua ultima mail, il rimbalzo e' tale solo se
     lo dice lui (C35 un indirizzo nuovo, C37 un collega in copia): «l'ho girata, vi contatteranno»
     (C36) e «non lavora piu' qui» (C39) non sono si' da servire, anche se il modello delle bozze
-    aveva scritto un INT-08. `proposte` e `schede` si passano solo nelle prove."""
+    aveva scritto un INT-08. 28/10: porta anche lo stato della bozza e se il PDF c'e', come i si':
+    prima diceva «Si' senza analisi» anche con l'analisi pronta e la bozza ferma a Dre per regola.
+    `proposte` e `schede` si passano solo nelle prove."""
     if proposte is None:
-        proposte = sb("GET", "/rest/v1/proposte?select=prospect_id&tipo=in.(risposta,umano)&stato=in.(aperta,approvata,in_invio)"
+        proposte = sb("GET", "/rest/v1/proposte?select=prospect_id,stato&tipo=in.(risposta,umano)&stato=in.(aperta,approvata,in_invio)"
                              f"&azione->>intento=in.({','.join(RIMBALZI)})&prospect_id=not.is.null&limit=300") or []
     ids = {x["prospect_id"] for x in proposte if x.get("prospect_id")} - set(gia)
+    stato = {}
+    for x in proposte:
+        st = x.get("stato") or "aperta"
+        if x.get("prospect_id") in ids and GRADO.get(st, 0) > GRADO.get(stato.get(x["prospect_id"]), 0):
+            stato[x["prospect_id"]] = st
     if not ids:
         return []
     if schede is None:
         schede = []
         for pezzo in _pezzi(ids):
-            schede += sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,fuori,stage,pipeline_stage,no_followup,"
+            schede += sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,analysis_pdf,fuori,stage,pipeline_stage,no_followup,"
                                 f"classificazione,last_reply_at,lettore:enriched->lettore&id=in.({pezzo})") or []
     out = []
     for p in schede:
@@ -185,7 +192,8 @@ def rimbalzi_fermi(ora, gia=(), proposte=None, schede=None):
         t = quando(p["last_reply_at"])
         if ora - t > datetime.timedelta(days=3) or not contattabile(p) or call_in_agenda(p):
             continue
-        out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t, "bozza": True})
+        out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t, "bozza": True,
+                    "stato_bozza": stato.get(p["id"], "aperta"), "pdf": bool(p.get("analysis_pdf"))})
     return out
 
 
