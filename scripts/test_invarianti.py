@@ -5447,7 +5447,8 @@ def _():
     prima = {"p1": _q("2026-10-21T07:42:00+00:00")}   # il nostro follow-up, 5 minuti PRIMA del suo si'
     dopo_ = {"p1": _q("2026-10-21T07:50:00+00:00")}   # una nostra mail DOPO il suo si'
     assert any(g.get("prospect_id") == "p1" for g in CF.si_fermi(ora, positivi=pos, dopo=prima, bozze=set())), "il si' al follow-up va contato"
-    assert not CF.si_fermi(ora, positivi=pos, dopo=dopo_, bozze=set())
+    # 28/10: si_fermi aggiunge i rimbalzi veri letti dal database: la prova guarda solo il suo p1
+    assert not [g for g in CF.si_fermi(ora, positivi=pos, dopo=dopo_, bozze=set()) if g.get("prospect_id") == "p1"]
     p = {"id": "p2", "classificazione": "positivo", "last_reply_at": "2026-10-15T10:03:00+00:00", "analysis_sent_at": "2026-10-15T10:00:00+00:00", "pipeline_stage": None, "stage": "risposto"}
     assert F.fase_di(p, None, None, [], None, None, ora=ora)[0] == F.CONV
     assert F.fase_di(dict(p, classificazione="ooo"), None, None, [], None, None, ora=ora)[0] == F.INVIATA
@@ -6451,6 +6452,14 @@ def _():
         assert parola in m, f"il motivo al Revisore non copre «{parola}»"
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "categorie_smartlead.py"), encoding="utf-8").read()
     assert "motivo=MOTIVO" in src, "il Revisore delle etichette deve ricevere il motivo intero"
+
+
+@prova("«fuori target» non e' «fuori»: il Revisore sa cos'e' fuori e il motivo delle etichette nomina il fuori target (28/10)")
+def _():
+    import categorie_smartlead as C
+    assert "fuori target" in C.MOTIVO.lower(), "il motivo delle etichette deve coprire «Fuori target»"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "revisore.py"), encoding="utf-8").read()
+    assert "NON e' «fuori target»" in src, "le regole della casa del Revisore devono dire che fuori target non e' fuori"
 
 
 @prova("chi giudica una mail ha il calendario vero, e una sigla come C.L.M. non spezza «analisi ... allegata» (26/10)")

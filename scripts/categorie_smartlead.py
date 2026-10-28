@@ -302,9 +302,13 @@ def pezzo_del_giro(righe, quanti=PER_GIRO):
 # 26/10: il motivo dice tutto il piano, non un pezzo. Diceva solo «chi prenota passa a Conoscitiva»
 # e una seconda testa attenta (Claude, quando OpenAI era a secco) fermava giustamente un giro fatto
 # quasi tutto di «No, grazie» e «Analisi»: il motivo non lo copriva, e le etichette restavano indietro.
+# 28/10: tre giri fermati per «contiene lead fuori target: mai toccare chi e' fuori». La seconda testa
+# leggeva «fuori target» (la classe) come «fuori» (pipeline e clienti, gia' esclusi): il motivo ora lo
+# nomina e le regole della casa del Revisore dicono cos'e' «fuori».
 MOTIVO = ("Dre ha creato i 12 filtri del manuale v2 il 12/10: ogni lead che ha risposto prende su Smartlead "
           "l'etichetta della sua classe nel Workspace (no, si', analisi, rinvio, collega, e chi prenota "
-          "passa a Conoscitiva); cambia solo l'etichetta, nessuna mail e nessuna pausa")
+          "passa a Conoscitiva, chi e' fuori target prende «Fuori target»); cambia solo l'etichetta, "
+          "nessuna mail e nessuna pausa")
 
 
 def main():

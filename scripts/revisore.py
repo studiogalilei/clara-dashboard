@@ -122,7 +122,9 @@ CAMPIONE (20 righe): {json.dumps(campione, ensure_ascii=False)[:3000]}
 
 DOVE SI AGISCE: {dove_spiegato}
 
-Regole della casa: mai cancellare chi ha risposto; mai toccare chi e' fuori, bloccato o soppresso;
+Regole della casa: mai cancellare chi ha risposto; mai toccare chi e' fuori, bloccato o soppresso
+(«fuori» e' il campo del database: in pipeline o cliente; NON e' «fuori target», che e' solo la classe
+di una risposta. Fuori, bloccati e soppressi li tolgono gia' le regole dure, prima di te);
 un'azione irreversibile su piu' di 300 righe vuole l'ok esplicito di Dre; ogni cancellazione da una
 campagna Smartlead cancella anche il thread della Master Inbox (successo il 24/9, 5 rispondenti persi).
 Quell'ultimo pericolo riguarda SOLO le azioni su Smartlead: su una modifica al nostro database i thread
