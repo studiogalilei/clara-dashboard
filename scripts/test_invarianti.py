@@ -6490,10 +6490,12 @@ def _():
 def _():
     import sync_v2 as S
     import direttore as D
-    assert S.TEMPO_COMPLETO + 5 * 60 <= D.ATTESA_MAX, "il sync completo deve finire da solo prima che il direttore lo fermi"
+    assert S.TETTO_COMPLETO + 5 * 60 <= D.ATTESA_MAX, "il sync completo deve finire da solo prima che il direttore lo fermi"
+    assert S.TEMPO_COMPLETO + 10 * 60 <= S.TETTO_COMPLETO, "dopo la rilettura piena il resto ne ha voluti 10 (28/10)"
     S.COMPLETO = True
     try:
         assert S.completo_ancora(0, 60) and not S.completo_ancora(0, S.TEMPO_COMPLETO + 1)
+        assert not S.completo_scaduto(0, S.TETTO_COMPLETO - 1) and S.completo_scaduto(0, S.TETTO_COMPLETO)
     finally:
         S.COMPLETO = "--completo" in sys.argv
     c = list(range(18))
@@ -6502,6 +6504,7 @@ def _():
     assert sorted(S.ruota_campagne(c, giorni[0])) == c, "ruotare non perde campagne"
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py"), encoding="utf-8").read()
     assert "if not COMPLETO and em in known" not in src, "il salto dei fili invariati passa dal tempo del completo"
+    assert src.count("completo_scaduto(inizio_giro") >= 2, "il tetto si guarda fra le campagne e dentro la campagna"
 
 
 @prova("il lampo non rilegge una risposta che le bozze hanno gia' giudicato (27/10)")

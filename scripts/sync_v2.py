@@ -54,12 +54,21 @@ COMPLETO = "--completo" in sys.argv
 # e' finito in errore senza dire fin dove era arrivato. Ora, passati 30 minuti, il resto lo fa come il
 # giro veloce (rilegge solo i fili cambiati), e ogni giorno parte da una campagna diversa, cosi' la
 # coda non resta sempre la stessa.
-TEMPO_COMPLETO = 30 * 60
+# 28/10: con 30 minuti il resto ne ha voluti altri 10 e il giro e' finito a 12 secondi dal limite
+# del direttore (2388 su 2400). Ora 20 minuti di rilettura piena, e a 33 il giro si ferma da solo e
+# lo dice: quello che resta lo legge il sync dei 5 minuti, che salta gia' i fili invariati.
+TEMPO_COMPLETO = 20 * 60
+TETTO_COMPLETO = 33 * 60
 
 
 def completo_ancora(inizio, adesso):
     """Il giro completo rilegge anche i fili invariati finche' non ha finito il suo tempo."""
     return COMPLETO and adesso - inizio < TEMPO_COMPLETO
+
+
+def completo_scaduto(inizio, adesso):
+    """Il giro completo ha passato il suo tetto: si ferma qui invece di farsi fermare dal direttore."""
+    return COMPLETO and adesso - inizio >= TETTO_COMPLETO
 
 
 def ruota_campagne(camps, giorno):
@@ -869,7 +878,11 @@ def main():
     anomalies = []
     da_rispondere = []
 
+    fermato_a = None
     for c in camps:
+        if completo_scaduto(inizio_giro, time.time()):
+            fermato_a = c.get("name") or str(c["id"])
+            break
         cid = c["id"]
         # UNA chiamata: export CSV con reply_count autorevole per ogni lead
         rows = sl_export(cid)
@@ -915,6 +928,9 @@ def main():
         print(f"  [{cid}] {c['name'][:38]:38s} lead={len(rows)} con_reply={len(with_reply)}" + (f" invariati={invariati}" if invariati else ""))
 
         for em, lead, wrap in with_reply:
+            if completo_scaduto(inizio_giro, time.time()):
+                fermato_a = fermato_a or (c.get("name") or str(cid))
+                break
             esito = sincronizza_filo(em, lead, cid, c.get("name"), known, started, wrap.get("_firma"), anomalies)
             if not esito:
                 continue
@@ -930,6 +946,9 @@ def main():
     if finito_il_tempo:
         print(f"  giro completo: dopo {TEMPO_COMPLETO // 60} minuti, da «{finito_il_tempo[:40]}» in poi "
               "riletti solo i fili cambiati; domani si parte da un'altra campagna")
+    if fermato_a:
+        print(f"  giro completo: fermato a {TETTO_COMPLETO // 60} minuti in «{fermato_a[:40]}», "
+              "il resto lo legge il sync dei 5 minuti")
     print(f"  lead scansionati: {tot_scanned} | thread con reply: {tot_replies} | aggiornati: {updated}")
     if da_rispondere:
         print(f"\n  DA RISPONDERE ADESSO ({len(da_rispondere)}):")
