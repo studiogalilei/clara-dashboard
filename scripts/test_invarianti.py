@@ -6547,6 +6547,27 @@ def _():
         C.contattabile = vero_cont
 
 
+@prova("«giri l'email a ...» e' il messaggio, non la firma; un'approvazione di Dre scioglie il freno dell'analisi (29/10)")
+def _():
+    import lettura as L
+    import analisi_auto as A
+    t = "Buonasera,\n\n giri l' email a info@esempio.invalid   \n\n Il 29/10/2026 15:14, Lorenzo Fornasier\n ha scritto:\n ciao"
+    assert "info@esempio.invalid" in L.solo_suo(t), L.solo_suo(t)
+    assert "mario@esempio.invalid" in L.solo_suo("Buongiorno,\nmandate pure a mario@esempio.invalid\nGrazie")
+    assert L.solo_suo("Grazie\nMario Rossi\nGiro Srl\nmario@esempio.invalid").strip() == "Grazie", "una firma resta firma"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "analisi_auto.py"), encoding="utf-8").read()
+    corpo = src.split("def lavora")[1].split("\ndef ")[0]
+    assert "approvata_da_persona" in corpo, "il freno della preparazione cede quando Dre ha approvato"
+    vero = A.sb
+    try:
+        A.sb = lambda *a, **k: [{"id": 1}]
+        assert A.approvata_da_persona("x")
+        A.sb = lambda *a, **k: []
+        assert not A.approvata_da_persona("x")
+    finally:
+        A.sb = vero
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

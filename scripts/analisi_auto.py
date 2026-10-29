@@ -604,6 +604,17 @@ def _chiudi_domande(p):
         print(f"    (domanda sull'analisi non chiusa: {str(e)[:60]})")
 
 
+def approvata_da_persona(pid):
+    """29/10 (un rimbalzo fermo): il freno della preparazione e' un dubbio, e il dubbio va a Dre. Se Dre
+    ha gia' approvato la risposta per questo lead, il dubbio e' sciolto: l'analisi si prepara (non contatta
+    nessuno), e manda.py la aspettava. Prima la mail approvata restava ferma fino alle 24 ore."""
+    try:
+        return bool(sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{pid}&stato=eq.approvata"
+                              "&azione->>approvata_da=not.is.null&limit=1"))
+    except Exception:                                            # noqa: BLE001
+        return False
+
+
 def lavora(p):
     nome = (p.get("company") or p.get("email"))[:40]
     s = scheda(p)
@@ -620,7 +631,8 @@ def lavora(p):
         corpo = s["ultime"][0].get("body") or ""
         d = lettura.secondo_lettore(corpo)
         si_sicuro = bool(d and d.get("etichetta") == "si" and not d.get("dubbio"))
-        if lettura.frena(False, d, ("non_scrivere",)) or (NON_TOCCARE.search(lettura.solo_suo(corpo)) and not si_sicuro):
+        if (lettura.frena(False, d, ("non_scrivere",)) or (NON_TOCCARE.search(lettura.solo_suo(corpo)) and not si_sicuro)) \
+                and not approvata_da_persona(p["id"]):
             print(f"  salto {nome}: ha chiesto di non essere contattato"); return False
     an = _ripulisci(chiedi(p, s))
     fatti = fatti_in_testo(s, p)

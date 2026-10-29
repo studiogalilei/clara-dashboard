@@ -212,7 +212,10 @@ _STOP_FINE = {"ma", "non", "siamo", "sono", "e", "di", "che", "per", "il", "la",
               "con", "ci", "vi", "ne", "al", "del", "della", "un", "una", "se", "o", "anche", "mi", "ti", "si", "piu", "più"}
 
 
+# 29/10 (un rimbalzo fermo): «giri l' email a info@...» finiva nella firma, il messaggio restava
+# «Buonasera,» e la seconda testa ci leggeva un «non scrivete». Girare e mandare sono rimandi.
 _RIMANDO = re.compile(r"\b(?:scriv\w*|invi\w*|contatt\w*|rivolg\w*|utilizz\w*|usa(?:re|te)?|inoltr\w*|nuov[oa]|"
+                      r"gir(?:i|ate|are|arla|arlo|atela|atelo)|mand(?:i|ate|are|arla|arlo|atela|atelo)|"
                       r"seguente|indirizzo|write|send|contact|new (?:e-?mail|address))\b", re.I)
 
 
@@ -520,7 +523,7 @@ def ha_gia(p, righe):
         if not firma:
             return True
         pos = t.lower().find(e)
-        return bool(re.search(r"(scriv|invi|mand|contatt|rivolg)\w*\s[^@]{0,40}$", t[:pos].lower()[-60:]))
+        return bool(re.search(r"(scriv|invi|mand|contatt|rivolg|gir|inoltr)\w*\s[^@]{0,40}$", t[:pos].lower()[-60:]))
     # 5/10, ronchi: «potete inviare una mail a ...@gmail» stava nel disclaimer privacy
     # della firma, e il verbo convinceva la regex. Gli indirizzi si cercano solo nel
     # testo suo vero (solo_suo), come gia' per NON_TOCCARE (28/9): la miglioria si
