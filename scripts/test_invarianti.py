@@ -3345,6 +3345,20 @@ def _():
     assert any("registro misto" in e for e in bozze.cancello("Se vuoi ne parliamo.\n" + base))
 
 
+@prova("cancello: il «Te» di una sigla col punto (Ca.Ve.Te.) non e' un tu (30/10)")
+def _():
+    import bozze
+    base = "Buongiorno, le propongo una breve videochiamata conoscitiva: https://calendar.app.google/x\nA presto,"
+    for nome in ("Ca.Ve.Te. Servizi", "Te.Ma. srl", "Ti.Ci. Impianti"):
+        assert not any("registro misto" in e for e in bozze.cancello(f"Abbiamo preparato un'analisi su {nome}.\n" + base)), nome
+    # un tu vero resta bocciato, anche a fine frase col punto
+    assert any("registro misto" in e for e in bozze.cancello("Abbiamo pensato a te.\n" + base))
+    assert any("registro misto" in e for e in bozze.cancello("Se vuoi ne parliamo.\n" + base))
+    # e l'analisi «allegata» dopo la sigla si vede ancora (il template INT-08 di Dre)
+    assert bozze.ALLEGA_ANALISI.search("un'analisi esterna gratuita su come ca.ve.te. servizi appare oggi su google (la trova allegata)")
+    assert not bozze.ALLEGA_ANALISI.search("l'analisi la vediamo in call. poi le scrivo un riepilogo in allegato")
+
+
 @prova("stanza: il carattere nullo non arriva mai al database (16/10)")
 def _():
     import json
@@ -4866,7 +4880,17 @@ def _():
              "appare oggi su Google (la trova allegata), ed è il nostro modo di presentarci.\n📅 Calendario: https://calendar.app.google/x")
     az = {"bozza": bozza, "intento": "INT-08", "cc": ["info@nuova-azienda.invalid"], "lettura": letti, "testo_dal_codice": True}
     pr = {"id": 1, "tipo": "risposta", "titolo": "Bozza per Prova, INT-08", "azione": az}
-    assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
+    import manda
+    vero_sb = manda.sb
+    manda.sb = lambda m, u, *a, **k: []                 # nessuna scheda sull'indirizzo in copia
+    try:
+        assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
+        # 30/10: la copia e' una scheda persa, con l'analisi gia' avuta: chi approva la ferma
+        # come la fermerebbe il postino, invece di approvare una mail che resta incastrata
+        manda.sb = lambda m, u, *a, **k: [{"fuori": False, "stage": "perso", "pipeline_stage": None, "no_followup": True, "classificazione": "positivo"}]
+        assert any("non si contatta" in m for m in R.perche_no(pr, p)), R.perche_no(pr, p)
+    finally:
+        manda.sb = vero_sb
     def con(**mod):
         return R.perche_no({**pr, "azione": {**az, **mod}}, p)
     assert any("nessuno in copia" in m for m in con(cc=[])), "senza copia non e' un rimbalzo servito"

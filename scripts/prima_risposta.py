@@ -323,6 +323,12 @@ def perche_no(pr, p):
             copia = lettura.copia_coerente(let, az.get("bozza") or "", cc)
             if copia:
                 no.append(f"la copia non torna: {copia[1]}")
+            # 30/10 (un rimbalzo a un indirizzo personale): la copia era una scheda gia' persa, che aveva l'analisi dal 30/9 e la
+            # conoscitiva il giorno prima. Il postino l'avrebbe fermata all'ultimo passo, ma qui passava:
+            # un'approvata incastrata. Il cancello sulla copia e' uno, quello del postino, e vale gia' qui.
+            import manda
+            for e in manda.controlla_cc(cc, p, let):
+                no.append(e)
         if not az.get("testo_dal_codice"):
             no.append("il rimbalzo non e' il template di Dre composto dal codice")
     if let.get("coerenza") != "COERENTE":

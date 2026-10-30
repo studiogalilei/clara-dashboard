@@ -112,8 +112,11 @@ Il testo: registro «lei», 5-7 righe, mai il trattino lungo, niente firma.
 4) un saluto gentile. Nessun follow-up promesso, nessuna domanda."""
 
 # ── il cancello qualita' (da lint_risposta.py, 3/7) ─────────────────
-TU = re.compile(r"\b(tu|ti|te|tuo|tua|tuoi|tue|puoi|hai|sei|vuoi|pensi|trovi|scegli)\b", re.I)
-LEI = re.compile(r"\b(lei|le|la ringrazio|suo|sua|suoi|sue|puo'|può|vorra'|vorrà|preferisce)\b", re.I)
+# 30/10 (un'impresa di servizi): il «Te» di una sigla col punto e' un pezzo del nome, non un tu.
+# Un sì e' rimasto fermo tre giorni al cancello per il nome della sua azienda. Una parola attaccata
+# a un punto da una parte (.Te) o seguita da punto e lettera (Te.Ma) e' una sigla, come in lettura.DEL_TU.
+TU = re.compile(r"(?<![\w.])(tu|ti|te|tuo|tua|tuoi|tue|puoi|hai|sei|vuoi|pensi|trovi|scegli)\b(?!\.\w)", re.I)
+LEI = re.compile(r"(?<![\w.])(lei|le|la ringrazio|suo|sua|suoi|sue|puo'|può|vorra'|vorrà|preferisce)\b(?!\.\w)", re.I)
 APERTURE_SECCHE = ("si'.", "sì.", "no.", "volentieri.", "certo.", "ok.", "va bene.")
 # «senza impegno» era vietata dal lint del 3/7, ma Dre la usa nei SUOI template
 # (RIMBALZO INTERNO: «senza alcun impegno»): il template vince sul lint (1/10)
@@ -123,7 +126,9 @@ PROMESSE = ("garantiamo risultati", "rendimento garantito", "successo assicurato
 # non bastava. 20/10: un punto dentro una parola (F.lli, S.r.l., www.sito.it) non chiude la frase.
 # 26/10: nemmeno il punto dopo una sigla di lettere singole (C.L.M., S.p.A.): «su come C.L.M. appare
 # oggi su Google (la trova allegata)» e' il template INT-08 di Dre, e il cancello lo fermava.
-_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w)|(?<=\b\w)\.)"
+# 30/10: nemmeno l'ultimo punto di una sigla a pezzi di due o tre lettere (Ca.Ve.Te., Te.Ma.Ri.):
+# il punto che chiude un pezzo cominciato dopo un altro punto e' ancora la sigla.
+_NEL_PERIODO = r"(?:[^.\n]|\.(?=\w)|(?<=\b\w)\.|(?<=\.\w\w)\.|(?<=\.\w\w\w)\.)"
 ALLEGA_ANALISI = re.compile(rf"(?:inoltr|alleg|lasci|ecco|trova qui|mand|invi)\w*{_NEL_PERIODO}{{0,60}}\banalisi\b|"
                             r"\banalisi\b[^\n]{0,160}?gliel[ao] lasci\w* in allegato|"
                             rf"\banalisi\b{_NEL_PERIODO}{{0,120}}(?:in allegato|allegat|qui sotto)")
