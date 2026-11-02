@@ -924,6 +924,29 @@ def _():
     assert "fuori_coda" in b and "esito_coda(p, motivo)" in b, "chi e' perso o cliente resta in coda per sempre"
 
 
+@prova("calendario: il nome fra parentesi nel titolo e' chi ha prenotato, mai il marchio di un'azienda (2/11)")
+def _():
+    import calendario as C
+    # 2/11: «Chiamata conoscitiva (Tiziana Michelin)», prenotata con una Gmail, agganciava MICHELIN
+    # Italiana S.p.A. (il cognome non era fra i nomi dei lead): il promemoria della conoscitiva stava
+    # per partire verso l'azienda sbagliata. Fra parentesi c'e' la persona, non l'azienda.
+    aziende = [("m", C._parole("MICHELIN Italiana S.p.A."), C._marchio("MICHELIN Italiana S.p.A.")),
+               ("k", C._parole("Klavzar Fisioterapia"), C._marchio("Klavzar Fisioterapia"))]
+    conta = {w: 1 for _, parole, _m in aziende for w in parole}
+    P = {"email": {}, "dominio": {}, "aziende": aziende, "conta": conta, "nomi": set()}
+    assert C.riconosci({"titolo": "StudioGalilei - Chiamata conoscitiva  (Tiziana Michelin)", "invitati": []}, P) == (None, None)
+    assert C.parole_del_titolo("Call (Mario Rossi) Klavzar") == {"call", "klavzar"} - C.PAROLE_VUOTE
+    # ma fra parentesi a volte c'e' anche l'azienda: quella resta (Calendly, il modulo di Google)
+    assert "corp" in C.parole_del_titolo("45 Min with Carlo | Performance Marketing (Anthony Rossi Super Corp Srl)")
+    assert "percezione" in C.parole_del_titolo("Studio galilei (Percezione srls Chiara Elena Leone )")
+    assert "rossi" in C.parole_del_titolo("Call (Mario Rossi Srl)")
+    assert C.riconosci({"titolo": "Call tecnica StudioGalilei - Klavzar", "invitati": []}, P)[0] == "k", "il marchio fuori parentesi vale ancora"
+    import promemoria
+    src = open(promemoria.__file__, encoding="utf-8").read()
+    assert src.index('if not letti.get("ultima_loro")') < src.index('sb("POST", "/rest/v1/proposte"'), \
+        "senza una sua mail nel filo il promemoria salta la call, non cade"
+
+
 @prova("i soldi li vedono solo Dre e Giacomo: niente soldi dove li legge la squadra")
 def _():
     import pathlib

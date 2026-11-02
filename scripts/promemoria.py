@@ -94,6 +94,11 @@ def main():
         if errori:
             print(f"  {p.get('company')}: il cancello lo ferma: {'; '.join(errori)[:120]}"); continue
         _, letti = lettura.leggi(p)
+        if not letti.get("ultima_loro"):
+            # 2/11: senza una sua mail nel filo il database rifiuta la bozza (nessuna bozza senza
+            # lettura) e il giro cadeva, saltando anche le altre call del giorno. Non c'e' un filo in
+            # cui rispondere: si dice e si passa alla prossima.
+            print(f"  {p.get('company')}: nel filo non c'e' nessuna sua mail, niente promemoria (lo mandi tu se serve)"); continue
         verdetto, motivo = lettura.coerenza(letti, corpo, "PROMEMORIA")
         ora_call = ev["inizio"].astimezone(roma).strftime("%H:%M")
         if PROVA:

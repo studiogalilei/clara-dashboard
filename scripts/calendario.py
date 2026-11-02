@@ -216,6 +216,18 @@ def _parole(testo):
     return {p for p in re.findall(r"[a-z0-9]{4,}", (testo or "").lower()) if p not in PAROLE_VUOTE}
 
 
+_SOLO_PERSONA = re.compile(r"\(\s*([A-ZÀ-Ý][a-zà-ÿ'’-]+(?:\s+[A-ZÀ-Ý][a-zà-ÿ'’-]+){1,2})\s*\)")
+_FORMA_SOCIETA = re.compile(r"\b(?:srl|srls|spa|snc|sas|sa|spa|ltd|gmbh|group|studio)\b", re.I)
+
+
+def parole_del_titolo(titolo):
+    """Le parole del titolo che possono dire l'azienda. Una parentesi fatta solo di nome e cognome
+    («(Tiziana Michelin)») e' chi ha prenotato e non conta; una che porta anche l'azienda
+    («(Anthony Rossi Super Corp Srl)», «(Percezione srls Chiara Leone)») resta."""
+    t = _SOLO_PERSONA.sub(lambda m: " " if not _FORMA_SOCIETA.search(m.group(1)) else m.group(0), titolo or "")
+    return _parole(t)
+
+
 def _marchio(testo):
     """La prima parola vera del nome dell'azienda: il marchio («Klavzar», «Energy4you»)."""
     for p in re.findall(r"[a-z0-9]{4,}", (testo or "").lower()):
@@ -240,7 +252,11 @@ def riconosci(evento, prospects):
             pid = prospects.get("sito", {}).get(d)
             if pid:
                 return pid, "sito"
-    titolo = _parole(evento["titolo"])
+    # 2/11: «Chiamata conoscitiva (Tiziana Michelin)» agganciava MICHELIN Italiana S.p.A.: fra
+    # parentesi Google mette chi ha prenotato (prenotato_da lo legge cosi'), cioe' una persona, non
+    # l'azienda. Il cognome di una persona non e' un marchio: le parole fra parentesi non contano qui
+    # (come gia' in pezzi_del_nome). La persona si riconosce dopo, dal nome nelle mail.
+    titolo = parole_del_titolo(evento["titolo"])
     if titolo:
         # una parola basta solo se e' lunga, di UNA sola azienda e non e' un
         # nome di persona («klavzar» si, «diego» no). Altrimenti nel titolo ci
