@@ -6592,6 +6592,21 @@ def _():
         A.sb = vero
 
 
+@prova("una firma che apre con «-» e chiude col sito senza www resta firma: l'info@ sotto il nome non va in copia (2/11)")
+def _():
+    import lettura as L
+    at = "@"
+    t = ("buongiorno,\n\n le chiedo di inviare il report direttamente al Marketing < marketing" + at + "esempio.it >\n Grazie\n   -\n\n"
+         " Mario Rossi\n Vicedirezione Generale\n Esempio S.r.l.\n\n Via Roma, 141, 47522 Cesena(FC)\n\n info" + at + "esempio.it\n\n"
+         " 0547 318754\n\n esempio.it\n\n altrosito.it")
+    m, f = L.dividi(t)
+    assert "marketing" + at in m and "info" + at not in m and "info" + at in f, (m, f)
+    assert "info" + at not in L.solo_suo(t), L.solo_suo(t)
+    # una riga di messaggio con un sito dentro resta messaggio
+    assert not L._SOLO_SITO.match("guardate il nostro sito esempio.it")
+    assert L.dividi("Va bene, grazie.\n-\nMario")[0] == "Va bene, grazie."
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

@@ -195,7 +195,12 @@ _TITOLO = r"(?:dott\.?(?:ssa)?|ing\.?|arch\.?|avv\.?|geom\.?|rag\.?|sig\.?(?:ra)
 _NOME = re.compile(rf"^(?:{_TITOLO}\s+)?[A-ZÀ-Ý][\w'’.\-]*(?:\s+(?:{_TITOLO}|[A-ZÀ-Ý][\w'’.\-]*|di|de|del|della|la|lo|da))*\.?$")
 _CHIUSA = re.compile(r"^(?:cordiali saluti|distinti saluti|saluti|cordialmente|cordialit[àa]|un cordiale saluto|"
                      r"un saluto|cari saluti|best regards|kind regards|regards|a presto)[.,!]?$", re.I)
-_SEPARATORE = re.compile(r"^[-_=*~.]{2,}$")
+# 2/11 (un rimbalzo con in copia l'info@ della firma): la firma comincia con «-» da solo e finisce con
+# il sito scritto senza www («azienda.it»). Nessuna delle due righe era firma, quindi tutta la firma
+# restava messaggio e l'indirizzo generico sotto il nome andava in copia accanto a quello indicato.
+_SEPARATORE = re.compile(r"^[-_=*~.]{1,}$")
+_SOLO_SITO = re.compile(r"^(?:www\.)?[a-z0-9][\w-]*(?:\.[\w-]+)*\.(?:it|com|eu|net|org|info|biz|ch|de|fr|es|"
+                        r"at|co|uk|io|shop|store|online|srl)/?$", re.I)
 # l'oggetto della nostra mail che certi client mettono in cima alla risposta. Gli oggetti fissi si
 # tolgono come prefisso; quelli col nome dell'azienda solo se la riga non contiene altro (niente
 # virgole, punti, domande): «Ho dato un occhiata ad Studio Canova Ok la invii, grazie» resta intera.
@@ -235,7 +240,7 @@ def _riga_di_firma(r):
     if not r:
         return True
     parole = r.split()
-    if _SEPARATORE.match(r) or _CHIUSA.match(r):
+    if _SEPARATORE.match(r) or _CHIUSA.match(r) or _SOLO_SITO.match(r):
         return True
     if _frase(r):
         return False
@@ -269,7 +274,7 @@ def _riga_che_apre_la_firma(r, prima=""):
         return False
     if len(parole) == 1 and r.endswith(".") and len(r) > 4:          # «Interessati.» non e' un nome
         return False
-    return bool(_SEPARATORE.match(r) or _CHIUSA.match(r)
+    return bool(_SEPARATORE.match(r) or _CHIUSA.match(r) or _SOLO_SITO.match(r)
                 or (_SEGNI_FIRMA.search(r) and len(parole) <= 12)
                 or (len(_CIFRE.findall(r)) >= 8 and len(parole) <= 8)
                 or (len(parole) <= 6 and _RUOLO.search(r) and r[:1].isupper())
