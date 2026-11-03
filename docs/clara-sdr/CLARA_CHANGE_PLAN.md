@@ -112,11 +112,41 @@ Rollback: le guardie possono solo bloccare. Toglierle riporta al comportamento d
 `scripts/esame_clara.py` sul banco, poi una prova di principio a fine percorso su un lead TEST non
 reale (un indirizzo nostro), dal webhook alla decisione registrata.
 
-## Cosa serve da Dre (blocchi veri)
+## Aggiornamento del 3/11 sera: niente paletti, si addestra in sandbox
 
-1. **Elena e le caselle.** Oggi tutte le 12 caselle si chiamano Lorenzo. Chi firma le mail da ora,
-   e da quando.
-2. **Le due regole vecchie.** «Dopo l'analisi la conversazione è di Dre» (20/10) e «niente
-   automatismi su orari e call fino al 21/11» (21/10): il cervello le supera, a partire dal
-   cambio 6.
-3. **Legale.** Una verifica del cold email B2B prima di alzare i volumi. Non blocca i cambi 1-5.
+Dre: «prima trainare, testare il sistema in sandbox, proprio il reale sistema che poi andrà a
+lavorare, finché non arriva al livello che fa le cose bene, e rilasciarlo». Quindi:
+- il cambio 3 (le guardie) **non esiste più come cancello**: le regole fisse restano in
+  `clara_sdr.segnali()` come metro dell'esame, si contano e non fermano;
+- i cambi 1 e 2 sono fatti e accesi: `scripts/esame_clara.py` (banco storico, uscita fuori dal
+  repository) e `scripts/clara_prova.py` (sandbox sul vivo: decide su ogni risposta che entra, salva in
+  `clara_decisioni`, scheda «Clara in prova» nel foglio con le colonne gialle di Dre, voto del giudice;
+  `schema_v103.sql`, operazione `clara_prova` ogni 10 minuti più la strada veloce);
+- il rilascio (cambio 6) arriva quando il banco è pulito e le decisioni di qualche giorno reggono
+  le correzioni di Dre; le telefonate per ora le fa lui, le 12 caselle si rinominano al rilascio.
+
+Primo esame (3/11, 35 conversazioni vere, giudice indipendente): identità v1 → 2 errori pericolosi,
+25 mosse giuste, 10 accettabili; identità v2 (regola delle correzioni, via la frase sul cambio di
+mittente) → 0 pericolosi, 30 giuste, 5 accettabili, 12 testi da ritoccare. Costo del cervello: circa
+1,1 $ per 35 decisioni.
+
+## Decisioni di Dre (archivio della discussione del 3/11)
+
+- **Elena è una collega vera e il volto dell'outbound.** Le mail partono a nome suo, da caselle
+  configurate per lei. Le comunicazioni non le attribuiscono cose che non ha fatto. Il numero di
+  Elena può stare in firma. Se il lead non ha un numero, glielo si chiede.
+- **Clara gestisce tutto in autonomia**, Elena interviene per le chiamate. Le regole del 20/10 («dopo
+  l'analisi la conversazione è di Dre») e del 21/10 («niente automatismi fino al 21/11») sono
+  superate, a partire dal cambio 6.
+- **Le liste le fa Dre**, Lorenzo è uscito.
+- **Nella conoscitiva Dre propone subito il percorso di 6 mesi con il prezzo.** Poi c'è la tecnica
+  con Carlo.
+- **Privacy**: solo la fonte vera, nessun opt-in inventato, nessuna prova costruita dopo.
+
+## Ancora aperto
+
+1. **Le caselle di Elena** (operativo): o caselle nuove a suo nome, che vanno scaldate per qualche
+   settimana, o rinominare il mittente delle 12 di oggi. Ma l'indirizzo resta quello di Lorenzo, e
+   si nota. Si decide prima del cambio 6. Il nome mittente su Smartlead lo cambia Dre.
+2. **Legale**: una verifica con un professionista del cold email B2B prima di alzare i volumi.
+   Non blocca i cambi 1-5.

@@ -244,6 +244,8 @@ def main():
     minuti = passo("misura", lambda: misura(esito, bussato, partita))
     passo("conversazioni (la notifica a Dre)", conversazioni)
     passo("scheda nell'app", lambda: _sotto("schede.py", ["--uno", email], 3))
+    # 3/11 sera: Clara in prova decide accanto al sistema di oggi, senza mandare (clara_prova.py)
+    passo("Clara in prova (decide, non manda)", lambda: _sotto("clara_prova.py", ["--email", email], 5))
     passo("foglio e scheda Clara", lambda: _sotto("foglio.py", [], 5))
     if serve_il_lampo(esito):
         passo("lampo (si' senza analisi)", lambda: _sotto("lampo.py", ["--email", email], 15))

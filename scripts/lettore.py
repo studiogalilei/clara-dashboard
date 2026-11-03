@@ -75,6 +75,7 @@ CLASSI = ("positivo", "negativo", "ooo", "rinvio", "automatico", "da_classificar
 PREZZI = {
     "claude-sonnet-5": {"in": 2.0, "out": 10.0, "cache": 0.2, "scrittura": 2.5},
     "claude-sonnet-5-5": {"in": 2.0, "out": 10.0, "cache": 0.2, "scrittura": 2.5},
+    "claude-opus-5-5": {"in": 4.0, "out": 20.0, "cache": 0.2, "scrittura": 5.0},        # 3/11: Clara in prova e il giudice
     "claude-haiku-5-5": {"in": 0.10, "out": 0.50, "cache": 0.01, "scrittura": 0.125},
 }
 TETTO_GIORNO = 5.0          # dollari al giorno (20/10 sera: con 2 $ il tetto si e' riempito alle 20 per le riletture; circa 0,01 $ a risposta)
