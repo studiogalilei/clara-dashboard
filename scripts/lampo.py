@@ -98,6 +98,16 @@ def uno(email):
     return [p]
 
 
+def bozze_accese():
+    """4/11: col Desk le risposte le decide Clara (clara_prova) e le approva Dre. Il lampo si ferma
+    all'analisi; bozze, prima_risposta e il postino vecchio girano solo se «bozze» e' accesa in operazioni."""
+    try:
+        r = sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.bozze") or []
+        return bool(r and r[0].get("attiva"))
+    except Exception:                                            # noqa: BLE001
+        return False
+
+
 def catena(p, extra):
     """La catena di un lead: fit, analisi, bozza. Gli stessi pezzi di sempre, senza attese."""
     nome = (p.get("company") or p.get("name") or p["email"])[:40]
@@ -107,7 +117,8 @@ def catena(p, extra):
         _corri("googlefit.py", ["--uno", p["email"]] + extra)
     if not p.get("analysis_pdf"):
         _corri("analisi_auto.py", ["--email", p["email"]] + extra, minuti=12)
-    _corri("bozze.py", ["--email", p["email"]] + extra)
+    if bozze_accese():
+        _corri("bozze.py", ["--email", p["email"]] + extra)
 
 
 def main():
@@ -119,9 +130,10 @@ def main():
             return
         # niente di fresco, ma gli approvati rimasti (1/10: UG col PDF arrivato dopo)
         # non devono aspettare il giro di qualcun altro
-        print("lampo: nessuna risposta fresca; passo comunque il testimone a postino e approvazioni")
-        _corri("prima_risposta.py", extra)
-        _corri("manda.py", extra)
+        if bozze_accese():
+            print("lampo: nessuna risposta fresca; passo comunque il testimone a postino e approvazioni")
+            _corri("prima_risposta.py", extra)
+            _corri("manda.py", extra)
         return
     print(f"lampo: {len(care)} risposte fresche" + (" (prova)" if PROVA else ""))
 
@@ -131,9 +143,10 @@ def main():
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=LAMPO_MAX) as pool:
         list(pool.map(lambda p: catena(p, extra), care))
-    # i cancelli veri: approvazione (con tutti i freni) e postino, una volta per tutti
-    _corri("prima_risposta.py", extra)
-    _corri("manda.py", extra)
+    # i cancelli veri: approvazione (con tutti i freni) e postino, una volta per tutti (solo col vecchio automatismo acceso)
+    if bozze_accese():
+        _corri("prima_risposta.py", extra)
+        _corri("manda.py", extra)
 
 
 if __name__ == "__main__":

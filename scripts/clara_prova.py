@@ -104,6 +104,9 @@ def decidi_lead(p, perche=""):
         return riga
     sb("POST", "/rest/v1/clara_decisioni?on_conflict=prospect_id,risposta_il,versione", [riga],
        {"Prefer": "resolution=ignore-duplicates,return=minimal"})
+    # le decisioni vecchie ancora da fare per questo lead sono superate: il lead ha scritto di nuovo
+    sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&risposta_il=lt.{urllib.parse.quote(risposta_il)}&stato=in.(proposta,approvata)",
+       {"stato": "superata"}, {"Prefer": "return=minimal"})
     return riga
 
 
@@ -114,9 +117,9 @@ def spesa(scopo):
         return 0.0
 
 
-def risposte_nuove():
+def risposte_nuove(ore=None):
     """I lead con una risposta nelle ultime FINESTRA_ORE senza una decisione: i piu' recenti prima."""
-    da = (adesso() - datetime.timedelta(hours=FINESTRA_ORE)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    da = (adesso() - datetime.timedelta(hours=ore or FINESTRA_ORE)).strftime("%Y-%m-%dT%H:%M:%SZ")
     righe = sb_tutte(f"/rest/v1/prospects?select=*&last_reply_at=gte.{da}&lead_id=not.is.null&campaign_id=not.is.null")
     righe.sort(key=lambda r: r.get("last_reply_at") or "", reverse=True)
     fuori = []
@@ -277,17 +280,25 @@ def registra(esito, dettaglio, partita):
         pass
 
 
+def _arg(nome, default):
+    try:
+        return int(sys.argv[sys.argv.index(nome) + 1])
+    except (ValueError, IndexError):
+        return default
+
+
 def giro():
     partita = adesso()
     if not acceso():
         print("clara_prova: spenta in operazioni")
         return
     note = []
+    ore, massimo = _arg("--ore", FINESTRA_ORE), _arg("--max", PER_GIRO)
     try:
-        cand = risposte_nuove()
-        print(f"risposte senza decisione nelle ultime {FINESTRA_ORE} ore: {len(cand)}")
+        cand = risposte_nuove(ore)
+        print(f"risposte senza decisione nelle ultime {ore} ore: {len(cand)}")
         decise = 0
-        for p in cand[:PER_GIRO]:
+        for p in cand[:massimo]:
             if spesa("clara_sdr") > TETTO_GIORNO:
                 note.append(f"tetto del giorno ({TETTO_GIORNO} $) raggiunto")
                 break
@@ -296,7 +307,7 @@ def giro():
                     decise += 1
             except Exception as e:                               # noqa: BLE001
                 print(f"  {p.get('company') or '?'}: non decisa ({str(e)[:150]})")
-        note.append(f"{decise} decisioni nuove" + (f" ({len(cand) - PER_GIRO} restano al prossimo giro)" if len(cand) > PER_GIRO else ""))
+        note.append(f"{decise} decisioni nuove" + (f" ({len(cand) - massimo} restano al prossimo giro)" if len(cand) > massimo else ""))
         note.append(f"{giudica_nuove()} votate dal giudice")
         foglio()
         registra("ok", "; ".join(note), partita)

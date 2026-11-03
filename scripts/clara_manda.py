@@ -1,0 +1,223 @@
+"""IL POSTINO DEL DESK (4/11/2026, notte).
+
+Manda SOLO le decisioni che Dre ha approvato nel Desk (clara_decisioni.stato = approvata), nel thread
+vero di Smartlead, dalla casella della campagna, con l'analisi e la presentazione quando la mossa le
+prevede. Riusa i pezzi del postino di sempre (manda.py: il filo, l'HTML, i link freschi, a chi
+rispondere) e il suo lucchetto: una decisione passa a «in_invio» solo se e' ancora «approvata», e solo
+chi riesce a scriverlo manda. Poi la ricevuta: al giro dopo rilegge il filo e segna «verificata» quando
+la mail risulta davvero partita.
+
+Non decide niente: il testo e' quello lasciato da Dre (testo_finale) o quello di Clara.
+
+  python3 scripts/clara_manda.py            il giro (ogni 5 minuti dal direttore, o su richiesta dal Desk)
+  python3 scripts/clara_manda.py --prova    mostra cosa manderebbe, non manda
+"""
+import datetime
+import json
+import os
+import sys
+import urllib.request
+import zoneinfo
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, QUI)
+import manda  # noqa: E402
+from stanza import sb, contattabile, env  # noqa: E402
+
+PROVA = os.environ.get("PROVA") == "1" or "--prova" in sys.argv
+ROMA = zoneinfo.ZoneInfo("Europe/Rome")
+MAX_PER_GIRO = 12
+ATTESA_ANALISI_ORE = 24
+LUCCHETTO_APPESO_MIN = 30
+CON_ANALISI = {"send_analysis"}
+CON_TESTO = {"send_analysis", "reply", "offer_slots", "book_meeting"}
+
+
+def adesso():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def _quando(iso):
+    return datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+
+
+def _peso(url):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as r:
+            return int(r.headers.get("Content-Length") or 0)
+    except Exception:                                            # noqa: BLE001
+        return 0
+
+
+def allegati(p, d):
+    """[(nome, url, peso)] da allegare, o una stringa col motivo per cui non si puo' mandare."""
+    fuori = []
+    azienda = p.get("company") or p.get("name") or p["email"]
+    prima_volta = not p.get("analysis_sent")
+    if d["mossa"] in CON_ANALISI:
+        if not p.get("analysis_pdf"):
+            return "aspetta l'analisi"
+        url = manda.link_fresco(p["analysis_pdf"])
+        peso = _peso(url)
+        if not peso:
+            return "il PDF dell'analisi non si apre"
+        fuori.append({"file_name": f"Analisi Google Ads - {azienda}.pdf"[:120], "file_url": url, "file_type": "application/pdf", "file_size": peso})
+    if d["mossa"] in CON_ANALISI and prima_volta:
+        url_p = manda.link_fresco(f"{env('VITE_SUPABASE_URL')}/storage/v1/object/sign/vault/modelli/sg-presentazione.pdf")
+        peso_p = _peso(url_p)
+        if not peso_p:
+            return "la presentazione non si apre dal bucket"
+        fuori.append({"file_name": "Presentazione Studio Galilei.pdf", "file_url": url_p, "file_type": "application/pdf", "file_size": peso_p})
+    return fuori
+
+
+def ferma(d, motivo, stato="proposta"):
+    """La decisione torna a Dre (proposta) con il motivo scritto, oppure resta approvata in attesa."""
+    print(f"  {motivo}")
+    if PROVA:
+        return
+    sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"stato": stato, "errore": motivo[:300]}, {"Prefer": "return=minimal"})
+
+
+def prendi(d):
+    r = sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}&stato=eq.approvata",
+           {"stato": "in_invio", "errore": None}, {"Prefer": "return=representation"}) or []
+    return bool(r)
+
+
+def manda_una(d):
+    p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,campaign_id,lead_id,analysis_pdf,analysis_sent,"
+                   f"fuori,stage,pipeline_stage,no_followup,classificazione,enriched&id=eq.{d['prospect_id']}") or [None])[0]
+    if not p:
+        return ferma(d, "scheda del lead non trovata")
+    azienda = p.get("company") or p.get("name") or p["email"]
+    testo = (d.get("testo_finale") or d.get("testo") or "").strip()
+    if d["mossa"] not in CON_TESTO or not testo:
+        return ferma(d, f"{azienda}: la mossa «{d['mossa']}» non manda una mail")
+    if not contattabile(p):
+        return ferma(d, f"{azienda}: non più un lead (cliente, perso, in pipeline o niente follow-up): non mando", "scartata")
+    cid, lid, ultima = manda.thread(p)
+    if not ultima:
+        return ferma(d, f"{azienda}: non trovo il suo thread su Smartlead")
+    # il lead ha scritto dopo la decisione? allora la decisione e' vecchia: torna a Dre, e Clara ne fa una nuova
+    if _quando(ultima.get("time")) > _quando(d["risposta_il"]) + datetime.timedelta(minutes=3):
+        return ferma(d, f"{azienda}: ha scritto di nuovo dopo questa decisione: rileggi", "superata")
+    att = allegati(p, d)
+    if isinstance(att, str):
+        if att == "aspetta l'analisi":
+            ore = (adesso() - _quando(d.get("approvata_il") or d["creato_il"])).total_seconds() / 3600
+            if ore > ATTESA_ANALISI_ORE:
+                return ferma(d, f"{azienda}: aspetta l'analisi da {int(ore)} ore e non arriva: guarda il sito loro o togli l'allegato")
+            print(f"  {azienda}: aspetto l'analisi ({int(ore * 60)} min), riprovo al giro dopo")
+            return None
+        return ferma(d, f"{azienda}: {att}")
+    a = (p.get("email_alt") or [None])[0] or manda.chi_ha_risposto(ultima, p["email"]) or p["email"]
+    corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
+             "email_body": manda.in_html(testo),
+             "reply_message_id": ultima.get("message_id"),
+             "reply_email_time": ultima.get("time"),
+             "reply_email_body": ultima.get("email_body") or "",
+             "add_signature": True, "to_email": a}
+    # «A: … Cc: …» in testa al testo di Clara: il destinatario l'ha indicato il lead (es. il marketing)
+    prima_riga = testo.split("\n", 1)[0]
+    if prima_riga.lower().startswith("a:") and "@" in prima_riga:
+        import re
+        indirizzi = re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", prima_riga)
+        dominio = p["email"].split("@")[-1].lower()
+        if indirizzi and all(i.split("@")[-1].lower() == dominio for i in indirizzi):
+            corpo["to_email"] = indirizzi[0]
+            if len(indirizzi) > 1:
+                corpo["cc"] = ",".join(indirizzi[1:])
+            resto = testo.split("\n", 1)[1].lstrip()
+            if resto.lower().startswith("oggetto:"):
+                resto = resto.split("\n", 1)[1].lstrip() if "\n" in resto else ""
+            corpo["email_body"] = manda.in_html(resto)
+            a = corpo["to_email"]
+    if att:
+        corpo["attachments"] = att
+    print(f"  {azienda} → {a}" + (f" (cc {corpo['cc']})" if corpo.get("cc") else "") + f"  campagna {cid}, {len(att)} allegati")
+    if PROVA:
+        print("    " + testo[:160].replace("\n", " ") + "…")
+        return None
+    if not prendi(d):
+        print("    l'ha già presa un altro giro")
+        return None
+    try:
+        r = manda.sl("POST", f"/campaigns/{cid}/reply-email-thread", corpo)
+    except Exception as e:                                       # noqa: BLE001
+        sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"stato": "approvata", "errore": f"Smartlead ha risposto male: {str(e)[:150]}"})
+        return None
+    if isinstance(r, dict) and (r.get("ok") is False or r.get("error")):
+        sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"stato": "approvata", "errore": f"Smartlead: {json.dumps(r, ensure_ascii=False)[:200]}"})
+        return None
+    ora = datetime.datetime.now(ROMA)
+    agg = {"awaiting_us": False}
+    if d["mossa"] in CON_ANALISI:
+        agg.update({"analysis_sent": True} if p.get("analysis_sent") else {"analysis_sent": True, "analysis_sent_at": ora.isoformat()})
+    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", agg)
+    sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}",
+       {"stato": "inviata", "inviata_il": ora.isoformat(), "errore": None,
+        "invio": {"campagna": cid, "lead": lid, "a": a, "cc": corpo.get("cc"), "allegati": [x["file_name"] for x in att],
+                  "smartlead": (json.dumps(r, ensure_ascii=False) if not isinstance(r, str) else r)[:300]}})
+    return True
+
+
+def ricevute():
+    """Le inviate senza ricevuta: si rilegge il filo vero e, se la mail c'e', si segna verificata."""
+    righe = sb("GET", "/rest/v1/clara_decisioni?select=id,prospect_id,testo,testo_finale,inviata_il,invio&stato=eq.inviata&verificata_il=is.null"
+                      "&order=inviata_il.desc&limit=20") or []
+    ok = 0
+    for d in righe:
+        inv = d.get("invio") or {}
+        if not (inv.get("campagna") and inv.get("lead")):
+            continue
+        try:
+            h = manda.sl("GET", f"/campaigns/{inv['campagna']}/leads/{inv['lead']}/message-history") or {}
+        except Exception:                                        # noqa: BLE001
+            continue
+        testo = (d.get("testo_finale") or d.get("testo") or "").strip()
+        pezzo = " ".join(testo.split("\n", 1)[-1].split())[:50] if testo.lower().startswith("a:") else " ".join(testo.split())[:50]
+        partita = any(m.get("type") != "REPLY" and pezzo[:35] and pezzo[:35] in " ".join((m.get("email_body") or "").split())
+                      for m in (h.get("history") or []))
+        eta = (adesso() - _quando(d["inviata_il"])).total_seconds() / 60
+        if partita:
+            if not PROVA:
+                sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"verificata_il": adesso().isoformat()})
+            ok += 1
+        elif eta > 60:
+            print(f"  ricevuta mancante da {int(eta)} minuti per {d['id'][:8]}: Smartlead non la mostra ancora nel filo")
+    return ok
+
+
+def appese():
+    """Un «in_invio» da piu' di 30 minuti e' un lucchetto appeso: torna approvata (se non e' partita) o inviata."""
+    righe = sb("GET", "/rest/v1/clara_decisioni?select=id,prospect_id,testo,testo_finale,approvata_il,creato_il&stato=eq.in_invio") or []
+    for d in righe:
+        da = _quando(d.get("approvata_il") or d["creato_il"])
+        if (adesso() - da).total_seconds() / 60 < LUCCHETTO_APPESO_MIN or PROVA:
+            continue
+        sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"stato": "approvata", "errore": "era rimasta in invio: riprovo"})
+        print(f"  lucchetto appeso sciolto: {d['id'][:8]}")
+
+
+def main():
+    appese()
+    approvate = sb("GET", "/rest/v1/clara_decisioni?select=*&stato=eq.approvata&order=approvata_il.asc.nullsfirst") or []
+    if len(approvate) > MAX_PER_GIRO:
+        print(f"  {len(approvate)} approvate: ne mando {MAX_PER_GIRO} questo giro")
+        approvate = approvate[:MAX_PER_GIRO]
+    mandate = 0
+    for d in approvate:
+        try:
+            if manda_una(d):
+                mandate += 1
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  {d['id'][:8]}: non mandata ({str(e)[:150]})")
+            if not PROVA:
+                sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}&stato=eq.in_invio", {"stato": "approvata", "errore": str(e)[:200]})
+    verificate = ricevute()
+    print(f"clara_manda: {mandate} mandate, {len(approvate)} approvate, {verificate} ricevute confermate")
+
+
+if __name__ == "__main__":
+    main()
