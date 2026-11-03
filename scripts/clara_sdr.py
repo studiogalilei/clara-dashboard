@@ -162,10 +162,44 @@ def _fit(p):
     return gf if isinstance(gf, dict) else {}
 
 
+def _quando(iso):
+    try:
+        return datetime.datetime.fromisoformat((iso or "").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def messaggi_della_relazione(p, storia, storico=False):
+    """Il filo intero: la message-history di Smartlead piu' quello che il CRM ha visto fuori dal thread
+    della campagna (interactions email_in/email_out: la conversazione che Dre fa dalla sua casella
+    dopo l'analisi). 3/11 sera: un lead aveva l'ultima mail del 19/10 su Smartlead e tre mail di
+    novembre nel CRM; il cervello vedeva solo le vecchie. Nell'esame storico resta solo Smartlead."""
+    messaggi = lettore.messaggi_da_smartlead(storia)
+    if storico or not p.get("id"):
+        return messaggi
+    import stanza
+    try:
+        righe = stanza.sb("GET", f"/rest/v1/interactions?select=at,kind,body,casella&prospect_id=eq.{p['id']}"
+                                 "&kind=in.(email_in,email_out)&order=at.asc&limit=200") or []
+    except Exception:                                        # noqa: BLE001
+        return messaggi
+    tempi = [(m["tipo"], _quando(m["il"])) for m in messaggi]
+    for r in righe:
+        tipo = "REPLY" if r["kind"] == "email_in" else "SENT"
+        t = _quando(r.get("at"))
+        if not t or not (r.get("body") or "").strip():
+            continue
+        if any(tp == tipo and tq and abs((tq - t).total_seconds()) < 180 for tp, tq in tempi):
+            continue                                         # gia' nel filo di Smartlead (il sync le copia li')
+        messaggi.append({"tipo": tipo, "il": lettore._iso(r["at"]), "da": r.get("casella"), "cc": None, "oggetto": None,
+                         "passo": None, "allegati": 0, "testo": lettore.testo_da_html(r["body"])})
+    return sorted(messaggi, key=lambda x: x["il"])
+
+
 def contesto(p, storia, indice=None, storico=False):
     """Il testo per il cervello sulla risposta storia[indice] (l'ultima se None). `storico`: esame
     su un caso vecchio, quindi niente stato di oggi (stage, agenda) che direbbe come e' finita."""
-    messaggi = lettore.messaggi_da_smartlead(storia)
+    messaggi = messaggi_della_relazione(p, storia, storico)
     risposte = [k for k, m in enumerate(messaggi) if m["tipo"] == "REPLY"]
     if not risposte:
         raise Guasto("nel filo non c'e' una risposta")

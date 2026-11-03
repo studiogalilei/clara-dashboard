@@ -79,7 +79,7 @@ def decidi_lead(p, perche=""):
         print("  lead senza filo Smartlead: niente")
         return None
     storia = _storia(p)
-    messaggi = lettore.messaggi_da_smartlead(storia)
+    messaggi = clara_sdr.messaggi_della_relazione(p, storia)   # Smartlead piu' le mail fuori thread del CRM
     risposte = [m for m in messaggi if m["tipo"] == "REPLY"]
     if not risposte:
         print("  nessuna risposta nel filo")
