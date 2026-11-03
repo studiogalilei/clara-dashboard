@@ -487,11 +487,16 @@ def testo_per(p, pr, letti, righe, scelte, cellulare, ora):
     lettore_txt = (f"caso {caso} «{nome_caso(caso)}», classe {lett.get('classe')}, porta aperta {'si' if lett.get('porta_aperta') else 'no'}, "
                    f"caldo {'si' if lett.get('caldo') else 'no'}, motivo: {lett.get('motivo') or ''}") if lett else "non l'ha letta"
     ab = abitudine(scelte, caso)
+    import orari
+    vincoli = bozze.vincoli_del_lead(p, letti)            # 3/11: gli orari dentro quello che ha chiesto
+    esteso, parole = bozze.orari_da_proporre(1, vincoli)
     ab_txt = (f"\n\nABITUDINE DI DRE su questo caso ({caso}): tre volte di fila ha scelto «{ab['etichetta']}» ({ab['azione']}). "
               "Proponi SOLO quella strada, fatta bene (con la bozza se e' manda): il sistema la prende da solo.") if ab else ""
     return (esempi_per_prompt(scelte) + ab_txt
             + f"\n\nOGGI: {ora.astimezone(ROMA):%A %d %B %Y}. CELLULARE: {'si' if cellulare else 'no'}. "
-            f"ORARI PROPONIBILI (se serve una data per la call, sempre tutti e due, scritti cosi'): {bozze.orari_da_proporre()[1]}. {{{{CALENDARIO}}}} = {bozze.CALENDARIO}"
+            f"ORARI PROPONIBILI (se serve una data per la call, sempre tutti e due, scritti cosi'; gia' dentro quello che ha chiesto lui, 3/11): "
+            f"{parole}" + (f" (una {orari.canale(vincoli)}; {orari.premessa(vincoli, esteso, ora.astimezone(ROMA).date())})" if vincoli else "")
+            + f". {{{{CALENDARIO}}}} = {bozze.CALENDARIO}"
             f"\n\nLA SCHEDA:\n{json.dumps(fatti_di(p, letti, righe), ensure_ascii=False)}"
             f"\n\nIL LETTORE AI HA LETTO LA SUA ULTIMA MAIL COSI': {lettore_txt}"
             + cosa_aveva

@@ -3496,6 +3496,82 @@ def _():
     assert "orari.frase_proposta(bozza)" in src and "if not scritta_da_dre(az):" in src
 
 
+@prova("gli orari della call stanno dentro quello che il lead ha chiesto: settimana, oggi, fascia, telefono (3/11)")
+def _():
+    import bozze as Bz, orari as O, types
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    vero_sb, vero_dt, vero_occ = Bz.sb, Bz.datetime, Bz.occupato_google
+
+    def il(anno, mese, giorno, ora_utc=8):
+        class Finto(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.datetime(anno, mese, giorno, ora_utc, 0, tzinfo=datetime.timezone.utc).astimezone(tz)
+        Bz.datetime = types.SimpleNamespace(datetime=Finto, timedelta=datetime.timedelta, timezone=datetime.timezone, date=datetime.date)
+    oggi = datetime.date(2026, 11, 3)                          # martedi'
+    lun26, gio29 = datetime.date(2026, 10, 26), datetime.date(2026, 10, 29)
+    try:
+        Bz.sb = lambda m, path, corpo=None, h=None: []
+        Bz.occupato_google = lambda da, a: []
+        il(2026, 11, 3)
+        # 1. «la prossima settimana», scritto lunedi' 26/10: e' la settimana del 2/11, cioe' questa
+        v = O.vincoli("Va bene, me la mandi. Per organizzare la chiamata però dobbiamo andare alla prossima settimana.", lun26)
+        assert v.get("settimana") == "2026-11-02", v
+        e = Bz.due_orari(1, v)
+        assert O.rispettati(e, v, oggi) and all(datetime.date(2026, 11, 4) <= d <= datetime.date(2026, 11, 6) for d, _, _ in O.leggi(e, oggi)), e
+        assert O.premessa(v, e, oggi) == "Come mi aveva chiesto, ci sentiamo questa settimana.", O.premessa(v, e, oggi)
+        # scritto oggi, «la prossima settimana» e' quella del 9/11: niente domani
+        v = O.vincoli("Per la chiamata facciamo la settimana prossima.", oggi)
+        e = Bz.due_orari(1, v)
+        assert all(datetime.date(2026, 11, 10) <= d <= datetime.date(2026, 11, 13) for d, _, _ in O.leggi(e, oggi)), e
+        assert "domani" not in O.a_parole(e, oggi) and "la prossima settimana" in O.premessa(v, e, oggi)
+        # settimana piena nel calendario vero: i primi liberi dopo, e la mail lo riconosce
+        Bz.occupato_google = lambda da, a: [(datetime.datetime(2026, 11, 3, 0, 0, tzinfo=roma), datetime.datetime(2026, 11, 6, 23, 0, tzinfo=roma))]
+        v = O.vincoli("Per la chiamata dobbiamo andare alla prossima settimana.", lun26)
+        e = Bz.due_orari(1, v)
+        assert not O.rispettati(e, v, oggi) and "piena" in O.premessa(v, e, oggi), (e, O.premessa(v, e, oggi))
+        Bz.occupato_google = lambda da, a: []
+        # 2. «oggi, se ha disponibilita'»: scritto oggi e oggi c'e' posto -> oggi, con margine
+        v = O.vincoli("Buongiorno, oggi pomeriggio se ha disponibilità potremmo sentirci.", oggi)
+        e = Bz.due_orari(1, v)
+        assert O.a_parole(e, oggi).startswith("oggi alle 14:30"), e
+        assert not O.scaduto(O.a_parole(e, oggi), oggi, oggi, datetime.datetime(2026, 11, 3, 9, 0)), "oggi alle 14:30, scritto oggi alle 9: vale"
+        assert O.scaduto(O.a_parole(e, oggi), oggi, oggi, datetime.datetime(2026, 11, 3, 14, 10)), "a venti minuti non vale piu'"
+        assert O.scaduto(O.a_parole(e, oggi), oggi, oggi), "senza l'ora di adesso un orario di oggi e' scaduto"
+        # «oggi» scritto giovedi' scorso: e' passato mentre aspettava. Lo riconosce e propone i primi liberi
+        v = O.vincoli("Oggi, se lei ha disponibilità, potremmo sentirci. Saluti", gio29)
+        assert v.get("giorno") == "2026-10-29" and v.get("oggi"), v
+        e = Bz.due_orari(1, v)
+        assert O.leggi(e, oggi)[0][0] == datetime.date(2026, 11, 4), e
+        assert O.premessa(v, e, oggi) == "Mi scusi se giovedì scorso non sono riuscito a sentirla come mi aveva proposto.", O.premessa(v, e, oggi)
+        # 3. «telefonata, solo dopo le 15:30»: telefonata, e orari dalle 16 (la call di un'ora finisce entro le 18:30)
+        v = O.vincoli("Volentieri, ma sentiamoci telefonicamente: sono libero solo dopo le 15:30 e fino alle 18:30.", gio29)
+        assert v.get("canale") == "telefono" and v.get("dalle") == "16:00" and v.get("entro") == "18:30", v
+        e = Bz.due_orari(1, v)
+        assert all((h, mi) >= (16, 0) and (h, mi) <= (17, 30) for _, h, mi in O.leggi(e, oggi)), e
+        testo = ("Mi farebbe piacere confrontarmi con lei.\nLe propongo una breve videochiamata conoscitiva " + O.a_parole(e, oggi)
+                 + ", ma per comodità le allego qui il calendario.")
+        t, prem = O.applica(testo, v, e, oggi)
+        assert "breve telefonata conoscitiva domani alle 16" in t and "videochiamata" not in t, t
+        assert prem == "Come mi aveva chiesto, ci sentiamo al telefono tra le 15:30 e le 18:30." and "\n" + prem + "\nLe propongo" in t, t
+        # rifare gli orari sostituisce la premessa vecchia, non ne aggiunge un'altra
+        t2, _ = O.applica(t.replace("Come mi aveva chiesto", "Come mi aveva chiesto"), v, e, oggi, prem)
+        assert t2.count("Come mi aveva chiesto") == 1, t2
+        # 4. senza vincoli resta la regola del 22/10, identica; e un saluto non e' una fascia
+        assert O.vincoli("Mandatela pure, grazie. Buon pomeriggio", oggi) == {}
+        assert O.vincoli("Ad oggi non abbiamo budget, ma la leggo volentieri.", oggi) == {}
+        assert Bz.due_orari(1, {}) == Bz.due_orari() == "mercoledì 4 novembre alle 14:30 oppure giovedì 5 novembre alle 10", Bz.due_orari()
+    finally:
+        Bz.sb, Bz.datetime, Bz.occupato_google = vero_sb, vero_dt, vero_occ
+    # la fonte e' una: chi compone la mail, chi rifa' gli orari e le strade passano dai vincoli; la seconda testa resta
+    src = open(Bz.__file__, encoding="utf-8").read()
+    assert "vincoli = vincoli_del_lead(p, letti)" in src and "orari_da_proporre(da_giorni, vincoli)" in src
+    assert "orari.applica(nuovo, vincoli, e, oggi" in src and "due_orari(max(1, int(da)), vincoli)" in src
+    assert src.count("lettura.coerenza(letti, nuovo") == 1 and "verdetto, motivo = lettura.coerenza(letti, b[\"bozza\"]" in src
+    st = open(os.path.join(os.path.dirname(Bz.__file__), "strade.py"), encoding="utf-8").read()
+    assert "bozze.orari_da_proporre(1, vincoli)" in st
+
+
 @prova("posta: un servizio di posta (aruba.it) non indica un'azienda, un rapporto DMARC non e' una mail (17/10)")
 def _():
     import posta
