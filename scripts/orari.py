@@ -44,7 +44,11 @@ def calendario_per_giudici(oggi=None, giorni=21):
     return (f"OGGI E' {GIORNI[oggi.weekday()]} {oggi.day} {MESI[oggi.month - 1]} {oggi.year}. "
             f"I prossimi giorni, dal calendario vero: {', '.join(righe)}. "
             "Le date e i giorni della settimana nella mail li ha scritti il codice da questo calendario: "
-            "controllali solo contro questo elenco, mai a memoria.")
+            "controllali solo contro questo elenco, mai a memoria. "
+            # 3/11: il Revisore fermava «ci sentiamo questa settimana» a chi il 26/10 aveva chiesto «la prossima settimana»
+            "Le parole relative nella mail LORO («oggi», «domani», «la prossima settimana») valgono dal giorno in cui "
+            "l'hanno scritta (la data della loro ultima mail), non da oggi: «la prossima settimana» scritto lunedì 26 ottobre "
+            "è la settimana del 2 novembre.")
 
 
 def scritto(t):

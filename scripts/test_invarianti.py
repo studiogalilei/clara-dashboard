@@ -6592,6 +6592,7 @@ def _():
     cal = orari.calendario_per_giudici(D.date(2026, 10, 26))
     assert "OGGI E' lunedì 26 ottobre 2026" in cal and "mercoledì 28 ottobre" in cal, "il 28/10/2026 e' mercoledi'"
     assert "giovedì 28" not in cal
+    assert "valgono dal giorno in cui" in cal, "3/11: «la prossima settimana» si legge dal giorno in cui l'hanno scritta"
     qui = os.path.dirname(os.path.abspath(__file__))
     for f in ("prima_risposta.py", "lettura.py"):
         assert "orari.calendario_per_giudici()" in open(os.path.join(qui, f), encoding="utf-8").read(), \

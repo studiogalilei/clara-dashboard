@@ -517,6 +517,7 @@ def rigioca_vincoli(ids=None, giorni=14):
             strade.append(st)
         if a.get("strade"):
             a["strade"] = strade
+        a.pop("prima_risposta", None)       # il giudizio della prima risposta era sul testo vecchio: si rigiudica il nuovo
         a.update({"bozza_originale": a.get("bozza_originale") or a["bozza"], "bozza": nuovo, "giorno_proposto": e,
                   "orari_scritti_il": oggi.isoformat(), "orari_vincoli": v, "orari_premessa": prem,
                   "lettura": {**(a.get("lettura") or {}), **letti, "coerenza": verdetto, "coerenza_motivo": motivo},

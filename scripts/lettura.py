@@ -707,9 +707,7 @@ cosa fa o vende, a chi si rivolge, cosa cercano i loro clienti su Google): viene
 fatto su di loro, che qui vedi solo in parte. Nel dubbio su una descrizione, e' COERENTE. Le osservazioni su
 Google e sulle ricerche (cosa conviene, cosa cercano le persone) vengono dall'analisi e sono normali. Se
 loro hanno proposto dei giorni, una bozza che ne propone un altro senza dirlo e' INCOERENTE.
-LE DATE RELATIVE (3/11): «oggi», «domani», «la prossima settimana» nella mail loro valgono dal giorno in cui
-l'hanno scritta (la data dell'ultima mail loro, qui sopra), non da oggi: «la prossima settimana» scritto
-lunedi' 26 ottobre e' la settimana del 2 novembre. Se il giorno che avevano proposto e' passato mentre
+LE DATE RELATIVE (3/11): vedi il calendario qui sopra. Se il giorno che avevano proposto e' passato mentre
 aspettavano, una bozza che se ne scusa e propone i primi giorni liberi lo riconosce: non e' un fatto inventato.
 REGOLA DEI COSTI (Dre, 12/10): prima della videochiamata conoscitiva non si da' mai un prezzo. Se chiedono i costi,
 rispondere che dipendono da cosa ha senso fare per loro e che i numeri precisi si danno in call e' la risposta giusta,
