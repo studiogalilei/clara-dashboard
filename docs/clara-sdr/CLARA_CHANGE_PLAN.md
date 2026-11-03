@@ -130,6 +130,35 @@ Primo esame (3/11, 35 conversazioni vere, giudice indipendente): identità v1 �
 mittente) → 0 pericolosi, 30 giuste, 5 accettabili, 12 testi da ritoccare. Costo del cervello: circa
 1,1 $ per 35 decisioni.
 
+## Il Desk (notte del 3-4/11)
+
+Dre, 3/11 sera: «buttiamo al cesso l'intero sistema fatto finora e mi crei una nuova dashboard per
+interagire al posto di questo... lascia spazio solo alle call... non overcomplicarlo». Fatto così:
+
+- **Una decisione ha una vita** (`schema_v104.sql`): proposta → approvata → in_invio → inviata, oppure
+  scartata (Dre ha detto no), superata (il lead ha riscritto), fatta (esito di una call o di una cosa
+  sua). Tutto in `clara_decisioni`.
+- **Clara decide su ogni risposta** (`clara_prova.py`, strada veloce + ogni 10 minuti; la prima notte
+  anche su tutto l'arretrato dei 30 giorni) e il filo che legge unisce Smartlead e le mail del CRM
+  fuori thread.
+- **Il postino nuovo** (`clara_manda.py`, ogni 5 minuti e su chiamata dal Desk) manda SOLO le
+  approvate: riusa i pezzi di `manda.py` (thread, HTML, link freschi, a chi rispondere), lucchetto
+  approvata→in_invio, allegati (analisi + presentazione alla prima volta), «A:/Cc:» quando il lead ha
+  indicato un collega, ricevuta rilettura del filo, lucchetti appesi sciolti dopo 30 minuti.
+- **Il vecchio automatismo è spento**: prima_risposta, seguiti, bozze, strade, followup, manda
+  (`operazioni.attiva=false`); il lampo si ferma all'analisi (`lampo.bozze_accese`). Restano sync,
+  campanello, lettore (solo lettura), fit e PDF.
+- **Il Desk** (`src/desk/`, `#/d/...`, i ceo entrano qui da `Radice.tsx`; PWA «SG Desk»): Coda
+  (priorità, filtri, scheda con «ha scritto», «Clara», la mail; Invia / Modifica / No; esiti per
+  richiami e «Decidi tu»; «va bene così» su aspetta/chiude), Call (da richiamare con tel: e esiti,
+  agenda 14 giorni), Relazioni (ricerca, scheda, filo a bolle, decisioni, note), Clara (numeri 7 giorni,
+  salute delle operazioni, come impara). Regole pure in `src/desk/regole.ts` con le prove.
+- **Come impara**: Invia senza ritocchi = ok; testo cambiato = testo_finale + nota; No = motivo; esiti.
+  Il giro delle correzioni rilegge `dre_*`, ritocca l'identità, rigioca l'esame.
+
+Non fatto, di proposito: nuove tabelle oltre a clara_decisioni, agenti multipli, regole-cancello,
+pagine decorative. Aperto: le notifiche sul telefono puntano ancora alla versione snella.
+
 ## Decisioni di Dre (archivio della discussione del 3/11)
 
 - **Elena è una collega vera e il volto dell'outbound.** Le mail partono a nome suo, da caselle
