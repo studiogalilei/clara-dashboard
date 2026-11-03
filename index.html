@@ -56,7 +56,7 @@
         if (!C[n]) n = 'direzione'
         document.querySelectorAll('link[rel=apple-touch-icon]').forEach(function (l) { l.setAttribute('href', 'reparti/icona-' + n + '-180.png') })
         // la versione snella (17/10) e' bianca: l'apertura e la barra in alto anche, l'albero a colori
-        if (/^#\/s(\/|$)/.test(location.hash)) {
+        if (/^#\/(s|d)(\/|$)/.test(location.hash)) {
           document.documentElement.style.setProperty('--avvio', '#ffffff')
           document.querySelector('meta[name=theme-color]').setAttribute('content', '#ffffff')
           var img = document.querySelector('#root .avvio img')

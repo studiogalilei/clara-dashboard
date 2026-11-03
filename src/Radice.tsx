@@ -9,6 +9,7 @@ import { supabase, demo } from './lib/supabase'
 import { chiSono } from './lib/accessi'
 import Snella from './snella/Snella'
 import { inSnella } from './snella/uso'
+import Desk, { inDesk } from './desk/Desk'
 import { ascoltaNotifiche } from './lib/notifiche'
 import Aggiorna from './Aggiorna'
 
@@ -22,7 +23,7 @@ const App = lazy(() => import('./App').catch((e) => {
   throw e
 }))
 
-type Quale = 'snella' | 'completo' | null
+type Quale = 'desk' | 'snella' | 'completo' | null
 
 /** Si entra senza indirizzo: l'icona sul telefono, il link nudo, il ritorno dal login di Google. */
 function entrataNuda(): boolean {
@@ -31,7 +32,8 @@ function entrataNuda(): boolean {
 }
 
 export default function Radice() {
-  const [quale, setQuale] = useState<Quale>(() => inSnella(window.location.hash) ? 'snella' : entrataNuda() ? null : 'completo')
+  // 4/11: il Desk (#/d) e' quello che Dre usa ogni giorno; la snella resta a #/s
+  const [quale, setQuale] = useState<Quale>(() => inDesk(window.location.hash) ? 'desk' : inSnella(window.location.hash) ? 'snella' : entrataNuda() ? null : 'completo')
 
   // il tocco su una notifica con l'app gia' aperta: si va al suo indirizzo (public/push.js)
   useEffect(() => ascoltaNotifiche(), [])
@@ -40,7 +42,8 @@ export default function Radice() {
     // un indirizzo vuoto non decide niente: e' anche il login di Google che si pulisce il token
     // dall'indirizzo (15/10, visto sul Workspace pubblicato: mandava Dre sul completo a meta' strada)
     const cambia = () => {
-      if (inSnella(window.location.hash)) setQuale('snella')
+      if (inDesk(window.location.hash)) setQuale('desk')
+      else if (inSnella(window.location.hash)) setQuale('snella')
       else if (!entrataNuda()) setQuale('completo')
     }
     window.addEventListener('hashchange', cambia)
@@ -56,8 +59,8 @@ export default function Radice() {
         const { data } = await supabase.auth.getSession()
         if (data.session && (await chiSono()).ruolo === 'ceo') {
           if (!vivo) return
-          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/oggi')
-          if (vivo) setQuale('snella')
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/d/coda')
+          if (vivo) setQuale('desk')
           return
         }
       } catch { /* nel dubbio, il Workspace di sempre */ }
@@ -70,7 +73,8 @@ export default function Radice() {
     <>
       <Aggiorna />
       {quale === null ? <div className="min-h-dvh bg-white" />
-        : quale === 'snella' ? <Snella />
+        : quale === 'desk' ? <Desk />
+          : quale === 'snella' ? <Snella />
           : (
             <Suspense fallback={<div className="min-h-dvh bg-fondo" />}>
               <App />

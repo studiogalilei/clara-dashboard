@@ -23,11 +23,11 @@ export default defineConfig({
       // Bianca come la snella: la barra in alto e lo schermo d'apertura non lampeggiano di blu.
       manifest: {
         id: './',
-        start_url: './#/s/oggi',
+        start_url: './#/d/coda',
         scope: './',
-        name: 'SG Oggi · Studio Galilei',
-        short_name: 'SG Oggi',
-        description: 'Il Workspace di Studio Galilei: chi chiamare, le call, i lead, le campagne',
+        name: 'SG Desk · Studio Galilei',
+        short_name: 'SG Desk',
+        description: 'Il Desk di Studio Galilei: la coda di Clara, le call, le relazioni',
         lang: 'it',
         theme_color: '#ffffff',
         background_color: '#ffffff',

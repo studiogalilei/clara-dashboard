@@ -1,0 +1,114 @@
+// IL DESK: le regole pure (niente rete), provate in regole.test.ts.
+import type { Decisione, Mossa, Stato } from './dati'
+import type { Tono } from '../snella/regole'
+
+export const MOSSE: Record<Mossa, { nome: string; bottone: string; tono: Tono; scrive: boolean; peso: number }> = {
+  book_meeting: { nome: 'Conferma la call', bottone: 'Invia la conferma', tono: 'ok', scrive: true, peso: 100 },
+  callback: { nome: 'Da chiamare', bottone: 'Chiamato', tono: 'ok', scrive: false, peso: 95 },
+  send_analysis: { nome: 'Manda l’analisi', bottone: 'Invia l’analisi', tono: 'noi', scrive: true, peso: 90 },
+  offer_slots: { nome: 'Propone due orari', bottone: 'Invia gli orari', tono: 'opp', scrive: true, peso: 85 },
+  reply: { nome: 'Risponde', bottone: 'Invia la risposta', tono: 'noi', scrive: true, peso: 70 },
+  escalate: { nome: 'Decidi tu', bottone: 'Fatto', tono: 'attesa', scrive: false, peso: 60 },
+  wait: { nome: 'Aspetta', bottone: 'Va bene così', tono: 'neutro', scrive: false, peso: 20 },
+  close: { nome: 'Chiude', bottone: 'Va bene così', tono: 'neutro', scrive: false, peso: 5 },
+}
+
+export type Gruppo = 'fare' | 'corso' | 'attesa' | 'fatte' | 'chiuse'
+export const GRUPPI: Record<Gruppo, string> = { fare: 'Da fare adesso', corso: 'In partenza', attesa: 'In attesa', fatte: 'Fatte', chiuse: 'Chiuse' }
+
+export function gruppoDi(d: Pick<Decisione, 'mossa' | 'stato'>): Gruppo {
+  if (d.stato === 'approvata' || d.stato === 'in_invio') return 'corso'
+  if (d.stato === 'inviata' || d.stato === 'fatta') return 'fatte'
+  if (d.stato === 'scartata' || d.stato === 'superata') return 'chiuse'
+  if (d.mossa === 'wait') return 'attesa'
+  if (d.mossa === 'close') return 'chiuse'
+  return 'fare'
+}
+
+/** Quanto conta: la mossa, la freschezza, e chi ha gia' l'analisi (e' piu' avanti). 0-130. */
+export function priorita(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'stato'>, adesso: Date = new Date()): number {
+  let p = MOSSE[d.mossa]?.peso ?? 0
+  const ore = (adesso.getTime() - new Date(d.risposta_il).getTime()) / 36e5
+  if (ore < 24) p += 15
+  else if (ore < 72) p += 8
+  else if (ore > 24 * 7) p -= 10
+  if (d.analisi_mandata && d.mossa !== 'close') p += 5
+  if (d.stato === 'approvata' || d.stato === 'in_invio') p -= 30
+  return Math.max(0, Math.min(130, Math.round(p)))
+}
+
+export function ordina<T extends Decisione>(ds: T[], adesso: Date = new Date()): T[] {
+  return [...ds].sort((a, b) => priorita(b, adesso) - priorita(a, adesso) || b.risposta_il.localeCompare(a.risposta_il))
+}
+
+export type Filtro = 'tutte' | 'inviare' | 'call' | 'tue' | 'attesa' | 'fatte' | 'chiuse'
+export const FILTRI: Array<{ f: Filtro; nome: string }> = [
+  { f: 'tutte', nome: 'Da fare' }, { f: 'inviare', nome: 'Da inviare' }, { f: 'call', nome: 'Call' }, { f: 'tue', nome: 'Decidi tu' },
+  { f: 'attesa', nome: 'In attesa' }, { f: 'fatte', nome: 'Fatte' }, { f: 'chiuse', nome: 'Chiuse' },
+]
+
+export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
+  const testo = q.trim().toLowerCase()
+  return ds.filter((d) => {
+    const g = gruppoDi(d)
+    const ok = f === 'tutte' ? g === 'fare' || g === 'corso'
+      : f === 'inviare' ? (g === 'fare' || g === 'corso') && MOSSE[d.mossa].scrive
+        : f === 'call' ? (g === 'fare' || g === 'corso') && (d.mossa === 'callback' || d.mossa === 'book_meeting' || d.mossa === 'offer_slots')
+          : f === 'tue' ? g === 'fare' && d.mossa === 'escalate'
+            : f === 'attesa' ? g === 'attesa'
+              : f === 'fatte' ? g === 'fatte'
+                : g === 'chiuse'
+    if (!ok) return false
+    if (!testo) return true
+    return [d.azienda, d.persona, d.citta, d.settore, d.email].join(' ').toLowerCase().includes(testo)
+  })
+}
+
+export function conta<T extends Decisione>(ds: T[]): Record<Filtro, number> {
+  const out = { tutte: 0, inviare: 0, call: 0, tue: 0, attesa: 0, fatte: 0, chiuse: 0 }
+  for (const f of Object.keys(out) as Filtro[]) out[f] = filtra(ds, f).length
+  return out
+}
+
+/** Lo stato in una parola, per la riga e la scheda. */
+export function statoBreve(d: Pick<Decisione, 'stato' | 'mossa' | 'errore' | 'esito' | 'verificata_il'>): { testo: string; tono: Tono } {
+  const s: Stato = d.stato
+  if (s === 'proposta') return d.errore ? { testo: `Ferma: ${d.errore}`, tono: 'no' } : { testo: MOSSE[d.mossa].nome, tono: MOSSE[d.mossa].tono }
+  if (s === 'approvata') return { testo: d.errore ? `Riprovo: ${d.errore}` : 'In partenza', tono: 'attesa' }
+  if (s === 'in_invio') return { testo: 'Sta partendo', tono: 'attesa' }
+  if (s === 'inviata') return { testo: d.verificata_il ? 'Inviata e verificata' : 'Inviata', tono: 'ok' }
+  if (s === 'fatta') return { testo: d.esito ? `Fatto: ${d.esito}` : 'Fatto', tono: 'ok' }
+  if (s === 'scartata') return { testo: 'Scartata', tono: 'neutro' }
+  return { testo: 'Superata: ha riscritto', tono: 'neutro' }
+}
+
+export const ESITI_CHIAMATA: Array<{ esito: string; nome: string }> = [
+  { esito: 'fissata', nome: 'Call fissata' }, { esito: 'non_risponde', nome: 'Non risponde' },
+  { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
+]
+export const ESITI_TUA: Array<{ esito: string; nome: string }> = [
+  { esito: 'risposto_io', nome: 'Ho risposto io' }, { esito: 'chiuso', nome: 'Chiudo qui' }, { esito: 'rimandato', nome: 'Più avanti' },
+]
+
+export function nomeProprio(persona: string | null | undefined): string {
+  return (persona ?? '').trim().split(/\s+/)[0] || ''
+}
+
+/** Le iniziali per il tondo dell'azienda. */
+export function iniziali(azienda: string | null | undefined): string {
+  const p = (azienda ?? '?').trim().split(/\s+/).filter(Boolean)
+  return ((p[0]?.[0] ?? '?') + (p[1]?.[0] ?? '')).toUpperCase()
+}
+
+/** Il testo che manda, senza la riga «A: … Cc: …» e «Oggetto:» che Clara scrive quando cambia destinatario. */
+export function destinatari(testo: string | null | undefined): { a: string | null; cc: string | null; oggetto: string | null; corpo: string } {
+  const t = (testo ?? '').trim()
+  const righe = t.split('\n')
+  let a: string | null = null, cc: string | null = null, oggetto: string | null = null, i = 0
+  if (/^a:/i.test(righe[0] ?? '') && righe[0].includes('@')) {
+    const m = righe[0].match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []
+    a = m[0] ?? null; cc = m.slice(1).join(', ') || null; i = 1
+  }
+  if (/^oggetto:/i.test(righe[i] ?? '')) { oggetto = righe[i].replace(/^oggetto:\s*/i, '').trim(); i += 1 }
+  return { a, cc, oggetto, corpo: righe.slice(i).join('\n').trim() }
+}
