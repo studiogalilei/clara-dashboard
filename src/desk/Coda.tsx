@@ -4,7 +4,7 @@
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
 import { approva, giudica, leggiCoda, salvaTesto, scarta, segnaEsito, type Decisione } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, ordina, priorita, statoBreve, type Filtro } from './regole'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, ordina, priorita, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -156,7 +156,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         )}
         <Blocco titolo="Clara">
           <p className="text-[14px] leading-relaxed text-inchiostro">{d.perche}</p>
-          {d.richiamo?.numero && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero:</span> <a href={`tel:${d.richiamo.numero.replace(/\s/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{d.richiamo.numero}</a>{d.richiamo.quando ? <span className="text-tenue"> · {d.richiamo.quando}</span> : null}</p>}
+          {d.richiamo?.numero && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero:</span> <a href={`tel:${(telefonoDa(d.richiamo.numero) ?? d.richiamo.numero).replace(/[^\d+]/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(d.richiamo.numero) ?? d.richiamo.numero}</a>{d.richiamo.quando ? <span className="text-tenue"> · {d.richiamo.quando}</span> : null}</p>}
           {!d.richiamo?.numero && d.telefono && d.mossa === 'callback' && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero in scheda:</span> <a href={`tel:${d.telefono.replace(/\s/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{d.telefono}</a></p>}
           {d.giudice?.pericoloso && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.no.morbido}`}>Il revisore segnala: {d.giudice.errore_pericoloso}</p>}
           {d.errore && aperta && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.attesa.morbido}`}>Non è partita: {d.errore}</p>}

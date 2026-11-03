@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { destinatari, filtra, gruppoDi, priorita, statoBreve } from './regole'
+import { agendaPulita, destinatari, filtra, gruppoDi, priorita, statoBreve, telefonoDa } from './regole'
 import type { Decisione } from './dati'
 
 const base = (x: Partial<Decisione>): Decisione => ({
@@ -40,5 +40,17 @@ describe('il desk: la coda', () => {
     const d = destinatari('A: marketing@x.it — Cc: capo@x.it\nOggetto: Analisi\n\nBuongiorno,\ntesto')
     expect(d).toEqual({ a: 'marketing@x.it', cc: 'capo@x.it', oggetto: 'Analisi', corpo: 'Buongiorno,\ntesto' })
     expect(destinatari('Buongiorno').corpo).toBe('Buongiorno')
+  })
+
+  it('il numero si tira fuori dal testo e l\'agenda perde i doppioni e gli impegni interni', () => {
+    expect(telefonoDa('335 838 3593 (Matteo Lari, Direzione Commerciale)')).toBe('335 838 3593')
+    expect(telefonoDa('+39 347 699 3922')).toBe('+39 347 699 3922')
+    expect(telefonoDa('nessun numero')).toBeNull()
+    const a = agendaPulita([
+      { at: '2026-11-04T10:00:00Z', titolo: 'Eco', tipo: 'tecnica', prospect_id: 'p' },
+      { at: '2026-11-04T10:00:00Z', titolo: 'Eco', tipo: 'tecnica', prospect_id: 'p' },
+      { at: '2026-11-06T16:30:00Z', titolo: 'Allineamento', tipo: 'altro', prospect_id: null },
+    ])
+    expect(a).toHaveLength(1)
   })
 })

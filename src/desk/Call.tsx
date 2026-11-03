@@ -1,7 +1,7 @@
 // LE CALL: le conoscitive in agenda e chi va richiamato. Esiti a un tocco.
 import { useState } from 'react'
 import { leggiCall, segnaEsito } from './dati'
-import { ESITI_CHIAMATA } from './regole'
+import { agendaPulita, ESITI_CHIAMATA, telefonoDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
@@ -15,7 +15,7 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
   if (errore && !dati) return <Errore testo={errore} riprova={() => void rifai()} />
   const c = dati ?? { prossime: [], richiami: [] }
   const giorni = new Map<string, typeof c.prossime>()
-  for (const p of c.prossime) { const g = giornoRoma(new Date(p.at)); giorni.set(g, [...(giorni.get(g) ?? []), p]) }
+  for (const p of agendaPulita(c.prossime)) { const g = giornoRoma(new Date(p.at)); giorni.set(g, [...(giorni.get(g) ?? []), p]) }
 
   const esito = async (id: string, e: string) => {
     setLavoro(id)
@@ -35,26 +35,28 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
         </header>
         {c.richiami.length === 0 ? <Vuoto>Nessuno da richiamare adesso.</Vuoto> : (
           <ul>
-            {c.richiami.map((r) => (
+            {c.richiami.map((r) => {
+              const tel = telefonoDa(r.telefono)
+              return (
               <li key={r.id} className="space-y-2.5 border-b border-velo p-4 last:border-0">
-                <div className="flex items-start justify-between gap-3">
-                  <button onClick={() => vai({ voce: 'relazioni', id: r.prospect_id })} className="min-w-0 text-left">
-                    <span className="block truncate text-[15px] font-bold text-inchiostro">{r.azienda}</span>
-                    <span className="block text-[13px] text-tenue">{r.persona}{r.quando ? ` · ${r.quando}` : ''} · {quando(r.risposta_il)}</span>
-                  </button>
-                  {r.telefono ? (
-                    <a href={`tel:${r.telefono.replace(/\s/g, '')}`} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white">
-                      <Icona nome="telefono" className="h-4 w-4" /> {r.telefono}
-                    </a>
-                  ) : <Pillola testo="Senza numero" tono="attesa" />}
-                </div>
+                <button onClick={() => vai({ voce: 'relazioni', id: r.prospect_id })} className="block w-full min-w-0 text-left">
+                  <span className="block truncate text-[15px] font-bold text-inchiostro">{r.azienda}</span>
+                  <span className="block text-[13px] text-tenue">{[r.persona, quando(r.risposta_il)].filter(Boolean).join(' · ')}</span>
+                </button>
+                {r.quando && <p className="text-[13.5px] text-inchiostro"><span className="font-semibold">Quando:</span> {r.quando}</p>}
+                {tel ? (
+                  <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ok-testo px-4 text-[15px] font-bold text-white">
+                    <Icona nome="telefono" className="h-4 w-4" /> {tel}
+                  </a>
+                ) : <Pillola testo="Senza numero: chiedilo" tono="attesa" />}
                 {r.perche && <p className="text-[13.5px] leading-relaxed text-inchiostro">{r.perche}</p>}
                 {r.lead_testo && <blockquote className="rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2 text-[13px] text-inchiostro">{r.lead_testo.replace(/\s+/g, ' ').slice(0, 240)}</blockquote>}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {ESITI_CHIAMATA.map((e) => <Bottone key={e.esito} tipo={e.esito === 'fissata' ? 'primo' : 'secondo'} onClick={() => void esito(r.id, e.esito)} disabled={lavoro === r.id} className="px-2 text-[13px]">{e.nome}</Bottone>)}
                 </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </section>

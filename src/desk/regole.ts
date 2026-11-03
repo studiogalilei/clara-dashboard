@@ -112,3 +112,23 @@ export function destinatari(testo: string | null | undefined): { a: string | nul
   if (/^oggetto:/i.test(righe[i] ?? '')) { oggetto = righe[i].replace(/^oggetto:\s*/i, '').trim(); i += 1 }
   return { a, cc, oggetto, corpo: righe.slice(i).join('\n').trim() }
 }
+
+/** Il numero di telefono dentro a un testo che puo' contenere anche nome e ruolo («335 838 3593 (Matteo…)»). */
+export function telefonoDa(testo: string | null | undefined): string | null {
+  const m = (testo ?? '').match(/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{3,4}(?:[\s.-]?\d{2,4})?/)
+  if (!m) return null
+  const n = m[0].replace(/[^\d+]/g, '')
+  return n.replace(/^\+?0*/, (x) => x).length >= 9 ? m[0].trim() : null
+}
+
+/** L'agenda senza doppioni (la stessa call da due calendari) e senza gli impegni che non sono call con un lead. */
+export function agendaPulita<T extends { at: string; titolo: string | null; tipo: string | null; prospect_id: string | null }>(voci: T[]): T[] {
+  const viste = new Set<string>()
+  return voci.filter((v) => {
+    if (!v.prospect_id && (v.tipo === 'altro' || !v.tipo)) return false
+    const k = `${v.at.slice(0, 16)}|${(v.titolo ?? '').trim().toLowerCase()}`
+    if (viste.has(k)) return false
+    viste.add(k)
+    return true
+  })
+}

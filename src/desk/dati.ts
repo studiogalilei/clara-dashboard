@@ -84,7 +84,7 @@ export async function leggiCall(): Promise<Call> {
 
 export async function leggiOperazioni(): Promise<Operazione[]> {
   const { data, error } = await supabase.from('operazioni').select('chiave,nome,ultima_corsa,ultimo_esito,ultimo_dettaglio,attiva')
-    .in('chiave', ['clara_prova', 'clara_manda', 'sync_smartlead', 'analisi', 'webhooks']).abortSignal(entro())
+    .in('chiave', ['clara_prova', 'clara_manda', 'sync_smartlead', 'analisi']).abortSignal(entro())
   if (error) guasto(error)
   return (data ?? []) as Operazione[]
 }

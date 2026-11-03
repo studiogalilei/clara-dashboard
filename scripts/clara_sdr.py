@@ -133,7 +133,8 @@ SCHEMA_DECISIONE = {
         "callback": {
             "type": "object", "additionalProperties": False,
             "required": ["numero", "quando", "perche"],
-            "properties": {"numero": {"type": "string"}, "quando": {"type": "string"}, "perche": {"type": "string"}},
+            "properties": {"numero": {"type": "string", "description": "solo il numero, con prefisso se c'è; niente nomi"},
+                           "quando": {"type": "string", "description": "quando chiamare, breve, con le sue parole"}, "perche": {"type": "string"}},
         },
     },
 }
