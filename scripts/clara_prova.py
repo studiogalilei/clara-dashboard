@@ -196,6 +196,7 @@ def _giudice_breve(g):
 def righe_foglio(giorni=14):
     da = (adesso() - datetime.timedelta(days=giorni)).strftime("%Y-%m-%dT%H:%M:%SZ")
     righe = sb_tutte(f"/rest/v1/clara_decisioni?select=*,prospects(company)&creato_il=gte.{da}&order=creato_il.desc")
+    righe.sort(key=lambda d: (d["risposta_il"], d["creato_il"]), reverse=True)   # la risposta piu' recente in alto
     viste, fuori = set(), []
     for d in righe:                                              # l'ultima versione per ogni risposta
         k = (d["prospect_id"], d["risposta_il"][:16])
