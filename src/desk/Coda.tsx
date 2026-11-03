@@ -4,7 +4,7 @@
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
 import { approva, giudica, leggiCoda, salvaTesto, scarta, segnaEsito, type Decisione } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, nomeProprio, ordina, priorita, statoBreve, type Filtro } from './regole'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, ordina, priorita, statoBreve, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -65,7 +65,7 @@ export default function Coda({ dove, vai, indietro }: { dove: Dove; vai: (d: Dov
                   <span className={`grid h-9 w-11 place-items-center rounded-lg text-[13px] font-extrabold ${priorita(d, adesso) >= 90 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{priorita(d, adesso)}</span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
-                    <span className="block truncate text-[12.5px] text-tenue">{[d.persona, d.citta].filter(Boolean).join(', ')}{d.lead_testo ? ` · “${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''}</span>
+                    <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(' · ')}</span>
                   </span>
                   <span className="flex flex-col items-end gap-1">
                     <Pillola testo={s.testo.length > 26 ? s.testo.slice(0, 24) + '…' : s.testo} tono={s.tono} />
@@ -126,7 +126,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   const nonCosi = () => fai(() => giudica(d.id, false, motivo), { dre_giudizio: 'no' }, 'Segnato: Clara impara.')
 
   return (
-    <section className="rounded-2xl border border-bordo bg-white lg:sticky lg:top-6">
+    <section className="rounded-2xl border border-bordo bg-white lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
       <header className="border-b border-bordo p-4 lg:p-5">
         <div className="mb-3 flex items-center justify-between">
           <button onClick={indietro} className="-ml-2 inline-flex min-h-10 items-center gap-1 rounded-full px-2 text-[14px] font-semibold text-navy lg:hidden"><Icona nome="indietro" className="h-4 w-4" /> Coda</button>
@@ -150,7 +150,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
 
       <div className="space-y-4 p-4 lg:p-5">
         {d.lead_testo && (
-          <Blocco titolo={`${nomeProprio(d.persona) || 'Il lead'} ha scritto, ${quando(d.risposta_il)}`}>
+          <Blocco titolo={`Ha scritto ${quando(d.risposta_il)}`}>
             <blockquote className="whitespace-pre-wrap rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3.5 py-3 text-[14px] leading-relaxed text-inchiostro">{d.lead_testo.trim().slice(0, 1200)}</blockquote>
           </Blocco>
         )}
