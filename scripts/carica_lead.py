@@ -4,19 +4,23 @@
   python3 scripts/carica_lead.py lista.csv --campagna 4003942 --vero   # carica
   python3 scripts/carica_lead.py --pausa-generiche [--vero]            # mette in pausa le generiche mai contattate
   python3 scripts/carica_lead.py --controlla-ads 4003943 4003947 [--vero]  # pausa a chi fa gia' Ads sul serio
+  python3 scripts/carica_lead.py --controlla-icebreaker 4003942 [--vero]   # pausa a chi ha un icebreaker storto
 
 Le regole, tutte prima di caricare:
 - solo mail personali (stanza.mail_personale) e verificate (colonna result = ok, se c'e');
 - niente doppioni: ne' nel file, ne' gia' in una campagna Smartlead, ne' nel database;
 - niente aziende gia' scritte (un'altra persona della stessa azienda e' gia' in Smartlead);
 - niente aziende cliente, in pipeline, perse o che hanno detto no;
-- serve il nome e l'icebreaker (la prima mail li usa).
+- serve il nome e l'icebreaker (la prima mail li usa);
+- l'icebreaker deve reggere la frase della prima mail: "abbiamo dato un'occhiata a {azienda}, {icebreaker},
+  vi faccio i miei complimenti". Prima le regole fisse (icebreaker_storto), poi un giudice (icebreaker_ko).
+  Origine: il 3/11 un lead ha ricevuto "il sito non e' disponibile, vi faccio i miei complimenti".
 Il CSV e' quello di Lorenzo: first_name, last_name, email, website, company_clean_final (o company_name),
 icebreaker, role, result. Stampa solo numeri: mai mail o nomi (il repo e' pubblico, i log pure).
 La pausa usa il comando pausa di Smartlead (reversibile), mai DELETE; tocca solo chi non ha ricevuto
 nessuna mail e non ha risposto.
 """
-import argparse, collections, csv, os, sys, time
+import argparse, collections, csv, json, os, re, sys, time, urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
 import stanza
@@ -63,6 +67,62 @@ def bloccati_dal_database():
     return mail, domini
 
 
+FRASE_PRIMA_MAIL = "Insieme al mio collega abbiamo dato un'occhiata a {azienda}, {icebreaker}, vi faccio i miei complimenti."
+STORTI = re.compile(r"\b(la tua|il tuo|i tuoi|le tue|non (e'|è) (attualmente )?disponibile|non disponibile|in costruzione|"
+                    r"manutenzione|non funziona|irraggiungibile|complimenti)\b|https?:|www\.|\{|\}", re.I)
+
+
+def icebreaker_storto(i):
+    """Le regole fisse: vuoto, tu al posto del voi, sito giu' o in costruzione, link, variabili, punto finale."""
+    i = (i or "").strip()
+    return not i or i.endswith(".") or bool(STORTI.search(i))
+
+
+GIUDICE_ICEBREAKER = """Ti do frasi di apertura di mail commerciali B2B in italiano. Ogni frase viene montata cosi':
+"Insieme al mio collega abbiamo dato un'occhiata a {azienda}, {icebreaker}, vi faccio i miei complimenti."
+Segna KO ogni caso in cui la frase montata suonerebbe sbagliata o imbarazzante a chi la riceve:
+- l'icebreaker non e' un complimento sincero (sito non disponibile, in costruzione, poche informazioni, difetti, offerte a tempo, ironia involontaria);
+- da' del tu invece del voi;
+- contiene link, variabili, inglese, numeri in formato inglese, errori di grammatica ("un stand", "nel scoprire");
+- parla d'altro: una persona invece dell'azienda, celebrita', banner dei cookie, politica, luoghi che non c'entrano;
+- non si lega alla frase (non inizia con un gerundio, finisce col punto).
+Tutto il resto e' OK, anche se un po' generico. Severo ma non pedante. Solo i KO."""
+SCHEMA_KO = {"type": "object", "additionalProperties": False, "required": ["ko"],
+             "properties": {"ko": {"type": "array", "items": {"type": "object", "additionalProperties": False,
+                                                              "required": ["n", "motivo"],
+                                                              "properties": {"n": {"type": "integer"}, "motivo": {"type": "string"}}}}}}
+
+
+def icebreaker_ko(coppie, a_blocchi=60):
+    """Il giudice su [(azienda, icebreaker)]: restituisce {indice: motivo} dei KO. Senza chiave solleva."""
+    import cervello, lettore
+    chiave = lettore._env("ANTHROPIC_API_KEY")
+    if not chiave:
+        raise RuntimeError("manca la chiave Anthropic: il giudice degli icebreaker non puo' girare")
+    ko = {}
+    for b in range(0, len(coppie), a_blocchi):
+        righe = "\n".join(f"{b + k} | {a} | {i}" for k, (a, i) in enumerate(coppie[b:b + a_blocchi]))
+        corpo = {"model": cervello.MODELLO_CLAUDE, "max_tokens": 4000, "system": GIUDICE_ICEBREAKER,
+                 "messages": [{"role": "user", "content": righe}],
+                 "output_config": {"effort": "low", "format": {"type": "json_schema", "schema": SCHEMA_KO}}}
+        req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=json.dumps(corpo).encode("utf-8"), method="POST",
+                                     headers={"x-api-key": chiave, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+        for t in range(3):
+            try:
+                d = json.loads(urllib.request.urlopen(req, timeout=180).read())
+                break
+            except OSError:
+                if t == 2:
+                    raise
+                time.sleep(3 * (t + 1))
+        if d.get("stop_reason") != "end_turn":
+            raise RuntimeError(f"giudice icebreaker incompleto ({d.get('stop_reason')})")
+        testo = "".join(x.get("text", "") for x in d.get("content") or [] if x.get("type") == "text")
+        for k in json.loads(testo)["ko"]:
+            ko[int(k["n"])] = k["motivo"]
+    return ko
+
+
 def pulisci(righe, sl_mail, sl_domini, db_mail, db_domini):
     buoni, scarti, visti = [], collections.Counter(), set()
     for r in righe:
@@ -84,6 +144,8 @@ def pulisci(righe, sl_mail, sl_domini, db_mail, db_domini):
             perche = "azienda gia' scritta"
         elif not (r.get("first_name") or "").strip() or not (r.get("icebreaker") or "").strip():
             perche = "manca nome o icebreaker"
+        elif icebreaker_storto(r.get("icebreaker")):
+            perche = "icebreaker storto"
         else:
             visti.add(e)
             buoni.append(r)
@@ -104,6 +166,9 @@ def carica(file, cid, vero):
     sl_mail, sl_domini = gia_in_smartlead()
     db_mail, db_domini = bloccati_dal_database()
     buoni, scarti = pulisci(righe, sl_mail, sl_domini, db_mail, db_domini)
+    ko = icebreaker_ko([((r.get("company_clean_final") or r.get("company_name") or "").strip(), r["icebreaker"].strip()) for r in buoni])
+    scarti["icebreaker bocciato dal giudice"] += len(ko)
+    buoni = [r for k, r in enumerate(buoni) if k not in ko]
     print(f"righe {len(righe)}, da caricare {len(buoni)}")
     for k, v in scarti.most_common():
         print(f"  scartate: {k} {v}")
@@ -197,6 +262,35 @@ def controlla_ads(cids, vero):
         stanza.guasto("carica_lead", f"pausa di chi fa Ads: {err} errori su {len(da_fermare)}")
 
 
+def controlla_icebreaker(cid, vero):
+    """Chi non ha ancora ricevuto la prima mail (STARTED) e ha un icebreaker storto: in pausa (reversibile)."""
+    da_vedere = []
+    for x in lead_di(cid):
+        if x.get("status") != "STARTED":
+            continue
+        l = x.get("lead") or {}
+        cf = l.get("custom_fields") or {}
+        da_vedere.append((l.get("id"), (cf.get("azienda") or "").strip(), (cf.get("icebreaker") or "").strip()))
+    fissi = {k for k, (_, _, i) in enumerate(da_vedere) if icebreaker_storto(i)}
+    giudice = icebreaker_ko([(a, i) for _, a, i in da_vedere])
+    da_fermare = [da_vedere[k][0] for k in sorted(fissi | set(giudice))]
+    print(f"da mandare {len(da_vedere)}, storti {len(da_fermare)} (regole {len(fissi)}, giudice {len(giudice)})")
+    for m, n in collections.Counter(giudice.values()).most_common(10):
+        print(f"  {n} {m}")
+    if not vero:
+        print("prova a secco: nessuna pausa (aggiungi --vero)")
+        return
+    ok = err = 0
+    for lid in da_fermare:
+        try:
+            sl_post(f"/campaigns/{cid}/leads/{lid}/pause", {})
+            ok += 1
+        except RuntimeError:
+            err += 1
+        time.sleep(0.25)
+    print(f"in pausa {ok}, errori {err}")
+
+
 if __name__ == "__main__":
     a = argparse.ArgumentParser()
     a.add_argument("file", nargs="?")
@@ -204,8 +298,11 @@ if __name__ == "__main__":
     a.add_argument("--vero", action="store_true")
     a.add_argument("--pausa-generiche", action="store_true")
     a.add_argument("--controlla-ads", type=int, nargs="+", metavar="CAMPAGNA")
+    a.add_argument("--controlla-icebreaker", type=int, metavar="CAMPAGNA")
     o = a.parse_args()
-    if o.controlla_ads:
+    if o.controlla_icebreaker:
+        controlla_icebreaker(o.controlla_icebreaker, o.vero)
+    elif o.controlla_ads:
         controlla_ads(o.controlla_ads, o.vero)
     elif o.pausa_generiche:
         pausa_generiche(o.vero)
