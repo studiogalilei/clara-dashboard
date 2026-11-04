@@ -276,6 +276,30 @@ def ritira_consigli_prematuri():
     return len(prematuri)
 
 
+def numero_da_chiamare(p):
+    """Il numero per il consiglio di chiamata (Dre, 5/11 notte: «soprattutto i cellulari, però va bene anche quelli»
+    aziendali). Il cellulare prima; se no il numero migliore che abbiamo (firma, scheda, sito). (numero, come) o (None, None)."""
+    import segnale_provvisorio as S
+    if not p or not p.get("id"):
+        return None, None
+    if "phone" not in p or "enriched" not in p:
+        p = {**((sb("GET", f"/rest/v1/prospects?select=phone,enriched&id=eq.{p['id']}") or [{}])[0]), **p}
+    letti = sb("GET", f"/rest/v1/interactions?select=at,kind,body&prospect_id=eq.{p['id']}&kind=in.(email_in,email_out)&order=at.asc&limit=80") or []
+    numeri = S.numeri_di(p, letti)
+    cellulare = S.cellulare_fra(numeri)
+    if cellulare:
+        return cellulare, "il suo cellulare"
+    for t in sorted(numeri, key=lambda t: S.RANGO_TEL.get((t.get("tipo"), t.get("fonte")), 9)):
+        if t.get("numero"):
+            return t["numero"], ("un numero aziendale " + S.DA_DOVE.get(t.get("fonte"), "")).strip()
+    return None, None
+
+
+def perche_consiglio(cosa, giorno, come):
+    return (f"{cosa} il {giorno} con due orari e il link: da allora nessuna risposta e niente call prenotata. "
+            f"C'è {come}: una tua telefonata adesso è il touchpoint giusto («vi abbiamo mandato l'analisi»).")
+
+
 def segui_silenzio(massimo=10):
     """DOPO L'ANALISI (Dre, 4/11): «sempre inviare l'analisi e quello che porta valore, e dopo si puo' chiedere
     l'incontro. Mi deve consigliare di chiamarlo se l'abbiamo inviata, e' passato un giorno, non ha risposto ne'
@@ -302,13 +326,13 @@ def segui_silenzio(massimo=10):
             break
         giorno = _roma(r["inviata_il"]).strftime("%d/%m")
         cosa = "Analisi mandata" if r.get("mossa") == "send_analysis" else "Orari proposti"
-        cellulare = segnale_provvisorio.cellulare_di(p)
-        if cellulare:
-            perche = (f"{cosa} il {giorno} con due orari e il link: da allora nessuna risposta e niente call prenotata. "
-                      f"C'è il suo cellulare: una tua telefonata adesso è il touchpoint giusto.")
-            print(f"  {p.get('company') or '?'}: consiglio di chiamata ({cellulare[-4:]}…)")
+        # 5/11 (Dre): il consiglio vale con qualunque numero, il cellulare prima
+        numero, come = numero_da_chiamare(p)
+        if numero:
+            perche = perche_consiglio(cosa, giorno, come)
+            print(f"  {p.get('company') or '?'}: consiglio di chiamata ({come}, …{numero[-4:]})")
             if not PROVA:
-                sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{r['id']}", {"consiglio": {"numero": cellulare, "perche": perche}}, {"Prefer": "return=minimal"})
+                sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{r['id']}", {"consiglio": {"numero": numero, "perche": perche}}, {"Prefer": "return=minimal"})
             consigli += 1
             continue
         try:
@@ -338,13 +362,60 @@ def segui_silenzio(massimo=10):
     return consigli, solleciti
 
 
+def consigli_retroattivi(giorni=45):
+    """LA LEGGE E' RETROATTIVA (Dre, 5/11 alle 0:36): «se abbiamo inviato l'analisi, non hanno risposto e c'e' il
+    numero, me lo deve lasciare: oggi li chiamo tutti». Le analisi mandate dal sistema vecchio non hanno una decisione
+    di Clara: per ognuna (ultimi `giorni` giorni, nessuna risposta dopo, niente call, contattabile, un numero) nasce
+    una decisione «aspetta» con il consiglio di chiamata, che il Desk mostra in Relazioni e in Call."""
+    from stanza import contattabile, call_in_agenda
+    ora = adesso()
+    da = (ora - datetime.timedelta(days=giorni)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    righe = sb_tutte("/rest/v1/prospects?select=id,company,name,email,phone,enriched,last_reply_at,fuori,stage,pipeline_stage,no_followup,"
+                     "classificazione,in_mano_a,analysis_sent,analysis_sent_at,city,sector,role"
+                     f"&analysis_sent=eq.true&analysis_sent_at=gte.{da}&fuori=eq.false&no_followup=eq.false&in_mano_a=is.null"
+                     "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))", chiave="id")
+    aperti = {x["prospect_id"] for x in (sb_tutte("/rest/v1/clara_decisioni?select=prospect_id,consiglio&consiglio=not.is.null&stato=not.in.(superata,scartata)", chiave="prospect_id") or [])
+              if (x.get("consiglio") or {}).get("numero") and not (x.get("consiglio") or {}).get("esito")}
+    fatti, senza_numero, saltati = 0, 0, 0
+    for p in sorted(righe, key=lambda x: x.get("analysis_sent_at") or "", reverse=True):
+        mandata = _roma(p.get("analysis_sent_at"))
+        risposta = _roma(p.get("last_reply_at"))
+        if not mandata or (risposta and risposta > mandata + datetime.timedelta(minutes=3)):
+            saltati += 1; continue
+        if p["id"] in aperti or not contattabile(p) or call_in_agenda(p) or (p.get("stage") or "") in ("call_fissata", "call_fatta", "proposta", "cliente", "perso"):
+            saltati += 1; continue
+        numero, come = numero_da_chiamare(p)
+        if not numero:
+            senza_numero += 1; continue
+        giorno = mandata.strftime("%d/%m")
+        perche = perche_consiglio("Analisi mandata", giorno, come)
+        print(f"  {(p.get('company') or '?')[:34]:34} analisi il {giorno}, {come} …{numero[-4:]}")
+        fatti += 1
+        if PROVA:
+            continue
+        riga = {"prospect_id": p["id"], "risposta_il": p["analysis_sent_at"], "versione": "consiglio-retro-5-11", "origine": "silenzio",
+                "modello": "regola", "lead_testo": f"(analisi mandata il {giorno}, nessuna risposta e niente call prenotata)",
+                "mossa": "wait", "owner": "Dramane", "stato": "proposta", "in_prova": False,
+                "perche": f"Analisi mandata il {giorno}, nessuna risposta: aspetto, e ti consiglio di chiamare.",
+                "consiglio": {"numero": numero, "perche": perche}, "prove": [], "segnali": [], "uso": {"dollari": 0}}
+        sb("POST", "/rest/v1/clara_decisioni?on_conflict=prospect_id,risposta_il,versione", [riga], {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    print(f"consigli retroattivi: {fatti} consigli ({len(righe)} analisi mandate negli ultimi {giorni} giorni, {saltati} saltati per risposta/call/stato, {senza_numero} senza numero)" + (" (prova)" if PROVA else ""))
+    return fatti
+
+
 def supera_vecchie():
     """Una decisione ancora «proposta» per un lead che non aspetta piu' noi (gli abbiamo risposto, o e'
     cliente/perso/non contattare) e' superata: nel Desk non deve restare un «Invia» su una cosa gia' fatta
     (4/11: 94 decisioni della prima notte erano su lead gia' serviti dal sistema vecchio)."""
-    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,prospects(awaiting_us,fuori,stage,pipeline_stage,no_followup,classificazione)&stato=eq.proposta", chiave="id")
+    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,mossa,consiglio,prospects(awaiting_us,fuori,stage,pipeline_stage,no_followup,classificazione)&stato=eq.proposta", chiave="id")
     from stanza import contattabile
-    vecchie = [r["id"] for r in righe if r.get("prospects") and (not r["prospects"].get("awaiting_us") or not contattabile({**r["prospects"], "id": None}))]
+    # 5/11: un «aspetta» con un consiglio di chiamata aperto (le analisi senza risposta) non e' una cosa gia' fatta:
+    # il lead non aspetta noi, aspettiamo noi lui, e il consiglio deve restare finche' Dre non lo chiude. (La prima
+    # notte il giro ne ha superati 62 su 72 dieci minuti dopo la nascita.) Si supera solo se non e' piu' contattabile.
+    def _aperto(r):
+        return r.get("mossa") == "wait" and (r.get("consiglio") or {}).get("numero") and not (r.get("consiglio") or {}).get("esito")
+    vecchie = [r["id"] for r in righe if r.get("prospects")
+               and ((not r["prospects"].get("awaiting_us") and not _aperto(r)) or not contattabile({**r["prospects"], "id": None}))]
     for i in range(0, len(vecchie), 50):
         if not PROVA:
             sb("PATCH", f"/rest/v1/clara_decisioni?id=in.({','.join(vecchie[i:i + 50])})", {"stato": "superata"}, {"Prefer": "return=minimal"})
@@ -616,6 +687,8 @@ def main():
         giro()
     elif "--email" in sys.argv:
         uno(sys.argv[sys.argv.index("--email") + 1].strip().lower())
+    elif "--consigli-retroattivi" in sys.argv:
+        consigli_retroattivi(int(sys.argv[sys.argv.index("--giorni") + 1]) if "--giorni" in sys.argv else 45)
     else:
         sys.exit(__doc__)
 
