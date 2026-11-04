@@ -192,3 +192,7 @@ button, a, select, input[type=checkbox] { cursor: pointer; }
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* IL DESK, 4/11: Dre non vuole le forme a pillola («la forma della barra laterale mi piace»): bottoni, link-bottone
+   e pillole diventano rettangoli con gli angoli appena arrotondati. I puntini di stato (span piccoli) restano tondi. */
+.desk button.rounded-full, .desk a.rounded-full, .desk span.rounded-full:not(.h-2):not(.h-2\.5) { border-radius: 10px; }

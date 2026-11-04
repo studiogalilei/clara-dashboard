@@ -4,7 +4,7 @@
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
 import { approva, cerca, giudica, leggiCoda, prendiInMano, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, MOTIVI_IN_MANO, ordina, priorita, statoBreve, telefonoDa, type Filtro } from './regole'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -46,17 +46,18 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
             <h1 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Relazioni</h1>
             <p className="mt-1 text-[13.5px] text-tenue">Qui agisci tu: le mail da mandare, le call, i consigli di Clara, le relazioni che prendi in mano.</p>
           </div>
-          {conti && <span className="shrink-0 rounded-full bg-navy/[0.08] px-3 py-1 text-[13px] font-bold text-navy">{conti.tutte} da fare</span>}
+          {conti && <span className="shrink-0 rounded-lg bg-navy/[0.08] px-3 py-1 text-[13px] font-bold text-navy">{conti.tutte} da fare</span>}
         </div>
-        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* 4/11, Dre: le pillole erano dispersive. Linguette in una riga sola: la scelta e' sottolineata, le altre in grigio */}
+        <div role="tablist" aria-label="Filtri" className="mt-3 -mb-4 flex gap-5 overflow-x-auto border-b border-bordo [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:-mb-5">
           {FILTRI.map((f) => (
-            <button key={f.f} onClick={() => setFiltro(f.f)} aria-pressed={filtro === f.f}
-                    className={`min-h-9 shrink-0 rounded-full border px-3 text-[13px] font-semibold ${filtro === f.f ? 'border-navy bg-navy text-white' : 'border-bordo bg-white text-tenue hover:border-tenue'}`}>
-              {f.nome}{conti && conti[f.f] ? <span className="ml-1 opacity-70">{conti[f.f]}</span> : null}
+            <button key={f.f} role="tab" onClick={() => setFiltro(f.f)} aria-selected={filtro === f.f}
+                    className={`-mb-px shrink-0 whitespace-nowrap border-b-2 pb-2 pt-1 text-[13px] font-semibold transition-colors ${filtro === f.f ? 'border-navy text-inchiostro' : 'border-transparent text-tenue hover:text-inchiostro'}`}>
+              {f.nome}{conti && conti[f.f] ? <span className={`ml-1 ${filtro === f.f ? 'text-navy' : 'text-spento'}`}>{conti[f.f]}</span> : null}
             </button>
           ))}
         </div>
-        <label className="mt-3 flex min-h-10 items-center gap-2 rounded-xl border border-bordo bg-white px-3 text-tenue focus-within:border-navy">
+        <label className="mt-7 flex min-h-10 items-center gap-2 rounded-xl border border-bordo bg-white px-3 text-tenue focus-within:border-navy lg:mt-8">
           <Icona nome="cerca" className="h-4 w-4 shrink-0" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca azienda o persona" aria-label="Cerca"
                  className="min-w-0 flex-1 bg-transparent text-[14px] text-inchiostro outline-none placeholder:text-spento" />
@@ -84,7 +85,7 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
               <li key={d.id}>
                 <button onClick={() => vai({ voce: 'relazioni', id: d.id })} aria-current={su ? 'true' : undefined}
                         className={`grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${su ? 'border-navy/40 bg-navy/[0.05]' : 'border-bordo bg-white hover:border-tenue hover:bg-fondo/60'}`}>
-                  <span className={`grid h-9 w-11 place-items-center rounded-lg text-[13px] font-extrabold ${priorita(d, adesso) >= 90 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{priorita(d, adesso)}</span>
+                  <span title={`Interesse ${interesse(d, adesso)} su 10`} className={`grid h-9 w-11 place-items-center rounded-lg text-[14px] font-extrabold ${interesse(d, adesso) >= 8 ? 'bg-ok-testo text-white' : interesse(d, adesso) >= 5 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{interesse(d, adesso)}<span className="ml-px text-[9px] font-semibold opacity-70">/10</span></span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
                     <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(' · ')}</span>

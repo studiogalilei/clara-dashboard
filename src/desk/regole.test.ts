@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { agendaPulita, destinatari, filtra, gruppoDi, priorita, statoBreve, telefonoDa } from './regole'
+import { agendaPulita, destinatari, filtra, gruppoDi, interesse, priorita, statoBreve, telefonoDa } from './regole'
 import type { Decisione } from './dati'
 
 const base = (x: Partial<Decisione>): Decisione => ({
@@ -17,6 +17,11 @@ describe('il desk: la coda', () => {
     expect(priorita(base({ mossa: 'book_meeting' }), adesso)).toBeGreaterThan(priorita(base({ mossa: 'wait' }), adesso))
     const vecchia = base({ mossa: 'reply', risposta_il: '2026-10-20T10:00:00Z' })
     expect(priorita(base({ mossa: 'reply' }), adesso)).toBeGreaterThan(priorita(vecchia, adesso))
+  })
+  it('lo score d\'interesse va da 1 a 10: una call e\' 10, un no e\' 1, il tempo toglie', () => {
+    expect(interesse(base({ mossa: 'book_meeting' }), adesso)).toBe(10)
+    expect(interesse(base({ mossa: 'close' }), adesso)).toBe(1)
+    expect(interesse(base({ mossa: 'reply', risposta_il: '2026-10-10T10:00:00Z' }), adesso)).toBeLessThan(interesse(base({ mossa: 'reply' }), adesso))
   })
   it('i gruppi seguono lo stato prima della mossa', () => {
     expect(gruppoDi(base({ mossa: 'close' }))).toBe('chiuse')

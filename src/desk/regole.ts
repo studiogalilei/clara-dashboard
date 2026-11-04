@@ -38,6 +38,21 @@ export function priorita(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_m
   return Math.max(0, Math.min(130, Math.round(p)))
 }
 
+/** Quanto e' caldo il lead, da 1 a 10: la mossa che Clara ha scelto dice quanto interesse ha letto (una call da
+ *  confermare e' un 10, un no e' un 1), l'analisi gia' mandata e un consiglio di chiamata aggiungono, il tempo
+ *  passato toglie. E' un numero per orientarsi, non una misura. */
+export function interesse(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'consiglio' | 'classe'>, adesso: Date = new Date()): number {
+  const base: Record<Mossa, number> = { book_meeting: 10, callback: 9, offer_slots: 9, send_analysis: 7, reply: 6, escalate: 6, wait: 4, close: 1 }
+  let s = base[d.mossa] ?? 4
+  if (d.analisi_mandata && d.mossa !== 'close') s += 1
+  if (d.consiglio?.numero) s += 1
+  if (d.classe === 'positivo' && d.mossa !== 'close') s += 1
+  const giorni = (adesso.getTime() - new Date(d.risposta_il).getTime()) / 864e5
+  if (giorni > 14) s -= 2
+  else if (giorni > 7) s -= 1
+  return Math.max(1, Math.min(10, Math.round(s)))
+}
+
 export function ordina<T extends Decisione>(ds: T[], adesso: Date = new Date()): T[] {
   return [...ds].sort((a, b) => priorita(b, adesso) - priorita(a, adesso) || b.risposta_il.localeCompare(a.risposta_il))
 }

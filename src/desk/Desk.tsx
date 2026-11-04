@@ -108,7 +108,7 @@ export default function Desk() {
       <nav aria-label="Sezioni" className={`relative hidden shrink-0 flex-col bg-navy-scuro py-5 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'w-[228px] px-3' : 'w-[72px] px-2.5'}`}>
         <div className={`mb-6 flex items-center ${larga ? 'gap-3 px-3' : 'justify-center'}`}>
           <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" width={26} height={30} style={{ width: 26, height: 30 }} className="shrink-0 object-contain brightness-0 invert" />
-          {larga && <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/55">DESK</span></span>}
+          {larga && <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/60">OUTBOUND DESK</span></span>}
         </div>
         <button onClick={() => cambiaBarra(!larga)} aria-label={larga ? 'Chiudi la barra' : 'Apri la barra'} aria-expanded={larga} title={larga ? 'Chiudi la barra' : 'Apri la barra'}
                 className="absolute -right-3 top-[3.1rem] grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-navy-scuro text-white/70 shadow hover:text-white">
