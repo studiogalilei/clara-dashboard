@@ -3,7 +3,7 @@
 // lo stesso); per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco. Sotto, «Ti consiglio di
 // chiamare» e le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useState } from 'react'
-import { aggiungiChiamata, aggiungiNota, cerca, collegaCall, esitoChiamata, leggiCall, notaChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
+import { aggiungiChiamata, aggiungiNota, cerca, collegaCall, esitoChiamata, leggiCall, notaChiamata, numeroChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
 
 type Consigliato = NonNullable<DatiCall['consigli']>[number]
 import { MOTIVO_WHATSAPP, NOTA_WHATSAPP, agendaPulita, telefonoDa, whatsappDa } from './regole'
@@ -251,7 +251,17 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
   const ritardo = !!r.richiamare_il && r.richiamare_il < oggi
   const fai = async (cosa: () => Promise<void>) => { setLavoro(true); try { await cosa() } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) } finally { setLavoro(false) } }
   const programma = (g: string | null) => fai(async () => { const id = await programmaChiamata(r, g); aggiorna(r, { ...r, chiamata_id: id, richiamare_il: g }); setProgrammo(false); mostra({ testo: g ? `Programmata per ${giornoBreve(g)}.` : 'Programmazione tolta.' }) })
-  const annota = () => fai(async () => { if (!nota.trim()) return; const { id, nota: n } = await notaChiamata(r, nota); aggiorna(r, { ...r, chiamata_id: id, note: [...(r.note ?? []), n] }); setNota(''); mostra({ testo: r.prospect_id ? 'Nota salvata, anche per Clara.' : 'Nota salvata.' }) })
+  const [numero, setNumero] = useState('')
+  const [aggiungoNumero, setAggiungoNumero] = useState(false)
+  // 4/11, Dre: «senza numero, buono, ma mi deve dare la possibilita' di aggiungerlo»
+  const salvaNumero = (n: string) => fai(async () => { const id = await numeroChiamata(r, n); aggiorna(r, { ...r, chiamata_id: id, telefono: n.trim() }); setNumero(''); setAggiungoNumero(false); mostra({ testo: r.prospect_id ? 'Numero salvato, anche in scheda.' : 'Numero salvato.' }) })
+  const annota = () => fai(async () => {
+    if (!nota.trim()) return
+    // una nota che e' solo un numero, su una chiamata senza numero, e' il numero
+    const soloNumero = !tel && telefonoDa(nota) && nota.replace(/[\s+().-]/g, '').replace(/\d/g, '') === ''
+    if (soloNumero) { const id = await numeroChiamata(r, nota); aggiorna(r, { ...r, chiamata_id: id, telefono: nota.trim() }); setNota(''); mostra({ testo: 'Preso come numero.' }); return }
+    const { id, nota: n } = await notaChiamata(r, nota); aggiorna(r, { ...r, chiamata_id: id, note: [...(r.note ?? []), n] }); setNota(''); mostra({ testo: r.prospect_id ? 'Nota salvata, anche per Clara.' : 'Nota salvata.' })
+  })
   const esito = (e: string) => { if (e === 'richiamare') { setProgrammo(true); return } void fai(async () => { await esitoChiamata(r, e); aggiorna(r, null); mostra({ testo: 'Segnato.' }) }) }
   const pid = r.prospect_id
   const wa = whatsappDa(tel)
@@ -285,7 +295,20 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
           </a>
           {wa && <button type="button" onClick={whatsapp} disabled={lavoro} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ok-testo px-4 text-[14px] font-bold text-ok-testo hover:bg-ok-fondo"><Icona nome="whatsapp" className="h-4 w-4" /> WhatsApp</button>}
         </div>
-      ) : <Pillola testo="Senza numero" tono="attesa" />}
+      ) : aggiungoNumero ? (
+        <div className="flex gap-2">
+          <input value={numero} onChange={(e) => setNumero(e.target.value)} type="tel" autoFocus placeholder="+39 …" aria-label="Numero di telefono"
+                 onKeyDown={(e) => { if (e.key === 'Enter' && telefonoDa(numero)) void salvaNumero(numero) }}
+                 className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
+          <Bottone tipo="primo" onClick={() => void salvaNumero(numero)} disabled={lavoro || !telefonoDa(numero)} className="px-3">Salva</Bottone>
+          <Bottone tipo="piatto" onClick={() => setAggiungoNumero(false)} disabled={lavoro}>Annulla</Bottone>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Pillola testo="Senza numero" tono="attesa" />
+          <button type="button" onClick={() => setAggiungoNumero(true)} className="inline-flex min-h-9 items-center rounded-lg border border-navy px-3 text-[12.5px] font-bold text-navy hover:bg-navy/[0.06]">Aggiungi il numero</button>
+        </div>
+      )}
       {r.perche && <p className="text-[13.5px] leading-relaxed text-inchiostro">{r.perche}</p>}
       {r.lead_testo && <blockquote className="rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2 text-[13px] text-inchiostro">{r.lead_testo.replace(/\s+/g, ' ').slice(0, 240)}</blockquote>}
       <Note note={r.note ?? []} />

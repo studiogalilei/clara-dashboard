@@ -210,6 +210,19 @@ async function rigaDi(c: Chiamata): Promise<string> {
   return data.id
 }
 
+/** Il numero aggiunto da Dre a una chiamata senza numero (4/11): sulla chiamata e, se il lead e' in scheda, anche nella scheda. */
+export async function numeroChiamata(c: Chiamata, numero: string): Promise<string> {
+  const id = await rigaDi(c)
+  const n = numero.trim()
+  const { error } = await supabase.from('chiamate').update({ numero: n }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  if (c.prospect_id) {
+    const { error: e2 } = await supabase.from('prospects').update({ phone: n }).eq('id', c.prospect_id).abortSignal(entro())
+    if (e2) guasto(e2)
+  }
+  return id
+}
+
 /** Quando richiamare (una data; null toglie la programmazione). */
 export async function programmaChiamata(c: Chiamata, giorno: string | null): Promise<string> {
   const id = await rigaDi(c)
