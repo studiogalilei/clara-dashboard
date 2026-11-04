@@ -20,7 +20,7 @@ import Campagne from './Campagne'
 import Tutti from './Tutti'
 import { Icona, type NomeIcona } from './pezzi'
 import Chiuso from '../Chiuso'
-import { AvvisoTelefono, CollegaTelefono } from './Telefono'
+import { AvvisoTelefono } from './Telefono'
 import { riallinea } from '../lib/notifiche'
 
 type Voce = 'oggi' | 'lead' | 'tutti' | 'campagne'
@@ -139,7 +139,6 @@ export default function Snella() {
           })}
         </ul>
         <div className="mt-auto space-y-1">
-          <CollegaTelefono tipo="piatto" className="w-full justify-start px-4 text-[14px] font-normal text-tenue hover:text-inchiostro" />
         </div>
       </nav>
 

@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { entraConGoogle } from './lib/google'
-import { entraConCodice } from './lib/ponte'
-import { installata } from './lib/notifiche'
 
 // LA PORTA (11/9): si entra con Google, con la mail @studiogalilei.com.
 // La password resta sotto, per chi ce l'ha ancora o se Google e' giu'.
-// 17/10: e il codice, per l'app sulla Home del telefono (src/lib/ponte.ts): li' la memoria e'
-// separata da Safari, e il codice si scrive dentro l'app, senza uscirne.
+// 4/11 (Dre): niente codici: anche dall'app sulla Home del telefono si entra con lo stesso account Google.
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -15,9 +12,6 @@ export default function Login() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [conPassword, setConPassword] = useState(false)
-  const [conCodice, setConCodice] = useState(false)
-  const [codice, setCodice] = useState('')
-  const app = installata()
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,13 +20,6 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setErr('Credenziali sbagliate, riprova.')
     setBusy(false)
-  }
-
-  async function codiceOk(e: React.FormEvent) {
-    e.preventDefault()
-    setBusy(true); setErr(null)
-    const no = await entraConCodice(codice)
-    if (no) { setErr(no); setBusy(false) }
   }
 
   async function google() {
@@ -45,8 +32,8 @@ export default function Login() {
     <div className="flex min-h-dvh items-center justify-center bg-fondo px-6">
       <div className="w-full max-w-sm rounded-2xl border border-bordo bg-white p-6 shadow-[0_4px_16px_rgba(16,24,40,0.05)]">
         <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="" className="mb-3 h-10 w-10 object-contain" />
-        <h1 className="text-xl text-navy"><span className="font-black">SG</span> <span className="font-bold">Workspace</span></h1>
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-navy/70">Beta</p>
+        <h1 className="text-xl text-navy"><span className="font-black">Studio Galilei</span></h1>
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-navy/70">Outbound Desk</p>
         <p className="mb-5 mt-1 text-sm text-tenue">Studio Galilei</p>
 
         <button
@@ -59,34 +46,11 @@ export default function Login() {
         </button>
         <p className="mt-2 text-center text-[12px] text-tenue">Con la mail @studiogalilei.com</p>
 
-        {!conCodice ? (
-          <button onClick={() => { setConCodice(true); setConPassword(false); setErr(null) }}
-                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border border-bordo text-[15px] font-semibold text-navy hover:border-navy">
-            Entra con un codice
-          </button>
-        ) : (
-          <form onSubmit={(e) => void codiceOk(e)} className="mt-4 border-t border-velo pt-4">
-            <label htmlFor="codice" className="block text-[14px] font-semibold text-inchiostro">Il codice di 6 cifre</label>
-            <p className="mb-2 mt-0.5 text-[13px] leading-snug text-tenue">
-              Te lo dà il Workspace dove sei già dentro: sul computer «Collega il telefono», in basso a sinistra; sull'iPhone, in Safari, la pagina Oggi.
-            </p>
-            <input id="codice" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required autoFocus
-                   value={codice} onChange={(e) => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                   className="mb-3 w-full rounded-lg border border-bordo px-3 py-2.5 text-center text-[22px] font-bold tracking-[0.3em] outline-none focus:border-blu" />
-            <button type="submit" disabled={busy || codice.length !== 6}
-                    className="min-h-11 w-full rounded-full bg-navy text-[15px] font-bold text-white disabled:opacity-50">
-              {busy ? 'Entro…' : 'Entra'}
-            </button>
-          </form>
-        )}
-        {app && !conCodice && (
-          <p className="mt-2 text-center text-[12px] leading-snug text-tenue">Nell'app del telefono: se Google non ti riporta qui, usa il codice.</p>
-        )}
 
         {err && <p role="alert" className="mt-3 text-[14px] text-red-700">{err}</p>}
 
         {!conPassword ? (
-          <button onClick={() => { setConPassword(true); setConCodice(false); setErr(null) }}
+          <button onClick={() => { setConPassword(true); setErr(null) }}
                   className="mt-3 min-h-11 w-full text-center text-[13px] font-semibold text-tenue hover:text-inchiostro">
             Entra con la password
           </button>

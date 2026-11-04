@@ -5,10 +5,9 @@
 //   - nell'app, o sul computer, se le notifiche sono spente: «Attiva le notifiche», con cosa arrivera';
 //   - se le ha bloccate: dove si riaccendono.
 // Quando sono attive il riquadro non c'e'. «Non ora» lo nasconde su quel dispositivo per una settimana.
-// E «Collega il telefono»: il codice per entrare nell'app senza rifare il login (src/lib/ponte.ts).
+// 4/11 (Dre): niente codici: da telefono si entra con lo stesso account Google.
 import { useEffect, useState } from 'react'
 import { attiva, iphone, stato, type StatoNotifiche } from '../lib/notifiche'
-import { creaCodice } from '../lib/ponte'
 import { Bottone, Icona } from './pezzi'
 
 const NON_ORA = 'sg:telefono-non-ora'
@@ -67,10 +66,9 @@ export function AvvisoTelefono() {
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-[15px] leading-snug">
             <li>Tocca <Icona nome="condividi" className="inline h-[18px] w-[18px] align-[-3px] text-noi-testo" /> <b>Condividi</b>, nella barra di Safari.</li>
             <li>Scorri e tocca <b>Aggiungi alla schermata Home</b>, poi <b>Aggiungi</b>.</li>
-            <li>Apri <b>SG Oggi</b> dalla Home: entra con Google, o con il codice qui sotto.</li>
+            <li>Apri <b>SG Oggi</b> dalla Home ed entra con Google, con lo stesso account.</li>
           </ol>
           <div className="mt-3 flex flex-wrap gap-2">
-            <CollegaTelefono tipo="primo" etichetta="Il codice per entrare nell'app" />
             <Bottone tipo="piatto" onClick={nonOra}>Non ora</Bottone>
           </div>
         </>
@@ -103,37 +101,3 @@ export function AvvisoTelefono() {
   )
 }
 
-/** Il codice per far entrare il telefono: si chiede con un tocco, si legge grande, vale 10 minuti. */
-export function CollegaTelefono({ tipo = 'secondo', etichetta = 'Collega il telefono', className = '' }: {
-  tipo?: 'primo' | 'secondo' | 'piatto'; etichetta?: string; className?: string
-}) {
-  const [codice, setCodice] = useState<{ codice: string; minuti: number } | null>(null)
-  const [lavoro, setLavoro] = useState(false)
-  const [errore, setErrore] = useState<string | null>(null)
-
-  function chiedi() {
-    setLavoro(true); setErrore(null)
-    void creaCodice().then(setCodice).catch((e: unknown) => setErrore(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLavoro(false))
-  }
-
-  if (codice) {
-    return (
-      <div role="status" className={`w-full rounded-xl border border-bordo bg-white px-4 py-3 ${className}`}>
-        <p className="text-[14px] text-tenue">Scrivilo nell'app, su «Entra con un codice»:</p>
-        <p className="mt-1 font-mono text-[32px] font-bold tracking-[0.25em] text-inchiostro" aria-label={`Codice ${codice.codice.split('').join(' ')}`}>
-          {codice.codice.slice(0, 3)} {codice.codice.slice(3)}
-        </p>
-        <p className="text-[13px] text-tenue">Vale {codice.minuti} minuti, una volta sola.</p>
-      </div>
-    )
-  }
-  return (
-    <>
-      <Bottone tipo={tipo} onClick={chiedi} disabled={lavoro} className={className}>
-        <Icona nome="cellulare" className="h-[18px] w-[18px]" /> {lavoro ? 'Un attimo…' : etichetta}
-      </Bottone>
-      {errore && <p role="alert" className="w-full text-[14px] text-no-testo">{errore}</p>}
-    </>
-  )
-}

@@ -11,7 +11,7 @@ import { chiSono, type ChiSono } from '../lib/accessi'
 import Login from '../Login'
 import { Icona, type NomeIcona } from '../snella/pezzi'
 import Chiuso from '../Chiuso'
-import { AvvisoTelefono, CollegaTelefono } from '../snella/Telefono'
+import { AvvisoTelefono } from '../snella/Telefono'
 import { riallinea } from '../lib/notifiche'
 import Coda from './Coda'
 import Call from './Call'
@@ -145,7 +145,6 @@ export default function Desk() {
           ) : (
             <p className="flex justify-center py-2" title="Clara è al lavoro"><span className="h-2.5 w-2.5 rounded-full bg-ok-segno" /></p>
           )}
-          {larga && <CollegaTelefono tipo="piatto" className="w-full justify-start px-3 text-[13px] font-normal text-white/60 hover:text-white" />}
         </div>
       </nav>
 
