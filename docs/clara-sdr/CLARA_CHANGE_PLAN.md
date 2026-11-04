@@ -133,7 +133,8 @@ Identità v3 (notte del 4/11: firma come la casella, niente orari a chi vuole pr
 una data, l'analisi «mandata alle» nel contesto): 0 pericolosi, 28 giuste, 7 accettabili, 8 testi
 buoni e 13 da ritoccare (il revisore vede il mittente coerente e non lo segnala più). Le 7 accettabili
 sono quasi tutte «ha risposto due righe a un no secco»: corretto in v3.1 (a un no secco non si
-risponde). Sul vivo (prima notte, 46 decisioni votate): 38 giuste, 8 accettabili, 0 pericolose.
+risponde). Sul vivo (prima notte, 46 decisioni votate): 38 giuste, 8 accettabili, 0 pericolose. Identità v3.1 sullo stesso banco: 0 pericolosi, 29 giuste, 6 accettabili (le accettabili restano
+giudizi di stile: una riga di cortesia in più o in meno).
 
 ## Il Desk (notte del 3-4/11)
 
