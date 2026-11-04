@@ -102,6 +102,15 @@ def manda_una(d):
     # il lead ha scritto dopo la decisione? allora la decisione e' vecchia: torna a Dre, e Clara ne fa una nuova
     if _quando(ultima.get("time")) > _quando(d["risposta_il"]) + datetime.timedelta(minutes=3):
         return ferma(d, f"{azienda}: ha scritto di nuovo dopo questa decisione: rileggi", "superata")
+    # abbiamo gia' risposto noi dopo quella mail (dal sistema vecchio o a mano)? non si manda due volte
+    try:
+        h = manda.sl("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
+        nostre_dopo = [m for m in (h.get("history") or []) if m.get("type") != "REPLY"
+                       and _quando(m.get("time")) > _quando(d["risposta_il"]) + datetime.timedelta(minutes=3)]
+    except Exception:                                            # noqa: BLE001
+        nostre_dopo = []
+    if nostre_dopo:
+        return ferma(d, f"{azienda}: gli abbiamo già scritto dopo quella mail ({str(nostre_dopo[-1].get('time'))[:16]}): non mando due volte", "superata")
     att = allegati(p, d)
     if isinstance(att, str):
         if att == "aspetta l'analisi":

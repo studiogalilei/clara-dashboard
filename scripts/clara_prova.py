@@ -33,7 +33,7 @@ RIGHE = 400
 FINESTRA_ORE = 48          # risposte piu' vecchie non si decidono nel giro (il banco storico e' l'esame)
 PER_GIRO = 15              # decisioni al massimo per giro: un tetto alla spesa, non una coda persa
 TETTO_GIORNO = 25.0        # dollari al giorno per il cervello in prova (notte del 4/11: si rigioca tutto)
-TETTO_GIUDICE = 3.0
+TETTO_GIUDICE = 10.0
 COLONNE = [("Quando", 95), ("Azienda", 150), ("Il lead ha scritto", 340), ("Mossa", 100), ("Perché", 250),
            ("Testo che manderebbe", 400), ("Segnali", 150), ("Giudice", 130),
            ("Va bene? (ok / no)", 110), ("Cosa avresti fatto tu", 260), ("Note", 220), ("id", 40)]
@@ -139,6 +139,19 @@ def risposte_nuove(ore=None):
         if contattabile(p) and not gia_decisa(p["id"], p["last_reply_at"]):
             fuori.append(p)
     return fuori
+
+
+def supera_vecchie():
+    """Una decisione ancora «proposta» per un lead che non aspetta piu' noi (gli abbiamo risposto, o e'
+    cliente/perso/non contattare) e' superata: nel Desk non deve restare un «Invia» su una cosa gia' fatta
+    (4/11: 94 decisioni della prima notte erano su lead gia' serviti dal sistema vecchio)."""
+    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,prospects(awaiting_us,fuori,stage,pipeline_stage,no_followup,classificazione)&stato=eq.proposta", chiave="id")
+    from stanza import contattabile
+    vecchie = [r["id"] for r in righe if r.get("prospects") and (not r["prospects"].get("awaiting_us") or not contattabile({**r["prospects"], "id": None}))]
+    for i in range(0, len(vecchie), 50):
+        if not PROVA:
+            sb("PATCH", f"/rest/v1/clara_decisioni?id=in.({','.join(vecchie[i:i + 50])})", {"stato": "superata"}, {"Prefer": "return=minimal"})
+    return len(vecchie)
 
 
 # ── 2. il giudice ──────────────────────────────────────────────────────────────
@@ -320,6 +333,7 @@ def giro():
             except Exception as e:                               # noqa: BLE001
                 print(f"  {p.get('company') or '?'}: non decisa ({str(e)[:150]})")
         note.append(f"{decise} decisioni nuove" + (f" ({len(cand) - massimo} restano al prossimo giro)" if len(cand) > massimo else ""))
+        note.append(f"{supera_vecchie()} superate (il lead non aspetta più noi)")
         note.append(f"{giudica_nuove()} votate dal giudice")
         foglio()
         registra("ok", "; ".join(note), partita)
