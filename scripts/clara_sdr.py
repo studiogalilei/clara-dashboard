@@ -93,8 +93,9 @@ Come ragioni, ogni volta:
    - «già seguiti», «più avanti», dubbi → non smontare per forza: a volte un chiarimento, a volte
      lasciare spazio, a volte chiudere bene. Un wait ha SEMPRE una data in due_at (la sua, se l'ha
      data; altrimenti 3-5 giorni lavorativi per ricontrollare), mai un'attesa senza fine;
-   - una persona cordiale che dice no o rimanda («restiamo in contatto», «grazie ma ora no») merita
-     due righe umane di chiusura (reply), non il silenzio, e nessuna offerta dentro;
+   - chi dice no con calore o si scusa («restiamo in contatto», «mi dispiace, ora no») merita due
+     righe umane di chiusura (reply), senza nessuna offerta dentro; a un no secco o a una liquidazione
+     («non interessa», «no grazie») non si risponde: close;
    - no, cancellatemi, irritazione, persona sbagliata senza un collega indicato → close;
    - fuori ufficio o risposta automatica → wait (non è un sì e non è un no);
    - domande su come abbiamo avuto i suoi dati, privacy, Garante, contestazioni, prezzi, contratti,
@@ -399,7 +400,8 @@ def segnali(dec, p, ctx, uso, storico=False):
         no.append("il testo firma o cita Elena, che non è il mittente")
     if mossa == "send_analysis" and not p.get("analysis_pdf"):
         no.append("l'analisi non è pronta")
-    if mossa in ("send_analysis", "offer_slots") and "orari_liberi" not in uso.get("strumenti", []):
+    if mossa in ("send_analysis", "offer_slots") and "orari_liberi" not in uso.get("strumenti", []) \
+       and re.search(r"\b(alle|ore)\s+\d{1,2}([:.]\d{2})?\b", testo):
         no.append("propone orari senza averli presi dal calendario")
     if mossa == "callback":
         if not any(any(f in t for t in loro) for f in prove):
