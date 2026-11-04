@@ -25,9 +25,9 @@ export interface Dove { voce: Voce; id: string | null }
 // 4/11 pomeriggio, Dre: «Relazioni» e' dove agisce lui (la coda di prima, identica); «Coda» e' la coda di Clara,
 // da sbirciare; «Analytics» e' il monitoraggio. «filo» e' la scheda intera di un'azienda, senza voce nel menu.
 const VOCI: Array<{ voce: Voce; nome: string; icona: NomeIcona }> = [
-  { voce: 'relazioni', nome: 'Relazioni', icona: 'mail' },
-  { voce: 'coda', nome: 'Coda', icona: 'tutti' },
   { voce: 'call', nome: 'Call', icona: 'telefono' },
+  { voce: 'relazioni', nome: 'Relazioni', icona: 'lead' },
+  { voce: 'coda', nome: 'Coda', icona: 'tutti' },
   { voce: 'analytics', nome: 'Analytics', icona: 'campagne' },
 ]
 

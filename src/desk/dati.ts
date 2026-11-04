@@ -4,7 +4,8 @@
 // approva, il postino (scripts/clara_manda.py) manda entro cinque minuti, o subito se il
 // direttore risponde alla chiamata.
 import { supabase } from '../lib/supabase'
-export { aggiungiNota } from '../snella/dati'
+import { aggiungiNota } from '../snella/dati'
+export { aggiungiNota }
 
 export type Mossa = 'send_analysis' | 'reply' | 'offer_slots' | 'book_meeting' | 'callback' | 'wait' | 'close' | 'escalate'
 export type Stato = 'proposta' | 'approvata' | 'in_invio' | 'inviata' | 'scartata' | 'superata' | 'fatta'
@@ -43,10 +44,17 @@ export interface Relazione {
   note: Array<{ at: string; tipo: string; testo: string }>
   scheda: { stato: string | null; prossima_mossa: string | null; prossima_il: string | null; responsabile: string | null } | null
 }
-export interface Trovato { id: string; azienda: string | null; persona: string | null; email: string; citta: string | null; fase: string | null; classe: string | null; ultima_risposta: string | null; analisi_mandata: boolean }
+export interface Trovato { id: string; azienda: string | null; persona: string | null; email: string; citta: string | null; telefono?: string | null; fase: string | null; classe: string | null; ultima_risposta: string | null; analisi_mandata: boolean }
+export interface NotaChiamata { at: string; testo: string }
+export interface Chiamata {
+  id: string; chiamata_id: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null
+  quando?: string | null; perche?: string | null; risposta_il?: string | null; lead_testo?: string | null; richiamare_il: string | null
+  note: NotaChiamata[]; origine: 'clara' | 'dre'; creato_il?: string; fase?: string | null; analisi_mandata?: boolean | null; ultima_risposta?: string | null
+}
 export interface Call {
   prossime: Array<{ at: string; tipo: string | null; titolo: string | null; link: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null; preparazione: string | null }>
-  richiami: Array<{ id: string; prospect_id: string; azienda: string | null; persona: string | null; telefono: string | null; quando: string | null; perche: string | null; risposta_il: string; esito: string | null; lead_testo: string | null }>
+  richiami: Chiamata[]
+  mie?: Chiamata[]
   consigli?: Array<{ id: string; prospect_id: string; azienda: string | null; persona: string | null; telefono: string | null; perche: string | null; mossa: Mossa; stato: Stato; risposta_il: string; lead_testo: string | null; consiglio: Consiglio | null }>
 }
 export interface Operazione { chiave: string; nome: string; ultima_corsa: string | null; ultimo_esito: string | null; ultimo_dettaglio: string | null; attiva: boolean }
@@ -112,7 +120,7 @@ export async function cerca(q: string): Promise<Trovato[]> {
 export async function leggiCall(): Promise<Call> {
   const { data, error } = await supabase.rpc('clara_call').abortSignal(entro())
   if (error) guasto(error)
-  return (data ?? { prossime: [], richiami: [], consigli: [] }) as Call
+  return (data ?? { prossime: [], richiami: [], consigli: [], mie: [] }) as Call
 }
 
 export async function leggiOperazioni(): Promise<Operazione[]> {
@@ -172,6 +180,53 @@ export async function prendiInMano(prospectId: string, motivo: string, lascia = 
   const { data, error } = await supabase.rpc('clara_prendi', { chi: prospectId, motivo: motivo.trim() || null, lascia }).abortSignal(entro())
   if (error) guasto(error)
   if (data && data.ok === false) throw new Error(data.perche || 'Non riesco')
+}
+
+/** Una chiamata aggiunta da Dre: azienda (o un lead scelto dalla ricerca), numero, giorno, prima nota. */
+export async function aggiungiChiamata(c: { prospect_id?: string | null; azienda: string; persona?: string | null; numero?: string | null; richiamare_il?: string | null; nota?: string }): Promise<Chiamata> {
+  const note = c.nota?.trim() ? [{ at: ADESSO(), testo: c.nota.trim() }] : []
+  const { data, error } = await supabase.from('chiamate').insert({ prospect_id: c.prospect_id ?? null, azienda: c.azienda.trim(), persona: c.persona?.trim() || null,
+    numero: c.numero?.trim() || null, richiamare_il: c.richiamare_il || null, note, creato_da: DRE }).select('id,prospect_id,azienda,persona,numero,richiamare_il,note,creato_il').abortSignal(entro()).single()
+  if (error) guasto(error)
+  return { id: data.id, chiamata_id: data.id, prospect_id: data.prospect_id, azienda: data.azienda, persona: data.persona, telefono: data.numero,
+    richiamare_il: data.richiamare_il, note: (data.note ?? []) as NotaChiamata[], origine: 'dre', creato_il: data.creato_il }
+}
+
+/** La riga «chiamate» di un Da chiamare di Clara: nasce alla prima programmazione o nota. Torna l'id. */
+async function rigaDi(c: Chiamata): Promise<string> {
+  if (c.chiamata_id) return c.chiamata_id
+  const { data, error } = await supabase.from('chiamate').upsert({ decisione_id: c.id, prospect_id: c.prospect_id, azienda: c.azienda, persona: c.persona, numero: c.telefono, creato_da: DRE }, { onConflict: 'decisione_id' })
+    .select('id').abortSignal(entro()).single()
+  if (error) guasto(error)
+  return data.id
+}
+
+/** Quando richiamare (una data; null toglie la programmazione). */
+export async function programmaChiamata(c: Chiamata, giorno: string | null): Promise<string> {
+  const id = await rigaDi(c)
+  const { error } = await supabase.from('chiamate').update({ richiamare_il: giorno }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  return id
+}
+
+/** Una nota veloce sulla chiamata (si accoda). Se il lead e' in scheda, la nota va anche a Clara. */
+export async function notaChiamata(c: Chiamata, testo: string): Promise<{ id: string; nota: NotaChiamata }> {
+  const id = await rigaDi(c)
+  const nota = { at: ADESSO(), testo: testo.trim() }
+  const { error } = await supabase.from('chiamate').update({ note: [...(c.note ?? []), nota] }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata: ${nota.testo}`) } catch { /* la nota resta sulla chiamata */ } }
+  return { id, nota }
+}
+
+/** L'esito di una chiamata (fissata, non risponde, non interessato): la chiamata esce dalla lista. Per quelle di
+ *  Clara si segna anche sulla decisione. «richiamare» non chiude: si programma un giorno. */
+export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): Promise<void> {
+  const id = await rigaDi(c)
+  const { error } = await supabase.from('chiamate').update({ esito, esito_il: ADESSO(), ...(nota?.trim() ? { note: [...(c.note ?? []), { at: ADESSO(), testo: nota.trim() }] } : {}) }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  if (c.origine === 'clara') await segnaEsito(c.id, esito, nota)
+  else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata di Dre: ${esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`) } catch { /* niente */ } }
 }
 
 /** L'esito di un consiglio di chiamata (chiamato, non ora): resta dentro al consiglio, la decisione non cambia stato. */
