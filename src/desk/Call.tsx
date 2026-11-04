@@ -35,6 +35,10 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
     const kb = b.richiamare_il ? (b.richiamare_il <= oggi ? `0${b.richiamare_il}` : `1${b.richiamare_il}`) : '2'
     return ka.localeCompare(kb) || (b.risposta_il ?? b.creato_il ?? '').localeCompare(a.risposta_il ?? a.creato_il ?? '')
   })
+  // 4/11, Dre: le telefonate pianificate stanno anche in agenda, per giorno, piu' piccole; «Oggi» con lo sfondo diverso
+  const telefonate = new Map<string, Chiamata[]>()
+  for (const t of tutte) if (t.richiamare_il) { const g = t.richiamare_il < oggi ? oggi : t.richiamare_il; telefonate.set(g, [...(telefonate.get(g) ?? []), t]) }
+  const giorniTutti = [...new Set([...giorni.keys(), ...telefonate.keys()])].sort()
   const aggiorna = (vecchia: Chiamata, nuova: Chiamata | null) => setDati((prev) => {
     if (!prev) return prev
     const f = (xs: Chiamata[] = []) => xs.flatMap((x) => x.id === vecchia.id ? (nuova ? [nuova] : []) : [x])
@@ -78,11 +82,11 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
           <h2 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Le call in agenda</h2>
           <p className="mt-1 text-[13.5px] text-tenue">Le prossime due settimane, dal tuo calendario.</p>
         </header>
-        {giorni.size === 0 ? <Vuoto>Niente in agenda nei prossimi 14 giorni.</Vuoto> : (
+        {giorniTutti.length === 0 ? <Vuoto>Niente in agenda nei prossimi 14 giorni.</Vuoto> : (
           <div className="divide-y divide-velo">
-            {[...giorni.entries()].map(([g, call]) => (
-              <div key={g} className="p-4">
-                <h3 className="mb-2 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">{nomeGiorno(g)}</h3>
+            {giorniTutti.map((g) => { const call = giorni.get(g) ?? []; const tel = telefonate.get(g) ?? []; return (
+              <div key={g} className={`p-4 ${g === oggi ? 'bg-navy/[0.045]' : ''}`}>
+                <h3 className={`mb-2 text-[12px] font-extrabold uppercase tracking-[.08em] ${g === oggi ? 'text-navy' : 'text-tenue'}`}>{nomeGiorno(g)}{g === oggi && (call.length + tel.length) ? <span className="ml-2 font-semibold normal-case tracking-normal text-tenue">{call.length ? `${call.length} call` : ''}{call.length && tel.length ? ', ' : ''}{tel.length ? `${tel.length} da chiamare` : ''}</span> : null}</h3>
                 <ul className="space-y-2">
                   {call.map((p, i) => (
                     <li key={i} className="flex items-center gap-3 rounded-xl border border-bordo px-3.5 py-2.5">
@@ -94,9 +98,19 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
                       {p.link && <a href={p.link} target="_blank" rel="noreferrer" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-bordo text-navy hover:border-navy" aria-label="Apri la call"><Icona nome="video" className="h-4 w-4" /></a>}
                     </li>
                   ))}
+                  {tel.map((t) => {
+                    const n = telefonoDa(t.telefono)
+                    return (
+                      <li key={`tel-${t.id}`} className="flex items-center gap-3 rounded-lg border border-dashed border-bordo bg-white/70 px-3 py-1.5">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-ok-testo/10 text-ok-testo"><Icona nome="telefono" className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0 flex-1 truncate text-[13px]"><b className="text-inchiostro">{t.azienda || t.persona}</b>{t.persona && t.azienda ? <span className="text-tenue">, {t.persona}</span> : null}{t.richiamare_il && t.richiamare_il < oggi ? <span className="text-giallo-testo"> (era per {giornoBreve(t.richiamare_il)})</span> : null}</span>
+                        {n ? <a href={`tel:${n.replace(/[^\d+]/g, '')}`} className="shrink-0 text-[13px] font-bold text-ok-testo hover:underline">{n}</a> : <span className="shrink-0 text-[12px] text-tenue">senza numero</span>}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
-            ))}
+            ) })}
           </div>
         )}
       </section>
