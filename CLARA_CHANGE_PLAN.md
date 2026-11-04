@@ -75,3 +75,11 @@ Fatto:
 
 Non visto nel browser da me: la sessione del browser di prova è scaduta e la creazione di un utente di collaudo
 è stata bloccata dai permessi; tipi e test passano, il pacchetto è pubblicato. Dre lo guarda lui.
+
+Ritocchi dello stesso pomeriggio, da Dre: al posto della priorità (0-130) uno **score d'interesse da 1 a 10**
+(`regole.interesse`: la mossa scelta da Clara dà la base, call 10 e no 1; analisi mandata, consiglio di chiamata
+e lead positivo aggiungono; il tempo passato toglie; è un numero per orientarsi, non una misura); i filtri a
+pillola erano dispersivi → **linguette** in una riga, la scelta sottolineata; **niente forme a pillola** nel Desk
+(regola CSS su `.desk`: bottoni, link e pillole con angoli a 10 px, come le voci della barra); sotto il nome,
+«OUTBOUND DESK». Link unico per computer e telefono: https://studiogalilei.github.io/clara/#/d/relazioni
+(sul telefono è l'app installata, che si aggiorna da sola).
