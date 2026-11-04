@@ -6925,8 +6925,8 @@ def _():
     col = F.mappa_colonne(["Company Name", "Website", "Work Email", "City", "First Name", "Last Name", "Job Title", "Phone Number"])
     assert col["azienda"] == "Company Name" and col["sito"] == "Website" and col["email"] == "Work Email" and col["cognome"] == "Last Name"
     assert F.mappa_colonne(["Ragione sociale", "Sito web", "E-mail", "Comune"])["email"] == "E-mail"
-    p = F.prospect_da({"Company Name": "Rossi", "Website": "rossi.it", "Work Email": "A@Rossi.it", "First Name": "Mario", "Last Name": "Rossi"}, col)
-    assert p["website"] == "https://rossi.it" and p["email"] == "a@rossi.it" and p["name"] == "Mario Rossi"
+    p = F.prospect_da({"Company Name": "Rossi", "Website": "rossi.it", "Work Email": "A@Esempio.it", "First Name": "Mario", "Last Name": "Rossi"}, col)
+    assert p["website"] == "https://rossi.it" and p["email"] == "a@esempio.it" and p["name"] == "Mario Rossi"
     # il fit salvato porta i tre verdetti e il canale a tre
     import inspect
     t = inspect.getsource(G.valuta)
