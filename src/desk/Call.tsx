@@ -12,6 +12,7 @@ import { useAvviso, useDati } from '../snella/uso'
 import { giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
 import { TONO } from '../snella/toni'
 import type { Dove } from './Desk'
+import { Note } from './Note'
 
 const oggiIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const giornoBreve = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -216,11 +217,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
       ) : <Pillola testo="Senza numero" tono="attesa" />}
       {r.perche && <p className="text-[13.5px] leading-relaxed text-inchiostro">{r.perche}</p>}
       {r.lead_testo && <blockquote className="rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2 text-[13px] text-inchiostro">{r.lead_testo.replace(/\s+/g, ' ').slice(0, 240)}</blockquote>}
-      {(r.note ?? []).length > 0 && (
-        <ul className="space-y-1 text-[13px]">
-          {r.note.map((n, i) => <li key={i}><span className="text-tenue">{quando(n.at)}</span> {n.testo}</li>)}
-        </ul>
-      )}
+      <Note note={r.note ?? []} />
       <div className="flex gap-2">
         <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nota veloce" aria-label="Nota veloce" onKeyDown={(e) => { if (e.key === 'Enter') void annota() }}
                className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />

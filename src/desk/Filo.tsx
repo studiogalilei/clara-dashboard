@@ -6,6 +6,7 @@ import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
 import type { Dove } from './Desk'
+import { Note } from './Note'
 
 export default function Filo({ dove, vai, indietro }: { dove: Dove; vai: (d: Dove) => void; indietro: () => void }) {
   if (dove.id) return <Relazione id={dove.id} indietro={indietro} vai={vai} />
@@ -145,7 +146,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
           <Bottone onClick={() => void salvaNota()} disabled={!nota.trim()}>Salva</Bottone>
         </div>
-        {dati.note.length > 0 && <ul className="mt-3 space-y-1.5 text-[13.5px]">{dati.note.map((n, i) => <li key={i}><span className="text-tenue">{quando(n.at)}</span>, {n.testo}</li>)}</ul>}
+        <Note note={dati.note} className="mt-3" />
         {dati.agenda.length > 0 && <ul className="mt-3 space-y-1 border-t border-bordo pt-3 text-[13.5px]">{dati.agenda.map((a, i) => <li key={i}><b>{quando(a.at)}</b>, {a.tipo || a.titolo}{a.link && <> (<a href={a.link} className="text-navy underline-offset-2 hover:underline" target="_blank" rel="noreferrer">apri</a>)</>}</li>)}</ul>}
       </section>
 
