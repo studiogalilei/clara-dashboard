@@ -105,6 +105,50 @@ def prendi(d):
     return bool(r)
 
 
+DURATA_CALL_MIN = 45
+
+
+def invito(p, d, a):
+    """LA CALL PRENOTATA FINISCE NEL CALENDARIO (4/11). Un book_meeting crea l'evento nel calendario di Dramane
+    con il Meet e il lead invitato: l'invito glielo manda Google, la conferma la scrive Clara. Se l'evento non si
+    crea la mail resta ferma (non si promette un invito che non parte). Torna il link del Meet, o un errore (str).
+    Idempotente: il link gia' creato sta in invio.invito e non si rifa'."""
+    gia = (d.get("invio") or {}).get("invito")
+    if gia:
+        return gia
+    quando = (d.get("appuntamento") or "").strip()
+    if not quando:
+        return "prenotazione senza l'orario confermato (meeting_at vuoto)"
+    try:
+        inizio = datetime.datetime.fromisoformat(quando)
+    except ValueError:
+        return f"orario della prenotazione illeggibile: {quando[:30]}"
+    inizio = inizio.replace(tzinfo=ROMA) if inizio.tzinfo is None else inizio.astimezone(ROMA)
+    if inizio < adesso():
+        return f"la prenotazione è nel passato ({inizio.strftime('%d/%m %H:%M')}): guarda tu"
+    fine = inizio + datetime.timedelta(minutes=DURATA_CALL_MIN)
+    azienda = p.get("company") or p.get("name") or a
+    corpo = {"summary": f"Conoscitiva {azienda}"[:200],
+             "description": f"Call conoscitiva con {azienda}, fissata da Clara.",
+             "start": {"dateTime": inizio.isoformat(), "timeZone": "Europe/Rome"},
+             "end": {"dateTime": fine.isoformat(), "timeZone": "Europe/Rome"},
+             "attendees": [{"email": a}],
+             "conferenceData": {"createRequest": {"requestId": f"clara-{d['id']}", "conferenceSolutionKey": {"type": "hangoutsMeet"}}}}
+    if PROVA:
+        print(f"    [prova] invito {inizio.strftime('%d/%m %H:%M')} a {a}")
+        return "prova"
+    try:
+        import calendario_sg
+        from google_api import g
+        ev = g("POST", f"{calendario_sg.CAL}/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all",
+               corpo, email=calendario_sg.PADRONE)
+    except Exception as e:                                       # noqa: BLE001
+        return f"Google non crea l'evento: {str(e)[:160]}"
+    link = (ev or {}).get("hangoutLink") or (ev or {}).get("htmlLink") or "creato"
+    sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"invio": {**(d.get("invio") or {}), "invito": link, "evento": (ev or {}).get("id")}})
+    return link
+
+
 def manda_una(d):
     p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,campaign_id,lead_id,analysis_pdf,analysis_sent,"
                    f"fuori,stage,pipeline_stage,no_followup,classificazione,enriched&id=eq.{d['prospect_id']}") or [None])[0]
@@ -167,6 +211,10 @@ def manda_una(d):
             return ferma(d, f"{azienda}: Clara vuole scrivere a un indirizzo che il lead non ha dato ({testa['a']}): guarda tu")
     if att:
         corpo["attachments"] = att
+    if d["mossa"] == "book_meeting":
+        inv = invito(p, d, a)
+        if inv.startswith(("prenotazione", "orario", "la prenotazione", "Google")):
+            return ferma(d, f"{azienda}: {inv}")
     print(f"  {azienda} → {a}" + (f" (cc {corpo['cc']})" if corpo.get("cc") else "") + f"  campagna {cid}, {len(att)} allegati")
     if PROVA:
         print("    " + testo[:160].replace("\n", " ") + "…")

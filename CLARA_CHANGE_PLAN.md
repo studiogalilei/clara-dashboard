@@ -93,3 +93,23 @@ un tocco. Tabella `chiamate` (schema_v107): una riga per le sue, e una riga agga
 di Clara, che nasce alla prima programmazione o nota. `clara_call` torna `richiami` (Clara, con programmazione e
 note), `mie` (le sue, con quello che il sistema sa del lead), `consigli`, `prossime`. Icona persone su Relazioni.
 Non visto nel browser (stessa ragione di prima).
+
+## 4/11 sera: l'analisi parte con la call dentro
+
+Dre: «fa tanti giri prima di proporre la call… non ci devono far sapere un cazzo, noi gliela mandiamo
+come regalo e il pretesto è arrivare alla call… non deve dire con il nostro fondatore… fanculo graduale».
+
+- **send_analysis = analisi + due orari + link, in una mail sola, sempre.** Il primo orario è domani se il
+  calendario vero è libero (finché si riempie: le date vicine fanno urgenza), il secondo due-tre giorni dopo
+  (`bozze.due_orari`: da +2 giorni invece di +1), il link del calendario come alternativa (lo dà lo strumento
+  `orari_liberi`, link nuovo `PCsE9SXEpEESnMqG9`). Niente «la legga e ci faccia sapere».
+- **Prima persona.** Dramane non esiste nelle mail finché la call non è fissata: niente «fondatore», niente
+  «con Dramane». Solo a prenotazione (book_meeting) e a telefonata fissata (callback) si dice che ci sarà
+  anche Dramane, che ha seguito l'analisi. In call, se arriva solo lui, dice che Lorenzo ha avuto un contrattempo.
+- **book_meeting ora scrive e prenota.** La decisione porta `meeting_at` (colonna `appuntamento`, v109) e una
+  conferma di tre righe; il postino prima crea l'evento con Meet nel calendario di Dramane con il lead invitato
+  (Google manda l'invito), poi manda la conferma. Se l'evento non si crea la mail resta ferma: non si promette un
+  invito che non parte.
+- **Segnali nuovi** (`clara_sdr.segnali`): analisi senza orari / senza link, «ci faccia sapere», «fondatore»,
+  Dramane prima della prenotazione, conferma senza Dramane. Il giudice (`esame_clara`) conosce le regole.
+- Invarianti: due blocchi nuovi in `test_invarianti.py`.

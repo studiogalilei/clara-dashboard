@@ -106,6 +106,7 @@ def decidi_lead(p, perche=""):
             "mossa": d["proposed_action"], "owner": d.get("owner"), "entro_il": d.get("due_at") or None,
             "testo": d.get("draft") or None, "perche": d.get("reason_summary"), "prove": d.get("evidence_refs") or [],
             "richiamo": d.get("callback") if d["proposed_action"] == "callback" else None,
+            "appuntamento": (d.get("meeting_at") or None) if d["proposed_action"] == "book_meeting" else None,
             "consiglio": (d.get("call_suggestion") if (d.get("call_suggestion") or {}).get("numero", "").strip() else None),
             "segnali": r["segnali"], "uso": r["uso"], "contesto": r["contesto"]}
     print(f"  {p.get('company') or '?'}: {d['proposed_action']} (owner {d.get('owner')}, {r['uso'].get('dollari')} $)"

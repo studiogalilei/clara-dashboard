@@ -59,7 +59,7 @@ PROVA = "--prova" in sys.argv
 QUANTI = int(sys.argv[sys.argv.index("--quanti") + 1]) if "--quanti" in sys.argv else 25
 SOLO = [e.strip().lower() for e in sys.argv[sys.argv.index("--email") + 1].split(",")] if "--email" in sys.argv else []   # solo queste (rifare una bozza, o provare)
 IN_PARALLELO = 5
-CALENDARIO = "https://calendar.app.google/szPdtoZD8KqyxkmJ8"   # Dre 29/9: «questo e' il link corretto, dimentica tutto il resto»
+CALENDARIO = "https://calendar.app.google/PCsE9SXEpEESnMqG9"   # Dre 4/11: il link nuovo (prima szPdto…, dal 29/9)
 
 # a chi si risponde: chi ha scritto e aspetta, e ha un intento a cui si risponde
 CLASSI = ("positivo", "tiepido", "rinvio", "da_classificare", "persona_sbagliata")   # persona sbagliata: solo se ci ha dato il contatto nuovo (email_alt), 25/9
@@ -760,9 +760,25 @@ def due_orari(da_giorni=1, vincoli=None):
             scelti.append(ripiego(dopo))
         return orari.esteso(scelti)
     primo = cerca(d) or ripiego(d)
-    dopo = primo.date() + datetime.timedelta(days=1)
+    # 4/11 (Dre): il secondo orario «un altro giorno non troppo distante, tipo 2 max 3 giorni dopo»:
+    # domani stringe, l'alternativa resta vicina. Prima due o tre giorni dopo il primo; se li' non c'e' un
+    # giorno buono (weekend, lunedi', festivo) si ripiega al giorno dopo il primo, non alla settimana dopo.
     altra = (mattine, pomeriggi) if (primo.hour, primo.minute) in pomeriggi else (pomeriggi, mattine)
-    secondo = cerca(dopo, altra) or ripiego(dopo)
+    roma = primo.tzinfo
+
+    def _vicino(dal, fasce):
+        for salto in (0, 1):
+            g = dal + datetime.timedelta(days=salto)
+            if not giorno_buono(g):
+                continue
+            for fascia in fasce:
+                for ora, minuti in fascia:
+                    t = datetime.datetime(g.year, g.month, g.day, ora, minuti, tzinfo=roma)
+                    if libero(t):
+                        return t
+        return None
+    dopo = primo.date() + datetime.timedelta(days=1)
+    secondo = _vicino(primo.date() + datetime.timedelta(days=2), altra) or cerca(dopo, altra) or ripiego(dopo)
     return orari.esteso([primo, secondo])
 
 

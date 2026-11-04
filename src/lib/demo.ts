@@ -356,19 +356,19 @@ const proposte: Riga[] = [
     id: 91, at: oreFa(6), tipo: 'risposta', stato: 'aperta', prospect_id: 'p2', owner: null,
     titolo: 'Follow-up: Porta Sicura, la stagione che riparte',
     perche: 'Aveva detto sì all\'analisi a luglio e poi silenzio: lo riprendiamo dopo l\'estate.',
-    azione: { bozza: 'Salve Marco,\n\na luglio le avevo mandato l\'analisi proprio prima delle ferie, e immagino sia finita sotto il resto.\n\nMi piacerebbe sapere che impressione le ha fatto, anche solo in due righe.\n\nLe propongo una chiamata conoscitiva giovedì 8 ottobre alle 15: se le va meglio un altro momento, qui trova il calendario: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nUn saluto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'giovedì 8 ottobre alle 15' },
+    azione: { bozza: 'Salve Marco,\n\na luglio le avevo mandato l\'analisi proprio prima delle ferie, e immagino sia finita sotto il resto.\n\nMi piacerebbe sapere che impressione le ha fatto, anche solo in due righe.\n\nLe propongo una chiamata conoscitiva giovedì 8 ottobre alle 15: se le va meglio un altro momento, qui trova il calendario: https://calendar.app.google/PCsE9SXEpEESnMqG9\n\nUn saluto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'giovedì 8 ottobre alle 15' },
   },
   {
     id: 92, at: oreFa(6), tipo: 'risposta', stato: 'aperta', prospect_id: 'p1', owner: null,
     titolo: 'Follow-up: Solaria Casa, il loro parere',
     perche: 'Analisi ricevuta a settembre, nessuna risposta: chiediamo il suo parere.',
-    azione: { bozza: 'Salve,\n\na settembre le avevo lasciato l\'analisi su Solaria Casa, e tra impianti e preventivi immagino che le settimane siano volate.\n\nSono curioso di sapere se gli spunti le sono sembrati centrati.\n\nLe propongo una chiamata conoscitiva venerdì 9 ottobre alle 15:30: se preferisce un altro giorno, dal calendario sceglie lei: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nA presto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'venerdì 9 ottobre alle 15:30' },
+    azione: { bozza: 'Salve,\n\na settembre le avevo lasciato l\'analisi su Solaria Casa, e tra impianti e preventivi immagino che le settimane siano volate.\n\nSono curioso di sapere se gli spunti le sono sembrati centrati.\n\nLe propongo una chiamata conoscitiva venerdì 9 ottobre alle 15:30: se preferisce un altro giorno, dal calendario sceglie lei: https://calendar.app.google/PCsE9SXEpEESnMqG9\n\nA presto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'venerdì 9 ottobre alle 15:30' },
   },
   {
     id: 93, at: oreFa(6), tipo: 'risposta', stato: 'aperta', prospect_id: 'p3', owner: null,
     titolo: 'Follow-up: Arcobaleno Impianti, ci eravamo detti ottobre',
     perche: 'Aveva chiesto di risentirci a ottobre: gli riscriviamo come promesso.',
-    azione: { bozza: 'Salve,\n\nci eravamo detti di risentirci a ottobre, e le riscrivo come promesso.\n\nLe propongo una chiamata conoscitiva martedì 13 ottobre alle 14:30: se le va meglio un altro momento, qui trova il calendario: https://calendar.app.google/szPdtoZD8KqyxkmJ8\n\nUn saluto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'martedì 13 ottobre alle 14:30' },
+    azione: { bozza: 'Salve,\n\nci eravamo detti di risentirci a ottobre, e le riscrivo come promesso.\n\nLe propongo una chiamata conoscitiva martedì 13 ottobre alle 14:30: se le va meglio un altro momento, qui trova il calendario: https://calendar.app.google/PCsE9SXEpEESnMqG9\n\nUn saluto', template: 'FOLLOW UP SU MISURA', giorno_proposto: 'martedì 13 ottobre alle 14:30' },
   },
   {
     id: 1, at: oreFa(2), tipo: 'risposta', stato: 'aperta', prospect_id: 'p4', owner: null,

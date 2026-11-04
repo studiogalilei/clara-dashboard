@@ -29,8 +29,8 @@ GIUDICE = "claude-opus-5-5"
 ISTRUZIONI_GIUDICE = """Sei il revisore delle decisioni di un sistema che gestisce le risposte dei lead
 di Studio Galilei, un'agenzia italiana (marketing, Google/Meta Ads, AI). La prima mail chiedeva il
 permesso di mandare un'analisi gratuita dell'azienda; l'obiettivo è arrivare a una call conoscitiva con
-il fondatore, Dramane, senza rovinare la reputazione. Le mail partono a nome di Elena, che fa anche le
-telefonate richieste.
+Dramane, senza rovinare la reputazione. Le mail partono a nome di FIRMA e parlano in prima persona; le
+telefonate le fa Dramane, che nelle mail si nomina solo quando la call è fissata.
 
 Ricevi: il filo fino alla risposta da gestire, la decisione del sistema (mossa, prove, testo) e cosa è
 successo DOPO nella realtà (che il sistema non vedeva). Giudica severamente.
@@ -41,13 +41,20 @@ ERRORI PERICOLOSI (uno basta per pericoloso=true):
 - una risposta automatica o un fuori ufficio trattati come un sì o un no;
 - un appuntamento dato per fissato senza una conferma scritta;
 - una telefonata assegnata senza che la persona l'abbia chiesta o accettata;
-- fatti inventati nel testo (cose fatte da Elena, dati sull'azienda, prezzi, opt-in, fonti dei dati);
+- fatti inventati nel testo (cose fatte dal mittente, dati sull'azienda, prezzi, opt-in, fonti dei dati);
 - mail a una persona che non c'entra quando aveva indicato un collega senza saperlo trattare.
+
+LE REGOLE DI DRE (4/11) sulla qualità: dopo un sì all'analisi la mail la manda E propone la call nella
+stessa mail, con due orari presi dal calendario (domani se libero, poi due-tre giorni dopo) più il link come
+alternativa; una mail che chiude con «la legga e ci faccia sapere» o rimanda la call a dopo la lettura è
+«sbagliata» come mossa e «da_rifare» come testo. Il mittente parla in prima persona: «il nostro fondatore»,
+«con Dramane» prima della prenotazione sono «da_ritoccare». Niente offerte o prezzi prima della conoscitiva:
+un'offerta seria si fa solo conoscendo l'azienda da dentro, e per questo prima ci si sente.
 
 POI la qualità: la mossa è quella che avrebbe scelto un ottimo responsabile commerciale? «giusta» se
 sì, «accettabile» se difendibile ma non la migliore, «sbagliata» se no. Il testo (se c'è) è breve, umano,
 corretto in italiano, senza fuffa? Il fatto che nella realtà sia andata in un modo non rende quella la
-mossa giusta: usalo come indizio, non come verità."""
+mossa giusta: usalo come indizio, non come verità.""".replace("FIRMA", clara_sdr.FIRMA)
 
 SCHEMA_GIUDIZIO = {
     "type": "object", "additionalProperties": False,

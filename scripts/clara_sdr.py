@@ -70,9 +70,15 @@ Le persone con cui lavori:
   le ha scritto finora. Non cambiare nome, non presentarti come qualcun altro, non spiegare niente
   sul mittente. Non attribuire al mittente cose personali che non ha fatto («ho visitato la vostra
   sede»): l'analisi l'ha preparata il team («abbiamo preparato»).
-- Dramane: il fondatore. Tiene le conoscitive, decide prezzi, offerte e casi delicati. In questo
-  periodo le telefonate le fa lui: quando una persona chiede di essere chiamata, nella mail dici che
-  la chiamerà Dramane (CHI_CHIAMA), e scrivi «Dramane» per nome, mai «il mio collega» senza nome.
+- Dramane: tiene le conoscitive, decide prezzi, offerte e casi delicati, e in questo periodo fa lui le
+  telefonate (CHI_CHIAMA). NELLE MAIL NON ESISTE finché la call non è fissata: niente «il nostro
+  fondatore», niente «una call con Dramane», niente «il mio collega». Parli in prima persona («le
+  propongo», «ci sentiamo», «la chiamo»): per chi legge è la stessa persona che le scrive dall'inizio,
+  non una passata a un capo. Lo nomini solo quando la call è prenotata (book_meeting: «alla call ci sarà
+  anche Dramane, che ha seguito la vostra analisi») o la telefonata è fissata (callback: «la chiama
+  Dramane, che ha seguito l'analisi»). Mai «fondatore», «titolare», «CEO».
+- Il link del calendario: te lo dà lo strumento orari_liberi insieme ai due orari. Va in ogni mail che
+  propone la call, dopo gli orari, come alternativa («se preferisce, sceglie lei da qui: link»).
 
 Come ragioni, ogni volta:
 1. Leggi il filo intero e i fatti. Cosa sta cercando di ottenere questa persona? Cosa le abbiamo
@@ -80,16 +86,22 @@ Come ragioni, ogni volta:
 2. Distingui il fatto (le sue parole) dalla tua interpretazione e dall'ipotesi. Punteggiatura, tempi e
    tono sono indizi incerti, non diagnosi.
 3. Scegli la mossa proporzionata che avvicina a una conoscitiva utile, senza passaggi inutili:
-   - ha detto sì all'analisi → send_analysis: la mandi con un testo breve. Due orari veri per una
-     conoscitiva con Dramane (strumento orari_liberi) SOLO se la persona si è mostrata aperta a
-     parlarne; se ha detto che valuterà dopo averla letta, o ha chiesto solo il documento, niente
-     orari: chiudi con una porta aperta («se dopo la lettura le va di approfondire, mi scriva e le
-     propongo un paio di orari con Dramane»). Proporre orari a chi ha detto «vediamo» è pressione.
+   - ha detto sì all'analisi → send_analysis, SEMPRE con la call dentro, in una mail sola. Chiami lo
+     strumento orari_liberi e scrivi i due orari che ti dà (il primo è domani se il calendario è libero,
+     il secondo due o tre giorni dopo: vicini apposta) più il link del calendario come alternativa. L'analisi
+     è un regalo (non lo dici) e il pretesto è conoscersi: in una call capiamo come lavorano e se possiamo
+     portare valore; un'offerta seria non si fa dall'esterno. Quindi MAI «la legga con calma e ci faccia
+     sapere», mai «se le va di approfondire mi scriva», mai aspettare che sia lui a proporre: la mail finisce
+     con i due orari e il link. Anche a chi ha detto «vediamo» o «la leggo prima»: la proposta resta
+     leggera («se intanto le va di sentirci dieci minuti, ho…»), ma c'è.
    - il CRM dice «analisi già mandata» con un orario, ma nel filo di Smartlead l'invio non si vede
      ancora → l'invio c'è stato (il filo arriva in ritardo di qualche minuto): non rimandarla, aspetta
      la sua reazione (wait con una data);
    - chiede di sentirsi o propone lui un momento → offer_slots dentro quello che ha chiesto, o
-     book_meeting solo se ha confermato per iscritto uno degli orari che gli abbiamo proposto;
+     book_meeting solo se ha confermato per iscritto uno degli orari che gli abbiamo proposto: in
+     meeting_at l'orario confermato e in draft la conferma, tre righe: il giorno e l'ora, che alla call ci
+     sarà anche Dramane, che ha seguito la loro analisi, e che l'invito con il link gli arriva da Google
+     Calendar (lo manda il sistema insieme a questa mail);
    - chiede di essere chiamato, o accetta una telefonata → callback con owner CHI_CHIAMA (serve
      un numero: se non c'è, rispondi e chiedilo);
    - fa una domanda → reply che risponde a quella sola cosa e, se naturale, apre alla call;
@@ -151,7 +163,7 @@ VERSIONE = hashlib.sha1((IDENTITA + "\n" + MODELLO + SFORZO).encode("utf-8")).he
 SCHEMA_DECISIONE = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["proposed_action", "reason_summary", "evidence_refs", "owner", "due_at", "draft", "callback", "call_suggestion"],
+    "required": ["proposed_action", "reason_summary", "evidence_refs", "owner", "due_at", "draft", "meeting_at", "callback", "call_suggestion"],
     "properties": {
         "proposed_action": {"type": "string", "enum": MOSSE},
         "reason_summary": {"type": "string"},
@@ -165,7 +177,8 @@ SCHEMA_DECISIONE = {
         },
         "owner": {"type": "string", "enum": ["Clara", "Elena", "Dramane"]},
         "due_at": {"type": "string", "description": "AAAA-MM-GG entro cui fare la prossima cosa, o vuoto"},
-        "draft": {"type": "string", "description": "il testo della mail; per escalate la tua proposta di risposta per Dramane; vuoto per wait, close, callback, book_meeting"},
+        "draft": {"type": "string", "description": "il testo della mail; per book_meeting la conferma; per escalate la tua proposta di risposta per Dramane; vuoto per wait, close, callback"},
+        "meeting_at": {"type": "string", "description": "solo per book_meeting: l'orario confermato dal lead, AAAA-MM-GGTHH:MM (ora di Roma); vuoto per le altre mosse"},
         "callback": {
             "type": "object", "additionalProperties": False,
             "required": ["numero", "quando", "perche"],
@@ -183,8 +196,9 @@ SCHEMA_DECISIONE = {
 
 STRUMENTI = [
     {"name": "orari_liberi", "strict": True,
-     "description": "Due orari veri e liberi nel calendario di Dramane per una conoscitiva, già scritti "
-                    "come vanno nella mail. Tiene conto di quello che il lead ha chiesto (giorno, fascia).",
+     "description": "Due orari veri e liberi nel calendario per una conoscitiva (domani se libero, poi due-tre giorni "
+                    "dopo), già scritti come vanno nella mail, e il link del calendario da mettere come alternativa. "
+                    "Tiene conto di quello che il lead ha chiesto (giorno, fascia).",
      "input_schema": {"type": "object", "additionalProperties": False, "required": ["da_giorni"],
                       "properties": {"da_giorni": {"type": "integer", "description": "fra quanti giorni al minimo (1 = da domani)"}}}},
     {"name": "scheda_azienda", "strict": True,
@@ -284,21 +298,24 @@ def esegui(nome, inp, p, ctx, storico):
         if storico:                                          # due giorni feriali dopo la risposta, come farebbe il calendario
             risp = ctx["prep"]["risposta"]
             g = datetime.date.fromisoformat(risp["il"][:10]) + datetime.timedelta(days=max(1, int(inp.get("da_giorni") or 1)))
-            due = []
-            while len(due) < 2:
-                if g.weekday() < 5:
-                    due.append(g)
+            while g.weekday() >= 5:
                 g += datetime.timedelta(days=1)
+            d1 = g
+            g = d1 + datetime.timedelta(days=2)                  # il secondo due-tre giorni dopo (4/11)
+            while g.weekday() >= 5:
+                g += datetime.timedelta(days=1)
+            d2 = g
             MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
-            d1, d2 = due
+            import bozze
             return (f"{lettore.GIORNI[d1.weekday()]} {d1.day} {MESI[d1.month - 1]} alle 15:00 oppure "
-                    f"{lettore.GIORNI[d2.weekday()]} {d2.day} {MESI[d2.month - 1]} alle 11:00")
+                    f"{lettore.GIORNI[d2.weekday()]} {d2.day} {MESI[d2.month - 1]} alle 11:00"
+                    f"\nLink del calendario, come alternativa: {bozze.CALENDARIO}")
         import bozze
         import orari
         risp = ctx["prep"]["risposta"]
         v = orari.vincoli(ctx["prep"]["pulito"]["senza_firma"], datetime.date.fromisoformat(risp["il"][:10]))
         _, scritto = bozze.orari_da_proporre(max(1, int(inp.get("da_giorni") or 1)), v or None)
-        return scritto
+        return f"{scritto}\nLink del calendario, come alternativa: {bozze.CALENDARIO}"
     if nome == "scheda_azienda":
         gf = _fit(p)
         tieni = {k: gf.get(k) for k in ("cosa_fa", "zona", "zone_servite", "recensioni", "ticket", "verdetto",
@@ -402,6 +419,7 @@ def _norm(s):
 RETE_PRIVACY = re.compile(r"dove (avete|hai) (preso|trovato|reperito)|chi vi ha dato|garante|gdpr|privacy|"
                           r"dati personali|cancellat[eiao]|rimuove(te|re)|non (contattate|scrivete)|diffida|denunc", re.I)
 PREZZO = re.compile(r"€|\beuro\b|\d+\s*(/|al|a)\s*mese|\bsconto\b|\bpreventivo\b", re.I)
+ASPETTA = re.compile(r"(ci|mi|le|gli) faccia sapere|fate(ci|mi) sapere|mi faccia un cenno|(mi|ci) scriva (pure )?(se|quando)|ci faccia conoscere", re.I)   # 4/11: la call non si aspetta
 
 
 def segnali(dec, p, ctx, uso, storico=False):
@@ -442,6 +460,21 @@ def segnali(dec, p, ctx, uso, storico=False):
     if mossa in ("send_analysis", "offer_slots") and "orari_liberi" not in uso.get("strumenti", []) \
        and re.search(r"\b(alle|ore)\s+\d{1,2}([:.]\d{2})?\b", testo):
         no.append("propone orari senza averli presi dal calendario")
+    # 4/11 (Dre): l'analisi parte con la call dentro, due orari e il link; niente «ci faccia sapere»;
+    # il mittente parla in prima persona e Dramane compare solo a call fissata
+    if mossa == "send_analysis":
+        if "orari_liberi" not in uso.get("strumenti", []):
+            no.append("manda l'analisi senza i due orari dal calendario")
+        if "calendar.app.google" not in testo:
+            no.append("manda l'analisi senza il link del calendario")
+    if mossa in ("send_analysis", "offer_slots") and ASPETTA.search(testo):
+        no.append("chiude con «ci faccia sapere»: la call si propone, non si aspetta")
+    if mossa in CON_TESTO and re.search(r"fondat|nostro CEO|titolare dello studio", testo, re.I):
+        no.append("dice «fondatore»: sembra outbound, parla in prima persona")
+    if mossa in ("send_analysis", "offer_slots", "reply") and re.search(r"\bDramane\b", testo):
+        no.append("nomina Dramane prima che la call sia fissata")
+    if mossa == "book_meeting" and not re.search(r"\bDramane\b", testo):
+        no.append("conferma la call senza dire che ci sarà anche Dramane")
     if mossa == "callback":
         if not any(any(f in t for t in loro) for f in prove):
             no.append("richiamo senza una frase del lead che lo chiede")

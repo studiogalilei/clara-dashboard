@@ -6780,6 +6780,45 @@ def _():
         C.contattabile, C.rimbalzi_fermi, C.call_in_agenda = vero_cont, vero_rimb, vero_agenda
 
 
+@prova("Clara (4/11): l'analisi parte con la call dentro, in prima persona; Dramane solo a call fissata")
+def _():
+    import clara_sdr as S
+    ctx = {"messaggi": [{"tipo": "SENT", "testo": "Posso mandarle un'analisi gratuita?"},
+                        {"tipo": "REPLY", "testo": "Sì, volentieri, la mandi pure."}],
+           "indice": 1, "prep": {"pulito": {"con_firma": "Sì, volentieri, la mandi pure."}}}
+    p = {"analysis_pdf": True, "phone": None}
+    link = "https://calendar.app.google/PCsE9SXEpEESnMqG9"
+    prove = [{"messaggio": 1, "frase": "la mandi pure"}]
+    buona = {"proposed_action": "send_analysis", "evidence_refs": prove, "call_suggestion": {"numero": "", "perche": ""},
+             "draft": f"Buongiorno,\n\nin allegato l'analisi. Le propongo giovedì 6 novembre alle 15:00 oppure lunedì 10 novembre alle 11:00; se preferisce, sceglie lei da qui: {link}\n\nLorenzo Fornasier\nStudio Galilei"}
+    assert S.segnali(buona, p, ctx, {"strumenti": ["orari_liberi"]}, storico=True) == [], S.segnali(buona, p, ctx, {"strumenti": ["orari_liberi"]}, storico=True)
+    molle = dict(buona, draft="Buongiorno,\n\nin allegato l'analisi: la legga con calma e ci faccia sapere se le va di approfondire con il nostro fondatore Dramane.\n\nLorenzo Fornasier\nStudio Galilei")
+    no = S.segnali(molle, p, ctx, {"strumenti": []}, storico=True)
+    for atteso in ("senza i due orari", "senza il link", "ci faccia sapere", "fondatore", "nomina Dramane"):
+        assert any(atteso in x for x in no), (atteso, no)
+    conferma = dict(buona, proposed_action="book_meeting", draft="Perfetto, giovedì 6 novembre alle 15 allora.\n\nLorenzo")
+    assert any("anche Dramane" in x for x in S.segnali(conferma, p, ctx, {"strumenti": []}, storico=True))
+    conferma["draft"] += "\nAlla call ci sarà anche Dramane, che ha seguito la vostra analisi."
+    assert not any("Dramane" in x for x in S.segnali(conferma, p, ctx, {"strumenti": []}, storico=True))
+    assert "meeting_at" in S.SCHEMA_DECISIONE["required"]
+    # il secondo orario sta due-tre giorni dopo il primo, anche nel replay storico
+    ctx2 = {"prep": {"risposta": {"il": "2026-11-04T10:00:00+00:00"}}}
+    testo = S.esegui("orari_liberi", {"da_giorni": 1}, p, ctx2, storico=True)
+    assert "giovedì 5 novembre alle 15:00 oppure lunedì 9 novembre alle 11:00" in testo, testo
+    assert link in testo, testo
+
+
+@prova("Clara (4/11): la prenotazione crea l'invito prima della conferma, e senza orario resta ferma")
+def _():
+    import clara_manda as M
+    M.PROVA = True
+    p = {"company": "Rossi Srl"}
+    assert M.invito(p, {"id": "d1", "appuntamento": None, "invio": None}, "m@x.it").startswith("prenotazione")
+    assert M.invito(p, {"id": "d1", "appuntamento": "2020-01-01T10:00", "invio": None}, "m@x.it").startswith("la prenotazione")
+    assert M.invito(p, {"id": "d1", "appuntamento": "2099-01-05T10:00", "invio": None}, "m@x.it") == "prova"
+    assert M.invito(p, {"id": "d1", "appuntamento": "2099-01-05T10:00", "invio": {"invito": "https://meet.google.com/x"}}, "m@x.it") == "https://meet.google.com/x"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
