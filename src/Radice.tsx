@@ -28,12 +28,13 @@ type Quale = 'desk' | 'snella' | 'completo' | null
 /** Si entra senza indirizzo: l'icona sul telefono, il link nudo, il ritorno dal login di Google. */
 function entrataNuda(): boolean {
   const h = window.location.hash
-  return !demo && (!h || h === '#' || h === '#/' || h.startsWith('#access_token')) && !/[?&]scheda=/.test(window.location.search)
+  // 4/11: anche l'icona vecchia sul telefono (#/s/oggi) porta un ceo al Desk
+  return !demo && (!h || h === '#' || h === '#/' || h.startsWith('#access_token') || /^#\/s\/oggi\/?$/.test(h)) && !/[?&]scheda=/.test(window.location.search)
 }
 
 export default function Radice() {
   // 4/11: il Desk (#/d) e' quello che Dre usa ogni giorno; la snella resta a #/s
-  const [quale, setQuale] = useState<Quale>(() => inDesk(window.location.hash) ? 'desk' : inSnella(window.location.hash) ? 'snella' : entrataNuda() ? null : 'completo')
+  const [quale, setQuale] = useState<Quale>(() => inDesk(window.location.hash) ? 'desk' : entrataNuda() ? null : inSnella(window.location.hash) ? 'snella' : 'completo')
 
   // il tocco su una notifica con l'app gia' aperta: si va al suo indirizzo (public/push.js)
   useEffect(() => ascoltaNotifiche(), [])
@@ -43,8 +44,9 @@ export default function Radice() {
     // dall'indirizzo (15/10, visto sul Workspace pubblicato: mandava Dre sul completo a meta' strada)
     const cambia = () => {
       if (inDesk(window.location.hash)) setQuale('desk')
+      else if (entrataNuda()) setQuale(null)
       else if (inSnella(window.location.hash)) setQuale('snella')
-      else if (!entrataNuda()) setQuale('completo')
+      else setQuale('completo')
     }
     window.addEventListener('hashchange', cambia)
     window.addEventListener('popstate', cambia)
@@ -64,7 +66,7 @@ export default function Radice() {
           return
         }
       } catch { /* nel dubbio, il Workspace di sempre */ }
-      if (vivo) setQuale('completo')
+      if (vivo) setQuale(inSnella(window.location.hash) ? 'snella' : 'completo')
     })()
     return () => { vivo = false }
   }, [quale])
