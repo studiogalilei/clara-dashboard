@@ -10,12 +10,14 @@ export type Mossa = 'send_analysis' | 'reply' | 'offer_slots' | 'book_meeting' |
 export type Stato = 'proposta' | 'approvata' | 'in_invio' | 'inviata' | 'scartata' | 'superata' | 'fatta'
 
 export interface Prova { messaggio: number; frase: string }
+export interface Consiglio { numero?: string; perche?: string; esito?: string; esito_il?: string }
 export interface Giudizio { pericoloso?: boolean; errore_pericoloso?: string; mossa?: string; mossa_migliore?: string; testo?: string; nota?: string; errore?: string }
 
 export interface Decisione {
   id: string; prospect_id: string; risposta_il: string; mossa: Mossa; owner: string | null; entro_il: string | null
   testo: string | null; testo_clara: string | null; perche: string | null; prove: Prova[] | null
   richiamo: { numero?: string; quando?: string; perche?: string } | null
+  consiglio?: Consiglio | null
   segnali: string[] | null; giudice: Giudizio | null; stato: Stato; lead_testo: string | null
   approvata_il: string | null; inviata_il: string | null; verificata_il: string | null; errore: string | null
   esito: string | null; esito_il: string | null; creato_il: string; versione: string; dollari: number | null
@@ -45,6 +47,7 @@ export interface Trovato { id: string; azienda: string | null; persona: string |
 export interface Call {
   prossime: Array<{ at: string; tipo: string | null; titolo: string | null; link: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null; preparazione: string | null }>
   richiami: Array<{ id: string; prospect_id: string; azienda: string | null; persona: string | null; telefono: string | null; quando: string | null; perche: string | null; risposta_il: string; esito: string | null; lead_testo: string | null }>
+  consigli?: Array<{ id: string; prospect_id: string; azienda: string | null; persona: string | null; telefono: string | null; perche: string | null; mossa: Mossa; stato: Stato; risposta_il: string; lead_testo: string | null; consiglio: Consiglio | null }>
 }
 export interface Operazione { chiave: string; nome: string; ultima_corsa: string | null; ultimo_esito: string | null; ultimo_dettaglio: string | null; attiva: boolean }
 
@@ -109,7 +112,7 @@ export async function cerca(q: string): Promise<Trovato[]> {
 export async function leggiCall(): Promise<Call> {
   const { data, error } = await supabase.rpc('clara_call').abortSignal(entro())
   if (error) guasto(error)
-  return (data ?? { prossime: [], richiami: [] }) as Call
+  return (data ?? { prossime: [], richiami: [], consigli: [] }) as Call
 }
 
 export async function leggiOperazioni(): Promise<Operazione[]> {
@@ -169,6 +172,12 @@ export async function prendiInMano(prospectId: string, motivo: string, lascia = 
   const { data, error } = await supabase.rpc('clara_prendi', { chi: prospectId, motivo: motivo.trim() || null, lascia }).abortSignal(entro())
   if (error) guasto(error)
   if (data && data.ok === false) throw new Error(data.perche || 'Non riesco')
+}
+
+/** L'esito di un consiglio di chiamata (chiamato, non ora): resta dentro al consiglio, la decisione non cambia stato. */
+export async function segnaConsiglio(d: { id: string; consiglio?: Consiglio | null }, esito: string): Promise<void> {
+  const { error } = await supabase.from('clara_decisioni').update({ consiglio: { ...(d.consiglio ?? {}), esito, esito_il: ADESSO() } }).eq('id', d.id).abortSignal(entro())
+  if (error) guasto(error)
 }
 
 /** Il testo cambiato senza mandare (si salva come testo_finale, la decisione resta proposta). */

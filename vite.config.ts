@@ -23,7 +23,7 @@ export default defineConfig({
       // Bianca come la snella: la barra in alto e lo schermo d'apertura non lampeggiano di blu.
       manifest: {
         id: './',
-        start_url: './#/d/coda',
+        start_url: './#/d/relazioni',
         scope: './',
         name: 'SG Desk · Studio Galilei',
         short_name: 'SG Desk',

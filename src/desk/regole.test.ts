@@ -34,6 +34,9 @@ describe('il desk: la coda', () => {
     const mia = base({ id: 'm', mossa: 'reply', in_mano_a: 'Dre' })
     expect(filtra([...ds, mia], 'tutte').map((d) => d.id)).toEqual(['a', 'b', 'c'])
     expect(filtra([...ds, mia], 'mie').map((d) => d.id)).toEqual(['m'])
+    const cons = base({ id: 'k', mossa: 'wait', consiglio: { numero: '335 1234567', perche: 'ha detto sì' } })
+    expect(filtra([...ds, cons], 'consigli').map((d) => d.id)).toEqual(['k'])
+    expect(priorita(cons, adesso)).toBeGreaterThan(priorita(base({ mossa: 'wait' }), adesso))
   })
   it('lo stato in una parola dice quando e\' ferma e perche\'', () => {
     expect(statoBreve(base({ errore: 'aspetta l’analisi' })).tono).toBe('no')

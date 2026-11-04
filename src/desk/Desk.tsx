@@ -16,16 +16,19 @@ import { riallinea } from '../lib/notifiche'
 import Coda from './Coda'
 import Call from './Call'
 import Relazioni from './Relazioni'
-import Clara from './Clara'
+import Filo from './Filo'
+import Analytics from './Analytics'
 
-export type Voce = 'coda' | 'call' | 'relazioni' | 'clara'
+export type Voce = 'relazioni' | 'coda' | 'call' | 'analytics' | 'filo'
 export interface Dove { voce: Voce; id: string | null }
 
+// 4/11 pomeriggio, Dre: «Relazioni» e' dove agisce lui (la coda di prima, identica); «Coda» e' la coda di Clara,
+// da sbirciare; «Analytics» e' il monitoraggio. «filo» e' la scheda intera di un'azienda, senza voce nel menu.
 const VOCI: Array<{ voce: Voce; nome: string; icona: NomeIcona }> = [
-  { voce: 'coda', nome: 'Coda', icona: 'mail' },
+  { voce: 'relazioni', nome: 'Relazioni', icona: 'mail' },
+  { voce: 'coda', nome: 'Coda', icona: 'tutti' },
   { voce: 'call', nome: 'Call', icona: 'telefono' },
-  { voce: 'relazioni', nome: 'Relazioni', icona: 'lead' },
-  { voce: 'clara', nome: 'Clara', icona: 'campagne' },
+  { voce: 'analytics', nome: 'Analytics', icona: 'campagne' },
 ]
 
 export function inDesk(hash: string): boolean {
@@ -34,7 +37,7 @@ export function inDesk(hash: string): boolean {
 
 function leggi(): Dove {
   const [, , voce, id] = window.location.hash.replace(/^#/, '').split('/')
-  const v: Voce = voce === 'call' || voce === 'relazioni' || voce === 'clara' ? voce : 'coda'
+  const v: Voce = voce === 'call' || voce === 'coda' || voce === 'analytics' || voce === 'filo' ? voce : voce === 'clara' ? 'analytics' : 'relazioni'
   return { voce: v, id: id ? decodeURIComponent(id) : null }
 }
 
@@ -102,22 +105,22 @@ export default function Desk() {
 
       {/* a sinistra sul computer: scuro, come una scrivania che resta ferma */}
       {/* 4/11, Dre: «allargabile come quella di Claude»: si chiude a sole icone e si riapre, e si ricorda com'era */}
-      <nav aria-label="Sezioni" className={`relative hidden shrink-0 flex-col bg-[#0b0b0e] py-5 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'w-[228px] px-3' : 'w-[72px] px-2.5'}`}>
+      <nav aria-label="Sezioni" className={`relative hidden shrink-0 flex-col bg-navy-scuro py-5 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'w-[228px] px-3' : 'w-[72px] px-2.5'}`}>
         <div className={`mb-6 flex items-center ${larga ? 'gap-3 px-3' : 'justify-center'}`}>
           <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" width={26} height={30} style={{ width: 26, height: 30 }} className="shrink-0 object-contain brightness-0 invert" />
           {larga && <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/55">DESK</span></span>}
         </div>
         <button onClick={() => cambiaBarra(!larga)} aria-label={larga ? 'Chiudi la barra' : 'Apri la barra'} aria-expanded={larga} title={larga ? 'Chiudi la barra' : 'Apri la barra'}
-                className="absolute -right-3 top-[3.1rem] grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-[#0b0b0e] text-white/70 shadow hover:text-white">
+                className="absolute -right-3 top-[3.1rem] grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-navy-scuro text-white/70 shadow hover:text-white">
           <Icona nome="indietro" className={`h-3.5 w-3.5 transition-transform ${larga ? '' : 'rotate-180'}`} />
         </button>
         <ul className="space-y-1">
           {VOCI.map((v) => {
-            const su = dove.voce === v.voce
+            const su = dove.voce === v.voce || (v.voce === 'relazioni' && dove.voce === 'filo')
             return (
               <li key={v.voce}>
                 <a href={indirizzo({ voce: v.voce, id: null })} aria-current={su ? 'page' : undefined} onClick={() => { passi.current += 1 }} title={larga ? undefined : v.nome}
-                   className={`flex min-h-11 items-center rounded-xl text-[14px] font-semibold ${larga ? 'gap-3 px-3.5' : 'justify-center px-0'} ${su ? 'bg-white/[0.14] text-white' : 'text-white/70 hover:bg-white/[0.08] hover:text-white'}`}>
+                   className={`flex min-h-11 items-center rounded-xl text-[14px] font-semibold ${larga ? 'gap-3 px-3.5' : 'justify-center px-0'} ${su ? 'bg-white text-navy' : 'text-white/80 hover:bg-white/[0.1] hover:text-white'}`}>
                   <Icona nome={v.icona} className="h-[18px] w-[18px] shrink-0" /> {larga && v.nome}
                 </a>
               </li>
@@ -142,11 +145,12 @@ export default function Desk() {
 
       <div className="min-w-0 flex-1">
         <main id="contenuto" className="mx-auto w-full max-w-[1480px] pl-[max(0.875rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pb-[calc(92px+env(safe-area-inset-bottom))] pt-[calc(10px+env(safe-area-inset-top))] lg:px-7 lg:pb-12 lg:pt-6">
-          {dove.voce === 'coda' && !dove.id && <AvvisoTelefono />}
-          {dove.voce === 'coda' ? <Coda dove={dove} vai={vai} indietro={indietro} />
-            : dove.voce === 'call' ? <Call vai={vai} />
-              : dove.voce === 'relazioni' ? <Relazioni dove={dove} vai={vai} indietro={indietro} />
-                : <Clara />}
+          {dove.voce === 'relazioni' && !dove.id && <AvvisoTelefono />}
+          {dove.voce === 'relazioni' ? <Relazioni dove={dove} vai={vai} indietro={indietro} />
+            : dove.voce === 'coda' ? <Coda vai={vai} />
+              : dove.voce === 'call' ? <Call vai={vai} />
+                : dove.voce === 'filo' ? <Filo dove={dove} vai={vai} indietro={indietro} />
+                  : <Analytics />}
         </main>
       </div>
 
@@ -154,7 +158,7 @@ export default function Desk() {
       <nav aria-label="Sezioni" className="fixed inset-x-0 bottom-0 z-30 border-t border-bordo bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         <ul className="mx-auto flex max-w-md">
           {VOCI.map((v) => {
-            const su = dove.voce === v.voce
+            const su = dove.voce === v.voce || (v.voce === 'relazioni' && dove.voce === 'filo')
             return (
               <li key={v.voce} className="flex-1">
                 <a href={indirizzo({ voce: v.voce, id: null })} aria-current={su ? 'page' : undefined} onClick={() => { passi.current += 1 }}

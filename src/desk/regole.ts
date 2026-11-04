@@ -26,13 +26,14 @@ export function gruppoDi(d: Pick<Decisione, 'mossa' | 'stato'>): Gruppo {
 }
 
 /** Quanto conta: la mossa, la freschezza, e chi ha gia' l'analisi (e' piu' avanti). 0-130. */
-export function priorita(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'stato'>, adesso: Date = new Date()): number {
+export function priorita(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'stato' | 'consiglio'>, adesso: Date = new Date()): number {
   let p = MOSSE[d.mossa]?.peso ?? 0
   const ore = (adesso.getTime() - new Date(d.risposta_il).getTime()) / 36e5
   if (ore < 24) p += 15
   else if (ore < 72) p += 8
   else if (ore > 24 * 7) p -= 10
   if (d.analisi_mandata && d.mossa !== 'close') p += 5
+  if (d.consiglio?.numero && !d.consiglio.esito) p += 10
   if (d.stato === 'approvata' || d.stato === 'in_invio') p -= 30
   return Math.max(0, Math.min(130, Math.round(p)))
 }
@@ -41,10 +42,10 @@ export function ordina<T extends Decisione>(ds: T[], adesso: Date = new Date()):
   return [...ds].sort((a, b) => priorita(b, adesso) - priorita(a, adesso) || b.risposta_il.localeCompare(a.risposta_il))
 }
 
-export type Filtro = 'tutte' | 'inviare' | 'call' | 'tue' | 'mie' | 'attesa' | 'fatte' | 'chiuse'
+export type Filtro = 'tutte' | 'inviare' | 'call' | 'consigli' | 'tue' | 'mie' | 'attesa' | 'fatte' | 'chiuse'
 export const FILTRI: Array<{ f: Filtro; nome: string }> = [
   { f: 'tutte', nome: 'Da fare' }, { f: 'inviare', nome: 'Da inviare' }, { f: 'call', nome: 'Call' }, { f: 'tue', nome: 'Decidi tu' },
-  { f: 'mie', nome: 'Me ne occupo io' }, { f: 'attesa', nome: 'In attesa' }, { f: 'fatte', nome: 'Fatte' }, { f: 'chiuse', nome: 'Chiuse' },
+  { f: 'consigli', nome: 'Ti consiglio di chiamare' }, { f: 'mie', nome: 'Me ne occupo io' }, { f: 'attesa', nome: 'In attesa' }, { f: 'fatte', nome: 'Fatte' }, { f: 'chiuse', nome: 'Chiuse' },
 ]
 
 export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
@@ -57,6 +58,7 @@ export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
         : f === 'call' ? (g === 'fare' || g === 'corso') && (d.mossa === 'callback' || d.mossa === 'book_meeting' || d.mossa === 'offer_slots')
           : f === 'tue' ? g === 'fare' && d.mossa === 'escalate'
             : f === 'mie' ? !!d.in_mano_a
+            : f === 'consigli' ? !!d.consiglio?.numero && !d.consiglio.esito && g !== 'chiuse'
             : f === 'attesa' ? g === 'attesa'
               : f === 'fatte' ? g === 'fatte'
                 : g === 'chiuse'
@@ -67,7 +69,7 @@ export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
 }
 
 export function conta<T extends Decisione>(ds: T[]): Record<Filtro, number> {
-  const out = { tutte: 0, inviare: 0, call: 0, tue: 0, mie: 0, attesa: 0, fatte: 0, chiuse: 0 }
+  const out = { tutte: 0, inviare: 0, call: 0, consigli: 0, tue: 0, mie: 0, attesa: 0, fatte: 0, chiuse: 0 }
   for (const f of Object.keys(out) as Filtro[]) out[f] = filtra(ds, f).length
   return out
 }

@@ -112,7 +112,13 @@ Come ragioni, ogni volta:
      la legge, la corregge se serve e la manda lui. Non inventare fatti che non sai (da dove viene un
      indirizzo, prezzi, condizioni): dove serve un fatto suo lascia tra parentesi quadre cosa deve
      aggiungere, per esempio [da dove abbiamo preso l'indirizzo].
-4. Ogni mossa porta le prove: le frasi ESATTE, copiate parola per parola dai messaggi del filo, su cui
+4. IL CONSIGLIO DI CHIAMATA (call_suggestion), in più alla mossa che fai comunque: se nel filo (firma, testo)
+   o nella scheda c'è un numero di telefono e una telefonata di CHI_CHIAMA sarebbe un buon touchpoint adesso
+   (ha detto sì, ha fatto una domanda che a voce si chiarisce meglio, è caldo ma lento a scrivere), mettici il
+   numero e una riga di perché. Non è un callback: callback solo quando è lui a chiedere di sentirci o lascia il
+   numero apposta. Un numero di centralino vale come consiglio debole: dillo nel perché. Niente consiglio a chi
+   ha detto no, a chi va chiuso, e dove la mossa è wait per una risposta automatica.
+5. Ogni mossa porta le prove: le frasi ESATTE, copiate parola per parola dai messaggi del filo, su cui
    la fondi. Se non c'è una frase che la regge, la mossa è sbagliata.
 
 Come scrivi (solo per send_analysis, reply, offer_slots):
@@ -145,7 +151,7 @@ VERSIONE = hashlib.sha1((IDENTITA + "\n" + MODELLO + SFORZO).encode("utf-8")).he
 SCHEMA_DECISIONE = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["proposed_action", "reason_summary", "evidence_refs", "owner", "due_at", "draft", "callback"],
+    "required": ["proposed_action", "reason_summary", "evidence_refs", "owner", "due_at", "draft", "callback", "call_suggestion"],
     "properties": {
         "proposed_action": {"type": "string", "enum": MOSSE},
         "reason_summary": {"type": "string"},
@@ -166,6 +172,12 @@ SCHEMA_DECISIONE = {
             "properties": {"numero": {"type": "string", "description": "solo il numero, con prefisso se c'è; niente nomi"},
                            "quando": {"type": "string", "description": "quando chiamare, breve, con le sue parole"}, "perche": {"type": "string"}},
         },
+        "call_suggestion": {
+            "type": "object", "additionalProperties": False,
+            "required": ["numero", "perche"],
+            "description": "in più alla mossa: un numero trovato nel filo o in scheda e perché una telefonata di CHI_CHIAMA sarebbe un buon touchpoint adesso; campi vuoti se non c'è",
+            "properties": {"numero": {"type": "string"}, "perche": {"type": "string"}}
+        }
     },
 }
 
@@ -413,6 +425,11 @@ def segnali(dec, p, ctx, uso, storico=False):
     ultima = ctx["prep"]["pulito"].get("con_firma") or ""
     if RETE_PRIVACY.search(ultima) and mossa in COMMERCIALI:
         no.append("parla di dati, privacy o cancellazione: niente mosse commerciali, va a Dramane o si chiude")
+    cs = dec.get("call_suggestion") or {}
+    if (cs.get("numero") or "").strip():
+        cifre = re.sub(r"\D", "", cs["numero"])[-9:]
+        if len(cifre) < 9 or cifre not in re.sub(r"\D", "", " ".join((m.get("testo") or "") for m in filo) + " " + str(p.get("phone") or "")):
+            no.append("consiglio di chiamata con un numero che non sta nel filo né in scheda")
     if mossa in CON_TESTO and not (dec.get("draft") or "").strip():
         no.append("mossa che scrive senza testo")
     testo = dec.get("draft") or ""

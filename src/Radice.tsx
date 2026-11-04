@@ -61,7 +61,7 @@ export default function Radice() {
         const { data } = await supabase.auth.getSession()
         if (data.session && (await chiSono()).ruolo === 'ceo') {
           if (!vivo) return
-          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/d/coda')
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/d/relazioni')
           if (vivo) setQuale('desk')
           return
         }

@@ -8,7 +8,7 @@ import type { Mossa } from './dati'
 
 const NOMI: Record<string, string> = { clara_prova: 'Clara legge e decide', clara_manda: 'Il postino', sync_smartlead: 'Smartlead', analisi: 'Le analisi PDF', webhooks: 'Il campanello' }
 
-export default function Clara() {
+export default function Analytics() {
   const { dati, errore, caricando, rifai } = useDati(async () => {
     const [d, o, s] = await Promise.all([leggiCoda(14), leggiOperazioni(), leggiSpesa().catch((): Spesa | null => null)])
     return { d, o, s }
@@ -30,8 +30,8 @@ export default function Clara() {
   return (
     <div className="mx-auto max-w-[900px] space-y-4">
       <header>
-        <h1 className="text-[22px] font-bold leading-tight text-navy lg:text-[26px]">Clara</h1>
-        <p className="mt-1 text-[13.5px] text-tenue">Gli ultimi 7 giorni. Identità {versione ? `v${versione}` : '…'}.</p>
+        <h1 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Analytics</h1>
+        <p className="mt-1 text-[13.5px] text-tenue">Il lavoro di Clara negli ultimi 7 giorni: qui si guarda, non si tocca. Identità {versione ? `v${versione}` : '…'}.</p>
       </header>
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi nome="Decisioni" valore={d.length} sotto={`${n((x) => x.stato === 'inviata')} mail partite`} />
