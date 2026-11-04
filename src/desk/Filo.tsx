@@ -105,7 +105,9 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
             <div className="mt-2 flex flex-wrap gap-1.5">
               {l.fase && <Pillola testo={l.fase.replace(/_/g, ' ')} tono={l.fase === 'cliente' ? 'ok' : l.fase === 'perso' ? 'no' : 'neutro'} />}
               {l.analisi_mandata && <Pillola testo={`Analisi mandata ${quando(l.analisi_il)}`} tono="noi" />}
-              {l.fit && <Pillola testo={`Fit ${l.fit}`} tono={l.fit === 'NO' ? 'no' : l.fit === 'SI' ? 'ok' : 'attesa'} />}
+              {l.fit && <Pillola testo={`Google ${l.fit}`} tono={l.fit === 'NO' ? 'no' : l.fit === 'SI' ? 'ok' : 'attesa'} />}
+              {l.fit_meta && <Pillola testo={`Meta ${l.fit_meta}`} tono={l.fit_meta === 'NO' ? 'no' : l.fit_meta === 'SI' ? 'ok' : 'attesa'} />}
+              {l.fit_linkedin && <Pillola testo={`LinkedIn ${l.fit_linkedin}`} tono={l.fit_linkedin === 'NO' ? 'no' : l.fit_linkedin === 'SI' ? 'ok' : 'attesa'} />}
               {l.no_followup && <Pillola testo="Non contattare" tono="stop" icona="divieto" />}
               {mia && <Pillola testo={`Me ne occupo io${l.in_mano_motivo ? `: ${l.in_mano_motivo}` : ''}`} tono="stop" piena />}
             </div>
@@ -127,7 +129,10 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
         </div>
         <dl className="mt-4 grid grid-cols-[92px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
           {l.cosa_fa && <><dt className="text-tenue">Cosa fa</dt><dd>{l.cosa_fa}</dd></>}
-          {l.fit_motivo && <><dt className="text-tenue">Il fit</dt><dd>{l.fit_motivo}</dd></>}
+          {l.fit_motivo && <><dt className="text-tenue">Google</dt><dd>{l.fit_motivo}</dd></>}
+          {l.fit_meta_motivo && <><dt className="text-tenue">Meta</dt><dd>{l.fit_meta_motivo}</dd></>}
+          {l.fit_linkedin_motivo && <><dt className="text-tenue">LinkedIn</dt><dd>{l.fit_linkedin_motivo}</dd></>}
+          {(l.canale || l.ticket) && <><dt className="text-tenue">Canale</dt><dd>{[l.canale ? `consigliato: ${l.canale}` : null, l.ticket ? `ticket ${l.ticket}` : null].filter(Boolean).join(', ')}</dd></>}
           {l.analisi_pdf && <><dt className="text-tenue">Analisi</dt><dd><a href={l.analisi_pdf} target="_blank" rel="noreferrer" className="font-semibold text-navy underline-offset-2 hover:underline">Apri il PDF</a></dd></>}
           {aperta?.mossa === 'escalate' && aperta.testo && <><dt className="text-tenue">Proposta</dt><dd className="whitespace-pre-wrap">{aperta.testo.trim()}</dd></>}
           <dt className="text-tenue">Fonte</dt><dd>{l.fonte || 'non registrata'}</dd>

@@ -6892,6 +6892,47 @@ def _():
         assert any(g in riga for g in ("tocca No", "Me ne occupo io", "Invito fatto", "guarda tu", "la riscrive")), riga
 
 
+@prova("linkedin fit (4/11): B2B, ticket alto, compratore riconoscibile; il canale a tre; i fit su una lista nuova")
+def _():
+    import googlefit as G, fit_lista as F
+    base = {"tipo": "B2B", "ticket_min": 5000, "ticket_max": 20000, "pubblico_professionale": True, "dimensione_clienti": "pmi",
+            "ciclo_vendita": "mesi", "chi_decide": "direttore HR", "raggio": "italia"}
+    assert G.verdetto_linkedin(base, {"linkedin_pagina": True})[0] == "SI"
+    assert G.verdetto_linkedin(dict(base, tipo="B2C", dimensione_clienti="privati"))[0] == "NO"           # privati: non ci sono
+    assert G.verdetto_linkedin(dict(base, ticket_min=500, ticket_max=1500))[0] == "NO"                   # un contatto costa 100-300 €
+    assert G.verdetto_linkedin(dict(base, pubblico_professionale=False))[0] == "NO"                      # non si sa a chi mostrarlo
+    v, m = G.verdetto_linkedin(dict(base, ticket_max=3000), {"linkedin_pagina": True})
+    assert v == "PARZIALE" and "ticket medio" in m
+    v, m = G.verdetto_linkedin(dict(base, dimensione_clienti="micro"), {"linkedin_pagina": True})
+    assert v == "PARZIALE" and "micro" in m
+    v, m = G.verdetto_linkedin(base, {"insight_tag": True})
+    assert v == "PARZIALE" and "Insight Tag" in m                                                        # lo conosce gia': si dice
+    v, m = G.verdetto_linkedin(base, {})
+    assert v == "PARZIALE" and "si parte da zero" in m                                                   # senza pagina: non e' un si' pieno
+    assert G.verdetto_linkedin(dict(base, esclusione="agenzia"))[0] == "NO"
+    # un fit vecchio (senza le domande nuove) non finge: lo dice nel motivo, e si rifa' dai campi salvati senza pagare il modello
+    v, m = G.verdetto_linkedin(G.da_fit({"tipo": "B2B", "ticket_min": 5000, "ticket_max": 20000, "meta": {}}), {})
+    assert v == "PARZIALE" and "da rifare" in m
+    # il canale: con due verdetti come prima, con tre i SI, poi i PARZIALE con riserve, poi nessuno
+    assert G.canale("SI", "SI") == "entrambi" and G.canale("NO", "PARZIALE") == "Meta"
+    assert G.canale("SI", "PARZIALE", "SI") == "Google e LinkedIn" and G.canale("SI", "SI", "SI") == "tutti e tre"
+    assert G.canale("NO", "PARZIALE", "PARZIALE") == "Meta o LinkedIn, con riserve" and G.canale("NO", "NO", "NO") == "nessuno"
+    # i segnali dal sito: pagina aziendale e Insight Tag
+    sg = G.segnali_meta('<a href="https://www.linkedin.com/company/esempio/">in</a><script src="https://snap.licdn.com/li.lms-analytics/insight.min.js"></script>')
+    assert sg["linkedin_pagina"] and sg["insight_tag"] and not sg["pixel_meta"]
+    assert set(G.SEGNALI_VUOTI) == set(sg)
+    # la lista nuova: le colonne si riconoscono dai nomi che arrivano davvero (Apollo, Hunter, fogli a mano)
+    col = F.mappa_colonne(["Company Name", "Website", "Work Email", "City", "First Name", "Last Name", "Job Title", "Phone Number"])
+    assert col["azienda"] == "Company Name" and col["sito"] == "Website" and col["email"] == "Work Email" and col["cognome"] == "Last Name"
+    assert F.mappa_colonne(["Ragione sociale", "Sito web", "E-mail", "Comune"])["email"] == "E-mail"
+    p = F.prospect_da({"Company Name": "Rossi", "Website": "rossi.it", "Work Email": "A@Rossi.it", "First Name": "Mario", "Last Name": "Rossi"}, col)
+    assert p["website"] == "https://rossi.it" and p["email"] == "a@rossi.it" and p["name"] == "Mario Rossi"
+    # il fit salvato porta i tre verdetti e il canale a tre
+    import inspect
+    t = inspect.getsource(G.valuta)
+    assert '"linkedin":' in t and "canale(v, vm, vl)" in t
+
+
 def main():
     falliti = 0
     ritirate = 0

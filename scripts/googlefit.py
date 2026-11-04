@@ -19,6 +19,9 @@ COSA FA, PER OGNI AZIENDA «IN ARRIVO» (ha risposto, l'analisi non e' partita)
    Dal 20/10 il Foglio Zone NON entra (Dre: non affidabile, caso per caso).
 6. dal 20/10 anche IL META FIT (google_fit.meta): stesso sito, stesse recensioni, la Meta Ad
    Library, e un verdetto a parte; google_fit.canale dice il canale consigliato.
+7. dal 4/11 anche IL LINKEDIN FIT (google_fit.linkedin): B2B, ticket alto, un compratore che si
+   riconosce per ruolo e settore; i segnali dal sito (pagina aziendale, Insight Tag). Il canale
+   consigliato tiene conto di tutti e tre. Per una lista nuova, prima della campagna: fit_lista.py.
 
 Non manda niente e non chiude nessuno: un NO resta «in arrivo» col motivo,
 e Dre decide. Il pedaggio e' l'invio dell'analisi.
@@ -145,7 +148,7 @@ def _norm(s):
 
 
 # ── il sito ──────────────────────────────────────────────────────
-def leggi_sito(url):
+def leggi_sito(url, _salti=0):
     if not url:
         return ""
     if not url.startswith("http"):
@@ -155,6 +158,11 @@ def leggi_sito(url):
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read(300_000).decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
+        # 4/11: un 308 (redirect permanente, tipico di «dominio senza www» → «www») urllib non lo segue:
+        # studiogalilei.com risultava «non leggibile». Si segue una volta, come un browser.
+        dove = e.headers.get("Location") if e.headers else None
+        if e.code in (301, 302, 303, 307, 308) and dove and _salti < 2:
+            return leggi_sito(urllib.parse.urljoin(url, dove), _salti + 1)
         # 6/10, GIOCOPLAST: il server dice «errore 500» ma manda la pagina intera. Se c'e' una
         # pagina vera la si legge; un errore senza contenuto resta un errore
         try:
@@ -164,6 +172,10 @@ def leggi_sito(url):
         if len(raw) < 2000 or "<html" not in raw[:5000].lower():
             return ""
     except Exception:
+        # il dominio nudo che non risponde (DNS o connessione): si prova con «www.», una volta
+        dom = urllib.parse.urlparse(url).netloc
+        if _salti == 0 and dom and not dom.startswith("www."):
+            return leggi_sito(url.replace("://" + dom, "://www." + dom, 1), _salti + 1)
         return ""
     _SEGNALI[url] = segnali_meta(raw)
     raw = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", " ", raw, flags=re.S | re.I)
@@ -184,18 +196,24 @@ _SEGNALI = {}
 
 
 def segnali_meta(raw):
-    """Quello che il codice del sito dice di Meta: il pixel (hanno gia' fatto o fanno Meta Ads),
-    e se hanno Instagram o Facebook (c'e' materiale visivo da cui partire)."""
+    """Quello che il codice del sito dice di Meta e di LinkedIn: il pixel Meta (hanno gia' fatto o fanno Meta
+    Ads), Instagram o Facebook (materiale visivo da cui partire); la pagina aziendale LinkedIn (ci stanno) e
+    l'Insight Tag (LinkedIn Ads lo conoscono gia', 4/11)."""
     r = raw or ""
     return {"pixel_meta": bool(re.search(r"connect\.facebook\.net|fbq\s*\(|facebook-jssdk|fbevents\.js", r, re.I)),
-            "instagram": "instagram.com/" in r.lower(), "facebook": bool(re.search(r"facebook\.com/(?!tr\b|plugins|sharer)", r, re.I))}
+            "instagram": "instagram.com/" in r.lower(), "facebook": bool(re.search(r"facebook\.com/(?!tr\b|plugins|sharer)", r, re.I)),
+            "linkedin_pagina": bool(re.search(r"linkedin\.com/(company|school|showcase)/", r, re.I)),
+            "insight_tag": bool(re.search(r"snap\.licdn\.com|_linkedin_partner_id|linkedin\.com/px/|lintrk\s*\(", r, re.I))}
+
+
+SEGNALI_VUOTI = {"pixel_meta": False, "instagram": False, "facebook": False, "linkedin_pagina": False, "insight_tag": False}
 
 
 def segnali_di(sito):
     u = sito or ""
     if u and not u.startswith("http"):
         u = "https://" + u
-    return _SEGNALI.get(u) or {"pixel_meta": False, "instagram": False, "facebook": False}
+    return _SEGNALI.get(u) or dict(SEGNALI_VUOTI)
 
 
 # ── il cervello: settore, provincia, natura ───────────────────────
@@ -266,6 +284,15 @@ Rispondi SOLO con un JSON su una riga, con queste chiavi:
    "impulso" (si compra perche' lo si vede, non perche' lo si cerca: meglio social o display),
    "da_spiegare" (prodotto nuovo o che va capito prima di poterlo cercare: nessuno digita il suo nome),
    "per_pubblico" (il cliente si riconosce bene per eta', interessi o zona, ma quasi mai da una parola chiave).
+ "chi_decide": chi compra quello che vendono, come ruolo (es. "titolare di una PMI", "responsabile acquisti",
+   "direttore HR", "privato che ristruttura casa"): una frase corta, "" se non si capisce,
+ "pubblico_professionale": true se il cliente tipo si riconosce bene per RUOLO, SETTORE o DIMENSIONE
+   dell'azienda in cui lavora (come lo cercheresti su LinkedIn), false se e' un privato o se puo' essere
+   qualunque azienda,
+ "dimensione_clienti": a chi vendono per lo piu', una fra "privati", "micro" (artigiani, negozi,
+   professionisti, fino a 10 persone), "pmi" (10-250 persone), "grandi" (oltre 250, enti, multinazionali), "misto",
+ "ciclo_vendita": quanto passa fra il primo contatto e la firma, una fra "immediato" (si compra subito),
+   "settimane", "mesi" (preventivi, gare, piu' decisori),
  "esclusione": "" oppure uno fra "agenzia" (marketing/comunicazione/web agency/lead generation), "portale", "catena", "franchising" (SOLO i network Tecnocasa, Tecnorete, Tempocasa: un affiliato Century 21, RE/MAX, Coldwell Banker o simili NON e' un'esclusione, decide il suo marketing e va bene, Dre 25/9), "multinazionale", "onlus", "privacy"}}
 
 I settori possibili: {lista}
@@ -576,15 +603,93 @@ def verdetto_meta(c, rec, meta=None, segnali=None):
     return "SI", "; ".join(a_favore) if a_favore else "nessun motivo di scarto"
 
 
-def canale(google, meta):
-    """Il canale consigliato dai due verdetti: entrambi, Google, Meta, o nessuno."""
+# ── IL LINKEDIN FIT (4/11, Dre: «crea il Meta Fit e il LinkedIn Fit, poi una campagna piu' high ticket») ──
+# LinkedIn Ads trova le persone per ruolo, settore e dimensione dell'azienda, e un clic costa 5-10 €: regge
+# solo chi vende ad aziende, con un cliente che vale tanto, e sa dire chi e' il compratore. Soglie di Achille:
+# sotto i 2.000 € un cliente non ripaga il costo di un contatto (100-300 €); fra 2.000 e 5.000 regge se la
+# chiusura e' buona; sopra i 5.000 e' il suo terreno.
+LINKEDIN_TICKET = {"no": 2000, "pieno": 5000}
+
+
+def verdetto_linkedin(c, segnali=None):
+    """SI / PARZIALE / NO per LinkedIn Ads, col motivo. Vale per chi vende ad aziende con un ticket alto."""
+    segnali = segnali or {}
+    motivi, a_favore = [], []
+    if c.get("esclusione"):
+        return "NO", f"{c['esclusione']}: non e' un cliente possibile"
+    b2b = (c.get("tipo") or "").upper() == "B2B"
+    dim = (c.get("dimensione_clienti") or "").lower()
+    if not b2b and dim != "misto":
+        return "NO", "vende a privati: su LinkedIn i suoi clienti non ci sono come compratori"
+    tmax = c.get("ticket_max") or c.get("ticket_min") or 0
+    if tmax and tmax < LINKEDIN_TICKET["no"]:
+        soglia = f"{LINKEDIN_TICKET['no']:,}".replace(",", ".")
+        return "NO", f"ticket sotto i {soglia} € ({_ticket_scritto(c)}): un contatto da LinkedIn costa 100-300 €, non si ripaga"
+    if c.get("pubblico_professionale") is False:
+        return "NO", "il compratore non si riconosce per ruolo, settore o dimensione: LinkedIn non sa a chi mostrarlo"
+    if tmax and tmax < LINKEDIN_TICKET["pieno"]:
+        motivi.append(f"ticket medio ({_ticket_scritto(c)}): regge solo con una chiusura buona")
+    elif tmax:
+        a_favore.append(f"un cliente vale {_ticket_scritto(c)}: il contatto caro si ripaga")
+    else:
+        motivi.append("ticket non stimabile")
+    if dim == "micro":
+        motivi.append("vende a micro-aziende e professionisti: su LinkedIn ci stanno poco e si mirano male")
+    elif dim in ("pmi", "grandi"):
+        a_favore.append({"pmi": "vende a PMI: ruoli e settori si mirano bene", "grandi": "vende a grandi aziende ed enti: e' il pubblico di LinkedIn"}[dim])
+    elif dim == "misto":
+        motivi.append("vende sia ad aziende sia a privati: su LinkedIn si prende solo la parte aziende")
+    if c.get("pubblico_professionale"):
+        a_favore.append("il compratore si riconosce per ruolo" + (f" ({c['chi_decide']})" if c.get("chi_decide") else ""))
+    elif c.get("pubblico_professionale") is None:
+        motivi.append("non si sa se il compratore si riconosce per ruolo (fit fatto prima del 4/11, da rifare)")
+    if (c.get("ciclo_vendita") or "").lower() == "mesi":
+        a_favore.append("vendita lunga, con piu' decisori: LinkedIn serve a farsi conoscere prima")
+    if (c.get("raggio") or "").lower() in ("citta'", "città"):
+        motivi.append("vende solo in citta': su LinkedIn il pubblico locale e' piccolo")
+    if segnali.get("insight_tag"):
+        motivi.append("ha l'Insight Tag di LinkedIn sul sito: il canale lo conosce gia', da capire se lo usa")
+    elif segnali.get("linkedin_pagina"):
+        a_favore.append("ha una pagina aziendale LinkedIn: c'e' da dove partire")
+    else:
+        motivi.append("il sito non rimanda a una pagina LinkedIn: si parte da zero")
+    if motivi:
+        return "PARZIALE", "; ".join(motivi)
+    return "SI", "; ".join(a_favore) if a_favore else "nessun motivo di scarto"
+
+
+def canale(google, meta, linkedin=None):
+    """Il canale consigliato dai verdetti. Con due (Google, Meta): entrambi, Google, Meta, o nessuno.
+    Con tre (dal 4/11): i canali SI, se no quelli PARZIALE «con riserve», se no nessuno."""
     peso = {"SI": 2, "PARZIALE": 1, "NO": 0}
-    g, m = peso.get(google, 0), peso.get(meta, 0)
-    if g == 0 and m == 0:
-        return "nessuno"
-    if g == m:
-        return "entrambi" if g == 2 else ("Google o Meta, con riserve")
-    return "Google" if g > m else "Meta"
+    if linkedin is None:
+        g, m = peso.get(google, 0), peso.get(meta, 0)
+        if g == 0 and m == 0:
+            return "nessuno"
+        if g == m:
+            return "entrambi" if g == 2 else ("Google o Meta, con riserve")
+        return "Google" if g > m else "Meta"
+    nomi = [("Google", google), ("Meta", meta), ("LinkedIn", linkedin)]
+    si = [n for n, v in nomi if peso.get(v, 0) == 2]
+    if si:
+        return " e ".join(si) if len(si) < 3 else "tutti e tre"
+    parziali = [n for n, v in nomi if peso.get(v, 0) == 1]
+    if parziali:
+        return " o ".join(parziali) + ", con riserve"
+    return "nessuno"
+
+
+def da_fit(gf):
+    """Il «capito» ricostruito da un fit salvato, per rifare un verdetto senza pagare il modello."""
+    m = gf.get("meta") or {}
+    l = gf.get("linkedin") or {}
+    return {"settore": gf.get("settore"), "settore_uguale": gf.get("settore_uguale"), "esclusione": gf.get("esclusione"),
+            "tipo": gf.get("tipo"), "ticket_min": gf.get("ticket_min"), "ticket_max": gf.get("ticket_max"),
+            "vendita_possibile_online": gf.get("vendita_possibile_online"), "raggio": gf.get("raggio"),
+            "visivo": m.get("visivo"), "pubblico_definibile": m.get("pubblico_definibile"),
+            "categoria_sensibile": m.get("categoria_sensibile") or "", "come_lo_cercano": gf.get("come_lo_cercano") or "ricerca",
+            "chi_decide": l.get("chi_decide"), "pubblico_professionale": l.get("pubblico_professionale"),
+            "dimensione_clienti": l.get("dimensione_clienti"), "ciclo_vendita": l.get("ciclo_vendita")}
 
 
 def _zona_sul_raggio(c, zone):
@@ -644,12 +749,17 @@ def valuta(p, zone, settori):
     meta_ads = None if c.get("esclusione") else fa_meta_ads(azienda, dom_meta)
     segnali = segnali_di(sito)
     vm, motivo_m = verdetto_meta(c, rec, meta_ads, segnali)
+    vl, motivo_l = verdetto_linkedin(c, segnali)
     fit = {
         "google_ads": ads,
         "meta": {"verdetto": vm, "motivo": motivo_m, "meta_ads": meta_ads, "segnali": segnali,
                  "visivo": c.get("visivo"), "pubblico_definibile": c.get("pubblico_definibile"),
                  "categoria_sensibile": c.get("categoria_sensibile") or None},
-        "canale": canale(v, vm),
+        "linkedin": {"verdetto": vl, "motivo": motivo_l, "segnali": {k: segnali.get(k, False) for k in ("linkedin_pagina", "insight_tag")},
+                     "chi_decide": c.get("chi_decide") or None, "pubblico_professionale": c.get("pubblico_professionale"),
+                     "dimensione_clienti": c.get("dimensione_clienti") or None, "ciclo_vendita": c.get("ciclo_vendita") or None},
+        "canale": canale(v, vm, vl),
+        "come_lo_cercano": c.get("come_lo_cercano") or None,
         "verdetto": v, "motivo": motivo, "settore": c.get("settore"), "provincia": c.get("provincia"),
         "settore_uguale": c.get("settore_uguale"),
         "tipo": c.get("tipo"), "cosa_fa": c.get("cosa_fa"), "esclusione": c.get("esclusione") or None,
@@ -753,6 +863,24 @@ def main():
         tutte = [p for p in tutte if "meta" not in (((p.get("enriched") or {}).get("google_fit")) or {})]
         righe = controlla("rifaccio il fit con il Meta fit a chi aspetta l'analisi", tutte, irreversibile=False,
                           motivo="Dre 20/10: da ora facciamo anche Meta Ads", dove="crm")
+    elif "--rifai-linkedin" in sys.argv:
+        # 4/11: la legge e' retroattiva. Il LinkedIn fit si aggiunge ai fit gia' fatti dai campi salvati (niente
+        # modello, niente ricerche): chi_decide e pubblico_professionale mancano, e il motivo lo dice.
+        tutte = sb_tutte("/rest/v1/prospects?select=id,company,enriched&fuori=eq.false&enriched->google_fit=not.is.null&limit=2000")
+        conti, fatti = {}, 0
+        for p in tutte:
+            gf = (p.get("enriched") or {}).get("google_fit") or {}
+            if not gf or "linkedin" in gf:
+                continue
+            vl, motivo_l = verdetto_linkedin(da_fit(gf), (gf.get("meta") or {}).get("segnali"))
+            conti[vl] = conti.get(vl, 0) + 1
+            if not prova:
+                gf2 = dict(gf, linkedin={"verdetto": vl, "motivo": motivo_l, "segnali": {}, "stimato": "dai campi salvati, 4/11"},
+                           canale=canale(gf.get("verdetto"), (gf.get("meta") or {}).get("verdetto"), vl))
+                sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": {**p["enriched"], "google_fit": gf2}}, {"Prefer": "return=minimal"})
+            fatti += 1
+        print(f"linkedin fit sull'arretrato: {fatti} fit, {conti}" + (" (prova)" if prova else ""))
+        return
     elif "--ricontrolla-meta-ads" in sys.argv:
         # 20/10: la Ad Library ha risposto vuoto durante il primo giro; si rimisura e si corregge solo cio' che cambia
         import time as _t
@@ -826,7 +954,7 @@ def main():
         except Exception as e:                      # noqa: BLE001
             print(f"  {'?':8} {str(nome)[:34]:34} non valutata: {str(e)[:70]}")
             continue
-        print(f"  G {fit['verdetto']:8} M {fit['meta']['verdetto']:8} {nome[:30]:30} canale {fit['canale']:10} {fit['motivo'][:50]} | {fit['meta']['motivo'][:50]}")
+        print(f"  G {fit['verdetto']:8} M {fit['meta']['verdetto']:8} L {fit['linkedin']['verdetto']:8} {nome[:30]:30} canale {fit['canale']:22} {fit['motivo'][:40]} | {fit['meta']['motivo'][:40]} | {fit['linkedin']['motivo'][:40]}")
         if prova:
             continue
         prima = (p.get("enriched") or {}).get("google_fit") or {}

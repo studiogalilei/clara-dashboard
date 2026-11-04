@@ -39,6 +39,8 @@ export interface Relazione {
     analisi_il: string | null; fase: string | null; classe: string | null; ultima_risposta: string | null; fuori: boolean
     no_followup: boolean; fonte: string | null; fit: string | null; fit_motivo: string | null; cosa_fa: string | null; campagna: string | null
     in_mano_a?: string | null; in_mano_motivo?: string | null; in_mano_il?: string | null; altre_email?: string[] | null
+    fit_meta?: string | null; fit_meta_motivo?: string | null; fit_linkedin?: string | null; fit_linkedin_motivo?: string | null
+    canale?: string | null; ticket?: string | null
   } | null
   filo: Messaggio[]
   decisioni: Array<{ id: string; risposta_il: string; mossa: Mossa; owner: string | null; testo: string | null; perche: string | null; stato: Stato; inviata_il: string | null; esito: string | null; dre_giudizio: string | null; dre_nota: string | null; creato_il: string }>

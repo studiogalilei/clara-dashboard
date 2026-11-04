@@ -171,3 +171,24 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
 - **Niente codici per il telefono**: via `CollegaTelefono`, «Entra con un codice», `lib/ponte.ts`; login «Outbound Desk».
 - **Collaudo**: demo estesa al Desk (`?demo#/d/call`): provati a schermo numero, nota, Collega, Invito fatto, Profilo; RPC
   provate come Dre in transazioni annullate. Lezione: `tsc --noEmit -p .` non controlla niente, il build vero è `npm run build`.
+
+## 4/11 notte: WhatsApp come gesto, il consiglio in Relazioni, il LinkedIn fit e i fit su una lista nuova
+
+- **WhatsApp in Call è un gesto, non un link** (Dre: «se clicco vuol dire che l'ho passato e ce l'ho su WhatsApp»).
+  Sta fra «Call fissata» e «Richiamare». Dopo il tocco: la chiamata resta in lista come contatto suo («Su WhatsApp»),
+  compare «Apri la chat», la relazione passa a Dre (Clara si ferma), un consiglio di Clara si chiude con esito «whatsapp».
+  Database: `chiamate.whatsapp_il`, `clara_call` v115 (chi è su WhatsApp sta in «mie» anche se la decisione è scartata).
+- **Il consiglio di chiamata sta in Relazioni, in alto** («Ti consiglio di chiamare» con «Vai alla chiamata»): porta a
+  `#/d/call/<id>`, la scheda è evidenziata e centrata fra le altre; gli esiti si danno lì. I consigli non hanno più una
+  sezione a parte in Call: stanno nella stessa lista (regole.ordinaChiamate: programmate, consigli, le altre).
+- **Il LinkedIn fit** (`google_fit.linkedin`, googlefit.verdetto_linkedin): B2B, ticket alto (sotto 2.000 € NO, fra
+  2.000 e 5.000 PARZIALE), un compratore che si riconosce per ruolo/settore/dimensione; i segnali dal sito (pagina
+  aziendale, Insight Tag). Il modello risponde a quattro domande nuove (chi_decide, pubblico_professionale,
+  dimensione_clienti, ciclo_vendita). `canale` tiene conto dei tre fit. Retroattivo sui 912 fit esistenti dai campi
+  salvati (681 NO, 231 PARZIALE; il motivo dice «da rifare» dove mancano le domande nuove).
+- **I fit su una lista nuova, prima della campagna**: `scripts/fit_lista.py lista.csv` (CSV o XLSX, colonne
+  riconosciute dai nomi di Apollo/Hunter/fogli a mano) scrive `lista_fit.csv` e `lista_fit.json` con Google, Meta,
+  LinkedIn, ticket, canale, `alto_ticket` (stima alta ≥ 10.000 €). Un sito che non si legge NON va al modello:
+  «non leggibile, da guardare a mano». `--senza-ricerche` evita i crediti SearchAPI; `--scrivi` salva in scheda per
+  chi c'è già. La lettura del sito ora segue i redirect 308 (dominio senza www).
+- **Il Profilo mostra i tre fit** (Google/Meta/LinkedIn), il canale consigliato e il ticket (clara_relazione v116).
