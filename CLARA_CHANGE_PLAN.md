@@ -158,3 +158,16 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
   «Collega all'azienda» (ricerca + un tocco, RPC `clara_collega_call`, nota «Sistema» per Clara) e «Non è un lead»
   (tipo `interna`, sparisce). In fondo «Non so di chi sono»: gli eventi tipo «altro» senza azienda. Il sync del
   calendario non tocca un collegamento fatto a mano.
+
+## 4/11 sera: niente vicoli ciechi («non devo aver bisogno di tornare da te»)
+
+- **Numero**: «Senza numero» ha accanto «Aggiungi il numero» (sulla chiamata e in scheda, anche per i richiami di Clara, v113);
+  una nota che è solo un numero su una chiamata senza numero diventa il numero.
+- **Note modificabili** (v114): un tocco sul testo, Salva; Clara rilegge la nota corretta (`clara_letta_il` torna vuoto).
+- **«No» con una nota = ordine**: Clara rifà la decisione seguendo la nota (`da_rifare`, `correzione_di_dre`, SITUAZIONE
+  nel contesto); prima si segnava e basta. Provato in sandbox: «manda senza l'analisi» → reply senza allegato, due orari e link.
+- **Ogni fermo dice il gesto**: i motivi del postino citano il bottone (tocca No e scrivi…, Me ne occupo io, «Invito fatto,
+  manda la conferma»); un destinatario approvato da Dre non si ferma più; invariante che lo controlla.
+- **Niente codici per il telefono**: via `CollegaTelefono`, «Entra con un codice», `lib/ponte.ts`; login «Outbound Desk».
+- **Collaudo**: demo estesa al Desk (`?demo#/d/call`): provati a schermo numero, nota, Collega, Invito fatto, Profilo; RPC
+  provate come Dre in transazioni annullate. Lezione: `tsc --noEmit -p .` non controlla niente, il build vero è `npm run build`.

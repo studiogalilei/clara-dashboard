@@ -160,13 +160,13 @@ function Collega({ fatto }: { fatto: (prospectId: string | null, lead: boolean) 
       <div className="flex gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Azienda, persona o email" aria-label="Cerca l'azienda"
                className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
-        <Bottone tipo="piatto" onClick={() => fatto(null, false)} className="text-[12.5px]">Non è un lead</Bottone>
+        <Bottone tipo="piatto" onClick={() => { setAperto(false); fatto(null, false) }} className="text-[12.5px]">Non è un lead</Bottone>
         <Bottone tipo="piatto" onClick={() => setAperto(false)} className="text-[12.5px]">Annulla</Bottone>
       </div>
       {trovati.length > 0 && (
         <ul className="absolute left-0 right-0 z-10 mt-1 max-h-64 overflow-auto rounded-xl border border-bordo bg-white shadow-lg">
           {trovati.map((t) => (
-            <li key={t.id}><button type="button" onClick={() => fatto(t.id, true)} className="flex w-full min-h-11 items-center gap-2 px-3 text-left hover:bg-velo">
+            <li key={t.id}><button type="button" onClick={() => { setAperto(false); setQ(''); fatto(t.id, true) }} className="flex w-full min-h-11 items-center gap-2 px-3 text-left hover:bg-velo">
               <span className="truncate text-[14px] font-semibold text-inchiostro">{t.azienda || t.email}</span>
               <span className="truncate text-[12.5px] text-tenue">{[t.persona, t.citta].filter(Boolean).join(', ')}</span>
             </button></li>
