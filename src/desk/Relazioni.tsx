@@ -3,7 +3,7 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
+import { approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
 import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -85,7 +85,7 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
               <li key={d.id}>
                 <button onClick={() => vai({ voce: 'relazioni', id: d.id })} aria-current={su ? 'true' : undefined}
                         className={`grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${su ? 'border-navy/40 bg-navy/[0.05]' : 'border-bordo bg-white hover:border-tenue hover:bg-fondo/60'}`}>
-                  <span title={`Interesse ${interesse(d, adesso)} su 10`} className={`grid h-9 w-11 place-items-center rounded-lg text-[14px] font-extrabold ${interesse(d, adesso) >= 8 ? 'bg-ok-testo text-white' : interesse(d, adesso) >= 5 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{interesse(d, adesso)}<span className="ml-px text-[9px] font-semibold opacity-70">/10</span></span>
+                  <span title={`Interesse ${interesse(d, adesso)} su 10`} className={`grid h-9 w-11 place-items-center rounded-lg text-[14px] font-extrabold ${interesse(d, adesso) >= 8 ? 'bg-ok-testo text-white' : interesse(d, adesso) >= 5 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{interesse(d, adesso)}</span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
                     <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(' · ')}</span>
@@ -156,7 +156,6 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   }
   const programma = (g: string) => fai(() => programmaChiamata({ id: d.id, chiamata_id: null, prospect_id: d.prospect_id, azienda: d.azienda, persona: d.persona, telefono: d.richiamo?.numero || d.telefono, richiamare_il: null, note: [], origine: 'clara' }, g).then(() => undefined),
     {}, `Richiami ${new Date(`${g}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}: la trovi in Call.`).then(() => setRichiamo(null))
-  const okCosi = () => fai(() => giudica(d.id, true), { dre_giudizio: 'ok' }, 'Bene: Clara impara che va bene così.')
   const nonCosi = () => fai(() => giudica(d.id, false, motivo), { dre_giudizio: 'no' }, 'Segnato: Clara impara.')
   const prendo = (perche: string) => fai(() => prendiInMano(d.prospect_id, perche),
     { in_mano_a: 'Dre', in_mano_motivo: perche, in_mano_il: new Date().toISOString(), ...(d.stato === 'proposta' || d.stato === 'approvata' ? { stato: 'scartata' as const } : {}) },
@@ -204,7 +203,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
               <p className="mt-0.5 text-[13.5px]">{consiglio.perche}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>
-                {!consiglio.esito && <><Bottone onClick={() => void chiuso('chiamato')} disabled={lavoro} className="text-[13px]">Chiamato</Bottone><Bottone tipo="piatto" onClick={() => void chiuso('non_ora')} disabled={lavoro} className="text-[13px]">Non ora</Bottone></>}
+                {!consiglio.esito && <><Bottone onClick={() => void chiuso('chiamato')} disabled={lavoro} className="text-[13px]">Chiamato</Bottone><Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone></>}
               </div>
             </div>
           )}
@@ -265,17 +264,24 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         {aperta && d.mossa === 'escalate' && !chiedoNo && (
           <>
             <p className="text-[12.5px] font-semibold text-tenue">{proposta ? 'Oppure, se fai altro:' : 'Questa è tua. Quando hai fatto:'}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {ESITI_TUA.map((e) => <Bottone key={e.esito} onClick={() => void esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.nome}</Bottone>)}
-            </div>
+            {richiamo !== null ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-bordo bg-fondo/60 p-2.5">
+                <span className="text-[13px] font-semibold">Me ne occupo il</span>
+                <input type="date" value={richiamo} onChange={(e) => setRichiamo(e.target.value)} className="min-h-10 rounded-lg border border-bordo bg-white px-2 text-[14px] outline-none focus:border-navy" />
+                <Bottone tipo="primo" onClick={() => void fai(() => rimanda(d.id, richiamo), { entro_il: richiamo }, 'Rimandata: la ritrovi in Coda, in Prossime.').then(() => setRichiamo(null))} disabled={lavoro || !richiamo}>Ok</Bottone>
+                <Bottone tipo="piatto" onClick={() => setRichiamo(null)} disabled={lavoro}>Annulla</Bottone>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {ESITI_TUA.map((e) => <Bottone key={e.esito} onClick={() => void esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.nome}</Bottone>)}
+                <Bottone onClick={() => { const t = new Date(); t.setDate(t.getDate() + 1); setRichiamo(t.toISOString().slice(0, 10)) }} disabled={lavoro} className="px-2 text-[13px]">Più avanti</Bottone>
+              </div>
+            )}
             <Bottone tipo="piatto" onClick={() => setChiedoNo(true)} disabled={lavoro} className="w-full">Poteva farlo Clara</Bottone>
           </>
         )}
-        {aperta && (d.mossa === 'wait' || d.mossa === 'close') && !chiedoNo && d.dre_giudizio !== 'ok' && (
-          <div className="grid grid-cols-2 gap-2">
-            <Bottone onClick={() => void okCosi()} disabled={lavoro}>{m.bottone}</Bottone>
-            <Bottone onClick={() => setChiedoNo(true)} disabled={lavoro}>No, avrei fatto altro</Bottone>
-          </div>
+        {aperta && (d.mossa === 'wait' || d.mossa === 'close') && !chiedoNo && d.dre_giudizio !== 'no' && (
+          <Bottone tipo="piatto" onClick={() => setChiedoNo(true)} disabled={lavoro} className="w-full">Non sono d’accordo: dico a Clara cosa fare</Bottone>
         )}
         {chiedoNo && (
           <div className="space-y-2">

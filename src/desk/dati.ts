@@ -27,6 +27,7 @@ export interface Decisione {
   telefono: string | null; sito: string | null; analisi_pdf: boolean; analisi_mandata: boolean; fase: string | null
   classe: string | null; ultima_risposta: string | null; prossima_call: string | null
   approvata_da?: string | null; in_mano_a?: string | null; in_mano_motivo?: string | null; in_mano_il?: string | null
+  fit?: string | null
 }
 
 export interface Messaggio { at: string; tipo: 'email_in' | 'email_out'; testo: string | null; casella: string | null }
@@ -227,6 +228,12 @@ export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): 
   if (error) guasto(error)
   if (c.origine === 'clara') await segnaEsito(c.id, esito, nota)
   else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata di Dre: ${esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`) } catch { /* niente */ } }
+}
+
+/** «Più avanti» su una cosa tua: resta tua, ma sparisce da Da fare fino al giorno scelto (la Coda la mostra in Prossime). */
+export async function rimanda(id: string, giorno: string): Promise<void> {
+  const { error } = await supabase.from('clara_decisioni').update({ entro_il: giorno, dre_nota: `rimandata da Dre al ${giorno}`, dre_il: ADESSO() }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
 }
 
 /** L'esito di un consiglio di chiamata (chiamato, non ora): resta dentro al consiglio, la decisione non cambia stato. */

@@ -16,12 +16,13 @@ export const MOSSE: Record<Mossa, { nome: string; bottone: string; tono: Tono; s
 export type Gruppo = 'fare' | 'corso' | 'attesa' | 'fatte' | 'chiuse'
 export const GRUPPI: Record<Gruppo, string> = { fare: 'Da fare adesso', corso: 'In partenza', attesa: 'In attesa', fatte: 'Fatte', chiuse: 'Chiuse' }
 
-export function gruppoDi(d: Pick<Decisione, 'mossa' | 'stato'>): Gruppo {
+export function gruppoDi(d: Pick<Decisione, 'mossa' | 'stato'> & { entro_il?: string | null }): Gruppo {
   if (d.stato === 'approvata' || d.stato === 'in_invio') return 'corso'
   if (d.stato === 'inviata' || d.stato === 'fatta') return 'fatte'
   if (d.stato === 'scartata' || d.stato === 'superata') return 'chiuse'
   if (d.mossa === 'wait') return 'attesa'
   if (d.mossa === 'close') return 'chiuse'
+  if (d.mossa === 'escalate' && d.entro_il && d.entro_il > new Date().toISOString().slice(0, 10)) return 'attesa'   // «Più avanti»
   return 'fare'
 }
 
@@ -41,7 +42,7 @@ export function priorita(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_m
 /** Quanto e' caldo il lead, da 1 a 10: la mossa che Clara ha scelto dice quanto interesse ha letto (una call da
  *  confermare e' un 10, un no e' un 1), l'analisi gia' mandata e un consiglio di chiamata aggiungono, il tempo
  *  passato toglie. E' un numero per orientarsi, non una misura. */
-export function interesse(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'consiglio' | 'classe'>, adesso: Date = new Date()): number {
+export function interesse(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'consiglio' | 'classe' | 'fit'>, adesso: Date = new Date()): number {
   const base: Record<Mossa, number> = { book_meeting: 10, callback: 9, offer_slots: 9, send_analysis: 7, reply: 6, escalate: 6, wait: 4, close: 1 }
   let s = base[d.mossa] ?? 4
   if (d.analisi_mandata && d.mossa !== 'close') s += 1
@@ -50,7 +51,10 @@ export function interesse(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_
   const giorni = (adesso.getTime() - new Date(d.risposta_il).getTime()) / 864e5
   if (giorni > 14) s -= 2
   else if (giorni > 7) s -= 1
-  return Math.max(1, Math.min(10, Math.round(s)))
+  // 4/11, Dre: «un incrocio tra il livello di interesse e quanto e' in fit, col fit deciso dal sistema»
+  const fit = d.fit === 'SI' ? 10 : d.fit === 'PARZIALE' ? 6 : d.fit === 'NO' ? 2 : 5
+  const voto = d.mossa === 'close' ? 1 : 0.6 * s + 0.4 * fit
+  return Math.max(1, Math.min(10, Math.round(voto)))
 }
 
 export function ordina<T extends Decisione>(ds: T[], adesso: Date = new Date()): T[] {
@@ -106,7 +110,7 @@ export const ESITI_CHIAMATA: Array<{ esito: string; nome: string }> = [
   { esito: 'fissata', nome: 'Call fissata' }, { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
 ]
 export const ESITI_TUA: Array<{ esito: string; nome: string }> = [
-  { esito: 'risposto_io', nome: 'Ho risposto io' }, { esito: 'chiuso', nome: 'Chiudo qui' }, { esito: 'rimandato', nome: 'Più avanti' },
+  { esito: 'risposto_io', nome: 'Ho risposto io' }, { esito: 'chiuso', nome: 'Chiudo qui' },
 ]
 
 /** I motivi per cui Dre prende in mano una relazione: Clara li legge come nota. */

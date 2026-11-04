@@ -19,8 +19,10 @@ describe('il desk: la coda', () => {
     expect(priorita(base({ mossa: 'reply' }), adesso)).toBeGreaterThan(priorita(vecchia, adesso))
   })
   it('lo score d\'interesse va da 1 a 10: una call e\' 10, un no e\' 1, il tempo toglie', () => {
-    expect(interesse(base({ mossa: 'book_meeting' }), adesso)).toBe(10)
-    expect(interesse(base({ mossa: 'close' }), adesso)).toBe(1)
+    expect(interesse(base({ mossa: 'book_meeting', fit: 'SI' }), adesso)).toBe(10)
+    expect(interesse(base({ mossa: 'close', fit: 'SI' }), adesso)).toBe(1)
+    expect(interesse(base({ mossa: 'reply', fit: 'SI' }), adesso)).toBeGreaterThan(interesse(base({ mossa: 'reply', fit: 'NO' }), adesso))
+    expect(gruppoDi(base({ mossa: 'escalate', entro_il: '2099-01-01' }))).toBe('attesa')
     expect(interesse(base({ mossa: 'reply', risposta_il: '2026-10-10T10:00:00Z' }), adesso)).toBeLessThan(interesse(base({ mossa: 'reply' }), adesso))
   })
   it('i gruppi seguono lo stato prima della mossa', () => {

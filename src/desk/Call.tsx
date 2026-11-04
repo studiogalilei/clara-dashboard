@@ -246,7 +246,7 @@ function Consigliata({ r, vai, mostra, togli }: { r: Consigliato; vai: (d: Dove)
       <div className="flex flex-wrap items-center gap-2">
         {tel && <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {tel}</a>}
         <Bottone onClick={() => void fatto('chiamato')} disabled={lavoro} className="text-[13px]">Chiamato</Bottone>
-        <Bottone tipo="piatto" onClick={() => void fatto('non_ora')} disabled={lavoro} className="text-[13px]">Non ora</Bottone>
+        <Bottone tipo="piatto" onClick={() => void fatto('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone>
       </div>
     </li>
   )
