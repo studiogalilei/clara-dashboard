@@ -107,7 +107,10 @@ export function destinatari(testo: string | null | undefined): { a: string | nul
   let a: string | null = null, cc: string | null = null, oggetto: string | null = null, i = 0
   if (/^a:/i.test(righe[0] ?? '') && righe[0].includes('@')) {
     const m = righe[0].match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []
-    a = m[0] ?? null; cc = m.slice(1).join(', ') || null; i = 1
+    a = m[0] ?? null; i = 1
+    const inCc = [...m.slice(1)]
+    if (/^cc:/i.test(righe[i] ?? '')) { inCc.push(...(righe[i].match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? [])); i += 1 }
+    cc = inCc.join(', ') || null
   }
   if (/^oggetto:/i.test(righe[i] ?? '')) { oggetto = righe[i].replace(/^oggetto:\s*/i, '').trim(); i += 1 }
   return { a, cc, oggetto, corpo: righe.slice(i).join('\n').trim() }

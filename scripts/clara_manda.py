@@ -79,6 +79,26 @@ def ferma(d, motivo, stato="proposta"):
     sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"stato": stato, "errore": motivo[:300]}, {"Prefer": "return=minimal"})
 
 
+def intestazione(testo):
+    """La testa «A: …» / «Cc: …» / «Oggetto: …» che Clara scrive quando il destinatario cambia (una o due righe),
+    separata dal corpo. {"a", "cc": [...], "oggetto", "corpo"}; a=None se non c'e'."""
+    import re
+    righe = (testo or "").strip().split("\n")
+    a, cc, oggetto, i = None, [], None, 0
+    if righe and righe[0].lower().startswith("a:") and "@" in righe[0]:
+        trovati = re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", righe[0])
+        a, cc, i = (trovati[0] if trovati else None), trovati[1:], 1
+        if a and i < len(righe) and righe[i].lower().startswith("cc:"):
+            cc += re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", righe[i])
+            i += 1
+    if a and i < len(righe) and righe[i].lower().startswith("oggetto:"):
+        oggetto = righe[i].split(":", 1)[1].strip()
+        i += 1
+    if not a:
+        return {"a": None, "cc": [], "oggetto": None, "corpo": (testo or "").strip()}
+    return {"a": a, "cc": cc, "oggetto": oggetto, "corpo": "\n".join(righe[i:]).strip()}
+
+
 def prendi(d):
     r = sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}&stato=eq.approvata",
            {"stato": "in_invio", "errore": None}, {"Prefer": "return=representation"}) or []
@@ -103,6 +123,7 @@ def manda_una(d):
     if _quando(ultima.get("time")) > _quando(d["risposta_il"]) + datetime.timedelta(minutes=3):
         return ferma(d, f"{azienda}: ha scritto di nuovo dopo questa decisione: rileggi", "superata")
     # abbiamo gia' risposto noi dopo quella mail (dal sistema vecchio o a mano)? non si manda due volte
+    h = {}
     try:
         h = manda.sl("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
         nostre_dopo = [m for m in (h.get("history") or []) if m.get("type") != "REPLY"
@@ -127,21 +148,23 @@ def manda_una(d):
              "reply_email_time": ultima.get("time"),
              "reply_email_body": ultima.get("email_body") or "",
              "add_signature": True, "to_email": a}
-    # «A: … Cc: …» in testa al testo di Clara: il destinatario l'ha indicato il lead (es. il marketing)
-    prima_riga = testo.split("\n", 1)[0]
-    if prima_riga.lower().startswith("a:") and "@" in prima_riga:
-        import re
-        indirizzi = re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", prima_riga)
+    # «A: …» (e «Cc: …», sulla stessa riga o sotto) in testa al testo di Clara: il destinatario l'ha indicato
+    # il lead (es. il marketing, la sede locale). Si accetta un indirizzo dello stesso dominio o uno che il
+    # lead ha scritto lui nel filo; altrimenti la mail resta ferma, non va a chi ha detto di non essere la persona
+    testa = intestazione(testo)
+    if testa["a"]:
         dominio = p["email"].split("@")[-1].lower()
-        if indirizzi and all(i.split("@")[-1].lower() == dominio for i in indirizzi):
-            corpo["to_email"] = indirizzi[0]
-            if len(indirizzi) > 1:
-                corpo["cc"] = ",".join(indirizzi[1:])
-            resto = testo.split("\n", 1)[1].lstrip()
-            if resto.lower().startswith("oggetto:"):
-                resto = resto.split("\n", 1)[1].lstrip() if "\n" in resto else ""
-            corpo["email_body"] = manda.in_html(resto)
+        nel_filo = (" ".join((m.get("email_body") or "") for m in (h.get("history") or []) if m.get("type") == "REPLY")
+                    or (ultima.get("email_body") or "")).lower()
+        tutti = [testa["a"]] + testa["cc"]
+        if all(i.split("@")[-1].lower() == dominio or i.lower() in nel_filo for i in tutti):
+            corpo["to_email"] = testa["a"]
+            if testa["cc"]:
+                corpo["cc"] = ",".join(testa["cc"])
+            corpo["email_body"] = manda.in_html(testa["corpo"])
             a = corpo["to_email"]
+        else:
+            return ferma(d, f"{azienda}: Clara vuole scrivere a un indirizzo che il lead non ha dato ({testa['a']}): guarda tu")
     if att:
         corpo["attachments"] = att
     print(f"  {azienda} → {a}" + (f" (cc {corpo['cc']})" if corpo.get("cc") else "") + f"  campagna {cid}, {len(att)} allegati")

@@ -119,7 +119,7 @@ export default function Desk() {
         <div className="mt-auto space-y-2">
           <div className="rounded-xl border border-white/15 bg-white/[0.06] p-3.5 text-[12px] leading-relaxed text-white/75">
             <p className="flex items-center gap-2 font-bold text-white"><span className="h-2 w-2 rounded-full bg-ok-segno" /> Clara è al lavoro</p>
-            <p className="mt-1.5">Legge ogni risposta e prepara la mossa. Tu tocchi solo Invia e le call.</p>
+            <p className="mt-1.5">Legge ogni risposta, decide e manda da sola. A te restano le call e le cose ferme.</p>
           </div>
           <CollegaTelefono tipo="piatto" className="w-full justify-start px-3 text-[13px] font-normal text-white/60 hover:text-white" />
           <a href={linkCompleto('pipeline')} className="flex min-h-10 items-center gap-2 rounded-xl px-3 text-[13px] text-white/60 hover:text-white">

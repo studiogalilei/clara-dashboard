@@ -57,7 +57,7 @@ export default function Clara() {
       </section>
       <section className="rounded-2xl border border-bordo bg-white p-4 text-[13.5px] leading-relaxed text-inchiostro lg:p-5">
         <h2 className="mb-2 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Come impara</h2>
-        <p>Ogni Invia senza ritocchi è un «ok». Ogni testo che cambi, ogni No con una riga di perché, ogni esito di una call entra nel suo esame: le sue decisioni si rigiocano sulle conversazioni vere e l’identità si corregge dove sbaglia. Niente regole nuove dopo un caso solo.</p>
+        <p>Manda da sola: ogni mail la vota prima un giudice indipendente, e la sera la rilegge con quello che è successo dopo. Il resoconto ti arriva nella mail delle 19. Ogni No con una riga di perché, ogni testo che cambi, ogni esito di una call entra nel suo esame e l’identità si corregge dove sbaglia. Niente regole nuove dopo un caso solo.</p>
       </section>
     </div>
   )

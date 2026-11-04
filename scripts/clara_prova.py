@@ -3,10 +3,11 @@
 Dre: «prima trainare, testare il sistema in sandbox, proprio il reale sistema che poi andra' a
 lavorare, finche' non arriva al livello che fa le cose bene, e rilasciarlo». Qui il cervello nuovo
 (clara_sdr) decide su ogni risposta vera che entra, con gli strumenti veri (calendario, scheda,
-filo di Smartlead), accanto al sistema di oggi che continua a fare il suo. Non manda niente e non
-tocca Smartlead: scrive la decisione in clara_decisioni e nella scheda «Clara in prova» del foglio.
-Dre, nel foglio, dice se va bene e cosa avrebbe fatto lui; il giudice indipendente vota ogni
-decisione. Da li' si addestra l'identita' e si rigioca tutto il banco a ogni versione.
+filo di Smartlead). Scrive la decisione in clara_decisioni; il giudice (Opus, un altro modello) la
+vota subito. Dal 4/11 mattina (Dre: «lo volevo automatizzato, io non ho tempo per leggere») una
+mail votata non pericolosa parte da sola col postino (clara_manda); una pericolosa resta ferma col
+motivo, e la sera il turno (clara_turno, dentro «La giornata») riferisce a Dre cosa e' partito e
+come. Le call e i «decidi tu» restano suoi. Da li' si addestra l'identita'.
 
 Uso:
   python3 scripts/clara_prova.py --email X     dalla strada veloce: decide sull'ultima risposta
@@ -32,8 +33,11 @@ SCHEDA = "Clara in prova"
 RIGHE = 400
 FINESTRA_ORE = 48          # risposte piu' vecchie non si decidono nel giro (il banco storico e' l'esame)
 PER_GIRO = 15              # decisioni al massimo per giro: un tetto alla spesa, non una coda persa
-TETTO_GIORNO = 25.0        # dollari al giorno per il cervello in prova (notte del 4/11: si rigioca tutto)
-TETTO_GIUDICE = 10.0
+TETTO_GIORNO = 40.0        # dollari al giorno per il cervello (4/11: Fable 5.1, circa 0,3-0,5 $ a decisione)
+TETTO_GIUDICE = 25.0       # il giudice vota ogni mail prima che parta: non deve finire i soldi
+SCRIVE = {"send_analysis", "reply", "offer_slots", "book_meeting"}   # le mosse che mandano una mail
+RIFAI_MOSSE = SCRIVE | {"escalate"}   # --rifai rigioca col cervello nuovo solo cio' che manda o che era rimasto a Dre
+AUTONOMA = True            # 4/11 mattina, Dre: «lo volevo automatizzato»: una mail votata non pericolosa parte da sola
 COLONNE = [("Quando", 95), ("Azienda", 150), ("Il lead ha scritto", 340), ("Mossa", 100), ("Perché", 250),
            ("Testo che manderebbe", 400), ("Segnali", 150), ("Giudice", 130),
            ("Va bene? (ok / no)", 110), ("Cosa avresti fatto tu", 260), ("Note", 220), ("id", 40)]
@@ -69,13 +73,13 @@ RIFAI = "--rifai" in sys.argv       # rigioca con l'identita' nuova le decisioni
 
 
 def gia_decisa(pid, risposta_il):
-    r = sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il,versione,stato&prospect_id=eq.{pid}&order=risposta_il.desc,creato_il.desc&limit=1") or []
+    r = sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il,versione,stato,mossa&prospect_id=eq.{pid}&order=risposta_il.desc,creato_il.desc&limit=1") or []
     if not r:
         return False
     a, b = _roma(r[0]["risposta_il"]), _roma(risposta_il)
     stessa = bool(a and b and abs((a - b).total_seconds()) < 120)
-    if stessa and RIFAI and r[0]["stato"] == "proposta" and r[0]["versione"] != clara_sdr.VERSIONE:
-        return False                                         # da rifare con l'identita' nuova
+    if stessa and RIFAI and r[0]["stato"] == "proposta" and r[0]["versione"] != clara_sdr.VERSIONE and r[0]["mossa"] in RIFAI_MOSSE:
+        return False                                         # da rifare col cervello nuovo (solo se manda una mail)
     return stessa
 
 
@@ -108,14 +112,18 @@ def decidi_lead(p, perche=""):
     if PROVA:
         print("  (prova: non si salva)")
         return riga
-    sb("POST", "/rest/v1/clara_decisioni?on_conflict=prospect_id,risposta_il,versione", [riga],
-       {"Prefer": "resolution=ignore-duplicates,return=minimal"})
+    salvata = sb("POST", "/rest/v1/clara_decisioni?on_conflict=prospect_id,risposta_il,versione", [riga],
+       {"Prefer": "resolution=merge-duplicates,return=representation"}) or []
     # le decisioni vecchie ancora da fare per questo lead sono superate: il lead ha scritto di nuovo,
     # oppure (--rifai) l'identita' e' cambiata e questa e' la decisione nuova sulla stessa risposta
     sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&risposta_il=lt.{urllib.parse.quote(risposta_il)}&stato=in.(proposta,approvata)",
        {"stato": "superata"}, {"Prefer": "return=minimal"})
     sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&risposta_il=eq.{urllib.parse.quote(risposta_il)}&versione=neq.{clara_sdr.VERSIONE}&stato=eq.proposta",
        {"stato": "superata"}, {"Prefer": "return=minimal"})
+    # una mail: il giudice la vota subito e, se non e' pericolosa, parte da sola (il postino, entro 5 minuti)
+    if AUTONOMA and salvata and d["proposed_action"] in SCRIVE:
+        g = giudica_riga(salvata[0])
+        riga["stato"] = rilascia_una(salvata[0], g)
     return riga
 
 
@@ -156,26 +164,69 @@ def supera_vecchie():
 
 # ── 2. il giudice ──────────────────────────────────────────────────────────────
 
-def giudica_nuove(massimo=30):
+def giudica_riga(d):
+    """Il giudice (Opus, un altro modello) vota una decisione salvata: pericolosa? mossa giusta? testo? Salva il voto."""
     import esame_clara
+    if spesa("esame_clara") > TETTO_GIUDICE:
+        return {"errore": f"tetto del giorno del giudice ({TETTO_GIUDICE} $)"}
+    r = {"contesto": d["contesto"], "segnali": d["segnali"] or [],
+         "decisione": {"proposed_action": d["mossa"], "reason_summary": d["perche"], "evidence_refs": d["prove"],
+                       "owner": d["owner"], "due_at": d["entro_il"], "draft": d["testo"], "callback": d["richiamo"]},
+         "dopo": "(ancora niente: la decisione è di oggi; giudica la mossa e il testo per quello che si sa)"}
+    try:
+        g = esame_clara.giudica(r)
+    except Exception as e:                                   # noqa: BLE001
+        g = {"errore": str(e)[:200]}
+    if not PROVA and "errore" not in g:
+        sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"giudice": g}, {"Prefer": "return=minimal"})
+    return g
+
+
+def giudica_nuove(massimo=30):
     righe = sb("GET", f"/rest/v1/clara_decisioni?select=*&giudice=is.null&order=creato_il.desc&limit={massimo}") or []
     fatte = 0
     for d in righe:
-        if spesa("esame_clara") > TETTO_GIUDICE:
-            print(f"  giudice: tetto del giorno ({TETTO_GIUDICE} $), si ferma")
-            break
-        r = {"contesto": d["contesto"], "segnali": d["segnali"] or [],
-             "decisione": {"proposed_action": d["mossa"], "reason_summary": d["perche"], "evidence_refs": d["prove"],
-                           "owner": d["owner"], "due_at": d["entro_il"], "draft": d["testo"], "callback": d["richiamo"]},
-             "dopo": "(ancora niente: la decisione è di oggi; giudica la mossa e il testo per quello che si sa)"}
-        try:
-            g = esame_clara.giudica(r)
-        except Exception as e:                                   # noqa: BLE001
-            g = {"errore": str(e)[:200]}
-        if not PROVA:
-            sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"giudice": g}, {"Prefer": "return=minimal"})
+        g = giudica_riga(d)
+        if "errore" in g:
+            print(f"  giudice: {g['errore']}")
+            if "tetto" in g["errore"]:
+                break
+            continue
         fatte += 1
     return fatte
+
+
+def rilascia_una(d, g):
+    """Una mail votata parte da sola: «approvata» (il postino la manda). Se il giudice la dice pericolosa resta
+    ferma con il motivo scritto (la sera Dre lo legge). Se il giudice non ha risposto, resta da votare. Torna lo stato."""
+    if not g or "errore" in g:
+        print(f"  resta da votare: {(g or {}).get('errore') or 'niente voto'}")
+        return "proposta"
+    if g.get("pericoloso"):
+        motivo = f"il giudice la ferma: {(g.get('errore_pericoloso') or 'errore pericoloso')[:200]}"
+        print(f"  FERMA: {motivo}")
+        if not PROVA:
+            sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}&stato=eq.proposta", {"errore": motivo}, {"Prefer": "return=minimal"})
+        return "proposta"
+    print(f"  parte da sola (giudice: mossa {g.get('mossa')}, testo {g.get('testo')})")
+    if not PROVA:
+        sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}&stato=eq.proposta",
+           {"stato": "approvata", "approvata_il": adesso().isoformat(), "approvata_da": "Clara", "errore": None}, {"Prefer": "return=minimal"})
+    return "approvata"
+
+
+def rilascia():
+    """Le mail ancora ferme con un voto del giudice e senza un motivo di fermo: partono (anche quelle decise prima
+    di stamattina, quando serviva l'Invia di Dre). Torna quante."""
+    if not AUTONOMA:
+        return 0
+    righe = sb("GET", "/rest/v1/clara_decisioni?select=id,giudice&stato=eq.proposta&giudice=not.is.null&errore=is.null"
+                      f"&mossa=in.({','.join(sorted(SCRIVE))})&order=creato_il.asc&limit=100") or []
+    n = 0
+    for d in righe:
+        if rilascia_una(d, d["giudice"]) == "approvata":
+            n += 1
+    return n
 
 
 # ── 3. il foglio: la scheda «Clara in prova» ───────────────────────────────────
@@ -335,6 +386,7 @@ def giro():
         note.append(f"{decise} decisioni nuove" + (f" ({len(cand) - massimo} restano al prossimo giro)" if len(cand) > massimo else ""))
         note.append(f"{supera_vecchie()} superate (il lead non aspetta più noi)")
         note.append(f"{giudica_nuove()} votate dal giudice")
+        note.append(f"{rilascia()} mail partite da sole")
         foglio()
         registra("ok", "; ".join(note), partita)
     except Exception as e:                                       # noqa: BLE001
@@ -351,8 +403,14 @@ def uno(email):
     if not p:
         print("lead non trovato")
         return
-    decidi_lead(p)
+    r = decidi_lead(p)
     foglio()
+    if r and r.get("stato") == "approvata" and not PROVA:
+        import clara_manda                                   # la strada veloce: la mail parte adesso, non al giro dei 5 minuti
+        try:
+            clara_manda.main()
+        except Exception as e:                               # noqa: BLE001
+            print(f"  postino: {str(e)[:150]} (riprova il direttore)")
 
 
 def main():

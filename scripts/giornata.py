@@ -48,6 +48,7 @@ GIORNI = ("lun", "mar", "mer", "gio", "ven", "sab", "dom")
 MAX_ASPETTANO = 8
 CONVERSAZIONI_GIORNI = 14           # una conversazione piu' vecchia non si rincorre piu' da qui
 DA_GUARDARE_ORE = 48                # le risposte ferme «da guardare tu» degli ultimi due giorni
+ASPETTA_CONVERSAZIONI = False       # 4/11: le risposte le fa Clara da sola; qui restano solo le call
 SERIE_ERRORI = 3                    # un'operazione caduta tante volte di fila oggi si dice
 CHIUSI = ("Perso", "Non interessato", "Non contattare", "Cliente acquisito", "Proposta inviata")
 NO = ("negativo", "soppresso", "nervoso")
@@ -217,8 +218,14 @@ def leggi(ora):
         viste.add(k)
         domani.append({"at": t, "azienda": " ".join((c.get("azienda") or c.get("titolo") or "?").split()), "tipo": c.get("tipo") or ""})
     domani.sort(key=lambda c: c["at"])
+    # 4/11: il turno della sera su Clara (manda da sola): cosa ha mandato, riletto dal giudice, cosa e' fermo, cosa e' tuo
+    try:
+        import clara_turno
+        clara = clara_turno.rapporto(ora)
+    except Exception as e:                                       # noqa: BLE001
+        clara = {"errore": str(e)[:150]}
     return {"guasti_aperti": aperti, "guasti_risolti": risolti, "serie_errori": serie, "controllo_fallito": fallito,
-            "numeri": numeri, "aspettano": aspettano, "domani": domani}
+            "numeri": numeri, "aspettano": aspettano, "domani": domani, "clara": clara}
 
 
 def _automatica(testo):
@@ -233,8 +240,9 @@ def _aspettano(ora, oggi0, conv, da_chiamare):
     """Le cose che aspettano Dre: [{"pid", "azienda", "perche", "quando"}], le piu' urgenti prima."""
     oggi = ora.astimezone(ROMA).date()
     voci = {}
-    # 1. in conversazione, e l'ultima mail e' del lead
-    recenti = {pid: quando(v["dal"]) for pid, v in conv.items() if ora - quando(v["dal"]) <= datetime.timedelta(days=CONVERSAZIONI_GIORNI)}
+    # 1. in conversazione, e l'ultima mail e' del lead: dal 4/11 risponde Clara da sola (clara_prova), quindi
+    #    non aspetta piu' Dre; resta il codice per quando si vuole rivedere a mano (ASPETTA_CONVERSAZIONI)
+    recenti = {pid: quando(v["dal"]) for pid, v in conv.items() if ora - quando(v["dal"]) <= datetime.timedelta(days=CONVERSAZIONI_GIORNI)} if ASPETTA_CONVERSAZIONI else {}
     if recenti:
         da = min(recenti.values()) - datetime.timedelta(days=1)
         posta = {}
@@ -265,8 +273,8 @@ def _aspettano(ora, oggi0, conv, da_chiamare):
             voci[pid]["perche"] += f", e {perche}"
         else:
             voci[pid] = {"pid": pid, "quando": t, "perche": perche, "peso": 1}
-    # 3. una risposta ferma «da guardare tu», degli ultimi due giorni
-    ferme = sb("GET", "/rest/v1/proposte?select=prospect_id,at&stato=eq.aperta&tipo=eq.umano&prospect_id=not.is.null"
+    # 3. una risposta ferma «da guardare tu» del sistema vecchio (spento il 4/11: le ferme di Clara stanno nella sua sezione)
+    ferme = [] if not ASPETTA_CONVERSAZIONI else sb("GET", "/rest/v1/proposte?select=prospect_id,at&stato=eq.aperta&tipo=eq.umano&prospect_id=not.is.null"
                       f"&at=gte.{_z(ora - datetime.timedelta(hours=DA_GUARDARE_ORE))}&order=at.desc&limit=200") or []
     for x in ferme:
         pid = x["prospect_id"]
@@ -356,8 +364,7 @@ def numeri(dati):
 
 
 def link_scheda(pid):
-    from foglio_lead import link_scheda as _l
-    return _l(pid)
+    return f"https://studiogalilei.github.io/clara/#/d/relazioni/{pid}"      # 4/11: la relazione nel Desk
 
 
 def componi(ora, dati, link=None):
@@ -376,6 +383,25 @@ def componi(ora, dati, link=None):
     t.append("")
     t.append(riga_n)
     h.append(f"<p style='margin:12px 0 0'>{e(riga_n)}</p>")
+    clara = dati.get("clara")
+    if clara:
+        t += ["", "Clara"]
+        h.append("<p style='margin:18px 0 4px;font-weight:600'>Clara</p>")
+        if clara.get("errore"):
+            riga = f"Non sono riuscito a controllare Clara stasera ({clara['errore']})."
+            t.append(riga)
+            h.append(f"<p style='margin:0'>{e(riga)}</p>")
+        else:
+            import clara_turno
+            for riga in clara_turno.righe(clara):
+                t.append(riga)
+                if riga.startswith("- "):
+                    h.append(f"<p style='margin:0 0 3px 14px'>{e(riga[2:])}</p>")
+                else:
+                    h.append(f"<p style='margin:8px 0 2px'>{e(riga)}</p>")
+            url = "https://studiogalilei.github.io/clara/#/d/coda"
+            t.append(f"Tutto nel Desk: {url}")
+            h.append(f"<p style='margin:6px 0 0'><a href='{url}'>Il Desk</a></p>")
     t += ["", "Aspettano te"]
     h.append("<p style='margin:18px 0 4px;font-weight:600'>Aspettano te</p>")
     if not asp:
@@ -389,7 +415,7 @@ def componi(ora, dati, link=None):
             h.append(f"<li style='margin:0 0 4px'>{e(v['azienda'])}: {e(v['perche'])}, <a href='{e(url)}'>scheda</a></li>")
         h.append("</ul>")
         if len(asp) > MAX_ASPETTANO:
-            resto = f"…e {_n(len(asp) - MAX_ASPETTANO, 'altro', 'altri')} che aspettano una tua decisione: li trovi nel foglio."
+            resto = f"…e {_n(len(asp) - MAX_ASPETTANO, 'altro', 'altri')}: li trovi nel Desk, in Call."
             t.append(resto)
             h.append(f"<p style='margin:4px 0 0;color:#666'>{e(resto)}</p>")
     t += ["", "Domani"]
@@ -404,7 +430,7 @@ def componi(ora, dati, link=None):
             t.append(f"- {_ora(c['at'])} {c['azienda']}{tipo}")
             h.append(f"<li style='margin:0 0 4px'>{_ora(c['at'])} {e(c['azienda'])}{e(tipo)}</li>")
         h.append("</ul>")
-    sereno = not asp and not (dati.get("guasti_aperti") or dati.get("serie_errori"))
+    sereno = not asp and not (dati.get("guasti_aperti") or dati.get("serie_errori")) and not ((dati.get("clara") or {}).get("ferme"))
     chiusura = "Niente da fare stasera: buona serata." if sereno else "Il resto va avanti da solo. Buona serata."
     t += ["", chiusura]
     h.append(f"<p style='margin:18px 0 0'>{e(chiusura)}</p>")

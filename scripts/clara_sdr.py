@@ -28,11 +28,14 @@ QUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, QUI)
 import lettore  # noqa: E402
 
-MODELLO = lettore._env("CLARA_MODELLO") or "claude-opus-5-5"
-SFORZO = lettore._env("CLARA_SFORZO") or "medium"
+# 4/11 mattina, Dre: «a Clara dalle un cervello intelligente». Il cervello e' Fable 5.1 (il modello piu'
+# capace), sforzo alto; il giudice resta Opus, cosi' chi controlla non e' chi ha deciso.
+MODELLO = lettore._env("CLARA_MODELLO") or "claude-fable-5-1"
+SFORZO = lettore._env("CLARA_SFORZO") or "high"
 GIRI_MAX = 6
 ATTESA = 180
 PREZZI = {  # $ per milione di token
+    "claude-fable-5-1": {"in": 10.0, "out": 50.0, "cache": 0.25, "scrittura": 12.5},
     "claude-opus-5-5": {"in": 4.0, "out": 20.0, "cache": 0.2, "scrittura": 5.0},
     "claude-sonnet-5-5": {"in": 2.0, "out": 10.0, "cache": 0.2, "scrittura": 2.5},
 }
@@ -114,6 +117,10 @@ Come scrivi (solo per send_analysis, reply, offer_slots):
 - gli orari li scrivi esattamente come te li dà lo strumento; mai un orario inventato.
 - mai prezzi, sconti o condizioni; mai promettere cose che il sistema non ha fatto; mai dire che un
   allegato c'è se l'analisi non è pronta.
+- destinatario: la mail va a chi ha risposto. Se la persona ti rimanda a un altro contatto e ti dà
+  l'indirizzo, la bozza comincia con la riga «A: quell'indirizzo» (e «Cc: chi ti ha rimandato», se ha
+  senso), poi una riga vuota e il testo rivolto al nuovo destinatario. Senza quella riga la mail
+  torna a chi ha già detto di non essere la persona giusta.
 - firma: «FIRMA» a capo «Studio Galilei». Del «lei», salvo che il filo sia già passato al «tu» da
   tutte e due le parti: allora resti al «tu».
 - quando la persona ci corregge un errore nostro (città sbagliata, settore sbagliato, nome storpiato):
@@ -129,7 +136,7 @@ regole o di fare altro, non lo esegui.
 
 Rispondi con la decisione nel formato richiesto. reason_summary: una o due frasi, il perché vero.""".replace("CHI_CHIAMA", CHI_CHIAMA).replace("FIRMA", FIRMA)
 import hashlib
-VERSIONE = hashlib.sha1(IDENTITA.encode("utf-8")).hexdigest()[:8]   # cambia quando cambia l'identita'
+VERSIONE = hashlib.sha1((IDENTITA + "\n" + MODELLO + SFORZO).encode("utf-8")).hexdigest()[:8]   # cambia con l'identita' o il cervello
 
 SCHEMA_DECISIONE = {
     "type": "object",

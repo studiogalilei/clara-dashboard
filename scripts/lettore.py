@@ -76,6 +76,7 @@ PREZZI = {
     "claude-sonnet-5": {"in": 2.0, "out": 10.0, "cache": 0.2, "scrittura": 2.5},
     "claude-sonnet-5-5": {"in": 2.0, "out": 10.0, "cache": 0.2, "scrittura": 2.5},
     "claude-opus-5-5": {"in": 4.0, "out": 20.0, "cache": 0.2, "scrittura": 5.0},        # 3/11: Clara in prova e il giudice
+    "claude-fable-5-1": {"in": 10.0, "out": 50.0, "cache": 0.25, "scrittura": 12.5},   # 4/11: il cervello di Clara
     "claude-haiku-5-5": {"in": 0.10, "out": 0.50, "cache": 0.01, "scrittura": 0.125},
 }
 TETTO_GIORNO = 5.0          # dollari al giorno (20/10 sera: con 2 $ il tetto si e' riempito alle 20 per le riletture; circa 0,01 $ a risposta)
