@@ -113,3 +113,24 @@ come regalo e il pretesto è arrivare alla call… non deve dire con il nostro f
 - **Segnali nuovi** (`clara_sdr.segnali`): analisi senza orari / senza link, «ci faccia sapere», «fondatore»,
   Dramane prima della prenotazione, conferma senza Dramane. Il giudice (`esame_clara`) conosce le regole.
 - Invarianti: due blocchi nuovi in `test_invarianti.py`.
+
+## 4/11 sera: prima il valore, poi l'incontro; le note di Dre sono ordini
+
+Dre (screenshot di un lead): «qui Clara non ha ancora inviato l'analisi e mi consiglia di chiamarlo: sempre inviare
+l'analisi e quello che porta valore, e dopo si può chiedere l'incontro. Mi deve consigliare di chiamarlo se l'abbiamo
+inviata, è passato un giorno, non ha risposto né prenotato e abbiamo il numero; se non abbiamo il numero continua lei
+a sentire a modo suo». E: «dai a Clara la capacità di comprendere le mie note: un unico cervello; non mi invia notifiche
+su lead che ho già sentito su WhatsApp e che quindi gestisco io».
+
+- **Consiglio di chiamata**: mai insieme a `send_analysis` né prima che l'analisi sia partita (regola in identità,
+  segnale fisso, e `clara_prova` lo scarta alla fonte). Legge retroattiva: `ritira_consigli_prematuri()` a ogni giro.
+- **Dopo l'analisi** (`segui_silenzio`): per ogni analisi partita da almeno un giorno feriale senza risposta né call,
+  non in mano a Dre: col cellulare (regola «solo con un cellulare», `segnale_provvisorio.cellulare_di`) un consiglio
+  di chiamata; senza, Clara decide il sollecito (contesto «SITUAZIONE DI OGGI: silenzio dopo l'analisi», regola 4bis:
+  due orari nuovi + link, un solo sollecito), il giudice vota, la mail parte. Decisioni con `origine='silenzio'` (v111),
+  `risposta_il` = quando è partita l'analisi. Finestra 10 giorni, max 10 per giro.
+- **Le note di Dre** (`leggi_note_di_dre`): ogni nota firmata Dramane delle ultime 48 ore la legge il cervello
+  (`snella_note.clara_letta_il`); se dice che se ne occupa lui → lead in mano a Dre, decisioni aperte scartate,
+  consigli tolti. Le note entrano anche nel contesto di ogni decisione («NOTE DI DRAMANE»: ordini). Le note di
+  Achille e Clara non contano; le più vecchie di due giorni si archiviano.
+- Prova a secco del 4/11: 2 note («Li ho scritto su WhatsApp») → in mano a Dre; 1 consiglio prematuro da ritirare.

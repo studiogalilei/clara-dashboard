@@ -73,7 +73,7 @@ RIFAI = "--rifai" in sys.argv       # rigioca con l'identita' nuova le decisioni
 
 
 def gia_decisa(pid, risposta_il):
-    r = sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il,versione,stato,mossa&prospect_id=eq.{pid}&order=risposta_il.desc,creato_il.desc&limit=1") or []
+    r = sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il,versione,stato,mossa&prospect_id=eq.{pid}&origine=eq.risposta&order=risposta_il.desc,creato_il.desc&limit=1") or []
     if not r:
         return False
     a, b = _roma(r[0]["risposta_il"]), _roma(risposta_il)
@@ -107,7 +107,9 @@ def decidi_lead(p, perche=""):
             "testo": d.get("draft") or None, "perche": d.get("reason_summary"), "prove": d.get("evidence_refs") or [],
             "richiamo": d.get("callback") if d["proposed_action"] == "callback" else None,
             "appuntamento": (d.get("meeting_at") or None) if d["proposed_action"] == "book_meeting" else None,
-            "consiglio": (d.get("call_suggestion") if (d.get("call_suggestion") or {}).get("numero", "").strip() else None),
+            # 4/11 (Dre): prima il valore, poi l'incontro. Niente consiglio di chiamata finche' l'analisi non e' partita
+            "consiglio": (d.get("call_suggestion") if (d.get("call_suggestion") or {}).get("numero", "").strip()
+                          and d["proposed_action"] != "send_analysis" and p.get("analysis_sent") else None),
             "segnali": r["segnali"], "uso": r["uso"], "contesto": r["contesto"]}
     print(f"  {p.get('company') or '?'}: {d['proposed_action']} (owner {d.get('owner')}, {r['uso'].get('dollari')} $)"
           + (f"; segnali: {'; '.join(r['segnali'])}" if r["segnali"] else ""))
@@ -149,6 +151,157 @@ def risposte_nuove(ore=None):
         if contattabile(p) and not gia_decisa(p["id"], p["last_reply_at"]):
             fuori.append(p)
     return fuori
+
+
+def giorni_feriali(da, a):
+    """Quanti giorni feriali interi sono passati fra due momenti (pura): da venerdi' alle 15 a sabato alle 15 e' 0,
+    a lunedi' alle 15 e' 1."""
+    n, g = 0, da
+    while g + datetime.timedelta(days=1) <= a:
+        g += datetime.timedelta(days=1)
+        if g.weekday() < 5:
+            n += 1
+    return n
+
+
+def da_seguire(r, ora):
+    """Pura. Un'analisi partita va seguita se e' passato almeno un giorno feriale, il lead non ha scritto dopo,
+    non c'e' una call in agenda, non e' in mano a Dre e non l'abbiamo gia' seguita (consiglio o sollecito)."""
+    p = r.get("prospects") or {}
+    inviata = _roma(r.get("inviata_il"))
+    if not inviata or giorni_feriali(inviata, ora) < 1 or (ora - inviata).days > 10:
+        return False
+    risposta = _roma(p.get("last_reply_at"))
+    if risposta and risposta > inviata + datetime.timedelta(minutes=3):
+        return False
+    if p.get("in_mano_a") or r.get("consiglio") or r.get("seguita"):
+        return False
+    return True
+
+
+NOTA_ISTRUZIONI = """Sei Clara. Dramane (il capo) ha scritto una nota su un lead. Devi dire una cosa sola: la nota significa che
+adesso la relazione la gestisce lui di persona (gli ha scritto su WhatsApp, l'ha chiamato, lo sente lui, «ci penso io»,
+«lo gestisco io», ci ha parlato)? In quel caso in_mano=true e in motivo riscrivi in 3-8 parole cosa ha fatto («gli ha
+scritto su WhatsApp»). Se la nota è un'istruzione, un promemoria, un'informazione o un esito di chiamata senza che lui
+prenda in mano la relazione (es. «vuole solo Meta», «richiamare a dicembre», «non risponde»), in_mano=false."""
+NOTA_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["in_mano", "motivo"],
+               "properties": {"in_mano": {"type": "boolean"}, "motivo": {"type": "string"}}}
+
+
+def leggi_note_di_dre(massimo=20):
+    """UN CERVELLO SOLO (Dre, 4/11): «dai la capacità a Clara di comprendere le mie note: non mi invia notifiche su
+    lead che ho già sentito e scritto su WhatsApp io, e che quindi ho in mano e gestisco io». Ogni nota nuova di Dre
+    la legge il cervello: se dice che se ne occupa lui, il lead passa in mano a lui (come «Me ne occupo io» nel Desk):
+    niente mail, niente consigli, niente solleciti, niente notifiche. Torna (lette, prese in mano)."""
+    # le note di Achille e di Clara non sono ordini; le note piu' vecchie di due giorni sono storia: si archiviano senza leggerle
+    vecchie = (adesso() - datetime.timedelta(hours=48)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if not PROVA:
+        sb("PATCH", f"/rest/v1/snella_note?clara_letta_il=is.null&or=(at.lt.{vecchie},autore_nome.neq.Dramane,autore_nome.is.null)",
+           {"clara_letta_il": adesso().isoformat()}, {"Prefer": "return=minimal"})
+    righe = sb("GET", "/rest/v1/snella_note?select=id,prospect_id,testo,tipo,at,autore_nome,prospects(id,company,in_mano_a)"
+                      f"&clara_letta_il=is.null&prospect_id=not.is.null&autore_nome=eq.Dramane&at=gte.{vecchie}&order=at.asc&limit={massimo}") or []
+    lette = prese = 0
+    for n in righe:
+        p = n.get("prospects") or {}
+        testo = (n.get("testo") or "").strip()
+        ora = adesso().isoformat()
+        if not testo or testo.startswith("Dre ridà") or p.get("in_mano_a") or (n.get("autore_nome") or "").lower().startswith("clara"):
+            if not PROVA:
+                sb("PATCH", f"/rest/v1/snella_note?id=eq.{n['id']}", {"clara_letta_il": ora}, {"Prefer": "return=minimal"})
+            lette += 1
+            continue
+        try:
+            v, _ = lettore.chiedi_anthropic("nota", NOTA_ISTRUZIONI, f"Lead: {p.get('company') or '?'}\nNota di Dramane ({n.get('tipo')}): «{testo[:600]}»",
+                                            NOTA_SCHEMA, modello=clara_sdr.MODELLO, registra="clara_sdr")
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  nota su {p.get('company') or '?'} non letta ({str(e)[:120]})")
+            continue
+        lette += 1
+        print(f"  nota su {p.get('company') or '?'}: {'in mano a Dre' if v.get('in_mano') else 'solo informazione'} ({(v.get('motivo') or '')[:60]})")
+        if PROVA:
+            continue
+        sb("PATCH", f"/rest/v1/snella_note?id=eq.{n['id']}", {"clara_letta_il": ora}, {"Prefer": "return=minimal"})
+        if v.get("in_mano"):
+            motivo = (v.get("motivo") or testo)[:120]
+            sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"in_mano_a": "Dre", "in_mano_motivo": motivo, "in_mano_il": ora}, {"Prefer": "return=minimal"})
+            sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&stato=in.(proposta,approvata)",
+               {"stato": "scartata", "dre_nota": f"Me ne occupo io: {motivo}", "errore": None}, {"Prefer": "return=minimal"})
+            sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&consiglio=not.is.null&stato=not.in.(superata,scartata)",
+               {"consiglio": None}, {"Prefer": "return=minimal"})
+            prese += 1
+    return lette, prese
+
+
+def ritira_consigli_prematuri():
+    """LA LEGGE E' RETROATTIVA (4/11): un consiglio di chiamata dato prima che l'analisi partisse si ritira."""
+    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,mossa,consiglio,prospects(analysis_sent)&consiglio=not.is.null&stato=not.in.(superata,scartata)", chiave="id")
+    prematuri = [r["id"] for r in righe if (r.get("consiglio") or {}).get("esito") is None
+                 and (not (r.get("prospects") or {}).get("analysis_sent")
+                      or (r.get("mossa") == "send_analysis" and not ((r.get("consiglio") or {}).get("perche") or "").startswith("Analisi mandata il")))]
+    for i in range(0, len(prematuri), 50):
+        if not PROVA:
+            sb("PATCH", f"/rest/v1/clara_decisioni?id=in.({','.join(prematuri[i:i + 50])})", {"consiglio": None}, {"Prefer": "return=minimal"})
+    return len(prematuri)
+
+
+def segui_silenzio(massimo=10):
+    """DOPO L'ANALISI (Dre, 4/11): «sempre inviare l'analisi e quello che porta valore, e dopo si puo' chiedere
+    l'incontro. Mi deve consigliare di chiamarlo se l'abbiamo inviata, e' passato un giorno, non ha risposto ne'
+    prenotato e abbiamo il numero; se non abbiamo il numero continua lei a sentire a modo suo».
+    Per ogni analisi partita da almeno un giorno feriale senza risposta ne' call: col cellulare un consiglio di
+    chiamata a Dre sulla decisione dell'analisi; senza, Clara decide il sollecito (origine «silenzio»), il giudice
+    vota e la mail parte da sola. Torna (consigli, solleciti)."""
+    from stanza import contattabile, call_in_agenda
+    import segnale_provvisorio
+    ora = adesso()
+    da = (ora - datetime.timedelta(days=11)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,inviata_il,consiglio,risposta_il,"
+                     "prospects(id,company,name,email,phone,enriched,last_reply_at,awaiting_us,fuori,stage,pipeline_stage,no_followup,"
+                     "classificazione,in_mano_a,campaign_id,lead_id,analysis_sent,analysis_sent_at,analysis_pdf,city,sector,role)"
+                     f"&mossa=eq.send_analysis&stato=eq.inviata&origine=eq.risposta&inviata_il=gte.{da}", chiave="id")
+    seguite = {x["risposta_il"] for x in (sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il&origine=eq.silenzio&risposta_il=gte.{da}") or [])}
+    consigli = solleciti = 0
+    for r in righe:
+        r["seguita"] = r.get("inviata_il") in seguite
+        p = r.get("prospects") or {}
+        if not da_seguire(r, ora) or not contattabile(p) or call_in_agenda(p):
+            continue
+        if consigli + solleciti >= massimo or spesa("clara_sdr") > TETTO_GIORNO:
+            break
+        giorno = _roma(r["inviata_il"]).strftime("%d/%m")
+        cellulare = segnale_provvisorio.cellulare_di(p)
+        if cellulare:
+            perche = (f"Analisi mandata il {giorno} con due orari e il link: da allora nessuna risposta e niente call prenotata. "
+                      f"C'è il suo cellulare: una tua telefonata adesso è il touchpoint giusto.")
+            print(f"  {p.get('company') or '?'}: consiglio di chiamata ({cellulare[-4:]}…)")
+            if not PROVA:
+                sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{r['id']}", {"consiglio": {"numero": cellulare, "perche": perche}}, {"Prefer": "return=minimal"})
+            consigli += 1
+            continue
+        try:
+            storia = _storia(p)
+            sit = (f"silenzio dopo l'analisi. L'analisi è partita il {giorno} con due orari e il link del calendario; da allora "
+                   f"nessuna risposta e nessuna call prenotata; non abbiamo un cellulare da far chiamare. Decidi tu il seguito.")
+            g = clara_sdr.giudica_uno(p, storia, situazione=sit)
+            d = g["decisione"]
+            riga = {"prospect_id": p["id"], "risposta_il": r["inviata_il"], "versione": clara_sdr.VERSIONE, "origine": "silenzio",
+                    "modello": g["uso"].get("modello") or clara_sdr.MODELLO,
+                    "lead_testo": f"(silenzio: analisi mandata il {giorno}, nessuna risposta e niente call prenotata)",
+                    "mossa": d["proposed_action"], "owner": d.get("owner"), "entro_il": d.get("due_at") or None,
+                    "testo": d.get("draft") or None, "perche": d.get("reason_summary"), "prove": d.get("evidence_refs") or [],
+                    "richiamo": None, "consiglio": None, "appuntamento": None,
+                    "segnali": g["segnali"], "uso": g["uso"], "contesto": g["contesto"]}
+            print(f"  {p.get('company') or '?'}: sollecito → {d['proposed_action']} ({g['uso'].get('dollari')} $)")
+            solleciti += 1
+            if PROVA:
+                continue
+            salvata = sb("POST", "/rest/v1/clara_decisioni?on_conflict=prospect_id,risposta_il,versione", [riga],
+                         {"Prefer": "resolution=merge-duplicates,return=representation"}) or []
+            if AUTONOMA and salvata and d["proposed_action"] in SCRIVE:
+                rilascia_una(salvata[0], giudica_riga(salvata[0]))
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  {p.get('company') or '?'}: sollecito non deciso ({str(e)[:150]})")
+    return consigli, solleciti
 
 
 def supera_vecchie():
@@ -373,6 +526,9 @@ def giro():
     note = []
     ore, massimo = _arg("--ore", FINESTRA_ORE), _arg("--max", PER_GIRO)
     try:
+        lette, prese = leggi_note_di_dre()
+        if lette:
+            note.append(f"{lette} note di Dre lette" + (f", {prese} relazioni passate a lui" if prese else ""))
         cand = risposte_nuove(ore)
         print(f"risposte senza decisione nelle ultime {ore} ore: {len(cand)}")
         decise = 0
@@ -387,6 +543,12 @@ def giro():
                 print(f"  {p.get('company') or '?'}: non decisa ({str(e)[:150]})")
         note.append(f"{decise} decisioni nuove" + (f" ({len(cand) - massimo} restano al prossimo giro)" if len(cand) > massimo else ""))
         note.append(f"{supera_vecchie()} superate (il lead non aspetta più noi)")
+        ritirati = ritira_consigli_prematuri()
+        if ritirati:
+            note.append(f"{ritirati} consigli ritirati (analisi non ancora partita)")
+        c, s = segui_silenzio()
+        if c or s:
+            note.append(f"dopo l'analisi: {c} consigli di chiamata, {s} solleciti di Clara")
         note.append(f"{giudica_nuove()} votate dal giudice")
         note.append(f"{rilascia()} mail partite da sole")
         foglio()

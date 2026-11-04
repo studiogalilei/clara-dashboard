@@ -6823,6 +6823,24 @@ def _():
     assert M.invito(p, {"id": "d1", "appuntamento": "2099-01-05T10:00", "invio": {"invito": "https://meet.google.com/x"}}, "m@x.it") == "https://meet.google.com/x"
 
 
+@prova("Clara (4/11): il seguito dopo l'analisi parte dopo un giorno feriale, mai se il lead ha scritto, ha una call o e' in mano a Dre")
+def _():
+    import clara_prova as P
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    d = lambda *a: datetime.datetime(*a, tzinfo=roma)   # noqa: E731
+    assert P.giorni_feriali(d(2026, 11, 6, 15), d(2026, 11, 7, 15)) == 0, "venerdi' -> sabato: zero feriali"
+    assert P.giorni_feriali(d(2026, 11, 6, 15), d(2026, 11, 9, 15)) == 1, "venerdi' -> lunedi': uno"
+    assert P.giorni_feriali(d(2026, 11, 4, 13), d(2026, 11, 5, 13)) == 1
+    r = {"inviata_il": "2026-11-04T12:00:00+00:00", "consiglio": None, "prospects": {"last_reply_at": "2026-11-04T10:00:00+00:00", "in_mano_a": None}}
+    assert not P.da_seguire(r, d(2026, 11, 4, 20)), "stesso giorno: troppo presto"
+    assert P.da_seguire(r, d(2026, 11, 5, 14)), "un giorno feriale dopo: si segue"
+    assert not P.da_seguire({**r, "prospects": {**r["prospects"], "last_reply_at": "2026-11-04T15:00:00+00:00"}}, d(2026, 11, 5, 14)), "ha scritto dopo l'analisi"
+    assert not P.da_seguire({**r, "prospects": {**r["prospects"], "in_mano_a": "Dre"}}, d(2026, 11, 5, 14)), "in mano a Dre"
+    assert not P.da_seguire({**r, "consiglio": {"numero": "3"}}, d(2026, 11, 5, 14)), "gia' consigliata"
+    assert not P.da_seguire({**r, "seguita": True}, d(2026, 11, 5, 14)), "gia' sollecitata"
+    assert not P.da_seguire(r, d(2026, 11, 20, 14)), "dopo dieci giorni non si insegue piu'"
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:
