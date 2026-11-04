@@ -36,7 +36,7 @@ export default function Analytics() {
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi nome="Decisioni" valore={d.length} sotto={`${n((x) => x.stato === 'inviata')} mail partite`} />
         <Kpi nome="Call e richiami" valore={n((x) => x.mossa === 'book_meeting' || x.mossa === 'callback' || x.mossa === 'offer_slots')} sotto="proposti da Clara" />
-        <Kpi nome="Il tuo giudizio" valore={`${ok} ok`} sotto={`${no} no${no + ok ? ` · ${Math.round(ok / (ok + no) * 100)}% d'accordo` : ''}`} />
+        <Kpi nome="Il tuo giudizio" valore={`${ok} ok`} sotto={`${no} no${no + ok ? `, ${Math.round(ok / (ok + no) * 100)}% d'accordo` : ''}`} />
         <Kpi nome="Segnalate dal revisore" valore={pericolose} sotto={pericolose ? 'da guardare' : 'nessun errore pericoloso'} tono={pericolose ? 'no' : 'ok'} />
       </section>
       {s && (

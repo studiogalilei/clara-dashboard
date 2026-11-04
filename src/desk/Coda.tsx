@@ -101,7 +101,7 @@ export default function Coda(_: { vai: (d: Dove) => void }) {
                         <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy/[0.07] text-[12.5px] font-extrabold text-navy">{iniziali(d.azienda)}</span>
                         <span className="min-w-0">
                           <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
-                          <span className="block truncate text-[12.5px] text-tenue">{cosa(d, f)}{d.perche && f !== 'fatte' ? ` · ${d.perche.replace(/\s+/g, ' ').slice(0, 90)}` : ''}</span>
+                          <span className="block truncate text-[12.5px] text-tenue">{cosa(d, f)}{d.perche && f !== 'fatte' ? `, ${d.perche.replace(/\s+/g, ' ').slice(0, 90)}` : ''}</span>
                         </span>
                         <span className="flex flex-col items-end gap-1">
                           {f === 'fatte' || f === 'adesso' ? <Pillola testo={m?.nome ?? d.mossa} tono={m?.tono ?? 'neutro'} piena={m?.tono === 'ok'} /> : d.consiglio?.numero && !d.consiglio.esito ? <Pillola testo="Ti consiglio di chiamare" tono="giallo" /> : null}
