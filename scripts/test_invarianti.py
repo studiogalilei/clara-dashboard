@@ -6352,6 +6352,21 @@ def _():
     assert "stato=eq.fatta" not in src, "le fatte non bloccano qui: i follow-up sono risposte dopo una risposta (li filtra bozze.gia_servita)"
 
 
+@prova("l'ispettore: due mail nostre in 15 minuti sono un doppio solo se in mezzo il lead non ha scritto (turno del 4/11)")
+def _():
+    import ispettore as I, datetime as D
+    a = {"at": "2026-11-04T09:47:14+00:00"}
+    b = {"at": "2026-11-04T10:00:06+00:00"}
+    risposta = D.datetime(2026, 11, 4, 9, 58, 52, tzinfo=D.timezone.utc)
+    assert not I.doppio_vero(a, b, [risposta]), "ha risposto in mezzo: la seconda e' la risposta"
+    assert I.doppio_vero(a, b, []), "nessuna risposta in mezzo: e' un doppio"
+    prima = D.datetime(2026, 11, 4, 9, 30, tzinfo=D.timezone.utc)
+    assert I.doppio_vero(a, b, [prima]), "una risposta PRIMA della prima mail non scusa il doppio"
+    assert not I.doppio_vero(a, {"at": "2026-11-04T10:05:00+00:00"}, []), "oltre 15 minuti non e' un doppio"
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ispettore.py")).read()
+    assert "doppio_vero(a, b, arrivi.get(pid" in src
+
+
 @prova("l'ispettore non grida al lupo: il no conta se e' arrivato prima del passo, e un rimbalzo non e' una risposta (22/10)")
 def _():
     import ispettore as I, datetime as D

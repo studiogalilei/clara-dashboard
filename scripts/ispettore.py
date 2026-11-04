@@ -276,12 +276,27 @@ def controlla_sequenze(righe, per, dom_clienti, da):
     return gravi, attenzione
 
 
+def doppio_vero(a, b, arrivi):
+    """Due mail nostre a meno di 15 minuti sono un doppio solo se in mezzo il
+    lead non ha scritto: se ha risposto (ci da' un indirizzo, una domanda) la
+    seconda e' la risposta, non una ripetizione (turno del 4/11)."""
+    ta, tb = quando(a["at"]), quando(b["at"])
+    if not ta or not tb or (tb - ta).total_seconds() >= 900:
+        return False
+    return not any(t and ta < t <= tb for t in arrivi)
+
+
 def controlla_risposte(per_id, da):
     """Le risposte nostre dei fili (Clara o a mano dalla casella), partite dopo `da`."""
     import mercato
     gravi, attenzione = [], []
     fuori = sb_tutte(f"/rest/v1/interactions?select=id,prospect_id,at,body,casella&kind=eq.email_out"
                      f"&at=gte.{urllib.parse.quote(da.isoformat())}")
+    entrate = sb_tutte(f"/rest/v1/interactions?select=prospect_id,at&kind=eq.email_in"
+                       f"&at=gte.{urllib.parse.quote(da.isoformat())}")
+    arrivi = collections.defaultdict(list)
+    for x in entrate:
+        arrivi[x["prospect_id"]].append(quando(x["at"]))
     per_lead = collections.defaultdict(list)
     for x in fuori:
         per_lead[x["prospect_id"]].append(x)
@@ -290,7 +305,7 @@ def controlla_risposte(per_id, da):
         chi = p.get("company") or "un lead"
         xs.sort(key=lambda x: x["at"])
         for a, b in zip(xs, xs[1:]):
-            if (quando(b["at"]) - quando(a["at"])).total_seconds() < 900:
+            if doppio_vero(a, b, arrivi.get(pid, [])):
                 gravi.append((f"doppio:{b['id']}", f"{chi}: due mail nostre in {int((quando(b['at']) - quando(a['at'])).total_seconds() // 60)} minuti"))
         for x in xs:
             corpo = senza_citazione(pulito(x.get("body")))
