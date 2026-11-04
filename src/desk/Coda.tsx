@@ -1,9 +1,10 @@
 // LA CODA DI CLARA (4/11 pomeriggio). Dre: «una zona ad elenco dove c'è in ordine quello che Clara sta
 // gestendo, per avere sempre in vista le sue attività, cosa sta facendo e cosa farà». Qui si sbircia: un
-// tocco apre la relazione. Niente bottoni: quelli stanno in Relazioni.
-import { useMemo } from 'react'
+// tocco apre il dettaglio li' sotto (Dre, 4/11: «da lì vedo le sue attività in corso e pianificate, e basta»:
+// niente salti verso Relazioni, che e' la zona sua). Niente bottoni.
+import { useMemo, useState } from 'react'
 import { leggiCoda, type Decisione } from './dati'
-import { MOSSE, iniziali } from './regole'
+import { MOSSE, destinatari, iniziali } from './regole'
 import { Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -47,8 +48,9 @@ function cosa(d: Decisione, f: Fascia): string {
   return d.stato === 'superata' ? 'Superata: ha riscritto' : d.stato === 'scartata' ? 'Scartata da te' : 'Chiude'
 }
 
-export default function Coda({ vai }: { vai: (d: Dove) => void }) {
+export default function Coda(_: { vai: (d: Dove) => void }) {
   const { dati, errore, caricando, rifai } = useDati(() => leggiCoda(14))
+  const [aperta, setAperta] = useState<string | null>(null)
   const fasce = useMemo(() => {
     const out: Record<Fascia, Decisione[]> = { adesso: [], ferme: [], prossime: [], tue: [], fatte: [], chiuse: [] }
     for (const d of dati ?? []) out[fasciaDi(d)].push(d)
@@ -69,7 +71,7 @@ export default function Coda({ vai }: { vai: (d: Dove) => void }) {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">La coda di Clara</h1>
-          <p className="mt-1 text-[13.5px] text-tenue">Cosa sta facendo, cosa ha fatto, cosa farà. Ultimi 14 giorni, un tocco apre la relazione.</p>
+          <p className="mt-1 text-[13.5px] text-tenue">Cosa sta facendo, cosa ha fatto, cosa farà. Ultimi 14 giorni, un tocco apre il dettaglio.</p>
         </div>
         <div className="flex gap-2 text-[13px]">
           <span className="rounded-full bg-white px-3 py-1 font-bold text-inchiostro ring-1 ring-bordo">{fasce.adesso.length} in partenza</span>
@@ -94,8 +96,8 @@ export default function Coda({ vai }: { vai: (d: Dove) => void }) {
                   const t = momento(d, f)
                   return (
                     <li key={d.id}>
-                      <button onClick={() => vai({ voce: 'relazioni', id: d.id })}
-                              className="grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-bordo bg-white px-3.5 py-2.5 text-left hover:border-tenue hover:bg-fondo/60">
+                      <button onClick={() => setAperta((a) => a === d.id ? null : d.id)} aria-expanded={aperta === d.id}
+                              className={`grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border bg-white px-3.5 py-2.5 text-left hover:border-tenue hover:bg-fondo/60 ${aperta === d.id ? 'rounded-b-none border-tenue' : 'border-bordo'}`}>
                         <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy/[0.07] text-[12.5px] font-extrabold text-navy">{iniziali(d.azienda)}</span>
                         <span className="min-w-0">
                           <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
@@ -106,6 +108,7 @@ export default function Coda({ vai }: { vai: (d: Dove) => void }) {
                           <span className="text-[11.5px] text-tenue">{f === 'prossime' && d.entro_il ? new Date(d.entro_il).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }) : quando(t)}</span>
                         </span>
                       </button>
+                      {aperta === d.id && <Dettaglio d={d} f={f} />}
                     </li>
                   )
                 })}
@@ -115,7 +118,38 @@ export default function Coda({ vai }: { vai: (d: Dove) => void }) {
           </section>
         )
       })}
-      <p className="flex items-center gap-2 text-[12.5px] text-tenue"><Icona nome="ok" className="h-3.5 w-3.5" /> Qui non si tocca niente: per agire vai in Relazioni.</p>
+      <p className="flex items-center gap-2 text-[12.5px] text-tenue"><Icona nome="ok" className="h-3.5 w-3.5" /> Qui si guarda il lavoro di Clara. Per agire c’è Relazioni.</p>
+    </div>
+  )
+}
+
+/** Il dettaglio di una voce, li' sotto: cosa ha letto, cosa ha deciso e perche', la mail com'e' (o com'e' partita), quando ripassa. */
+function Dettaglio({ d, f }: { d: Decisione; f: Fascia }) {
+  const parti = destinatari(d.testo)
+  const g = d.giudice
+  return (
+    <div className="space-y-3 rounded-b-xl border border-t-0 border-tenue bg-fondo/40 px-3.5 py-3 text-[13.5px] leading-relaxed text-inchiostro">
+      {d.lead_testo && (
+        <div>
+          <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">Ha scritto {quando(d.risposta_il)}</p>
+          <blockquote className="whitespace-pre-wrap rounded-r-lg border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2">{d.lead_testo.trim().slice(0, 900)}</blockquote>
+        </div>
+      )}
+      <div>
+        <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">Clara {f === 'fatte' ? 'ha fatto' : f === 'prossime' ? 'aspetta' : 'fa'}</p>
+        <p>{d.perche}</p>
+        {f === 'prossime' && d.entro_il && <p className="mt-1 text-tenue">Ripassa {new Date(d.entro_il).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}, o prima se risponde.</p>}
+        {d.errore && <p className="mt-1 text-giallo-testo">Ferma: {d.errore}</p>}
+        {g && !g.pericoloso && g.mossa && <p className="mt-1 text-[12.5px] text-tenue">Il giudice: mossa {g.mossa}{g.testo && g.testo !== 'nessuno' ? `, testo ${g.testo.replace(/_/g, ' ')}` : ''}.</p>}
+      </div>
+      {parti.corpo && (d.mossa === 'send_analysis' || d.mossa === 'reply' || d.mossa === 'offer_slots' || d.mossa === 'book_meeting' || d.mossa === 'escalate') && (
+        <div>
+          <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">{f === 'fatte' ? `La mail, partita ${quando(d.inviata_il ?? d.creato_il)}` : d.mossa === 'escalate' ? 'La sua proposta per te' : 'La mail'}</p>
+          {parti.a && <p className="mb-1 text-[12.5px] text-tenue">A {parti.a}{parti.cc ? `, cc ${parti.cc}` : ''}</p>}
+          <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 font-sans">{parti.corpo}</pre>
+        </div>
+      )}
+      {d.consiglio?.numero && <p className="text-[12.5px]"><span className="font-bold">Ti consiglia di chiamare:</span> {d.consiglio.numero}. {d.consiglio.perche}</p>}
     </div>
   )
 }
