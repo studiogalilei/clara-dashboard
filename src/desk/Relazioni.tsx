@@ -3,8 +3,8 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
+import { aggiungiNota, approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro, MOTIVO_WHATSAPP, NOTA_WHATSAPP, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -218,6 +218,9 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
               <p className="mt-0.5 text-[13.5px]">{consiglio.perche}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>
+                {!consiglio.esito && whatsappDa(consiglio.numero) && <button type="button" disabled={lavoro} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-ok-testo px-3 text-[13px] font-bold text-ok-testo hover:bg-ok-fondo"
+                  onClick={() => { window.open(whatsappDa(consiglio.numero) ?? '', '_blank', 'noopener'); void aggiungiNota(d.prospect_id, NOTA_WHATSAPP).catch(() => undefined); prendo(MOTIVO_WHATSAPP) }}>
+                  <Icona nome="whatsapp" className="h-4 w-4" /> WhatsApp</button>}
                 {!consiglio.esito && <><Bottone onClick={() => void chiuso('chiamato')} disabled={lavoro} className="text-[13px]">Chiamato</Bottone><Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone></>}
               </div>
             </div>

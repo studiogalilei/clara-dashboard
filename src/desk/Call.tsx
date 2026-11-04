@@ -3,10 +3,10 @@
 // lo stesso); per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco. Sotto, «Ti consiglio di
 // chiamare» e le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useState } from 'react'
-import { aggiungiChiamata, cerca, esitoChiamata, leggiCall, notaChiamata, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
+import { aggiungiChiamata, aggiungiNota, cerca, esitoChiamata, leggiCall, notaChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
 
 type Consigliato = NonNullable<DatiCall['consigli']>[number]
-import { agendaPulita, telefonoDa } from './regole'
+import { MOTIVO_WHATSAPP, NOTA_WHATSAPP, agendaPulita, telefonoDa, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
@@ -197,6 +197,17 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
   const annota = () => fai(async () => { if (!nota.trim()) return; const { id, nota: n } = await notaChiamata(r, nota); aggiorna(r, { ...r, chiamata_id: id, note: [...(r.note ?? []), n] }); setNota(''); mostra({ testo: r.prospect_id ? 'Nota salvata, anche per Clara.' : 'Nota salvata.' }) })
   const esito = (e: string) => { if (e === 'richiamare') { setProgrammo(true); return } void fai(async () => { await esitoChiamata(r, e); aggiorna(r, null); mostra({ testo: 'Segnato.' }) }) }
   const pid = r.prospect_id
+  const wa = whatsappDa(tel)
+  // WhatsApp (4/11): apre la chat e, insieme, la nota e il lead in mano a Dre: Clara si ferma, niente consigli ne' solleciti
+  const whatsapp = () => {
+    if (wa) window.open(wa, '_blank', 'noopener')
+    void fai(async () => {
+      const { id, nota: n } = await notaChiamata(r, NOTA_WHATSAPP)
+      if (pid) await prendiInMano(pid, MOTIVO_WHATSAPP)
+      aggiorna(r, { ...r, chiamata_id: id, note: [...(r.note ?? []), n] })
+      mostra({ testo: pid ? 'Segnato: è in mano a te, Clara si ferma.' : 'Segnato.' })
+    })
+  }
   return (
     <li className={`space-y-2.5 rounded-xl border bg-white p-4 ${ritardo ? 'border-giallo-bordo' : 'border-bordo'}`}>
       <div className="flex items-start justify-between gap-3">
@@ -211,9 +222,12 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
       </div>
       {r.quando && <p className="text-[13.5px] text-inchiostro"><span className="font-semibold">Quando:</span> {r.quando}</p>}
       {tel ? (
-        <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[15px] font-bold text-white">
-          <Icona nome="telefono" className="h-4 w-4" /> {tel}
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[15px] font-bold text-white">
+            <Icona nome="telefono" className="h-4 w-4" /> {tel}
+          </a>
+          {wa && <button type="button" onClick={whatsapp} disabled={lavoro} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ok-testo px-4 text-[14px] font-bold text-ok-testo hover:bg-ok-fondo"><Icona nome="whatsapp" className="h-4 w-4" /> WhatsApp</button>}
+        </div>
       ) : <Pillola testo="Senza numero" tono="attesa" />}
       {r.perche && <p className="text-[13.5px] leading-relaxed text-inchiostro">{r.perche}</p>}
       {r.lead_testo && <blockquote className="rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2 text-[13px] text-inchiostro">{r.lead_testo.replace(/\s+/g, ' ').slice(0, 240)}</blockquote>}
@@ -256,6 +270,9 @@ function Consigliata({ r, vai, mostra, togli }: { r: Consigliato; vai: (d: Dove)
       {r.perche && <p className="text-[13.5px] leading-relaxed">{r.perche}</p>}
       <div className="flex flex-wrap items-center gap-2">
         {tel && <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {tel}</a>}
+        {whatsappDa(tel) && <button type="button" disabled={lavoro} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-ok-testo px-3 text-[13px] font-bold text-ok-testo hover:bg-ok-fondo"
+          onClick={() => { window.open(whatsappDa(tel) ?? '', '_blank', 'noopener'); void (async () => { setLavoro(true); try { await aggiungiNota(r.prospect_id, NOTA_WHATSAPP); await prendiInMano(r.prospect_id, MOTIVO_WHATSAPP); await segnaConsiglio(r, 'whatsapp'); togli(); mostra({ testo: 'Segnato: è in mano a te, Clara si ferma.' }) } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) } finally { setLavoro(false) } })() }}>
+          <Icona nome="whatsapp" className="h-4 w-4" /> WhatsApp</button>}
         <Bottone onClick={() => void fatto('chiamato')} disabled={lavoro} className="text-[13px]">Chiamato</Bottone>
         <Bottone tipo="piatto" onClick={() => void fatto('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone>
       </div>

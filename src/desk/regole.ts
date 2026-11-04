@@ -143,6 +143,19 @@ export function destinatari(testo: string | null | undefined): { a: string | nul
 }
 
 /** Il numero di telefono dentro a un testo che puo' contenere anche nome e ruolo («335 838 3593 (Matteo…)»). */
+/** Il link di WhatsApp da un numero (4/11: «dammi anche il pulsante WhatsApp, tanto succede spesso»).
+ *  Cifre sole, prefisso internazionale senza «+» e senza «00»; un cellulare italiano senza prefisso prende 39. */
+export function whatsappDa(numero: string | null | undefined): string | null {
+  const t = telefonoDa(numero) ?? numero ?? ''
+  let cifre = t.replace(/\D/g, '')
+  if (cifre.startsWith('00')) cifre = cifre.slice(2)
+  if (cifre.length === 10 && cifre.startsWith('3')) cifre = '39' + cifre
+  if (cifre.length < 11) return null
+  return `https://wa.me/${cifre}`
+}
+export const NOTA_WHATSAPP = 'Scritto su WhatsApp'
+export const MOTIVO_WHATSAPP = 'gli ho scritto su WhatsApp'
+
 export function telefonoDa(testo: string | null | undefined): string | null {
   const m = (testo ?? '').match(/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{3,4}(?:[\s.-]?\d{2,4})?/)
   if (!m) return null

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { agendaPulita, destinatari, filtra, gruppoDi, interesse, priorita, statoBreve, telefonoDa } from './regole'
+import { agendaPulita, destinatari, filtra, gruppoDi, interesse, priorita, statoBreve, telefonoDa, whatsappDa } from './regole'
 import type { Decisione } from './dati'
 
 const base = (x: Partial<Decisione>): Decisione => ({
@@ -61,6 +61,11 @@ describe('il desk: la coda', () => {
     expect(telefonoDa('335 838 3593 (Matteo Lari, Direzione Commerciale)')).toBe('335 838 3593')
     expect(telefonoDa('+39 347 699 3922')).toBe('+39 347 699 3922')
     expect(telefonoDa('nessun numero')).toBeNull()
+    expect(whatsappDa('+39 335 838 3593')).toBe('https://wa.me/393358383593')
+    expect(whatsappDa('335 8383593')).toBe('https://wa.me/393358383593')
+    expect(whatsappDa('0039 347 699 3922')).toBe('https://wa.me/393476993922')
+    expect(whatsappDa('06 1234567')).toBeNull()
+    expect(whatsappDa(null)).toBeNull()
     const a = agendaPulita([
       { at: '2026-11-04T10:00:00Z', titolo: 'Eco', tipo: 'tecnica', prospect_id: 'p' },
       { at: '2026-11-04T10:00:00Z', titolo: 'Eco', tipo: 'tecnica', prospect_id: 'p' },
