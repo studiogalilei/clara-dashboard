@@ -83,3 +83,13 @@ pillola erano dispersivi → **linguette** in una riga, la scelta sottolineata; 
 (regola CSS su `.desk`: bottoni, link e pillole con angoli a 10 px, come le voci della barra); sotto il nome,
 «OUTBOUND DESK». Link unico per computer e telefono: https://studiogalilei.github.io/clara/#/d/relazioni
 (sul telefono è l'app installata, che si aggiorna da sola).
+
+**Le chiamate di Dre (4/11, dopo pranzo).** Call è la prima voce. Col «+» Dre aggiunge una chiamata: scrive
+l'azienda o un numero, la ricerca (`clara_cerca`, ora anche per telefono e col numero in uscita) propone i lead in
+scheda e, scelto uno, correla numero e persona; se non c'è, la aggiunge lo stesso. Giorno in cui richiamare, nota,
+e finisce nella stessa lista dei «Da chiamare» di Clara. Su ogni chiamata (di Clara o sua): giorno programmato
+(«Richiamare» non chiude, programma), note veloci (se il lead è in scheda vanno anche a Clara come nota), esito a
+un tocco. Tabella `chiamate` (schema_v107): una riga per le sue, e una riga agganciata alla decisione per quelle
+di Clara, che nasce alla prima programmazione o nota. `clara_call` torna `richiami` (Clara, con programmazione e
+note), `mie` (le sue, con quello che il sistema sa del lead), `consigli`, `prossime`. Icona persone su Relazioni.
+Non visto nel browser (stessa ragione di prima).
