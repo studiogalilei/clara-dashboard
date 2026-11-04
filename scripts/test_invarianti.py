@@ -6709,6 +6709,34 @@ def _():
     assert L.dividi("Va bene, grazie.\n-\nMario")[0] == "Va bene, grazie."
 
 
+@prova("dal Desk un si' con la decisione di Clara aspetta Dre nella Coda, non «senza analisi, riprova da solo» (4/11)")
+def _():
+    import clara_foglio as C
+    vero_cont, vero_rimb, vero_agenda = C.contattabile, C.rimbalzi_fermi, C.call_in_agenda
+    try:
+        C.contattabile = lambda p: True
+        C.rimbalzi_fermi = lambda ora, gia=(), **k: []
+        C.call_in_agenda = lambda p: False
+        ora = datetime.datetime(2026, 11, 4, 9, 30, tzinfo=datetime.timezone.utc)
+        base = {"classificazione": "positivo", "analysis_sent": False, "fuori": False, "last_reply_at": "2026-11-04T07:25:42+00:00"}
+        pos = [{**base, "id": k, "company": k} for k in ("decidi", "partita", "scartata", "vecchia", "niente")]
+        sul_si = "2026-11-04T07:25:42+00:00"
+        desk = {"decidi": {"stato": "proposta", "mossa": "escalate", "risposta_il": sul_si},
+                "partita": {"stato": "inviata", "mossa": "send_analysis", "risposta_il": sul_si},
+                "scartata": {"stato": "scartata", "mossa": "reply", "risposta_il": sul_si},
+                "vecchia": {"stato": "inviata", "mossa": "reply", "risposta_il": "2026-11-03T09:31:38+00:00"}}
+        r = {x["azienda"]: x for x in C.si_fermi(ora, positivi=pos, dopo={}, bozze=set(), desk=desk)}
+        assert sorted(r) == ["decidi", "niente", "vecchia"], sorted(r)   # partita e decisa da Dre: chiuse
+        g = C.guasto_si(r["decidi"], ora)
+        assert "aspetta te nel Desk" in g["cosa"] and "Decidi tu" in g["cosa"] and "riprova" not in g["sta_facendo"], g
+        assert C.guasto_si(r["vecchia"], ora)["cosa"].startswith("Sì senza analisi")    # una decisione su una mail vecchia non serve il si'
+        assert C.guasto_si(r["niente"], ora)["cosa"].startswith("Sì senza analisi")
+        # le prove vecchie (positivi passati, desk no) non toccano il database
+        assert C.si_fermi(ora, positivi=pos[:1], dopo={}, bozze=set())[0]["desk"] is None
+    finally:
+        C.contattabile, C.rimbalzi_fermi, C.call_in_agenda = vero_cont, vero_rimb, vero_agenda
+
+
 def main():
     falliti = 0
     for nome, f in ESITI:

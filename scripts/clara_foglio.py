@@ -201,7 +201,7 @@ SERVITO = ("in_invio", "fatta")                           # la bozza sta partend
 GRADO = {"aperta": 1, "approvata": 2, "in_invio": 3, "fatta": 4}
 
 
-def si_fermi(ora, positivi=None, dopo=None, bozze=None):
+def si_fermi(ora, positivi=None, dopo=None, bozze=None, desk=None):
     """I si' degli ultimi 14 giorni (SI_INDIETRO) senza analisi e senza nessuna mail nostra dopo, piu' i rimbalzi
     interni ancora da classificare (rimbalzi_fermi). UN SI' E' CHI IL LETTORE HA MESSO «positivo»
     (prospects.classificazione, 20/10 sera): il segnale provvisorio non decide piu'. La sua ora e'
@@ -209,8 +209,14 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
     solo nelle prove: un insieme di pid (bozza aperta) o {pid: {"stato", "approvata_il"}}.
     21/10 sera: UN SI' E' SERVITO SOLO QUANDO L'ANALISI E' PARTITA (analysis_sent, o una nostra mail
     dopo la sua) o la bozza nata dopo il suo si' e' in_invio/fatta. Una bozza approvata che aspetta
-    l'analisi resta un si' fermo, col motivo per cui l'analisi non arriva (enriched.analisi.trattenuta)."""
+    l'analisi resta un si' fermo, col motivo per cui l'analisi non arriva (enriched.analisi.trattenuta).
+    4/11: DAL DESK I SI' LI SERVE UNA DECISIONE DI CLARA (clara_decisioni, schema_v104): il vecchio giro
+    delle bozze e' spento, quindi «il sistema riprova da solo» era falso. Una decisione nata dopo il suo si'
+    inviata o in invio (servito), scartata o fatta (ha deciso Dre) chiude il rosso; proposta o approvata
+    dice che il si' aspetta Dre nella Coda del Desk (desk_di). `desk` si passa nelle prove."""
     da = ora - SI_INDIETRO
+    if desk is None and positivi is not None:
+        desk = {}
     if positivi is None:
         positivi = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent,analysis_pdf,fuori,stage,pipeline_stage,no_followup,"
                              f"classificazione,last_reply_at,analisi:enriched->analisi&classificazione=eq.positivo&last_reply_at=gte.{_z(da)}"
@@ -239,6 +245,8 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
                     bozze[x["prospect_id"]] = {"stato": x["stato"], "approvata_il": x.get("approvata_il") or x.get("at")}
     elif not isinstance(bozze, dict):
         bozze = {pid: {"stato": "aperta"} for pid in bozze}
+    if desk is None:
+        desk = desk_di(ps)
     out = []
     for p in sorted(ps.values(), key=lambda p: p["last_reply_at"]):
         t = quando(p["last_reply_at"])
@@ -252,12 +260,34 @@ def si_fermi(ora, positivi=None, dopo=None, bozze=None):
         b = bozze.get(p["id"]) or {}
         if b.get("stato") in SERVITO:
             continue                                       # la mail con l'analisi sta partendo o e' partita
+        d = desk.get(p["id"]) or {}
+        if d.get("risposta_il") and quando(d["risposta_il"]) < t - datetime.timedelta(minutes=1):
+            d = {}                                         # una decisione su una sua mail vecchia non parla di questo si'
+        if d.get("stato") in DESK_CHIUSO:
+            continue                                       # dal Desk: partita, o Dre ha deciso (4/11)
         an = p.get("analisi") if isinstance(p.get("analisi"), dict) else {}
-        out.append({"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t,
+        out.append({"desk": d.get("stato") if d.get("stato") in DESK_APERTO else None, "mossa": d.get("mossa"),"prospect_id": p["id"], "azienda": " ".join((p.get("company") or p.get("name") or "?").split()), "quando": t,
                     "bozza": bool(b), "stato_bozza": b.get("stato"),
                     "approvata_il": quando(b["approvata_il"]) if b.get("stato") == "approvata" and b.get("approvata_il") else None,
                     "pdf": bool(p.get("analysis_pdf")), "motivo": str(an.get("trattenuta") or "")[:160]})
     return out + rimbalzi_fermi(ora, gia=set(ps))
+
+
+DESK_CHIUSO = ("in_invio", "inviata", "scartata", "fatta")   # clara_decisioni: il si' non aspetta piu' nessuno
+DESK_APERTO = ("proposta", "approvata")                       # aspetta Dre nella Coda (o il postino, se approvata)
+MOSSE_DESK = {"book_meeting": "Conferma la call", "callback": "Da chiamare", "send_analysis": "Manda l’analisi",
+              "offer_slots": "Propone due orari", "reply": "Risponde", "escalate": "Decidi tu", "wait": "Aspetta",
+              "close": "Chiude"}                             # gli stessi nomi di src/desk/regole.ts (MOSSE)
+
+
+def desk_di(ps):
+    """{pid: l'ultima decisione di Clara (stato, mossa, risposta_il)} per i si' (clara_decisioni, 4/11)."""
+    out = {}
+    for pezzo in _pezzi(ps):
+        for x in sb("GET", f"/rest/v1/clara_decisioni?select=prospect_id,stato,mossa,risposta_il,creato_il&prospect_id=in.({pezzo})"
+                           "&order=risposta_il.desc,creato_il.desc&limit=2000") or []:
+            out.setdefault(x["prospect_id"], x)
+    return out
 
 
 def guasto_si(s, ora):
@@ -268,6 +298,15 @@ def guasto_si(s, ora):
     if _in_finestra(s["quando"], ora) <= SI_FERMO:
         return None
     g = {"chiave": f"si:{s['prospect_id']}", "da": s["quando"], "pid": s["prospect_id"]}
+    if s.get("desk"):
+        mossa = MOSSE_DESK.get(s.get("mossa") or "", "da decidere")
+        if s["desk"] == "approvata":
+            g["cosa"] = f"Il sì di {s['azienda']} è approvato nel Desk ma non è ancora partito (ha detto sì alle {_ora(s['quando'])})"
+            g["sta_facendo"] = "Il postino lo manda al prossimo giro. Se resta qui, guarda la sua scheda nel Desk."
+        else:
+            g["cosa"] = f"Il sì di {s['azienda']} aspetta te nel Desk («{mossa}»), ha detto sì alle {_ora(s['quando'])}"
+            g["sta_facendo"] = "Clara ha già deciso cosa fare: è nella Coda del Desk, scegli tu (Invia, Modifica o No)."
+        return g
     if s.get("stato_bozza") == "approvata" and not s.get("pdf"):
         ore = int((ora - (s.get("approvata_il") or s["quando"])).total_seconds() // 3600)
         motivo = s.get("motivo") or ""
