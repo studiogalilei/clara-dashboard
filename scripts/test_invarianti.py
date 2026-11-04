@@ -3885,6 +3885,24 @@ def _():
     assert "notificationclick" in sw and "data.url" in sw.replace("dati.url", "data.url"), "il tocco sulla notifica non apre il suo indirizzo"
 
 
+@prova("ricevuta: la mail partita si ritrova nel filo anche se Smartlead la restituisce in HTML (4/11)")
+def _():
+    import manda as _m
+    testo = "Buongiorno Giulia,\ngrazie della precisazione.\n\nLe allego l'analisi che abbiamo preparato su Azienda Finta."
+    filo = [{"type": "REPLY", "email_body": "<p>Buongiorno, certamente</p>"},
+            {"type": "SENT", "email_body": _m.in_html(testo)}]
+    assert _m.partita_nel_filo(testo, filo), "la mail partita (HTML con <br> e &#x27;) non viene ritrovata"
+    assert not _m.partita_nel_filo(testo, filo[:1]), "una mail mai partita risulta partita"
+    assert not _m.partita_nel_filo("Buongiorno Giulia,\ngrazie della precisazione.", [{"type": "REPLY", "email_body": _m.in_html(testo)}]), \
+        "la citazione in una risposta loro non e' la nostra mail partita"
+    assert not _m.partita_nel_filo("Buongiorno,", filo), "un pezzo troppo corto non prova niente"
+    import inspect, clara_manda as _c
+    con_testa = "A: info@esempio.invalid\nCc: altro@esempio.invalid\n\n" + testo
+    assert _m.partita_nel_filo(_c.intestazione(con_testa)["corpo"], filo), "con la testa A:/Cc: la ricevuta non si trova"
+    assert "partita_nel_filo" in inspect.getsource(_c.ricevute), "clara_manda.ricevute non usa la regola unica"
+    assert "partita_nel_filo" in inspect.getsource(_m), "il lucchetto appeso di manda non usa la regola unica"
+
+
 @prova("calendario: il fuso di Outlook («W. Europe Standard Time») non ferma la lettura (17/10)")
 def _():
     import calendario

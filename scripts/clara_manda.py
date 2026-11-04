@@ -208,9 +208,8 @@ def ricevute():
         except Exception:                                        # noqa: BLE001
             continue
         testo = (d.get("testo_finale") or d.get("testo") or "").strip()
-        pezzo = " ".join(testo.split("\n", 1)[-1].split())[:50] if testo.lower().startswith("a:") else " ".join(testo.split())[:50]
-        partita = any(m.get("type") != "REPLY" and pezzo[:35] and pezzo[:35] in " ".join((m.get("email_body") or "").split())
-                      for m in (h.get("history") or []))
+        # 4/11: la testa (A:/Cc:/Oggetto:) si toglie come quando parte, e il confronto e' quello unico di manda
+        partita = manda.partita_nel_filo(intestazione(testo)["corpo"], h.get("history"))
         eta = (adesso() - _quando(d["inviata_il"])).total_seconds() / 60
         if partita:
             if not PROVA:

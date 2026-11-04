@@ -107,6 +107,25 @@ def in_html(testo):
     return "".join(f"<p>{riga(p)}</p>" for p in par)
 
 
+def _piatto(t):
+    """Testo senza tag, entita' e a capo: quello che si legge, su una riga sola."""
+    t = re.sub(r"<br\s*/?>|</p>|</div>", " ", str(t or ""), flags=re.I)
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", t)).split())
+
+
+def partita_nel_filo(testo, history, quanti=60):
+    """4/11: la nostra mail e' nel filo di Smartlead? Una regola sola, per la ricevuta di
+    clara_manda e per il lucchetto appeso di manda. Smartlead restituisce l'HTML che abbiamo
+    mandato (in_html: «<br>» al posto dell'a capo, «&#x27;» al posto dell'apostrofo): il
+    confronto col testo semplice falliva sempre, 14 mail partite restavano «ricevuta mancante»
+    e un lucchetto appeso sarebbe tornato «approvata», cioe' rimandato due volte.
+    Si confrontano tutte e due le parti ridotte a testo piatto."""
+    pezzo = _piatto(re.sub(r"https?://\S*/storage/v1/object/\S+", "", testo or ""))[:quanti]
+    if len(pezzo) < 15:
+        return False
+    return any(m.get("type") != "REPLY" and pezzo in _piatto(m.get("email_body")) for m in (history or []))
+
+
 def _sl_riprova(metodo, percorso, volte=4):
     """Smartlead frena quando le richieste sono tante (5/10: 73 fili su 277 letti monchi, in
     silenzio). Si riprova con attesa crescente prima di arrendersi."""
@@ -482,8 +501,7 @@ def main():
             try:
                 cid, lid, _ = thread(pr)
                 h = sl("GET", f"/campaigns/{cid}/leads/{lid}/message-history") or {}
-                corpo = ((b.get("azione") or {}).get("bozza") or "")[:60].strip()
-                partita = any(m.get("type") != "REPLY" and corpo and corpo[:40] in (m.get("email_body") or "") for m in (h.get("history") or []))
+                partita = partita_nel_filo((b.get("azione") or {}).get("bozza") or "", h.get("history"))
             except Exception:                                 # noqa: BLE001
                 partita = None
         if partita:
