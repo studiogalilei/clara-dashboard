@@ -8,9 +8,9 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { chiSono, type ChiSono } from '../lib/accessi'
-import Login from '../components/Login'
+import Login from '../Login'
 import { Icona, type NomeIcona } from '../snella/pezzi'
-import { linkCompleto } from '../snella/uso'
+import Chiuso from '../Chiuso'
 import { AvvisoTelefono, CollegaTelefono } from '../snella/Telefono'
 import { riallinea } from '../lib/notifiche'
 import Coda from './Coda'
@@ -102,14 +102,7 @@ export default function Desk() {
     )
   }
   if (!io) return <div className="min-h-dvh bg-white" />
-  if (io.ruolo !== 'ceo') {
-    return (
-      <div className="mx-auto max-w-md p-6 text-center">
-        <p className="text-[16px] text-inchiostro">Il Desk è la scrivania commerciale. Il tuo Workspace è qui:</p>
-        <a href={linkCompleto('pipeline')} className="mt-3 inline-flex min-h-11 items-center rounded-full bg-blu-scuro px-5 font-semibold text-white">Vai al Workspace</a>
-      </div>
-    )
-  }
+  if (io.ruolo !== 'ceo') return <Chiuso />
 
   return (
     <div className="desk min-h-dvh bg-fondo text-inchiostro lg:flex">
@@ -153,9 +146,6 @@ export default function Desk() {
             <p className="flex justify-center py-2" title="Clara è al lavoro"><span className="h-2.5 w-2.5 rounded-full bg-ok-segno" /></p>
           )}
           {larga && <CollegaTelefono tipo="piatto" className="w-full justify-start px-3 text-[13px] font-normal text-white/60 hover:text-white" />}
-          <a href={linkCompleto('pipeline')} title="Workspace completo" className={`flex min-h-10 items-center gap-2 rounded-xl text-[13px] text-white/60 hover:text-white ${larga ? 'px-3' : 'justify-center'}`}>
-            {larga && 'Workspace completo'} <Icona nome="esterno" className="h-3.5 w-3.5" />
-          </a>
         </div>
       </nav>
 

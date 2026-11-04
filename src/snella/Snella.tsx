@@ -12,14 +12,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { chiSono, vediCome, type ChiSono } from '../lib/accessi'
-import Login from '../components/Login'
+import Login from '../Login'
 import Oggi from './Oggi'
 import Lead from './Lead'
 import SchedaLead from './SchedaLead'
 import Campagne from './Campagne'
 import Tutti from './Tutti'
 import { Icona, type NomeIcona } from './pezzi'
-import { linkCompleto } from './uso'
+import Chiuso from '../Chiuso'
 import { AvvisoTelefono, CollegaTelefono } from './Telefono'
 import { riallinea } from '../lib/notifiche'
 
@@ -77,11 +77,8 @@ export default function Snella() {
   useEffect(() => {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#ffffff')
   }, [])
-  // chi non e' ceo (l'icona sulla Home apre qui per tutti) va dritto al Workspace completo
+  // chi non e' ceo trova il Workspace chiuso (4/11)
   const altro = Boolean(io && io.ruolo !== 'ceo' && !io.vista)
-  useEffect(() => {
-    if (altro) window.location.replace(window.location.pathname + window.location.search + linkCompleto('pipeline'))
-  }, [altro])
   useEffect(() => {
     const cambia = () => setDove(leggi())
     window.addEventListener('hashchange', cambia)
@@ -114,14 +111,7 @@ export default function Snella() {
     )
   }
   if (!io) return <div className="min-h-dvh bg-white" />
-  if (altro) {
-    return (
-      <Pagina>
-        <p className="text-[16px] text-inchiostro">Ti porto al Workspace…</p>
-        <a href={linkCompleto('pipeline')} className="mt-3 inline-flex min-h-11 items-center rounded-full bg-blu-scuro px-4 text-[15px] font-semibold text-white">Vai al Workspace</a>
-      </Pagina>
-    )
-  }
+  if (altro) return <Chiuso />
 
   const titolo = dove.id ? null : VOCI.find((v) => v.voce === dove.voce)?.nome
 
@@ -150,9 +140,6 @@ export default function Snella() {
         </ul>
         <div className="mt-auto space-y-1">
           <CollegaTelefono tipo="piatto" className="w-full justify-start px-4 text-[14px] font-normal text-tenue hover:text-inchiostro" />
-          <a href={linkCompleto('pipeline')} className="flex min-h-11 items-center gap-2 rounded-full px-4 text-[14px] text-tenue hover:bg-velo hover:text-inchiostro">
-            Workspace completo <Icona nome="esterno" className="h-4 w-4" />
-          </a>
         </div>
       </nav>
 
@@ -165,9 +152,6 @@ export default function Snella() {
                 <h1 className="text-[28px] font-bold leading-tight text-inchiostro">{titolo}</h1>
                 {dove.voce === 'oggi' && <p className="text-[15px] text-tenue first-letter:uppercase">{GIORNO.format(new Date())}</p>}
               </div>
-              <a href={linkCompleto('pipeline')} className="mt-1.5 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-2 text-[13px] text-tenue hover:bg-velo hover:text-inchiostro lg:hidden">
-                Workspace completo <Icona nome="esterno" className="h-3.5 w-3.5" />
-              </a>
             </header>
           )}
           {!dove.id && dove.voce === 'oggi' && <AvvisoTelefono />}

@@ -12,7 +12,7 @@ import {
 } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Sezione, Vuoto } from './pezzi'
 import { TONO } from './toni'
-import { linkCompleto, useAvviso, useDati, type Avviso } from './uso'
+import { useAvviso, useDati, type Avviso } from './uso'
 
 interface DatiOggi {
   oggi: { dati: NumeriOggi; il: string } | null
@@ -425,7 +425,7 @@ function DaDecidere({ domande, bozze, altro }: { domande: Gruppo[]; bozze: Grupp
     const spiega = x.ultima.tipo === 'risposta' ? 'Risposta pronta: approvala o correggila' : (spiegaDomanda(x.ultima.perche) || 'Clara non sa decidere: guardala tu')
     return (
       <li key={x.ultima.id}>
-        <a href={linkCompleto('posta')} className="flex min-h-12 items-center gap-3 px-4 py-2 hover:bg-velo">
+        <a href="#/d/relazioni" className="flex min-h-12 items-center gap-3 px-4 py-2 hover:bg-velo">
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-semibold text-inchiostro">{titoloDomanda(x.ultima.titolo)}</span>
             <span className="line-clamp-2 text-[13px] leading-snug text-tenue">{spiega}{x.quante > 1 && ` · ${x.quante} in sospeso`}</span>
@@ -451,8 +451,8 @@ function DaDecidere({ domande, bozze, altro }: { domande: Gruppo[]; bozze: Grupp
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <a href={linkCompleto('posta')} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-blu-scuro px-4 text-[14px] font-semibold text-white hover:bg-navy">
-          Decidi nella Posta <Icona nome="esterno" className="h-4 w-4" />
+        <a href="#/d/relazioni" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-blu-scuro px-4 text-[14px] font-semibold text-white hover:bg-navy">
+          Decidi nel Desk
         </a>
         {(domande.length > 5 || bozze.length > 5) && (
           <Bottone tipo="piatto" onClick={() => setTutte(!tutte)}>{tutte ? 'Mostra meno' : 'Mostra tutte'}</Bottone>

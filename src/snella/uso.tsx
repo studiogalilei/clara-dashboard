@@ -63,10 +63,6 @@ export function useDati<T>(carica: () => Promise<T>, dipende: unknown[] = []) {
   return { dati, setDati, errore, caricando: carica_ && dati === null, rifai }
 }
 
-/** Il link a una pagina del Workspace completo (la shell vecchia). */
-export function linkCompleto(dove: string): string {
-  return `#/${dove}`
-}
 
 /** L'indirizzo e' della versione snella? (#/s, #/s/oggi, #/s/lead/<id>...) */
 export function inSnella(hash: string): boolean {

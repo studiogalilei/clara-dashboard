@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { entraConGoogle } from '../lib/google'
-import { entraConCodice } from '../lib/ponte'
-import { installata } from '../lib/notifiche'
+import { supabase } from './lib/supabase'
+import { entraConGoogle } from './lib/google'
+import { entraConCodice } from './lib/ponte'
+import { installata } from './lib/notifiche'
 
 // LA PORTA (11/9): si entra con Google, con la mail @studiogalilei.com.
 // La password resta sotto, per chi ce l'ha ancora o se Google e' giu'.

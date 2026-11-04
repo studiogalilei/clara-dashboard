@@ -134,3 +134,12 @@ su lead che ho già sentito su WhatsApp e che quindi gestisco io».
   consigli tolti. Le note entrano anche nel contesto di ogni decisione («NOTE DI DRAMANE»: ordini). Le note di
   Achille e Clara non contano; le più vecchie di due giorni si archiviano.
 - Prova a secco del 4/11: 2 note («Li ho scritto su WhatsApp») → in mano a Dre; 1 consiglio prematuro da ritirare.
+
+## 4/11 sera: via il Workspace completo
+
+Dre: «elimina la roba del Workspace completo, non serve e non la uso mai… sia per me che per i ragazzi elimina tutto,
+ho già avvisato tutti, ci faremo una piattaforma nostra con calma ma per ora pulizia». Cancellati `src/App.tsx` e
+`src/components/` (53 schermate); resta `src/Login.tsx`. Chi non è ceo, e ogni indirizzo vecchio (#/pipeline, #/posta…),
+trova la pagina «Il Workspace è chiuso» (`src/Chiuso.tsx`). Nel Desk e nella snella spariscono i link «Workspace
+completo»; la pagina Oggi della snella manda le decisioni al Desk. Nessuna tabella toccata: gli script non dipendono
+da quella interfaccia.

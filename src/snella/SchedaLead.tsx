@@ -20,7 +20,7 @@ import {
   type ConStrade, type InAttesa, type NotaFollowUp, type Strada,
 } from './regole'
 import { Bottone, Carico, Errore, Icona, PillolaStato, type NomeIcona } from './pezzi'
-import { linkCompleto, useAvviso, useDati } from './uso'
+import { useAvviso, useDati } from './uso'
 import { BarraInvio, type Invio } from './Invio'
 
 export default function SchedaLead({ id, indietro }: { id: string; indietro: () => void }) {
@@ -179,11 +179,6 @@ export default function SchedaLead({ id, indietro }: { id: string; indietro: () 
               onTolta={(nid) => setDati((x) => x ? { ...x, note: x.note.filter((n) => n.id !== nid) } : x)} />
       </Blocco>
 
-      <p className="mt-10 border-t border-velo pt-3 text-[14px]">
-        <a href={linkCompleto(`azienda/${id}`)} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-blu-scuro hover:underline">
-          Apri nel Workspace completo <Icona nome="esterno" className="h-4 w-4" />
-        </a>
-      </p>
       {invio ? <BarraInvio invio={invio} chiudi={chiudiInvio} finita={rilegge} /> : avviso}
     </article>
   )
@@ -784,7 +779,7 @@ function Analisi({ a }: { a: Scheda['scheda']['analisi'] }) {
         ) : <span className="text-[14px] text-tenue">PDF non agganciato</span>}
       </div>
       {a.punto && <p className="mt-1 max-w-[65ch] text-[14px] leading-snug text-tenue">{a.punto}</p>}
-      {sbaglio && <p role="alert" className="mt-1 text-[14px] font-semibold text-no-testo">Il PDF non si apre: provalo dal Workspace completo.</p>}
+      {sbaglio && <p role="alert" className="mt-1 text-[14px] font-semibold text-no-testo">Il PDF non si apre: riprova fra un minuto.</p>}
     </div>
   )
 }
