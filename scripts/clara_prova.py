@@ -32,7 +32,7 @@ SCHEDA = "Clara in prova"
 RIGHE = 400
 FINESTRA_ORE = 48          # risposte piu' vecchie non si decidono nel giro (il banco storico e' l'esame)
 PER_GIRO = 15              # decisioni al massimo per giro: un tetto alla spesa, non una coda persa
-TETTO_GIORNO = 10.0        # dollari al giorno per il cervello in prova
+TETTO_GIORNO = 25.0        # dollari al giorno per il cervello in prova (notte del 4/11: si rigioca tutto)
 TETTO_GIUDICE = 3.0
 COLONNE = [("Quando", 95), ("Azienda", 150), ("Il lead ha scritto", 340), ("Mossa", 100), ("Perché", 250),
            ("Testo che manderebbe", 400), ("Segnali", 150), ("Giudice", 130),
@@ -65,12 +65,18 @@ def _storia(p):
     return h.get("history") or []
 
 
+RIFAI = "--rifai" in sys.argv       # rigioca con l'identita' nuova le decisioni ancora da fare di versioni vecchie
+
+
 def gia_decisa(pid, risposta_il):
-    r = sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il&prospect_id=eq.{pid}&order=risposta_il.desc&limit=1") or []
+    r = sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il,versione,stato&prospect_id=eq.{pid}&order=risposta_il.desc,creato_il.desc&limit=1") or []
     if not r:
         return False
     a, b = _roma(r[0]["risposta_il"]), _roma(risposta_il)
-    return bool(a and b and abs((a - b).total_seconds()) < 120)
+    stessa = bool(a and b and abs((a - b).total_seconds()) < 120)
+    if stessa and RIFAI and r[0]["stato"] == "proposta" and r[0]["versione"] != clara_sdr.VERSIONE:
+        return False                                         # da rifare con l'identita' nuova
+    return stessa
 
 
 def decidi_lead(p, perche=""):
@@ -104,8 +110,11 @@ def decidi_lead(p, perche=""):
         return riga
     sb("POST", "/rest/v1/clara_decisioni?on_conflict=prospect_id,risposta_il,versione", [riga],
        {"Prefer": "resolution=ignore-duplicates,return=minimal"})
-    # le decisioni vecchie ancora da fare per questo lead sono superate: il lead ha scritto di nuovo
+    # le decisioni vecchie ancora da fare per questo lead sono superate: il lead ha scritto di nuovo,
+    # oppure (--rifai) l'identita' e' cambiata e questa e' la decisione nuova sulla stessa risposta
     sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&risposta_il=lt.{urllib.parse.quote(risposta_il)}&stato=in.(proposta,approvata)",
+       {"stato": "superata"}, {"Prefer": "return=minimal"})
+    sb("PATCH", f"/rest/v1/clara_decisioni?prospect_id=eq.{p['id']}&risposta_il=eq.{urllib.parse.quote(risposta_il)}&versione=neq.{clara_sdr.VERSIONE}&stato=eq.proposta",
        {"stato": "superata"}, {"Prefer": "return=minimal"})
     return riga
 
