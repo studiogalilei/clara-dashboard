@@ -107,6 +107,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
           {l.cosa_fa && <><dt className="text-tenue">Cosa fa</dt><dd>{l.cosa_fa}</dd></>}
           {l.fit_motivo && <><dt className="text-tenue">Il fit</dt><dd>{l.fit_motivo}</dd></>}
           {l.analisi_pdf && <><dt className="text-tenue">Analisi</dt><dd><a href={l.analisi_pdf} target="_blank" rel="noreferrer" className="font-semibold text-navy underline-offset-2 hover:underline">Apri il PDF</a></dd></>}
+          {aperta?.mossa === 'escalate' && aperta.testo && <><dt className="text-tenue">Proposta</dt><dd className="whitespace-pre-wrap">{aperta.testo.trim()}</dd></>}
           <dt className="text-tenue">Fonte</dt><dd>{l.fonte || 'non registrata'}</dd>
         </dl>
         <div className="mt-4 flex flex-wrap gap-2">

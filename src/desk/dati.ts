@@ -48,6 +48,34 @@ export interface Call {
 }
 export interface Operazione { chiave: string; nome: string; ultima_corsa: string | null; ultimo_esito: string | null; ultimo_dettaglio: string | null; attiva: boolean }
 
+/** La spesa dei modelli (uso_modelli, letta solo dai ceo): oggi e gli ultimi 7 giorni, in dollari, per Clara
+ *  (il cervello: scopo clara_sdr) e il giudice (esame_clara). token_in e' gia' pesato per la cache. */
+const PREZZI: Record<string, { in: number; out: number }> = {
+  'claude-fable-5-1': { in: 10, out: 50 }, 'claude-opus-5-5': { in: 4, out: 20 }, 'claude-sonnet-5-5': { in: 2, out: 10 },
+  'claude-sonnet-5': { in: 2, out: 10 }, 'claude-haiku-5-5': { in: 0.1, out: 0.5 },
+}
+export interface Spesa { oggi: number; sette: number; oggiCervello: number; oggiGiudice: number; chiamateOggi: number; giorniConSpesa: number }
+export async function leggiSpesa(): Promise<Spesa> {
+  const da = new Date(Date.now() - 7 * 864e5).toISOString()
+  const { data, error } = await supabase.from('uso_modelli').select('il,scopo,modello,token_in,token_out')
+    .in('scopo', ['clara_sdr', 'esame_clara']).gte('il', da).limit(5000).abortSignal(entro())
+  if (error) guasto(error)
+  const inizioOggi = new Date(); inizioOggi.setHours(0, 0, 0, 0)
+  const out: Spesa = { oggi: 0, sette: 0, oggiCervello: 0, oggiGiudice: 0, chiamateOggi: 0, giorniConSpesa: 0 }
+  const giorni = new Set<string>()
+  for (const r of data ?? []) {
+    const p = PREZZI[r.modello as string] ?? PREZZI['claude-opus-5-5']
+    const d = ((r.token_in as number) * p.in + (r.token_out as number) * p.out) / 1e6
+    out.sette += d; giorni.add(String(r.il).slice(0, 10))
+    if (new Date(r.il as string) >= inizioOggi) {
+      out.oggi += d; out.chiamateOggi += 1
+      if (r.scopo === 'clara_sdr') out.oggiCervello += d; else out.oggiGiudice += d
+    }
+  }
+  out.giorniConSpesa = giorni.size
+  return out
+}
+
 const ATTESA_MS = 20_000
 function entro(ms = ATTESA_MS): AbortSignal {
   const c = new AbortController()

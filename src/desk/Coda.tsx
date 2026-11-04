@@ -110,6 +110,8 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   const s = statoBreve(d)
   const mia = !!d.in_mano_a
   const aperta = d.stato === 'proposta' && !mia
+  const proposta = d.mossa === 'escalate' && !!(d.testo ?? '').trim()        // la sua proposta di risposta: la manda Dre, se vuole
+  const scrive = m.scrive || proposta
   const inPartenza = d.stato === 'approvata' || d.stato === 'in_invio'
   useEffect(() => { setTesto(destinatari(d.testo).corpo); setModifico(false); setChiedoNo(false); setChiedoMia(false) }, [d.id, d.testo])
 
@@ -168,8 +170,8 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
           {d.errore && aperta && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.attesa.morbido}`}>Non è partita: {d.errore}</p>}
         </Blocco>
 
-        {m.scrive && (
-          <Blocco titolo={aperta ? 'La mail che parte' : 'La mail'}>
+        {scrive && (
+          <Blocco titolo={proposta ? 'La sua proposta di risposta' : aperta ? 'La mail che parte' : 'La mail'}>
             {(parti.a || parti.oggetto) && (
               <p className="mb-2 text-[12.5px] text-tenue">{parti.a && <>A <b className="text-inchiostro">{parti.a}</b>{parti.cc && <> · Cc <b className="text-inchiostro">{parti.cc}</b></>}</>}{parti.oggetto && <> · Oggetto: <b className="text-inchiostro">{parti.oggetto}</b></>}</p>
             )}
@@ -186,18 +188,18 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
       </div>
 
       <footer className="space-y-2 border-t border-bordo p-4 lg:p-5">
-        {aperta && m.scrive && !chiedoNo && (
+        {aperta && scrive && !chiedoNo && (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <Bottone tipo="primo" onClick={() => void invia()} disabled={lavoro || !testo.trim()} className="col-span-2">
-                <Icona nome="mail" className="h-4 w-4" /> {modifico ? 'Invia così' : m.bottone}
+              <Bottone tipo="primo" onClick={() => void invia()} disabled={lavoro || !testo.trim() || /\[[^\]]+\]/.test(testo)} className="col-span-2">
+                <Icona nome="mail" className="h-4 w-4" /> {modifico ? 'Invia così' : proposta ? 'Manda la sua proposta' : m.bottone}
               </Bottone>
               {modifico
                 ? <Bottone onClick={() => { void salvaTesto(d.id, testoIntero()); setModifico(false); aggiorna({ ...d, testo: testoIntero() }) }} disabled={lavoro}>Salva senza inviare</Bottone>
                 : <Bottone onClick={() => setModifico(true)} disabled={lavoro}>Modifica</Bottone>}
               <Bottone onClick={() => setChiedoNo(true)} disabled={lavoro}>No</Bottone>
             </div>
-            <p className="text-[12px] text-tenue">Invia = parte entro 5 minuti dalla casella della campagna, nel thread. Se cambi il testo, Clara lo impara.</p>
+            <p className="text-[12px] text-tenue">{proposta && /\[[^\]]+\]/.test(testo) ? 'Tra parentesi quadre c’è un fatto che sa solo tu: tocca Modifica e completalo, poi parte.' : 'Invia = parte entro 5 minuti dalla casella della campagna, nel thread. Se cambi il testo, Clara lo impara.'}</p>
           </>
         )}
         {aperta && d.mossa === 'callback' && !chiedoNo && (
@@ -211,7 +213,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         )}
         {aperta && d.mossa === 'escalate' && !chiedoNo && (
           <>
-            <p className="text-[12.5px] font-semibold text-tenue">Questa è tua. Quando hai fatto:</p>
+            <p className="text-[12.5px] font-semibold text-tenue">{proposta ? 'Oppure, se fai altro:' : 'Questa è tua. Quando hai fatto:'}</p>
             <div className="grid grid-cols-3 gap-2">
               {ESITI_TUA.map((e) => <Bottone key={e.esito} onClick={() => void esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.nome}</Bottone>)}
             </div>

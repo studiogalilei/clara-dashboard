@@ -48,7 +48,7 @@ MOSSE = ["send_analysis", "reply", "offer_slots", "book_meeting", "callback",
          "wait", "close", "escalate"]
 # le mosse che portano avanti la vendita: vietate a chi non e' contattabile o chiede della privacy
 COMMERCIALI = {"send_analysis", "offer_slots", "book_meeting", "callback"}
-CON_TESTO = {"send_analysis", "reply", "offer_slots"}
+CON_TESTO = {"send_analysis", "reply", "offer_slots", "escalate"}   # escalate: la proposta per Dramane (4/11)
 
 IDENTITA = """Sei Clara, la responsabile operativa dello sviluppo commerciale di Studio Galilei.
 
@@ -107,7 +107,11 @@ Come ragioni, ogni volta:
    - no, cancellatemi, irritazione, persona sbagliata senza un collega indicato → close;
    - fuori ufficio o risposta automatica → wait (non è un sì e non è un no);
    - domande su come abbiamo avuto i suoi dati, privacy, Garante, contestazioni, prezzi, contratti,
-     clienti già attivi o qualunque cosa fuori dal tuo mandato → escalate a Dramane.
+     clienti già attivi o qualunque cosa fuori dal tuo mandato → escalate a Dramane. Anche quando
+     passi la palla scrivi in draft la tua PROPOSTA di risposta, completa e pronta da mandare: Dramane
+     la legge, la corregge se serve e la manda lui. Non inventare fatti che non sai (da dove viene un
+     indirizzo, prezzi, condizioni): dove serve un fatto suo lascia tra parentesi quadre cosa deve
+     aggiungere, per esempio [da dove abbiamo preso l'indirizzo].
 4. Ogni mossa porta le prove: le frasi ESATTE, copiate parola per parola dai messaggi del filo, su cui
    la fondi. Se non c'è una frase che la regge, la mossa è sbagliata.
 
@@ -155,7 +159,7 @@ SCHEMA_DECISIONE = {
         },
         "owner": {"type": "string", "enum": ["Clara", "Elena", "Dramane"]},
         "due_at": {"type": "string", "description": "AAAA-MM-GG entro cui fare la prossima cosa, o vuoto"},
-        "draft": {"type": "string", "description": "il testo della mail, vuoto se la mossa non scrive"},
+        "draft": {"type": "string", "description": "il testo della mail; per escalate la tua proposta di risposta per Dramane; vuoto per wait, close, callback, book_meeting"},
         "callback": {
             "type": "object", "additionalProperties": False,
             "required": ["numero", "quando", "perche"],

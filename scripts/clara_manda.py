@@ -30,7 +30,7 @@ MAX_PER_GIRO = 12
 ATTESA_ANALISI_ORE = 24
 LUCCHETTO_APPESO_MIN = 30
 CON_ANALISI = {"send_analysis"}
-CON_TESTO = {"send_analysis", "reply", "offer_slots", "book_meeting"}
+CON_TESTO = {"send_analysis", "reply", "offer_slots", "book_meeting", "escalate"}   # escalate parte solo se Dre la approva nel Desk
 
 
 def adesso():

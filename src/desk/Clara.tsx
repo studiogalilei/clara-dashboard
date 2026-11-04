@@ -1,5 +1,5 @@
 // CLARA: come sta e cosa ha imparato. Numeri veri degli ultimi 7 giorni, senza fronzoli.
-import { leggiCoda, leggiOperazioni, type Decisione, type Operazione } from './dati'
+import { leggiCoda, leggiOperazioni, leggiSpesa, type Decisione, type Operazione, type Spesa } from './dati'
 import { MOSSE } from './regole'
 import { Carico, Errore, Pillola } from '../snella/pezzi'
 import { useDati } from '../snella/uso'
@@ -10,8 +10,8 @@ const NOMI: Record<string, string> = { clara_prova: 'Clara legge e decide', clar
 
 export default function Clara() {
   const { dati, errore, caricando, rifai } = useDati(async () => {
-    const [d, o] = await Promise.all([leggiCoda(14), leggiOperazioni()])
-    return { d, o }
+    const [d, o, s] = await Promise.all([leggiCoda(14), leggiOperazioni(), leggiSpesa().catch((): Spesa | null => null)])
+    return { d, o, s }
   })
   if (caricando) return <Carico righe={3} etichetta="Carico Clara" />
   if (errore && !dati) return <Errore testo={errore} riprova={() => void rifai()} />
@@ -23,6 +23,10 @@ export default function Clara() {
   const ok = n((x) => x.dre_giudizio === 'ok'), no = n((x) => x.dre_giudizio === 'no')
   const pericolose = n((x) => Boolean(x.giudice?.pericoloso))
   const versione = dati?.d[0]?.versione
+  const s = dati?.s ?? null
+  const oggi = new Date(); oggi.setHours(0, 0, 0, 0)
+  const deciseOggi = (dati?.d ?? []).filter((x) => new Date(x.creato_il) >= oggi).length
+  const mediaGiorno = s && s.giorniConSpesa ? s.sette / s.giorniConSpesa : 0
   return (
     <div className="mx-auto max-w-[900px] space-y-4">
       <header>
@@ -35,6 +39,18 @@ export default function Clara() {
         <Kpi nome="Il tuo giudizio" valore={`${ok} ok`} sotto={`${no} no${no + ok ? ` · ${Math.round(ok / (ok + no) * 100)}% d'accordo` : ''}`} />
         <Kpi nome="Segnalate dal revisore" valore={pericolose} sotto={pericolose ? 'da guardare' : 'nessun errore pericoloso'} tono={pericolose ? 'no' : 'ok'} />
       </section>
+      {s && (
+        <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
+          <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">La spesa (API Anthropic)</h2>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi nome="Oggi" valore={`${s.oggi.toFixed(2)} $`} sotto={`cervello ${s.oggiCervello.toFixed(2)} $, giudice ${s.oggiGiudice.toFixed(2)} $`} />
+            <Kpi nome="Per decisione" valore={deciseOggi ? `${(s.oggi / deciseOggi).toFixed(2)} $` : '…'} sotto={`${deciseOggi} decisioni oggi, ${s.chiamateOggi} chiamate`} />
+            <Kpi nome="Media al giorno" valore={`${mediaGiorno.toFixed(2)} $`} sotto={`sugli ultimi ${s.giorniConSpesa} giorni con attività`} />
+            <Kpi nome="Stima mese" valore={`${Math.round(mediaGiorno * 30)} $`} sotto="a questo ritmo, 30 giorni" />
+          </div>
+          <p className="mt-3 text-[12.5px] text-tenue">Ogni chiamata al modello viene registrata con i token: il costo è calcolato dal listino, non stimato. Il cervello è Fable 5.1, il giudice Opus 5.5.</p>
+        </section>
+      )}
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
         <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Cosa ha deciso</h2>
         <ul className="space-y-2">

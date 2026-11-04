@@ -98,9 +98,9 @@ export default function Desk() {
       <a href="#contenuto" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:shadow">Vai al contenuto</a>
 
       {/* a sinistra sul computer: scuro, come una scrivania che resta ferma */}
-      <nav aria-label="Sezioni" className="hidden w-[228px] shrink-0 flex-col bg-navy-scuro px-3 py-6 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh">
+      <nav aria-label="Sezioni" className="hidden w-[228px] shrink-0 flex-col bg-[#0b0b0e] px-3 py-6 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh">
         <div className="mb-7 flex items-center gap-3 px-3">
-          <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/25 bg-white/10 text-[15px] font-black tracking-tight">SG</span>
+          <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-10 w-10 shrink-0 object-contain brightness-0 invert" />
           <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/55">DESK</span></span>
         </div>
         <ul className="space-y-1">
