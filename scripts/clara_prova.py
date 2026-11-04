@@ -129,11 +129,14 @@ def spesa(scopo):
 def risposte_nuove(ore=None):
     """I lead con una risposta nelle ultime FINESTRA_ORE senza una decisione: i piu' recenti prima."""
     da = (adesso() - datetime.timedelta(hours=ore or FINESTRA_ORE)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    righe = sb_tutte(f"/rest/v1/prospects?select=*&last_reply_at=gte.{da}&lead_id=not.is.null&campaign_id=not.is.null")
+    # solo chi aspetta noi e si puo' ancora contattare: a chi ha gia' avuto la nostra risposta, o e'
+    # cliente/perso/non contattare, non serve una mossa (4/11: senza questo filtro erano 581 lead in 30 giorni)
+    righe = sb_tutte(f"/rest/v1/prospects?select=*&last_reply_at=gte.{da}&lead_id=not.is.null&campaign_id=not.is.null&awaiting_us=eq.true")
     righe.sort(key=lambda r: r.get("last_reply_at") or "", reverse=True)
+    from stanza import contattabile
     fuori = []
     for p in righe:
-        if not gia_decisa(p["id"], p["last_reply_at"]):
+        if contattabile(p) and not gia_decisa(p["id"], p["last_reply_at"]):
             fuori.append(p)
     return fuori
 
