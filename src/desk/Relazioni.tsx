@@ -3,8 +3,8 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { aggiungiNota, approva, cerca, giudica, invitoFatto, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro, MOTIVO_WHATSAPP, NOTA_WHATSAPP, whatsappDa } from './regole'
+import { approva, cerca, giudica, invitoFatto, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -30,6 +30,8 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const righe = useMemo(() => dati ? ordina(filtra(dati, filtro, q), new Date()) : [], [dati, filtro, q])
   const conti = useMemo(() => dati ? conta(dati) : null, [dati])
+  // 4/11 sera, Dre: «il consiglio di chiamarlo mettilo in Relazioni, in alto: clicco e mi porta alla sua scheda in Call»
+  const consigliati = useMemo(() => dati ? ordina(filtra(dati, 'consigli'), new Date()) : [], [dati])
   const scelta = dati?.find((d) => d.id === dove.id) ?? null
   // sul computer, senza una scelta, si apre la prima della coda
   const prima = righe[0] ?? null
@@ -78,6 +80,25 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
                  className="min-w-0 flex-1 bg-transparent text-[14px] text-inchiostro outline-none placeholder:text-spento" />
         </label>
       </header>
+      {consigliati.length > 0 && filtro !== 'consigli' && !q.trim() && (
+        <div className="border-b border-bordo p-3 lg:p-4">
+          <p className="mb-1.5 text-[11.5px] font-extrabold uppercase tracking-[.08em] text-giallo-testo">Ti consiglio di chiamare</p>
+          <ul className="space-y-2">
+            {consigliati.slice(0, 3).map((d) => (
+              <li key={`c-${d.id}`} className={`flex flex-wrap items-center gap-3 rounded-xl border px-3.5 py-3 ${TONO.giallo.morbido}`}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14.5px] font-bold">{d.azienda || d.email}{d.persona ? <span className="font-semibold opacity-80">, {d.persona}</span> : null}</span>
+                  {d.consiglio?.perche && <span className="block text-[13px] leading-snug opacity-90">{d.consiglio.perche}</span>}
+                </span>
+                <button onClick={() => vai({ voce: 'call', id: d.id })} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-ok-testo px-3.5 text-[13.5px] font-bold text-white hover:brightness-95">
+                  <Icona nome="telefono" className="h-4 w-4" /> Vai alla chiamata
+                </button>
+              </li>
+            ))}
+            {consigliati.length > 3 && <li><button onClick={() => setFiltro('consigli')} className="text-[13px] font-semibold text-navy hover:underline">Tutti i consigli ({consigliati.length})</button></li>}
+          </ul>
+        </div>
+      )}
       {altre.length > 0 && altre.some((t) => !dati?.some((d) => d.prospect_id === t.id)) && (
         <div className="border-b border-bordo px-3 pt-3 lg:px-4">
           <p className="mb-1.5 text-[11.5px] font-extrabold uppercase tracking-[.08em] text-tenue">Altre aziende</p>
@@ -126,7 +147,7 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
       <div className="lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(380px,1fr)] lg:items-start lg:gap-4">
         <div className={scelta ? 'hidden lg:block' : ''}>{Elenco}</div>
         <div className={scelta ? '' : 'hidden lg:block'}>
-          {dett ? <Scheda key={dett.id} d={dett} indietro={indietro} aggiorna={aggiorna} mostra={mostra} vaiRelazione={() => vai({ voce: 'filo', id: dett.prospect_id })} />
+          {dett ? <Scheda key={dett.id} d={dett} indietro={indietro} aggiorna={aggiorna} mostra={mostra} vaiRelazione={() => vai({ voce: 'filo', id: dett.prospect_id })} vaiCall={() => vai({ voce: 'call', id: dett.id })} />
             : <div className="rounded-2xl border border-bordo bg-white p-8 text-center text-tenue">Scegli una riga.</div>}
         </div>
       </div>
@@ -135,8 +156,8 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
   )
 }
 
-function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
-  d: Decisione; indietro: () => void; aggiorna: (d: Decisione) => void; mostra: (a: { testo: string }) => void; vaiRelazione: () => void
+function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
+  d: Decisione; indietro: () => void; aggiorna: (d: Decisione) => void; mostra: (a: { testo: string }) => void; vaiRelazione: () => void; vaiCall: () => void
 }) {
   const m = MOSSE[d.mossa]
   const parti = destinatari(d.testo)
@@ -217,11 +238,10 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
               <p className="text-[13px] font-bold">Ti consiglio di chiamare{consiglio.esito ? ` (${consiglio.esito === 'chiamato' ? 'chiamato' : 'non ora'})` : ''}</p>
               <p className="mt-0.5 text-[13.5px]">{consiglio.perche}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>
-                {!consiglio.esito && whatsappDa(consiglio.numero) && <button type="button" disabled={lavoro} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-ok-testo px-3 text-[13px] font-bold text-ok-testo hover:bg-ok-fondo"
-                  onClick={() => { window.open(whatsappDa(consiglio.numero) ?? '', '_blank', 'noopener'); void aggiungiNota(d.prospect_id, NOTA_WHATSAPP).catch(() => undefined); prendo(MOTIVO_WHATSAPP) }}>
-                  <Icona nome="whatsapp" className="h-4 w-4" /> WhatsApp</button>}
-                {!consiglio.esito && <><Bottone onClick={() => void chiuso('chiamato')} disabled={lavoro} className="text-[13px]">Chiamato</Bottone><Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone></>}
+                {!consiglio.esito
+                  ? <button onClick={vaiCall} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white hover:brightness-95"><Icona nome="telefono" className="h-4 w-4" /> Vai alla chiamata ({telefonoDa(consiglio.numero) ?? consiglio.numero})</button>
+                  : <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>}
+                {!consiglio.esito && <Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone>}
               </div>
             </div>
           )}

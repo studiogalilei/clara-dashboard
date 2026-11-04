@@ -5,6 +5,7 @@
 // direttore risponde alla chiamata.
 import { supabase } from '../lib/supabase'
 import { aggiungiNota } from '../snella/dati'
+import { MOTIVO_WHATSAPP, NOTA_WHATSAPP } from './regole'
 export { aggiungiNota }
 
 export type Mossa = 'send_analysis' | 'reply' | 'offer_slots' | 'book_meeting' | 'callback' | 'wait' | 'close' | 'escalate'
@@ -50,13 +51,15 @@ export interface NotaChiamata { at: string; testo: string }
 export interface Chiamata {
   id: string; chiamata_id: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null
   quando?: string | null; perche?: string | null; risposta_il?: string | null; lead_testo?: string | null; richiamare_il: string | null
-  note: NotaChiamata[]; origine: 'clara' | 'dre'; creato_il?: string; fase?: string | null; analisi_mandata?: boolean | null; ultima_risposta?: string | null
+  note: NotaChiamata[]; origine: 'clara' | 'dre' | 'consiglio'; creato_il?: string; fase?: string | null; analisi_mandata?: boolean | null; ultima_risposta?: string | null
+  whatsapp_il?: string | null                 // 4/11: «l'ho passato su WhatsApp»: resta in lista come contatto di Dre
+  consiglio?: Consiglio | null                // quando e' un «Ti consiglio di chiamare» di Clara
 }
 export interface Call {
   prossime: Array<{ id?: number; at: string; tipo: string | null; titolo: string | null; link: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null; preparazione: string | null }>
   richiami: Chiamata[]
   mie?: Chiamata[]
-  consigli?: Array<{ id: string; prospect_id: string; azienda: string | null; persona: string | null; telefono: string | null; perche: string | null; mossa: Mossa; stato: Stato; risposta_il: string; lead_testo: string | null; consiglio: Consiglio | null }>
+  consigli?: Chiamata[]
 }
 export interface Operazione { chiave: string; nome: string; ultima_corsa: string | null; ultimo_esito: string | null; ultimo_dettaglio: string | null; attiva: boolean }
 
@@ -250,6 +253,22 @@ export async function modificaNotaChiamata(c: Chiamata, indice: number, testo: s
   return note
 }
 
+/** «WhatsApp» (4/11 sera, Dre): «se clicco vuol dire che l'ho passato e ce l'ho su WhatsApp». La chiamata resta
+ *  nella lista come contatto suo; la relazione passa a Dre (Clara si ferma, niente consigli ne' solleciti); un
+ *  consiglio di Clara si chiude con esito «whatsapp». Torna l'id della riga e l'ora. */
+export async function suWhatsapp(c: Chiamata): Promise<{ id: string; whatsapp_il: string }> {
+  const id = await rigaDi(c)
+  const whatsapp_il = ADESSO()
+  const { error } = await supabase.from('chiamate').update({ whatsapp_il }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  if (c.origine === 'consiglio') { try { await segnaConsiglio(c, 'whatsapp') } catch { /* il consiglio resta aperto, la chiamata e' comunque sua */ } }
+  if (c.prospect_id) {
+    try { await aggiungiNota(c.prospect_id, NOTA_WHATSAPP) } catch { /* la nota resta sulla chiamata */ }
+    await prendiInMano(c.prospect_id, MOTIVO_WHATSAPP)
+  }
+  return { id, whatsapp_il }
+}
+
 /** Quando richiamare (una data; null toglie la programmazione). */
 export async function programmaChiamata(c: Chiamata, giorno: string | null): Promise<string> {
   const id = await rigaDi(c)
@@ -275,6 +294,7 @@ export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): 
   const { error } = await supabase.from('chiamate').update({ esito, esito_il: ADESSO(), ...(nota?.trim() ? { note: [...(c.note ?? []), { at: ADESSO(), testo: nota.trim() }] } : {}) }).eq('id', id).abortSignal(entro())
   if (error) guasto(error)
   if (c.origine === 'clara') await segnaEsito(c.id, esito, nota)
+  else if (c.origine === 'consiglio') { await segnaConsiglio(c, esito); if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata di Dre: ${esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`) } catch { /* niente */ } } }
   else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata di Dre: ${esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`) } catch { /* niente */ } }
 }
 

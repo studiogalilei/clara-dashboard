@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { agendaPulita, destinatari, filtra, gruppoDi, interesse, priorita, statoBreve, telefonoDa, whatsappDa } from './regole'
+import { agendaPulita, destinatari, filtra, gruppoDi, interesse, ordinaChiamate, priorita, statoBreve, telefonoDa, whatsappDa } from './regole'
 import type { Decisione } from './dati'
 
 const base = (x: Partial<Decisione>): Decisione => ({
@@ -73,5 +73,18 @@ describe('il desk: la coda', () => {
       { at: '2026-11-07T10:00:00Z', titolo: 'Team', tipo: 'interna', prospect_id: 'p' },
     ])
     expect(a).toHaveLength(1)
+  })
+})
+
+describe('la lista delle chiamate (4/11 sera)', () => {
+  it('prima le programmate per oggi o in ritardo, poi le future, poi i consigli di Clara, poi le altre', () => {
+    const xs = [
+      { id: 'tua', richiamare_il: null, origine: 'dre', creato_il: '2026-11-04T10:00:00Z' },
+      { id: 'consiglio', richiamare_il: null, origine: 'consiglio', risposta_il: '2026-11-03T10:00:00Z' },
+      { id: 'futura', richiamare_il: '2026-11-06', origine: 'clara', risposta_il: '2026-11-02T10:00:00Z' },
+      { id: 'ritardo', richiamare_il: '2026-11-03', origine: 'clara', risposta_il: '2026-11-01T10:00:00Z' },
+      { id: 'whatsapp', richiamare_il: null, origine: 'dre', creato_il: '2026-11-01T10:00:00Z', whatsapp_il: '2026-11-04T12:00:00Z' },
+    ]
+    expect(ordinaChiamate(xs, '2026-11-04').map((x) => x.id)).toEqual(['ritardo', 'futura', 'consiglio', 'whatsapp', 'tua'])
   })
 })

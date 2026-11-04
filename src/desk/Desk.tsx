@@ -3,7 +3,7 @@
 // Quattro schermate: la Coda (ogni relazione con la mossa di Clara e il testo pronto: Invia,
 // Modifica, No), le Call (prenotate e da richiamare, esiti a un tocco), le Relazioni (cerchi
 // un'azienda, vedi tutto il filo), Clara (come sta, cosa ha imparato).
-// Indirizzi: #/d/coda, #/d/coda/<id>, #/d/call, #/d/relazioni, #/d/relazioni/<id>, #/d/clara.
+// Indirizzi: #/d/coda, #/d/coda/<id>, #/d/call, #/d/call/<id> (la scheda evidenziata), #/d/relazioni, #/d/relazioni/<id>, #/d/clara.
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
@@ -153,7 +153,7 @@ export default function Desk() {
           {dove.voce === 'relazioni' && !dove.id && <AvvisoTelefono />}
           {dove.voce === 'relazioni' ? <Relazioni dove={dove} vai={vai} indietro={indietro} />
             : dove.voce === 'coda' ? <Coda vai={vai} />
-              : dove.voce === 'call' ? <Call vai={vai} />
+              : dove.voce === 'call' ? <Call vai={vai} dove={dove} />
                 : dove.voce === 'filo' ? <Filo dove={dove} vai={vai} indietro={indietro} />
                   : <Analytics />}
         </main>

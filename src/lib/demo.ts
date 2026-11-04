@@ -411,7 +411,7 @@ const desk_note: Riga[] = [
   { id: 1, prospect_id: 'p1', tipo: 'nota', testo: 'Li ho scritti su WhatsApp', at: oreFa(1), autore_nome: 'Dramane' },
 ]
 const desk_chiamate: Riga[] = [
-  { id: 'c1', prospect_id: 'p2', decisione_id: null, azienda: 'Bottega del Legno', persona: 'Anna Verdi', numero: null, richiamare_il: data(-1), note: [{ at: oreFa(2), testo: '3347204807' }], esito: null, creato_il: oreFa(3) },
+  { id: 'c1', prospect_id: 'p2', decisione_id: null, azienda: 'Bottega del Legno', persona: 'Anna Verdi', numero: null, richiamare_il: data(-1), note: [{ at: oreFa(2), testo: '3347204807' }], esito: null, whatsapp_il: null, creato_il: oreFa(3) },
 ]
 const desk_decisioni: Riga[] = [
   { id: 'd1', prospect_id: 'p1', risposta_il: oreFa(5), mossa: 'escalate', owner: 'Dramane', entro_il: null, stato: 'proposta', creato_il: oreFa(4), versione: 'demo', dollari: 0.12,
@@ -442,9 +442,15 @@ function deskCall() {
       { id: 13, at: fra(3).slice(0, 11) + '13:00:00.000Z', tipo: 'conoscitiva', titolo: 'Conoscitiva Solaria Casa', link: 'https://meet.google.com/demo3', prospect_id: 'p1', azienda: 'Solaria Casa', persona: null, telefono: null, preparazione: null },
     ],
     richiami: [],
-    mie: desk_chiamate.filter((c) => !c.esito).map((c) => ({ id: c.id, chiamata_id: c.id, prospect_id: c.prospect_id, azienda: c.azienda, persona: c.persona, telefono: c.numero ?? p2?.phone ?? null,
-      richiamare_il: c.richiamare_il, note: c.note, creato_il: c.creato_il, origine: 'dre', fase: 'risposto', analisi_mandata: true, ultima_risposta: oreFa(30), lead_testo: 'Sì, volentieri, la mandi pure.', perche: null })),
-    consigli: desk_decisioni.filter((d) => d.consiglio && !(d.consiglio as Riga).esito).map((d) => { const p = prospects.find((x) => x.id === d.prospect_id); return { id: d.id, prospect_id: d.prospect_id, azienda: p?.company ?? null, persona: p?.name ?? null, telefono: (d.consiglio as Riga).numero, perche: (d.consiglio as Riga).perche, mossa: d.mossa, stato: d.stato, risposta_il: d.risposta_il, lead_testo: d.lead_testo, consiglio: d.consiglio } }),
+    // come clara_call (v115): le chiamate di Dre e quelle passate su WhatsApp; i consigli con la riga «chiamate» se c'e'
+    mie: desk_chiamate.filter((c) => !c.esito && (!c.decisione_id || c.whatsapp_il)).map((c) => ({ id: c.id, chiamata_id: c.id, prospect_id: c.prospect_id, azienda: c.azienda, persona: c.persona, telefono: c.numero ?? p2?.phone ?? null,
+      richiamare_il: c.richiamare_il, note: c.note, whatsapp_il: c.whatsapp_il ?? null, creato_il: c.creato_il, origine: 'dre', fase: 'risposto', analisi_mandata: true, ultima_risposta: oreFa(30), lead_testo: 'Sì, volentieri, la mandi pure.', perche: null })),
+    consigli: desk_decisioni.filter((d) => d.consiglio && !(d.consiglio as Riga).esito).flatMap((d) => {
+      const p = prospects.find((x) => x.id === d.prospect_id); const c = desk_chiamate.find((x) => x.decisione_id === d.id)
+      if (c && (c.esito || c.whatsapp_il)) return []
+      return [{ id: d.id, prospect_id: d.prospect_id, azienda: p?.company ?? null, persona: p?.name ?? null, telefono: c?.numero ?? (d.consiglio as Riga).numero, perche: (d.consiglio as Riga).perche, mossa: d.mossa, stato: d.stato, risposta_il: d.risposta_il, lead_testo: d.lead_testo, consiglio: d.consiglio,
+        chiamata_id: c?.id ?? null, richiamare_il: c?.richiamare_il ?? null, note: c?.note ?? [], whatsapp_il: c?.whatsapp_il ?? null, origine: 'consiglio' }]
+    }),
   }
 }
 function deskRelazione(chi: string) {

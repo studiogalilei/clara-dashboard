@@ -156,6 +156,13 @@ export function whatsappDa(numero: string | null | undefined): string | null {
 export const NOTA_WHATSAPP = 'Scritto su WhatsApp'
 export const MOTIVO_WHATSAPP = 'gli ho scritto su WhatsApp'
 
+/** La lista delle chiamate in Call, in un ordine solo: prima le programmate per oggi o in ritardo, poi le programmate
+ *  dopo, poi i consigli di Clara, poi le altre senza data (le piu' fresche prima). */
+export function ordinaChiamate<T extends { richiamare_il: string | null; origine: string; risposta_il?: string | null; creato_il?: string; whatsapp_il?: string | null }>(xs: T[], oggi: string): T[] {
+  const chiave = (c: T) => c.richiamare_il ? (c.richiamare_il <= oggi ? `0${c.richiamare_il}` : `1${c.richiamare_il}`) : c.origine === 'consiglio' ? '2' : '3'
+  return [...xs].sort((a, b) => chiave(a).localeCompare(chiave(b)) || (b.whatsapp_il ?? b.risposta_il ?? b.creato_il ?? '').localeCompare(a.whatsapp_il ?? a.risposta_il ?? a.creato_il ?? ''))
+}
+
 export function telefonoDa(testo: string | null | undefined): string | null {
   const m = (testo ?? '').match(/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{3,4}(?:[\s.-]?\d{2,4})?/)
   if (!m) return null
