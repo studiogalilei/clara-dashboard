@@ -96,13 +96,13 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
                 <h3 className={`mb-2 text-[12px] font-extrabold uppercase tracking-[.08em] ${g === oggi ? 'text-navy' : 'text-tenue'}`}>{nomeGiorno(g)}{g === oggi && (call.length + tel.length) ? <span className="ml-2 font-semibold normal-case tracking-normal text-tenue">{call.length ? `${call.length} call` : ''}{call.length && tel.length ? ', ' : ''}{tel.length ? `${tel.length} da chiamare` : ''}</span> : null}</h3>
                 <ul className="space-y-2">
                   {call.map((p, i) => (
-                    <li key={i} className="flex items-center gap-3 rounded-xl border border-bordo px-3.5 py-2.5">
+                    <li key={i} className="flex flex-wrap items-center gap-3 rounded-xl border border-bordo px-3.5 py-2.5">
                       <span className="w-12 shrink-0 text-[15px] font-extrabold text-inchiostro">{ora(p.at)}</span>
-                      <button onClick={() => p.prospect_id && vai({ voce: 'filo', id: p.prospect_id })} className="min-w-0 flex-1 text-left" disabled={!p.prospect_id}>
+                      <button onClick={() => p.prospect_id && vai({ voce: 'filo', id: p.prospect_id })} className="min-w-[9rem] flex-1 text-left" disabled={!p.prospect_id}>
                         <span className="block truncate text-[14.5px] font-bold text-inchiostro">{p.azienda || p.titolo}</span>
                         <span className="block truncate text-[12.5px] text-tenue">{[p.tipo, p.persona].filter(Boolean).join(', ')}</span>
                       </button>
-                      {!p.prospect_id && p.id != null && <Collega fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
+                      {!p.prospect_id && p.id != null && <span className="basis-full sm:basis-auto"><Collega fatto={(pid, lead) => collegata(p.id as number, pid, lead)} /></span>}
                       {p.link && <a href={p.link} target="_blank" rel="noreferrer" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-bordo text-navy hover:border-navy" aria-label="Apri la call"><Icona nome="video" className="h-4 w-4" /></a>}
                     </li>
                   ))}
