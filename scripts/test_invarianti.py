@@ -11,6 +11,7 @@ passa (workflow `controlla`). Niente rete, niente modello: solo le regole.
 import datetime
 import json
 import os
+import pathlib
 import sys
 import zoneinfo
 
@@ -1231,6 +1232,22 @@ def _():
     si = {**persona, "analysis_sent_at": None, "last_reply_at": "2026-10-22T07:18:15+00:00"}
     assert lampo.di_persona(si), "il lampo salta un si' senza analisi"
     assert "analysis_sent_at" in lampo.CAMPI, "il lampo deve leggere analysis_sent_at insieme al lead"
+
+
+@prova("il lampo non riprende una risposta su cui Clara ha gia' deciso di aspettare o chiudere")
+def _():
+    import lampo
+    # turno del 4/11: col Desk il verdetto delle bozze non lo scrive piu' nessuno; una risposta vuota
+    # con la decisione «wait» di Clara tornava nel lampo ogni 10 minuti per sei ore (34 corse)
+    p = {"last_reply_at": "2026-11-04T10:38:05+00:00"}
+    assert lampo.chiusa_da_clara(p, {"mossa": "wait", "risposta_il": "2026-11-04T10:38:05+00:00"})
+    assert lampo.chiusa_da_clara(p, {"mossa": "close", "risposta_il": "2026-11-04T10:38:05+00:00"})
+    assert not lampo.chiusa_da_clara(p, {"mossa": "send_analysis", "risposta_il": "2026-11-04T10:38:05+00:00"}), \
+        "un si' che aspetta l'analisi deve restare nel lampo"
+    assert not lampo.chiusa_da_clara(p, {"mossa": "wait", "risposta_il": "2026-11-04T09:00:00+00:00"}), \
+        "una decisione su una risposta vecchia non chiude quella nuova"
+    assert not lampo.chiusa_da_clara(p, None)
+    assert not lampo.chiusa_da_clara({"last_reply_at": None}, {"mossa": "wait", "risposta_il": "2026-11-04T10:38:05+00:00"})
 
 
 @prova("le bozze rileggono il database prima di scrivere: una mail gia' servita dalla strada veloce non riceve una seconda bozza")
@@ -6851,16 +6868,31 @@ def _():
     assert any("senza il link" in x for x in no) and any("ci faccia sapere" in x for x in no), no
 
 
+COMPONENTI = pathlib.Path(__file__).resolve().parents[1].joinpath("src", "components")
+
+
 def main():
     falliti = 0
+    ritirate = 0
     for nome, f in ESITI:
         try:
             f()
             print(f"  ok    {nome}")
+        except FileNotFoundError as e:
+            # IL WORKSPACE VECCHIO E' CHIUSO (4/11, edbac0e: via App e le 53 schermate di src/components).
+            # Le prove sulle sue schermate non hanno piu' un oggetto: si dicono ritirate, non cadute. Solo
+            # se manda proprio la cartella intera: un file mancante altrove resta una caduta vera.
+            if not COMPONENTI.exists() and str(COMPONENTI) in str(e):
+                ritirate += 1
+                print(f"  via   {nome}: la schermata non esiste piu' (Workspace chiuso il 4/11)")
+                continue
+            falliti += 1
+            print(f"  CADE  {nome}: {type(e).__name__}: {str(e)[:200]}")
         except Exception as e:                                    # noqa: BLE001
             falliti += 1
             print(f"  CADE  {nome}: {type(e).__name__}: {str(e)[:200]}")
-    print(f"{len(ESITI) - falliti}/{len(ESITI)} invarianti tengono")
+    print(f"{len(ESITI) - falliti - ritirate}/{len(ESITI) - ritirate} invarianti tengono"
+          + (f" ({ritirate} ritirate con le schermate del Workspace chiuso)" if ritirate else ""))
     sys.exit(1 if falliti else 0)
 
 

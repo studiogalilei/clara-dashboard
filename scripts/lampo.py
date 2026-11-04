@@ -76,7 +76,40 @@ def fresche():
     # tornava a ogni giro per sei ore: bozze --email non guarda il verdetto. La regola e' quella del
     # giro delle bozze (bozze.letta_dopo_ultima): si riprende solo se riscrive.
     from bozze import letta_dopo_ultima
+    clara = decisioni_di_clara([p["id"] for p in righe])
+    righe = [p for p in righe if not chiusa_da_clara(p, clara.get(p["id"]))]
     return [p for p in righe if p["id"] not in aperte and not letta_dopo_ultima(p) and di_persona(p)][:LAMPO_MAX]
+
+
+# Le mosse di Clara che non portano un'analisi: aspettare o chiudere.
+SENZA_ANALISI = ("wait", "close")
+
+
+def chiusa_da_clara(p, decisione):
+    """Pura. GIA' DECISA DA CLARA (turno del 4/11): col Desk il vecchio giro delle bozze e' spento e il
+    verdetto che letta_dopo_ultima cerca non lo scrive piu' nessuno. Una risposta vuota (il lead che rimanda
+    la nostra mail «non la disturbo oltre») tornava nel lampo ogni 10 minuti per sei ore (34 corse, e a ogni
+    corsa analisi_auto rileggeva il filo col secondo lettore). Se Clara ha gia' deciso su QUESTA risposta di
+    aspettare o chiudere, l'analisi non serve: si riprende solo se il lead riscrive."""
+    if not decisione:
+        return False
+    return decisione.get("mossa") in SENZA_ANALISI and \
+        (decisione.get("risposta_il") or "")[:19] >= (p.get("last_reply_at") or "")[:19] != ""
+
+
+def decisioni_di_clara(ids):
+    """L'ultima decisione di Clara per ogni lead (prospect_id -> riga), letta in una volta."""
+    if not ids:
+        return {}
+    try:
+        righe = sb("GET", "/rest/v1/clara_decisioni?select=prospect_id,mossa,risposta_il&order=creato_il.desc"
+                          f"&prospect_id=in.({','.join(ids)})&limit=200") or []
+    except Exception:                                            # noqa: BLE001
+        return {}                                                # nel dubbio il lampo fa il suo giro
+    ultime = {}
+    for r in righe:
+        ultime.setdefault(r["prospect_id"], r)
+    return ultime
 
 
 def uno(email):
@@ -90,6 +123,9 @@ def uno(email):
     p = righe[0]
     if not di_persona(p):
         print("lampo: risposta automatica o conversazione dopo l'analisi (e' di Dre): niente da fare")
+        return []
+    if chiusa_da_clara(p, decisioni_di_clara([p["id"]]).get(p["id"])):
+        print("lampo: Clara ha gia' deciso di aspettare o chiudere su questa risposta: niente analisi")
         return []
     aperte = sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{p['id']}&stato=in.(aperta,approvata,in_invio)&limit=1") or []
     if aperte:
