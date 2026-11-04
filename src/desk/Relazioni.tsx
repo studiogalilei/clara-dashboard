@@ -103,7 +103,7 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
                   <span title={`Interesse ${interesse(d, adesso)} su 10`} className={`grid h-9 w-11 place-items-center rounded-lg text-[14px] font-extrabold ${interesse(d, adesso) >= 8 ? 'bg-ok-testo text-white' : interesse(d, adesso) >= 5 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{interesse(d, adesso)}</span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
-                    <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(' · ')}</span>
+                    <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(', ')}</span>
                   </span>
                   <span className="flex flex-col items-end gap-1">
                     {d.in_mano_a ? <Pillola testo="Me ne occupo io" tono="stop" /> : <Pillola testo={s.testo.length > 26 ? s.testo.slice(0, 24) + '…' : s.testo} tono={s.tono} piena={s.tono === 'ok'} />}
@@ -184,13 +184,13 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
       <header className="border-b border-bordo p-4 lg:p-5">
         <div className="mb-3 flex items-center justify-between">
           <button onClick={indietro} className="-ml-2 inline-flex min-h-10 items-center gap-1 rounded-full px-2 text-[14px] font-semibold text-navy lg:hidden"><Icona nome="indietro" className="h-4 w-4" /> Relazioni</button>
-          <button onClick={vaiRelazione} className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-full border border-bordo px-3 text-[12.5px] font-semibold text-tenue hover:border-tenue hover:text-inchiostro"><Icona nome="lead" className="h-3.5 w-3.5" /> Tutto il filo</button>
+          <button onClick={vaiRelazione} className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-full border border-ok-testo bg-ok-testo px-3.5 text-[13px] font-bold text-white hover:brightness-95"><Icona nome="lead" className="h-3.5 w-3.5" /> Profilo</button>
         </div>
         <div className="flex items-center gap-3">
           <span title={`Interesse e fit: ${interesse(d)} su 10`} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[18px] font-extrabold ${interesse(d) >= 8 ? 'bg-ok-testo text-white' : interesse(d) >= 5 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{interesse(d)}</span>
           <div className="min-w-0">
             <h2 className="truncate text-[18px] font-bold leading-tight text-inchiostro">{d.azienda || d.email}</h2>
-            <p className="truncate text-[13px] text-tenue">{[d.persona, d.ruolo, d.citta, d.settore].filter(Boolean).join(' · ').replace(/ · /g, ', ')}</p>
+            <p className="truncate text-[13px] text-tenue">{[d.persona, d.ruolo, d.citta, d.settore].filter(Boolean).join(', ')}</p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -210,7 +210,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         )}
         <Blocco titolo="Clara">
           <p className="text-[14px] leading-relaxed text-inchiostro">{d.perche}</p>
-          {d.richiamo?.numero && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero:</span> <a href={`tel:${(telefonoDa(d.richiamo.numero) ?? d.richiamo.numero).replace(/[^\d+]/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(d.richiamo.numero) ?? d.richiamo.numero}</a>{d.richiamo.quando ? <span className="text-tenue"> · {d.richiamo.quando}</span> : null}</p>}
+          {d.richiamo?.numero && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero:</span> <a href={`tel:${(telefonoDa(d.richiamo.numero) ?? d.richiamo.numero).replace(/[^\d+]/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(d.richiamo.numero) ?? d.richiamo.numero}</a>{d.richiamo.quando ? <span className="text-tenue">, {d.richiamo.quando}</span> : null}</p>}
           {!d.richiamo?.numero && d.telefono && d.mossa === 'callback' && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero in scheda:</span> <a href={`tel:${d.telefono.replace(/\s/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{d.telefono}</a></p>}
           {consiglio && (
             <div className={`mt-2 rounded-xl border p-3 ${TONO.giallo.morbido}`}>
@@ -229,7 +229,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         {scrive && (
           <Blocco titolo={proposta ? 'La sua proposta di risposta' : aperta ? 'La mail che parte' : 'La mail'}>
             {(parti.a || parti.oggetto) && (
-              <p className="mb-2 text-[12.5px] text-tenue">{parti.a && <>A <b className="text-inchiostro">{parti.a}</b>{parti.cc && <> · Cc <b className="text-inchiostro">{parti.cc}</b></>}</>}{parti.oggetto && <> · Oggetto: <b className="text-inchiostro">{parti.oggetto}</b></>}</p>
+              <p className="mb-2 text-[12.5px] text-tenue">{parti.a && <>A <b className="text-inchiostro">{parti.a}</b>{parti.cc && <>, Cc <b className="text-inchiostro">{parti.cc}</b></>}</>}{parti.oggetto && <>, Oggetto: <b className="text-inchiostro">{parti.oggetto}</b></>}</p>
             )}
             {modifico && aperta ? (
               <textarea value={testo} onChange={(e) => setTesto(e.target.value)} rows={Math.min(18, Math.max(8, testo.split('\n').length + 2))}

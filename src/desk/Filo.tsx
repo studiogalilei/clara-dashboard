@@ -1,5 +1,5 @@
-// LE RELAZIONI: cerchi un'azienda e vedi tutto: il filo delle mail, le decisioni di Clara, le call, le note.
-import { useEffect, useState } from 'react'
+// IL PROFILO (4/11): cerchi un'azienda e vedi tutto, a colpo d'occhio: sito, email, referenti, note; poi le decisioni di Clara e il filo.
+import { useEffect, useState, type ReactNode } from 'react'
 import { aggiungiNota, cerca, leggiRelazione, prendiInMano, type Trovato } from './dati'
 import { MOSSE, iniziali } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
@@ -10,6 +10,15 @@ import type { Dove } from './Desk'
 export default function Filo({ dove, vai, indietro }: { dove: Dove; vai: (d: Dove) => void; indietro: () => void }) {
   if (dove.id) return <Relazione id={dove.id} indietro={indietro} vai={vai} />
   return <Ricerca vai={vai} />
+}
+
+function Tessera({ titolo, children }: { titolo: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-bordo bg-velo/40 px-3 py-2.5 text-[14px] leading-snug">
+      <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">{titolo}</p>
+      {children}
+    </div>
+  )
 }
 
 function Ricerca({ vai }: { vai: (d: Dove) => void }) {
@@ -42,7 +51,7 @@ function Ricerca({ vai }: { vai: (d: Dove) => void }) {
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-navy/[0.08] text-[12px] font-extrabold text-navy">{iniziali(t.azienda)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14.5px] font-bold text-inchiostro">{t.azienda || t.email}</span>
-                  <span className="block truncate text-[12.5px] text-tenue">{[t.persona, t.citta, t.fase?.replace(/_/g, ' ')].filter(Boolean).join(' · ').replace(/ · /g, ', ')}</span>
+                  <span className="block truncate text-[12.5px] text-tenue">{[t.persona, t.citta, t.fase?.replace(/_/g, ' ')].filter(Boolean).join(', ')}</span>
                 </span>
                 <span className="shrink-0 text-[12px] text-tenue">{t.ultima_risposta ? quando(t.ultima_risposta) : 'mai risposto'}</span>
               </button>
@@ -87,10 +96,11 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
         <button onClick={indietro} className="-ml-2 mb-3 inline-flex min-h-10 items-center gap-1 rounded-full px-2 text-[14px] font-semibold text-navy"><Icona nome="indietro" className="h-4 w-4" /> Indietro</button>
         <div className="flex items-start gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-navy/[0.08] text-[16px] font-extrabold text-navy">{iniziali(l.azienda)}</span>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ok-testo text-[16px] font-extrabold text-white">{iniziali(l.azienda)}</span>
           <div className="min-w-0 flex-1">
+            <p className="text-[11.5px] font-extrabold uppercase tracking-[.08em] text-ok-testo">Profilo</p>
             <h1 className="text-[22px] font-bold leading-tight text-inchiostro">{l.azienda || l.email}</h1>
-            <p className="text-[13.5px] text-tenue">{[l.persona, l.ruolo, l.citta, l.settore].filter(Boolean).join(', ')}</p>
+            <p className="text-[13.5px] text-tenue">{[l.citta, l.settore].filter(Boolean).join(', ')}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {l.fase && <Pillola testo={l.fase.replace(/_/g, ' ')} tono={l.fase === 'cliente' ? 'ok' : l.fase === 'perso' ? 'no' : 'neutro'} />}
               {l.analisi_mandata && <Pillola testo={`Analisi mandata ${quando(l.analisi_il)}`} tono="noi" />}
@@ -100,10 +110,21 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
             </div>
           </div>
         </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <Tessera titolo="Sito">
+            {l.sito ? <a href={/^https?:/.test(l.sito) ? l.sito : `https://${l.sito}`} target="_blank" rel="noreferrer" className="break-all font-bold text-navy underline-offset-2 hover:underline">{l.sito.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a> : <span className="text-tenue">non registrato</span>}
+          </Tessera>
+          <Tessera titolo="Email">
+            <a href={`mailto:${l.email}`} className="break-all font-bold text-navy underline-offset-2 hover:underline">{l.email}</a>
+            {(l.altre_email ?? []).filter((e) => e && e !== l.email).map((e) => <a key={e} href={`mailto:${e}`} className="block break-all text-[13px] text-navy underline-offset-2 hover:underline">{e}</a>)}
+          </Tessera>
+          <Tessera titolo={l.persona ? 'Referente' : 'Referenti'}>
+            {l.persona ? <span className="block font-bold text-inchiostro">{l.persona}</span> : <span className="text-tenue">nessun nome</span>}
+            {l.ruolo && <span className="block text-[13px] text-tenue">{l.ruolo}</span>}
+            {l.telefono && <a href={`tel:${l.telefono.replace(/\s/g, '')}`} className="block font-semibold text-navy underline-offset-2 hover:underline">{l.telefono}</a>}
+          </Tessera>
+        </div>
         <dl className="mt-4 grid grid-cols-[92px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
-          <dt className="text-tenue">Email</dt><dd className="break-all font-semibold">{l.email}</dd>
-          {l.telefono && <><dt className="text-tenue">Telefono</dt><dd><a href={`tel:${l.telefono.replace(/\s/g, '')}`} className="font-semibold text-navy underline-offset-2 hover:underline">{l.telefono}</a></dd></>}
-          {l.sito && <><dt className="text-tenue">Sito</dt><dd><a href={/^https?:/.test(l.sito) ? l.sito : `https://${l.sito}`} target="_blank" rel="noreferrer" className="font-semibold text-navy underline-offset-2 hover:underline">{l.sito.replace(/^https?:\/\/(www\.)?/, '')}</a></dd></>}
           {l.cosa_fa && <><dt className="text-tenue">Cosa fa</dt><dd>{l.cosa_fa}</dd></>}
           {l.fit_motivo && <><dt className="text-tenue">Il fit</dt><dd>{l.fit_motivo}</dd></>}
           {l.analisi_pdf && <><dt className="text-tenue">Analisi</dt><dd><a href={l.analisi_pdf} target="_blank" rel="noreferrer" className="font-semibold text-navy underline-offset-2 hover:underline">Apri il PDF</a></dd></>}
@@ -117,6 +138,18 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
       </section>
 
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
+        <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Note e agenda</h2>
+        <div className="flex gap-2">
+          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Una nota per te e per Clara" aria-label="Nota"
+                 onKeyDown={(e) => { if (e.key === 'Enter') void salvaNota() }}
+                 className="min-h-11 min-w-0 flex-1 rounded-xl border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
+          <Bottone onClick={() => void salvaNota()} disabled={!nota.trim()}>Salva</Bottone>
+        </div>
+        {dati.note.length > 0 && <ul className="mt-3 space-y-1.5 text-[13.5px]">{dati.note.map((n, i) => <li key={i}><span className="text-tenue">{quando(n.at)}</span>, {n.testo}</li>)}</ul>}
+        {dati.agenda.length > 0 && <ul className="mt-3 space-y-1 border-t border-bordo pt-3 text-[13.5px]">{dati.agenda.map((a, i) => <li key={i}><b>{quando(a.at)}</b>, {a.tipo || a.titolo}{a.link && <> (<a href={a.link} className="text-navy underline-offset-2 hover:underline" target="_blank" rel="noreferrer">apri</a>)</>}</li>)}</ul>}
+      </section>
+
+      <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
         <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Il filo, dal più recente</h2>
         {dati.filo.length === 0 ? <p className="text-[13.5px] text-tenue">Nessuna mail registrata.</p> : (
           <ul className="space-y-3">
@@ -124,7 +157,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
               const nostra = m.tipo === 'email_out'
               return (
                 <li key={i} className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed ${nostra ? 'ml-auto rounded-br-md bg-noi-fondo text-inchiostro' : 'rounded-bl-md bg-loro-fondo/70 text-inchiostro'}`}>
-                  <p className={`mb-1 text-[11.5px] font-bold ${nostra ? 'text-noi-testo' : 'text-loro-testo'}`}>{nostra ? 'Noi' : l.persona || 'Lead'} · {quando(m.at)}</p>
+                  <p className={`mb-1 text-[11.5px] font-bold ${nostra ? 'text-noi-testo' : 'text-loro-testo'}`}>{nostra ? 'Noi' : l.persona || 'Lead'}, {quando(m.at)}</p>
                   <p className="whitespace-pre-wrap">{(m.testo ?? '').trim().slice(0, 2500)}</p>
                 </li>
               )
@@ -141,7 +174,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
               <li key={d.id} className="rounded-xl border border-bordo px-3.5 py-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Pillola testo={MOSSE[d.mossa].nome} tono={MOSSE[d.mossa].tono} />
-                  <span className="text-[12.5px] text-tenue">{quando(d.creato_il)} · {d.stato}{d.esito ? ` · ${d.esito}` : ''}{d.dre_giudizio ? ` · Dre: ${d.dre_giudizio}` : ''}</span>
+                  <span className="text-[12.5px] text-tenue">{quando(d.creato_il)}, {d.stato}{d.esito ? `, ${d.esito}` : ''}{d.dre_giudizio ? `, Dre: ${d.dre_giudizio}` : ''}</span>
                 </div>
                 {d.perche && <p className="mt-1 text-[13.5px] text-inchiostro">{d.perche}</p>}
                 {d.dre_nota && <p className="mt-1 text-[13px] text-tenue">Dre: {d.dre_nota}</p>}
@@ -151,17 +184,6 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
         )}
       </section>
 
-      <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
-        <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Agenda e note</h2>
-        {dati.agenda.length > 0 && <ul className="mb-3 space-y-1 text-[13.5px]">{dati.agenda.map((a, i) => <li key={i}><b>{quando(a.at)}</b> · {a.tipo || a.titolo}{a.link && <> · <a href={a.link} className="text-navy underline-offset-2 hover:underline" target="_blank" rel="noreferrer">apri</a></>}</li>)}</ul>}
-        <div className="flex gap-2">
-          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Una nota per te e per Clara" aria-label="Nota"
-                 onKeyDown={(e) => { if (e.key === 'Enter') void salvaNota() }}
-                 className="min-h-11 min-w-0 flex-1 rounded-xl border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
-          <Bottone onClick={() => void salvaNota()} disabled={!nota.trim()}>Salva</Bottone>
-        </div>
-        {dati.note.length > 0 && <ul className="mt-3 space-y-1.5 text-[13.5px]">{dati.note.map((n, i) => <li key={i}><span className="text-tenue">{quando(n.at)}</span> · {n.testo}</li>)}</ul>}
-      </section>
       {vista}
     </div>
   )
