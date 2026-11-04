@@ -7,7 +7,7 @@ const base = (x: Partial<Decisione>): Decisione => ({
   testo: 'ciao', testo_clara: 'ciao', perche: null, prove: [], richiamo: null, segnali: [], giudice: null, stato: 'proposta',
   lead_testo: null, approvata_il: null, inviata_il: null, verificata_il: null, errore: null, esito: null, esito_il: null,
   creato_il: '2026-11-03T10:01:00Z', versione: 'v', dollari: 0.04, dre_giudizio: null, azienda: 'Rossi Srl', persona: 'Mario Rossi',
-  ruolo: null, email: 'm@rossi.it', citta: 'Pesaro', settore: null, telefono: null, sito: null, analisi_pdf: false, analisi_mandata: false,
+  ruolo: null, email: 'm@esempio.it', citta: 'Pesaro', settore: null, telefono: null, sito: null, analisi_pdf: false, analisi_mandata: false,
   fase: null, classe: null, ultima_risposta: null, prossima_call: null, ...x,
 })
 const adesso = new Date('2026-11-03T12:00:00Z')

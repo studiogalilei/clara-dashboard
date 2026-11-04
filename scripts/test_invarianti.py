@@ -3852,7 +3852,7 @@ def _():
     assert stati["vecchio"] is None and stati["giu"] == "fallito" and stati["nuovo"].startswith("20"), stati
 
 
-@prova("web app: l'icona sulla Home apre la versione snella su Oggi, e il tocco su una notifica apre il suo indirizzo")
+@prova("web app: l'icona sulla Home apre il Desk (anche quella vecchia su Oggi), e il tocco su una notifica apre il suo indirizzo")
 def _():
     import re as _re
     radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -3860,11 +3860,13 @@ def _():
     v = leggi("vite.config.ts")
     start = _re.search(r"start_url:\s*'([^']+)'", v).group(1)
     scope = _re.search(r"scope:\s*'([^']+)'", v).group(1)
-    assert start == "./#/s/oggi" and scope == "./", (start, scope)
+    # 4/11: l'icona apre il Desk (#/d/coda), quello che Dre usa ogni giorno; la snella resta a #/s
+    assert start == "./#/d/coda" and scope == "./", (start, scope)
     assert "display: 'standalone'" in v, "senza standalone l'iPhone non da' le notifiche"
-    uso = leggi("src", "snella", "uso.tsx")
-    rx = _re.search(r"return /(.+)/\.test\(hash\)", uso).group(1)
-    assert _re.match(rx.replace("\\/", "/"), "#" + start.split("#", 1)[1]), "lo start_url non e' un indirizzo della versione snella"
+    desk = leggi("src", "desk", "Desk.tsx")
+    rx = _re.search(r"export function inDesk[^{]*\{\s*return /(.+?)/\.test", desk).group(1)
+    assert _re.match(rx.replace("\\/", "/"), "#" + start.split("#", 1)[1]), "lo start_url non e' un indirizzo del Desk"
+    assert r"/^#\/s\/oggi\/?$/" in leggi("src", "Radice.tsx"), "l'icona vecchia (#/s/oggi) non porta piu' al Desk"
     h = leggi("index.html")
     for meta in ("apple-mobile-web-app-capable", "apple-mobile-web-app-title", "viewport-fit=cover", 'sizes="180x180"'):
         assert meta in h, f"manca {meta} in index.html"
