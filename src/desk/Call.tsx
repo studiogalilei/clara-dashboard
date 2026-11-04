@@ -16,8 +16,7 @@ import type { Dove } from './Desk'
 const oggiIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const giornoBreve = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
 const ESITI: Array<{ esito: string; nome: string; tipo?: 'primo' }> = [
-  { esito: 'fissata', nome: 'Call fissata', tipo: 'primo' }, { esito: 'non_risponde', nome: 'Non risponde' },
-  { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
+  { esito: 'fissata', nome: 'Call fissata', tipo: 'primo' }, { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
 ]
 
 export default function Call({ vai }: { vai: (d: Dove) => void }) {
@@ -222,7 +221,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
           <Bottone tipo="piatto" onClick={() => setProgrammo(false)} disabled={lavoro}>Annulla</Bottone>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2">
           {ESITI.map((e) => <Bottone key={e.esito} tipo={e.tipo ?? 'secondo'} onClick={() => esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.nome}</Bottone>)}
         </div>
       )}

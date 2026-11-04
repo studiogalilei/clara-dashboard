@@ -102,8 +102,8 @@ export function statoBreve(d: Pick<Decisione, 'stato' | 'mossa' | 'errore' | 'es
 }
 
 export const ESITI_CHIAMATA: Array<{ esito: string; nome: string }> = [
-  { esito: 'fissata', nome: 'Call fissata' }, { esito: 'non_risponde', nome: 'Non risponde' },
-  { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
+  // 4/11, Dre: «Non risponde non ha senso, tutto deve essere actionable: non risponde? si richiama». Tre esiti.
+  { esito: 'fissata', nome: 'Call fissata' }, { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
 ]
 export const ESITI_TUA: Array<{ esito: string; nome: string }> = [
   { esito: 'risposto_io', nome: 'Ho risposto io' }, { esito: 'chiuso', nome: 'Chiudo qui' }, { esito: 'rimandato', nome: 'Più avanti' },

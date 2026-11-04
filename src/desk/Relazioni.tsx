@@ -3,7 +3,7 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { approva, cerca, giudica, leggiCoda, prendiInMano, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
+import { approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
 import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -129,6 +129,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   const [modifico, setModifico] = useState(false)
   const [chiedoNo, setChiedoNo] = useState(false)
   const [chiedoMia, setChiedoMia] = useState(false)
+  const [richiamo, setRichiamo] = useState<string | null>(null)       // la data in cui richiamare, quando si sceglie «Richiamare»
   const [motivo, setMotivo] = useState('')
   const [lavoro, setLavoro] = useState(false)
   const s = statoBreve(d)
@@ -149,7 +150,12 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   }
   const invia = () => fai(() => approva(d, testoIntero()), { stato: 'approvata', approvata_il: new Date().toISOString(), testo: testoIntero(), dre_giudizio: 'ok', errore: null }, 'In partenza: parte entro pochi minuti dal thread di Smartlead.')
   const no = () => fai(() => scarta(d.id, motivo), { stato: 'scartata', dre_giudizio: 'no' }, 'Scartata. Clara se lo segna.')
-  const esito = (e: string) => fai(() => segnaEsito(d.id, e), { stato: 'fatta', esito: e, esito_il: new Date().toISOString() }, 'Segnato.')
+  const esito = (e: string) => {
+    if (e === 'richiamare') { const t = new Date(); setRichiamo(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`); return Promise.resolve() }
+    return fai(() => segnaEsito(d.id, e), { stato: 'fatta', esito: e, esito_il: new Date().toISOString() }, 'Segnato.')
+  }
+  const programma = (g: string) => fai(() => programmaChiamata({ id: d.id, chiamata_id: null, prospect_id: d.prospect_id, azienda: d.azienda, persona: d.persona, telefono: d.richiamo?.numero || d.telefono, richiamare_il: null, note: [], origine: 'clara' }, g).then(() => undefined),
+    {}, `Richiami ${new Date(`${g}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}: la trovi in Call.`).then(() => setRichiamo(null))
   const okCosi = () => fai(() => giudica(d.id, true), { dre_giudizio: 'ok' }, 'Bene: Clara impara che va bene così.')
   const nonCosi = () => fai(() => giudica(d.id, false, motivo), { dre_giudizio: 'no' }, 'Segnato: Clara impara.')
   const prendo = (perche: string) => fai(() => prendiInMano(d.prospect_id, perche),
@@ -241,9 +247,18 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         {aperta && d.mossa === 'callback' && !chiedoNo && (
           <>
             <p className="text-[12.5px] font-semibold text-tenue">Dopo la chiamata:</p>
-            <div className="grid grid-cols-2 gap-2">
-              {ESITI_CHIAMATA.map((e) => <Bottone key={e.esito} tipo={e.esito === 'fissata' ? 'primo' : 'secondo'} onClick={() => void esito(e.esito)} disabled={lavoro}>{e.nome}</Bottone>)}
-            </div>
+            {richiamo !== null ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-bordo bg-fondo/60 p-2.5">
+                <span className="text-[13px] font-semibold">Richiamare il</span>
+                <input type="date" value={richiamo} onChange={(e) => setRichiamo(e.target.value)} className="min-h-10 rounded-lg border border-bordo bg-white px-2 text-[14px] outline-none focus:border-navy" />
+                <Bottone tipo="primo" onClick={() => void programma(richiamo)} disabled={lavoro || !richiamo}>Ok</Bottone>
+                <Bottone tipo="piatto" onClick={() => setRichiamo(null)} disabled={lavoro}>Annulla</Bottone>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {ESITI_CHIAMATA.map((e) => <Bottone key={e.esito} tipo={e.esito === 'fissata' ? 'primo' : 'secondo'} onClick={() => void esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.nome}</Bottone>)}
+              </div>
+            )}
             <Bottone tipo="piatto" onClick={() => setChiedoNo(true)} disabled={lavoro} className="w-full">Non andava chiamato</Bottone>
           </>
         )}
