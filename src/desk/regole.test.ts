@@ -43,8 +43,8 @@ describe('il desk: la coda', () => {
     const d = destinatari('A: marketing@x.it — Cc: capo@x.it\nOggetto: Analisi\n\nBuongiorno,\ntesto')
     expect(d).toEqual({ a: 'marketing@x.it', cc: 'capo@x.it', oggetto: 'Analisi', corpo: 'Buongiorno,\ntesto' })
     expect(destinatari('Buongiorno').corpo).toBe('Buongiorno')
-    const due = destinatari('A: sede@x.it\nCc: chi@x.pl\n\nBuongiorno')
-    expect(due).toEqual({ a: 'sede@x.it', cc: 'chi@x.pl', oggetto: null, corpo: 'Buongiorno' })
+    const due = destinatari('A: sede@x.invalid\nCc: chi@altro.invalid\n\nBuongiorno')
+    expect(due).toEqual({ a: 'sede@x.invalid', cc: 'chi@altro.invalid', oggetto: null, corpo: 'Buongiorno' })
   })
 
   it('il numero si tira fuori dal testo e l\'agenda perde i doppioni e gli impegni interni', () => {
