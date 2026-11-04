@@ -143,6 +143,12 @@ restavano come «Invia» nel Desk: ora `supera_vecchie()` le ritira a ogni giro 
 abbiamo già scritto dopo quella mail; 3) il revisore sul vivo, 30 decisioni v3.1: 29 giuste, 1 accettabile,
 0 pericolose.
 
+Com'è la coda al mattino del 4/11 (v3.2, 104 relazioni che aspettano noi): 18 da fare (3 analisi da mandare,
+2 proposte di orari, 2 richiami, 6 risposte, 5 «decidi tu»), 41 in attesa con una data, 45 chiuse. Revisore
+su 60: 38 giuste, 22 accettabili (quasi tutte «avrei mandato due righe di cortesia» dove Clara chiude per il
+tempo passato: lo decide Dre con gli ok/no), 0 pericolose. Spesa della notte: circa 12 $ di cervello e 10 $
+di revisore.
+
 ## Il Desk (notte del 3-4/11)
 
 Dre, 3/11 sera: «buttiamo al cesso l'intero sistema fatto finora e mi crei una nuova dashboard per
