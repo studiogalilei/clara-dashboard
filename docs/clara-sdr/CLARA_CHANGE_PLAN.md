@@ -136,6 +136,13 @@ sono quasi tutte «ha risposto due righe a un no secco»: corretto in v3.1 (a un
 risponde). Sul vivo (prima notte, 46 decisioni votate): 38 giuste, 8 accettabili, 0 pericolose. Identità v3.1 sullo stesso banco: 0 pericolosi, 29 giuste, 6 accettabili (le accettabili restano
 giudizi di stile: una riga di cortesia in più o in meno).
 
+Lezioni della prima coda viva (notte del 4/11, 104 relazioni che aspettavano noi): 1) Clara non sapeva che
+giorno fosse e proponeva due righe di cortesia a no gentili di tre settimane prima: ora il contesto apre
+con «OGGI» e la regola «il tempo conta» (v3.2); 2) le decisioni su lead già serviti dal sistema vecchio
+restavano come «Invia» nel Desk: ora `supera_vecchie()` le ritira a ogni giro e il postino non manda se
+abbiamo già scritto dopo quella mail; 3) il revisore sul vivo, 30 decisioni v3.1: 29 giuste, 1 accettabile,
+0 pericolose.
+
 ## Il Desk (notte del 3-4/11)
 
 Dre, 3/11 sera: «buttiamo al cesso l'intero sistema fatto finora e mi crei una nuova dashboard per
