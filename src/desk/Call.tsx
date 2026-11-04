@@ -3,7 +3,7 @@
 // lo stesso); per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco. Sotto, «Ti consiglio di
 // chiamare» e le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useState } from 'react'
-import { aggiungiChiamata, aggiungiNota, cerca, collegaCall, esitoChiamata, leggiCall, notaChiamata, numeroChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
+import { aggiungiChiamata, aggiungiNota, cerca, collegaCall, esitoChiamata, leggiCall, modificaNotaChiamata, notaChiamata, numeroChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
 
 type Consigliato = NonNullable<DatiCall['consigli']>[number]
 import { MOTIVO_WHATSAPP, NOTA_WHATSAPP, agendaPulita, telefonoDa, whatsappDa } from './regole'
@@ -311,7 +311,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra }: { r: Chiamata; oggi: string;
       )}
       {r.perche && <p className="text-[13.5px] leading-relaxed text-inchiostro">{r.perche}</p>}
       {r.lead_testo && <blockquote className="rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2 text-[13px] text-inchiostro">{r.lead_testo.replace(/\s+/g, ' ').slice(0, 240)}</blockquote>}
-      <Note note={r.note ?? []} />
+      <Note note={r.note ?? []} modifica={async (i, t) => { try { const note = await modificaNotaChiamata(r, i, t); aggiorna(r, { ...r, note }); mostra({ testo: 'Nota corretta.' }) } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) } }} />
       <div className="flex gap-2">
         <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nota veloce" aria-label="Nota veloce" onKeyDown={(e) => { if (e.key === 'Enter') void annota() }}
                className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />

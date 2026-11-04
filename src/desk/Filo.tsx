@@ -1,6 +1,6 @@
 // IL PROFILO (4/11): cerchi un'azienda e vedi tutto, a colpo d'occhio: sito, email, referenti, note; poi le decisioni di Clara e il filo.
 import { useEffect, useState, type ReactNode } from 'react'
-import { aggiungiNota, cerca, leggiRelazione, prendiInMano, type Trovato } from './dati'
+import { aggiungiNota, cerca, leggiRelazione, modificaNota, prendiInMano, type Trovato } from './dati'
 import { MOSSE, iniziali } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -146,7 +146,12 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
           <Bottone onClick={() => void salvaNota()} disabled={!nota.trim()}>Salva</Bottone>
         </div>
-        <Note note={dati.note} className="mt-3" />
+        <Note note={dati.note} className="mt-3" modifica={async (i, t) => {
+          const n = dati.note[i]
+          if (!n?.id) { mostra({ testo: 'Questa nota non si può modificare.' }); return }
+          try { await modificaNota(n.id, t); setDati((prev) => prev ? { ...prev, note: prev.note.map((x, k) => k === i ? { ...x, testo: t } : x) } : prev); mostra({ testo: 'Nota corretta. Clara la rilegge.' }) }
+          catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) }
+        }} />
         {dati.agenda.length > 0 && <ul className="mt-3 space-y-1 border-t border-bordo pt-3 text-[13.5px]">{dati.agenda.map((a, i) => <li key={i}><b>{quando(a.at)}</b>, {a.tipo || a.titolo}{a.link && <> (<a href={a.link} className="text-navy underline-offset-2 hover:underline" target="_blank" rel="noreferrer">apri</a>)</>}</li>)}</ul>}
       </section>
 

@@ -42,7 +42,7 @@ export interface Relazione {
   filo: Messaggio[]
   decisioni: Array<{ id: string; risposta_il: string; mossa: Mossa; owner: string | null; testo: string | null; perche: string | null; stato: Stato; inviata_il: string | null; esito: string | null; dre_giudizio: string | null; dre_nota: string | null; creato_il: string }>
   agenda: Array<{ at: string; tipo: string | null; titolo: string | null; link: string | null }>
-  note: Array<{ at: string; tipo: string; testo: string }>
+  note: Array<{ id?: number; at: string; tipo: string; testo: string; autore?: string | null }>
   scheda: { stato: string | null; prossima_mossa: string | null; prossima_il: string | null; responsabile: string | null } | null
 }
 export interface Trovato { id: string; azienda: string | null; persona: string | null; email: string; citta: string | null; telefono?: string | null; fase: string | null; classe: string | null; ultima_risposta: string | null; analisi_mandata: boolean }
@@ -221,6 +221,25 @@ export async function numeroChiamata(c: Chiamata, numero: string): Promise<strin
     if (e2) guasto(e2)
   }
   return id
+}
+
+/** Una nota di Dre corretta (4/11). Clara la rilegge (clara_letta_il torna vuoto). */
+export async function modificaNota(id: number, testo: string): Promise<void> {
+  const { error } = await supabase.from('snella_note').update({ testo: testo.trim(), clara_letta_il: null }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+}
+
+/** Una nota di una chiamata corretta: sulla chiamata e, se il lead e' in scheda, anche nella copia per Clara. */
+export async function modificaNotaChiamata(c: Chiamata, indice: number, testo: string): Promise<NotaChiamata[]> {
+  const id = await rigaDi(c)
+  const vecchia = (c.note ?? [])[indice]
+  const note = (c.note ?? []).map((n, i) => i === indice ? { ...n, testo: testo.trim() } : n)
+  const { error } = await supabase.from('chiamate').update({ note }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  if (c.prospect_id && vecchia) {
+    try { await supabase.from('snella_note').update({ testo: `Chiamata: ${testo.trim()}`, clara_letta_il: null }).eq('prospect_id', c.prospect_id).eq('testo', `Chiamata: ${vecchia.testo}`).abortSignal(entro()) } catch { /* la copia per Clara resta vecchia */ }
+  }
+  return note
 }
 
 /** Quando richiamare (una data; null toglie la programmazione). */
