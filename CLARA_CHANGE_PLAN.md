@@ -49,3 +49,29 @@ vedono → ogni voce è una scheda con bordo e angoli arrotondati (Coda, Call, R
 
 Prossima fase, decisa da Dre: liste nuove con scraping, Google/Meta/LinkedIn fit e telefoni raccolti prima;
 lui fa solo le chiamate.
+
+## 4/11 pomeriggio: le quattro zone del Desk
+
+Dre, davanti al Desk: «la coda attuale chiamala Relazioni; la Coda sia la coda delle cose di Clara, per avere
+sempre in vista le sue attività, cosa sta facendo e cosa farà, una zona ad elenco; la pagina Clara chiamala
+Analytics (lì non posso fare nulla, monitoro il lavoro di Clara che è una mia collega); il "Decidi tu" vorrei
+fosse dove lei mi propone di intervenire chiamando perché c'è il numero (manda avanti il lavoro, ma mi
+consiglia un touchpoint); dopo lo scraping nuovo coi numeri aziendali diventerà la norma, mentre i Da chiamare
+in verde sono i certi». Colori: barra blu scuro, voce attiva bianca con testo blu, testi neri, bottoni bianco su
+verde, blu minimale.
+
+Fatto:
+- **Relazioni** = la Coda di prima, identica, a `#/d/relazioni` (start_url e ingresso del Desk). In più la
+  ricerca su tutte le aziende («Altre aziende», apre il filo). Il filo intero sta a `#/d/filo/<prospect>`.
+- **Coda** = la coda di Clara (`src/desk/Coda.tsx`): Adesso, Ferme, Prossime (wait con la data), Passate a te,
+  Fatte, Chiuse; in ordine di tempo; un tocco apre la relazione; nessun bottone.
+- **Analytics** = la pagina Clara di prima.
+- **«Ti consiglio di chiamare»** (`call_suggestion` nello schema e nell'identità v5e4ec43a; colonna
+  `clara_decisioni.consiglio`, schema_v106; `clara_call.consigli`): in più alla mossa, Clara segnala un numero
+  trovato nel filo o in scheda e il perché; un segnale fisso controlla che il numero stia davvero nel filo o in
+  scheda. Giallo in Relazioni (pillola, blocco con tel: e Chiamato/Non ora) e in Call (sezione sotto «Da
+  richiamare»). I «Decidi tu» veri (privacy, prezzi, partner) restano, pochi, con la proposta pronta.
+- Colori come chiesto. La barra richiudibile resta.
+
+Non visto nel browser da me: la sessione del browser di prova è scaduta e la creazione di un utente di collaudo
+è stata bloccata dai permessi; tipi e test passano, il pacchetto è pubblicato. Dre lo guarda lui.
