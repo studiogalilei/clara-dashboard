@@ -164,12 +164,16 @@ def giorni_feriali(da, a):
     return n
 
 
+ATTESA_FERIALI = {"send_analysis": 1, "offer_slots": 2}   # 4/11 (Dre): dopo l'analisi un giorno; dopo gli orari «2/3 giorni, 5 e' tanto»
+
+
 def da_seguire(r, ora):
-    """Pura. Un'analisi partita va seguita se e' passato almeno un giorno feriale, il lead non ha scritto dopo,
-    non c'e' una call in agenda, non e' in mano a Dre e non l'abbiamo gia' seguita (consiglio o sollecito)."""
+    """Pura. Una nostra mail partita (analisi o orari) va seguita se sono passati i giorni feriali di ATTESA_FERIALI,
+    il lead non ha scritto dopo, non c'e' una call in agenda, non e' in mano a Dre e non l'abbiamo gia' seguita."""
     p = r.get("prospects") or {}
     inviata = _roma(r.get("inviata_il"))
-    if not inviata or giorni_feriali(inviata, ora) < 1 or (ora - inviata).days > 10:
+    attesa = ATTESA_FERIALI.get(r.get("mossa") or "send_analysis", 1)
+    if not inviata or giorni_feriali(inviata, ora) < attesa or (ora - inviata).days > 10:
         return False
     risposta = _roma(p.get("last_reply_at"))
     if risposta and risposta > inviata + datetime.timedelta(minutes=3):
@@ -237,7 +241,7 @@ def ritira_consigli_prematuri():
     righe = sb_tutte("/rest/v1/clara_decisioni?select=id,mossa,consiglio,prospects(analysis_sent)&consiglio=not.is.null&stato=not.in.(superata,scartata)", chiave="id")
     prematuri = [r["id"] for r in righe if (r.get("consiglio") or {}).get("esito") is None
                  and (not (r.get("prospects") or {}).get("analysis_sent")
-                      or (r.get("mossa") == "send_analysis" and not ((r.get("consiglio") or {}).get("perche") or "").startswith("Analisi mandata il")))]
+                      or (r.get("mossa") == "send_analysis" and not ((r.get("consiglio") or {}).get("perche") or "").startswith(("Analisi mandata il", "Orari proposti il"))))]
     for i in range(0, len(prematuri), 50):
         if not PROVA:
             sb("PATCH", f"/rest/v1/clara_decisioni?id=in.({','.join(prematuri[i:i + 50])})", {"consiglio": None}, {"Prefer": "return=minimal"})
@@ -255,10 +259,10 @@ def segui_silenzio(massimo=10):
     import segnale_provvisorio
     ora = adesso()
     da = (ora - datetime.timedelta(days=11)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,inviata_il,consiglio,risposta_il,"
+    righe = sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,inviata_il,consiglio,risposta_il,mossa,"
                      "prospects(id,company,name,email,phone,enriched,last_reply_at,awaiting_us,fuori,stage,pipeline_stage,no_followup,"
                      "classificazione,in_mano_a,campaign_id,lead_id,analysis_sent,analysis_sent_at,analysis_pdf,city,sector,role)"
-                     f"&mossa=eq.send_analysis&stato=eq.inviata&origine=eq.risposta&inviata_il=gte.{da}", chiave="id")
+                     f"&mossa=in.(send_analysis,offer_slots)&stato=eq.inviata&origine=eq.risposta&inviata_il=gte.{da}", chiave="id")
     seguite = {x["risposta_il"] for x in (sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il&origine=eq.silenzio&risposta_il=gte.{da}") or [])}
     consigli = solleciti = 0
     for r in righe:
@@ -269,9 +273,10 @@ def segui_silenzio(massimo=10):
         if consigli + solleciti >= massimo or spesa("clara_sdr") > TETTO_GIORNO:
             break
         giorno = _roma(r["inviata_il"]).strftime("%d/%m")
+        cosa = "Analisi mandata" if r.get("mossa") == "send_analysis" else "Orari proposti"
         cellulare = segnale_provvisorio.cellulare_di(p)
         if cellulare:
-            perche = (f"Analisi mandata il {giorno} con due orari e il link: da allora nessuna risposta e niente call prenotata. "
+            perche = (f"{cosa} il {giorno} con due orari e il link: da allora nessuna risposta e niente call prenotata. "
                       f"C'è il suo cellulare: una tua telefonata adesso è il touchpoint giusto.")
             print(f"  {p.get('company') or '?'}: consiglio di chiamata ({cellulare[-4:]}…)")
             if not PROVA:
@@ -280,13 +285,14 @@ def segui_silenzio(massimo=10):
             continue
         try:
             storia = _storia(p)
-            sit = (f"silenzio dopo l'analisi. L'analisi è partita il {giorno} con due orari e il link del calendario; da allora "
-                   f"nessuna risposta e nessuna call prenotata; non abbiamo un cellulare da far chiamare. Decidi tu il seguito.")
+            sit = ((f"silenzio dopo l'analisi. L'analisi è partita il {giorno} con due orari e il link del calendario; " if r.get("mossa") == "send_analysis"
+                    else f"silenzio dopo la proposta di orari. Gli orari sono partiti il {giorno} con il link del calendario; ")
+                   + "da allora nessuna risposta e nessuna call prenotata; non abbiamo un cellulare da far chiamare. Decidi tu il seguito.")
             g = clara_sdr.giudica_uno(p, storia, situazione=sit)
             d = g["decisione"]
             riga = {"prospect_id": p["id"], "risposta_il": r["inviata_il"], "versione": clara_sdr.VERSIONE, "origine": "silenzio",
                     "modello": g["uso"].get("modello") or clara_sdr.MODELLO,
-                    "lead_testo": f"(silenzio: analisi mandata il {giorno}, nessuna risposta e niente call prenotata)",
+                    "lead_testo": f"(silenzio: {cosa.lower()} il {giorno}, nessuna risposta e niente call prenotata)",
                     "mossa": d["proposed_action"], "owner": d.get("owner"), "entro_il": d.get("due_at") or None,
                     "testo": d.get("draft") or None, "perche": d.get("reason_summary"), "prove": d.get("evidence_refs") or [],
                     "richiamo": None, "consiglio": None, "appuntamento": None,

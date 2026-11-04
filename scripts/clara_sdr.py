@@ -132,9 +132,9 @@ Come ragioni, ogni volta:
    (send_analysis) o prima che sia partita: campi vuoti. Non è un callback: callback solo quando è lui a chiedere
    di sentirci o lascia il numero apposta. Un numero di centralino vale come consiglio debole: dillo nel perché.
    Niente consiglio a chi ha detto no, a chi va chiuso, e dove la mossa è wait per una risposta automatica.
-4bis. IL SILENZIO DOPO L'ANALISI. Quando il contesto dice «SITUAZIONE DI OGGI: silenzio dopo l'analisi», non c'è
-   una mail nuova del lead: l'analisi è partita con i due orari e il link, e da allora niente risposta e niente
-   call prenotata, e non abbiamo un cellulare da far chiamare. Tocca a te tenere viva la relazione, a modo tuo:
+4bis. IL SILENZIO DOPO L'ANALISI O DOPO GLI ORARI. Quando il contesto dice «SITUAZIONE DI OGGI: silenzio dopo
+   l'analisi» (o «dopo la proposta di orari»), non c'è una mail nuova del lead: la nostra mail è partita con i due
+   orari e il link, e da allora niente risposta e niente call prenotata, e non abbiamo un cellulare da far chiamare. Tocca a te tenere viva la relazione, a modo tuo:
    di solito un reply breve e leggero (due o tre righe: non chiedi se l'ha letta, dai un motivo per sentirsi,
    ripeti due orari NUOVI presi da orari_liberi e il link), oppure wait con una data se è troppo presto o è un
    periodo di ferie, oppure close se il filo era freddo e un sollecito sarebbe fastidio. Un solo sollecito dopo
@@ -442,7 +442,8 @@ def _norm(s):
 RETE_PRIVACY = re.compile(r"dove (avete|hai) (preso|trovato|reperito)|chi vi ha dato|garante|gdpr|privacy|"
                           r"dati personali|cancellat[eiao]|rimuove(te|re)|non (contattate|scrivete)|diffida|denunc", re.I)
 PREZZO = re.compile(r"€|\beuro\b|\d+\s*(/|al|a)\s*mese|\bsconto\b|\bpreventivo\b", re.I)
-ASPETTA = re.compile(r"(ci|mi|le|gli) faccia sapere|fate(ci|mi) sapere|mi faccia un cenno|(mi|ci) scriva (pure )?(se|quando)|ci faccia conoscere", re.I)   # 4/11: la call non si aspetta
+ASPETTA = re.compile(r"(ci|mi|le|gli) faccia sapere|fate(ci|mi) sapere|mi faccia un cenno|(mi|ci) scriva (pure )?(se|quando)|ci faccia conoscere|mi (indichi|dica|proponga) (pure )?lei|ci organizziamo", re.I)   # 4/11: la call non si aspetta, e niente sforzo a lui
+ORARIO = re.compile(r"\b(alle|ore)\s+\d{1,2}([:.]\d{2})?\b")
 
 
 def segnali(dec, p, ctx, uso, storico=False):
@@ -492,6 +493,8 @@ def segnali(dec, p, ctx, uso, storico=False):
             no.append("manda l'analisi senza i due orari dal calendario")
         if "calendar.app.google" not in testo:
             no.append("manda l'analisi senza il link del calendario")
+    elif mossa in ("offer_slots", "reply") and ORARIO.search(testo) and "calendar.app.google" not in testo:
+        no.append("propone orari senza il link del calendario come alternativa")
     if mossa in ("send_analysis", "offer_slots") and ASPETTA.search(testo):
         no.append("chiude con «ci faccia sapere»: la call si propone, non si aspetta")
     if mossa in CON_TESTO and re.search(r"fondat|nostro CEO|titolare dello studio", testo, re.I):

@@ -167,6 +167,7 @@ export function telefonoDa(testo: string | null | undefined): string | null {
 export function agendaPulita<T extends { at: string; titolo: string | null; tipo: string | null; prospect_id: string | null }>(voci: T[]): T[] {
   const viste = new Set<string>()
   return voci.filter((v) => {
+    if (v.tipo === 'interna' || v.tipo === 'annullata') return false
     if (!v.prospect_id && (v.tipo === 'altro' || !v.tipo)) return false
     const k = `${v.at.slice(0, 16)}|${(v.titolo ?? '').trim().toLowerCase()}`
     if (viste.has(k)) return false

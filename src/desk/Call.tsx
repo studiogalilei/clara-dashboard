@@ -3,7 +3,7 @@
 // lo stesso); per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco. Sotto, «Ti consiglio di
 // chiamare» e le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useState } from 'react'
-import { aggiungiChiamata, aggiungiNota, cerca, esitoChiamata, leggiCall, notaChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
+import { aggiungiChiamata, aggiungiNota, cerca, collegaCall, esitoChiamata, leggiCall, notaChiamata, prendiInMano, programmaChiamata, segnaConsiglio, type Call as DatiCall, type Chiamata, type Consiglio, type Trovato } from './dati'
 
 type Consigliato = NonNullable<DatiCall['consigli']>[number]
 import { MOTIVO_WHATSAPP, NOTA_WHATSAPP, agendaPulita, telefonoDa, whatsappDa } from './regole'
@@ -40,6 +40,12 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
   const telefonate = new Map<string, Chiamata[]>()
   for (const t of tutte) if (t.richiamare_il) { const g = t.richiamare_il < oggi ? oggi : t.richiamare_il; telefonate.set(g, [...(telefonate.get(g) ?? []), t]) }
   const giorniTutti = [...new Set([...giorni.keys(), ...telefonate.keys()])].sort()
+  // 4/11, Dre: «se non riesce a collegare o non e' sicura, me lo dica e glielo collego io»: gli eventi senza azienda
+  const sconosciuti = agendaPulita(c.prossime.filter((p) => !p.prospect_id && (p.tipo === 'altro' || !p.tipo)).map((p) => ({ ...p, tipo: 'da_collegare' })))
+  const collegata = (id: number, prospectId: string | null, lead: boolean) => void (async () => {
+    try { await collegaCall(id, prospectId, lead); mostra({ testo: lead ? 'Collegata: Clara la vede nella relazione.' : 'Segnata come interna.' }); await rifai() }
+    catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) }
+  })()
   const aggiorna = (vecchia: Chiamata, nuova: Chiamata | null) => setDati((prev) => {
     if (!prev) return prev
     const f = (xs: Chiamata[] = []) => xs.flatMap((x) => x.id === vecchia.id ? (nuova ? [nuova] : []) : [x])
@@ -96,6 +102,7 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
                         <span className="block truncate text-[14.5px] font-bold text-inchiostro">{p.azienda || p.titolo}</span>
                         <span className="block truncate text-[12.5px] text-tenue">{[p.tipo, p.persona].filter(Boolean).join(', ')}</span>
                       </button>
+                      {!p.prospect_id && p.id != null && <Collega evento={p.id} fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
                       {p.link && <a href={p.link} target="_blank" rel="noreferrer" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-bordo text-navy hover:border-navy" aria-label="Apri la call"><Icona nome="video" className="h-4 w-4" /></a>}
                     </li>
                   ))}
@@ -114,8 +121,58 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
             ) })}
           </div>
         )}
+        {sconosciuti.length > 0 && (
+          <div className="border-t border-bordo p-4 lg:p-5">
+            <h3 className="mb-1 text-[12px] font-extrabold uppercase tracking-[.08em] text-giallo-testo">Non so di chi sono</h3>
+            <p className="mb-2 text-[13px] text-tenue">Eventi del tuo calendario senza un'azienda riconosciuta. Se è un lead, collegalo: Clara lo vede nella relazione e sa quando fare il follow-up.</p>
+            <ul className="space-y-2">
+              {sconosciuti.map((p) => (
+                <li key={p.id ?? p.at} className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-bordo px-3.5 py-2.5">
+                  <span className="shrink-0 text-[13px] font-bold text-inchiostro">{nomeGiorno(giornoRoma(new Date(p.at)))} {ora(p.at)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] text-inchiostro">{p.titolo}</span>
+                  {p.id != null && <Collega evento={p.id} fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
       {vista}
+    </div>
+  )
+}
+
+/** «Collega all'azienda» (4/11): una call del calendario senza azienda si cerca e si collega con un tocco; o si dice che non e' un lead. */
+function Collega({ evento, fatto }: { evento: number; fatto: (prospectId: string | null, lead: boolean) => void }) {
+  const [aperto, setAperto] = useState(false)
+  const [q, setQ] = useState('')
+  const [trovati, setTrovati] = useState<Trovato[]>([])
+  useEffect(() => {
+    const t = q.trim()
+    if (!aperto || t.length < 2) { setTrovati([]); return }
+    let vivo = true
+    const h = setTimeout(() => { cerca(t).then((r) => { if (vivo) setTrovati(r.slice(0, 6)) }).catch(() => { if (vivo) setTrovati([]) }) }, 300)
+    return () => { vivo = false; clearTimeout(h) }
+  }, [q, aperto])
+  if (!aperto) return <button type="button" onClick={() => setAperto(true)} className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-navy px-3 text-[12.5px] font-bold text-navy hover:bg-navy/[0.06]">Collega all'azienda</button>
+  return (
+    <div className="relative w-full basis-full">
+      <div className="flex gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Azienda, persona o email" aria-label="Cerca l'azienda"
+               className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
+        <Bottone tipo="piatto" onClick={() => fatto(null, false)} className="text-[12.5px]">Non è un lead</Bottone>
+        <Bottone tipo="piatto" onClick={() => setAperto(false)} className="text-[12.5px]">Annulla</Bottone>
+      </div>
+      {trovati.length > 0 && (
+        <ul className="absolute left-0 right-0 z-10 mt-1 max-h-64 overflow-auto rounded-xl border border-bordo bg-white shadow-lg">
+          {trovati.map((t) => (
+            <li key={t.id}><button type="button" onClick={() => fatto(t.id, true)} className="flex w-full min-h-11 items-center gap-2 px-3 text-left hover:bg-velo">
+              <span className="truncate text-[14px] font-semibold text-inchiostro">{t.azienda || t.email}</span>
+              <span className="truncate text-[12.5px] text-tenue">{[t.persona, t.citta].filter(Boolean).join(', ')}</span>
+            </button></li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

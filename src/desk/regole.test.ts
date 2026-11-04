@@ -70,6 +70,7 @@ describe('il desk: la coda', () => {
       { at: '2026-11-04T10:00:00Z', titolo: 'Eco', tipo: 'tecnica', prospect_id: 'p' },
       { at: '2026-11-04T10:00:00Z', titolo: 'Eco', tipo: 'tecnica', prospect_id: 'p' },
       { at: '2026-11-06T16:30:00Z', titolo: 'Allineamento', tipo: 'altro', prospect_id: null },
+      { at: '2026-11-07T10:00:00Z', titolo: 'Team', tipo: 'interna', prospect_id: 'p' },
     ])
     expect(a).toHaveLength(1)
   })

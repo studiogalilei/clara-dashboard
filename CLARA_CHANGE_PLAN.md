@@ -143,3 +143,18 @@ ho già avvisato tutti, ci faremo una piattaforma nostra con calma ma per ora pu
 trova la pagina «Il Workspace è chiuso» (`src/Chiuso.tsx`). Nel Desk e nella snella spariscono i link «Workspace
 completo»; la pagina Oggi della snella manda le decisioni al Desk. Nessuna tabella toccata: gli script non dipendono
 da quella interfaccia.
+
+## 4/11 sera: comodo per il lead, comodo per Dre
+
+Dre (una mail delle 10:47 senza link, con «mi indichi lei un giorno»): «non dobbiamo chiedere effort, rendiamo tutto
+comodo; Clara deve vedere il mio calendario e le chiamate fissate e collegarle alle aziende; se non riesce o non è
+sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo fare un follow-up tra 2-3 giorni».
+
+- **Link sempre**: ogni mail con orari (analisi, orari, risposta) senza il link del calendario è un segnale; «mi indichi
+  lei», «ci organizziamo» contano come chiedere sforzo (regex `ASPETTA`).
+- **Follow-up dopo gli orari**: `segui_silenzio` copre anche `offer_slots`, dopo 2 giorni feriali (`ATTESA_FERIALI`);
+  dopo l'analisi resta 1. Col cellulare consiglio a Dre, senza Clara sollecita (regola 4bis).
+- **Collega all'azienda** (v112): `clara_call.prossime` porta l'id dell'evento; in Call ogni call senza azienda ha
+  «Collega all'azienda» (ricerca + un tocco, RPC `clara_collega_call`, nota «Sistema» per Clara) e «Non è un lead»
+  (tipo `interna`, sparisce). In fondo «Non so di chi sono»: gli eventi tipo «altro» senza azienda. Il sync del
+  calendario non tocca un collegamento fatto a mano.

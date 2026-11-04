@@ -53,7 +53,7 @@ export interface Chiamata {
   note: NotaChiamata[]; origine: 'clara' | 'dre'; creato_il?: string; fase?: string | null; analisi_mandata?: boolean | null; ultima_risposta?: string | null
 }
 export interface Call {
-  prossime: Array<{ at: string; tipo: string | null; titolo: string | null; link: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null; preparazione: string | null }>
+  prossime: Array<{ id?: number; at: string; tipo: string | null; titolo: string | null; link: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null; preparazione: string | null }>
   richiami: Chiamata[]
   mie?: Chiamata[]
   consigli?: Array<{ id: string; prospect_id: string; azienda: string | null; persona: string | null; telefono: string | null; perche: string | null; mossa: Mossa; stato: Stato; risposta_il: string; lead_testo: string | null; consiglio: Consiglio | null }>
@@ -122,6 +122,14 @@ export async function leggiCall(): Promise<Call> {
   const { data, error } = await supabase.rpc('clara_call').abortSignal(entro())
   if (error) guasto(error)
   return (data ?? { prossime: [], richiami: [], consigli: [], mie: [] }) as Call
+}
+
+/** Una call del calendario collegata a un'azienda da Dre (4/11), o segnata come interna (lead=false). */
+export async function collegaCall(evento: number, prospectId: string | null, lead = true): Promise<void> {
+  const { data, error } = await supabase.rpc('clara_collega_call', { evento, chi: prospectId, lead }).abortSignal(entro())
+  if (error) guasto(error)
+  const r = data as { ok?: boolean; perche?: string } | null
+  if (r && r.ok === false) throw new Error(r.perche || 'Non collegata')
 }
 
 export async function leggiOperazioni(): Promise<Operazione[]> {

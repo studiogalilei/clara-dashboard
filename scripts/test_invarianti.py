@@ -6839,6 +6839,16 @@ def _():
     assert not P.da_seguire({**r, "consiglio": {"numero": "3"}}, d(2026, 11, 5, 14)), "gia' consigliata"
     assert not P.da_seguire({**r, "seguita": True}, d(2026, 11, 5, 14)), "gia' sollecitata"
     assert not P.da_seguire(r, d(2026, 11, 20, 14)), "dopo dieci giorni non si insegue piu'"
+    orari = {**r, "mossa": "offer_slots"}
+    assert not P.da_seguire(orari, d(2026, 11, 5, 14)), "dopo gli orari un giorno e' presto"
+    assert P.da_seguire(orari, d(2026, 11, 6, 14)), "dopo gli orari due giorni feriali: si segue"
+    # il link del calendario ci vuole in ogni mail che propone orari, e «mi indichi lei» e' chiedere sforzo
+    import clara_sdr as S
+    ctx = {"messaggi": [{"tipo": "REPLY", "testo": "ci sentiamo volentieri"}], "indice": 0, "prep": {"pulito": {"con_firma": "ci sentiamo volentieri"}}}
+    dec = {"proposed_action": "offer_slots", "evidence_refs": [{"messaggio": 0, "frase": "ci sentiamo volentieri"}], "call_suggestion": {"numero": "", "perche": ""},
+           "draft": "Le propongo venerdì 6 novembre alle 14:30 oppure martedì 10 novembre alle 12. Se nessuno dei due le è comodo, mi indichi lei un giorno e ci organizziamo."}
+    no = S.segnali(dec, {"analysis_sent": True}, ctx, {"strumenti": ["orari_liberi"]}, storico=True)
+    assert any("senza il link" in x for x in no) and any("ci faccia sapere" in x for x in no), no
 
 
 def main():
