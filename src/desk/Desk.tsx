@@ -43,6 +43,8 @@ export function indirizzo(d: Dove): string {
 }
 
 export default function Desk() {
+  const [larga, setLarga] = useState<boolean>(() => { try { return localStorage.getItem('desk_barra') !== 'stretta' } catch { return true } })
+  const cambiaBarra = (v: boolean) => { setLarga(v); try { localStorage.setItem('desk_barra', v ? 'larga' : 'stretta') } catch { /* niente */ } }
   const [session, setSession] = useState<Session | null>(null)
   const [pronta, setPronta] = useState(false)
   const [io, setIo] = useState<ChiSono | null>(null)
@@ -95,35 +97,45 @@ export default function Desk() {
 
   return (
     <div className="desk min-h-dvh bg-fondo text-inchiostro lg:flex">
+
       <a href="#contenuto" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:shadow">Vai al contenuto</a>
 
       {/* a sinistra sul computer: scuro, come una scrivania che resta ferma */}
-      <nav aria-label="Sezioni" className="hidden w-[228px] shrink-0 flex-col bg-[#0b0b0e] px-3 py-6 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh">
-        <div className="mb-7 flex items-center gap-3 px-3">
+      {/* 4/11, Dre: «allargabile come quella di Claude»: si chiude a sole icone e si riapre, e si ricorda com'era */}
+      <nav aria-label="Sezioni" className={`relative hidden shrink-0 flex-col bg-[#0b0b0e] py-5 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'w-[228px] px-3' : 'w-[72px] px-2.5'}`}>
+        <div className={`mb-6 flex items-center ${larga ? 'gap-3 px-3' : 'justify-center'}`}>
           <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" className="h-10 w-10 shrink-0 object-contain brightness-0 invert" />
-          <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/55">DESK</span></span>
+          {larga && <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/55">DESK</span></span>}
         </div>
+        <button onClick={() => cambiaBarra(!larga)} aria-label={larga ? 'Chiudi la barra' : 'Apri la barra'} aria-expanded={larga} title={larga ? 'Chiudi la barra' : 'Apri la barra'}
+                className="absolute -right-3 top-[3.1rem] grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-[#0b0b0e] text-white/70 shadow hover:text-white">
+          <Icona nome="indietro" className={`h-3.5 w-3.5 transition-transform ${larga ? '' : 'rotate-180'}`} />
+        </button>
         <ul className="space-y-1">
           {VOCI.map((v) => {
             const su = dove.voce === v.voce
             return (
               <li key={v.voce}>
-                <a href={indirizzo({ voce: v.voce, id: null })} aria-current={su ? 'page' : undefined} onClick={() => { passi.current += 1 }}
-                   className={`flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-[14px] font-semibold ${su ? 'bg-white/[0.14] text-white' : 'text-white/70 hover:bg-white/[0.08] hover:text-white'}`}>
-                  <Icona nome={v.icona} className="h-[18px] w-[18px]" /> {v.nome}
+                <a href={indirizzo({ voce: v.voce, id: null })} aria-current={su ? 'page' : undefined} onClick={() => { passi.current += 1 }} title={larga ? undefined : v.nome}
+                   className={`flex min-h-11 items-center rounded-xl text-[14px] font-semibold ${larga ? 'gap-3 px-3.5' : 'justify-center px-0'} ${su ? 'bg-white/[0.14] text-white' : 'text-white/70 hover:bg-white/[0.08] hover:text-white'}`}>
+                  <Icona nome={v.icona} className="h-[18px] w-[18px] shrink-0" /> {larga && v.nome}
                 </a>
               </li>
             )
           })}
         </ul>
         <div className="mt-auto space-y-2">
-          <div className="rounded-xl border border-white/15 bg-white/[0.06] p-3.5 text-[12px] leading-relaxed text-white/75">
-            <p className="flex items-center gap-2 font-bold text-white"><span className="h-2 w-2 rounded-full bg-ok-segno" /> Clara è al lavoro</p>
-            <p className="mt-1.5">Legge ogni risposta, decide e manda da sola. A te restano le call e le cose ferme.</p>
-          </div>
-          <CollegaTelefono tipo="piatto" className="w-full justify-start px-3 text-[13px] font-normal text-white/60 hover:text-white" />
-          <a href={linkCompleto('pipeline')} className="flex min-h-10 items-center gap-2 rounded-xl px-3 text-[13px] text-white/60 hover:text-white">
-            Workspace completo <Icona nome="esterno" className="h-3.5 w-3.5" />
+          {larga ? (
+            <div className="rounded-xl border border-white/15 bg-white/[0.06] p-3.5 text-[12px] leading-relaxed text-white/75">
+              <p className="flex items-center gap-2 font-bold text-white"><span className="h-2 w-2 rounded-full bg-ok-segno" /> Clara è al lavoro</p>
+              <p className="mt-1.5">Legge ogni risposta, decide e manda da sola. A te restano le call e le cose ferme.</p>
+            </div>
+          ) : (
+            <p className="flex justify-center py-2" title="Clara è al lavoro"><span className="h-2.5 w-2.5 rounded-full bg-ok-segno" /></p>
+          )}
+          {larga && <CollegaTelefono tipo="piatto" className="w-full justify-start px-3 text-[13px] font-normal text-white/60 hover:text-white" />}
+          <a href={linkCompleto('pipeline')} title="Workspace completo" className={`flex min-h-10 items-center gap-2 rounded-xl text-[13px] text-white/60 hover:text-white ${larga ? 'px-3' : 'justify-center'}`}>
+            {larga && 'Workspace completo'} <Icona nome="esterno" className="h-3.5 w-3.5" />
           </a>
         </div>
       </nav>
