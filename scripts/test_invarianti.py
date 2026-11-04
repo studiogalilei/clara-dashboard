@@ -3868,8 +3868,10 @@ def _():
     v = leggi("vite.config.ts")
     start = _re.search(r"start_url:\s*'([^']+)'", v).group(1)
     scope = _re.search(r"scope:\s*'([^']+)'", v).group(1)
-    # 4/11: l'icona apre il Desk (#/d/coda), quello che Dre usa ogni giorno; la snella resta a #/s
-    assert start == "./#/d/coda" and scope == "./", (start, scope)
+    # 4/11: l'icona apre il Desk, quello che Dre usa ogni giorno; la snella resta a #/s.
+    # La voce d'ingresso del Desk la decide Dre (pomeriggio del 4/11: Relazioni, prima Coda):
+    # la prova vuole un indirizzo del Desk, non una voce precisa, cosi' non diventa rossa a ogni scelta sua
+    assert start.startswith("./#/d/") and scope == "./", (start, scope)
     assert "display: 'standalone'" in v, "senza standalone l'iPhone non da' le notifiche"
     desk = leggi("src", "desk", "Desk.tsx")
     rx = _re.search(r"export function inDesk[^{]*\{\s*return /(.+?)/\.test", desk).group(1)
