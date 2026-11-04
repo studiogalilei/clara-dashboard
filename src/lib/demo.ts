@@ -406,6 +406,60 @@ const proposte: Riga[] = [
 
 // in demo la sezione «Cosa cambieresti» parte vuota: si scrive e si vede
 // comparire, come nel vero
+// ── IL DESK IN DEMO (4/11): dati finti per collaudare i gesti a schermo ──
+const desk_note: Riga[] = [
+  { id: 1, prospect_id: 'p1', tipo: 'nota', testo: 'Li ho scritti su WhatsApp', at: oreFa(1), autore_nome: 'Dramane' },
+]
+const desk_chiamate: Riga[] = [
+  { id: 'c1', prospect_id: 'p2', decisione_id: null, azienda: 'Bottega del Legno', persona: 'Anna Verdi', numero: null, richiamare_il: data(-1), note: [{ at: oreFa(2), testo: '3347204807' }], esito: null, creato_il: oreFa(3) },
+]
+const desk_decisioni: Riga[] = [
+  { id: 'd1', prospect_id: 'p1', risposta_il: oreFa(5), mossa: 'escalate', owner: 'Dramane', entro_il: null, stato: 'proposta', creato_il: oreFa(4), versione: 'demo', dollari: 0.12,
+    testo: 'Buongiorno,\nl’indirizzo lo abbiamo preso da [da dove abbiamo preso l’indirizzo]. Se preferisce non ricevere altro, lo togliamo subito.\n\nLorenzo Fornasier\nStudio Galilei',
+    testo_clara: null, perche: 'Chiede con quale consenso le scriviamo: privacy, decide Dramane.', prove: [], richiamo: null, segnali: [], giudice: null, lead_testo: 'Con quale consenso mi state scrivendo?',
+    approvata_il: null, inviata_il: null, verificata_il: null, errore: null, esito: null, esito_il: null, dre_giudizio: null, consiglio: null, fit: 'PARZIALE', classe: 'nervoso' },
+  { id: 'd2', prospect_id: 'p2', risposta_il: oreFa(30), mossa: 'send_analysis', owner: 'Clara', entro_il: null, stato: 'inviata', creato_il: oreFa(29), versione: 'demo', dollari: 0.21,
+    testo: 'Buongiorno Anna,\nle allego l’analisi. Le propongo domani alle 14:30 oppure venerdì alle 10; se preferisce, sceglie lei da qui: https://calendar.app.google/PCsE9SXEpEESnMqG9\n\nLorenzo Fornasier\nStudio Galilei',
+    testo_clara: null, perche: 'Ha detto sì all’analisi.', prove: [], richiamo: null, segnali: [], giudice: { pericoloso: false, mossa: 'giusta', testo: 'buono' }, lead_testo: 'Sì, volentieri, la mandi pure.',
+    approvata_il: oreFa(29), inviata_il: oreFa(28), verificata_il: oreFa(27), errore: null, esito: null, esito_il: null, dre_giudizio: null,
+    consiglio: { numero: '+39 335 838 3593', perche: 'Analisi mandata ieri con due orari e il link: nessuna risposta e niente call. C’è il suo cellulare.' }, fit: 'SI', classe: 'positivo' },
+  { id: 'd3', prospect_id: 'p3', risposta_il: oreFa(50), mossa: 'book_meeting', owner: 'Clara', entro_il: null, stato: 'proposta', creato_il: oreFa(49), versione: 'demo', dollari: 0.15,
+    testo: 'Perfetto, giovedì alle 15 allora. Alla call ci sarà anche Dramane, che ha seguito la vostra analisi; le arriva l’invito da Google Calendar.\n\nLorenzo Fornasier\nStudio Galilei',
+    testo_clara: null, perche: 'Ha confermato giovedì alle 15.', prove: [], richiamo: null, segnali: [], giudice: { pericoloso: false, mossa: 'giusta', testo: 'buono' }, lead_testo: 'Va bene giovedì alle 15.',
+    approvata_il: null, inviata_il: null, verificata_il: null, errore: 'Google non crea l’evento (token scaduto): manda tu l’invito dal calendario e tocca «Invito fatto, manda la conferma»', esito: null, esito_il: null, dre_giudizio: null, consiglio: null, fit: 'SI', classe: 'positivo' },
+]
+function deskDecisione(d: Riga) {
+  const p = prospects.find((x) => x.id === d.prospect_id)
+  return { ...d, azienda: p?.company ?? null, persona: p?.name ?? null, ruolo: null, email: p?.email ?? '', citta: p?.city ?? null, settore: p?.sector ?? null, telefono: p?.phone ?? null,
+           sito: p?.website ?? null, analisi_pdf: true, analisi_mandata: Boolean(p?.analysis_sent), fase: p?.stage ?? null, ultima_risposta: p?.last_reply_at ?? null, prossima_call: null, in_mano_a: null, in_mano_motivo: null, in_mano_il: null, approvata_da: null }
+}
+function deskCall() {
+  const p2 = prospects.find((x) => x.id === 'p2')
+  return {
+    prossime: [
+      { id: 11, at: fra(1).slice(0, 11) + '09:00:00.000Z', tipo: 'conoscitiva', titolo: 'Conoscitiva con un’azienda nuova', link: 'https://meet.google.com/demo', prospect_id: null, azienda: null, persona: null, telefono: null, preparazione: null },
+      { id: 12, at: fra(2).slice(0, 11) + '14:00:00.000Z', tipo: 'altro', titolo: 'Chiacchierata con Marco', link: 'https://meet.google.com/demo2', prospect_id: null, azienda: null, persona: null, telefono: null, preparazione: null },
+      { id: 13, at: fra(3).slice(0, 11) + '13:00:00.000Z', tipo: 'conoscitiva', titolo: 'Conoscitiva Solaria Casa', link: 'https://meet.google.com/demo3', prospect_id: 'p1', azienda: 'Solaria Casa', persona: null, telefono: null, preparazione: null },
+    ],
+    richiami: [],
+    mie: desk_chiamate.filter((c) => !c.esito).map((c) => ({ id: c.id, chiamata_id: c.id, prospect_id: c.prospect_id, azienda: c.azienda, persona: c.persona, telefono: c.numero ?? p2?.phone ?? null,
+      richiamare_il: c.richiamare_il, note: c.note, creato_il: c.creato_il, origine: 'dre', fase: 'risposto', analisi_mandata: true, ultima_risposta: oreFa(30), lead_testo: 'Sì, volentieri, la mandi pure.', perche: null })),
+    consigli: desk_decisioni.filter((d) => d.consiglio && !(d.consiglio as Riga).esito).map((d) => { const p = prospects.find((x) => x.id === d.prospect_id); return { id: d.id, prospect_id: d.prospect_id, azienda: p?.company ?? null, persona: p?.name ?? null, telefono: (d.consiglio as Riga).numero, perche: (d.consiglio as Riga).perche, mossa: d.mossa, stato: d.stato, risposta_il: d.risposta_il, lead_testo: d.lead_testo, consiglio: d.consiglio } }),
+  }
+}
+function deskRelazione(chi: string) {
+  const p = prospects.find((x) => x.id === chi)
+  if (!p) return { lead: null, filo: [], decisioni: [], agenda: [], note: [], scheda: null }
+  return {
+    lead: { id: p.id, azienda: p.company, persona: p.name, ruolo: null, email: p.email, citta: p.city, settore: p.sector, telefono: p.phone ?? null, sito: p.website, analisi_pdf: null, analisi_mandata: Boolean(p.analysis_sent),
+            analisi_il: p.analysis_sent_at ?? null, fase: p.stage, classe: p.classificazione, ultima_risposta: p.last_reply_at, fuori: false, no_followup: false, fonte: 'demo', fit: 'SI', fit_motivo: 'Mercato locale con domanda vera.', cosa_fa: p.descrizione, campagna: p.campaign, in_mano_a: null, altre_email: ['amministrazione@xholding.esempio.it'] },
+    filo: interactions.filter((i) => i.prospect_id === chi && (i.kind === 'email_in' || i.kind === 'email_out')).map((i) => ({ at: i.at, tipo: i.kind, testo: i.body, casella: null })),
+    decisioni: desk_decisioni.filter((d) => d.prospect_id === chi),
+    agenda: [], note: desk_note.filter((n) => n.prospect_id === chi).map((n) => ({ id: n.id, at: n.at, tipo: n.tipo, testo: n.testo, autore: n.autore_nome })), scheda: null,
+  }
+}
+function conAbort<T>(v: T) { const pr = Promise.resolve({ data: v, error: null }); return { abortSignal: () => pr, then: pr.then.bind(pr) } }
+
 const feedback: Riga[] = []
 
 // i documenti scritti dentro l'editor: in demo si parte da zero e si vede
@@ -413,6 +467,9 @@ const feedback: Riga[] = []
 const documenti: Riga[] = []
 
 const TABELLE: Record<string, Riga[]> = {
+  chiamate: desk_chiamate,
+  snella_note: desk_note,
+  clara_decisioni: desk_decisioni,
   feedback,
   documenti,
   proposte,
@@ -518,6 +575,7 @@ class Query {
   order(c: string, o?: { ascending?: boolean }) { this.ordina = { col: c, asc: o?.ascending !== false }; return this }
   limit(n: number) { this.max = n; return this }
   single() { this.uno = true; return this }
+  abortSignal(_s?: AbortSignal) { return this }
   // i metodi che il codice vero usa e che qui mancavano: bastava uno per
   // mandare a schermo bianco tutta la pagina (QA browser, 15/9)
   maybeSingle() { this.uno = true; return this }
@@ -634,7 +692,20 @@ export const demoClient = {
   // in demo si e' Dre: senza questa, `sono_ceo` andava in errore cinque
   // volte per pagina e i soldi restavano nascosti proprio nella modalita'
   // fatta per far vedere com'e' (QA Dre, 15/9)
-  async rpc(nome: string) {
+  rpc(nome: string, args?: Riga) {
+    // il Desk (4/11): le sue RPC hanno .abortSignal(); i dati sono quelli finti qui sopra
+    if (nome === 'clara_call') return conAbort(deskCall())
+    if (nome === 'clara_coda') return conAbort(desk_decisioni.map(deskDecisione))
+    if (nome === 'clara_relazione') return conAbort(deskRelazione(String(args?.chi ?? '')))
+    if (nome === 'clara_cerca') { const q = String(args?.q ?? '').toLowerCase(); return conAbort(prospects.filter((p) => [p.company, p.name, p.email].some((x) => String(x ?? '').toLowerCase().includes(q))).slice(0, 6).map((p) => ({ id: p.id, azienda: p.company, persona: p.name, email: p.email, citta: p.city, telefono: p.phone ?? null, fase: p.stage, classe: p.classificazione, ultima_risposta: p.last_reply_at, analisi_mandata: Boolean(p.analysis_sent) }))) }
+    if (nome === 'clara_prendi') return conAbort({ ok: true })
+    if (nome === 'clara_collega_call') return conAbort({ ok: true })
+    return conAbort(this._rpcVecchio(nome))
+  },
+  _rpcVecchio(nome: string): unknown {
+    return this._rpcDati(nome).data
+  },
+  _rpcDati(nome: string) {
     if (nome === 'sono_ceo') return { data: true, error: null }
     if (nome === 'vedo_riservato') return { data: true, error: null }    // in demo sei Dre (29/9)
     // in demo il sistema e' appena passato: la riga verde si vede com'e'

@@ -102,7 +102,7 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
                         <span className="block truncate text-[14.5px] font-bold text-inchiostro">{p.azienda || p.titolo}</span>
                         <span className="block truncate text-[12.5px] text-tenue">{[p.tipo, p.persona].filter(Boolean).join(', ')}</span>
                       </button>
-                      {!p.prospect_id && p.id != null && <Collega evento={p.id} fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
+                      {!p.prospect_id && p.id != null && <Collega fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
                       {p.link && <a href={p.link} target="_blank" rel="noreferrer" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-bordo text-navy hover:border-navy" aria-label="Apri la call"><Icona nome="video" className="h-4 w-4" /></a>}
                     </li>
                   ))}
@@ -130,7 +130,7 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
                 <li key={p.id ?? p.at} className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-bordo px-3.5 py-2.5">
                   <span className="shrink-0 text-[13px] font-bold text-inchiostro">{nomeGiorno(giornoRoma(new Date(p.at)))} {ora(p.at)}</span>
                   <span className="min-w-0 flex-1 truncate text-[14px] text-inchiostro">{p.titolo}</span>
-                  {p.id != null && <Collega evento={p.id} fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
+                  {p.id != null && <Collega fatto={(pid, lead) => collegata(p.id as number, pid, lead)} />}
                 </li>
               ))}
             </ul>
@@ -143,7 +143,7 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
 }
 
 /** «Collega all'azienda» (4/11): una call del calendario senza azienda si cerca e si collega con un tocco; o si dice che non e' un lead. */
-function Collega({ evento, fatto }: { evento: number; fatto: (prospectId: string | null, lead: boolean) => void }) {
+function Collega({ fatto }: { fatto: (prospectId: string | null, lead: boolean) => void }) {
   const [aperto, setAperto] = useState(false)
   const [q, setQ] = useState('')
   const [trovati, setTrovati] = useState<Trovato[]>([])
