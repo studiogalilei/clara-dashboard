@@ -41,20 +41,22 @@ export function ordina<T extends Decisione>(ds: T[], adesso: Date = new Date()):
   return [...ds].sort((a, b) => priorita(b, adesso) - priorita(a, adesso) || b.risposta_il.localeCompare(a.risposta_il))
 }
 
-export type Filtro = 'tutte' | 'inviare' | 'call' | 'tue' | 'attesa' | 'fatte' | 'chiuse'
+export type Filtro = 'tutte' | 'inviare' | 'call' | 'tue' | 'mie' | 'attesa' | 'fatte' | 'chiuse'
 export const FILTRI: Array<{ f: Filtro; nome: string }> = [
   { f: 'tutte', nome: 'Da fare' }, { f: 'inviare', nome: 'Da inviare' }, { f: 'call', nome: 'Call' }, { f: 'tue', nome: 'Decidi tu' },
-  { f: 'attesa', nome: 'In attesa' }, { f: 'fatte', nome: 'Fatte' }, { f: 'chiuse', nome: 'Chiuse' },
+  { f: 'mie', nome: 'Me ne occupo io' }, { f: 'attesa', nome: 'In attesa' }, { f: 'fatte', nome: 'Fatte' }, { f: 'chiuse', nome: 'Chiuse' },
 ]
 
 export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
   const testo = q.trim().toLowerCase()
   return ds.filter((d) => {
     const g = gruppoDi(d)
+    if (d.in_mano_a && f !== 'mie' && f !== 'fatte' && f !== 'chiuse') return false   // una relazione di Dre non sta nella coda di Clara
     const ok = f === 'tutte' ? g === 'fare' || g === 'corso'
       : f === 'inviare' ? (g === 'fare' || g === 'corso') && MOSSE[d.mossa].scrive
         : f === 'call' ? (g === 'fare' || g === 'corso') && (d.mossa === 'callback' || d.mossa === 'book_meeting' || d.mossa === 'offer_slots')
           : f === 'tue' ? g === 'fare' && d.mossa === 'escalate'
+            : f === 'mie' ? !!d.in_mano_a
             : f === 'attesa' ? g === 'attesa'
               : f === 'fatte' ? g === 'fatte'
                 : g === 'chiuse'
@@ -65,7 +67,7 @@ export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
 }
 
 export function conta<T extends Decisione>(ds: T[]): Record<Filtro, number> {
-  const out = { tutte: 0, inviare: 0, call: 0, tue: 0, attesa: 0, fatte: 0, chiuse: 0 }
+  const out = { tutte: 0, inviare: 0, call: 0, tue: 0, mie: 0, attesa: 0, fatte: 0, chiuse: 0 }
   for (const f of Object.keys(out) as Filtro[]) out[f] = filtra(ds, f).length
   return out
 }
@@ -89,6 +91,9 @@ export const ESITI_CHIAMATA: Array<{ esito: string; nome: string }> = [
 export const ESITI_TUA: Array<{ esito: string; nome: string }> = [
   { esito: 'risposto_io', nome: 'Ho risposto io' }, { esito: 'chiuso', nome: 'Chiudo qui' }, { esito: 'rimandato', nome: 'Più avanti' },
 ]
+
+/** I motivi per cui Dre prende in mano una relazione: Clara li legge come nota. */
+export const MOTIVI_IN_MANO: string[] = ['Mi ha chiamato', 'L’ho chiamato io', 'Ci ho parlato di persona', 'Me ne occupo io da qui', 'Non va più seguito']
 
 export function nomeProprio(persona: string | null | undefined): string {
   return (persona ?? '').trim().split(/\s+/)[0] || ''

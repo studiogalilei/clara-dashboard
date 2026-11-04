@@ -1,6 +1,6 @@
 // LE RELAZIONI: cerchi un'azienda e vedi tutto: il filo delle mail, le decisioni di Clara, le call, le note.
 import { useEffect, useState } from 'react'
-import { aggiungiNota, cerca, leggiRelazione, type Trovato } from './dati'
+import { aggiungiNota, cerca, leggiRelazione, prendiInMano, type Trovato } from './dati'
 import { MOSSE, iniziali } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -35,9 +35,9 @@ function Ricerca({ vai }: { vai: (d: Dove) => void }) {
       {errore && <Errore testo={errore} />}
       {trovati && trovati.length === 0 && <Vuoto>Nessuna azienda con questo nome.</Vuoto>}
       {trovati && trovati.length > 0 && (
-        <ul>
+        <ul className="space-y-2 p-3 lg:p-4">
           {trovati.map((t) => (
-            <li key={t.id} className="border-b border-velo last:border-0">
+            <li key={t.id} className="rounded-xl border border-bordo bg-white hover:border-tenue">
               <button onClick={() => vai({ voce: 'relazioni', id: t.id })} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-fondo/70">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-navy/[0.08] text-[12px] font-extrabold text-navy">{iniziali(t.azienda)}</span>
                 <span className="min-w-0 flex-1">
@@ -72,6 +72,16 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
     } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) }
   }
   const aperta = dati.decisioni.find((d) => d.stato === 'proposta' || d.stato === 'approvata')
+  const mia = !!l.in_mano_a
+  const cambiaMano = async (lascia: boolean) => {
+    const perche = lascia ? '' : (window.prompt('Perché la prendi tu? (mi ha chiamato, l’ho chiamato io, ci ho parlato…)') ?? '')
+    if (!lascia && perche === '') return
+    try {
+      await prendiInMano(l.id, perche, lascia)
+      setDati((prev) => prev && prev.lead ? { ...prev, lead: { ...prev.lead, in_mano_a: lascia ? null : 'Dre', in_mano_motivo: lascia ? null : perche, in_mano_il: lascia ? null : new Date().toISOString() } } : prev)
+      mostra({ testo: lascia ? 'Torna a Clara.' : 'È tua: Clara si ferma qui.' })
+    } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) }
+  }
   return (
     <div className="mx-auto max-w-[900px] space-y-4">
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
@@ -86,6 +96,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
               {l.analisi_mandata && <Pillola testo={`Analisi mandata ${quando(l.analisi_il)}`} tono="noi" />}
               {l.fit && <Pillola testo={`Fit ${l.fit}`} tono={l.fit === 'NO' ? 'no' : l.fit === 'SI' ? 'ok' : 'attesa'} />}
               {l.no_followup && <Pillola testo="Non contattare" tono="stop" icona="divieto" />}
+              {mia && <Pillola testo={`Me ne occupo io${l.in_mano_motivo ? `: ${l.in_mano_motivo}` : ''}`} tono="stop" piena />}
             </div>
           </div>
         </div>
@@ -98,7 +109,10 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
           {l.analisi_pdf && <><dt className="text-tenue">Analisi</dt><dd><a href={l.analisi_pdf} target="_blank" rel="noreferrer" className="font-semibold text-navy underline-offset-2 hover:underline">Apri il PDF</a></dd></>}
           <dt className="text-tenue">Fonte</dt><dd>{l.fonte || 'non registrata'}</dd>
         </dl>
-        {aperta && <Bottone tipo="primo" onClick={() => vai({ voce: 'coda', id: aperta.id })} className="mt-4 w-full sm:w-auto">Vai alla mossa in coda: {MOSSE[aperta.mossa].nome}</Bottone>}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {aperta && !mia && <Bottone tipo="primo" onClick={() => vai({ voce: 'coda', id: aperta.id })}>Vai alla mossa in coda: {MOSSE[aperta.mossa].nome}</Bottone>}
+          {mia ? <Bottone onClick={() => void cambiaMano(true)}>Ridalla a Clara</Bottone> : <Bottone onClick={() => void cambiaMano(false)}>Me ne occupo io: ferma Clara</Bottone>}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
@@ -121,9 +135,9 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
         <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Le decisioni di Clara</h2>
         {dati.decisioni.length === 0 ? <p className="text-[13.5px] text-tenue">Ancora nessuna.</p> : (
-          <ul className="divide-y divide-velo">
+          <ul className="space-y-2">
             {dati.decisioni.map((d) => (
-              <li key={d.id} className="py-2.5">
+              <li key={d.id} className="rounded-xl border border-bordo px-3.5 py-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Pillola testo={MOSSE[d.mossa].nome} tono={MOSSE[d.mossa].tono} />
                   <span className="text-[12.5px] text-tenue">{quando(d.creato_il)} · {d.stato}{d.esito ? ` · ${d.esito}` : ''}{d.dre_giudizio ? ` · Dre: ${d.dre_giudizio}` : ''}</span>

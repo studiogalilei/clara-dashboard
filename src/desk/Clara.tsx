@@ -51,7 +51,7 @@ export default function Clara() {
       </section>
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
         <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Il sistema</h2>
-        <ul className="divide-y divide-velo">
+        <ul className="space-y-2">
           {(dati?.o ?? []).map((o) => <Riga key={o.chiave} o={o} />)}
         </ul>
       </section>
@@ -77,7 +77,7 @@ function Riga({ o }: { o: Operazione }) {
   const ferma = !o.ultima_corsa || Date.now() - new Date(o.ultima_corsa).getTime() > 40 * 60_000
   const tono = !o.attiva ? 'neutro' : o.ultimo_esito === 'errore' ? 'no' : ferma ? 'attesa' : 'ok'
   return (
-    <li className="flex items-center justify-between gap-3 py-2.5 text-[13.5px]">
+    <li className="flex items-center justify-between gap-3 rounded-xl border border-bordo px-3.5 py-2.5 text-[13.5px]">
       <span className="font-semibold text-inchiostro">{NOMI[o.chiave] ?? o.nome}</span>
       <span className="flex items-center gap-2 text-tenue">
         {o.ultima_corsa && <span className="hidden sm:inline">{quando(o.ultima_corsa)}</span>}

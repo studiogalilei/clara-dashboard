@@ -274,7 +274,7 @@ def contattabile(p):
     # 13/10: chi chiama passava spesso una scheda parziale (le bozze non leggevano no_followup):
     # la regola mancava il campo e diceva «contattabile». Ora i campi mancanti li va a prendere,
     # e chiede al database anche se e' cliente (tabella clienti, v78): la stessa cosa del trigger.
-    CAMPI_REGOLA = ("fuori", "stage", "pipeline_stage", "no_followup", "classificazione")
+    CAMPI_REGOLA = ("fuori", "stage", "pipeline_stage", "no_followup", "classificazione", "in_mano_a")
     if p.get("id") and any(k not in p for k in CAMPI_REGOLA):
         try:
             fresco = (sb("GET", f"/rest/v1/prospects?select={','.join(CAMPI_REGOLA)}&id=eq.{p['id']}") or [{}])[0]
@@ -284,6 +284,8 @@ def contattabile(p):
     if p.get("fuori") or p.get("stage") in ("cliente", "perso") or p.get("pipeline_stage") in ("cliente", "perso"):
         return False
     if p.get("no_followup") or p.get("classificazione") in ("soppresso", "nervoso"):
+        return False
+    if p.get("in_mano_a"):                   # 4/11: «Me ne occupo io»: la relazione e' di Dre, Clara si ferma
         return False
     if p.get("id"):
         try:

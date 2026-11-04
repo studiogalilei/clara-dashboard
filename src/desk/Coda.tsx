@@ -3,8 +3,8 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { approva, giudica, leggiCoda, salvaTesto, scarta, segnaEsito, type Decisione } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, ordina, priorita, statoBreve, telefonoDa, type Filtro } from './regole'
+import { approva, giudica, leggiCoda, prendiInMano, salvaTesto, scarta, segnaEsito, type Decisione } from './dati'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, MOSSE, MOTIVI_IN_MANO, ordina, priorita, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -35,7 +35,7 @@ export default function Coda({ dove, vai, indietro }: { dove: Dove; vai: (d: Dov
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold leading-tight text-navy lg:text-[26px]">La coda</h1>
-            <p className="mt-1 text-[13.5px] text-tenue">Clara ha letto ogni risposta e preparato la mossa. Tu: Invia, aggiusta, o No.</p>
+            <p className="mt-1 text-[13.5px] text-tenue">Clara legge ogni risposta, decide e manda. Qui vedi chi c’è e cosa sta facendo; una relazione che prendi tu, diglielo.</p>
           </div>
           {conti && <span className="shrink-0 rounded-full bg-navy/[0.08] px-3 py-1 text-[13px] font-bold text-navy">{conti.tutte} da fare</span>}
         </div>
@@ -54,21 +54,21 @@ export default function Coda({ dove, vai, indietro }: { dove: Dove; vai: (d: Dov
         </label>
       </header>
       {righe.length === 0 ? <Vuoto>Niente qui. {filtro === 'tutte' ? 'La coda è vuota: Clara non ha mosse da farti vedere.' : 'Prova un altro filtro.'}</Vuoto> : (
-        <ul>
+        <ul className="space-y-2 p-3 lg:p-4">
           {righe.map((d) => {
             const su = (scelta ?? prima)?.id === d.id
             const s = statoBreve(d)
             return (
-              <li key={d.id} className="border-b border-velo last:border-0">
+              <li key={d.id}>
                 <button onClick={() => vai({ voce: 'coda', id: d.id })} aria-current={su ? 'true' : undefined}
-                        className={`grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left hover:bg-fondo/70 ${su ? 'bg-navy/[0.05] shadow-[inset_3px_0_0_var(--color-navy)]' : ''}`}>
+                        className={`grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${su ? 'border-navy/40 bg-navy/[0.05]' : 'border-bordo bg-white hover:border-tenue hover:bg-fondo/60'}`}>
                   <span className={`grid h-9 w-11 place-items-center rounded-lg text-[13px] font-extrabold ${priorita(d, adesso) >= 90 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{priorita(d, adesso)}</span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14.5px] font-bold text-inchiostro">{d.azienda || d.email}</span>
                     <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(' · ')}</span>
                   </span>
                   <span className="flex flex-col items-end gap-1">
-                    <Pillola testo={s.testo.length > 26 ? s.testo.slice(0, 24) + '…' : s.testo} tono={s.tono} />
+                    {d.in_mano_a ? <Pillola testo="Me ne occupo io" tono="stop" /> : <Pillola testo={s.testo.length > 26 ? s.testo.slice(0, 24) + '…' : s.testo} tono={s.tono} />}
                     <span className="text-[11.5px] text-tenue">{quando(d.risposta_il)}</span>
                   </span>
                 </button>
@@ -104,12 +104,14 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   const [testo, setTesto] = useState(parti.corpo)
   const [modifico, setModifico] = useState(false)
   const [chiedoNo, setChiedoNo] = useState(false)
+  const [chiedoMia, setChiedoMia] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [lavoro, setLavoro] = useState(false)
   const s = statoBreve(d)
-  const aperta = d.stato === 'proposta'
+  const mia = !!d.in_mano_a
+  const aperta = d.stato === 'proposta' && !mia
   const inPartenza = d.stato === 'approvata' || d.stato === 'in_invio'
-  useEffect(() => { setTesto(destinatari(d.testo).corpo); setModifico(false); setChiedoNo(false) }, [d.id, d.testo])
+  useEffect(() => { setTesto(destinatari(d.testo).corpo); setModifico(false); setChiedoNo(false); setChiedoMia(false) }, [d.id, d.testo])
 
   const testoIntero = () => {
     const testa = [parti.a ? `A: ${parti.a}${parti.cc ? ` — Cc: ${parti.cc}` : ''}` : null, parti.oggetto ? `Oggetto: ${parti.oggetto}` : null].filter(Boolean)
@@ -124,6 +126,10 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
   const esito = (e: string) => fai(() => segnaEsito(d.id, e), { stato: 'fatta', esito: e, esito_il: new Date().toISOString() }, 'Segnato.')
   const okCosi = () => fai(() => giudica(d.id, true), { dre_giudizio: 'ok' }, 'Bene: Clara impara che va bene così.')
   const nonCosi = () => fai(() => giudica(d.id, false, motivo), { dre_giudizio: 'no' }, 'Segnato: Clara impara.')
+  const prendo = (perche: string) => fai(() => prendiInMano(d.prospect_id, perche),
+    { in_mano_a: 'Dre', in_mano_motivo: perche, in_mano_il: new Date().toISOString(), ...(d.stato === 'proposta' || d.stato === 'approvata' ? { stato: 'scartata' as const } : {}) },
+    'È tua: Clara si ferma su questa relazione.')
+  const ridai = () => fai(() => prendiInMano(d.prospect_id, '', true), { in_mano_a: null, in_mano_motivo: null, in_mano_il: null }, 'Torna a Clara: riparte dalla prossima risposta.')
 
   return (
     <section className="rounded-2xl border border-bordo bg-white lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
@@ -140,8 +146,8 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <Pillola testo={m.nome} tono={m.tono} piena={d.mossa === 'callback' || d.mossa === 'book_meeting'} />
-          {!aperta && <Pillola testo={s.testo} tono={s.tono} />}
+          {mia ? <Pillola testo={`Me ne occupo io${d.in_mano_motivo ? `: ${d.in_mano_motivo}` : ''}`} tono="stop" piena /> : <Pillola testo={m.nome} tono={m.tono} piena={d.mossa === 'callback' || d.mossa === 'book_meeting'} />}
+          {!aperta && !mia && <Pillola testo={s.testo} tono={s.tono} />}
           {d.analisi_mandata && <Pillola testo="Analisi mandata" tono="noi" />}
           {d.fase && !['risposto', 'in_follow_up'].includes(d.fase) && <Pillola testo={d.fase.replace(/_/g, ' ')} tono="neutro" />}
           {d.prossima_call && <Pillola testo={`Call ${quando(d.prossima_call)}`} tono="opp" icona="video" />}
@@ -233,6 +239,28 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
         {d.stato === 'fatta' && <p className={`rounded-lg border px-3 py-2 text-[13px] ${TONO.ok.morbido}`}>Fatto: {d.esito} ({quando(d.esito_il)})</p>}
         {(d.stato === 'scartata' || d.stato === 'superata') && <p className="rounded-lg border border-bordo px-3 py-2 text-[13px] text-tenue">{s.testo}.</p>}
         {aperta && d.dre_giudizio === 'ok' && (d.mossa === 'wait' || d.mossa === 'close') && <p className="text-[13px] text-tenue">Hai detto che va bene così.</p>}
+        {mia ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-bordo bg-fondo/60 px-3 py-2 text-[13px] text-inchiostro">
+            <span>Questa relazione è tua{d.in_mano_il ? ` da ${quando(d.in_mano_il)}` : ''}: Clara non le scrive.</span>
+            <Bottone tipo="piatto" onClick={() => void ridai()} disabled={lavoro} className="text-[13px]">Ridalla a Clara</Bottone>
+          </div>
+        ) : chiedoMia ? (
+          <div className="space-y-2 rounded-xl border border-bordo bg-fondo/50 p-3">
+            <p className="text-[13px] font-semibold text-inchiostro">Perché la prendi tu? Clara si ferma su questa relazione e lo legge.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {MOTIVI_IN_MANO.map((x) => <Bottone key={x} onClick={() => void prendo(x)} disabled={lavoro} className="text-[13px]">{x}</Bottone>)}
+            </div>
+            <div className="flex gap-2">
+              <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Oppure scrivilo tu" aria-label="Motivo"
+                     onKeyDown={(e) => { if (e.key === 'Enter' && motivo.trim()) void prendo(motivo) }}
+                     className="min-h-10 min-w-0 flex-1 rounded-xl border border-bordo bg-white px-3 text-[14px] outline-none focus:border-navy" />
+              <Bottone tipo="primo" onClick={() => void prendo(motivo)} disabled={lavoro || !motivo.trim()}>Ok</Bottone>
+              <Bottone tipo="piatto" onClick={() => setChiedoMia(false)} disabled={lavoro}>Annulla</Bottone>
+            </div>
+          </div>
+        ) : (
+          !chiedoNo && <Bottone tipo="piatto" onClick={() => setChiedoMia(true)} disabled={lavoro} className="w-full text-[13px]">Me ne occupo io: ferma Clara su questa relazione</Bottone>
+        )}
       </footer>
     </section>
   )

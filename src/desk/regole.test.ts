@@ -31,6 +31,9 @@ describe('il desk: la coda', () => {
     expect(filtra(ds, 'tue').map((d) => d.id)).toEqual(['b'])
     expect(filtra(ds, 'call').map((d) => d.id)).toEqual(['c'])
     expect(filtra(ds, 'tutte', 'bianchi').map((d) => d.id)).toEqual(['b'])
+    const mia = base({ id: 'm', mossa: 'reply', in_mano_a: 'Dre' })
+    expect(filtra([...ds, mia], 'tutte').map((d) => d.id)).toEqual(['a', 'b', 'c'])
+    expect(filtra([...ds, mia], 'mie').map((d) => d.id)).toEqual(['m'])
   })
   it('lo stato in una parola dice quando e\' ferma e perche\'', () => {
     expect(statoBreve(base({ errore: 'aspetta l’analisi' })).tono).toBe('no')

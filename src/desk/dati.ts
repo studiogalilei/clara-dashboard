@@ -23,6 +23,7 @@ export interface Decisione {
   azienda: string | null; persona: string | null; ruolo: string | null; email: string; citta: string | null; settore: string | null
   telefono: string | null; sito: string | null; analisi_pdf: boolean; analisi_mandata: boolean; fase: string | null
   classe: string | null; ultima_risposta: string | null; prossima_call: string | null
+  approvata_da?: string | null; in_mano_a?: string | null; in_mano_motivo?: string | null; in_mano_il?: string | null
 }
 
 export interface Messaggio { at: string; tipo: 'email_in' | 'email_out'; testo: string | null; casella: string | null }
@@ -32,6 +33,7 @@ export interface Relazione {
     settore: string | null; telefono: string | null; sito: string | null; analisi_pdf: string | null; analisi_mandata: boolean
     analisi_il: string | null; fase: string | null; classe: string | null; ultima_risposta: string | null; fuori: boolean
     no_followup: boolean; fonte: string | null; fit: string | null; fit_motivo: string | null; cosa_fa: string | null; campagna: string | null
+    in_mano_a?: string | null; in_mano_motivo?: string | null; in_mano_il?: string | null
   } | null
   filo: Messaggio[]
   decisioni: Array<{ id: string; risposta_il: string; mossa: Mossa; owner: string | null; testo: string | null; perche: string | null; stato: Stato; inviata_il: string | null; esito: string | null; dre_giudizio: string | null; dre_nota: string | null; creato_il: string }>
@@ -131,6 +133,14 @@ export async function giudica(id: string, ok: boolean, nota?: string): Promise<v
   const { error } = await supabase.from('clara_decisioni')
     .update({ dre_giudizio: ok ? 'ok' : 'no', dre_nota: nota?.trim() || null, dre_il: ADESSO() }).eq('id', id).abortSignal(entro())
   if (error) guasto(error)
+}
+
+/** «Me ne occupo io»: la relazione passa a Dre, Clara si ferma su quel lead (le sue mosse aperte si chiudono)
+ *  e il motivo resta scritto come nota. Con lascia=true gliela ridà. */
+export async function prendiInMano(prospectId: string, motivo: string, lascia = false): Promise<void> {
+  const { data, error } = await supabase.rpc('clara_prendi', { chi: prospectId, motivo: motivo.trim() || null, lascia }).abortSignal(entro())
+  if (error) guasto(error)
+  if (data && data.ok === false) throw new Error(data.perche || 'Non riesco')
 }
 
 /** Il testo cambiato senza mandare (si salva come testo_finale, la decisione resta proposta). */

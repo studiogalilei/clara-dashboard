@@ -34,11 +34,11 @@ export default function Call({ vai }: { vai: (d: Dove) => void }) {
           <p className="mt-1 text-[13.5px] text-tenue">Solo chi l’ha chiesto. Chiami, poi un tocco sull’esito.</p>
         </header>
         {c.richiami.length === 0 ? <Vuoto>Nessuno da richiamare adesso.</Vuoto> : (
-          <ul>
+          <ul className="space-y-2.5 p-3 lg:p-4">
             {c.richiami.map((r) => {
               const tel = telefonoDa(r.telefono)
               return (
-              <li key={r.id} className="space-y-2.5 border-b border-velo p-4 last:border-0">
+              <li key={r.id} className="space-y-2.5 rounded-xl border border-bordo bg-white p-4">
                 <button onClick={() => vai({ voce: 'relazioni', id: r.prospect_id })} className="block w-full min-w-0 text-left">
                   <span className="block truncate text-[15px] font-bold text-inchiostro">{r.azienda}</span>
                   <span className="block text-[13px] text-tenue">{[r.persona, quando(r.risposta_il)].filter(Boolean).join(' · ')}</span>
