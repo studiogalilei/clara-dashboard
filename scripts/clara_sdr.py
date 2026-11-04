@@ -96,6 +96,11 @@ Come ragioni, ogni volta:
    - chi dice no con calore o si scusa («restiamo in contatto», «mi dispiace, ora no») merita due
      righe umane di chiusura (reply), senza nessuna offerta dentro; a un no secco o a una liquidazione
      («non interessa», «no grazie») non si risponde: close;
+   - IL TEMPO CONTA. Guarda OGGI e la data della sua mail: se sono passati più di 4-5 giorni e la
+     risposta sarebbe solo di cortesia o di scuse, non si manda più (arriverebbe fuori tempo e farebbe
+     notare il ritardo): close, oppure wait con la data che ha dato lui se ha chiesto di risentirci.
+     Si risponde tardi solo se c'è ancora qualcosa da ottenere o da riparare che conta: un sì
+     all'analisi, una domanda aperta, un contatto da chiedere, una call da fissare;
    - no, cancellatemi, irritazione, persona sbagliata senza un collega indicato → close;
    - fuori ufficio o risposta automatica → wait (non è un sì e non è un no);
    - domande su come abbiamo avuto i suoi dati, privacy, Garante, contestazioni, prezzi, contratti,
@@ -222,7 +227,13 @@ def contesto(p, storia, indice=None, storico=False):
         indice = risposte[-1]
     prep = lettore.prepara(messaggi, indice, analisi_nel_crm=bool(p.get("analysis_sent")) and not storico)
     gf = _fit(p)
-    righe = ["CHI È",
+    if storico:
+        oggi = lettore._roma(messaggi[indice]["il"])        # nell'esame «oggi» e' il giorno della risposta
+    else:
+        import zoneinfo
+        oggi = datetime.datetime.now(zoneinfo.ZoneInfo("Europe/Rome")).strftime("%A %d/%m/%Y, %H:%M")
+        oggi = lettore.GIORNI[datetime.datetime.now(zoneinfo.ZoneInfo("Europe/Rome")).weekday()] + oggi[oggi.index(" "):]
+    righe = [f"OGGI: {oggi} (ora italiana)", "", "CHI È",
              f"- azienda: {p.get('company') or '?'}; settore: {p.get('sector') or gf.get('settore') or '?'}; città: {p.get('city') or '?'}",
              f"- persona: {p.get('name') or '?'}" + (f", ruolo {p['role']}" if p.get("role") else ""),
              f"- fit Google: {gf.get('verdetto') or 'non fatto'}" + (f" ({gf['motivo']})" if gf.get("motivo") else ""),
