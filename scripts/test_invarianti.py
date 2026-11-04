@@ -3461,8 +3461,12 @@ def _():
         Bz.occupato_google = lambda da, a: []
         il(2026, 10, 21)                                         # mercoledi'
         e = Bz.due_orari()
+        # 4/11 (Dre): il secondo «2 max 3 giorni dopo»; da giovedi' +2 e' sabato, +3 domenica: ripiega a venerdi'
         assert e == "giovedì 22 ottobre alle 14:30 oppure venerdì 23 ottobre alle 10", e
         assert Bz.orari_da_proporre()[1] == "domani alle 14:30 oppure venerdì 23 ottobre alle 10", Bz.orari_da_proporre()
+        il(2026, 10, 20)                                         # martedi': domani mercoledi', poi venerdi' (+2)
+        assert Bz.due_orari() == "mercoledì 21 ottobre alle 14:30 oppure venerdì 23 ottobre alle 10", Bz.due_orari()
+        il(2026, 10, 21)
         # domani pieno nel calendario vero: niente «domani», il primo giorno libero e un altro
         Bz.occupato_google = lambda da, a: [(datetime.datetime(2026, 10, 22, 0, 0, tzinfo=roma), datetime.datetime(2026, 10, 22, 23, 0, tzinfo=roma))]
         e = Bz.due_orari()
@@ -3471,7 +3475,7 @@ def _():
         # venerdi': domani e' sabato, quindi martedi' e mercoledi' (mai weekend, mai lunedi')
         Bz.occupato_google = lambda da, a: []
         il(2026, 10, 23)
-        assert Bz.due_orari().startswith("martedì 27 ottobre alle 14:30 oppure mercoledì 28 ottobre"), Bz.due_orari()
+        assert Bz.due_orari().startswith("martedì 27 ottobre alle 14:30 oppure giovedì 29 ottobre"), Bz.due_orari()
     finally:
         Bz.sb, Bz.datetime, Bz.occupato_google = vero_sb, vero_dt, vero_occ
     # il testo: «domani» e' rispetto al giorno della scrittura, e passa il giorno dopo
@@ -3568,7 +3572,7 @@ def _():
         # 4. senza vincoli resta la regola del 22/10, identica; e un saluto non e' una fascia
         assert O.vincoli("Mandatela pure, grazie. Buon pomeriggio", oggi) == {}
         assert O.vincoli("Ad oggi non abbiamo budget, ma la leggo volentieri.", oggi) == {}
-        assert Bz.due_orari(1, {}) == Bz.due_orari() == "mercoledì 4 novembre alle 14:30 oppure giovedì 5 novembre alle 10", Bz.due_orari()
+        assert Bz.due_orari(1, {}) == Bz.due_orari() == "mercoledì 4 novembre alle 14:30 oppure venerdì 6 novembre alle 10", Bz.due_orari()
     finally:
         Bz.sb, Bz.datetime, Bz.occupato_google = vero_sb, vero_dt, vero_occ
     # la fonte e' una: chi compone la mail, chi rifa' gli orari e le strade passano dai vincoli; la seconda testa resta
