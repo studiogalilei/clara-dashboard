@@ -4,7 +4,7 @@
 // Modifica, No), le Call (prenotate e da richiamare, esiti a un tocco), le Relazioni (cerchi
 // un'azienda, vedi tutto il filo), Clara (come sta, cosa ha imparato).
 // Indirizzi: #/d/coda, #/d/coda/<id>, #/d/call, #/d/relazioni, #/d/relazioni/<id>, #/d/clara.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { chiSono, type ChiSono } from '../lib/accessi'
@@ -46,8 +46,21 @@ export function indirizzo(d: Dove): string {
 }
 
 export default function Desk() {
-  const [larga, setLarga] = useState<boolean>(() => { try { return localStorage.getItem('desk_barra') !== 'stretta' } catch { return true } })
-  const cambiaBarra = (v: boolean) => { setLarga(v); try { localStorage.setItem('desk_barra', v ? 'larga' : 'stretta') } catch { /* niente */ } }
+  // 4/11, Dre: «come Claude: la riporto più in dentro trascinando, e quando passo sopra appare il coso per muovere»
+  const [larghezza, setLarghezza] = useState<number>(() => { try { const v = Number(localStorage.getItem('desk_barra_px')); return v >= 72 && v <= 360 ? v : 228 } catch { return 228 } })
+  const larga = larghezza >= 140
+  const trascina = (e: ReactMouseEvent) => {
+    e.preventDefault()
+    const x0 = e.clientX, l0 = larghezza
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'
+    const muovi = (ev: MouseEvent) => { const l = Math.max(72, Math.min(360, l0 + ev.clientX - x0)); setLarghezza(l < 140 ? 72 : l) }
+    const lascia = () => {
+      window.removeEventListener('mousemove', muovi); window.removeEventListener('mouseup', lascia)
+      document.body.style.cursor = ''; document.body.style.userSelect = ''
+      setLarghezza((l) => { try { localStorage.setItem('desk_barra_px', String(l)) } catch { /* niente */ } return l })
+    }
+    window.addEventListener('mousemove', muovi); window.addEventListener('mouseup', lascia)
+  }
   const [session, setSession] = useState<Session | null>(null)
   const [pronta, setPronta] = useState(false)
   const [io, setIo] = useState<ChiSono | null>(null)
@@ -105,15 +118,18 @@ export default function Desk() {
 
       {/* a sinistra sul computer: scuro, come una scrivania che resta ferma */}
       {/* 4/11, Dre: «allargabile come quella di Claude»: si chiude a sole icone e si riapre, e si ricorda com'era */}
-      <nav aria-label="Sezioni" className={`relative hidden shrink-0 flex-col bg-navy-scuro py-5 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'w-[228px] px-3' : 'w-[72px] px-2.5'}`}>
+      <nav aria-label="Sezioni" style={{ width: larghezza }} className={`relative hidden shrink-0 flex-col bg-navy-scuro py-5 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'px-3' : 'px-2.5'}`}>
         <div className={`mb-6 flex items-center ${larga ? 'gap-3 px-3' : 'justify-center'}`}>
           <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" width={26} height={30} style={{ width: 26, height: 30 }} className="shrink-0 object-contain brightness-0 invert" />
           {larga && <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/60">OUTBOUND DESK</span></span>}
         </div>
-        <button onClick={() => cambiaBarra(!larga)} aria-label={larga ? 'Chiudi la barra' : 'Apri la barra'} aria-expanded={larga} title={larga ? 'Chiudi la barra' : 'Apri la barra'}
-                className="absolute -right-3 top-[3.1rem] grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-navy-scuro text-white/70 shadow hover:text-white">
-          <Icona nome="indietro" className={`h-3.5 w-3.5 transition-transform ${larga ? '' : 'rotate-180'}`} />
-        </button>
+        {/* la maniglia: invisibile, appare al passaggio; si trascina, doppio clic per aprire/chiudere */}
+        <div role="separator" aria-orientation="vertical" aria-label="Larghezza della barra" onMouseDown={trascina}
+             onDoubleClick={() => { const l = larga ? 72 : 228; setLarghezza(l); try { localStorage.setItem('desk_barra_px', String(l)) } catch { /* niente */ } }}
+             className="group absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize">
+          <span className="absolute inset-y-0 left-1 w-1 rounded bg-white/0 transition-colors group-hover:bg-white/40" />
+          <span className="absolute left-0 top-1/2 h-10 w-2.5 -translate-y-1/2 rounded bg-white/0 transition-colors group-hover:bg-white/70" />
+        </div>
         <ul className="space-y-1">
           {VOCI.map((v) => {
             const su = dove.voce === v.voce || (v.voce === 'relazioni' && dove.voce === 'filo')

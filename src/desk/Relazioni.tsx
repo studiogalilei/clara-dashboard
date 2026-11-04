@@ -4,7 +4,7 @@
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
 import { approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, iniziali, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
+import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -14,6 +14,7 @@ import type { Dove } from './Desk'
 export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d: Dove) => void; indietro: () => void }) {
   const { dati, setDati, errore, caricando, rifai } = useDati(() => leggiCoda(30))
   const [filtro, setFiltro] = useState<Filtro>('tutte')
+  const [tendina, setTendina] = useState(false)
   const [q, setQ] = useState('')
   const { mostra, vista } = useAvviso()
   const adesso = new Date()
@@ -48,16 +49,30 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
           </div>
           {conti && <span className="shrink-0 rounded-lg bg-navy/[0.08] px-3 py-1 text-[13px] font-bold text-navy">{conti.tutte} da fare</span>}
         </div>
-        {/* 4/11, Dre: le pillole erano dispersive. Linguette in una riga sola: la scelta e' sottolineata, le altre in grigio */}
-        <div role="tablist" aria-label="Filtri" className="mt-3 -mb-4 flex gap-5 overflow-x-auto border-b border-bordo [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:-mb-5">
-          {FILTRI.map((f) => (
-            <button key={f.f} role="tab" onClick={() => setFiltro(f.f)} aria-selected={filtro === f.f}
-                    className={`-mb-px shrink-0 whitespace-nowrap border-b-2 pb-2 pt-1 text-[13px] font-semibold transition-colors ${filtro === f.f ? 'border-navy text-inchiostro' : 'border-transparent text-tenue hover:text-inchiostro'}`}>
-              {f.nome}{conti && conti[f.f] ? <span className={`ml-1 ${filtro === f.f ? 'text-navy' : 'text-spento'}`}>{conti[f.f]}</span> : null}
-            </button>
-          ))}
+        {/* 4/11, Dre: «un bottone solo, clicco e in tendina escono gli altri» */}
+        <div className="relative mt-3 flex items-center gap-2">
+          <button onClick={() => setTendina((v) => !v)} aria-haspopup="listbox" aria-expanded={tendina}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-bordo bg-white px-3.5 text-[14px] font-bold text-inchiostro hover:border-tenue">
+            {FILTRI.find((f) => f.f === filtro)?.nome}{conti ? <span className="font-semibold text-tenue">{conti[filtro]}</span> : null}
+            <Icona nome="indietro" className={`h-3.5 w-3.5 text-tenue transition-transform ${tendina ? 'rotate-90' : '-rotate-90'}`} />
+          </button>
+          {tendina && (
+            <>
+              <button aria-label="Chiudi" onClick={() => setTendina(false)} className="fixed inset-0 z-10 cursor-default bg-transparent" />
+              <ul role="listbox" className="absolute left-0 top-full z-20 mt-1 min-w-[240px] overflow-hidden rounded-xl border border-bordo bg-white py-1 shadow-lg">
+                {FILTRI.map((f) => (
+                  <li key={f.f} role="option" aria-selected={filtro === f.f}>
+                    <button onClick={() => { setFiltro(f.f); setTendina(false) }}
+                            className={`flex w-full items-center justify-between gap-4 px-3.5 py-2 text-left text-[14px] ${filtro === f.f ? 'bg-navy/[0.06] font-bold text-inchiostro' : 'text-inchiostro hover:bg-fondo'}`}>
+                      {f.nome}<span className="text-[13px] font-semibold text-tenue">{conti ? conti[f.f] : ''}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
-        <label className="mt-7 flex min-h-10 items-center gap-2 rounded-xl border border-bordo bg-white px-3 text-tenue focus-within:border-navy lg:mt-8">
+        <label className="mt-3 flex min-h-10 items-center gap-2 rounded-xl border border-bordo bg-white px-3 text-tenue focus-within:border-navy">
           <Icona nome="cerca" className="h-4 w-4 shrink-0" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca azienda o persona" aria-label="Cerca"
                  className="min-w-0 flex-1 bg-transparent text-[14px] text-inchiostro outline-none placeholder:text-spento" />
@@ -172,7 +187,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
           <button onClick={vaiRelazione} className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-full border border-bordo px-3 text-[12.5px] font-semibold text-tenue hover:border-tenue hover:text-inchiostro"><Icona nome="lead" className="h-3.5 w-3.5" /> Tutto il filo</button>
         </div>
         <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-navy/[0.08] text-[15px] font-extrabold text-navy">{iniziali(d.azienda)}</span>
+          <span title={`Interesse e fit: ${interesse(d)} su 10`} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[18px] font-extrabold ${interesse(d) >= 8 ? 'bg-ok-testo text-white' : interesse(d) >= 5 ? 'bg-navy/[0.1] text-navy' : 'bg-velo text-tenue'}`}>{interesse(d)}</span>
           <div className="min-w-0">
             <h2 className="truncate text-[18px] font-bold leading-tight text-inchiostro">{d.azienda || d.email}</h2>
             <p className="truncate text-[13px] text-tenue">{[d.persona, d.ruolo, d.citta, d.settore].filter(Boolean).join(' · ').replace(/ · /g, ', ')}</p>
