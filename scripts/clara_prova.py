@@ -83,8 +83,29 @@ def gia_decisa(pid, risposta_il):
     return stessa
 
 
+def da_rifare(r, ora):
+    """Pura. L'ultima decisione su una risposta e' da rifare se Dre l'ha scartata con una nota negli ultimi due giorni
+    («Non sono d'accordo: dico a Clara cosa fare», 4/11): la nota e' l'ordine. «Me ne occupo io» non e' un ordine a Clara."""
+    if not r or r.get("stato") != "scartata" or r.get("dre_giudizio") != "no":
+        return None
+    nota = (r.get("dre_nota") or "").strip()
+    if not nota or nota.startswith("Me ne occupo io"):
+        return None
+    quando = _roma(r.get("dre_il"))
+    if not quando or (ora - quando) > datetime.timedelta(hours=48):
+        return None
+    return nota
+
+
+def correzione_di_dre(pid, risposta_il):
+    r = sb("GET", f"/rest/v1/clara_decisioni?select=stato,dre_giudizio,dre_nota,dre_il&prospect_id=eq.{pid}&risposta_il=eq.{urllib.parse.quote(risposta_il)}"
+                  "&origine=eq.risposta&order=creato_il.desc&limit=1") or []
+    return da_rifare(r[0] if r else None, adesso())
+
+
 def decidi_lead(p, perche=""):
-    """Decide sull'ultima risposta del lead e salva. Torna la riga salvata (o la decisione, in prova)."""
+    """Decide sull'ultima risposta del lead e salva. Torna la riga salvata (o la decisione, in prova).
+    4/11: se Dre ha scartato la decisione con una nota, Clara la rifa' seguendo la nota."""
     if not (p.get("campaign_id") and p.get("lead_id")):
         print("  lead senza filo Smartlead: niente")
         return None
@@ -95,12 +116,19 @@ def decidi_lead(p, perche=""):
         print("  nessuna risposta nel filo")
         return None
     risposta_il = risposte[-1]["il"]
+    ordine = None
     if gia_decisa(p["id"], risposta_il):
-        print("  gia' decisa")
-        return None
-    r = clara_sdr.giudica_uno(p, storia)
+        ordine = correzione_di_dre(p["id"], risposta_il)
+        if not ordine:
+            print("  gia' decisa")
+            return None
+        print(f"  Dre ha detto no e ha scritto cosa fare: Clara rifà («{ordine[:60]}»)")
+    sit = (f"Dramane ha scartato la tua decisione precedente su questa risposta e ha scritto: «{ordine}». "
+           "Fai esattamente quello che dice, con una mossa o un testo diversi da prima.") if ordine else None
+    r = clara_sdr.giudica_uno(p, storia, situazione=sit)
     d = r["decisione"]
-    riga = {"prospect_id": p["id"], "risposta_il": risposta_il, "versione": clara_sdr.VERSIONE,
+    riga = {"prospect_id": p["id"], "risposta_il": risposta_il, "versione": clara_sdr.VERSIONE, "stato": "proposta",
+            **({"dre_giudizio": None, "errore": None} if ordine else {}),
             "modello": r["uso"].get("modello") or clara_sdr.MODELLO,
             "lead_testo": (r.get("lead_testo") or "")[:1500],
             "mossa": d["proposed_action"], "owner": d.get("owner"), "entro_il": d.get("due_at") or None,

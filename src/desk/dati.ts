@@ -168,6 +168,14 @@ export async function scarta(id: string, motivo: string): Promise<void> {
   if (error) guasto(error)
 }
 
+/** Dre ha mandato l'invito a mano (Google non lo creava): la conferma parte lo stesso (4/11). */
+export async function invitoFatto(id: string): Promise<void> {
+  const { error } = await supabase.from('clara_decisioni')
+    .update({ invio: { invito: 'manuale' }, stato: 'approvata', approvata_il: ADESSO(), approvata_da: DRE, errore: null, dre_giudizio: 'ok', dre_il: ADESSO() })
+    .eq('id', id).in('stato', ['proposta', 'approvata']).abortSignal(entro())
+  if (error) guasto(error)
+}
+
 /** L'esito di una cosa fatta da Dre (una call, un richiamo, una decisione sua). */
 export async function segnaEsito(id: string, esito: string, nota?: string): Promise<void> {
   const agg: Record<string, unknown> = { esito, esito_il: ADESSO(), stato: 'fatta' }

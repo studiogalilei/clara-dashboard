@@ -6871,6 +6871,27 @@ def _():
 COMPONENTI = pathlib.Path(__file__).resolve().parents[1].joinpath("src", "components")
 
 
+@prova("Clara (4/11): un «No» di Dre con una nota fa rifare la decisione; «Me ne occupo io» no; dopo due giorni no")
+def _():
+    import clara_prova as P
+    roma = zoneinfo.ZoneInfo("Europe/Rome")
+    ora = datetime.datetime(2026, 11, 4, 18, 0, tzinfo=roma)
+    r = {"stato": "scartata", "dre_giudizio": "no", "dre_nota": "manda senza l'analisi", "dre_il": "2026-11-04T16:00:00+00:00"}
+    assert P.da_rifare(r, ora) == "manda senza l'analisi"
+    assert P.da_rifare({**r, "dre_nota": "Me ne occupo io: l'ho chiamato"}, ora) is None
+    assert P.da_rifare({**r, "dre_nota": ""}, ora) is None
+    assert P.da_rifare({**r, "stato": "proposta"}, ora) is None
+    assert P.da_rifare({**r, "dre_il": "2026-11-01T16:00:00+00:00"}, ora) is None
+    assert P.da_rifare(None, ora) is None
+    # ogni motivo per cui il postino ferma una mail dice il gesto da fare nel Desk
+    import inspect, clara_manda as M
+    src = inspect.getsource(M.manda_una) + inspect.getsource(M.invito)
+    for riga in [l for l in src.splitlines() if "ferma(d, f\"{azienda}:" in l or "return f\"" in l or "return \"" in l]:
+        if "prova" in riga or "non manda una mail" in riga or "non più un lead" in riga or "ha scritto di nuovo" in riga or "già scritto dopo" in riga or "{inv}" in riga:
+            continue
+        assert any(g in riga for g in ("tocca No", "Me ne occupo io", "Invito fatto", "guarda tu", "la riscrive")), riga
+
+
 def main():
     falliti = 0
     ritirate = 0

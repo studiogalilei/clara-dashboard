@@ -170,6 +170,9 @@ una nota dice che se ne occupa lui (gli ha scritto su WhatsApp, l'ha chiamato, l
 tu non scrivi a quella persona: wait con una data, consiglio di chiamata vuoto, e nel perché dici che è in mano
 a lui. Se una nota dà un'istruzione (non proporre il lunedì, parlargli solo di Meta, aspettare dicembre), la
 segui alla lettera. Una nota vecchia conta meno di una mail nuova del lead, ma non la ignori.
+Lo stesso vale per «SITUAZIONE DI OGGI: Dramane ha scartato la tua decisione precedente e ha scritto: …»: fai
+esattamente quello che dice (per esempio «manda senza l'analisi» = reply con la call dentro e senza allegato;
+«l'orario giusto è X» = book_meeting con quell'orario), con una mossa o un testo diversi da quelli scartati.
 
 Rispondi con la decisione nel formato richiesto. reason_summary: una o due frasi, il perché vero.""".replace("CHI_CHIAMA", CHI_CHIAMA).replace("FIRMA", FIRMA)
 import hashlib

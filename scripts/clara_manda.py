@@ -118,14 +118,14 @@ def invito(p, d, a):
         return gia
     quando = (d.get("appuntamento") or "").strip()
     if not quando:
-        return "prenotazione senza l'orario confermato (meeting_at vuoto)"
+        return "prenotazione senza l'orario confermato: tocca No e scrivi a Clara l'orario giusto, la rifà"
     try:
         inizio = datetime.datetime.fromisoformat(quando)
     except ValueError:
-        return f"orario della prenotazione illeggibile: {quando[:30]}"
+        return f"orario della prenotazione illeggibile ({quando[:30]}): tocca No e scrivi a Clara l'orario giusto"
     inizio = inizio.replace(tzinfo=ROMA) if inizio.tzinfo is None else inizio.astimezone(ROMA)
     if inizio < adesso():
-        return f"la prenotazione è nel passato ({inizio.strftime('%d/%m %H:%M')}): guarda tu"
+        return f"la prenotazione è nel passato ({inizio.strftime('%d/%m %H:%M')}): tocca No e scrivi a Clara l'orario giusto"
     fine = inizio + datetime.timedelta(minutes=DURATA_CALL_MIN)
     azienda = p.get("company") or p.get("name") or a
     corpo = {"summary": f"Conoscitiva {azienda}"[:200],
@@ -143,7 +143,7 @@ def invito(p, d, a):
         ev = g("POST", f"{calendario_sg.CAL}/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all",
                corpo, email=calendario_sg.PADRONE)
     except Exception as e:                                       # noqa: BLE001
-        return f"Google non crea l'evento: {str(e)[:160]}"
+        return f"Google non crea l'evento ({str(e)[:120]}): manda tu l'invito dal calendario e tocca «Invito fatto, manda la conferma»"
     link = (ev or {}).get("hangoutLink") or (ev or {}).get("htmlLink") or "creato"
     sb("PATCH", f"/rest/v1/clara_decisioni?id=eq.{d['id']}", {"invio": {**(d.get("invio") or {}), "invito": link, "evento": (ev or {}).get("id")}})
     return link
@@ -162,7 +162,7 @@ def manda_una(d):
         return ferma(d, f"{azienda}: non più un lead (cliente, perso, in pipeline o niente follow-up): non mando", "scartata")
     cid, lid, ultima = manda.thread(p)
     if not ultima:
-        return ferma(d, f"{azienda}: non trovo il suo thread su Smartlead")
+        return ferma(d, f"{azienda}: non trovo il suo filo su Smartlead, da qui non può partire: se vuoi rispondere tu, «Me ne occupo io»")
     # il lead ha scritto dopo la decisione? allora la decisione e' vecchia: torna a Dre, e Clara ne fa una nuova
     if _quando(ultima.get("time")) > _quando(d["risposta_il"]) + datetime.timedelta(minutes=3):
         return ferma(d, f"{azienda}: ha scritto di nuovo dopo questa decisione: rileggi", "superata")
@@ -181,10 +181,10 @@ def manda_una(d):
         if att == "aspetta l'analisi":
             ore = (adesso() - _quando(d.get("approvata_il") or d["creato_il"])).total_seconds() / 3600
             if ore > ATTESA_ANALISI_ORE:
-                return ferma(d, f"{azienda}: aspetta l'analisi da {int(ore)} ore e non arriva: guarda il sito loro o togli l'allegato")
+                return ferma(d, f"{azienda}: aspetta l'analisi da {int(ore)} ore e non arriva: tocca No e scrivi a Clara «manda senza l'analisi», la riscrive")
             print(f"  {azienda}: aspetto l'analisi ({int(ore * 60)} min), riprovo al giro dopo")
             return None
-        return ferma(d, f"{azienda}: {att}")
+        return ferma(d, f"{azienda}: {att}: tocca No e scrivi a Clara «manda senza l'analisi», la riscrive")
     a = (p.get("email_alt") or [None])[0] or manda.chi_ha_risposto(ultima, p["email"]) or p["email"]
     corpo = {"email_stats_id": ultima.get("stats_id") or ultima.get("email_stats_id"),
              "email_body": manda.in_html(testo),
@@ -201,7 +201,8 @@ def manda_una(d):
         nel_filo = (" ".join((m.get("email_body") or "") for m in (h.get("history") or []) if m.get("type") == "REPLY")
                     or (ultima.get("email_body") or "")).lower()
         tutti = [testa["a"]] + testa["cc"]
-        if all(i.split("@")[-1].lower() == dominio or i.lower() in nel_filo for i in tutti):
+        # 4/11: se l'ha approvata Dre (ha visto il destinatario) non si ferma piu'
+        if d.get("approvata_da") == "Dre" or all(i.split("@")[-1].lower() == dominio or i.lower() in nel_filo for i in tutti):
             corpo["to_email"] = testa["a"]
             if testa["cc"]:
                 corpo["cc"] = ",".join(testa["cc"])
@@ -213,7 +214,7 @@ def manda_una(d):
         corpo["attachments"] = att
     if d["mossa"] == "book_meeting":
         inv = invito(p, d, a)
-        if inv.startswith(("prenotazione", "orario", "la prenotazione", "Google")):
+        if inv.startswith(("prenotazione", "orario", "la prenotazione", "Google")):   # i motivi: ognuno dice il gesto da fare nel Desk
             return ferma(d, f"{azienda}: {inv}")
     print(f"  {azienda} → {a}" + (f" (cc {corpo['cc']})" if corpo.get("cc") else "") + f"  campagna {cid}, {len(att)} allegati")
     if PROVA:

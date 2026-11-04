@@ -3,7 +3,7 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { aggiungiNota, approva, cerca, giudica, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
+import { aggiungiNota, approva, cerca, giudica, invitoFatto, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
 import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro, MOTIVO_WHATSAPP, NOTA_WHATSAPP, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -227,6 +227,9 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione }: {
           )}
           {d.giudice?.pericoloso && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.no.morbido}`}>Il revisore segnala: {d.giudice.errore_pericoloso}</p>}
           {d.errore && aperta && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.attesa.morbido}`}>Non è partita: {d.errore}</p>}
+          {d.errore && aperta && d.mossa === 'book_meeting' && /Invito fatto/.test(d.errore) && (
+            <Bottone tipo="primo" onClick={() => void fai(() => invitoFatto(d.id), { stato: 'approvata', approvata_il: new Date().toISOString(), errore: null }, 'In partenza: la conferma parte entro pochi minuti.')} disabled={lavoro} className="mt-2">Invito fatto, manda la conferma</Bottone>
+          )}
         </Blocco>
 
         {scrive && (
