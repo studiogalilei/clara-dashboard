@@ -417,6 +417,10 @@ function notaDre(pid: string | null) {
 }
 const desk_chiamate: Riga[] = [
   { id: 'c1', prospect_id: 'p2', decisione_id: null, azienda: 'Bottega del Legno', persona: 'Anna Verdi', numero: null, richiamare_il: data(-1), note: [{ at: oreFa(2), testo: '3347204807' }], esito: null, whatsapp_il: null, creato_il: oreFa(3) },
+  // 5/11: chiamate di Dre in altri giorni (data(n) = n giorni fa), per vedere i blocchi per giornata in Call
+  { id: 'c2', prospect_id: null, decisione_id: null, azienda: 'Serramenti Nord', persona: 'Paolo Neri', numero: '+39 345 678 9012', richiamare_il: data(1), note: [], esito: null, whatsapp_il: null, creato_il: oreFa(20) },
+  { id: 'c3', prospect_id: null, decisione_id: null, azienda: 'Palestra Vita', persona: null, numero: null, richiamare_il: null, note: [{ at: oreFa(26), testo: 'Mi ha passato il contatto Marco' }], esito: null, whatsapp_il: null, creato_il: oreFa(26) },
+  { id: 'c4', prospect_id: null, decisione_id: null, azienda: 'Officina Rossi', persona: 'Luca Rossi', numero: '+39 333 123 4567', richiamare_il: data(-4), note: [], esito: null, whatsapp_il: null, creato_il: oreFa(30) },
 ]
 const desk_decisioni: Riga[] = [
   { id: 'd1', prospect_id: 'p1', risposta_il: oreFa(5), mossa: 'escalate', owner: 'Dramane', entro_il: null, stato: 'proposta', creato_il: oreFa(4), versione: 'demo', dollari: 0.12,

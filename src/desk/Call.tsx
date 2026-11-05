@@ -8,7 +8,7 @@ import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, numeroC
 import { agendaPulita, ordinaChiamate, telefonoDa, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
-import { giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
+import { dataLunga, giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
 import type { Dove } from './Desk'
 import { NotaUnica } from './Note'
 import { NumeroDre } from './NumeroDre'
@@ -34,9 +34,15 @@ export default function Call({ vai, dove }: { vai: (d: Dove) => void; dove: Dove
   // una lista sola (regole.ordinaChiamate): le programmate, i consigli di Clara, le altre
   const oggi = oggiIso()
   const tutte: Chiamata[] = ordinaChiamate([...(c.mie ?? []), ...c.richiami, ...(c.consigli ?? [])], oggi)
+  // 5/11, Dre: «la data in piccolo non si capisce che e' oggi: dividi in blocchi di giornata, stile Calendar, con il
+  // giorno scritto sopra». Un blocco per giorno (le arretrate stanno in «Oggi»), in fondo quelle senza un giorno.
+  const giornoDi = (t: Chiamata) => t.richiamare_il ? (t.richiamare_il < oggi ? oggi : t.richiamare_il) : ''
+  const blocchi = new Map<string, Chiamata[]>()
+  for (const t of tutte) blocchi.set(giornoDi(t), [...(blocchi.get(giornoDi(t)) ?? []), t])
+  const giornate = [...blocchi.keys()].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)))
   // 4/11, Dre: le telefonate pianificate stanno anche in agenda, per giorno, piu' piccole; «Oggi» con lo sfondo diverso
   const telefonate = new Map<string, Chiamata[]>()
-  for (const t of tutte) if (t.richiamare_il) { const g = t.richiamare_il < oggi ? oggi : t.richiamare_il; telefonate.set(g, [...(telefonate.get(g) ?? []), t]) }
+  for (const t of tutte) if (t.richiamare_il) { const g = giornoDi(t); telefonate.set(g, [...(telefonate.get(g) ?? []), t]) }
   const giorniTutti = [...new Set([...giorni.keys(), ...telefonate.keys()])].sort()
   // 4/11, Dre: «se non riesce a collegare o non e' sicura, me lo dica e glielo collego io»: gli eventi senza azienda
   const sconosciuti = agendaPulita(c.prossime.filter((p) => !p.prospect_id && (p.tipo === 'altro' || !p.tipo)).map((p) => ({ ...p, tipo: 'da_collegare' })))
@@ -62,9 +68,19 @@ export default function Call({ vai, dove }: { vai: (d: Dove) => void; dove: Dove
           </header>
           {aggiungo && <Nuova chiudi={() => setAggiungo(false)} fatta={(ch) => { setDati((prev) => prev ? { ...prev, mie: [ch, ...(prev.mie ?? [])] } : prev); setAggiungo(false); mostra({ testo: 'Aggiunta alla lista.' }) }} mostra={mostra} />}
           {tutte.length === 0 ? <Vuoto>Nessuno da chiamare adesso. Col «+» ne aggiungi una.</Vuoto> : (
-            <ul className="space-y-2.5 p-3 lg:p-4">
-              {tutte.map((r) => <Scheda key={r.id} r={r} oggi={oggi} vai={vai} aggiorna={aggiorna} mostra={mostra} scelta={dove.id === r.id} />)}
-            </ul>
+            <div className="divide-y divide-velo">
+              {giornate.map((g) => { const nome = g ? nomeGiorno(g) : 'Senza giorno'; const data = g && (nome === 'Oggi' || nome === 'Domani') ? dataLunga(g) : null; return (
+                <section key={g || 'senza'} aria-label={nome} className={`p-3 lg:p-4 ${g === oggi ? 'bg-navy/[0.045]' : ''}`}>
+                  <h3 className="mb-2.5 flex flex-wrap items-baseline gap-x-2 px-1">
+                    <span className={`text-[17px] font-extrabold leading-tight ${g === oggi ? 'text-navy' : 'text-inchiostro'}`}>{nome}</span>
+                    {data && <span className="text-[13.5px] font-semibold text-tenue">{data}</span>}
+                  </h3>
+                  <ul className="space-y-2.5">
+                    {(blocchi.get(g) ?? []).map((r) => <Scheda key={r.id} r={r} oggi={oggi} vai={vai} aggiorna={aggiorna} mostra={mostra} scelta={dove.id === r.id} />)}
+                  </ul>
+                </section>
+              ) })}
+            </div>
           )}
         </section>
       </div>
@@ -276,7 +292,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
         </button>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {r.whatsapp_il ? <Pillola testo="Su WhatsApp" tono="ok" piena /> : r.chiamato_il ? <Pillola testo={`Chiamato ${quando(r.chiamato_il)}: l’esito?`} tono="attesa" /> : r.origine === 'consiglio' ? <Pillola testo="Consigliato chiamare" tono="loro" piena /> : r.origine === 'clara' ? <Pillola testo="Ha chiesto lui" tono="ok" piena /> : <Pillola testo="Tua" tono="neutro" />}
-          {r.richiamare_il && <button onClick={() => setProgrammo(true)} className={`text-[12.5px] font-semibold ${ritardo ? 'text-giallo-testo' : 'text-tenue'} hover:underline`}>{ritardo ? 'Era per ' : ''}{giornoBreve(r.richiamare_il)}</button>}
+          {ritardo && r.richiamare_il && <button onClick={() => setProgrammo(true)} className="text-[12.5px] font-semibold text-giallo-testo hover:underline">Era per {giornoBreve(r.richiamare_il)}</button>}
         </div>
       </div>
       {r.quando && <p className="text-[13.5px] text-inchiostro"><span className="font-semibold">Quando:</span> {r.quando}</p>}
@@ -313,7 +329,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
           <Bottone tipo="piatto" onClick={() => setProgrammo(false)} disabled={lavoro}>Annulla</Bottone>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))]">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
           {esiti.map((e) => e.esito === 'whatsapp' && r.whatsapp_il
             ? <span key={e.esito} aria-label="Su WhatsApp" className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-ok-testo bg-ok-fondo px-2 text-[13px] font-bold text-ok-testo"><Icona nome="ok" className="h-3.5 w-3.5" /> Su WhatsApp</span>
             : <Bottone key={e.esito} tipo={e.tipo ?? 'secondo'} onClick={() => esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.esito === 'whatsapp' ? <><Icona nome="whatsapp" className="h-4 w-4" /> {e.nome}</> : e.nome}</Bottone>)}

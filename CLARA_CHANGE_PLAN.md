@@ -260,3 +260,13 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
   intera (`lg:self-stretch`) e in fondo a una lista lunga il pannello resta in vista. I bottoni dei gesti stanno in
   una griglia che si adatta (`auto-fit, minmax(8.25rem)`) e il testo può andare a capo: niente più «Non interessato»
   che esce dal bordo. I link lunghi nelle mail vanno a capo (`overflow-wrap: anywhere`).
+
+## 5/11 alle 12:40: le call a blocchi di giornata, stile Calendar
+
+- Dre: «sotto c'è scritto giovedì 5 novembre in piccolo, è brutto, non si capisce che è proprio oggi: dividi in
+  blocchi di giornate, stile Calendar, scrivi il giorno di sopra».
+- In Call la lista è divisa per giornata: «Oggi» (in navy, sfondo tenue, con la data per esteso accanto), «Domani»,
+  poi «Lunedì 9 novembre» e così via, in fondo «Senza giorno» (consigli di Clara e chiamate senza una data). Le
+  arretrate stanno in «Oggi» con «Era per mer 4 nov» in giallo; la data piccola a destra di ogni scheda non c'è più.
+  I bottoni degli esiti in Call stanno due per riga nella colonna da computer (`minmax(10rem)`), interi.
+- La demo ha quattro chiamate su giorni diversi per vedere i blocchi (`data(n)` nella demo = n giorni fa).

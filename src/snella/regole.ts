@@ -168,6 +168,12 @@ export function nomeGiorno(giorno: string, adesso: Date = new Date()): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+/** La data per esteso, minuscola: «giovedì 5 novembre». Accanto a «Oggi» e «Domani» nei blocchi per giornata (5/11). */
+export function dataLunga(giorno: string): string {
+  const [a, m, g] = giorno.split('-').map(Number)
+  return GIORNO_LUNGO.format(new Date(Date.UTC(a, m - 1, g, 12)))
+}
+
 /** Una data AAAA-MM-GG detta corta: «20 ott». */
 export function dataCorta(giorno: string | null | undefined): string {
   if (!giorno) return ''
