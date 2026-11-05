@@ -201,14 +201,39 @@ def da_seguire(r, ora):
     p = r.get("prospects") or {}
     inviata = _roma(r.get("inviata_il"))
     attesa = ATTESA_FERIALI.get(r.get("mossa") or "send_analysis", 1)
-    if not inviata or giorni_feriali(inviata, ora) < attesa or (ora - inviata).days > 10:
+    if not inviata:
+        return False
+    c = r.get("consiglio") or {}
+    if c.get("numero") and c.get("esito") == "non_risposto":
+        # 5/11 (Dre): «se l'ho chiamato e non ha risposto, Clara prosegue coi follow-up serena»: un giorno feriale
+        # dopo la telefonata, senza il tetto dei dieci giorni (le analisi vecchie con il consiglio retroattivo)
+        tentativo = _roma(c.get("esito_il"))
+        if not tentativo or giorni_feriali(tentativo, ora) < 1:
+            return False
+    elif c.get("numero"):
+        return False                                     # consiglio aperto, o chiuso in altro modo: tocca a Dre
+    elif giorni_feriali(inviata, ora) < attesa or (ora - inviata).days > 10:
         return False
     risposta = _roma(p.get("last_reply_at"))
     if risposta and risposta > inviata + datetime.timedelta(minutes=3):
         return False
-    if p.get("in_mano_a") or r.get("consiglio") or r.get("seguita"):
+    if p.get("in_mano_a") or r.get("seguita"):
         return False
     return True
+
+
+def telefono_dre():
+    """Il numero di Dre per le mail dopo una sua telefonata senza risposta: sta nelle regole (non nel repo)."""
+    r = sb("GET", "/rest/v1/regole?select=valore&chiave=eq.telefono_dre&limit=1") or []
+    return (r[0].get("valore") or "").strip() if r else ""
+
+
+def situazione_dopo_telefonata(cosa, giorno, giorno_tel, telefono):
+    return (f"silenzio dopo l'analisi, e una telefonata senza risposta. {cosa} il {giorno} con due orari e il link; da allora "
+            f"nessuna risposta e nessuna call prenotata. Il {giorno_tel} hai provato a chiamare il lead e non ha risposto. "
+            f"Nella mail lo dici in prima persona («ho provato a chiamarla…», senza rimprovero), lasci il tuo numero "
+            f"{telefono} («se preferisce, mi trova al {telefono}»), e proponi due orari NUOVI da orari_liberi con il link. "
+            f"Un reply breve; wait solo se è un periodo di ferie.")
 
 
 NOTA_ISTRUZIONI = """Sei Clara. Dramane (il capo) ha scritto una nota su un lead. Devi dire una cosa sola: la nota significa che
@@ -315,8 +340,15 @@ def segui_silenzio(massimo=10):
                      "prospects(id,company,name,email,phone,enriched,last_reply_at,awaiting_us,fuori,stage,pipeline_stage,no_followup,"
                      "classificazione,in_mano_a,campaign_id,lead_id,analysis_sent,analysis_sent_at,analysis_pdf,city,sector,role)"
                      f"&mossa=in.(send_analysis,offer_slots)&stato=eq.inviata&origine=eq.risposta&inviata_il=gte.{da}", chiave="id")
-    seguite = {x["risposta_il"] for x in (sb("GET", f"/rest/v1/clara_decisioni?select=risposta_il&origine=eq.silenzio&risposta_il=gte.{da}") or [])}
+    # 5/11: le analisi del sistema vecchio col consiglio retroattivo che Dre ha chiuso con «Non ha risposto»
+    for r in sb_tutte("/rest/v1/clara_decisioni?select=id,prospect_id,risposta_il,consiglio,mossa,"
+                      "prospects(id,company,name,email,phone,enriched,last_reply_at,awaiting_us,fuori,stage,pipeline_stage,no_followup,"
+                      "classificazione,in_mano_a,campaign_id,lead_id,analysis_sent,analysis_sent_at,analysis_pdf,city,sector,role)"
+                      "&mossa=eq.wait&stato=eq.proposta&consiglio->>esito=eq.non_risposto", chiave="id"):
+        righe.append({**r, "inviata_il": r["risposta_il"], "mossa": "send_analysis"})
+    seguite = {x["risposta_il"] for x in (sb_tutte("/rest/v1/clara_decisioni?select=risposta_il&origine=eq.silenzio&versione=neq.consiglio-retro-5-11", chiave="risposta_il") or [])}
     consigli = solleciti = 0
+    telefono = None
     for r in righe:
         r["seguita"] = r.get("inviata_il") in seguite
         p = r.get("prospects") or {}
@@ -326,6 +358,12 @@ def segui_silenzio(massimo=10):
             break
         giorno = _roma(r["inviata_il"]).strftime("%d/%m")
         cosa = "Analisi mandata" if r.get("mossa") == "send_analysis" else "Orari proposti"
+        dopo_telefonata = (r.get("consiglio") or {}).get("esito") == "non_risposto"
+        if dopo_telefonata:
+            telefono = telefono_dre() if telefono is None else telefono
+            if not telefono:
+                print(f"  {p.get('company') or '?'}: sollecito dopo la telefonata rimandato: manca il numero di Dre (regole.telefono_dre)")
+                continue
         # 5/11 (Dre): il consiglio vale con qualunque numero, il cellulare prima
         numero, come = numero_da_chiamare(p)
         if numero:
@@ -337,14 +375,17 @@ def segui_silenzio(massimo=10):
             continue
         try:
             storia = _storia(p)
-            sit = ((f"silenzio dopo l'analisi. L'analisi è partita il {giorno} con due orari e il link del calendario; " if r.get("mossa") == "send_analysis"
-                    else f"silenzio dopo la proposta di orari. Gli orari sono partiti il {giorno} con il link del calendario; ")
-                   + "da allora nessuna risposta e nessuna call prenotata; non abbiamo un cellulare da far chiamare. Decidi tu il seguito.")
+            if dopo_telefonata:
+                sit = situazione_dopo_telefonata(cosa, giorno, (_roma((r.get("consiglio") or {}).get("esito_il")) or ora).strftime("%d/%m"), telefono)
+            else:
+                sit = ((f"silenzio dopo l'analisi. L'analisi è partita il {giorno} con due orari e il link del calendario; " if r.get("mossa") == "send_analysis"
+                        else f"silenzio dopo la proposta di orari. Gli orari sono partiti il {giorno} con il link del calendario; ")
+                       + "da allora nessuna risposta e nessuna call prenotata; non abbiamo un cellulare da far chiamare. Decidi tu il seguito.")
             g = clara_sdr.giudica_uno(p, storia, situazione=sit)
             d = g["decisione"]
             riga = {"prospect_id": p["id"], "risposta_il": r["inviata_il"], "versione": clara_sdr.VERSIONE, "origine": "silenzio",
                     "modello": g["uso"].get("modello") or clara_sdr.MODELLO,
-                    "lead_testo": f"(silenzio: {cosa.lower()} il {giorno}, nessuna risposta e niente call prenotata)",
+                    "lead_testo": f"(silenzio: {cosa.lower()} il {giorno}, nessuna risposta e niente call prenotata" + (", Dramane ha chiamato senza risposta)" if dopo_telefonata else ")"),
                     "mossa": d["proposed_action"], "owner": d.get("owner"), "entro_il": d.get("due_at") or None,
                     "testo": d.get("draft") or None, "perche": d.get("reason_summary"), "prove": d.get("evidence_refs") or [],
                     "richiamo": None, "consiglio": None, "appuntamento": None,

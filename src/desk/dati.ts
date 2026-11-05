@@ -295,9 +295,10 @@ export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): 
   const id = await rigaDi(c)
   const { error } = await supabase.from('chiamate').update({ esito, esito_il: ADESSO(), ...(nota?.trim() ? { note: [...(c.note ?? []), { at: ADESSO(), testo: nota.trim() }] } : {}) }).eq('id', id).abortSignal(entro())
   if (error) guasto(error)
+  const detto = `Chiamata di Dre: ${NOME_ESITO[esito] ?? esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`
   if (c.origine === 'clara') await segnaEsito(c.id, esito, nota)
-  else if (c.origine === 'consiglio') { await segnaConsiglio(c, esito); if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata di Dre: ${esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`) } catch { /* niente */ } } }
-  else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata di Dre: ${esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`) } catch { /* niente */ } }
+  else if (c.origine === 'consiglio') { await segnaConsiglio(c, esito); if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto) } catch { /* niente */ } } }
+  else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto) } catch { /* niente */ } }
 }
 
 /** «Più avanti» su una cosa tua: resta tua, ma sparisce da Da fare fino al giorno scelto (la Coda la mostra in Prossime). */
@@ -305,6 +306,21 @@ export async function rimanda(id: string, giorno: string): Promise<void> {
   const { error } = await supabase.from('clara_decisioni').update({ entro_il: giorno, dre_nota: `rimandata da Dre al ${giorno}`, dre_il: ADESSO() }).eq('id', id).abortSignal(entro())
   if (error) guasto(error)
 }
+
+/** Il numero di Dre per le mail di Clara dopo una sua telefonata senza risposta (5/11): sta nelle regole, chiave telefono_dre. */
+export async function telefonoDre(): Promise<string> {
+  const { data, error } = await supabase.from('regole').select('valore').eq('chiave', 'telefono_dre').limit(1).abortSignal(entro())
+  if (error) guasto(error)
+  return ((data?.[0]?.valore as string | undefined) ?? '').trim()
+}
+export async function salvaTelefonoDre(numero: string): Promise<void> {
+  const { data, error } = await supabase.from('regole').update({ valore: numero.trim(), stato: 'approvata', aggiornata_il: ADESSO(), aggiornata_da: DRE }).eq('chiave', 'telefono_dre').select('chiave').abortSignal(entro())
+  if (error) guasto(error)
+  if (!data?.length) throw new Error('Non riesco a salvare il numero (la regola telefono_dre non c’è). Ricarica e riprova.')
+}
+
+/** Il nome di un esito, per le note («non ha risposto», non «non_risposto»). */
+export const NOME_ESITO: Record<string, string> = { fissata: 'call fissata', richiamare: 'da richiamare', non_interessato: 'non interessato', non_risposto: 'non ha risposto', chiamato: 'chiamato', whatsapp: 'su WhatsApp', lascia_stare: 'lasciato stare' }
 
 /** L'esito di un consiglio di chiamata (chiamato, non ora): resta dentro al consiglio, la decisione non cambia stato. */
 export async function segnaConsiglio(d: { id: string; consiglio?: Consiglio | null }, esito: string): Promise<void> {

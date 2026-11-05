@@ -4,13 +4,14 @@
 // (restano qui come contatti suoi). Per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco:
 // Call fissata, WhatsApp, Richiamare, Non interessato. A destra le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useRef, useState } from 'react'
-import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, modificaNotaChiamata, notaChiamata, numeroChiamata, programmaChiamata, suWhatsapp, type Chiamata, type Trovato } from './dati'
+import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, modificaNotaChiamata, notaChiamata, numeroChiamata, programmaChiamata, suWhatsapp, telefonoDre, type Chiamata, type Trovato } from './dati'
 import { agendaPulita, ordinaChiamate, telefonoDa, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
 import type { Dove } from './Desk'
 import { Note } from './Note'
+import { NumeroDre } from './NumeroDre'
 
 const oggiIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const giornoBreve = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -18,6 +19,8 @@ const giornoBreve = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateStr
 const ESITI: Array<{ esito: string; nome: string; tipo?: 'primo' }> = [
   { esito: 'fissata', nome: 'Call fissata', tipo: 'primo' }, { esito: 'whatsapp', nome: 'WhatsApp' }, { esito: 'richiamare', nome: 'Richiamare' }, { esito: 'non_interessato', nome: 'Non interessato' },
 ]
+// 5/11, Dre: su un consiglio di Clara «Non ha risposto» = Clara prosegue coi follow-up, dicendo che hai chiamato e lasciando il tuo numero
+const ESITI_CONSIGLIO: typeof ESITI = [ESITI[0], ESITI[1], { esito: 'non_risposto', nome: 'Non ha risposto' }, ESITI[2], ESITI[3]]
 
 export default function Call({ vai, dove }: { vai: (d: Dove) => void; dove: Dove }) {
   const { dati, setDati, errore, caricando, rifai } = useDati(() => leggiCall())
@@ -257,7 +260,15 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
     aggiorna(r, { ...r, chiamata_id: id, whatsapp_il, origine: 'dre' })
     mostra({ testo: pid ? 'Su WhatsApp: è in mano a te, Clara si ferma. Resta qui tra i tuoi contatti.' : 'Su WhatsApp: resta qui tra i tuoi contatti.' })
   })
-  const esito = (e: string) => { if (e === 'richiamare') { setProgrammo(true); return } if (e === 'whatsapp') { if (!r.whatsapp_il) void whatsapp(); return } void fai(async () => { await esitoChiamata(r, e); aggiorna(r, null); mostra({ testo: 'Segnato.' }) }) }
+  const [chiedoNumero, setChiedoNumero] = useState(false)
+  const segna = (e: string) => fai(async () => { await esitoChiamata(r, e); aggiorna(r, null); mostra({ testo: e === 'non_risposto' ? 'Segnato: Clara continua lei, dicendo che hai chiamato.' : 'Segnato.' }) })
+  const esito = (e: string) => {
+    if (e === 'richiamare') { setProgrammo(true); return }
+    if (e === 'whatsapp') { if (!r.whatsapp_il) void whatsapp(); return }
+    if (e === 'non_risposto') { void fai(async () => { if (await telefonoDre()) await segna(e); else setChiedoNumero(true) }); return }
+    void segna(e)
+  }
+  const esiti = r.origine === 'consiglio' ? ESITI_CONSIGLIO : ESITI
   return (
     <li ref={riga} className={`space-y-2.5 rounded-xl border bg-white p-4 ${scelta ? 'border-navy ring-2 ring-navy/25' : ritardo ? 'border-giallo-bordo' : 'border-bordo'}`}>
       <div className="flex items-start justify-between gap-3">
@@ -300,7 +311,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
                className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
         <Bottone onClick={() => void annota()} disabled={lavoro || !nota.trim()} className="px-3">Salva</Bottone>
       </div>
-      {programmo ? (
+      {chiedoNumero ? <NumeroDre fatto={() => { setChiedoNumero(false); void segna('non_risposto') }} annulla={() => setChiedoNumero(false)} /> : programmo ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-bordo bg-fondo/60 p-2.5">
           <span className="text-[13px] font-semibold">Richiamare il</span>
           <input type="date" value={giorno} min={oggi} onChange={(e) => setGiorno(e.target.value)} className="min-h-10 rounded-lg border border-bordo bg-white px-2 text-[14px] outline-none focus:border-navy" />
@@ -309,8 +320,8 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
           <Bottone tipo="piatto" onClick={() => setProgrammo(false)} disabled={lavoro}>Annulla</Bottone>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {ESITI.map((e) => e.esito === 'whatsapp' && r.whatsapp_il
+        <div className={`grid grid-cols-2 gap-2 ${esiti.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+          {esiti.map((e) => e.esito === 'whatsapp' && r.whatsapp_il
             ? <span key={e.esito} aria-label="Su WhatsApp" className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-ok-testo bg-ok-fondo px-2 text-[13px] font-bold text-ok-testo"><Icona nome="ok" className="h-3.5 w-3.5" /> Su WhatsApp</span>
             : <Bottone key={e.esito} tipo={e.tipo ?? 'secondo'} onClick={() => esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.esito === 'whatsapp' ? <><Icona nome="whatsapp" className="h-4 w-4" /> {e.nome}</> : e.nome}</Bottone>)}
         </div>

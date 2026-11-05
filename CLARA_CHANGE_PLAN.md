@@ -192,3 +192,16 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
   «non leggibile, da guardare a mano». `--senza-ricerche` evita i crediti SearchAPI; `--scrivi` salva in scheda per
   chi c'è già. La lettura del sito ora segue i redirect 308 (dominio senza www).
 - **Il Profilo mostra i tre fit** (Google/Meta/LinkedIn), il canale consigliato e il ticket (clara_relazione v116).
+
+## 5/11 notte: il consiglio con qualunque numero, retroattivo, e «Non ha risposto»
+
+- **Consiglio di chiamata il giorno dopo l'analisi con qualunque numero** (Dre: «soprattutto i cellulari, però va
+  bene anche quelli»): il cellulare prima, se no il numero migliore (firma, scheda, sito). `clara_prova.numero_da_chiamare`.
+- **Retroattivo**: 72 consigli sulle analisi degli ultimi 45 giorni senza risposta, senza call e con un numero
+  (`--consigli-retroattivi`): decisioni «aspetta» con il consiglio, in Relazioni e in Call. `supera_vecchie` non le
+  tocca più (la prima notte ne aveva superate 62 su 72 dieci minuti dopo).
+- **«Non ha risposto»** su un consiglio (Call e Relazioni): Clara prosegue coi follow-up un giorno feriale dopo la
+  telefonata, anche sulle analisi vecchie; il sollecito nomina la telefonata in prima persona, lascia il numero di Dre
+  e propone due orari nuovi con il link (regola 4ter di Clara, segnali se manca una delle due cose). Il numero sta in
+  `regole.telefono_dre` (mai nel repo); se manca, il Desk lo chiede una volta e Clara rimanda il sollecito.
+- Se poi il lead richiama Dre: «Me ne occupo io» come sempre.

@@ -3,13 +3,14 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { approva, cerca, giudica, invitoFatto, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, type Decisione, type Trovato } from './dati'
+import { aggiungiNota, approva, cerca, giudica, invitoFatto, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, telefonoDre, type Decisione, type Trovato } from './dati'
 import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
 import { TONO } from '../snella/toni'
 import type { Dove } from './Desk'
+import { NumeroDre } from './NumeroDre'
 
 export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d: Dove) => void; indietro: () => void }) {
   const { dati, setDati, errore, caricando, rifai } = useDati(() => leggiCoda(30))
@@ -198,7 +199,11 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
     'È tua: Clara si ferma su questa relazione.')
   const ridai = () => fai(() => prendiInMano(d.prospect_id, '', true), { in_mano_a: null, in_mano_motivo: null, in_mano_il: null }, 'Torna a Clara: riparte dalla prossima risposta.')
   const consiglio = d.consiglio?.numero && !mia ? d.consiglio : null
-  const chiuso = (e: string) => fai(() => segnaConsiglio(d, e), { consiglio: { ...(d.consiglio ?? {}), esito: e, esito_il: new Date().toISOString() } }, 'Segnato.')
+  const [chiedoNumero, setChiedoNumero] = useState(false)
+  const chiuso = (e: string) => fai(async () => { await segnaConsiglio(d, e); if (e === 'non_risposto') { try { await aggiungiNota(d.prospect_id, 'Chiamata di Dre: non ha risposto') } catch { /* niente */ } } },
+    { consiglio: { ...(d.consiglio ?? {}), esito: e, esito_il: new Date().toISOString() } }, e === 'non_risposto' ? 'Segnato: Clara continua lei, dicendo che hai chiamato.' : 'Segnato.')
+  // 5/11: «Non ha risposto» vuole il numero di Dre nelle regole: la prima volta si chiede qui
+  const nonRisposto = () => void telefonoDre().then((t) => t ? chiuso('non_risposto') : setChiedoNumero(true)).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
 
   return (
     <section className="rounded-2xl border border-bordo bg-white lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
@@ -241,8 +246,10 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
                 {!consiglio.esito
                   ? <button onClick={vaiCall} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white hover:brightness-95"><Icona nome="telefono" className="h-4 w-4" /> Vai alla chiamata ({telefonoDa(consiglio.numero) ?? consiglio.numero})</button>
                   : <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>}
+                {!consiglio.esito && <Bottone onClick={() => void nonRisposto()} disabled={lavoro} className="text-[13px]">Non ha risposto</Bottone>}
                 {!consiglio.esito && <Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone>}
               </div>
+              {chiedoNumero && <div className="mt-2"><NumeroDre fatto={() => { setChiedoNumero(false); void chiuso('non_risposto') }} annulla={() => setChiedoNumero(false)} /></div>}
             </div>
           )}
           {d.giudice?.pericoloso && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.no.morbido}`}>Il revisore segnala: {d.giudice.errore_pericoloso}</p>}

@@ -139,6 +139,10 @@ Come ragioni, ogni volta:
    ripeti due orari NUOVI presi da orari_liberi e il link), oppure wait con una data se è troppo presto o è un
    periodo di ferie, oppure close se il filo era freddo e un sollecito sarebbe fastidio. Un solo sollecito dopo
    l'analisi, non una sequenza: dopo, se tace ancora, wait lungo o close.
+4ter. DOPO UNA TELEFONATA DI DRAMANE SENZA RISPOSTA. Quando la situazione dice che Dramane ha provato a chiamare il lead
+   e non ha risposto, il sollecito lo nomina in prima persona e senza rimprovero («ho provato a chiamarla ieri, senza
+   fortuna»), lascia il numero che la situazione ti dà (scrivilo per intero, così com'è), e propone comunque due
+   orari NUOVI da orari_liberi con il link del calendario. È l'unico caso in cui un numero nostro sta in una mail.
 5. Ogni mossa porta le prove: le frasi ESATTE, copiate parola per parola dai messaggi del filo, su cui
    la fondi. Se non c'è una frase che la regge, la mossa è sbagliata.
 
@@ -314,7 +318,7 @@ def contesto(p, storia, indice=None, storico=False, situazione=None):
     righe += ["", prep["testo"]]
     if situazione:
         righe += ["", "SITUAZIONE DI OGGI: " + situazione]
-    return {"testo": "\n".join(righe), "prep": prep, "messaggi": messaggi, "indice": indice}
+    return {"testo": "\n".join(righe), "prep": prep, "messaggi": messaggi, "indice": indice, "situazione": situazione or ""}
 
 
 # ── 2. gli strumenti ───────────────────────────────────────────────────────────
@@ -455,6 +459,15 @@ def segnali(dec, p, ctx, uso, storico=False):
     no = []
     mossa = dec.get("proposed_action")
     filo = ctx["messaggi"][:ctx["indice"] + 1]
+    # 5/11: dopo una telefonata di Dramane senza risposta il sollecito la nomina e lascia il suo numero
+    sit = ctx.get("situazione") or ""
+    if "telefonata senza risposta" in sit and mossa == "reply":
+        bozza = _norm(dec.get("draft") or "")
+        m = re.search(r"mi trova al ([+\d][\d ./-]{6,})", sit)
+        if not re.search(r"provato a chiamar|ho chiamat|telefonat", bozza):
+            no.append("dopo la telefonata di Dramane il sollecito non la nomina")
+        if m and re.sub(r"\D", "", m.group(1)) not in re.sub(r"\D", "", dec.get("draft") or ""):
+            no.append("dopo la telefonata di Dramane il sollecito non lascia il suo numero")
     loro = [_norm(m["testo"]) for m in filo if m["tipo"] == "REPLY"]
     tutti = [_norm(m["testo"]) for m in filo]
     prove = [_norm(e.get("frase")) for e in dec.get("evidence_refs") or [] if (e.get("frase") or "").strip()]

@@ -6854,6 +6854,24 @@ def _():
     assert not P.da_seguire({**r, "prospects": {**r["prospects"], "last_reply_at": "2026-11-04T15:00:00+00:00"}}, d(2026, 11, 5, 14)), "ha scritto dopo l'analisi"
     assert not P.da_seguire({**r, "prospects": {**r["prospects"], "in_mano_a": "Dre"}}, d(2026, 11, 5, 14)), "in mano a Dre"
     assert not P.da_seguire({**r, "consiglio": {"numero": "3"}}, d(2026, 11, 5, 14)), "gia' consigliata"
+    # 5/11 (Dre): «Non ha risposto» su un consiglio = Clara prosegue, un giorno feriale dopo la telefonata, anche su analisi vecchie
+    tel = {"numero": "3", "esito": "non_risposto", "esito_il": "2026-11-05T10:00:00+00:00"}
+    assert not P.da_seguire({**r, "consiglio": tel}, d(2026, 11, 5, 18)), "stesso giorno della telefonata: troppo presto"
+    assert P.da_seguire({**r, "consiglio": tel}, d(2026, 11, 6, 14)), "un giorno feriale dopo la telefonata: si segue"
+    vecchia = {**r, "inviata_il": "2026-10-07T12:00:00+00:00", "consiglio": tel, "prospects": {"last_reply_at": None, "in_mano_a": None}}
+    assert P.da_seguire(vecchia, d(2026, 11, 6, 14)), "analisi vecchia col consiglio retroattivo: dopo la telefonata si segue lo stesso"
+    assert not P.da_seguire({**r, "consiglio": {**tel, "esito": "lascia_stare"}}, d(2026, 11, 6, 14)), "chiuso in altro modo: tocca a Dre"
+    sit = P.situazione_dopo_telefonata("Analisi mandata", "04/11", "05/11", "+39 333 000 0000")
+    assert "ho provato a chiamarla" in sit and "+39 333 000 0000" in sit and "orari NUOVI" in sit
+    # il segnale: il sollecito deve nominare la telefonata e lasciare il numero
+    import clara_sdr as C
+    ctx = {"messaggi": [{"tipo": "REPLY", "testo": "ok"}], "indice": 0, "situazione": sit}
+    dec = lambda testo: {"proposed_action": "reply", "draft": testo, "evidence_refs": [], "reason_summary": ""}   # noqa: E731
+    no = C.segnali(dec("Buongiorno, le riscrivo per fissare un momento. Lorenzo"), {}, ctx, {})
+    assert any("non la nomina" in x for x in no) and any("non lascia il suo numero" in x for x in no), no
+    no = C.segnali(dec("Buongiorno, ho provato a chiamarla ieri senza fortuna: se preferisce mi trova al +39 333 000 0000. Lorenzo"), {}, ctx, {})
+    assert not any("telefonata di Dramane" in x for x in no), no
+    assert "4ter" in C.IDENTITA and "ho provato a chiamarla" in C.IDENTITA
     assert not P.da_seguire({**r, "seguita": True}, d(2026, 11, 5, 14)), "gia' sollecitata"
     assert not P.da_seguire(r, d(2026, 11, 20, 14)), "dopo dieci giorni non si insegue piu'"
     orari = {**r, "mossa": "offer_slots"}

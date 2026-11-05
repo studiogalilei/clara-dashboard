@@ -472,7 +472,9 @@ const feedback: Riga[] = []
 // nascere il primo
 const documenti: Riga[] = []
 
+const desk_regole: Riga[] = [{ chiave: 'telefono_dre', sezione: 'A', valore: '', stato: 'da_decidere' }]
 const TABELLE: Record<string, Riga[]> = {
+  regole: desk_regole,
   chiamate: desk_chiamate,
   snella_note: desk_note,
   clara_decisioni: desk_decisioni,
