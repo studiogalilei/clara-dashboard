@@ -158,6 +158,11 @@ def manda_una(d):
     testo = (d.get("testo_finale") or d.get("testo") or "").strip()
     if d["mossa"] not in CON_TESTO or not testo:
         return ferma(d, f"{azienda}: la mossa «{d['mossa']}» non manda una mail")
+    # 5/11 (Dre): il 4/11 un lead ha ricevuto il PDF allegato a una mail che diceva «le faremo arrivare l'analisi nelle
+    # prossime ore». La mail dell'analisi e' quella con l'allegato: un testo che la annuncia non parte.
+    import clara_sdr
+    if d["mossa"] in CON_ANALISI and clara_sdr.ANNUNCIO.search(testo):
+        return ferma(d, f"{azienda}: il testo annuncia l'analisi invece di mandarla: tocca No e scrivi a Clara «manda l'analisi con la call», la riscrive")
     if not contattabile(p):
         return ferma(d, f"{azienda}: non più un lead (cliente, perso, in pipeline o niente follow-up): non mando", "scartata")
     cid, lid, ultima = manda.thread(p)

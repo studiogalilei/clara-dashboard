@@ -229,3 +229,15 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
 - «Non interessato» (v119): `clara_non_interessato` mette no_followup, lost_reason «Non interessato (Dre, al telefono,
   gg/mm)», chiude le decisioni aperte, scrive la nota; `clara_non_interessati` è la lista in Analytics in basso, con
   «Riapri». Clara non scrive a chi ha no_followup (stanza.contattabile).
+
+## 5/11 alle 8: la mail dell'analisi è quella con l'allegato, mai un annuncio
+
+- Il 4/11 alle 13:02 un lead ha detto sì mentre il PDF non era ancora pronto. La regola «mai dire che un allegato c'è se
+  l'analisi non è pronta», la riga di contesto «analisi PDF pronta: no» e il segnale «l'analisi non è pronta» hanno
+  spinto Clara a scrivere «le faremo arrivare l'analisi nelle prossime ore, in una mail dedicata»; il postino ha
+  aspettato il PDF, l'ha allegato a QUEL testo e l'ha mandato alle 13:10. Il lead ha ricevuto il PDF con una mail che
+  diceva che sarebbe arrivato dopo, senza orario né link. Un caso solo dal 3/11, ma la fonte era nella regola.
+- Fonte sistemata: la regola dice che la mail dell'analisi si scrive sempre come se l'allegato ci fosse (il postino la
+  fa partire solo con il PDF); la riga di contesto dice «in preparazione, tu la scrivi come se fosse allegata»; il
+  segnale «non è pronta» non c'è più, c'è «annuncia l'analisi invece di mandarla» (regex ANNUNCIO); il postino ferma un
+  testo che annuncia («tocca No e scrivi a Clara «manda l'analisi con la call»»); il giudice lo segna «da_rifare».

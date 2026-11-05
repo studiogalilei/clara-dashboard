@@ -6817,6 +6817,14 @@ def _():
     assert S.segnali(buona, p, ctx, {"strumenti": ["orari_liberi"]}, storico=True) == [], S.segnali(buona, p, ctx, {"strumenti": ["orari_liberi"]}, storico=True)
     senza_numero = dict(buona, draft=buona["draft"].replace("+39 333 000 0000", "questo indirizzo"))
     assert any("senza il numero" in x for x in S.segnali(senza_numero, p, ctx, {"strumenti": ["orari_liberi"]}, storico=True))
+    # 5/11 (Dre): «il tipo risponde, si prepara l'analisi e si invia»: il PDF non pronto non e' un segnale, l'annuncio si'
+    assert not any("non è pronta" in x for x in S.segnali(buona, dict(p, analysis_pdf=None), ctx, {"strumenti": ["orari_liberi"]}, storico=True))
+    annuncio = dict(buona, draft="Buongiorno,\n\ngrazie per la conferma. Le facciamo arrivare l'analisi nelle prossime ore, in una mail dedicata, così la trova subito.\n\nLorenzo Fornasier")
+    assert any("annuncia l'analisi" in x for x in S.segnali(annuncio, p, ctx, {"strumenti": ["orari_liberi"]}, storico=True))
+    assert S.ANNUNCIO.search("Le facciamo arrivare l'analisi nelle prossime ore") and not S.ANNUNCIO.search("Le propongo domani alle 15; nei prossimi giorni sono fuori sede")
+    assert "annunciare che arriverà" in S.IDENTITA
+    import clara_manda as M, inspect
+    assert "ANNUNCIO" in inspect.getsource(M.manda_una) and "manda l'analisi con la call" in inspect.getsource(M.manda_una)
     molle = dict(buona, draft="Buongiorno,\n\nin allegato l'analisi: la legga con calma e ci faccia sapere se le va di approfondire con il nostro fondatore Dramane.\n\nLorenzo Fornasier\nStudio Galilei")
     no = S.segnali(molle, p, ctx, {"strumenti": []}, storico=True)
     for atteso in ("senza l'orario", "senza il link", "ci faccia sapere", "fondatore", "nomina Dramane"):

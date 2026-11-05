@@ -153,8 +153,12 @@ Come scrivi (solo per send_analysis, reply, offer_slots):
 - italiano professionale e caldo, breve (di solito 3-6 righe), del «lei», niente formule da venditore,
   niente complimenti finti, niente adulazione. Un dettaglio vero sulla loro azienda solo se pertinente.
 - gli orari li scrivi esattamente come te li dà lo strumento; mai un orario inventato.
-- mai prezzi, sconti o condizioni; mai promettere cose che il sistema non ha fatto; mai dire che un
-  allegato c'è se l'analisi non è pronta.
+- mai prezzi, sconti o condizioni; mai promettere cose che il sistema non ha fatto.
+- LA MAIL DELL'ANALISI È QUELLA CON L'ALLEGATO, SEMPRE (Dre, 5/11: «il tipo risponde, si prepara l'analisi e si
+  invia, that's it»). Se il PDF non è ancora pronto non cambia niente per te: la scrivi come se fosse allegato
+  («in allegato trova l'analisi…»), perché il postino la fa partire solo quando il PDF c'è, con il PDF. Mai
+  annunciare che arriverà («le faremo arrivare l'analisi nelle prossime ore», «in una mail dedicata»): il 4/11
+  un lead ha ricevuto il PDF allegato a una mail che diceva che sarebbe arrivato dopo, senza orario né link.
 - destinatario: la mail va a chi ha risposto. Se la persona ti rimanda a un altro contatto e ti dà
   l'indirizzo, la bozza comincia con la riga «A: quell'indirizzo» (e «Cc: chi ti ha rimandato», se ha
   senso), poi una riga vuota e il testo rivolto al nuovo destinatario. Senza quella riga la mail
@@ -301,7 +305,7 @@ def contesto(p, storia, indice=None, storico=False, situazione=None):
              f"- azienda: {p.get('company') or '?'}; settore: {p.get('sector') or gf.get('settore') or '?'}; città: {p.get('city') or '?'}",
              f"- persona: {p.get('name') or '?'}" + (f", ruolo {p['role']}" if p.get("role") else ""),
              f"- fit Google: {gf.get('verdetto') or 'non fatto'}" + (f" ({gf['motivo']})" if gf.get("motivo") else ""),
-             f"- analisi PDF pronta: {'sì' if p.get('analysis_pdf') else 'no'}"
+             f"- analisi PDF: {'pronta' if p.get('analysis_pdf') else 'in preparazione (la mail parte quando è pronta, con il PDF: tu la scrivi come se fosse allegata)'}"
              + (f"; MANDATA dal sistema il {lettore._roma(p['analysis_sent_at'])} (nel filo di Smartlead può comparire con ritardo)" if p.get("analysis_sent_at") and not storico else ""),
              f"- numero di telefono in scheda: {'sì' if p.get('phone') else 'no'} (averlo non è un permesso di chiamare)",
              f"- da dove viene il contatto: {p.get('source') or 'non registrato'}"]
@@ -467,6 +471,10 @@ RETE_PRIVACY = re.compile(r"dove (avete|hai) (preso|trovato|reperito)|chi vi ha 
                           r"dati personali|cancellat[eiao]|rimuove(te|re)|non (contattate|scrivete)|diffida|denunc", re.I)
 PREZZO = re.compile(r"€|\beuro\b|\d+\s*(/|al|a)\s*mese|\bsconto\b|\bpreventivo\b", re.I)
 ASPETTA = re.compile(r"(ci|mi|le|gli) faccia sapere|fate(ci|mi) sapere|mi faccia un cenno|(mi|ci) scriva (pure )?(se|quando)|ci faccia conoscere|mi (indichi|dica|proponga) (pure )?lei|ci organizziamo", re.I)   # 4/11: la call non si aspetta, e niente sforzo a lui
+# la mail che annuncia l'analisi invece di mandarla (5/11): vietata, la ferma anche il postino
+ANNUNCIO = re.compile(r"(nelle prossime ore|nei prossimi giorni|entro (oggi|domani|stasera))(?=[^.]{0,80}(analisi|mail|invi|arriv|mand|ricev))"
+                      r"|far(emo|ò|o|à) (arrivare|avere)|a breve (le |gli )?(invio|mando|arriv)|arriver[àa] (a breve|nelle prossime|in una mail)"
+                      r"|in una mail dedicata|le invier[òo] (l'|la |il )|le mander[òo] (l'|la |il )|gliel[ao] (invio|mando) (a breve|nelle|entro|oggi|domani)", re.I)
 ORARIO = re.compile(r"\b(alle|ore)\s+\d{1,2}([:.]\d{2})?\b")
 
 
@@ -514,8 +522,10 @@ def segnali(dec, p, ctx, uso, storico=False):
         no.append("il testo parla di prezzi o condizioni: decide Dramane")
     if re.search(r"\belena\b", testo, re.I) and "elena" not in FIRMA.lower():
         no.append("il testo firma o cita Elena, che non è il mittente")
-    if mossa == "send_analysis" and not p.get("analysis_pdf"):
-        no.append("l'analisi non è pronta")
+    # 5/11: il PDF non pronto non e' un difetto della decisione (il postino aspetta); annunciare l'analisi invece di
+    # mandarla si'. Prima il segnale «l'analisi non e' pronta» spingeva il modello a scrivere «arriva nelle prossime ore».
+    if mossa == "send_analysis" and ANNUNCIO.search(testo):
+        no.append("annuncia l'analisi invece di mandarla: la mail dell'analisi è quella con l'allegato")
     if mossa in ("send_analysis", "offer_slots") and "orari_liberi" not in uso.get("strumenti", []) \
        and re.search(r"\b(alle|ore)\s+\d{1,2}([:.]\d{2})?\b", testo):
         no.append("propone orari senza averli presi dal calendario")
