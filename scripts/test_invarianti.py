@@ -101,11 +101,13 @@ def _():
 def _():
     import sync_v2 as S
     chiusa = {"awaiting_us": False}
+    # la data «nuova» e' ieri, non una data fissa: il 5/11 la data fissa del 6/10 ha compiuto 30 giorni ed e' diventata vecchia
+    ieri = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%dT09:00:00")
     assert S.attesa_da_sync(True, chiusa, False, "2026-10-05T13:17:15") is False, "la stessa risposta riapriva l'attesa di un no"
-    assert S.attesa_da_sync(True, chiusa, True, "2026-10-06T09:00:00") is True, "una risposta nuova deve riaprire"
+    assert S.attesa_da_sync(True, chiusa, True, ieri) is True, "una risposta nuova deve riaprire"
     assert S.attesa_da_sync(True, chiusa, True, "2020-01-01T00:00:00") is False, "oltre 30 giorni resta chiusa"
     assert S.attesa_da_sync(True, {"awaiting_us": True}, False, "2026-10-05T13:17:15") is True
-    assert S.attesa_da_sync(True, None, True, "2026-10-06T09:00:00") is True, "un lead nuovo aspetta"
+    assert S.attesa_da_sync(True, None, True, ieri) is True, "un lead nuovo aspetta"
     # e il sync deve avere awaiting_us nei lead che carica, se no ogni attesa sembra chiusa (6/10, 11:43)
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_v2.py")).read()
     # 21/10: i campi stanno in CAMPI_PROSPECT, gli stessi per il giro e per la strada veloce (sincronizza_lead)
