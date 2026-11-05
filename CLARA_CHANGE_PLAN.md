@@ -247,8 +247,9 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
 - Dre: «voglio scrivere solo in un box di note, non in più box (OTS Assembly ne aveva 3); non voglio che quando clicco
   diventi bianco: rimane giallo, ci scrivo e basta; elimina le due note «Scritto su WhatsApp»». Le tre note di OTS
   venivano da tre tocchi del tasto WhatsApp in tre versioni della notte, ognuna scriveva una nota automatica.
-- La nota di Dre è UNA per lead (`NotaUnica`): foglietto giallo sempre uguale, si scrive dentro, si salva da sola
-  (dopo una pausa e quando si esce); vuota = tolta. Per chi è in scheda vive in `snella_note` (l'ultima sua, tipo
+- La nota di Dre è UNA per lead (`NotaUnica`): foglietto giallo sempre uguale; con due tocchi (o doppio clic) si scrive
+  dentro senza cambiare colore (Dre, 10:39: «per modificare faccio doppio tocco e comunque resta giallo»); si salva da
+  sola (dopo una pausa e quando si esce); vuota = tolta. Per chi è in scheda vive in `snella_note` (l'ultima sua, tipo
   'nota'; `modificaNota` la fa rileggere a Clara); per le chiamate fuori scheda in `chiamate.note` (una voce). In
   Call, nel Profilo e nella scheda del consiglio in Relazioni. `clara_call` e `clara_coda` portano `nota`.
 - I gesti del sistema (prende in mano, WhatsApp, esiti, non interessato, «dal sistema») sono `tipo = 'gesto'` (v120):
