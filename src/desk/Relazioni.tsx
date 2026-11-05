@@ -3,8 +3,8 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { aggiungiNota, approva, cerca, giudica, invitoFatto, leggiCoda, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaConsiglio, segnaEsito, telefonoDre, type Decisione, type Trovato } from './dati'
-import { conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, type Filtro } from './regole'
+import { aggiungiNota, approva, cerca, chiamataDaDecisione, esitoChiamata, giudica, invitoFatto, leggiCoda, nonInteressato, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaChiamato, segnaConsiglio, segnaEsito, suWhatsapp, telefonoDre, type Decisione, type Trovato } from './dati'
+import { consiglioNuovo, conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, whatsappDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
@@ -31,8 +31,6 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const righe = useMemo(() => dati ? ordina(filtra(dati, filtro, q), new Date()) : [], [dati, filtro, q])
   const conti = useMemo(() => dati ? conta(dati) : null, [dati])
-  // 4/11 sera, Dre: «il consiglio di chiamarlo mettilo in Relazioni, in alto: clicco e mi porta alla sua scheda in Call»
-  const consigliati = useMemo(() => dati ? ordina(filtra(dati, 'consigli'), new Date()) : [], [dati])
   const scelta = dati?.find((d) => d.id === dove.id) ?? null
   // sul computer, senza una scelta, si apre la prima della coda
   const prima = righe[0] ?? null
@@ -81,25 +79,6 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
                  className="min-w-0 flex-1 bg-transparent text-[14px] text-inchiostro outline-none placeholder:text-spento" />
         </label>
       </header>
-      {consigliati.length > 0 && filtro !== 'consigli' && !q.trim() && (
-        <div className="border-b border-bordo p-3 lg:p-4">
-          <p className="mb-1.5 text-[11.5px] font-extrabold uppercase tracking-[.08em] text-giallo-testo">Ti consiglio di chiamare</p>
-          <ul className="space-y-2">
-            {consigliati.slice(0, 3).map((d) => (
-              <li key={`c-${d.id}`} className={`flex flex-wrap items-center gap-3 rounded-xl border px-3.5 py-3 ${TONO.giallo.morbido}`}>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14.5px] font-bold">{d.azienda || d.email}{d.persona ? <span className="font-semibold opacity-80">, {d.persona}</span> : null}</span>
-                  {d.consiglio?.perche && <span className="block text-[13px] leading-snug opacity-90">{d.consiglio.perche}</span>}
-                </span>
-                <button onClick={() => vai({ voce: 'call', id: d.id })} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-ok-testo px-3.5 text-[13.5px] font-bold text-white hover:brightness-95">
-                  <Icona nome="telefono" className="h-4 w-4" /> Vai alla chiamata
-                </button>
-              </li>
-            ))}
-            {consigliati.length > 3 && <li><button onClick={() => setFiltro('consigli')} className="text-[13px] font-semibold text-navy hover:underline">Tutti i consigli ({consigliati.length})</button></li>}
-          </ul>
-        </div>
-      )}
       {altre.length > 0 && altre.some((t) => !dati?.some((d) => d.prospect_id === t.id)) && (
         <div className="border-b border-bordo px-3 pt-3 lg:px-4">
           <p className="mb-1.5 text-[11.5px] font-extrabold uppercase tracking-[.08em] text-tenue">Altre aziende</p>
@@ -128,8 +107,9 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
                     <span className="block truncate text-[12.5px] text-tenue">{[[d.persona, d.citta].filter(Boolean).join(', '), d.lead_testo ? `“${d.lead_testo.replace(/\s+/g, ' ').slice(0, 70)}”` : ''].filter(Boolean).join(', ')}</span>
                   </span>
                   <span className="flex flex-col items-end gap-1">
-                    {d.in_mano_a ? <Pillola testo="Me ne occupo io" tono="stop" /> : <Pillola testo={s.testo.length > 26 ? s.testo.slice(0, 24) + '…' : s.testo} tono={s.tono} piena={s.tono === 'ok'} />}
-                    {d.consiglio?.numero && !d.consiglio.esito && <Pillola testo="Ti consiglio di chiamare" tono="giallo" />}
+                    {d.in_mano_a ? <Pillola testo="Me ne occupo io" tono="stop" />
+                      : consiglioNuovo(d) ? <Pillola testo="Consigliato chiamare" tono="loro" piena />
+                        : <Pillola testo={s.testo.length > 26 ? s.testo.slice(0, 24) + '…' : s.testo} tono={s.tono} piena={s.tono === 'ok'} />}
                     <span className="text-[11.5px] text-tenue">{quando(d.risposta_il)}</span>
                   </span>
                 </button>
@@ -189,7 +169,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
   const no = () => fai(() => scarta(d.id, motivo), { stato: 'scartata', dre_giudizio: 'no' }, 'Scartata. Clara se lo segna.')
   const esito = (e: string) => {
     if (e === 'richiamare') { const t = new Date(); setRichiamo(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`); return Promise.resolve() }
-    return fai(() => segnaEsito(d.id, e), { stato: 'fatta', esito: e, esito_il: new Date().toISOString() }, 'Segnato.')
+    return fai(async () => { await segnaEsito(d.id, e); if (e === 'non_interessato') await nonInteressato(d.prospect_id) }, { stato: 'fatta', esito: e, esito_il: new Date().toISOString() }, e === 'non_interessato' ? 'Segnato: non lo contattiamo più. Lo ritrovi in Analytics, in basso.' : 'Segnato.')
   }
   const programma = (g: string) => fai(() => programmaChiamata({ id: d.id, chiamata_id: null, prospect_id: d.prospect_id, azienda: d.azienda, persona: d.persona, telefono: d.richiamo?.numero || d.telefono, richiamare_il: null, note: [], origine: 'clara' }, g).then(() => undefined),
     {}, `Richiami ${new Date(`${g}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}: la trovi in Call.`).then(() => setRichiamo(null))
@@ -204,6 +184,15 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
     { consiglio: { ...(d.consiglio ?? {}), esito: e, esito_il: new Date().toISOString() } }, e === 'non_risposto' ? 'Segnato: Clara continua lei, dicendo che hai chiamato.' : 'Segnato.')
   // 5/11: «Non ha risposto» vuole il numero di Dre nelle regole: la prima volta si chiede qui
   const nonRisposto = () => void telefonoDre().then((t) => t ? chiuso('non_risposto') : setChiedoNumero(true)).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
+  // 5/11 (Dre): sul consiglio gli stessi gesti di Call; al primo gesto la relazione passa in Call
+  const ch = chiamataDaDecisione(d)
+  const [richiamo2, setRichiamo2] = useState<string | null>(null)
+  const inCall = (chiamata: NonNullable<Decisione['chiamata']>, detto: string) => { aggiorna({ ...d, chiamata }); mostra({ testo: detto }) }
+  const riga = (x: Partial<NonNullable<Decisione['chiamata']>>): NonNullable<Decisione['chiamata']> => ({ id: x.id ?? d.chiamata?.id ?? '', chiamato_il: null, whatsapp_il: null, richiamare_il: null, esito: null, ...(d.chiamata ?? {}), ...x })
+  const chiamo = () => void segnaChiamato(ch).then(({ id, chiamato_il }) => inCall(riga({ id, chiamato_il }), 'La trovi in Call: segna l’esito quando hai finito.')).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
+  const whatsapp = () => void suWhatsapp(ch).then(({ id, whatsapp_il }) => inCall(riga({ id, whatsapp_il }), 'Su WhatsApp: è in mano a te, la trovi in Call.')).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
+  const richiama = (g: string) => void programmaChiamata(ch, g).then((id) => { setRichiamo2(null); inCall(riga({ id, richiamare_il: g }), 'Programmata: la trovi in Call.') }).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
+  const esitoConsiglio = (e: string) => fai(() => esitoChiamata(ch, e), { consiglio: { ...(d.consiglio ?? {}), esito: e, esito_il: new Date().toISOString() } }, 'Segnato.')
 
   return (
     <section className="rounded-2xl border border-bordo bg-white lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
@@ -234,6 +223,13 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
             <blockquote className="whitespace-pre-wrap rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3.5 py-3 text-[14px] leading-relaxed text-inchiostro">{d.lead_testo.trim().slice(0, 1200)}</blockquote>
           </Blocco>
         )}
+        {consiglio && (
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Tessera titolo="Sito">{d.sito ? <a href={/^https?:/.test(d.sito) ? d.sito : `https://${d.sito}`} target="_blank" rel="noreferrer" className="break-all font-bold text-navy underline-offset-2 hover:underline">{d.sito.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a> : <span className="text-tenue">non registrato</span>}</Tessera>
+            <Tessera titolo="Analisi">{d.analisi_url ? <a href={d.analisi_url} target="_blank" rel="noreferrer" className="font-bold text-navy underline-offset-2 hover:underline">Apri il PDF</a> : <span className="text-tenue">{d.analisi_mandata ? 'mandata' : 'non pronta'}</span>}</Tessera>
+            <Tessera titolo="Numero"><a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} onClick={chiamo} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(consiglio.numero) ?? consiglio.numero}</a></Tessera>
+          </div>
+        )}
         <Blocco titolo="Clara">
           <p className="text-[14px] leading-relaxed text-inchiostro">{d.perche}</p>
           {d.richiamo?.numero && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero:</span> <a href={`tel:${(telefonoDa(d.richiamo.numero) ?? d.richiamo.numero).replace(/[^\d+]/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(d.richiamo.numero) ?? d.richiamo.numero}</a>{d.richiamo.quando ? <span className="text-tenue">, {d.richiamo.quando}</span> : null}</p>}
@@ -243,13 +239,29 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
               <p className="text-[13px] font-bold">Ti consiglio di chiamare{consiglio.esito ? ` (${consiglio.esito === 'chiamato' ? 'chiamato' : 'non ora'})` : ''}</p>
               <p className="mt-0.5 text-[13.5px]">{consiglio.perche}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                {!consiglio.esito
-                  ? <button onClick={vaiCall} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white hover:brightness-95"><Icona nome="telefono" className="h-4 w-4" /> Vai alla chiamata ({telefonoDa(consiglio.numero) ?? consiglio.numero})</button>
-                  : <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ok-testo px-4 text-[14px] font-bold text-white"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>}
-                {!consiglio.esito && <Bottone onClick={() => void nonRisposto()} disabled={lavoro} className="text-[13px]">Non ha risposto</Bottone>}
-                {!consiglio.esito && <Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="text-[13px]">Lascia stare</Bottone>}
+                <a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} onClick={consiglio.esito ? undefined : chiamo} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[15px] font-bold text-white hover:brightness-95"><Icona nome="telefono" className="h-4 w-4" /> {telefonoDa(consiglio.numero) ?? consiglio.numero}</a>
+                {d.chiamata?.whatsapp_il && whatsappDa(consiglio.numero) && <a href={whatsappDa(consiglio.numero) ?? ''} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ok-testo px-4 text-[14px] font-bold text-ok-testo hover:bg-ok-fondo"><Icona nome="whatsapp" className="h-4 w-4" /> Apri la chat</a>}
+                {d.chiamata && (d.chiamata.chiamato_il || d.chiamata.whatsapp_il || d.chiamata.richiamare_il) && !consiglio.esito && <button onClick={vaiCall} className="text-[13px] font-semibold text-navy hover:underline">È in Call</button>}
               </div>
-              {chiedoNumero && <div className="mt-2"><NumeroDre fatto={() => { setChiedoNumero(false); void chiuso('non_risposto') }} annulla={() => setChiedoNumero(false)} /></div>}
+              {!consiglio.esito && (richiamo2 !== null ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-bordo bg-fondo/60 p-2.5">
+                  <span className="text-[13px] font-semibold">Richiamare il</span>
+                  <input type="date" value={richiamo2} onChange={(e) => setRichiamo2(e.target.value)} className="min-h-10 rounded-lg border border-bordo bg-white px-2 text-[14px] outline-none focus:border-navy" />
+                  <Bottone tipo="primo" onClick={() => richiama(richiamo2)} disabled={lavoro || !richiamo2}>Ok</Bottone>
+                  <Bottone tipo="piatto" onClick={() => setRichiamo2(null)} disabled={lavoro}>Annulla</Bottone>
+                </div>
+              ) : chiedoNumero ? <div className="mt-2"><NumeroDre fatto={() => { setChiedoNumero(false); void chiuso('non_risposto') }} annulla={() => setChiedoNumero(false)} /></div> : (
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  <Bottone tipo="primo" onClick={() => void esitoConsiglio('fissata')} disabled={lavoro} className="px-2 text-[13px]">Call fissata</Bottone>
+                  {d.chiamata?.whatsapp_il
+                    ? <span className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-ok-testo bg-ok-fondo px-2 text-[13px] font-bold text-ok-testo"><Icona nome="ok" className="h-3.5 w-3.5" /> Su WhatsApp</span>
+                    : <Bottone onClick={whatsapp} disabled={lavoro} className="px-2 text-[13px]"><Icona nome="whatsapp" className="h-4 w-4" /> WhatsApp</Bottone>}
+                  <Bottone onClick={() => void nonRisposto()} disabled={lavoro} className="px-2 text-[13px]">Non ha risposto</Bottone>
+                  <Bottone onClick={() => { const t = new Date(); t.setDate(t.getDate() + 1); setRichiamo2(t.toISOString().slice(0, 10)) }} disabled={lavoro} className="px-2 text-[13px]">Richiamare</Bottone>
+                  <Bottone onClick={() => void esitoConsiglio('non_interessato')} disabled={lavoro} className="px-2 text-[13px]">Non interessato</Bottone>
+                </div>
+              ))}
+              {!consiglio.esito && <Bottone tipo="piatto" onClick={() => void chiuso('lascia_stare')} disabled={lavoro} className="mt-1 text-[13px]">Lascia stare: non lo chiamo</Bottone>}
             </div>
           )}
           {d.giudice?.pericoloso && <p className={`mt-2 rounded-lg border px-3 py-2 text-[13px] ${TONO.no.morbido}`}>Il revisore segnala: {d.giudice.errore_pericoloso}</p>}
@@ -370,6 +382,15 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
         )}
       </footer>
     </section>
+  )
+}
+
+function Tessera({ titolo, children }: { titolo: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-bordo bg-fondo/50 px-3 py-2 text-[14px]">
+      <p className="text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">{titolo}</p>
+      <div className="mt-0.5 min-w-0 break-words">{children}</div>
+    </div>
   )
 }
 

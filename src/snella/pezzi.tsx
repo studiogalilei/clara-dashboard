@@ -115,6 +115,7 @@ export function Bottone({ children, onClick, tipo = 'secondo', disabled, classNa
 export function Pillola({ testo, tono = 'neutro', piena = false, icona }: { testo: string; tono?: Tono; piena?: boolean; icona?: NomeIcona }) {
   const stile = piena && tono === 'ok' ? 'border-ok-testo bg-ok-testo text-white'
     : piena && tono === 'no' ? 'border-no-testo bg-no-testo text-white'
+      : piena && tono === 'loro' ? 'border-loro-testo bg-loro-testo text-white'
       : TONO[tono].morbido
   return (
     <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${stile}`}>

@@ -4,7 +4,7 @@
 // (restano qui come contatti suoi). Per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco:
 // Call fissata, WhatsApp, Richiamare, Non interessato. A destra le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useRef, useState } from 'react'
-import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, modificaNotaChiamata, notaChiamata, numeroChiamata, programmaChiamata, suWhatsapp, telefonoDre, type Chiamata, type Trovato } from './dati'
+import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, modificaNotaChiamata, notaChiamata, numeroChiamata, programmaChiamata, segnaChiamato, suWhatsapp, telefonoDre, type Chiamata, type Trovato } from './dati'
 import { agendaPulita, ordinaChiamate, telefonoDa, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -277,14 +277,14 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
           <span className="block text-[13px] text-tenue">{[r.persona, r.origine === 'clara' ? `ha scritto ${quando(r.risposta_il ?? '')}` : pid ? 'in scheda' : 'fuori scheda'].filter(Boolean).join(', ')}</span>
         </button>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          {r.whatsapp_il ? <Pillola testo="Su WhatsApp" tono="ok" piena /> : r.origine === 'consiglio' ? <Pillola testo="Ti consiglio di chiamare" tono="giallo" piena /> : r.origine === 'clara' ? <Pillola testo="Ha chiesto lui" tono="ok" piena /> : <Pillola testo="Tua" tono="neutro" />}
+          {r.whatsapp_il ? <Pillola testo="Su WhatsApp" tono="ok" piena /> : r.chiamato_il ? <Pillola testo={`Chiamato ${quando(r.chiamato_il)}: l’esito?`} tono="attesa" /> : r.origine === 'consiglio' ? <Pillola testo="Consigliato chiamare" tono="loro" piena /> : r.origine === 'clara' ? <Pillola testo="Ha chiesto lui" tono="ok" piena /> : <Pillola testo="Tua" tono="neutro" />}
           {r.richiamare_il && <button onClick={() => setProgrammo(true)} className={`text-[12.5px] font-semibold ${ritardo ? 'text-giallo-testo' : 'text-tenue'} hover:underline`}>{ritardo ? 'Era per ' : ''}{giornoBreve(r.richiamare_il)}</button>}
         </div>
       </div>
       {r.quando && <p className="text-[13.5px] text-inchiostro"><span className="font-semibold">Quando:</span> {r.quando}</p>}
       {tel ? (
         <div className="flex flex-wrap items-center gap-2">
-          <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[15px] font-bold text-white">
+          <a href={`tel:${tel.replace(/[^\d+]/g, '')}`} onClick={() => { if (!r.chiamato_il) void segnaChiamato(r).then(({ id, chiamato_il }) => aggiorna(r, { ...r, chiamata_id: id, chiamato_il })).catch(() => undefined) }} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ok-testo px-4 text-[15px] font-bold text-white">
             <Icona nome="telefono" className="h-4 w-4" /> {tel}
           </a>
           {r.whatsapp_il && wa && <a href={wa} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ok-testo px-4 text-[14px] font-bold text-ok-testo hover:bg-ok-fondo"><Icona nome="whatsapp" className="h-4 w-4" /> Apri la chat</a>}

@@ -217,3 +217,15 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
 - Lo strumento `orari_liberi` di Clara dà un orario, il link «per un altro giorno» e il numero di Dre
   (`regole.telefono_dre`). Identità, regola 3, 4bis e 4ter aggiornate; segnale nuovo: «manda l'analisi senza il
   numero». Il giudice sa la regola.
+
+## 5/11 alle 2: i consigli in Relazioni come righe, in Call al primo gesto; i «Non interessato» ritrovabili
+
+- Dre: «la sezione dove mi consiglia di chiamare mettila in Relazioni in basso, in riga come «Decidi tu», pillola
+  «Consigliato chiamare» bianco su arancione scuro; clicco e a lato vedo nome, sito, analisi, numero e i bottoni della
+  sezione Call; appena faccio un'azione passa in Call; Call in ordine di priorità (la data in cui richiamare)».
+- Database v118: `chiamate.chiamato_il` (numero toccato); `clara_coda` porta la riga «chiamate» e il PDF; `clara_call`
+  mostra i consigli solo se presi in carico. Desk: `consiglioNuovo`, `chiamataDaDecisione`, `segnaChiamato`; il banner
+  in alto non c'è più; priorità dei consigli in fondo all'elenco; il tono «loro» pieno è l'arancione scuro.
+- «Non interessato» (v119): `clara_non_interessato` mette no_followup, lost_reason «Non interessato (Dre, al telefono,
+  gg/mm)», chiude le decisioni aperte, scrive la nota; `clara_non_interessati` è la lista in Analytics in basso, con
+  «Riapri». Clara non scrive a chi ha no_followup (stanza.contattabile).

@@ -43,7 +43,10 @@ describe('il desk: la coda', () => {
     expect(filtra([...ds, mia], 'mie').map((d) => d.id)).toEqual(['m'])
     const cons = base({ id: 'k', mossa: 'wait', consiglio: { numero: '335 1234567', perche: 'ha detto sì' } })
     expect(filtra([...ds, cons], 'consigli').map((d) => d.id)).toEqual(['k'])
-    expect(priorita(cons, adesso)).toBeGreaterThan(priorita(base({ mossa: 'wait' }), adesso))
+    // 5/11 (Dre): i consigli stanno in basso, dopo le righe da fare, ma restano in «Da fare» finche' non ci muove niente
+    expect(priorita(cons, adesso)).toBeLessThan(priorita(base({ mossa: 'reply' }), adesso))
+    expect(filtra([...ds, cons], 'tutte').map((d) => d.id)).toContain('k')
+    expect(filtra([{ ...cons, chiamata: { id: 'c', chiamato_il: '2026-11-03T11:00:00Z', whatsapp_il: null, richiamare_il: null, esito: null } }], 'tutte')).toEqual([])
   })
   it('lo stato in una parola dice quando e\' ferma e perche\'', () => {
     expect(statoBreve(base({ errore: 'aspetta l’analisi' })).tono).toBe('no')

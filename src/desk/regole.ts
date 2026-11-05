@@ -16,6 +16,12 @@ export const MOSSE: Record<Mossa, { nome: string; bottone: string; tono: Tono; s
 export type Gruppo = 'fare' | 'corso' | 'attesa' | 'fatte' | 'chiuse'
 export const GRUPPI: Record<Gruppo, string> = { fare: 'Da fare adesso', corso: 'In partenza', attesa: 'In attesa', fatte: 'Fatte', chiuse: 'Chiuse' }
 
+/** Un consiglio di chiamata ancora da prendere in carico (5/11): aperto, e Dre non ci ha ancora mosso niente. */
+export function consiglioNuovo(d: Pick<Decisione, 'consiglio' | 'in_mano_a'> & { chiamata?: Decisione['chiamata'] }): boolean {
+  const c = d.chiamata
+  return !!d.consiglio?.numero && !d.consiglio.esito && !d.in_mano_a && !(c && (c.chiamato_il || c.whatsapp_il || c.richiamare_il || c.esito))
+}
+
 export function gruppoDi(d: Pick<Decisione, 'mossa' | 'stato'> & { entro_il?: string | null }): Gruppo {
   if (d.stato === 'approvata' || d.stato === 'in_invio') return 'corso'
   if (d.stato === 'inviata' || d.stato === 'fatta') return 'fatte'
@@ -28,6 +34,9 @@ export function gruppoDi(d: Pick<Decisione, 'mossa' | 'stato'> & { entro_il?: st
 
 /** Quanto conta: la mossa, la freschezza, e chi ha gia' l'analisi (e' piu' avanti). 0-130. */
 export function priorita(d: Pick<Decisione, 'mossa' | 'risposta_il' | 'analisi_mandata' | 'stato' | 'consiglio'>, adesso: Date = new Date()): number {
+  // 5/11 (Dre): i consigli di chiamata stanno in basso, dopo le righe da fare
+  if (d.consiglio?.numero && !d.consiglio.esito && d.stato !== 'proposta') return 10
+  if (d.mossa === 'wait' && d.consiglio?.numero && !d.consiglio.esito) return 10
   let p = MOSSE[d.mossa]?.peso ?? 0
   const ore = (adesso.getTime() - new Date(d.risposta_il).getTime()) / 36e5
   if (ore < 24) p += 15
@@ -72,12 +81,12 @@ export function filtra<T extends Decisione>(ds: T[], f: Filtro, q = ''): T[] {
   return ds.filter((d) => {
     const g = gruppoDi(d)
     if (d.in_mano_a && f !== 'mie' && f !== 'fatte' && f !== 'chiuse') return false   // una relazione di Dre non sta nella coda di Clara
-    const ok = f === 'tutte' ? g === 'fare' || g === 'corso'
+    const ok = f === 'tutte' ? g === 'fare' || g === 'corso' || consiglioNuovo(d)
       : f === 'inviare' ? (g === 'fare' || g === 'corso') && MOSSE[d.mossa].scrive
         : f === 'call' ? (g === 'fare' || g === 'corso') && (d.mossa === 'callback' || d.mossa === 'book_meeting' || d.mossa === 'offer_slots')
           : f === 'tue' ? g === 'fare' && d.mossa === 'escalate'
             : f === 'mie' ? !!d.in_mano_a
-            : f === 'consigli' ? !!d.consiglio?.numero && !d.consiglio.esito && g !== 'chiuse'
+            : f === 'consigli' ? consiglioNuovo(d)
             : f === 'attesa' ? g === 'attesa'
               : f === 'fatte' ? g === 'fatte'
                 : g === 'chiuse'
@@ -160,7 +169,8 @@ export const MOTIVO_WHATSAPP = 'gli ho scritto su WhatsApp'
  *  dopo, poi i consigli di Clara, poi le altre senza data (le piu' fresche prima). */
 export function ordinaChiamate<T extends { richiamare_il: string | null; origine: string; risposta_il?: string | null; creato_il?: string; whatsapp_il?: string | null }>(xs: T[], oggi: string): T[] {
   const chiave = (c: T) => c.richiamare_il ? (c.richiamare_il <= oggi ? `0${c.richiamare_il}` : `1${c.richiamare_il}`) : c.origine === 'consiglio' ? '2' : '3'
-  return [...xs].sort((a, b) => chiave(a).localeCompare(chiave(b)) || (b.whatsapp_il ?? b.risposta_il ?? b.creato_il ?? '').localeCompare(a.whatsapp_il ?? a.risposta_il ?? a.creato_il ?? ''))
+  const ultima = (c: T & { chiamato_il?: string | null }) => c.chiamato_il ?? c.whatsapp_il ?? c.risposta_il ?? c.creato_il ?? ''
+  return [...xs].sort((a, b) => chiave(a).localeCompare(chiave(b)) || ultima(b).localeCompare(ultima(a)))
 }
 
 export function telefonoDa(testo: string | null | undefined): string | null {

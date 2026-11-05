@@ -28,7 +28,9 @@ export interface Decisione {
   telefono: string | null; sito: string | null; analisi_pdf: boolean; analisi_mandata: boolean; fase: string | null
   classe: string | null; ultima_risposta: string | null; prossima_call: string | null
   approvata_da?: string | null; in_mano_a?: string | null; in_mano_motivo?: string | null; in_mano_il?: string | null
-  fit?: string | null
+  fit?: string | null; analisi_url?: string | null
+  // 5/11: la riga «chiamate» della decisione, se Dre ha gia' mosso qualcosa (numero toccato, WhatsApp, richiamo)
+  chiamata?: { id: string; chiamato_il: string | null; whatsapp_il: string | null; richiamare_il: string | null; esito: string | null } | null
 }
 
 export interface Messaggio { at: string; tipo: 'email_in' | 'email_out'; testo: string | null; casella: string | null }
@@ -55,6 +57,7 @@ export interface Chiamata {
   quando?: string | null; perche?: string | null; risposta_il?: string | null; lead_testo?: string | null; richiamare_il: string | null
   note: NotaChiamata[]; origine: 'clara' | 'dre' | 'consiglio'; creato_il?: string; fase?: string | null; analisi_mandata?: boolean | null; ultima_risposta?: string | null
   whatsapp_il?: string | null                 // 4/11: «l'ho passato su WhatsApp»: resta in lista come contatto di Dre
+  chiamato_il?: string | null                 // 5/11: Dre ha toccato il numero: «chiamato, segna l'esito»
   consiglio?: Consiglio | null                // quando e' un «Ti consiglio di chiamare» di Clara
 }
 export interface Call {
@@ -271,6 +274,23 @@ export async function suWhatsapp(c: Chiamata): Promise<{ id: string; whatsapp_il
   return { id, whatsapp_il }
 }
 
+/** Dre ha toccato il numero (5/11): la chiamata e' sua, sta in Call con «chiamato, segna l'esito». */
+export async function segnaChiamato(c: Chiamata): Promise<{ id: string; chiamato_il: string }> {
+  const id = await rigaDi(c)
+  const chiamato_il = ADESSO()
+  const { error } = await supabase.from('chiamate').update({ chiamato_il }).eq('id', id).abortSignal(entro())
+  if (error) guasto(error)
+  return { id, chiamato_il }
+}
+
+/** Un consiglio di Clara letto come chiamata (5/11): cosi' in Relazioni si usano gli stessi gesti di Call. */
+export function chiamataDaDecisione(d: Decisione): Chiamata {
+  return { id: d.id, chiamata_id: d.chiamata?.id ?? null, prospect_id: d.prospect_id, azienda: d.azienda, persona: d.persona,
+    telefono: d.consiglio?.numero || d.telefono, perche: d.consiglio?.perche ?? d.perche, risposta_il: d.risposta_il, lead_testo: d.lead_testo,
+    richiamare_il: d.chiamata?.richiamare_il ?? null, note: [], origine: 'consiglio', consiglio: d.consiglio ?? null,
+    whatsapp_il: d.chiamata?.whatsapp_il ?? null, chiamato_il: d.chiamata?.chiamato_il ?? null }
+}
+
 /** Quando richiamare (una data; null toglie la programmazione). */
 export async function programmaChiamata(c: Chiamata, giorno: string | null): Promise<string> {
   const id = await rigaDi(c)
@@ -289,6 +309,20 @@ export async function notaChiamata(c: Chiamata, testo: string): Promise<{ id: st
   return { id, nota }
 }
 
+/** «Non interessato» (5/11, Dre): non lo contattiamo più (niente campagne, niente follow-up), ma resta ritrovabile in
+ *  Analytics; con riapri=true torna in gioco. */
+export async function nonInteressato(prospectId: string, riapri = false): Promise<void> {
+  const { data, error } = await supabase.rpc('clara_non_interessato', { chi: prospectId, riapri }).abortSignal(entro())
+  if (error) guasto(error)
+  if (data && data.ok === false) throw new Error(data.perche || 'Non riesco')
+}
+export interface NonInteressato { id: string; azienda: string | null; persona: string | null; email: string; citta: string | null; telefono: string | null; quando: string | null; analisi_mandata: boolean; ultima_risposta: string | null }
+export async function leggiNonInteressati(): Promise<NonInteressato[]> {
+  const { data, error } = await supabase.rpc('clara_non_interessati').abortSignal(entro())
+  if (error) guasto(error)
+  return (data ?? []) as NonInteressato[]
+}
+
 /** L'esito di una chiamata (fissata, non risponde, non interessato): la chiamata esce dalla lista. Per quelle di
  *  Clara si segna anche sulla decisione. «richiamare» non chiude: si programma un giorno. */
 export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): Promise<void> {
@@ -296,6 +330,7 @@ export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): 
   const { error } = await supabase.from('chiamate').update({ esito, esito_il: ADESSO(), ...(nota?.trim() ? { note: [...(c.note ?? []), { at: ADESSO(), testo: nota.trim() }] } : {}) }).eq('id', id).abortSignal(entro())
   if (error) guasto(error)
   const detto = `Chiamata di Dre: ${NOME_ESITO[esito] ?? esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`
+  if (esito === 'non_interessato' && c.prospect_id) await nonInteressato(c.prospect_id)
   if (c.origine === 'clara') await segnaEsito(c.id, esito, nota)
   else if (c.origine === 'consiglio') { await segnaConsiglio(c, esito); if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto) } catch { /* niente */ } } }
   else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto) } catch { /* niente */ } }

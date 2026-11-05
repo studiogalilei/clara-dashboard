@@ -430,7 +430,8 @@ const desk_decisioni: Riga[] = [
 ]
 function deskDecisione(d: Riga) {
   const p = prospects.find((x) => x.id === d.prospect_id)
-  return { ...d, azienda: p?.company ?? null, persona: p?.name ?? null, ruolo: null, email: p?.email ?? '', citta: p?.city ?? null, settore: p?.sector ?? null, telefono: p?.phone ?? null,
+  const c = desk_chiamate.find((x) => x.decisione_id === d.id)
+  return { ...d, chiamata: c ? { id: c.id, chiamato_il: c.chiamato_il ?? null, whatsapp_il: c.whatsapp_il ?? null, richiamare_il: c.richiamare_il ?? null, esito: c.esito ?? null } : null, analisi_url: 'https://example.com/analisi.pdf', azienda: p?.company ?? null, persona: p?.name ?? null, ruolo: null, email: p?.email ?? '', citta: p?.city ?? null, settore: p?.sector ?? null, telefono: p?.phone ?? null,
            sito: p?.website ?? null, analisi_pdf: true, analisi_mandata: Boolean(p?.analysis_sent), fase: p?.stage ?? null, ultima_risposta: p?.last_reply_at ?? null, prossima_call: null, in_mano_a: null, in_mano_motivo: null, in_mano_il: null, approvata_da: null }
 }
 function deskCall() {
@@ -447,9 +448,9 @@ function deskCall() {
       richiamare_il: c.richiamare_il, note: c.note, whatsapp_il: c.whatsapp_il ?? null, creato_il: c.creato_il, origine: 'dre', fase: 'risposto', analisi_mandata: true, ultima_risposta: oreFa(30), lead_testo: 'Sì, volentieri, la mandi pure.', perche: null })),
     consigli: desk_decisioni.filter((d) => d.consiglio && !(d.consiglio as Riga).esito).flatMap((d) => {
       const p = prospects.find((x) => x.id === d.prospect_id); const c = desk_chiamate.find((x) => x.decisione_id === d.id)
-      if (c && (c.esito || c.whatsapp_il)) return []
+      if (!c || c.esito || c.whatsapp_il) return []      // 5/11: in Call solo dopo il primo gesto
       return [{ id: d.id, prospect_id: d.prospect_id, azienda: p?.company ?? null, persona: p?.name ?? null, telefono: c?.numero ?? (d.consiglio as Riga).numero, perche: (d.consiglio as Riga).perche, mossa: d.mossa, stato: d.stato, risposta_il: d.risposta_il, lead_testo: d.lead_testo, consiglio: d.consiglio,
-        chiamata_id: c?.id ?? null, richiamare_il: c?.richiamare_il ?? null, note: c?.note ?? [], whatsapp_il: c?.whatsapp_il ?? null, origine: 'consiglio' }]
+        chiamata_id: c?.id ?? null, richiamare_il: c?.richiamare_il ?? null, note: c?.note ?? [], whatsapp_il: c?.whatsapp_il ?? null, chiamato_il: c?.chiamato_il ?? null, origine: 'consiglio' }]
     }),
   }
 }
@@ -707,6 +708,8 @@ export const demoClient = {
     if (nome === 'clara_relazione') return conAbort(deskRelazione(String(args?.chi ?? '')))
     if (nome === 'clara_cerca') { const q = String(args?.q ?? '').toLowerCase(); return conAbort(prospects.filter((p) => [p.company, p.name, p.email].some((x) => String(x ?? '').toLowerCase().includes(q))).slice(0, 6).map((p) => ({ id: p.id, azienda: p.company, persona: p.name, email: p.email, citta: p.city, telefono: p.phone ?? null, fase: p.stage, classe: p.classificazione, ultima_risposta: p.last_reply_at, analisi_mandata: Boolean(p.analysis_sent) }))) }
     if (nome === 'clara_prendi') return conAbort({ ok: true })
+    if (nome === 'clara_non_interessato') { const p = prospects.find((x) => x.id === args?.chi); if (p) { p.no_followup = !args?.riapri; p.lost_reason = args?.riapri ? null : 'Non interessato (Dre, al telefono, 05/11)' } return conAbort({ ok: true }) }
+    if (nome === 'clara_non_interessati') return conAbort(prospects.filter((p) => p.no_followup && String(p.lost_reason ?? '').startsWith('Non interessato')).map((p) => ({ id: p.id, azienda: p.company, persona: p.name, email: p.email, citta: p.city, telefono: p.phone, quando: p.lost_reason, analisi_mandata: p.analysis_sent, ultima_risposta: p.last_reply_at })))
     if (nome === 'clara_collega_call') return conAbort({ ok: true })
     return conAbort(this._rpcVecchio(nome))
   },

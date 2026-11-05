@@ -1,7 +1,10 @@
 // CLARA: come sta e cosa ha imparato. Numeri veri degli ultimi 7 giorni, senza fronzoli.
-import { leggiCoda, leggiOperazioni, leggiSpesa, type Decisione, type Operazione, type Spesa } from './dati'
+import { useState } from 'react'
+import { leggiCoda, leggiNonInteressati, leggiOperazioni, leggiSpesa, nonInteressato, type Decisione, type NonInteressato, type Operazione, type Spesa } from './dati'
+import { useAvviso } from '../snella/uso'
+import { telefonoDa } from './regole'
 import { MOSSE } from './regole'
-import { Carico, Errore, Pillola } from '../snella/pezzi'
+import { Bottone, Carico, Errore, Pillola } from '../snella/pezzi'
 import { useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
 import type { Mossa } from './dati'
@@ -75,6 +78,7 @@ export default function Analytics() {
         <h2 className="mb-2 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Come impara</h2>
         <p>Manda da sola: ogni mail la vota prima un giudice indipendente, e la sera la rilegge con quello che è successo dopo. Il resoconto ti arriva nella mail delle 19. Ogni No con una riga di perché, ogni testo che cambi, ogni esito di una call entra nel suo esame e l’identità si corregge dove sbaglia. Niente regole nuove dopo un caso solo.</p>
       </section>
+      <NonInteressati />
     </div>
   )
 }
@@ -100,5 +104,44 @@ function Riga({ o }: { o: Operazione }) {
         <Pillola testo={!o.attiva ? 'spento' : o.ultimo_esito === 'errore' ? 'errore' : ferma ? 'fermo' : 'ok'} tono={tono} />
       </span>
     </li>
+  )
+}
+
+
+/** I «Non interessato» (5/11, Dre): «ritrovabili in un qualche modo, in Analytics in basso; nasconde le campagne,
+ *  smettiamo di contattarli». Un bottone, la lista, e «Riapri» se cambia idea. */
+function NonInteressati() {
+  const [aperto, setAperto] = useState(false)
+  const [lista, setLista] = useState<NonInteressato[] | null>(null)
+  const [errore, setErrore] = useState<string | null>(null)
+  const { mostra, vista } = useAvviso()
+  const carica = () => leggiNonInteressati().then(setLista).catch((e) => setErrore(e instanceof Error ? e.message : String(e)))
+  const apri = () => { setAperto((v) => !v); if (!lista) void carica() }
+  const riapri = (x: NonInteressato) => void nonInteressato(x.id, true).then(() => { setLista((l) => (l ?? []).filter((y) => y.id !== x.id)); mostra({ testo: 'Riaperto: si può ricontattare.' }) }).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
+  return (
+    <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Non interessati</h2>
+          <p className="mt-1 text-[13px] text-tenue">Chi hai segnato «Non interessato» al telefono: niente campagne, niente follow-up. Restano qui, se cambiano idea li riapri.</p>
+        </div>
+        <Bottone onClick={apri} className="text-[13px]">{aperto ? 'Chiudi' : 'Vedi la lista'}{lista ? ` (${lista.length})` : ''}</Bottone>
+      </div>
+      {aperto && (errore ? <p className="mt-3 text-[13px] text-no-testo">{errore}</p> : !lista ? <p className="mt-3 text-[13px] text-tenue">Carico…</p> : lista.length === 0 ? <p className="mt-3 text-[13px] text-tenue">Nessuno, per ora.</p> : (
+        <ul className="mt-3 divide-y divide-velo">
+          {lista.map((x) => (
+            <li key={x.id} className="flex flex-wrap items-center gap-3 py-2.5">
+              <a href={`#/d/filo/${encodeURIComponent(x.id)}`} className="min-w-0 flex-1">
+                <span className="block truncate text-[14.5px] font-bold text-inchiostro">{x.azienda || x.email}</span>
+                <span className="block truncate text-[12.5px] text-tenue">{[x.persona, x.citta, x.quando].filter(Boolean).join(', ')}</span>
+              </a>
+              {telefonoDa(x.telefono) && <a href={`tel:${(telefonoDa(x.telefono) ?? '').replace(/[^\d+]/g, '')}`} className="shrink-0 text-[13px] font-semibold text-navy hover:underline">{telefonoDa(x.telefono)}</a>}
+              <Bottone tipo="piatto" onClick={() => riapri(x)} className="text-[13px]">Riapri</Bottone>
+            </li>
+          ))}
+        </ul>
+      ))}
+      {vista}
+    </section>
   )
 }
