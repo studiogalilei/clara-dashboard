@@ -4,9 +4,9 @@
 // approva, il postino (scripts/clara_manda.py) manda entro cinque minuti, o subito se il
 // direttore risponde alla chiamata.
 import { supabase } from '../lib/supabase'
-import { aggiungiNota } from '../snella/dati'
+import { aggiungiNota, togliNota } from '../snella/dati'
 import { MOTIVO_WHATSAPP, NOTA_WHATSAPP } from './regole'
-export { aggiungiNota }
+export { aggiungiNota, togliNota }
 
 export type Mossa = 'send_analysis' | 'reply' | 'offer_slots' | 'book_meeting' | 'callback' | 'wait' | 'close' | 'escalate'
 export type Stato = 'proposta' | 'approvata' | 'in_invio' | 'inviata' | 'scartata' | 'superata' | 'fatta'
@@ -31,6 +31,7 @@ export interface Decisione {
   fit?: string | null; analisi_url?: string | null
   // 5/11: la riga «chiamate» della decisione, se Dre ha gia' mosso qualcosa (numero toccato, WhatsApp, richiamo)
   chiamata?: { id: string; chiamato_il: string | null; whatsapp_il: string | null; richiamare_il: string | null; esito: string | null } | null
+  nota?: NotaDre | null
 }
 
 export interface Messaggio { at: string; tipo: 'email_in' | 'email_out'; testo: string | null; casella: string | null }
@@ -59,7 +60,9 @@ export interface Chiamata {
   whatsapp_il?: string | null                 // 4/11: «l'ho passato su WhatsApp»: resta in lista come contatto di Dre
   chiamato_il?: string | null                 // 5/11: Dre ha toccato il numero: «chiamato, segna l'esito»
   consiglio?: Consiglio | null                // quando e' un «Ti consiglio di chiamare» di Clara
+  nota?: NotaDre | null                       // 5/11: la nota di Dre sul lead in scheda (una sola, in snella_note)
 }
+export interface NotaDre { id: number; testo: string; at: string }
 export interface Call {
   prossime: Array<{ id?: number; at: string; tipo: string | null; titolo: string | null; link: string | null; prospect_id: string | null; azienda: string | null; persona: string | null; telefono: string | null; preparazione: string | null }>
   richiami: Chiamata[]
@@ -245,18 +248,6 @@ export async function modificaNota(id: number, testo: string): Promise<void> {
   if (error) guasto(error)
 }
 
-/** Una nota di una chiamata corretta: sulla chiamata e, se il lead e' in scheda, anche nella copia per Clara. */
-export async function modificaNotaChiamata(c: Chiamata, indice: number, testo: string): Promise<NotaChiamata[]> {
-  const id = await rigaDi(c)
-  const vecchia = (c.note ?? [])[indice]
-  const note = (c.note ?? []).map((n, i) => i === indice ? { ...n, testo: testo.trim() } : n)
-  const { error } = await supabase.from('chiamate').update({ note }).eq('id', id).abortSignal(entro())
-  if (error) guasto(error)
-  if (c.prospect_id && vecchia) {
-    try { await supabase.from('snella_note').update({ testo: `Chiamata: ${testo.trim()}`, clara_letta_il: null }).eq('prospect_id', c.prospect_id).eq('testo', `Chiamata: ${vecchia.testo}`).abortSignal(entro()) } catch { /* la copia per Clara resta vecchia */ }
-  }
-  return note
-}
 
 /** «WhatsApp» (4/11 sera, Dre): «se clicco vuol dire che l'ho passato e ce l'ho su WhatsApp». La chiamata resta
  *  nella lista come contatto suo; la relazione passa a Dre (Clara si ferma, niente consigli ne' solleciti); un
@@ -268,7 +259,7 @@ export async function suWhatsapp(c: Chiamata): Promise<{ id: string; whatsapp_il
   if (error) guasto(error)
   if (c.origine === 'consiglio') { try { await segnaConsiglio(c, 'whatsapp') } catch { /* il consiglio resta aperto, la chiamata e' comunque sua */ } }
   if (c.prospect_id) {
-    try { await aggiungiNota(c.prospect_id, NOTA_WHATSAPP) } catch { /* la nota resta sulla chiamata */ }
+    if (!c.whatsapp_il) { try { await aggiungiNota(c.prospect_id, NOTA_WHATSAPP, 'gesto') } catch { /* il gesto resta sulla chiamata */ } }
     await prendiInMano(c.prospect_id, MOTIVO_WHATSAPP)
   }
   return { id, whatsapp_il }
@@ -288,7 +279,7 @@ export function chiamataDaDecisione(d: Decisione): Chiamata {
   return { id: d.id, chiamata_id: d.chiamata?.id ?? null, prospect_id: d.prospect_id, azienda: d.azienda, persona: d.persona,
     telefono: d.consiglio?.numero || d.telefono, perche: d.consiglio?.perche ?? d.perche, risposta_il: d.risposta_il, lead_testo: d.lead_testo,
     richiamare_il: d.chiamata?.richiamare_il ?? null, note: [], origine: 'consiglio', consiglio: d.consiglio ?? null,
-    whatsapp_il: d.chiamata?.whatsapp_il ?? null, chiamato_il: d.chiamata?.chiamato_il ?? null }
+    whatsapp_il: d.chiamata?.whatsapp_il ?? null, chiamato_il: d.chiamata?.chiamato_il ?? null, nota: d.nota ?? null }
 }
 
 /** Quando richiamare (una data; null toglie la programmazione). */
@@ -299,14 +290,24 @@ export async function programmaChiamata(c: Chiamata, giorno: string | null): Pro
   return id
 }
 
-/** Una nota veloce sulla chiamata (si accoda). Se il lead e' in scheda, la nota va anche a Clara. */
-export async function notaChiamata(c: Chiamata, testo: string): Promise<{ id: string; nota: NotaChiamata }> {
+/** LA nota di Dre su una chiamata (5/11: una sola, si riscrive). Se il lead e' in scheda la nota e' quella del lead
+ *  (snella_note: Clara la rilegge quando cambia); se no sta sulla chiamata. Testo vuoto = la toglie. */
+export async function scriviNota(c: Chiamata, testo: string): Promise<Chiamata> {
+  const t = testo.trim()
+  if (c.prospect_id) {
+    if (c.nota?.id) {
+      if (!t) { await togliNota(c.nota.id); return { ...c, nota: null } }
+      await modificaNota(c.nota.id, t); return { ...c, nota: { ...c.nota, testo: t } }
+    }
+    if (!t) return c
+    const n = await aggiungiNota(c.prospect_id, t)
+    return { ...c, nota: { id: n.id, testo: n.testo, at: n.at } }
+  }
   const id = await rigaDi(c)
-  const nota = { at: ADESSO(), testo: testo.trim() }
-  const { error } = await supabase.from('chiamate').update({ note: [...(c.note ?? []), nota] }).eq('id', id).abortSignal(entro())
+  const note = t ? [{ at: ADESSO(), testo: t }] : []
+  const { error } = await supabase.from('chiamate').update({ note }).eq('id', id).abortSignal(entro())
   if (error) guasto(error)
-  if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, `Chiamata: ${nota.testo}`) } catch { /* la nota resta sulla chiamata */ } }
-  return { id, nota }
+  return { ...c, chiamata_id: id, note }
 }
 
 /** «Non interessato» (5/11, Dre): non lo contattiamo più (niente campagne, niente follow-up), ma resta ritrovabile in
@@ -332,8 +333,8 @@ export async function esitoChiamata(c: Chiamata, esito: string, nota?: string): 
   const detto = `Chiamata di Dre: ${NOME_ESITO[esito] ?? esito}${nota?.trim() ? `, ${nota.trim()}` : ''}`
   if (esito === 'non_interessato' && c.prospect_id) await nonInteressato(c.prospect_id)
   if (c.origine === 'clara') await segnaEsito(c.id, esito, nota)
-  else if (c.origine === 'consiglio') { await segnaConsiglio(c, esito); if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto) } catch { /* niente */ } } }
-  else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto) } catch { /* niente */ } }
+  else if (c.origine === 'consiglio') { await segnaConsiglio(c, esito); if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto, 'gesto') } catch { /* niente */ } } }
+  else if (c.prospect_id) { try { await aggiungiNota(c.prospect_id, detto, 'gesto') } catch { /* niente */ } }
 }
 
 /** «Più avanti» su una cosa tua: resta tua, ma sparisce da Da fare fino al giorno scelto (la Coda la mostra in Prossime). */

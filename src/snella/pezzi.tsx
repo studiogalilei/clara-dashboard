@@ -103,7 +103,7 @@ export function Bottone({ children, onClick, tipo = 'secondo', disabled, classNa
       : 'text-blu-scuro hover:bg-velo'
   return (
     <button type={type} onClick={onClick} disabled={disabled} aria-label={etichetta}
-            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${stile} ${className}`}>
+            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 text-center text-[14px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${stile} ${className}`}>
       {children}
     </button>
   )

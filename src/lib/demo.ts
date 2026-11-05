@@ -410,6 +410,11 @@ const proposte: Riga[] = [
 const desk_note: Riga[] = [
   { id: 1, prospect_id: 'p1', tipo: 'nota', testo: 'Li ho scritti su WhatsApp', at: oreFa(1), autore_nome: 'Dramane' },
 ]
+// 5/11: la nota di Dre e' una: l'ultima sua, tipo 'nota' (i gesti del sistema e le risposte di Achille non contano)
+function notaDre(pid: string | null) {
+  const n = [...desk_note].filter((x) => x.prospect_id === pid && x.tipo === 'nota' && !['Achille', 'Clara', 'Sistema'].includes(String(x.autore_nome ?? ''))).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0]
+  return n ? { id: n.id, testo: n.testo, at: n.at } : null
+}
 const desk_chiamate: Riga[] = [
   { id: 'c1', prospect_id: 'p2', decisione_id: null, azienda: 'Bottega del Legno', persona: 'Anna Verdi', numero: null, richiamare_il: data(-1), note: [{ at: oreFa(2), testo: '3347204807' }], esito: null, whatsapp_il: null, creato_il: oreFa(3) },
 ]
@@ -431,7 +436,7 @@ const desk_decisioni: Riga[] = [
 function deskDecisione(d: Riga) {
   const p = prospects.find((x) => x.id === d.prospect_id)
   const c = desk_chiamate.find((x) => x.decisione_id === d.id)
-  return { ...d, chiamata: c ? { id: c.id, chiamato_il: c.chiamato_il ?? null, whatsapp_il: c.whatsapp_il ?? null, richiamare_il: c.richiamare_il ?? null, esito: c.esito ?? null } : null, analisi_url: 'https://example.com/analisi.pdf', azienda: p?.company ?? null, persona: p?.name ?? null, ruolo: null, email: p?.email ?? '', citta: p?.city ?? null, settore: p?.sector ?? null, telefono: p?.phone ?? null,
+  return { ...d, chiamata: c ? { id: c.id, chiamato_il: c.chiamato_il ?? null, whatsapp_il: c.whatsapp_il ?? null, richiamare_il: c.richiamare_il ?? null, esito: c.esito ?? null } : null, analisi_url: 'https://example.com/analisi.pdf', nota: notaDre(d.prospect_id as string | null), azienda: p?.company ?? null, persona: p?.name ?? null, ruolo: null, email: p?.email ?? '', citta: p?.city ?? null, settore: p?.sector ?? null, telefono: p?.phone ?? null,
            sito: p?.website ?? null, analisi_pdf: true, analisi_mandata: Boolean(p?.analysis_sent), fase: p?.stage ?? null, ultima_risposta: p?.last_reply_at ?? null, prossima_call: null, in_mano_a: null, in_mano_motivo: null, in_mano_il: null, approvata_da: null }
 }
 function deskCall() {
@@ -445,12 +450,12 @@ function deskCall() {
     richiami: [],
     // come clara_call (v115): le chiamate di Dre e quelle passate su WhatsApp; i consigli con la riga «chiamate» se c'e'
     mie: desk_chiamate.filter((c) => !c.esito && (!c.decisione_id || c.whatsapp_il)).map((c) => ({ id: c.id, chiamata_id: c.id, prospect_id: c.prospect_id, azienda: c.azienda, persona: c.persona, telefono: c.numero ?? p2?.phone ?? null,
-      richiamare_il: c.richiamare_il, note: c.note, whatsapp_il: c.whatsapp_il ?? null, creato_il: c.creato_il, origine: 'dre', fase: 'risposto', analisi_mandata: true, ultima_risposta: oreFa(30), lead_testo: 'Sì, volentieri, la mandi pure.', perche: null })),
+      richiamare_il: c.richiamare_il, note: c.note, whatsapp_il: c.whatsapp_il ?? null, creato_il: c.creato_il, origine: 'dre', nota: notaDre(c.prospect_id as string | null), fase: 'risposto', analisi_mandata: true, ultima_risposta: oreFa(30), lead_testo: 'Sì, volentieri, la mandi pure.', perche: null })),
     consigli: desk_decisioni.filter((d) => d.consiglio && !(d.consiglio as Riga).esito).flatMap((d) => {
       const p = prospects.find((x) => x.id === d.prospect_id); const c = desk_chiamate.find((x) => x.decisione_id === d.id)
       if (!c || c.esito || c.whatsapp_il) return []      // 5/11: in Call solo dopo il primo gesto
       return [{ id: d.id, prospect_id: d.prospect_id, azienda: p?.company ?? null, persona: p?.name ?? null, telefono: c?.numero ?? (d.consiglio as Riga).numero, perche: (d.consiglio as Riga).perche, mossa: d.mossa, stato: d.stato, risposta_il: d.risposta_il, lead_testo: d.lead_testo, consiglio: d.consiglio,
-        chiamata_id: c?.id ?? null, richiamare_il: c?.richiamare_il ?? null, note: c?.note ?? [], whatsapp_il: c?.whatsapp_il ?? null, chiamato_il: c?.chiamato_il ?? null, origine: 'consiglio' }]
+        chiamata_id: c?.id ?? null, richiamare_il: c?.richiamare_il ?? null, note: c?.note ?? [], whatsapp_il: c?.whatsapp_il ?? null, chiamato_il: c?.chiamato_il ?? null, origine: 'consiglio', nota: notaDre(d.prospect_id as string | null) }]
     }),
   }
 }

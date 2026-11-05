@@ -132,7 +132,7 @@ function Dettaglio({ d, f }: { d: Decisione; f: Fascia }) {
       {d.lead_testo && (
         <div>
           <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">Ha scritto {quando(d.risposta_il)}</p>
-          <blockquote className="whitespace-pre-wrap rounded-r-lg border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2">{d.lead_testo.trim().slice(0, 900)}</blockquote>
+          <blockquote className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-r-lg border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2">{d.lead_testo.trim().slice(0, 900)}</blockquote>
         </div>
       )}
       <div>
@@ -146,7 +146,7 @@ function Dettaglio({ d, f }: { d: Decisione; f: Fascia }) {
         <div>
           <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-tenue">{f === 'fatte' ? `La mail, partita ${quando(d.inviata_il ?? d.creato_il)}` : d.mossa === 'escalate' ? 'La sua proposta per te' : 'La mail'}</p>
           {parti.a && <p className="mb-1 text-[12.5px] text-tenue">A {parti.a}{parti.cc ? `, cc ${parti.cc}` : ''}</p>}
-          <pre className="whitespace-pre-wrap rounded-lg bg-white p-3 font-sans">{parti.corpo}</pre>
+          <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-white p-3 font-sans">{parti.corpo}</pre>
         </div>
       )}
       {d.consiglio?.numero && <p className="text-[12.5px]"><span className="font-bold">Ti consiglia di chiamare:</span> {d.consiglio.numero}. {d.consiglio.perche}</p>}

@@ -41,7 +41,7 @@ export interface Decisione {
    *  sistema quando il lead entra, poi lo cambia Dre nel foglio: qui si legge e basta. */
   stato_conv?: string | null
 }
-export interface Nota { id: number; prospect_id: string; testo: string; tipo: 'nota' | 'chiamata'; at: string; autore: string | null; autore_nome: string | null }
+export interface Nota { id: number; prospect_id: string; testo: string; tipo: 'nota' | 'chiamata' | 'gesto'; at: string; autore: string | null; autore_nome: string | null }
 
 export interface NumeriOggi {
   risposte: number; messaggi: number; si: number; media_minuti: number | null

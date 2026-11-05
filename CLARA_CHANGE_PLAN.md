@@ -241,3 +241,21 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
   fa partire solo con il PDF); la riga di contesto dice «in preparazione, tu la scrivi come se fosse allegata»; il
   segnale «non è pronta» non c'è più, c'è «annuncia l'analisi invece di mandarla» (regex ANNUNCIO); il postino ferma un
   testo che annuncia («tocca No e scrivi a Clara «manda l'analisi con la call»»); il giudice lo segna «da_rifare».
+
+## 5/11 alle 10: una nota sola, gialla; titoli secchi; il pannello segue; i bottoni dentro i bordi
+
+- Dre: «voglio scrivere solo in un box di note, non in più box (OTS Assembly ne aveva 3); non voglio che quando clicco
+  diventi bianco: rimane giallo, ci scrivo e basta; elimina le due note «Scritto su WhatsApp»». Le tre note di OTS
+  venivano da tre tocchi del tasto WhatsApp in tre versioni della notte, ognuna scriveva una nota automatica.
+- La nota di Dre è UNA per lead (`NotaUnica`): foglietto giallo sempre uguale, si scrive dentro, si salva da sola
+  (dopo una pausa e quando si esce); vuota = tolta. Per chi è in scheda vive in `snella_note` (l'ultima sua, tipo
+  'nota'; `modificaNota` la fa rileggere a Clara); per le chiamate fuori scheda in `chiamate.note` (una voce). In
+  Call, nel Profilo e nella scheda del consiglio in Relazioni. `clara_call` e `clara_coda` portano `nota`.
+- I gesti del sistema (prende in mano, WhatsApp, esiti, non interessato, «dal sistema») sono `tipo = 'gesto'` (v120):
+  Clara li legge nel contesto ma non sono ordini (il lettore delle note li salta) e non compaiono nel box.
+  Retroattivo: 9 note diventate gesti, prefisso «Chiamata: » tolto, le due «Scritto su WhatsApp» tolte dalla chiamata.
+- Titoli: «Call», «In agenda», «Relazioni» senza sottotitoli. Il pannello laterale di Relazioni seguiva lo scorrimento
+  solo in teoria: era sticky dentro un contenitore alto quanto lui (items-start); ora il contenitore prende la riga
+  intera (`lg:self-stretch`) e in fondo a una lista lunga il pannello resta in vista. I bottoni dei gesti stanno in
+  una griglia che si adatta (`auto-fit, minmax(8.25rem)`) e il testo può andare a capo: niente più «Non interessato»
+  che esce dal bordo. I link lunghi nelle mail vanno a capo (`overflow-wrap: anywhere`).

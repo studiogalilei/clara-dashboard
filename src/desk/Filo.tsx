@@ -1,12 +1,12 @@
 // IL PROFILO (4/11): cerchi un'azienda e vedi tutto, a colpo d'occhio: sito, email, referenti, note; poi le decisioni di Clara e il filo.
 import { useEffect, useState, type ReactNode } from 'react'
-import { aggiungiNota, cerca, leggiRelazione, modificaNota, prendiInMano, type Trovato } from './dati'
+import { aggiungiNota, cerca, leggiRelazione, modificaNota, prendiInMano, togliNota, type Trovato } from './dati'
 import { MOSSE, iniziali } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { quando } from '../snella/regole'
 import type { Dove } from './Desk'
-import { Note } from './Note'
+import { NotaUnica } from './Note'
 
 export default function Filo({ dove, vai, indietro }: { dove: Dove; vai: (d: Dove) => void; indietro: () => void }) {
   if (dove.id) return <Relazione id={dove.id} indietro={indietro} vai={vai} />
@@ -68,21 +68,25 @@ function Ricerca({ vai }: { vai: (d: Dove) => void }) {
 function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; vai: (d: Dove) => void }) {
   const { dati, setDati, errore, caricando, rifai } = useDati(() => leggiRelazione(id), [id])
   const { mostra, vista } = useAvviso()
-  const [nota, setNota] = useState('')
   if (caricando) return <Carico righe={4} etichetta="Carico la relazione" />
   if (errore && !dati) return <Errore testo={errore} riprova={() => void rifai()} />
   if (!dati?.lead) return <Vuoto>Questa azienda non c’è più.</Vuoto>
   const l = dati.lead
-  const salvaNota = async () => {
-    if (!nota.trim()) return
-    try {
-      await aggiungiNota(l.id, nota)
-      setDati((prev) => prev ? { ...prev, note: [{ at: new Date().toISOString(), tipo: 'nota', testo: nota.trim() }, ...prev.note] } : prev)
-      setNota(''); mostra({ testo: 'Nota salvata. Clara la legge.' })
-    } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) }
+  // 5/11: UNA nota di Dre (l'ultima sua); i gesti del sistema e le risposte di Achille e Clara non sono note sue
+  const altri = ['Achille', 'Clara', 'Sistema']
+  const mia = dati.note.find((n) => n.tipo === 'nota' && !altri.includes(n.autore ?? ''))
+  const risposte = dati.note.filter((n) => n.tipo !== 'gesto' && altri.includes(n.autore ?? '') && (!mia || n.at > mia.at)).slice(0, 3)
+  const salvaNota = async (t: string) => {
+    if (mia?.id) {
+      if (!t) { await togliNota(mia.id); setDati((prev) => prev ? { ...prev, note: prev.note.filter((x) => x.id !== mia.id) } : prev); return }
+      await modificaNota(mia.id, t); setDati((prev) => prev ? { ...prev, note: prev.note.map((x) => x.id === mia.id ? { ...x, testo: t } : x) } : prev); return
+    }
+    if (!t) return
+    const n = await aggiungiNota(l.id, t)
+    setDati((prev) => prev ? { ...prev, note: [{ id: n.id, at: n.at, tipo: 'nota', testo: n.testo, autore: n.autore_nome }, ...prev.note] } : prev)
   }
   const aperta = dati.decisioni.find((d) => d.stato === 'proposta' || d.stato === 'approvata')
-  const mia = !!l.in_mano_a
+  const inMano = !!l.in_mano_a
   const cambiaMano = async (lascia: boolean) => {
     const perche = lascia ? '' : (window.prompt('Perché la prendi tu? (mi ha chiamato, l’ho chiamato io, ci ho parlato…)') ?? '')
     if (!lascia && perche === '') return
@@ -109,7 +113,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
               {l.fit_meta && <Pillola testo={`Meta ${l.fit_meta}`} tono={l.fit_meta === 'NO' ? 'no' : l.fit_meta === 'SI' ? 'ok' : 'attesa'} />}
               {l.fit_linkedin && <Pillola testo={`LinkedIn ${l.fit_linkedin}`} tono={l.fit_linkedin === 'NO' ? 'no' : l.fit_linkedin === 'SI' ? 'ok' : 'attesa'} />}
               {l.no_followup && <Pillola testo="Non contattare" tono="stop" icona="divieto" />}
-              {mia && <Pillola testo={`Me ne occupo io${l.in_mano_motivo ? `: ${l.in_mano_motivo}` : ''}`} tono="stop" piena />}
+              {inMano && <Pillola testo={`Me ne occupo io${l.in_mano_motivo ? `: ${l.in_mano_motivo}` : ''}`} tono="stop" piena />}
             </div>
           </div>
         </div>
@@ -134,29 +138,19 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
           {l.fit_linkedin_motivo && <><dt className="text-tenue">LinkedIn</dt><dd>{l.fit_linkedin_motivo}</dd></>}
           {(l.canale || l.ticket) && <><dt className="text-tenue">Canale</dt><dd>{[l.canale ? `consigliato: ${l.canale}` : null, l.ticket ? `ticket ${l.ticket}` : null].filter(Boolean).join(', ')}</dd></>}
           {l.analisi_pdf && <><dt className="text-tenue">Analisi</dt><dd><a href={l.analisi_pdf} target="_blank" rel="noreferrer" className="font-semibold text-navy underline-offset-2 hover:underline">Apri il PDF</a></dd></>}
-          {aperta?.mossa === 'escalate' && aperta.testo && <><dt className="text-tenue">Proposta</dt><dd className="whitespace-pre-wrap">{aperta.testo.trim()}</dd></>}
+          {aperta?.mossa === 'escalate' && aperta.testo && <><dt className="text-tenue">Proposta</dt><dd className="whitespace-pre-wrap [overflow-wrap:anywhere]">{aperta.testo.trim()}</dd></>}
           <dt className="text-tenue">Fonte</dt><dd>{l.fonte || 'non registrata'}</dd>
         </dl>
         <div className="mt-4 flex flex-wrap gap-2">
-          {aperta && !mia && <Bottone tipo="primo" onClick={() => vai({ voce: 'relazioni', id: aperta.id })}>Vai alla mossa in coda: {MOSSE[aperta.mossa].nome}</Bottone>}
-          {mia ? <Bottone onClick={() => void cambiaMano(true)}>Ridalla a Clara</Bottone> : <Bottone onClick={() => void cambiaMano(false)}>Me ne occupo io: ferma Clara</Bottone>}
+          {aperta && !inMano && <Bottone tipo="primo" onClick={() => vai({ voce: 'relazioni', id: aperta.id })}>Vai alla mossa in coda: {MOSSE[aperta.mossa].nome}</Bottone>}
+          {inMano ? <Bottone onClick={() => void cambiaMano(true)}>Ridalla a Clara</Bottone> : <Bottone onClick={() => void cambiaMano(false)}>Me ne occupo io: ferma Clara</Bottone>}
         </div>
       </section>
 
       <section className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
-        <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Note e agenda</h2>
-        <div className="flex gap-2">
-          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Una nota per te e per Clara" aria-label="Nota"
-                 onKeyDown={(e) => { if (e.key === 'Enter') void salvaNota() }}
-                 className="min-h-11 min-w-0 flex-1 rounded-xl border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
-          <Bottone onClick={() => void salvaNota()} disabled={!nota.trim()}>Salva</Bottone>
-        </div>
-        <Note note={dati.note} className="mt-3" modifica={async (i, t) => {
-          const n = dati.note[i]
-          if (!n?.id) { mostra({ testo: 'Questa nota non si può modificare.' }); return }
-          try { await modificaNota(n.id, t); setDati((prev) => prev ? { ...prev, note: prev.note.map((x, k) => k === i ? { ...x, testo: t } : x) } : prev); mostra({ testo: 'Nota corretta. Clara la rilegge.' }) }
-          catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) }
-        }} />
+        <h2 className="mb-3 text-[12px] font-extrabold uppercase tracking-[.08em] text-tenue">Nota e agenda</h2>
+        <NotaUnica testo={mia?.testo ?? ''} at={mia?.at} salva={salvaNota} />
+        {risposte.length > 0 && <ul className="mt-2 space-y-1 text-[13px] text-tenue">{risposte.map((n, i) => <li key={n.id ?? i}><b>{n.autore}, {quando(n.at)}:</b> {n.testo}</li>)}</ul>}
         {dati.agenda.length > 0 && <ul className="mt-3 space-y-1 border-t border-bordo pt-3 text-[13.5px]">{dati.agenda.map((a, i) => <li key={i}><b>{quando(a.at)}</b>, {a.tipo || a.titolo}{a.link && <> (<a href={a.link} className="text-navy underline-offset-2 hover:underline" target="_blank" rel="noreferrer">apri</a>)</>}</li>)}</ul>}
       </section>
 
@@ -169,7 +163,7 @@ function Relazione({ id, indietro, vai }: { id: string; indietro: () => void; va
               return (
                 <li key={i} className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed ${nostra ? 'ml-auto rounded-br-md bg-noi-fondo text-inchiostro' : 'rounded-bl-md bg-loro-fondo/70 text-inchiostro'}`}>
                   <p className={`mb-1 text-[11.5px] font-bold ${nostra ? 'text-noi-testo' : 'text-loro-testo'}`}>{nostra ? 'Noi' : l.persona || 'Lead'}, {quando(m.at)}</p>
-                  <p className="whitespace-pre-wrap">{(m.testo ?? '').trim().slice(0, 2500)}</p>
+                  <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{(m.testo ?? '').trim().slice(0, 2500)}</p>
                 </li>
               )
             })}

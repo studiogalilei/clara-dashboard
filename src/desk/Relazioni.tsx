@@ -3,7 +3,8 @@
 // cose sue (Decidi tu) si chiudono con un esito. Sul computer: elenco a sinistra, scheda a destra;
 // sul telefono: elenco, poi la scheda.
 import { useEffect, useMemo, useState } from 'react'
-import { aggiungiNota, approva, cerca, chiamataDaDecisione, esitoChiamata, giudica, invitoFatto, leggiCoda, nonInteressato, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, segnaChiamato, segnaConsiglio, segnaEsito, suWhatsapp, telefonoDre, type Decisione, type Trovato } from './dati'
+import { aggiungiNota, approva, cerca, chiamataDaDecisione, esitoChiamata, giudica, invitoFatto, leggiCoda, nonInteressato, prendiInMano, programmaChiamata, rimanda, salvaTesto, scarta, scriviNota, segnaChiamato, segnaConsiglio, segnaEsito, suWhatsapp, telefonoDre, type Decisione, type Trovato } from './dati'
+import { NotaUnica } from './Note'
 import { consiglioNuovo, conta, destinatari, ESITI_CHIAMATA, ESITI_TUA, filtra, FILTRI, interesse, MOSSE, MOTIVI_IN_MANO, ordina, statoBreve, telefonoDa, whatsappDa, type Filtro } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
@@ -46,7 +47,6 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Relazioni</h1>
-            <p className="mt-1 text-[13.5px] text-tenue">Qui agisci tu: le mail da mandare, le call, i consigli di Clara, le relazioni che prendi in mano.</p>
           </div>
           {conti && <span className="shrink-0 rounded-lg bg-navy/[0.08] px-3 py-1 text-[13px] font-bold text-navy">{conti.tutte} da fare</span>}
         </div>
@@ -127,7 +127,7 @@ export default function Relazioni({ dove, vai, indietro }: { dove: Dove; vai: (d
       {/* sul telefono: elenco o scheda; sul computer: tutte e due */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(380px,1fr)] lg:items-start lg:gap-4">
         <div className={scelta ? 'hidden lg:block' : ''}>{Elenco}</div>
-        <div className={scelta ? '' : 'hidden lg:block'}>
+        <div className={`lg:self-stretch ${scelta ? '' : 'hidden lg:block'}`}>
           {dett ? <Scheda key={dett.id} d={dett} indietro={indietro} aggiorna={aggiorna} mostra={mostra} vaiRelazione={() => vai({ voce: 'filo', id: dett.prospect_id })} vaiCall={() => vai({ voce: 'call', id: dett.id })} />
             : <div className="rounded-2xl border border-bordo bg-white p-8 text-center text-tenue">Scegli una riga.</div>}
         </div>
@@ -180,7 +180,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
   const ridai = () => fai(() => prendiInMano(d.prospect_id, '', true), { in_mano_a: null, in_mano_motivo: null, in_mano_il: null }, 'Torna a Clara: riparte dalla prossima risposta.')
   const consiglio = d.consiglio?.numero && !mia ? d.consiglio : null
   const [chiedoNumero, setChiedoNumero] = useState(false)
-  const chiuso = (e: string) => fai(async () => { await segnaConsiglio(d, e); if (e === 'non_risposto') { try { await aggiungiNota(d.prospect_id, 'Chiamata di Dre: non ha risposto') } catch { /* niente */ } } },
+  const chiuso = (e: string) => fai(async () => { await segnaConsiglio(d, e); if (e === 'non_risposto') { try { await aggiungiNota(d.prospect_id, 'Chiamata di Dre: non ha risposto', 'gesto') } catch { /* niente */ } } },
     { consiglio: { ...(d.consiglio ?? {}), esito: e, esito_il: new Date().toISOString() } }, e === 'non_risposto' ? 'Segnato: Clara continua lei, dicendo che hai chiamato.' : 'Segnato.')
   // 5/11: «Non ha risposto» vuole il numero di Dre nelle regole: la prima volta si chiede qui
   const nonRisposto = () => void telefonoDre().then((t) => t ? chiuso('non_risposto') : setChiedoNumero(true)).catch((e) => mostra({ testo: e instanceof Error ? e.message : String(e) }))
@@ -220,7 +220,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
       <div className="space-y-4 p-4 lg:p-5">
         {d.lead_testo && (
           <Blocco titolo={`Ha scritto ${quando(d.risposta_il)}`}>
-            <blockquote className="whitespace-pre-wrap rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3.5 py-3 text-[14px] leading-relaxed text-inchiostro">{d.lead_testo.trim().slice(0, 1200)}</blockquote>
+            <blockquote className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3.5 py-3 text-[14px] leading-relaxed text-inchiostro">{d.lead_testo.trim().slice(0, 1200)}</blockquote>
           </Blocco>
         )}
         {consiglio && (
@@ -230,6 +230,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
             <Tessera titolo="Numero"><a href={`tel:${(telefonoDa(consiglio.numero) ?? consiglio.numero ?? '').replace(/[^\d+]/g, '')}`} onClick={chiamo} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(consiglio.numero) ?? consiglio.numero}</a></Tessera>
           </div>
         )}
+        {consiglio && <NotaUnica testo={d.nota?.testo ?? ''} at={d.nota?.at} salva={async (t) => { const n = await scriviNota(ch, t); aggiorna({ ...d, nota: n.nota ?? null }) }} />}
         <Blocco titolo="Clara">
           <p className="text-[14px] leading-relaxed text-inchiostro">{d.perche}</p>
           {d.richiamo?.numero && <p className="mt-2 text-[14px]"><span className="text-tenue">Numero:</span> <a href={`tel:${(telefonoDa(d.richiamo.numero) ?? d.richiamo.numero).replace(/[^\d+]/g, '')}`} className="font-bold text-navy underline-offset-2 hover:underline">{telefonoDa(d.richiamo.numero) ?? d.richiamo.numero}</a>{d.richiamo.quando ? <span className="text-tenue">, {d.richiamo.quando}</span> : null}</p>}
@@ -251,7 +252,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
                   <Bottone tipo="piatto" onClick={() => setRichiamo2(null)} disabled={lavoro}>Annulla</Bottone>
                 </div>
               ) : chiedoNumero ? <div className="mt-2"><NumeroDre fatto={() => { setChiedoNumero(false); void chiuso('non_risposto') }} annulla={() => setChiedoNumero(false)} /></div> : (
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))]">
                   <Bottone tipo="primo" onClick={() => void esitoConsiglio('fissata')} disabled={lavoro} className="px-2 text-[13px]">Call fissata</Bottone>
                   {d.chiamata?.whatsapp_il
                     ? <span className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-ok-testo bg-ok-fondo px-2 text-[13px] font-bold text-ok-testo"><Icona nome="ok" className="h-3.5 w-3.5" /> Su WhatsApp</span>
@@ -280,7 +281,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
               <textarea value={testo} onChange={(e) => setTesto(e.target.value)} rows={Math.min(18, Math.max(8, testo.split('\n').length + 2))}
                         className="w-full rounded-xl border border-navy bg-white p-3 text-[14px] leading-relaxed text-inchiostro outline-none" />
             ) : (
-              <pre className="whitespace-pre-wrap rounded-xl bg-fondo/70 p-3.5 font-sans text-[14px] leading-relaxed text-inchiostro">{testo}</pre>
+              <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl bg-fondo/70 p-3.5 font-sans text-[14px] leading-relaxed text-inchiostro">{testo}</pre>
             )}
             {d.mossa === 'send_analysis' && <p className="mt-2 text-[12.5px] text-tenue">{d.analisi_pdf ? 'Allega il PDF dell’analisi' + (d.analisi_mandata ? '.' : ' e la presentazione.') : 'Il PDF non è ancora pronto: parte appena c’è.'}</p>}
             {d.mossa === 'book_meeting' && <p className="mt-2 text-[12.5px] text-tenue">Ricorda l’invito dal calendario: la mail dice che arriva.</p>}
@@ -314,7 +315,7 @@ function Scheda({ d, indietro, aggiorna, mostra, vaiRelazione, vaiCall }: {
                 <Bottone tipo="piatto" onClick={() => setRichiamo(null)} disabled={lavoro}>Annulla</Bottone>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))]">
                 {ESITI_CHIAMATA.map((e) => <Bottone key={e.esito} tipo={e.esito === 'fissata' ? 'primo' : 'secondo'} onClick={() => void esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.nome}</Bottone>)}
               </div>
             )}

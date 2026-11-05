@@ -4,13 +4,13 @@
 // (restano qui come contatti suoi). Per ognuna un giorno in cui richiamare, note veloci, l'esito a un tocco:
 // Call fissata, WhatsApp, Richiamare, Non interessato. A destra le call in agenda. Niente che non serva a telefonare.
 import { useEffect, useRef, useState } from 'react'
-import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, modificaNotaChiamata, notaChiamata, numeroChiamata, programmaChiamata, segnaChiamato, suWhatsapp, telefonoDre, type Chiamata, type Trovato } from './dati'
+import { aggiungiChiamata, cerca, collegaCall, esitoChiamata, leggiCall, numeroChiamata, programmaChiamata, scriviNota, segnaChiamato, suWhatsapp, telefonoDre, type Chiamata, type Trovato } from './dati'
 import { agendaPulita, ordinaChiamate, telefonoDa, whatsappDa } from './regole'
 import { Bottone, Carico, Errore, Icona, Pillola, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import { giornoRoma, nomeGiorno, ora, quando } from '../snella/regole'
 import type { Dove } from './Desk'
-import { Note } from './Note'
+import { NotaUnica } from './Note'
 import { NumeroDre } from './NumeroDre'
 
 const oggiIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -56,8 +56,7 @@ export default function Call({ vai, dove }: { vai: (d: Dove) => void; dove: Dove
         <section className="rounded-2xl border border-bordo bg-white">
           <header className="flex items-start justify-between gap-3 border-b border-bordo p-4 lg:p-5">
             <div>
-              <h1 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Da chiamare</h1>
-              <p className="mt-1 text-[13.5px] text-tenue">Chi ha chiesto di sentirci, chi Clara ti consiglia di chiamare, le chiamate che aggiungi tu e chi hai su WhatsApp. Un giorno, una nota, l’esito.</p>
+              <h1 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Call</h1>
             </div>
             <Bottone tipo="primo" onClick={() => setAggiungo((v) => !v)} etichetta="Aggiungi una chiamata" className="shrink-0 px-3"><span className="text-[18px] leading-none">+</span><span className="hidden sm:inline"> Chiamata</span></Bottone>
           </header>
@@ -72,8 +71,7 @@ export default function Call({ vai, dove }: { vai: (d: Dove) => void; dove: Dove
 
       <section className="rounded-2xl border border-bordo bg-white">
         <header className="border-b border-bordo p-4 lg:p-5">
-          <h2 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">Le call in agenda</h2>
-          <p className="mt-1 text-[13.5px] text-tenue">Le prossime due settimane, dal tuo calendario.</p>
+          <h2 className="text-[22px] font-bold leading-tight text-inchiostro lg:text-[26px]">In agenda</h2>
         </header>
         {giorniTutti.length === 0 ? <Vuoto>Niente in agenda nei prossimi 14 giorni.</Vuoto> : (
           <div className="divide-y divide-velo">
@@ -230,7 +228,6 @@ function Nuova({ chiudi, fatta, mostra }: { chiudi: () => void; fatta: (c: Chiam
 /** Una chiamata nella lista: numero, giorno, note, esito. Uguale per quelle di Clara, i suoi consigli e quelle di Dre.
  *  Con scelta=true (si arriva da Relazioni, #/d/call/<id>) e' evidenziata e la pagina ci scorre sopra. */
 function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi: string; vai: (d: Dove) => void; aggiorna: (v: Chiamata, n: Chiamata | null) => void; mostra: (a: { testo: string }) => void; scelta?: boolean }) {
-  const [nota, setNota] = useState('')
   const riga = useRef<HTMLLIElement>(null)
   useEffect(() => { if (scelta) riga.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [scelta])
   const [programmo, setProgrammo] = useState(false)
@@ -244,13 +241,14 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
   const [aggiungoNumero, setAggiungoNumero] = useState(false)
   // 4/11, Dre: «senza numero, buono, ma mi deve dare la possibilita' di aggiungerlo»
   const salvaNumero = (n: string) => fai(async () => { const id = await numeroChiamata(r, n); aggiorna(r, { ...r, chiamata_id: id, telefono: n.trim() }); setNumero(''); setAggiungoNumero(false); mostra({ testo: r.prospect_id ? 'Numero salvato, anche in scheda.' : 'Numero salvato.' }) })
-  const annota = () => fai(async () => {
-    if (!nota.trim()) return
-    // una nota che e' solo un numero, su una chiamata senza numero, e' il numero
-    const soloNumero = !tel && telefonoDa(nota) && nota.replace(/[\s+().-]/g, '').replace(/\d/g, '') === ''
-    if (soloNumero) { const id = await numeroChiamata(r, nota); aggiorna(r, { ...r, chiamata_id: id, telefono: nota.trim() }); setNota(''); mostra({ testo: 'Preso come numero.' }); return }
-    const { id, nota: n } = await notaChiamata(r, nota); aggiorna(r, { ...r, chiamata_id: id, note: [...(r.note ?? []), n] }); setNota(''); mostra({ testo: r.prospect_id ? 'Nota salvata, anche per Clara.' : 'Nota salvata.' })
-  })
+  // 5/11: UNA nota, si riscrive; una nota che e' solo un numero, su una chiamata senza numero, e' il numero
+  const notaTesto = r.prospect_id ? (r.nota?.testo ?? '') : (r.note?.[r.note.length - 1]?.testo ?? '')
+  const notaAt = r.prospect_id ? r.nota?.at : r.note?.[r.note.length - 1]?.at
+  const annota = async (t: string) => {
+    const soloNumero = !tel && t && telefonoDa(t) && t.replace(/[\s+().-]/g, '').replace(/\d/g, '') === ''
+    if (soloNumero) { const id = await numeroChiamata(r, t); aggiorna(r, { ...r, chiamata_id: id, telefono: t.trim() }); mostra({ testo: 'Preso come numero.' }); return }
+    aggiorna(r, await scriviNota(r, t))
+  }
   const pid = r.prospect_id
   const wa = whatsappDa(tel)
   // «WhatsApp» (4/11 sera, Dre): un gesto, non un link. «L'ho passato e ce l'ho su WhatsApp»: la chiamata resta qui
@@ -305,12 +303,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
       )}
       {r.perche && <p className="text-[13.5px] leading-relaxed text-inchiostro">{r.perche}</p>}
       {r.lead_testo && <blockquote className="rounded-r-xl border-l-2 border-loro-segno bg-loro-fondo/60 px-3 py-2 text-[13px] text-inchiostro">{r.lead_testo.replace(/\s+/g, ' ').slice(0, 240)}</blockquote>}
-      <Note note={r.note ?? []} modifica={async (i, t) => { try { const note = await modificaNotaChiamata(r, i, t); aggiorna(r, { ...r, note }); mostra({ testo: 'Nota corretta.' }) } catch (e) { mostra({ testo: e instanceof Error ? e.message : String(e) }) } }} />
-      <div className="flex gap-2">
-        <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nota veloce" aria-label="Nota veloce" onKeyDown={(e) => { if (e.key === 'Enter') void annota() }}
-               className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordo px-3 text-[14px] outline-none focus:border-navy" />
-        <Bottone onClick={() => void annota()} disabled={lavoro || !nota.trim()} className="px-3">Salva</Bottone>
-      </div>
+      <NotaUnica testo={notaTesto} at={notaAt} salva={annota} />
       {chiedoNumero ? <NumeroDre fatto={() => { setChiedoNumero(false); void segna('non_risposto') }} annulla={() => setChiedoNumero(false)} /> : programmo ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-bordo bg-fondo/60 p-2.5">
           <span className="text-[13px] font-semibold">Richiamare il</span>
@@ -320,7 +313,7 @@ function Scheda({ r, oggi, vai, aggiorna, mostra, scelta }: { r: Chiamata; oggi:
           <Bottone tipo="piatto" onClick={() => setProgrammo(false)} disabled={lavoro}>Annulla</Bottone>
         </div>
       ) : (
-        <div className={`grid grid-cols-2 gap-2 ${esiti.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))]">
           {esiti.map((e) => e.esito === 'whatsapp' && r.whatsapp_il
             ? <span key={e.esito} aria-label="Su WhatsApp" className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-ok-testo bg-ok-fondo px-2 text-[13px] font-bold text-ok-testo"><Icona nome="ok" className="h-3.5 w-3.5" /> Su WhatsApp</span>
             : <Bottone key={e.esito} tipo={e.tipo ?? 'secondo'} onClick={() => esito(e.esito)} disabled={lavoro} className="px-2 text-[13px]">{e.esito === 'whatsapp' ? <><Icona nome="whatsapp" className="h-4 w-4" /> {e.nome}</> : e.nome}</Bottone>)}

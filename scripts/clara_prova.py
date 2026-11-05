@@ -252,10 +252,10 @@ def leggi_note_di_dre(massimo=20):
     # le note di Achille e di Clara non sono ordini; le note piu' vecchie di due giorni sono storia: si archiviano senza leggerle
     vecchie = (adesso() - datetime.timedelta(hours=48)).strftime("%Y-%m-%dT%H:%M:%SZ")
     if not PROVA:
-        sb("PATCH", f"/rest/v1/snella_note?clara_letta_il=is.null&or=(at.lt.{vecchie},autore_nome.neq.Dramane,autore_nome.is.null)",
+        sb("PATCH", f"/rest/v1/snella_note?clara_letta_il=is.null&or=(at.lt.{vecchie},autore_nome.neq.Dramane,autore_nome.is.null,tipo.eq.gesto)",
            {"clara_letta_il": adesso().isoformat()}, {"Prefer": "return=minimal"})
     righe = sb("GET", "/rest/v1/snella_note?select=id,prospect_id,testo,tipo,at,autore_nome,prospects(id,company,in_mano_a)"
-                      f"&clara_letta_il=is.null&prospect_id=not.is.null&autore_nome=eq.Dramane&at=gte.{vecchie}&order=at.asc&limit={massimo}") or []
+                      f"&clara_letta_il=is.null&prospect_id=not.is.null&autore_nome=eq.Dramane&tipo=neq.gesto&at=gte.{vecchie}&order=at.asc&limit={massimo}") or []
     lette = prese = 0
     for n in righe:
         p = n.get("prospects") or {}
