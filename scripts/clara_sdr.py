@@ -472,8 +472,9 @@ RETE_PRIVACY = re.compile(r"dove (avete|hai) (preso|trovato|reperito)|chi vi ha 
 PREZZO = re.compile(r"€|\beuro\b|\d+\s*(/|al|a)\s*mese|\bsconto\b|\bpreventivo\b", re.I)
 ASPETTA = re.compile(r"(ci|mi|le|gli) faccia sapere|fate(ci|mi) sapere|mi faccia un cenno|(mi|ci) scriva (pure )?(se|quando)|ci faccia conoscere|mi (indichi|dica|proponga) (pure )?lei|ci organizziamo", re.I)   # 4/11: la call non si aspetta, e niente sforzo a lui
 # la mail che annuncia l'analisi invece di mandarla (5/11): vietata, la ferma anche il postino
-ANNUNCIO = re.compile(r"(nelle prossime ore|nei prossimi giorni|entro (oggi|domani|stasera))(?=[^.]{0,80}(analisi|mail|invi|arriv|mand|ricev))"
-                      r"|far(emo|ò|o|à) (arrivare|avere)|a breve (le |gli )?(invio|mando|arriv)|arriver[àa] (a breve|nelle prossime|in una mail)"
+ANNUNCIO = re.compile(r"(analisi|mail|documento|pdf)[^.]{0,80}(nelle prossime ore|nei prossimi giorni|entro (oggi|domani|stasera|la giornata))"
+                      r"|(nelle prossime ore|nei prossimi giorni|entro (oggi|domani|stasera|la giornata))[^.]{0,80}(analisi|mail|invi|arriv|mand|ricev)"
+                      r"|(facciamo|faremo|far[òoà]) (arrivare|avere)|a breve (le |gli )?(invio|mando|arriv)|arriver[àa] (a breve|nelle prossime|in una mail)"
                       r"|in una mail dedicata|le invier[òo] (l'|la |il )|le mander[òo] (l'|la |il )|gliel[ao] (invio|mando) (a breve|nelle|entro|oggi|domani)", re.I)
 ORARIO = re.compile(r"\b(alle|ore)\s+\d{1,2}([:.]\d{2})?\b")
 
