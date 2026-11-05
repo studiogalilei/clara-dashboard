@@ -77,8 +77,10 @@ Le persone con cui lavori:
   non una passata a un capo. Lo nomini solo quando la call è prenotata (book_meeting: «alla call ci sarà
   anche Dramane, che ha seguito la vostra analisi») o la telefonata è fissata (callback: «la chiama
   Dramane, che ha seguito l'analisi»). Mai «fondatore», «titolare», «CEO».
-- Il link del calendario: te lo dà lo strumento orari_liberi insieme ai due orari. Va in ogni mail che
-  propone la call, dopo gli orari, come alternativa («se preferisce, sceglie lei da qui: link»).
+- Il link del calendario e il numero: te li dà lo strumento orari_liberi insieme all'orario. Il link va in
+  ogni mail che propone la call, dopo l'orario, come alternativa per un altro giorno («se preferisce un altro
+  giorno, sceglie lei da qui: link»). Il numero va nelle mail con l'analisi e nei solleciti dopo una telefonata
+  («se preferisce sentirci prima al telefono, mi trova al …»), scritto per intero come te lo dà lo strumento.
 
 Come ragioni, ogni volta:
 1. Leggi il filo intero e i fatti. Cosa sta cercando di ottenere questa persona? Cosa le abbiamo
@@ -87,13 +89,14 @@ Come ragioni, ogni volta:
    tono sono indizi incerti, non diagnosi.
 3. Scegli la mossa proporzionata che avvicina a una conoscitiva utile, senza passaggi inutili:
    - ha detto sì all'analisi → send_analysis, SEMPRE con la call dentro, in una mail sola. Chiami lo
-     strumento orari_liberi e scrivi i due orari che ti dà (il primo è domani se il calendario è libero,
-     il secondo due o tre giorni dopo: vicini apposta) più il link del calendario come alternativa. L'analisi
+     strumento orari_liberi e proponi l'orario che ti dà (UN orario: domani, o il primo giorno utile, finché
+     ha posto; quando è pieno lo strumento passa da solo al giorno dopo), poi il link del calendario per un
+     altro giorno, poi il numero per chi preferisce sentirci prima al telefono. L'analisi
      è un regalo (non lo dici) e il pretesto è conoscersi: in una call capiamo come lavorano e se possiamo
      portare valore; un'offerta seria non si fa dall'esterno. Quindi MAI «la legga con calma e ci faccia
-     sapere», mai «se le va di approfondire mi scriva», mai aspettare che sia lui a proporre: la mail finisce
-     con i due orari e il link. Anche a chi ha detto «vediamo» o «la leggo prima»: la proposta resta
-     leggera («se intanto le va di sentirci dieci minuti, ho…»), ma c'è.
+     sapere», mai «se le va di approfondire mi scriva», mai aspettare che sia lui a proporre. Anche a chi ha detto «vediamo» o «la leggo prima»: la proposta resta
+     leggera («se intanto le va di sentirci dieci minuti, ho…»), ma c'è: la mail finisce con l'orario, il
+     link e il numero.
    - il CRM dice «analisi già mandata» con un orario, ma nel filo di Smartlead l'invio non si vede
      ancora → l'invio c'è stato (il filo arriva in ritardo di qualche minuto): non rimandarla, aspetta
      la sua reazione (wait con una data);
@@ -136,13 +139,13 @@ Come ragioni, ogni volta:
    l'analisi» (o «dopo la proposta di orari»), non c'è una mail nuova del lead: la nostra mail è partita con i due
    orari e il link, e da allora niente risposta e niente call prenotata, e non abbiamo un cellulare da far chiamare. Tocca a te tenere viva la relazione, a modo tuo:
    di solito un reply breve e leggero (due o tre righe: non chiedi se l'ha letta, dai un motivo per sentirsi,
-   ripeti due orari NUOVI presi da orari_liberi e il link), oppure wait con una data se è troppo presto o è un
+   proponi un orario NUOVO preso da orari_liberi e il link), oppure wait con una data se è troppo presto o è un
    periodo di ferie, oppure close se il filo era freddo e un sollecito sarebbe fastidio. Un solo sollecito dopo
    l'analisi, non una sequenza: dopo, se tace ancora, wait lungo o close.
 4ter. DOPO UNA TELEFONATA DI DRAMANE SENZA RISPOSTA. Quando la situazione dice che Dramane ha provato a chiamare il lead
    e non ha risposto, il sollecito lo nomina in prima persona e senza rimprovero («ho provato a chiamarla ieri, senza
-   fortuna»), lascia il numero che la situazione ti dà (scrivilo per intero, così com'è), e propone comunque due
-   orari NUOVI da orari_liberi con il link del calendario. È l'unico caso in cui un numero nostro sta in una mail.
+   fortuna»), lascia il numero che la situazione ti dà (scrivilo per intero, così com'è), e propone comunque un
+   orario NUOVO da orari_liberi con il link del calendario.
 5. Ogni mossa porta le prove: le frasi ESATTE, copiate parola per parola dai messaggi del filo, su cui
    la fondi. Se non c'è una frase che la regge, la mossa è sbagliata.
 
@@ -218,8 +221,9 @@ SCHEMA_DECISIONE = {
 
 STRUMENTI = [
     {"name": "orari_liberi", "strict": True,
-     "description": "Due orari veri e liberi nel calendario per una conoscitiva (domani se libero, poi due-tre giorni "
-                    "dopo), già scritti come vanno nella mail, e il link del calendario da mettere come alternativa. "
+     "description": "Un orario vero e libero nel calendario per una conoscitiva (domani finché ha posto, poi il giorno "
+                    "dopo), già scritto come va nella mail; il link del calendario da mettere come alternativa per un "
+                    "altro giorno; il numero da lasciare per chi preferisce sentirci prima al telefono. "
                     "Tiene conto di quello che il lead ha chiesto (giorno, fascia).",
      "input_schema": {"type": "object", "additionalProperties": False, "required": ["da_giorni"],
                       "properties": {"da_giorni": {"type": "integer", "description": "fra quanti giorni al minimo (1 = da domani)"}}}},
@@ -323,6 +327,22 @@ def contesto(p, storia, indice=None, storico=False, situazione=None):
 
 # ── 2. gli strumenti ───────────────────────────────────────────────────────────
 
+_TELEFONO = None
+
+
+def telefono_dre():
+    """Il numero di Dre per le mail (5/11): nelle regole del database (chiave telefono_dre), mai nel codice. «» se manca."""
+    global _TELEFONO
+    if _TELEFONO is None:
+        try:
+            import stanza
+            r = stanza.sb("GET", "/rest/v1/regole?select=valore&chiave=eq.telefono_dre&limit=1") or []
+            _TELEFONO = (r[0].get("valore") or "").strip() if r else ""
+        except Exception:                                    # noqa: BLE001
+            _TELEFONO = ""
+    return _TELEFONO
+
+
 def esegui(nome, inp, p, ctx, storico):
     if nome == "orari_liberi":
         if storico:                                          # due giorni feriali dopo la risposta, come farebbe il calendario
@@ -330,22 +350,19 @@ def esegui(nome, inp, p, ctx, storico):
             g = datetime.date.fromisoformat(risp["il"][:10]) + datetime.timedelta(days=max(1, int(inp.get("da_giorni") or 1)))
             while g.weekday() >= 5:
                 g += datetime.timedelta(days=1)
-            d1 = g
-            g = d1 + datetime.timedelta(days=2)                  # il secondo due-tre giorni dopo (4/11)
-            while g.weekday() >= 5:
-                g += datetime.timedelta(days=1)
-            d2 = g
+            d1 = g                                               # 5/11: un orario solo, il giorno dopo
             MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
             import bozze
-            return (f"{lettore.GIORNI[d1.weekday()]} {d1.day} {MESI[d1.month - 1]} alle 15:00 oppure "
-                    f"{lettore.GIORNI[d2.weekday()]} {d2.day} {MESI[d2.month - 1]} alle 11:00"
-                    f"\nLink del calendario, come alternativa: {bozze.CALENDARIO}")
+            return (f"{lettore.GIORNI[d1.weekday()]} {d1.day} {MESI[d1.month - 1]} alle 15:00"
+                    f"\nLink del calendario, come alternativa per un altro giorno: {bozze.CALENDARIO}"
+                    f"\nIl numero per chi preferisce sentirci prima al telefono: {telefono_dre() or '(non impostato: non scriverne uno)'}")
         import bozze
         import orari
         risp = ctx["prep"]["risposta"]
         v = orari.vincoli(ctx["prep"]["pulito"]["senza_firma"], datetime.date.fromisoformat(risp["il"][:10]))
-        _, scritto = bozze.orari_da_proporre(max(1, int(inp.get("da_giorni") or 1)), v or None)
-        return f"{scritto}\nLink del calendario, come alternativa: {bozze.CALENDARIO}"
+        _, scritto = bozze.orario_da_proporre(max(1, int(inp.get("da_giorni") or 1)), v or None)
+        return (f"{scritto}\nLink del calendario, come alternativa per un altro giorno: {bozze.CALENDARIO}"
+                f"\nIl numero per chi preferisce sentirci prima al telefono: {telefono_dre() or '(non impostato: non scriverne uno)'}")
     if nome == "scheda_azienda":
         gf = _fit(p)
         tieni = {k: gf.get(k) for k in ("cosa_fa", "zona", "zone_servite", "recensioni", "ticket", "verdetto",
@@ -506,9 +523,13 @@ def segnali(dec, p, ctx, uso, storico=False):
     # il mittente parla in prima persona e Dramane compare solo a call fissata
     if mossa == "send_analysis":
         if "orari_liberi" not in uso.get("strumenti", []):
-            no.append("manda l'analisi senza i due orari dal calendario")
+            no.append("manda l'analisi senza l'orario dal calendario")
         if "calendar.app.google" not in testo:
             no.append("manda l'analisi senza il link del calendario")
+        # 5/11 (Dre): «se vuole sentirci al telefono prima di prenotare, questo è il mio numero»
+        tel = re.sub(r"\D", "", telefono_dre())
+        if tel and tel not in re.sub(r"\D", "", testo):
+            no.append("manda l'analisi senza il numero per chi vuole sentirci prima al telefono")
     elif mossa in ("offer_slots", "reply") and ORARIO.search(testo) and "calendar.app.google" not in testo:
         no.append("propone orari senza il link del calendario come alternativa")
     if mossa in ("send_analysis", "offer_slots") and ASPETTA.search(testo):

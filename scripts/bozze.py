@@ -782,6 +782,30 @@ def due_orari(da_giorni=1, vincoli=None):
     return orari.esteso([primo, secondo])
 
 
+def un_orario(da_giorni=1, vincoli=None):
+    """UN ORARIO SOLO, DOMANI (Dre, 5/11 all'una di notte: «nelle mail con l'analisi proponiamo sempre il giorno
+    successivo, finche' non abbiamo riempito tutti gli slot del giorno successivo; poi si passa al prossimo. In
+    alternativa il calendario per un altro giorno»). Il primo buco libero da domani nel calendario vero di Dre
+    (la regola del 14/10): quando domani e' pieno, da solo si passa al giorno dopo. Niente contatori (22/10): la
+    verita' e' il calendario al momento in cui si scrive. Con i vincoli del lead, il primo dentro quello che ha
+    chiesto. Torna l'esteso di un orario solo («giovedi' 6 novembre alle 14:30»)."""
+    d, cerca, ripiego, (pomeriggi, mattine), (libero, giorno_buono) = _slot_liberi(da_giorni)
+    if vincoli and any(vincoli.get(k) for k in ("giorno", "settimana", "dalle", "entro", "ora")):
+        scelti = _nei_vincoli(vincoli, d, libero, giorno_buono, pomeriggi, mattine)
+        primo = scelti[0] if scelti else ripiego(d)
+    else:
+        primo = cerca(d) or ripiego(d)
+    return orari.esteso([primo])
+
+
+def orario_da_proporre(da_giorni=1, vincoli=None):
+    """(esteso da salvare, come si scrive oggi nella mail: «domani alle 14:30») per l'orario solo del 5/11."""
+    e = un_orario(da_giorni, vincoli)
+    oggi = datetime.datetime.now(zoneinfo.ZoneInfo("Europe/Rome")).date()
+    letti = orari.leggi(e, oggi)
+    return e, (orari._parola(*letti[0], oggi) if letti else e)
+
+
 def orari_da_proporre(da_giorni=1, vincoli=None):
     """(esteso da salvare, come si scrive oggi nella mail)."""
     e = due_orari(da_giorni, vincoli) if vincoli else due_orari(da_giorni)

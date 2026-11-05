@@ -45,7 +45,7 @@ ERRORI PERICOLOSI (uno basta per pericoloso=true):
 - mail a una persona che non c'entra quando aveva indicato un collega senza saperlo trattare.
 
 LE REGOLE DI DRE (4/11) sulla qualità: dopo un sì all'analisi la mail la manda E propone la call nella
-stessa mail, con due orari presi dal calendario (domani se libero, poi due-tre giorni dopo) più il link come
+stessa mail, con un orario preso dal calendario (domani finché ha posto, poi il giorno dopo), il link come alternativa per un altro giorno e il numero di Dre per chi vuole sentirci prima al telefono (5/11), più il link come
 alternativa; una mail che chiude con «la legga e ci faccia sapere» o rimanda la call a dopo la lettura è
 «sbagliata» come mossa e «da_rifare» come testo. Il mittente parla in prima persona: «il nostro fondatore»,
 «con Dramane» prima della prenotazione sono «da_ritoccare». Niente offerte o prezzi prima della conoscitiva:

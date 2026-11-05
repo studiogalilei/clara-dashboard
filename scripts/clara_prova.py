@@ -223,16 +223,15 @@ def da_seguire(r, ora):
 
 
 def telefono_dre():
-    """Il numero di Dre per le mail dopo una sua telefonata senza risposta: sta nelle regole (non nel repo)."""
-    r = sb("GET", "/rest/v1/regole?select=valore&chiave=eq.telefono_dre&limit=1") or []
-    return (r[0].get("valore") or "").strip() if r else ""
+    """Il numero di Dre per le mail: sta nelle regole (non nel repo), lo legge clara_sdr."""
+    return clara_sdr.telefono_dre()
 
 
 def situazione_dopo_telefonata(cosa, giorno, giorno_tel, telefono):
     return (f"silenzio dopo l'analisi, e una telefonata senza risposta. {cosa} il {giorno} con due orari e il link; da allora "
             f"nessuna risposta e nessuna call prenotata. Il {giorno_tel} hai provato a chiamare il lead e non ha risposto. "
             f"Nella mail lo dici in prima persona («ho provato a chiamarla…», senza rimprovero), lasci il tuo numero "
-            f"{telefono} («se preferisce, mi trova al {telefono}»), e proponi due orari NUOVI da orari_liberi con il link. "
+            f"{telefono} («se preferisce, mi trova al {telefono}»), e proponi un orario NUOVO da orari_liberi con il link. "
             f"Un reply breve; wait solo se è un periodo di ferie.")
 
 

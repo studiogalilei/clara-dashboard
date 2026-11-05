@@ -205,3 +205,15 @@ sicura me lo dica e glielo collego io; così la prossima sappiamo che possiamo f
   e propone due orari nuovi con il link (regola 4ter di Clara, segnali se manca una delle due cose). Il numero sta in
   `regole.telefono_dre` (mai nel repo); se manca, il Desk lo chiede una volta e Clara rimanda il sollecito.
 - Se poi il lead richiama Dre: «Me ne occupo io» come sempre.
+
+## 5/11 all'una: nell'analisi un orario solo, domani, poi il calendario e il numero
+
+- Dre: «proponiamo sempre il giorno successivo, finché non abbiamo riempito tutti gli slot del giorno successivo,
+  poi si passa al prossimo; in alternativa il calendario per un altro giorno; se vuole sentirci prima al telefono,
+  questo è il mio numero». Le regole del consiglio di chiamata restano.
+- `bozze.un_orario` / `orario_da_proporre`: il primo buco libero da domani nel calendario vero (quando domani è
+  pieno si passa da solo al giorno dopo; niente contatori, come deciso il 22/10). `due_orari` resta per il
+  sistema vecchio.
+- Lo strumento `orari_liberi` di Clara dà un orario, il link «per un altro giorno» e il numero di Dre
+  (`regole.telefono_dre`). Identità, regola 3, 4bis e 4ter aggiornate; segnale nuovo: «manda l'analisi senza il
+  numero». Il giudice sa la regola.
