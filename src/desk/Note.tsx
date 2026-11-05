@@ -42,7 +42,7 @@ export function NotaUnica({ testo, at, salva, className = '' }: { testo: string;
       </p>
       {modifico ? (
         <textarea ref={area} value={valore} onChange={(e) => cambia(e.target.value)} onBlur={esci} rows={1} placeholder="Scrivi qui" aria-label="Tua nota"
-                  className="block w-full resize-none bg-transparent text-[14.5px] font-semibold leading-snug text-inchiostro outline-none placeholder:font-normal placeholder:text-giallo-testo/60" />
+                  className="block w-full resize-none bg-transparent text-[14.5px] font-semibold leading-snug text-inchiostro outline-none focus-visible:outline-none placeholder:font-normal placeholder:text-giallo-testo/60" />
       ) : (
         <button type="button" onPointerUp={tocco} onDoubleClick={() => setModifico(true)} aria-label="Tua nota: due tocchi per scrivere" title="Due tocchi per scrivere"
                 className={`block w-full select-none whitespace-pre-wrap text-left text-[14.5px] leading-snug ${valore.trim() ? 'font-semibold text-inchiostro' : 'font-normal text-giallo-testo/60'}`}>
