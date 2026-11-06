@@ -6977,6 +6977,28 @@ def _():
     assert "manda.main" not in f and "/campaigns/" not in f                                  # avvisa, non spedisce
 
 
+@prova("non interessato al telefono (6/11): il gesto porta lo stato del foglio, e le bozze di chi esce dai lead si chiudono dal database, non solo da manda (spenta)")
+def _():
+    import schede
+    radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sql = open(os.path.join(radice, "supabase", "schema_v121.sql"), encoding="utf-8").read()
+    gesto = sql[sql.index("create or replace function clara_non_interessato"):sql.index("grant execute on function clara_non_interessato")]
+    assert "insert into snella_lead" in gesto and "'Non interessato'" in gesto, "il gesto deve scrivere lo stato che il foglio legge"
+    assert "stato = null" in gesto.split("if riapri then")[1].split("end if;")[0], "riaprire ridà lo stato al sistema"
+    fuori = sql[sql.index("function prospect_fuori_dai_lead"):sql.index("function chiudi_bozze_fuori_dai_lead")]
+    assert fuori.count("coalesce(") >= 3 and ", false)" in fuori, "la condizione non deve mai dire null (not null non e' vero)"
+    for campo in ("fuori", "stage", "pipeline_stage", "no_followup", "classificazione", "in_mano_a", "e_cliente"):
+        assert campo in fuori, f"la condizione deve guardare {campo}, come stanza.contattabile"
+    assert "after update of fuori, stage, pipeline_stage, no_followup, classificazione, in_mano_a" in sql
+    assert "when coalesce(p.no_followup, false) and p.lost_reason like 'Non interessato%' then 'Non interessato'" in sql
+    p = {"classificazione": "positivo", "stage": "risposto", "last_reply_at": "2026-11-01"}
+    assert schede.stato_di(None, p, False, True) == "Da rispondere"
+    no = {**p, "no_followup": True, "lost_reason": "Non interessato (Dre, al telefono, 06/11)"}
+    assert schede.stato_di(None, no, False, True) == "Non interessato"
+    assert schede.stato_di(None, {**p, "no_followup": True}, False, True) == "Da rispondere", "solo il no di Dre, non ogni stop"
+    assert "lost_reason" in schede.CAMPI_P
+
+
 def main():
     falliti = 0
     ritirate = 0

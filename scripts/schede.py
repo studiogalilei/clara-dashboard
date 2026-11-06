@@ -150,7 +150,7 @@ def a_pezzi(ids, n=80):
 
 CAMPI_P = ("id,company,name,email,classificazione,stage,pipeline_stage,fuori,no_followup,awaiting_us,"
            "last_reply_at,updated_at,campaign,campaign_id,followup_due,ooo_until,next_action_date,sg_id,"
-           "phone,role,analysis_sent,analysis_sent_at,analysis_pdf,lettore:enriched->lettore")
+           "phone,role,analysis_sent,analysis_sent_at,analysis_pdf,lost_reason,lettore:enriched->lettore")
 # l'impronta guarda questi campi, non updated_at: il sync tocca la scheda a ogni giro (la firma di
 # Smartlead in enriched) e con updated_at si rifacevano 100 schede ogni 10 minuti per niente.
 # Quello che cambia solo in enriched (il Google Fit) arriva col giro delle schede vecchie di un giorno.
@@ -360,6 +360,10 @@ def stato_di(cat, p, cliente, rispose):
         return "Non contattare"
     if cliente or ps in PIPELINE_CLIENTE:
         return "Cliente acquisito"
+    # 6/11: «Non interessato, l'ho sentito al telefono» (il gesto di Dre, clara_non_interessato) e' un no detto a lui:
+    # vince su quello che dice la mail (prima restava «Da chiamare» o «Da rispondere»). Lo stesso in snella_stato_calcolato (v121).
+    if p.get("no_followup") and str(p.get("lost_reason") or "").startswith("Non interessato"):
+        return "Non interessato"
     if ps == "perso":
         return "Perso"
     if cat == C.N_CALL or ps in PIPELINE_CALL:
