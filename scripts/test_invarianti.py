@@ -6966,6 +6966,17 @@ def _():
     assert '"linkedin":' in t and "canale(v, vm, vl)" in t
 
 
+@prova("promemoria fermo (6/11): un promemoria approvato col postino spento suona nel semaforo, non dice «pronti per il postino»")
+def _():
+    import inspect, promemoria as PM
+    src = inspect.getsource(PM.main)
+    assert "pronti per il postino" not in src and "postino_fermo()" in src
+    f = inspect.getsource(PM.postino_fermo)
+    assert "chiave=eq.manda" in f and "stato=eq.approvata" in f and "ref=like.promemoria:*" in f
+    assert 'stanza.guasto("promemoria:postino"' in f and 'stanza.guarito("promemoria:postino")' in f
+    assert "manda.main" not in f and "/campaigns/" not in f                                  # avvisa, non spedisce
+
+
 def main():
     falliti = 0
     ritirate = 0

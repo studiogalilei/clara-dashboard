@@ -116,7 +116,27 @@ def main():
            {"Prefer": "return=minimal"})
         fatti += 1
         print(f"  promemoria approvato: {p.get('company')} (call delle {ora_call})")
-    print(f"promemoria: {fatti} pronti per il postino")
+    postino_fermo()
+    print(f"promemoria: {fatti} approvati oggi")
+
+
+def postino_fermo():
+    """6/11: dal 3/11 il postino vecchio (operazione `manda`) e' spento e quello nuovo (clara_manda)
+    legge solo clara_decisioni, quindi un promemoria approvato restava fermo in silenzio mentre il giro
+    scriveva «pronti per il postino». Se una cosa e' ferma deve avvisare (28/9): finche' ci sono
+    promemoria approvati e nessuno li spedisce, suona il semaforo; quando non ce ne sono piu', si spegne.
+    Chi spedisce lo decide Dre: qui non si manda niente."""
+    import stanza
+    acceso = (sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.manda") or [{}])[0].get("attiva")
+    fermi = sb("GET", "/rest/v1/proposte?select=id,titolo&stato=eq.approvata&ref=like.promemoria:*") or []
+    if fermi and not acceso:
+        titoli = "; ".join((f.get("titolo") or "")[:80] for f in fermi)
+        print(f"  FERMO: {len(fermi)} promemoria approvati e il postino (manda) e' spento: {titoli}")
+        stanza.guasto("promemoria:postino", f"{len(fermi)} promemoria della conoscitiva pronti ma nessuno li spedisce "
+                      f"(il postino vecchio e' spento dal 3/11): {titoli}", vale=120)
+    else:
+        stanza.guarito("promemoria:postino")
+    return bool(fermi and not acceso)
 
 
 if __name__ == "__main__":
