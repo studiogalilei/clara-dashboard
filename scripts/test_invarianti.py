@@ -6975,6 +6975,9 @@ def _():
     assert "chiave=eq.manda" in f and "stato=eq.approvata" in f and "ref=like.promemoria:*" in f
     assert 'stanza.guasto("promemoria:postino"' in f and 'stanza.guarito("promemoria:postino")' in f
     assert "manda.main" not in f and "/campaigns/" not in f                                  # avvisa, non spedisce
+    # 9/11: anche fuori orario (sera, weekend) il controllo gira, se no il guasto scade e tace
+    fuori = src.split("fuori orario", 1)[1].split("giorno = giorno_della_call", 1)[0]
+    assert "postino_fermo()" in fuori
 
 
 def main():

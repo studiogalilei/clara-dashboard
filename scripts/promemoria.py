@@ -74,7 +74,11 @@ def main():
         oggi = giorno - datetime.timedelta(days=1)
     else:
         if adesso.weekday() >= 5 or not (9 <= adesso.hour < 18):
-            print("promemoria: fuori orario (si manda nei giorni lavorativi, dalle 9 alle 18)"); return
+            # 9/11: il controllo del postino stava solo dentro l'orario, e il guasto (vale 120 min)
+            # si spegneva da solo la sera: tutto il weekend i promemoria delle call di lunedi'
+            # sono rimasti fermi col semaforo verde. Una cosa ferma avvisa anche fuori orario.
+            print("promemoria: fuori orario (si manda nei giorni lavorativi, dalle 9 alle 18)")
+            postino_fermo(); return
         giorno = giorno_della_call(oggi)
     eventi = da_ricordare(SP._eventi_calendario(adesso), giorno, roma)
     print(f"promemoria: {len(eventi)} conoscitive {giorno.isoformat()}")
