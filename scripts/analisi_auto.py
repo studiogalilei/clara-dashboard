@@ -607,10 +607,18 @@ def _chiudi_domande(p):
 def approvata_da_persona(pid):
     """29/10 (un rimbalzo fermo): il freno della preparazione e' un dubbio, e il dubbio va a Dre. Se Dre
     ha gia' approvato la risposta per questo lead, il dubbio e' sciolto: l'analisi si prepara (non contatta
-    nessuno), e manda.py la aspettava. Prima la mail approvata restava ferma fino alle 24 ore."""
+    nessuno), e manda.py la aspettava. Prima la mail approvata restava ferma fino alle 24 ore.
+    10/11 (un si' tiepido, «ricevo molte spam... do un'occhiata senza impegno»): dal 4/11 i si' li serve
+    il Desk (clara_decisioni), e qui si guardavano solo le proposte vecchie. Il lettore diceva si', Clara e
+    il giudice avevano approvato «manda l'analisi», e la parola «spam» teneva l'analisi ferma in silenzio
+    mentre clara_manda la aspettava. Una decisione del Desk approvata (o in invio) con l'analisi scioglie
+    il dubbio come un'approvazione di Dre: i freni dell'INVIO restano tutti in clara_manda."""
     try:
-        return bool(sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{pid}&stato=eq.approvata"
-                              "&azione->>approvata_da=not.is.null&limit=1"))
+        if sb("GET", f"/rest/v1/proposte?select=id&prospect_id=eq.{pid}&stato=eq.approvata"
+                     "&azione->>approvata_da=not.is.null&limit=1"):
+            return True
+        return bool(sb("GET", f"/rest/v1/clara_decisioni?select=id&prospect_id=eq.{pid}"
+                              "&stato=in.(approvata,in_invio)&mossa=eq.send_analysis&limit=1"))
     except Exception:                                            # noqa: BLE001
         return False
 

@@ -6760,6 +6760,25 @@ def _():
         A.sb = vero
 
 
+@prova("una decisione del Desk approvata con l'analisi scioglie il freno della preparazione come Dre (10/11)")
+def _():
+    import analisi_auto as A
+    vero = A.sb
+    viste = []
+    try:
+        def finto(m, path, *a, **k):
+            viste.append(path)
+            return [{"id": 1}] if path.startswith("/rest/v1/clara_decisioni") else []
+        A.sb = finto
+        assert A.approvata_da_persona("x"), "il Desk approvato non scioglie il freno: l'analisi resta ferma"
+        q = [v for v in viste if v.startswith("/rest/v1/clara_decisioni")][0]
+        assert "mossa=eq.send_analysis" in q and "stato=in.(approvata,in_invio)" in q, q
+        A.sb = lambda *a, **k: []
+        assert not A.approvata_da_persona("x"), "senza approvazioni il freno resta"
+    finally:
+        A.sb = vero
+
+
 @prova("una firma che apre con «-» e chiude col sito senza www resta firma: l'info@ sotto il nome non va in copia (2/11)")
 def _():
     import lettura as L
