@@ -7009,6 +7009,9 @@ def _():
                 assert "timeout-minutes:" in pezzo and "continue-on-error: true" in pezzo, nome  # appeso non vuol dire fermo
                 assert pezzo.count("apt-get") == pezzo.count("timeout 60 apt-get"), nome
                 assert "pip install" not in pezzo, nome                           # weasyprint resta un passo suo
+                # 11/11 pomeriggio: se weasyprint trova gia' le librerie, apt non si tocca (4 minuti persi a giro)
+                assert 'python -c "import weasyprint"' in pezzo.split("for i in", 1)[0], nome
+        assert t.index("pip install -q weasyprint") < t.index("le librerie del PDF"), nome
 
 
 def main():

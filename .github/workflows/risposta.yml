@@ -61,17 +61,22 @@ jobs:
       # resto del giro (sync, lampo, lettore, segnale) gira lo stesso.
       # Il primo rimedio non bastava: col DNS giu' apt resta appeso, non fallisce (14:11, 15 minuti
       # fermo). Quindi un tetto per comando (timeout 60) e uno per il passo (4 minuti, poi si va avanti).
+      - run: pip install -q weasyprint pillow
+      # 11/11 pomeriggio: col mirror giu' ogni giro perdeva 4 minuti a provare a installare librerie
+      # che sul runner ci sono gia' (il PDF usciva lo stesso), e il giro durava 9-10 minuti contro
+      # una cadenza di 5: corse annullate e la strada veloce piu' lenta. Prima si guarda se weasyprint
+      # le trova; solo se mancano si va da apt.
       - name: le librerie del PDF (non fermano il giro)
         timeout-minutes: 4
         continue-on-error: true
         run: |
+          python -c "import weasyprint" 2>/dev/null && { echo "librerie del PDF gia' presenti"; exit 0; }
           for i in 1 2 3; do
             sudo timeout 60 apt-get install -y -qq --fix-missing -o Acquire::Retries=0 libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null && exit 0
             sudo timeout 60 apt-get update -qq >/dev/null 2>&1 || true
             sleep 5
           done
           echo "::warning::librerie del PDF non installate: il giro va avanti senza"
-      - run: pip install -q weasyprint pillow
       - name: la strada veloce
         env:
           TZ: Europe/Rome
