@@ -7006,6 +7006,8 @@ def _():
         for pezzo in t.split("- ")[1:]:
             if "apt-get install" in pezzo:
                 assert "&& exit 0" in pezzo and "::warning::" in pezzo, nome     # riprova e poi va avanti
+                assert "timeout-minutes:" in pezzo and "continue-on-error: true" in pezzo, nome  # appeso non vuol dire fermo
+                assert pezzo.count("apt-get") == pezzo.count("timeout 60 apt-get"), nome
                 assert "pip install" not in pezzo, nome                           # weasyprint resta un passo suo
 
 
