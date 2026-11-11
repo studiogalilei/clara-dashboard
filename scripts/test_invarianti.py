@@ -2434,7 +2434,7 @@ def _():
     # testi rotti: si', le sigle no
     for o, t in [("Analisi marketing su ", "x"), ("Ok", "ho dato un occhiata a , notando"), ("Ciao {{first_name}}", "x"), ("x", "Gentile None,")]:
         assert I.testo_rotto(o, t), f"doveva vedere il guasto: {o!r} {t!r}"
-    for o, t in [("Analisi marketing per A.R. Living", "x"), ("x", "le campagne di C.D.A. Tecnologie"), ("x", "grazie a voi, a presto")]:
+    for o, t in [("Analisi marketing per A.R. Living", "x"), ("x", "le campagne di C.D.A. Tecnologie"), ("x", "grazie a voi, a presto"), ("Ho dato un occhiata ad ./Marchio", "x"), ("x", "le campagne di .Brand")]:
         assert not I.testo_rotto(o, t), f"falso allarme: {o!r} {t!r} -> {I.testo_rotto(o, t)}"
     # chi non doveva ricevere la sequenza
     ieri = (I.ADESSO - I.datetime.timedelta(days=1)).isoformat()

@@ -77,7 +77,9 @@ ROTTO = [
     (re.compile(r"%[a-z_]+%", re.I), "segnaposto fra percentuali"),
     # «su , notando» o un oggetto che finisce in «su»: il nome dell'azienda era vuoto. Minuscole e con lo
     # spazio prima della punteggiatura: «per A.R. Living» e «di C.D.A.» sono sigle, non buchi (12/10)
-    (re.compile(r"(?<![\w.])(su|di|per|a|ad)\s+[,.!?;:]|(?<![\w.])(su|di|per|ad)\s*$"), "una parola rimasta senza il nome dopo"),
+    # La punteggiatura conta solo se dopo non c'e' altro attaccato: «ad ./Marchio» e' un marchio scritto
+    # cosi', il nome c'e' (turno dell'11/11, falso allarme grave)
+    (re.compile(r"(?<![\w.])(su|di|per|a|ad)\s+[,.!?;:](?=\s|$)|(?<![\w.])(su|di|per|ad)\s*$"), "una parola rimasta senza il nome dopo"),
 ]
 
 
