@@ -43,9 +43,19 @@ jobs:
           python-version: "3.12"
       - run: pip install -q pywebpush
       # l'analisi in PDF (23/9): weasyprint vuole pango e cairo di sistema, pillow legge i loghi
-      - run: |
-          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null
-          pip install -q weasyprint pillow
+      # 11/11: alle 13:50 il mirror di Ubuntu non si risolveva (DNS di GitHub) e questo passo con
+      # exit 100 fermava TUTTE le operazioni per mezz'ora. Ora riprova tre volte e, se non c'e'
+      # verso, va avanti: senza pango cade solo il PDF dell'analisi (che suona nel semaforo), il
+      # resto del giro (sync, lampo, lettore, segnale) gira lo stesso.
+      - name: le librerie del PDF (non fermano il giro)
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get install -y -qq --fix-missing libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null && exit 0
+            sudo apt-get update -qq >/dev/null 2>&1 || true
+            sleep 10
+          done
+          echo "::warning::librerie del PDF non installate: il giro va avanti senza"
+      - run: pip install -q weasyprint pillow
       - name: le operazioni dovute
         env:
           # 6/10: il giorno degli script e' quello di Roma. Il runner e' in UTC, e fra mezzanotte
@@ -93,9 +103,19 @@ jobs:
           python-version: "3.12"
       - run: pip install -q pywebpush
       # l'analisi in PDF (23/9): weasyprint vuole pango e cairo di sistema, pillow legge i loghi
-      - run: |
-          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null
-          pip install -q weasyprint pillow
+      # 11/11: alle 13:50 il mirror di Ubuntu non si risolveva (DNS di GitHub) e questo passo con
+      # exit 100 fermava TUTTE le operazioni per mezz'ora. Ora riprova tre volte e, se non c'e'
+      # verso, va avanti: senza pango cade solo il PDF dell'analisi (che suona nel semaforo), il
+      # resto del giro (sync, lampo, lettore, segnale) gira lo stesso.
+      - name: le librerie del PDF (non fermano il giro)
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get install -y -qq --fix-missing libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 >/dev/null && exit 0
+            sudo apt-get update -qq >/dev/null 2>&1 || true
+            sleep 10
+          done
+          echo "::warning::librerie del PDF non installate: il giro va avanti senza"
+      - run: pip install -q weasyprint pillow
       - name: le operazioni dovute
         env:
           # 6/10: il giorno degli script e' quello di Roma. Il runner e' in UTC, e fra mezzanotte

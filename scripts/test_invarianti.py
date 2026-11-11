@@ -6999,6 +6999,16 @@ def _():
     assert "postino_fermo()" in fuori
 
 
+@prova("apt non ferma il giro (11/11): un mirror di Ubuntu irraggiungibile non fa cadere tutte le operazioni del direttore")
+def _():
+    for nome in ("direttore.yml", "risposta.yml"):
+        t = pathlib.Path(__file__).resolve().parents[1].joinpath(".github", "workflows", nome).read_text(encoding="utf-8")
+        for pezzo in t.split("- ")[1:]:
+            if "apt-get install" in pezzo:
+                assert "&& exit 0" in pezzo and "::warning::" in pezzo, nome     # riprova e poi va avanti
+                assert "pip install" not in pezzo, nome                           # weasyprint resta un passo suo
+
+
 def main():
     falliti = 0
     ritirate = 0
