@@ -144,11 +144,27 @@ def bozze_accese():
         return False
 
 
+def analisi_accesa():
+    """12/11 (Dre: «lascia stare completamente l'analisi», outbound solo software): l'interruttore
+    «analisi» spento valeva per il giro del direttore ma non per la strada veloce, che chiamava
+    fit e analisi da sola a ogni si'. Ora l'interruttore vale anche qui."""
+    try:
+        r = sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.analisi") or []
+        return bool(r and r[0].get("attiva"))
+    except Exception:                                            # noqa: BLE001
+        return False
+
+
 def catena(p, extra):
     """La catena di un lead: fit, analisi, bozza. Gli stessi pezzi di sempre, senza attese."""
     nome = (p.get("company") or p.get("name") or p["email"])[:40]
     gf = (p.get("enriched") or {}).get("google_fit") or {}
     print(f"  ─ {nome} (risposta delle {str(p['last_reply_at'])[11:16]})")
+    if not analisi_accesa():
+        print("    analisi spenta in operazioni: niente fit, niente analisi")
+        if bozze_accese():
+            _corri("bozze.py", ["--email", p["email"]] + extra)
+        return
     if not gf.get("sito_letto"):
         _corri("googlefit.py", ["--uno", p["email"]] + extra)
     if not p.get("analysis_pdf"):
