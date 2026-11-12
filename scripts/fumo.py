@@ -43,20 +43,38 @@ def supabase():
     return "risponde"
 
 
+def da_provare(campagne):
+    """Pura. Le campagne su cui provare l'export, attive prima. (12/11: Dre aveva messo in pausa
+    l'unica attiva il pomeriggio prima, e il fumo scriveva «Smartlead non risponde» con Smartlead
+    che rispondeva benissimo: le campagne le decide Dre, zero attive non e' un guasto del servizio.
+    Senza attive si prova su una in pausa o finita, la piu' recente.) None se non ce n'e' nessuna."""
+    st = lambda c: (c.get("status") or "").upper()                        # noqa: E731
+    attive = [c for c in campagne if st(c) == "ACTIVE"]
+    if attive:
+        return attive
+    altre = sorted((c for c in campagne if st(c) in ("PAUSED", "COMPLETED")),
+                   key=lambda c: c.get("updated_at") or "", reverse=True)
+    return altre or None
+
+
 def smartlead():
     """Le chiamate che fa il sync, con i suoi parametri: campagne, export di una attiva, la storia
     di un filo vero, la Master Inbox (limit e corpo di sync_v2, non una copia)."""
     import sync_v2 as S
-    camps = [c for c in (S.sl_get("/campaigns") or []) if (c.get("status") or "").upper() == "ACTIVE"]
-    if not camps:
-        raise RuntimeError("nessuna campagna attiva vista")
+    tutte = S.sl_get("/campaigns")
+    if not isinstance(tutte, list):
+        raise RuntimeError(f"la lista delle campagne non arriva ({str(tutte)[:80]})")
+    camps = da_provare(tutte)
+    if camps is None:
+        raise RuntimeError("nessuna campagna su cui provare l'export (ne' attive ne' in pausa o finite)")
     righe = S.sl_export(camps[0]["id"])
     p = (sb("GET", "/rest/v1/prospects?select=campaign_id,lead_id&campaign_id=not.is.null&lead_id=not.is.null"
                    "&last_reply_at=not.is.null&order=last_reply_at.desc&limit=1") or [{}])[0]
     storia = S.sl_get(f"/campaigns/{p['campaign_id']}/leads/{p['lead_id']}/message-history") if p else {}
     dal = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=S.FRESCHE_ORE * 4)).isoformat()
     fresche = S.risposte_fresche(dal, segna=False, alza=True)
-    return (f"{len(camps)} campagne attive, export di una: {len(righe)} lead, storia di un filo: "
+    attive = sum(1 for c in tutte if (c.get("status") or "").upper() == "ACTIVE")
+    return (f"{attive} campagne attive, export di una: {len(righe)} lead, storia di un filo: "
             f"{len((storia or {}).get('history') or [])} messaggi, Master Inbox: {len(fresche)} risposte")
 
 

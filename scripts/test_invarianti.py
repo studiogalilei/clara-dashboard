@@ -6205,6 +6205,11 @@ def _():
     assert G.da_riprovare(scritti) == {"servizio:analisi": "OpenAI", "fumo:Smartlead": "Smartlead"}
     import fumo as F
     assert F.prova("Zeta") is None and set(F.DI_FORNITORE["Google"]) <= set(F.SERVIZI)
+    # 12/11: zero campagne attive (le ha messe in pausa Dre) non e' «Smartlead non risponde»
+    assert F.da_provare([{"id": 1, "status": "PAUSED", "updated_at": "2026-11-11"}, {"id": 2, "status": "DRAFTED"},
+                         {"id": 3, "status": "COMPLETED", "updated_at": "2026-11-02"}])[0]["id"] == 1
+    assert [c["id"] for c in F.da_provare([{"id": 4, "status": "ACTIVE"}, {"id": 1, "status": "PAUSED"}])] == [4]
+    assert F.da_provare([{"id": 2, "status": "DRAFTED"}, {"id": 5, "status": "ARCHIVED"}]) is None
     for nome in F.PROVE:                    # le prove a secco del mattino: script veri che sanno stare a secco
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{nome}.py"), encoding="utf-8").read()
         assert "--prova" in src or "_a_secco" in src or "PROVA" in src, nome
