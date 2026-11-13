@@ -422,6 +422,24 @@ def fit_di(p):
     return fonte.get("verdetto"), fonte.get("motivo"), e.get("google_fit_decisione")
 
 
+ESCLUSI_DALLE_ANALISI = ("agenzia", "portale", "catena", "multinazionale", "privacy")
+
+
+def esclusa_dalle_analisi(p):
+    """LE ESCLUSIONI SACRE DELL'ANALISI, IN UN POSTO SOLO (13/11). Regola d'oro 3: niente analisi ad
+    agenzie e competitor (piu' portali, catene, multinazionali, chi cita la privacy). Stava solo nella
+    fila di analisi_auto: la strada veloce (analisi_auto --email) la saltava, e l'11/11 un'agenzia di
+    marketing ha ricevuto il PDF da Clara. Torna l'esclusione (es. «agenzia») o None. «Invia comunque»
+    di Dre passa sopra: l'ha deciso lui."""
+    e = (p or {}).get("enriched") or {}
+    if e.get("google_fit_decisione") == "invia":
+        return None
+    for fit in (e.get("google_fit_v2") or {}, e.get("google_fit") or {}):
+        if fit.get("esclusione") in ESCLUSI_DALLE_ANALISI:
+            return fit["esclusione"]
+    return None
+
+
 def fit_bocciato(p):
     """Il fit ha detto NO e Dre non ha ancora deciso «invia comunque» (6/10: la
     soppressione non la fa il sistema, decide Dre dal triage)."""

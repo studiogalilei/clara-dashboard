@@ -7019,6 +7019,41 @@ def _():
         assert t.index("pip install -q weasyprint") < t.index("le librerie del PDF"), nome
 
 
+@prova("Le esclusioni sacre dell'analisi valgono anche sulla strada veloce e nel postino di Clara (13/11, un'agenzia ha avuto il PDF)")
+def _():
+    import inspect, stanza as S, analisi_auto as A, clara_manda as CM
+    agenzia = {"enriched": {"google_fit": {"verdetto": "NO", "sito_letto": True, "esclusione": "agenzia"}}}
+    assert S.esclusa_dalle_analisi(agenzia) == "agenzia"
+    assert S.esclusa_dalle_analisi({"enriched": {"google_fit_v2": {"esclusione": "portale"}}}) == "portale"
+    assert S.esclusa_dalle_analisi({"enriched": {**agenzia["enriched"], "google_fit_decisione": "invia"}}) is None
+    assert S.esclusa_dalle_analisi({"enriched": {"google_fit": {"esclusione": "onlus"}}}) is None   # le ONLUS: Ad Grants
+    assert tuple(A.MAI) == tuple(S.ESCLUSI_DALLE_ANALISI) and "ESCLUSI_DALLE_ANALISI" in inspect.getsource(A)   # una regola, un posto
+    m = inspect.getsource(A.main)
+    veloce = m.split('if "--email" in a', 1)[1].split("else:", 1)[0]
+    assert "esclusa_dalle_analisi" in veloce, "analisi_auto --email salta le esclusioni"
+    # il postino di Clara non allega l'analisi a un escluso, nemmeno se il PDF c'e' gia' (fatto in anticipo)
+    p = {"email": "x@y.it", "company": "X", "analysis_pdf": "https://x/y.pdf", **agenzia}
+    motivo = CM.allegati(p, {"mossa": "send_analysis"})
+    assert isinstance(motivo, str) and "agenzia" in motivo
+    assert CM.allegati({"email": "x@y.it", **agenzia}, {"mossa": "reply"}) == []   # una risposta senza analisi parte
+
+
+@prova("Un promemoria la cui call e' passata si chiude e smette di suonare (13/11: rosso dal 9 al 13/11 per tre call gia' fatte)")
+def _():
+    import inspect, datetime, zoneinfo, promemoria as PM
+    r = zoneinfo.ZoneInfo("Europe/Rome")
+    ora = datetime.datetime(2026, 11, 13, 8, 0, tzinfo=r)
+    assert PM.call_passata("Promemoria della conoscitiva: X, 09/11 alle 17:00", "2026-11-06T08:02:03+00:00", ora)
+    assert not PM.call_passata("Promemoria della conoscitiva: X, 16/11 alle 17:00", "2026-11-13T07:00:00+00:00", ora)
+    assert not PM.call_passata("titolo senza data", "2026-11-06T08:02:03+00:00", ora)      # nel dubbio suona
+    gennaio = datetime.datetime(2027, 1, 2, 8, 0, tzinfo=r)
+    assert not PM.call_passata("Promemoria della conoscitiva: X, 04/01 alle 10:00", "2026-12-31T10:00:00+00:00", gennaio)
+    f = inspect.getsource(PM.postino_fermo)
+    assert "call_passata" in f and '"stato": "no"' in f and "pulizia" in f
+    assert "risposta_il" not in f.split("call_passata", 2)[2]                 # le lezioni non la leggono come correzione di Dre
+    assert "if not PROVA" in f
+
+
 def main():
     falliti = 0
     ritirate = 0

@@ -124,6 +124,25 @@ def main():
     print(f"promemoria: {fatti} approvati oggi")
 
 
+def call_passata(titolo, creato_il, adesso):
+    """13/11: la call di un promemoria e' gia' passata? Il titolo lo scrive main(): «…, 09/11 alle 17:00».
+    L'anno e' quello in cui il promemoria e' nato (la call cade nei giorni subito dopo). Se il titolo non
+    si legge, si dice di no: meglio un avviso in piu' che uno perso."""
+    import re
+    m = re.search(r"(\d{2})/(\d{2}) alle (\d{1,2}):(\d{2})", titolo or "")
+    if not m:
+        return False
+    try:
+        nato = datetime.datetime.fromisoformat(str(creato_il).replace("Z", "+00:00"))
+        roma = adesso.tzinfo or datetime.timezone.utc
+        quando = datetime.datetime(nato.year, int(m.group(2)), int(m.group(1)), int(m.group(3)), int(m.group(4)), tzinfo=roma)
+        if quando < nato - datetime.timedelta(days=60):          # nato a fine dicembre, call a gennaio
+            quando = quando.replace(year=nato.year + 1)
+    except ValueError:
+        return False
+    return quando < adesso
+
+
 def postino_fermo():
     """6/11: dal 3/11 il postino vecchio (operazione `manda`) e' spento e quello nuovo (clara_manda)
     legge solo clara_decisioni, quindi un promemoria approvato restava fermo in silenzio mentre il giro
@@ -132,7 +151,19 @@ def postino_fermo():
     Chi spedisce lo decide Dre: qui non si manda niente."""
     import stanza
     acceso = (sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.manda") or [{}])[0].get("attiva")
-    fermi = sb("GET", "/rest/v1/proposte?select=id,titolo&stato=eq.approvata&ref=like.promemoria:*") or []
+    fermi = sb("GET", "/rest/v1/proposte?select=id,titolo,at&stato=eq.approvata&ref=like.promemoria:*") or []
+    # 13/11: un promemoria la cui call e' gia' passata non serve piu' a nessuno. Restava «approvato» per
+    # sempre e il semaforo e' rimasto rosso dal 9/11 al 13/11 per tre call gia' fatte: un rosso che non
+    # chiede piu' niente insegna a ignorare il rosso. Si chiude con il motivo, e suona solo chi serve ancora.
+    import zoneinfo
+    adesso = datetime.datetime.now(zoneinfo.ZoneInfo("Europe/Rome"))
+    for f in [f for f in fermi if call_passata(f.get("titolo"), f.get("at"), adesso)]:
+        print(f"  chiuso, la call e' passata senza promemoria: {(f.get('titolo') or '')[:80]}")
+        if not PROVA:
+            sb("PATCH", f"/rest/v1/proposte?id=eq.{f['id']}&stato=eq.approvata",
+               # senza risposta_il e con «pulizia»: non e' una correzione di Dre, le lezioni non la leggono
+               {"stato": "no", "risposta": "superata (pulizia): la call e' passata e il promemoria non e' partito (postino spento)"})
+    fermi = [f for f in fermi if not call_passata(f.get("titolo"), f.get("at"), adesso)]
     if fermi and not acceso:
         titoli = "; ".join((f.get("titolo") or "")[:80] for f in fermi)
         print(f"  FERMO: {len(fermi)} promemoria approvati e il postino (manda) e' spento: {titoli}")

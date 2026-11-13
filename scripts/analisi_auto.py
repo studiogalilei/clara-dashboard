@@ -47,7 +47,7 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, proponi, senza_trattini, fit_di  # noqa: E402
+from stanza import env, sb, proponi, senza_trattini, fit_di, esclusa_dalle_analisi, ESCLUSI_DALLE_ANALISI  # noqa: E402
 import lettura                                            # noqa: E402
 import cervello                                            # noqa: E402
 import brand_assets                                        # noqa: E402
@@ -689,7 +689,7 @@ def lavora(p):
     return True
 
 
-MAI = ("agenzia", "portale", "catena", "multinazionale", "privacy")   # franchising va bene (Dre 25/9), tranne i network Tecnocasa che il fit segna
+MAI = ESCLUSI_DALLE_ANALISI   # la regola sta in stanza (13/11); franchising va bene (Dre 25/9), tranne i network Tecnocasa che il fit segna
 
 
 # Le parole con cui una persona chiede il documento. Vengono dai segnali del
@@ -739,7 +739,7 @@ def servita(p):
     # «Invia comunque» dal triage (Dre, 6/10) passa sopra alle esclusioni: l'ha deciso lui
     if fit_di(p)[2] == "invia":
         return True
-    if fit.get("esclusione") in MAI or v2.get("esclusione") in MAI:
+    if esclusa_dalle_analisi(p):
         return False
     # SE HA RISPOSTO, SI GENERA (Dre, 1/10: «se rispondono generiamo bene questa
     # analisi e inviamo; i dettagli me li dite a parte, magari nella preparazione
@@ -787,6 +787,10 @@ def main():
         bandiera = "--email" if "--email" in a else "--uno"
         email = a[a.index(bandiera) + 1]
         righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione&email=eq.{urllib.parse.quote(email)}")
+        # 13/11: anche la strada veloce rispetta le esclusioni sacre (l'11/11 un'agenzia ha avuto il PDF)
+        for p in [p for p in righe or [] if esclusa_dalle_analisi(p)]:
+            print(f"  salto {(p.get('company') or p.get('email'))[:40]}: {esclusa_dalle_analisi(p)}, niente analisi (regola d'oro 3)")
+        righe = [p for p in righe or [] if not esclusa_dalle_analisi(p)]
     else:
         righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione"
                           "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
