@@ -62,7 +62,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, quando, _a_secco, contattabile, lettore_di, tocca_a_dre, mail_notificata, scritta_da_macchina  # noqa: E402
+from stanza import sb, quando, _a_secco, contattabile, lettore_di, tocca_a_dre, mail_notificata, scritta_da_macchina, campagna_a_mano  # noqa: E402
 import segnale_provvisorio as S                                 # noqa: E402
 from lettura import solo_suo                                    # noqa: E402
 from guasti import di_notte                                     # noqa: E402
@@ -111,10 +111,9 @@ def persona(p, r):
 def apertura(p, risposte, e_persona=persona):
     """La prima risposta di persona dopo l'analisi (la riga di interactions), None se non c'e',
     S.RIMANDATA se una risposta piu' vecchia non e' ancora stata letta."""
-    an = p.get("analysis_sent_at")
+    an = inizio(p)
     if not an:
         return None
-    an = quando(an)
     for r in sorted(risposte, key=lambda x: x.get("at") or ""):
         if not r.get("at") or quando(r["at"]) <= an:
             continue
@@ -142,12 +141,29 @@ def ultima_persona(p, risposte, soglia, e_persona=persona):
     return None
 
 
+# 16/11: la campagna software la gestisce Dre a mano (stanza.campagna_a_mano): li' non c'e' analisi, e la palla
+# e' sua dalla prima risposta di persona. Conta come «analisi» l'inizio della campagna (il giorno in cui Dre l'ha
+# chiesto): niente di prima suona.
+DAL_A_MANO = "2026-11-16T00:00:00+00:00"
+
+
+def inizio(p):
+    """Da quando una risposta di persona e' di Dre: l'analisi mandata, o per le campagne a mano DAL_A_MANO.
+    None se nessuna delle due (la palla e' ancora del sistema)."""
+    an = (p or {}).get("analysis_sent_at")
+    if an:
+        return quando(an)
+    if campagna_a_mano(p):
+        return quando(DAL_A_MANO)
+    return None
+
+
 def _risposte_dopo(p):
-    an = p.get("analysis_sent_at")
+    an = inizio(p)
     if not an:
         return []
     return sb("GET", f"/rest/v1/interactions?select=id,prospect_id,at,body&kind=eq.email_in&prospect_id=eq.{p['id']}"
-                     f"&at=gt.{urllib.parse.quote(_z(quando(an)))}&order=at.asc&limit=200") or []
+                     f"&at=gt.{urllib.parse.quote(_z(an))}&order=at.asc&limit=200") or []
 
 
 def nostre_ultime(pids):
@@ -171,7 +187,7 @@ def nostre_ultime(pids):
 
 def in_conversazione(pid):
     """Il lead ha una risposta di persona arrivata dopo l'analisi?"""
-    p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore&id=eq.{pid}") or [None])[0]
+    p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,campaign,last_reply_at,classificazione,lettore:enriched->lettore&id=eq.{pid}") or [None])[0]
     if not p:
         return False
     r = apertura(p, _risposte_dopo(p))
@@ -210,7 +226,7 @@ def suona(pid, p, r, caldo=False):
     """La notifica: titolo con l'azienda, l'inizio di quello che ha scritto, tocco = la scheda.
     Per un si' caldo il testo lo dice: «Vuole sentirti»."""
     detto = frase(r)[:150]
-    testo = (f"Vuole sentirti: «{detto}»" if detto else "Vuole sentirti") if caldo else (frase(r)[:170] or "Ha risposto dopo l'analisi")
+    testo = (f"Vuole sentirti: «{detto}»" if detto else "Vuole sentirti") if caldo else (frase(r)[:170] or ("Ha risposto alla campagna software" if campagna_a_mano(p) else "Ha risposto dopo l'analisi"))
     return S.notifica(f"È entrato in conversazione: {azienda(p)}", testo, pid)
 
 
@@ -219,7 +235,7 @@ def suona(pid, p, r, caldo=False):
 def caldi_del_lettore(da, stato):
     """I lead che il lettore AI ha letto CALDI sulla loro ultima mail (nella finestra), con la classe
     «positivo», contattabili e non ancora in conversazione."""
-    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,fuori,stage,"
+    righe = sb("GET", "/rest/v1/prospects?select=id,company,name,analysis_sent_at,campaign,last_reply_at,classificazione,fuori,stage,"
                       "pipeline_stage,no_followup,lettore:enriched->lettore&enriched->lettore->>caldo=eq.true"
                       f"&last_reply_at=gte.{urllib.parse.quote(_z(da))}&limit=300") or []
     out = []
@@ -293,15 +309,14 @@ def giro(prova=None, dal=None):
     pids = sorted(ultima)
     schede = {}
     for i in range(0, len(pids), 80):
-        for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore&id=in.({','.join(pids[i:i + 80])})") or []:
+        for p in sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,campaign,last_reply_at,classificazione,lettore:enriched->lettore&id=in.({','.join(pids[i:i + 80])})") or []:
             schede[p["id"]] = p
-    nostre = nostre_ultime(pid for pid, p in schede.items() if p.get("analysis_sent_at"))
+    nostre = nostre_ultime(pid for pid, p in schede.items() if inizio(p))
     suonano, cambiato = [], False
     for pid, p in schede.items():
-        an = p.get("analysis_sent_at")
+        an = inizio(p)
         if not an:
             continue
-        an = quando(an)
         v = stato.get(pid) if isinstance(stato.get(pid), dict) else None
         gia = mail_notificata(v)
         nostra = nostre.get(pid)
@@ -367,7 +382,7 @@ def giro(prova=None, dal=None):
         mail = mail_notificata(v)
         if not mail or ora - mail > RIPROVA:
             continue
-        p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,last_reply_at,classificazione,lettore:enriched->lettore&id=eq.{pid}") or [None])[0]
+        p = (sb("GET", f"/rest/v1/prospects?select=id,company,name,analysis_sent_at,campaign,last_reply_at,classificazione,lettore:enriched->lettore&id=eq.{pid}") or [None])[0]
         r = risposta_calda(p, _z(mail)) if p else None
         if not r:
             continue

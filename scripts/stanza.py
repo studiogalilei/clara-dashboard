@@ -264,6 +264,19 @@ def call_in_agenda(p, call=None):
 TIPI_CALL = ("conoscitiva", "tecnica", "avvio")
 
 
+# LE CAMPAGNE CHE GESTISCE DRE A MANO (16/11). Dre: «attiviamo la campagna software e disattiva Clara per
+# quello, gestisco manualmente». A chi sta in una di queste campagne il sistema non scrive niente (Clara, bozze,
+# follow-up, analisi, promemoria): risponde Dre da Smartlead. In cambio a ogni risposta di persona suona il
+# telefono (conversazioni.py), perche' senza analisi la notifica di prima non suonerebbe mai.
+# Si riconosce dal nome della campagna su Smartlead (prospects.campaign), come «USA» in prima_risposta.
+CAMPAGNE_A_MANO = re.compile(r"software", re.I)
+
+
+def campagna_a_mano(p):
+    """Vero se il lead viene da una campagna che Dre gestisce a mano (CAMPAGNE_A_MANO)."""
+    return bool(CAMPAGNE_A_MANO.search((p or {}).get("campaign") or ""))
+
+
 def contattabile(p):
     """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
     (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa
@@ -274,7 +287,7 @@ def contattabile(p):
     # 13/10: chi chiama passava spesso una scheda parziale (le bozze non leggevano no_followup):
     # la regola mancava il campo e diceva «contattabile». Ora i campi mancanti li va a prendere,
     # e chiede al database anche se e' cliente (tabella clienti, v78): la stessa cosa del trigger.
-    CAMPI_REGOLA = ("fuori", "stage", "pipeline_stage", "no_followup", "classificazione", "in_mano_a")
+    CAMPI_REGOLA = ("fuori", "stage", "pipeline_stage", "no_followup", "classificazione", "in_mano_a", "campaign")
     if p.get("id") and any(k not in p for k in CAMPI_REGOLA):
         try:
             fresco = (sb("GET", f"/rest/v1/prospects?select={','.join(CAMPI_REGOLA)}&id=eq.{p['id']}") or [{}])[0]
@@ -286,6 +299,8 @@ def contattabile(p):
     if p.get("no_followup") or p.get("classificazione") in ("soppresso", "nervoso"):
         return False
     if p.get("in_mano_a"):                   # 4/11: «Me ne occupo io»: la relazione e' di Dre, Clara si ferma
+        return False
+    if campagna_a_mano(p):                   # 16/11: la campagna software la gestisce Dre a mano
         return False
     if p.get("id"):
         try:

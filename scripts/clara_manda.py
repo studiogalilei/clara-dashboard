@@ -155,7 +155,7 @@ def invito(p, d, a):
 
 def manda_una(d):
     p = (sb("GET", f"/rest/v1/prospects?select=id,email,email_alt,company,name,campaign_id,lead_id,analysis_pdf,analysis_sent,"
-                   f"fuori,stage,pipeline_stage,no_followup,classificazione,enriched&id=eq.{d['prospect_id']}") or [None])[0]
+                   f"fuori,stage,pipeline_stage,no_followup,classificazione,in_mano_a,campaign,enriched&id=eq.{d['prospect_id']}") or [None])[0]
     if not p:
         return ferma(d, "scheda del lead non trovata")
     azienda = p.get("company") or p.get("name") or p["email"]

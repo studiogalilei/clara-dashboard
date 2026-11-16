@@ -47,7 +47,7 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import env, sb, proponi, senza_trattini, fit_di, esclusa_dalle_analisi, ESCLUSI_DALLE_ANALISI  # noqa: E402
+from stanza import env, sb, proponi, senza_trattini, fit_di, esclusa_dalle_analisi, ESCLUSI_DALLE_ANALISI, campagna_a_mano  # noqa: E402
 import lettura                                            # noqa: E402
 import cervello                                            # noqa: E402
 import brand_assets                                        # noqa: E402
@@ -907,6 +907,8 @@ def servita(p):
         return True
     if esclusa_dalle_analisi(p):
         return False
+    if campagna_a_mano(p):                         # 16/11: la campagna software la gestisce Dre, niente analisi
+        return False
     # SE HA RISPOSTO, SI GENERA (Dre, 1/10: «se rispondono generiamo bene questa
     # analisi e inviamo; i dettagli me li dite a parte, magari nella preparazione
     # call»). Il verdetto del fit non ferma piu' nessuno che ha risposto: quando
@@ -952,13 +954,16 @@ def main():
     if "--email" in a or "--uno" in a:                     # --uno e' un alias: il lampo lo passava e veniva ignorato (1/10)
         bandiera = "--email" if "--email" in a else "--uno"
         email = a[a.index(bandiera) + 1]
-        righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione&email=eq.{urllib.parse.quote(email)}")
+        righe = sb("GET", f"/rest/v1/prospects?select=id,email,name,company,website,sector,city,campaign,enriched,analysis_pdf,classificazione&email=eq.{urllib.parse.quote(email)}")
         # 13/11: anche la strada veloce rispetta le esclusioni sacre (l'11/11 un'agenzia ha avuto il PDF)
         for p in [p for p in righe or [] if esclusa_dalle_analisi(p)]:
             print(f"  salto {(p.get('company') or p.get('email'))[:40]}: {esclusa_dalle_analisi(p)}, niente analisi (regola d'oro 3)")
         righe = [p for p in righe or [] if not esclusa_dalle_analisi(p)]
+        for p in [p for p in righe if campagna_a_mano(p)]:
+            print(f"  salto {(p.get('company') or p.get('email'))[:40]}: campagna gestita a mano da Dre, niente analisi")
+        righe = [p for p in righe if not campagna_a_mano(p)]
     else:
-        righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione"
+        righe = sb("GET", "/rest/v1/prospects?select=id,email,name,company,website,sector,city,campaign,enriched,analysis_pdf,classificazione"
                           "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=60") or []

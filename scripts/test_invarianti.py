@@ -234,7 +234,8 @@ def _():
     assert contattabile({"fuori": False, "stage": "risposto", "classificazione": "positivo"})
     for p in ({"fuori": True, "stage": "risposto", "pipeline_stage": "prova"}, {"stage": "cliente"}, {"pipeline_stage": "cliente"},
               {"stage": "perso"}, {"no_followup": True}, {"classificazione": "soppresso"}, {"classificazione": "nervoso"}, None,
-              {"fuori": False, "stage": "risposto", "classificazione": "positivo", "in_mano_a": "Dre"}):   # 4/11: «Me ne occupo io»
+              {"fuori": False, "stage": "risposto", "classificazione": "positivo", "in_mano_a": "Dre"},   # 4/11: «Me ne occupo io»
+              {"fuori": False, "stage": "risposto", "classificazione": "positivo", "campaign": "Software interni"}):   # 16/11: a mano
         assert not contattabile(p), p
     # 4/11: un campo nuovo della regola (in_mano_a) faceva andare al database ogni scheda «completa» delle prove,
     # e su un id finto la regola diceva «non e' piu' un lead»: le schede complete delle prove portano tutti i campi
@@ -696,7 +697,7 @@ def _():
     p = {"id": "x", "email": "a@b.it", "classificazione": "positivo", "stage": "risposto",
          "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf",
          # 13/10: la scheda completa per la regola unica (che ora va a prendere i campi mancanti)
-         "fuori": False, "pipeline_stage": None, "no_followup": False, "in_mano_a": None}
+         "fuori": False, "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None}
     assert R.perche_no(pr, p) == [], R.perche_no(pr, p)
     # 2/10: l'alias dello stesso dominio (info@ per commerciale@) non e' un rimbalzo
     assert R.perche_no({**pr, "azione": {**pr["azione"], "lettura": {**let, "girato_a": ["c@b.it"]}}}, p) == []
@@ -2600,7 +2601,7 @@ def _():
     St.sb = lambda m, path, *a, **k: (True if "e_cliente" in path else [])
     try:
         assert St.contattabile({"id": "x", "fuori": False, "stage": "nuovo", "pipeline_stage": None,
-                                "no_followup": False, "in_mano_a": None, "classificazione": None}) is False
+                                "no_followup": False, "in_mano_a": None, "campaign": None, "classificazione": None}) is False
     finally:
         St.sb = vero_sb
     import pathlib
@@ -2728,7 +2729,7 @@ class _SegnaleFinto:
         return 1
 
 
-SCHEDA_LEAD = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "classificazione": "positivo"}
+SCHEDA_LEAD = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None, "classificazione": "positivo", "campaign": None}
 CALDO = {"autorisposta": False, "caldo": True, "si": True, "frase": "mi chiami domani", "telefono": "333 1234567", "consiglio": ""}
 SI = {**CALDO, "caldo": False, "telefono": "", "frase": "la mail e' corretta"}
 
@@ -3982,7 +3983,7 @@ def _():
     import datetime, foglio as F
     from stanza import contattabile
     oggi = datetime.date(2026, 10, 19)
-    lead = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "classificazione": "positivo"}
+    lead = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None, "classificazione": "positivo"}
     assert contattabile(lead)
     p = dict(lead)
     for tabella, cosa in F.effetti(F.SPOSTA, F.TOGLI, oggi):
@@ -4263,7 +4264,7 @@ class _ConversazioniFinte:
             ultima = max((r["at"] for r in self.risposte if r["kind"] == "email_in"), default=None)
             riga = {"id": "p1", "company": "Azienda Finta", "name": "Mario", "analysis_sent_at": self.analisi,
                     "stage": "in_follow_up", "pipeline_stage": None, "classificazione": "positivo", "fuori": False,
-                    "no_followup": False, "in_mano_a": None, "last_reply_at": ultima}
+                    "no_followup": False, "in_mano_a": None, "campaign": None, "last_reply_at": ultima}
             if "caldo=eq.true" in path:             # la domanda dei caldi del lettore (22/10: le altre chiedono il lettore anche loro)
                 if not self.caldo or not self.risposte:
                     return []
@@ -4868,7 +4869,7 @@ def _():
           "azione": {"testo_dal_codice": True, "template": "FOLLOW UP 1", "approvata_da": "seguito-automatico", "automatica": True, "bozza": "Salve,\n\ntorno sull'analisi.",
                      "lettura": {"gruppo": "FOLLOW UP 1", "coerenza": "COERENTE", "ultima_loro_il": "2026-10-13", "ultima_loro": "La mail e' corretta.", "scritto_dopo_di_lei": 1}}}
     p = {"id": "p3", "email": "info@stile-finto.invalid", "company": "Stile Finto", "analysis_sent": True, "analysis_sent_at": "2026-10-13T08:01:30+00:00",
-         "last_reply_at": "2026-10-13T07:52:24+00:00", "fuori": False, "stage": "in_follow_up", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "classificazione": "positivo"}
+         "last_reply_at": "2026-10-13T07:52:24+00:00", "fuori": False, "stage": "in_follow_up", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None, "classificazione": "positivo"}
     vero_c, vero_f = R.contattabile, R.sorella_servita
     R.contattabile = lambda p: True
     R.sorella_servita = lambda p: None
@@ -4962,7 +4963,7 @@ _LETTI_RIMBALZO = {"ultima_loro": "PROVI A MANDARLO A QUESTO INDIRIZZO CHE LE GI
                    "scritto_dopo_di_lei": 0, "girato_a": ["info@nuova-azienda.invalid"], "detto_no": False, "autorisposta": False,
                    "analisi_ricevuta": False, "analisi_gia_letta": False, "destinatario": None, "coerenza": "COERENTE"}
 _P_RIMBALZO = {"id": "x", "email": "lead@vecchia-azienda.invalid", "company": "Falegnameria F.lli Prova", "name": "", "email_alt": None,
-               "classificazione": "da_classificare", "stage": "risposto", "fuori": False, "pipeline_stage": None, "no_followup": False, "in_mano_a": None,
+               "classificazione": "da_classificare", "stage": "risposto", "fuori": False, "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None,
                "analysis_sent": False, "analysis_pdf": "https://x/analisi.pdf"}
 
 
@@ -5074,14 +5075,14 @@ def _():
     chiamate = []
     try:
         # sul dominio c'e' un cliente: la regola del 25/9 vale anche per chi sta in copia
-        manda.sb = lambda m, u, *a, **k: chiamate.append(u) or [{"fuori": False, "stage": "cliente", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "classificazione": "positivo"}]
+        manda.sb = lambda m, u, *a, **k: chiamate.append(u) or [{"fuori": False, "stage": "cliente", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None, "classificazione": "positivo"}]
         err = manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti)
         assert any("non si contatta" in e for e in err), err
         assert chiamate and "ilike" in chiamate[0] and "nuova-azienda.invalid" in chiamate[0], chiamate
         # nessuna scheda sul dominio, o schede contattabili: passa
         manda.sb = lambda m, u, *a, **k: []
         assert manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti) == []
-        manda.sb = lambda m, u, *a, **k: [{"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "classificazione": "positivo"}]
+        manda.sb = lambda m, u, *a, **k: [{"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None, "classificazione": "positivo"}]
         assert manda.controlla_cc(["info@nuova-azienda.invalid"], p, letti) == []
         # il database non risponde: non si manda alla cieca
         def rotto(*a, **k):
@@ -5618,7 +5619,7 @@ def _():
     ora = datetime.datetime(2026, 10, 21, 10, tzinfo=datetime.timezone.utc)
     t_si = "2026-10-21T07:47:00+00:00"
     pos = [{"id": "p1", "company": "X", "last_reply_at": t_si, "analysis_sent_at": None, "analysis_sent": False, "classificazione": "positivo",
-            "fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None}]
+            "fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "in_mano_a": None, "campaign": None}]
     from stanza import quando as _q
     prima = {"p1": _q("2026-10-21T07:42:00+00:00")}   # il nostro follow-up, 5 minuti PRIMA del suo si'
     dopo_ = {"p1": _q("2026-10-21T07:50:00+00:00")}   # una nostra mail DOPO il suo si'
@@ -6008,7 +6009,7 @@ def _():
 def _():
     import ripulisci as R
     ora = datetime.datetime(2026, 10, 21, 22, 0, tzinfo=datetime.timezone.utc)
-    vivo = {"id": "p1", "classificazione": "da_classificare", "stage": "risposto", "fuori": False, "no_followup": False, "in_mano_a": None, "last_reply_at": "2026-10-20T10:00:00+00:00", "enriched": {}}
+    vivo = {"id": "p1", "classificazione": "da_classificare", "stage": "risposto", "fuori": False, "no_followup": False, "in_mano_a": None, "campaign": None, "last_reply_at": "2026-10-20T10:00:00+00:00", "enriched": {}}
     def pr(**k):
         base = {"id": 1, "tipo": "umano", "titolo": "Da guardare tu: Azienda, INT-01", "stato": "aperta", "at": "2026-10-20T12:00:00+00:00", "prospect_id": "p1", "perche": "si': dubbio", "azione": {}}
         return {**base, **k}
@@ -6887,7 +6888,7 @@ def _():
     assert P.giorni_feriali(d(2026, 11, 6, 15), d(2026, 11, 7, 15)) == 0, "venerdi' -> sabato: zero feriali"
     assert P.giorni_feriali(d(2026, 11, 6, 15), d(2026, 11, 9, 15)) == 1, "venerdi' -> lunedi': uno"
     assert P.giorni_feriali(d(2026, 11, 4, 13), d(2026, 11, 5, 13)) == 1
-    r = {"inviata_il": "2026-11-04T12:00:00+00:00", "consiglio": None, "prospects": {"last_reply_at": "2026-11-04T10:00:00+00:00", "in_mano_a": None}}
+    r = {"inviata_il": "2026-11-04T12:00:00+00:00", "consiglio": None, "prospects": {"last_reply_at": "2026-11-04T10:00:00+00:00", "in_mano_a": None, "campaign": None}}
     assert not P.da_seguire(r, d(2026, 11, 4, 20)), "stesso giorno: troppo presto"
     assert P.da_seguire(r, d(2026, 11, 5, 14)), "un giorno feriale dopo: si segue"
     assert not P.da_seguire({**r, "prospects": {**r["prospects"], "last_reply_at": "2026-11-04T15:00:00+00:00"}}, d(2026, 11, 5, 14)), "ha scritto dopo l'analisi"
@@ -6897,7 +6898,7 @@ def _():
     tel = {"numero": "3", "esito": "non_risposto", "esito_il": "2026-11-05T10:00:00+00:00"}
     assert not P.da_seguire({**r, "consiglio": tel}, d(2026, 11, 5, 18)), "stesso giorno della telefonata: troppo presto"
     assert P.da_seguire({**r, "consiglio": tel}, d(2026, 11, 6, 14)), "un giorno feriale dopo la telefonata: si segue"
-    vecchia = {**r, "inviata_il": "2026-10-07T12:00:00+00:00", "consiglio": tel, "prospects": {"last_reply_at": None, "in_mano_a": None}}
+    vecchia = {**r, "inviata_il": "2026-10-07T12:00:00+00:00", "consiglio": tel, "prospects": {"last_reply_at": None, "in_mano_a": None, "campaign": None}}
     assert P.da_seguire(vecchia, d(2026, 11, 6, 14)), "analisi vecchia col consiglio retroattivo: dopo la telefonata si segue lo stesso"
     assert not P.da_seguire({**r, "consiglio": {**tel, "esito": "lascia_stare"}}, d(2026, 11, 6, 14)), "chiuso in altro modo: tocca a Dre"
     sit = P.situazione_dopo_telefonata("Analisi mandata", "04/11", "05/11", "+39 333 000 0000")
@@ -7084,6 +7085,31 @@ def _():
     assert "call_passata" in f and '"stato": "no"' in f and "pulizia" in f
     assert "risposta_il" not in f.split("call_passata", 2)[2]                 # le lezioni non la leggono come correzione di Dre
     assert "if not PROVA" in f
+
+
+@prova("la campagna software la gestisce Dre a mano: nessuno le scrive, e ogni risposta di persona suona (16/11)")
+def _():
+    import stanza as St
+    import conversazioni as C
+    assert St.campagna_a_mano({"campaign": "Software interni"}) and St.campagna_a_mano({"campaign": "SW - software su misura"})
+    assert not St.campagna_a_mano({"campaign": "Cecchino - non fanno ads"}) and not St.campagna_a_mano({}) and not St.campagna_a_mano(None)
+    assert not St.contattabile({**SCHEDA_LEAD, "campaign": "Software interni"}), "a un lead della campagna software il sistema non scrive"
+    assert St.contattabile({**SCHEDA_LEAD, "campaign": "Cecchino - non fanno ads"})
+    # niente analisi, ne' dalla fila ne' dalla strada veloce
+    src = open(os.path.join(os.path.dirname(__file__), "analisi_auto.py"), encoding="utf-8").read()
+    assert src.count("campagna_a_mano(p)") >= 2 and src.count("city,campaign,enriched") >= 2
+    # il postino rilegge la scheda con la campagna dentro, se no contattabile andrebbe a cercarla
+    assert "in_mano_a,campaign,enriched" in open(os.path.join(os.path.dirname(__file__), "clara_manda.py"), encoding="utf-8").read()
+    # la palla e' di Dre dalla prima risposta, anche senza analisi; gli altri lead senza analisi restano del sistema
+    t = C.quando("2026-11-17T09:00:00+00:00")
+    assert C.inizio({"campaign": "Software interni"}) == C.quando(C.DAL_A_MANO)
+    assert C.inizio({"campaign": "Cecchino"}) is None
+    assert C.inizio({"campaign": "Software interni", "analysis_sent_at": "2026-11-18T09:00:00+00:00"}) == C.quando("2026-11-18T09:00:00+00:00")
+    assert St.tocca_a_dre(None, t, None, C.inizio({"campaign": "Software interni"})), "la prima risposta alla campagna software suona"
+    assert not St.tocca_a_dre(None, t, t + datetime.timedelta(minutes=5), C.inizio({"campaign": "Software interni"})), "se Dre ha gia' risposto, no"
+    r = C.apertura({"campaign": "Software interni"}, [{"at": "2026-11-17T09:00:00+00:00", "body": "Buongiorno, ci sentiamo"}], e_persona=lambda p, r: True)
+    assert r and r["at"].startswith("2026-11-17")
+    assert C.apertura({"campaign": "Cecchino"}, [{"at": "2026-11-17T09:00:00+00:00"}], e_persona=lambda p, r: True) is None
 
 
 def main():
