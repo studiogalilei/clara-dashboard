@@ -5970,7 +5970,7 @@ def _():
     # un decimale dei fatti arrotondato non e' un numero inventato; un altro numero si'
     assert A.numeri_non_nei_fatti("circa 1,50 € o 1,5 €, e 2,30 €", "CPC medio cima pagina 1.49 €") == ["2.30€"]
     src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "analisi_auto.py"), encoding="utf-8").read()
-    assert src.count("an, errori = _correggi_se_basta(an, errori, fatti, fresca)") == 2, "la correzione del codice va provata dopo ogni bocciatura"
+    assert src.count("an, errori = _correggi_se_basta(an, errori, fatti, fresca, s[\"canali\"])") == 2, "la correzione del codice va provata dopo ogni bocciatura"
     assert "_chiudi_domande(p)" in src, "un'analisi passata chiude la domanda «non passa il controllo»"
 
 @prova("la finestra di notte (21/10 sera): ogni approvata parte dalle 8 alle 21 di Roma, tranne se Dre ha premuto «Manda» negli ultimi 10 minuti")
@@ -6947,6 +6947,38 @@ def _():
         if "prova" in riga or "non manda una mail" in riga or "non più un lead" in riga or "ha scritto di nuovo" in riga or "già scritto dopo" in riga or "{inv}" in riga:
             continue
         assert any(g in riga for g in ("tocca No", "Me ne occupo io", "Invito fatto", "guarda tu", "la riscrive")), riga
+
+
+@prova("analisi a moduli (16/11): un modulo per canale che passa il fit, il migliore per primo; solo Google resta l'analisi di sempre")
+def _():
+    import analisi_auto as A
+    def p(g, m, l):
+        return {"enriched": {"google_fit": {"verdetto": g, "meta": {"verdetto": m}, "linkedin": {"verdetto": l}}}}
+    assert A.moduli(p("SI", "NO", "NO")) == ["google"]
+    assert A.moduli(p("NO", "NO", "NO")) == ["google"]                       # nessuno passa: la verita' scomoda, su Google
+    assert A.moduli(p("PARZIALE", "SI", "NO")) == ["meta", "google"]         # il piu' adatto per primo
+    assert A.moduli(p("NO", "PARZIALE", "PARZIALE")) == ["meta", "linkedin"]
+    assert A.moduli(p("PARZIALE", "PARZIALE", "PARZIALE")) == ["google", "meta", "linkedin"]
+    assert A.titolo_canali(["google"]) == "Google Ads" and A.titolo_canali(["meta", "google"]) == "Meta e Google Ads"
+    sez = A.sezioni_per(["meta", "linkedin"])
+    assert sez[0] == "Lettura iniziale" and sez[-2:] == ["Credibilità", "Osservazione finale"] and "Domanda" not in sez
+    # solo Google: le istruzioni e il cancello di sempre (8 sezioni, la stagionalita', la tabella)
+    assert A.istruzione_per({"canali": ["google"], "raccolta": {}}).startswith(A.ISTRUZIONE)
+    corpo = "".join(f"<section class='sec'><div class='k'>{i}: {n}</div></section>" for i, n in enumerate(sez, 1))
+    errs = A.cancello({"intro": "", "body": corpo, "bars": [[1, 0]] * 12}, "", True, ["meta", "linkedin"])
+    assert not any("sezioni" in e or "SEASON" in e or "tabella" in e for e in errs), errs   # senza Google niente stagionalita' ne' tabella
+    errs = A.cancello({"intro": "", "body": corpo.replace("LinkedIn: come arrivarci", "Contenuti"), "bars": [[1, 0]] * 12}, "", True, ["meta", "linkedin"])
+    assert any("sezioni mancanti" in e for e in errs)                       # un modulo rinominato si ferma
+
+
+@prova("pagine Meta (16/11): due parole in comune non fanno la stessa azienda")
+def _():
+    import googlefit as G
+    assert not G.pagina_sua("Alfa for International School Leaders", "International School Of Bargaining")
+    assert not G.pagina_sua("Beta luce gas e servizi", "Gamma Luce&Gas")
+    assert not G.pagina_sua("Centro Casa Delta", "Centro Sicurezza Casa")
+    assert G.pagina_sua("DueX Vetrate Panoramiche", "Due X Vetrate Panoramiche")     # lo spazio non cambia l'azienda
+    assert G.pagina_sua("Omega Infissi srl", "Omega Infissi") and G.pagina_sua("Sigma Events", "Sigma Events")
 
 
 @prova("linkedin fit (4/11): B2B, ticket alto, compratore riconoscibile; il canale a tre; i fit su una lista nuova")

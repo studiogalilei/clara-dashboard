@@ -185,6 +185,139 @@ def fit_unito(p):
     return unito
 
 
+# ── L'ANALISI A MODULI (Dre, 16/11: «C, a moduli») ─────────────────────────────────────────
+# Fino al 16/11 l'analisi era solo Google, anche quando il fit diceva che il canale giusto era Meta
+# o LinkedIn. Ora: un'apertura comune, poi un modulo per ogni canale che passa il suo fit (SI o
+# PARZIALE), il piu' adatto per primo; i canali bocciati hanno una frase sola nell'Osservazione
+# finale. Se nessuno passa resta l'analisi Google di sempre (dice la verita' scomoda, regola dell'1/10).
+# Chi ha solo Google passa, come prima, dall'analisi di sempre: stesse istruzioni, stesso cancello.
+NOME_CANALE = {"google": "Google Ads", "meta": "Meta Ads", "linkedin": "LinkedIn Ads"}
+SEZIONI_MODULO = {
+    "google": ["Domanda", "Filtro utile", "Percorsi", "Copertura e geografia", "Stagionalità"],
+    "meta": ["Meta: chi raggiungere", "Meta: cosa mostrare"],
+    "linkedin": ["LinkedIn: chi decide", "LinkedIn: come arrivarci"],
+}
+_PESO = {"SI": 2, "PARZIALE": 1}
+
+
+def verdetti(p):
+    """I tre verdetti del fit: Google dalla regola unica (stanza.fit_di), Meta e LinkedIn dal fit."""
+    gf = ((p.get("enriched") or {}).get("google_fit")) or {}
+    return {"google": fit_di(p)[0], "meta": (gf.get("meta") or {}).get("verdetto"),
+            "linkedin": (gf.get("linkedin") or {}).get("verdetto")}
+
+
+def moduli(p):
+    """I canali dell'analisi, il piu' adatto per primo (SI prima di PARZIALE; a pari merito Google,
+    poi Meta, poi LinkedIn). Nessuno passa: Google, come prima del 16/11."""
+    v = verdetti(p)
+    dentro = [c for c in ("google", "meta", "linkedin") if _PESO.get((v.get(c) or "").upper())]
+    dentro.sort(key=lambda c: -_PESO[(v[c] or "").upper()])
+    return dentro or ["google"]
+
+
+def sezioni_per(canali):
+    """I nomi delle sezioni, in ordine: apertura, un modulo per canale, chiusura comune."""
+    return ["Lettura iniziale"] + [x for c in canali for x in SEZIONI_MODULO[c]] + ["Credibilità", "Osservazione finale"]
+
+
+def titolo_canali(canali):
+    """«Google Ads», «Meta Ads», «Meta e Google Ads», «Google, Meta e LinkedIn Ads»."""
+    corti = [NOME_CANALE[c].replace(" Ads", "") for c in canali]
+    if len(corti) == 1:
+        return NOME_CANALE[canali[0]]
+    return ", ".join(corti[:-1]) + " e " + corti[-1] + " Ads"
+
+
+def fatti_moduli(p, s, canali):
+    """I fatti di Meta e LinkedIn per il modello. Solo quello che sappiamo: niente numeri di pubblico
+    o di costo per LinkedIn (non abbiamo un accesso), e il cancello boccia i numeri che non stanno qui."""
+    gf = ((p.get("enriched") or {}).get("google_fit")) or {}
+    v = verdetti(p)
+    righe = [f"CANALI DI QUESTA ANALISI, NELL'ORDINE: {', '.join(NOME_CANALE[c] for c in canali)}"]
+    fuori = [c for c in ("google", "meta", "linkedin") if c not in canali]
+    if fuori:
+        righe.append("CANALI CHE NON CONSIGLIAMO (una frase sola ciascuno nell'Osservazione finale, senza numeri): "
+                     + "; ".join(f"{NOME_CANALE[c]}, perche' {((gf.get(c) or {}).get('motivo') if c != 'google' else fit_di(p)[1]) or 'non adatto'}" for c in fuori))
+    if "meta" in canali:
+        m = gf.get("meta") or {}
+        sg = m.get("segnali") or {}
+        ads = m.get("meta_ads") or {}
+        righe.append(f"META, nostra valutazione interna da NON citare: {v['meta']} ({m.get('motivo')})")
+        if ads.get("fa_meta_ads"):
+            righe.append(f"ANNUNCI META (Libreria inserzioni di Meta): {ads.get('annunci_attivi')} annunci attivi dalla pagina «{ads.get('pagina')}», "
+                         f"il piu' vecchio da {ads.get('giorni')} giorni. Fanno gia' pubblicita' su Meta.")
+        else:
+            righe.append("ANNUNCI META: nessun annuncio attribuibile con certezza nella Libreria inserzioni (assenza non vuol dire che non ne facciano).")
+        righe.append("SUL SITO, per Meta: " + ", ".join([
+            "pixel di Meta " + ("presente" if sg.get("pixel_meta") else "non rilevato"),
+            "link a Facebook " + ("si'" if sg.get("facebook") else "no"),
+            "link a Instagram " + ("si'" if sg.get("instagram") else "no")]))
+        righe.append(f"Il prodotto si mostra bene in immagini o video: {m.get('visivo')} | Pubblico definibile per interessi: {m.get('pubblico_definibile')}"
+                     + (f" | Categoria con regole speciali su Meta: {m.get('categoria_sensibile')}" if m.get("categoria_sensibile") else ""))
+    if "linkedin" in canali:
+        li = gf.get("linkedin") or {}
+        sg = li.get("segnali") or {}
+        righe.append(f"LINKEDIN, nostra valutazione interna da NON citare: {v['linkedin']} ({li.get('motivo')})")
+        righe.append(f"Chi decide l'acquisto: {li.get('chi_decide')} | Si riconosce per ruolo e settore: {li.get('pubblico_professionale')} | "
+                     f"Dimensione dei loro clienti: {li.get('dimensione_clienti')} | Tempo per decidere: {li.get('ciclo_vendita')}")
+        righe.append("SUL SITO, per LinkedIn: pagina aziendale " + ("collegata" if sg.get("linkedin_pagina") else "non collegata")
+                     + ", Insight Tag " + ("presente" if sg.get("insight_tag") else "non rilevato"))
+        righe.append("LINKEDIN, NUMERI: non abbiamo dati misurati (ne' quante persone, ne' quanto costa un contatto). Nessun numero nel modulo "
+                     "LinkedIn: parla di ruoli, settori, dimensioni e di come si costruisce la fiducia, e dichiara che e' una «valutazione di Studio Galilei».")
+    return "\n".join(righe)
+
+
+ISTRUZIONE_MODULI = """
+Scrivi l'ANALISI PUBBLICITARIA per questa azienda sui canali indicati nei fatti, nell'ordine
+indicato (il piu' adatto per primo). Per la parte Google segui il playbook e la qualita'
+dell'esempio; per Meta e LinkedIn usa la stessa qualita' e lo stesso tono, ragionando sui fatti.
+Registro «voi», tono da lettura esterna competente: specifica su di loro, onesta, mai generica.
+Ogni sezione aggiunge qualcosa, niente ripetizioni. I fatti che abbiamo visto (annunci, recensioni,
+tag, pagine social) vanno USATI nel testo: «abbiamo controllato» o «da quanto abbiamo visto». I numeri
+li usi solo se stanno nei fatti. Scrivi al titolare, non a un tecnico: niente gergo (query, landing,
+CTA, SERP, cluster, funnel, lead, ROAS, Performance Max, bid, copy, retargeting, remarketing, CTR,
+CPA): di' la cosa in italiano. Niente prima persona («io e Lorenzo», «insieme al mio collega»). MAI
+il trattino lungo. Niente firma ne' inviti finali: la pagina finale la mette il guscio. Apostrofi
+negli attributi HTML: singoli. Italiano corretto con gli accenti veri (è, più, città).
+
+Cosa dice ogni modulo:
+- Google (Domanda, Filtro utile, Percorsi, Copertura e geografia, Stagionalità): come nel playbook.
+  La Domanda ha una <table> con intestazioni Area di ricerca | Lettura utile | Priorità, in ogni riga
+  <span class='tag'>alta</span> / da qualificare / da filtrare / aziende / stagionale / difensiva e la
+  parola cercata in <span class='kw'>. Percorsi ha un <ul>. Stagionalità contiene la riga [[SEASON]] da
+  sola e una frase che dichiara il grafico «valutazione di Studio Galilei sul settore».
+- Meta (chi raggiungere, cosa mostrare): chi sono le persone da raggiungere e come si definiscono
+  (interessi, professioni, momenti di vita), perche' su Meta non cercano ma scoprono; cosa mostrare
+  (contenuti che spiegano, casi, video, prove) e cosa c'e' gia' o manca sul loro sito e sui social.
+  Se fanno gia' annunci su Meta, il margine sta in cosa mostrano e a chi.
+- LinkedIn (chi decide, come arrivarci): i ruoli e le aziende da raggiungere, perche' su LinkedIn
+  si compra con i tempi e la fiducia, e come arrivarci (contenuti che spiegano, la pagina aziendale,
+  il passo successivo per chi si interessa). Nessun numero.
+- Credibilità e Osservazione finale chiudono per tutti i canali; i canali che non consigliamo hanno
+  una frase sola nell'Osservazione finale.
+Ogni sezione ha almeno tre paragrafi pieni: ragionamento specifico su di loro, non elenchi di
+consigli generici. Le regole di queste istruzioni (niente numeri, valutazioni interne) non si
+nominano mai nel testo: il cliente legge un'analisi, non le nostre regole.
+
+RISPONDI SOLO CON UN JSON (niente testo prima o dopo, niente ```), con:
+{
+ "type": "education" oppure "account" (account = fanno gia' pubblicita' attribuibile e si lavora sul loro account),
+ "intro": "2-3 frasi secche per la copertina, con l'obiettivo concreto del cliente, che chiudono ESATTAMENTE con: __CHIUSURA__",
+ "bars": [[altezza 0-100, hi 0/1] x 12, da gennaio a dicembre, sui picchi reali del settore],
+ "body": "HTML delle sezioni"
+}
+Il body: una <section> per ogni sezione, ognuna con <div class='k'>N: Nome</div>, con QUESTI nomi
+esatti e in quest'ordine. Le sezioni segnate «pagina nuova» hanno class='sec brk' (aprono un modulo),
+le altre class='sec' e continuano sulla stessa pagina:
+__SEZIONI__
+Poi <h2> a frase intera (l'insight, non un'etichetta), <p class='dek'> sottotitolo, poi paragrafi <p>.
+L'ultima chiude con <div class='bomba'><p>la frase forte</p></div>.
+Lunghezza: ogni modulo una o due pagine di testo denso come l'esempio, frasi lunghe e naturali; i
+moduli Meta e LinkedIn sono densi come quelli Google.
+"""
+
+
 def scheda(p):
     from stanza import sito_vero
     dom = dominio(sito_vero(p))                          # 17/10: un servizio di posta non e' il loro sito
@@ -199,7 +332,7 @@ def scheda(p):
         provincia = provincia_dal_testo(racc.get("azienda"), racc.get("sito_testo"),
                                         " ".join((t.get("testo") or "") for t in (racc.get("recensioni_testi") or []) if isinstance(t, dict)))
     vol = volumi(fit.get("settore") or p.get("sector"), provincia) if provincia else None
-    return {"dominio": dom, "fit": fit, "raccolta": racc, "ultime": ultime, "volumi": vol, "provincia": provincia}
+    return {"dominio": dom, "fit": fit, "raccolta": racc, "ultime": ultime, "volumi": vol, "provincia": provincia, "canali": moduli(p)}
 
 
 def fatti_in_testo(s, p):
@@ -269,6 +402,8 @@ def fatti_in_testo(s, p):
                      "per il no profit): donazioni, 5x1000, volontari, servizi ai beneficiari. Niente «ottimizzazione degli annunci a pagamento».")
     if s["ultime"]:
         righe.append("COSA CI HA SCRITTO (ultimo messaggio):\n" + (s["ultime"][0].get("body") or "")[:1200])
+    if s.get("canali", ["google"]) != ["google"]:
+        righe.append(fatti_moduli(p, s, s["canali"]))
     return "\n".join(righe)
 
 
@@ -327,7 +462,12 @@ della raccolta: per citarli scrivi «da quanto abbiamo visto» o «abbiamo contr
 
 def istruzione_per(s):
     """Le istruzioni del modello per questa scheda: con la raccolta vecchia, la regola prima dei fatti."""
-    return ISTRUZIONE + ("" if raccolta_fresca(s.get("raccolta")) else RACCOLTA_VECCHIA)
+    canali = s.get("canali") or ["google"]
+    a_capo = {SEZIONI_MODULO[c][0] for c in canali} | {"Credibilità"}       # ogni modulo apre una pagina, il resto continua
+    base = ISTRUZIONE if canali == ["google"] else ISTRUZIONE_MODULI.replace("__CHIUSURA__", CHIUSURA).replace(
+        "__SEZIONI__", "\n".join(f"{i}: {n}" + ("  (pagina nuova)" if i > 1 and n in a_capo else "")
+                                 for i, n in enumerate(sezioni_per(canali), 1)))
+    return base + ("" if raccolta_fresca(s.get("raccolta")) else RACCOLTA_VECCHIA)
 
 
 def chiedi(p, s, correzioni=None):
@@ -420,8 +560,15 @@ def numeri_non_nei_fatti(tutto, fatti):
     return fuori
 
 
-def cancello(an, fatti="", fresca=True):
+def _senza_accenti(x):
+    return unicodedata.normalize("NFKD", x or "").encode("ascii", "ignore").decode()
+
+
+def cancello(an, fatti="", fresca=True, canali=None):
     errs = []
+    canali = canali or ["google"]
+    # a moduli: ogni sezione col suo nome (le prime 12 lettere, senza accenti: «Meta: chi ra», «LinkedIn: co»)
+    attese = SEZIONI if canali == ["google"] else [_senza_accenti(n)[:12] for n in sezioni_per(canali)]
     intro, body = an.get("intro") or "", an.get("body") or ""
     tutto = intro + " " + body
     inventati = numeri_non_nei_fatti(tutto, fatti)
@@ -433,20 +580,20 @@ def cancello(an, fatti="", fresca=True):
         errs.append(f"l'intro deve chiudere con: {CHIUSURA}")
     if re.search(r"\bio e (il mio|lorenzo)|\binsieme al mio collega|\bnoi guardiamo\b", tutto, re.I):
         errs.append("prima persona trovata (io e Lorenzo / insieme al mio collega / noi guardiamo)")
-    kick = re.findall(r"<div class='k'>\d+:\s*([^<]+)</div>", body)
-    manc = [(x[0] if isinstance(x, list) else x) for x in SEZIONI
+    kick = [_senza_accenti(k) for k in re.findall(r"<div class='k'>\d+:\s*([^<]+)</div>", body)]
+    manc = [(x[0] if isinstance(x, list) else x) for x in attese
             if not any(v.lower() in k.lower() for v in (x if isinstance(x, list) else [x]) for k in kick)]
     if manc:
         errs.append(f"sezioni mancanti o rinominate: {manc} (trovate: {kick})")
-    if "[[SEASON]]" not in body:
-        errs.append("manca [[SEASON]] nella sezione 6")
+    if "google" in canali and "[[SEASON]]" not in body:
+        errs.append("manca [[SEASON]] nella sezione Stagionalità")
     bars = an.get("bars")
     if not isinstance(bars, list) or len(bars) != 12 or not all(isinstance(b, list) and len(b) == 2 for b in bars):
         errs.append("bars deve essere una lista di 12 coppie [altezza, hi]")
     if "<table" in body and "<span class='tag'>" not in body:
         errs.append("nella tabella mancano i <span class='tag'> di priorità")
-    if "<table" not in body:
-        errs.append("manca la tabella della sezione 2 (Domanda)")
+    if "google" in canali and "<table" not in body:
+        errs.append("manca la tabella della sezione Domanda")
     visibile = re.sub(r"<[^>]+>", " ", tutto).replace("[[SEASON]]", " ")
     if not re.search(r"verificat|controllo dal vivo|rilevat|abbiamo controllato|abbiamo visto", visibile, re.I):
         errs.append("i fatti che abbiamo visto vanno citati nel testo («abbiamo controllato», «da quanto abbiamo visto»)")
@@ -548,8 +695,11 @@ def renderizza(an, p, s):
         print(f"    brand: ripiego sui colori SG ({str(e)[:60]})")
         pal = brand_assets.pick_palette([])
     azienda = p.get("company") or s["raccolta"].get("azienda") or dom
-    out = os.path.join(CACHE, f"Analisi_GoogleAds_{slug_cc(azienda)}.pdf")
+    canali = s.get("canali") or ["google"]
+    titolo = titolo_canali(canali)
+    out = os.path.join(CACHE, f"Analisi_{slug_cc(titolo) if canali == ['google'] else 'Ads'}_{slug_cc(azienda)}.pdf")
     cfg = {"company": azienda, "type": an.get("type") or "education", "person": persona(p),
+           "titolo": titolo, "primo": NOME_CANALE[canali[0]],
            "intro": an["intro"], "bars": an["bars"], "body": an["body"], "client_logo": logo,
            "out": out, "assets_dir": guscio(), **pal}
     jp = os.path.join(CACHE, f"_render_{slug_cc(dom)}.json")
@@ -584,12 +734,27 @@ def _ripulisci(an):
     return an
 
 
-def _correggi_se_basta(an, errori, fatti, fresca):
+def a_pagine(an, canali):
+    """Le pagine nuove le decide il codice, non il modello (16/11): a moduli si va a capo solo
+    quando si apre un modulo o la chiusura; con una sezione per pagina il PDF era mezzo bianco."""
+    if not an or (canali or ["google"]) == ["google"]:
+        return an
+    a_capo = {_senza_accenti(SEZIONI_MODULO[c][0]).lower() for c in canali} | {"credibilita"}
+
+    def classe(m):
+        nome = _senza_accenti(m.group(2)).strip().lower()
+        primo = m.group(1) == "1"
+        return f"<section class='{'sec' if primo or nome not in a_capo else 'sec brk'}'>{m.group(0)[m.group(0).index('<div'):]}"
+    corpo = re.sub(r"<section class=['\"][^'\"]*['\"]>\s*<div class='k'>(\d+):\s*([^<]+)</div>", classe, an.get("body") or "")
+    return {**an, "body": corpo}
+
+
+def _correggi_se_basta(an, errori, fatti, fresca, canali=None):
     """La correzione del codice prima di un altro giro del modello o della domanda a una persona."""
     corretta = correggi_da_solo(an, errori)
     if corretta is None:
         return an, errori
-    rimasti = cancello(corretta, fatti, fresca)
+    rimasti = cancello(corretta, fatti, fresca, canali)
     print("    corretta da sola: «verificato»/«dal vivo» -> «da quanto abbiamo visto»" + (f", resta: {'; '.join(rimasti)[:120]}" if rimasti else ""))
     return (corretta, rimasti) if not rimasti else (an, errori)
 
@@ -645,13 +810,13 @@ def lavora(p):
     an = _ripulisci(chiedi(p, s))
     fatti = fatti_in_testo(s, p)
     fresca = raccolta_fresca(s.get("raccolta"))
-    errori = cancello(an, fatti, fresca) if an else ["risposta non in JSON"]
-    an, errori = _correggi_se_basta(an, errori, fatti, fresca)
+    errori = cancello(an, fatti, fresca, s["canali"]) if an else ["risposta non in JSON"]
+    an, errori = _correggi_se_basta(an, errori, fatti, fresca, s["canali"])
     if errori:
         print(f"    bocciata una volta: {'; '.join(errori)[:160]}")
         an = _ripulisci(chiedi(p, s, errori))
-        errori = cancello(an, fatti, fresca) if an else ["risposta non in JSON"]
-        an, errori = _correggi_se_basta(an, errori, fatti, fresca)
+        errori = cancello(an, fatti, fresca, s["canali"]) if an else ["risposta non in JSON"]
+        an, errori = _correggi_se_basta(an, errori, fatti, fresca, s["canali"])
     if errori:
         # TRATTENUTA CON MOTIVO (da Galileo): non si pubblica, e il motivo resta
         # nella scheda, cosi' nessuno aspetta un PDF che non arriva
@@ -666,6 +831,7 @@ def lavora(p):
         except Exception as e:                                    # noqa: BLE001
             print(f"    (motivo non scritto: {str(e)[:60]})")
         return False
+    an = a_pagine(an, s["canali"])
     pdf, azienda = renderizza(an, p, s)
     print(f"  {nome}: PDF pronto ({os.path.getsize(pdf) // 1024} KB) → {pdf}")
     if os.path.isdir(VAULT_ANALISI):
@@ -796,6 +962,10 @@ def main():
                           "&fuori=eq.false&analysis_sent=eq.false&analysis_pdf=is.null&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=60") or []
+        # 16/11: anche i si' a cui Clara ha gia' risposto senza analisi (googlefit.si_gia_serviti_da_clara)
+        from googlefit import si_gia_serviti_da_clara
+        righe += [x for x in si_gia_serviti_da_clara("id,email,name,company,website,sector,city,enriched,analysis_pdf,classificazione")
+                  if not x.get("analysis_pdf") and x["id"] not in {r["id"] for r in righe}]
         # CHI FALLISCE VA IN FONDO, NON DAVANTI (27/9). Il 26/9 Studio Bossi e Studio
         # Lievito sono state riscritte sedici volte ciascuna, sempre bocciate dal
         # cancello per gli stessi due motivi: undici ore di macchina in un giorno e

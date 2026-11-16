@@ -30,6 +30,7 @@ USO
   python3 scripts/googlefit.py              tutti quelli in arrivo senza fit
   python3 scripts/googlefit.py --prova      mostra e non scrive
   python3 scripts/googlefit.py --uno EMAIL  uno solo (anche se ce l'ha gia')
+  python3 scripts/googlefit.py --ricontrolla-meta-ads [--ids id1,id2]   rimisura gli annunci Meta
 """
 
 import csv
@@ -475,8 +476,20 @@ def _annuncio_suo(ad, azienda, dom):
     testi = " ".join(str(sn.get(k) or "") for k in ("link_url", "caption", "page_profile_uri")).lower()
     if dom and dom.lower() in testi:
         return True
-    mie, sue = _parole(azienda), _parole(ad.get("page_name") or sn.get("page_name"))
-    return bool(mie) and (mie <= sue or (len(mie & sue) >= 2))
+    return pagina_sua(ad.get("page_name") or sn.get("page_name"), azienda)
+
+
+def pagina_sua(pagina, azienda):
+    """Il nome della pagina e' il loro? Tutte le parole del loro nome stanno nella pagina, o il nome
+    attaccato sta dentro la pagina attaccata («Due G» e «DueG»). Con quattro parole o piu' ne puo'
+    mancare una. 16/11: bastavano due parole in comune, e una scuola di negoziazione prendeva gli annunci di un'altra scuola con «International School»
+    nel nome, un venditore di luce e gas quelli di una multiutility (6 fit Meta sbagliati su 60)."""
+    mie, sue = _parole(azienda), _parole(pagina)
+    if not mie:
+        return False
+    attaccato = lambda x: re.sub(r"[^a-z0-9]", "", (x or "").lower())      # noqa: E731
+    a, p = attaccato(azienda), attaccato(pagina)
+    return mie <= sue or (len(a) >= 6 and a in p) or (len(mie) >= 4 and len(mie & sue) >= len(mie) - 1)
 
 
 def conta_meta_ads(ads, azienda, dom, oggi=None):
@@ -725,6 +738,16 @@ def _zona_sul_raggio(c, zone):
             "su": f"{len(trovate)} zone servite"}
 
 
+def si_gia_serviti_da_clara(campi, giorni=14):
+    """16/11 (un si' con la call fissata, senza niente in mano): il fit e l'analisi guardavano solo chi «aspetta noi». Clara risponde in un
+    minuto (dal 4/11), e un si' a cui ha proposto la call smette di aspettarci prima che il fit giri:
+    restava senza fit e senza analisi, e Dre arrivava alla call senza niente in mano. Questi sono i si'
+    delle ultime due settimane senza analisi mandata, anche se non aspettano piu' noi."""
+    da = (datetime.date.today() - datetime.timedelta(days=giorni)).isoformat()
+    return sb("GET", f"/rest/v1/prospects?select={campi}&fuori=eq.false&analysis_sent=eq.false&classificazione=eq.positivo"
+                     f"&awaiting_us=eq.false&passato_a=is.null&last_reply_at=gte.{da}&order=last_reply_at.desc&limit=50") or []
+
+
 def valuta(p, zone, settori):
     azienda = p.get("company") or p.get("name") or p.get("email")
     from stanza import sito_vero
@@ -884,8 +907,13 @@ def main():
     elif "--ricontrolla-meta-ads" in sys.argv:
         # 20/10: la Ad Library ha risposto vuoto durante il primo giro; si rimisura e si corregge solo cio' che cambia
         import time as _t
-        tutte = sb("GET", "/rest/v1/prospects?select=id,company,name,email,website,enriched&fuori=eq.false&analysis_sent=eq.false"
-                          "&enriched->google_fit->meta=not.is.null&limit=300") or []
+        if "--ids" in sys.argv:
+            # 16/11: solo le schede indicate (le pagine Meta prese per due parole in comune)
+            ids = sys.argv[sys.argv.index("--ids") + 1]
+            tutte = sb("GET", f"/rest/v1/prospects?select=id,company,name,email,website,enriched&id=in.({ids})") or []
+        else:
+            tutte = sb("GET", "/rest/v1/prospects?select=id,company,name,email,website,enriched&fuori=eq.false&analysis_sent=eq.false"
+                              "&enriched->google_fit->meta=not.is.null&limit=300") or []
         from stanza import sito_vero
         cambi = 0
         for p in tutte:
@@ -903,7 +931,7 @@ def main():
                 cambi += 1
                 print(f"  M {m.get('verdetto'):8} -> {vm:8} {(p.get('company') or '')[:30]:30} {motivo_m[:70]}")
                 if not prova:
-                    gf2 = dict(gf, meta=dict(m, verdetto=vm, motivo=motivo_m, meta_ads=nuovo), canale=canale(gf.get("verdetto"), vm))
+                    gf2 = dict(gf, meta=dict(m, verdetto=vm, motivo=motivo_m, meta_ads=nuovo), canale=canale(gf.get("verdetto"), vm, (gf.get("linkedin") or {}).get("verdetto")))
                     sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {"enriched": {**p["enriched"], "google_fit": gf2}}, {"Prefer": "return=minimal"})
         print(f"ricontrollo Meta Ads: {len(tutte)} fit, {cambi} cambiati" + (" (prova)" if prova else ""))
         return
@@ -918,6 +946,8 @@ def main():
                           "&fuori=eq.false&analysis_sent=eq.false&or=(awaiting_us.eq.true,coda.not.is.null)&stage=neq.nuovo&passato_a=is.null"
                           "&or=(classificazione.is.null,classificazione.not.in.(negativo,fuori_target,soppresso))"
                           "&order=last_reply_at.desc&limit=200") or []
+        righe += [x for x in si_gia_serviti_da_clara("id,email,name,company,website,sector,city,enriched")
+                  if x["id"] not in {r["id"] for r in righe}]
         # CHI NON HA IL SITO LETTO SI RIPROVA (27/9). Quattro aziende (Viaggi del
         # Mappamondo, Telemar, Mare Karina, SMART Consulting) aspettavano l'analisi
         # da giorni: il fit era gia' passato ma il sito non si era scaricato, e
