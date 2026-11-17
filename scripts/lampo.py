@@ -28,7 +28,8 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stanza import sb, scritta_da_macchina, persona_dopo_analisi  # noqa: E402
+from stanza import sb, scritta_da_macchina, persona_dopo_analisi, analisi_accesa  # noqa: E402
+# analisi_accesa: 12/11 (Dre: «lascia stare completamente l'analisi»), ora vive in stanza (17/11)
 
 PROVA = "--prova" in sys.argv
 FRESCA_ORE = int(sys.argv[sys.argv.index("--ore") + 1]) if "--ore" in sys.argv else 6          # oltre, ci pensano i giri normali: il lampo e' per chi aspetta adesso
@@ -139,17 +140,6 @@ def bozze_accese():
     all'analisi; bozze, prima_risposta e il postino vecchio girano solo se «bozze» e' accesa in operazioni."""
     try:
         r = sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.bozze") or []
-        return bool(r and r[0].get("attiva"))
-    except Exception:                                            # noqa: BLE001
-        return False
-
-
-def analisi_accesa():
-    """12/11 (Dre: «lascia stare completamente l'analisi», outbound solo software): l'interruttore
-    «analisi» spento valeva per il giro del direttore ma non per la strada veloce, che chiamava
-    fit e analisi da sola a ogni si'. Ora l'interruttore vale anche qui."""
-    try:
-        r = sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.analisi") or []
         return bool(r and r[0].get("attiva"))
     except Exception:                                            # noqa: BLE001
         return False

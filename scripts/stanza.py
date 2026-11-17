@@ -425,6 +425,20 @@ def fit_di(p):
 ESCLUSI_DALLE_ANALISI = ("agenzia", "portale", "catena", "multinazionale", "privacy")
 
 
+def analisi_accesa():
+    """L'INTERRUTTORE «ANALISI», IN UN POSTO SOLO (17/11). Dre, 12/11: «lascia stare completamente
+    l'analisi» (outbound solo software): l'operazione «analisi» e' spenta e nessuno fa piu' PDF. Il
+    12/11 l'interruttore valeva per il direttore e la strada veloce (lampo); il postino del Desk
+    (clara_manda) non lo guardava, e il 17/11 un si' approvato da Clara con «manda l'analisi» restava
+    in «aspetto l'analisi» fino a 24 ore per un PDF che nessuno avrebbe fatto. Chi ha bisogno di
+    sapere se l'analisi si fa chiede qui. Nel dubbio (database che non risponde) dice spenta."""
+    try:
+        r = sb("GET", "/rest/v1/operazioni?select=attiva&chiave=eq.analisi") or []
+        return bool(r and r[0].get("attiva"))
+    except Exception:                                            # noqa: BLE001
+        return False
+
+
 def esclusa_dalle_analisi(p):
     """LE ESCLUSIONI SACRE DELL'ANALISI, IN UN POSTO SOLO (13/11). Regola d'oro 3: niente analisi ad
     agenzie e competitor (piu' portali, catene, multinazionali, chi cita la privacy). Stava solo nella

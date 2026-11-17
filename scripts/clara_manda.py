@@ -22,7 +22,7 @@ import zoneinfo
 QUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, QUI)
 import manda  # noqa: E402
-from stanza import sb, contattabile, env, esclusa_dalle_analisi  # noqa: E402
+from stanza import sb, contattabile, env, esclusa_dalle_analisi, analisi_accesa  # noqa: E402
 
 PROVA = os.environ.get("PROVA") == "1" or "--prova" in sys.argv
 ROMA = zoneinfo.ZoneInfo("Europe/Rome")
@@ -60,6 +60,10 @@ def allegati(p, d):
         if esclusa:
             return f"per la scheda e' «{esclusa}», e l'analisi a loro non si manda (regola d'oro 3)"
         if not p.get("analysis_pdf"):
+            # 17/11: con l'interruttore «analisi» spento (Dre, 12/11) il PDF non arrivera': la decisione torna
+            # subito a Dre col motivo, invece di restare 24 ore in «aspetto l'analisi»
+            if not analisi_accesa():
+                return "l'analisi e' spenta (Dre, 12/11: niente piu' analisi) e il PDF non c'e'"
             return "aspetta l'analisi"
         url = manda.link_fresco(p["analysis_pdf"])
         peso = _peso(url)

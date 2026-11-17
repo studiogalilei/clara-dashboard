@@ -7086,6 +7086,27 @@ def _():
     assert "if not PROVA" in f
 
 
+@prova("L'interruttore «analisi» vale anche per il postino del Desk (17/11: un si' approvato aspettava 24 ore un PDF che nessuno faceva)")
+def _():
+    import inspect, stanza as S, lampo as L, clara_manda as CM
+    assert L.analisi_accesa is S.analisi_accesa                                   # una regola, un posto
+    assert "def analisi_accesa" not in inspect.getsource(L)
+    p = {"email": "x@y.it", "company": "X", "enriched": {}}
+    vero = CM.analisi_accesa
+    try:
+        CM.analisi_accesa = lambda: False
+        motivo = CM.allegati(p, {"mossa": "send_analysis"})
+        assert isinstance(motivo, str) and motivo != "aspetta l'analisi" and "spenta" in motivo
+        assert CM.allegati(p, {"mossa": "reply"}) == []                          # una risposta senza analisi parte
+        CM.analisi_accesa = lambda: True
+        assert CM.allegati(p, {"mossa": "send_analysis"}) == "aspetta l'analisi"  # accesa: si aspetta il PDF
+    finally:
+        CM.analisi_accesa = vero
+    # il motivo di fermo torna a Dre (ferma con stato proposta), e rilascia non la riapprova (errore scritto)
+    m = inspect.getsource(CM.manda_una)
+    assert 'att == "aspetta l\'analisi"' in m and "return ferma(d, f\"{azienda}: {att}" in m
+
+
 def main():
     falliti = 0
     ritirate = 0
