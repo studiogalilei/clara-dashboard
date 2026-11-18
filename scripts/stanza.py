@@ -264,6 +264,16 @@ def call_in_agenda(p, call=None):
 TIPI_CALL = ("conoscitiva", "tecnica", "avvio")
 
 
+# LE CAMPAGNE CHE DRE GESTISCE A MANO (18/11, Dre: «disattiva, gestisco io a mano questi»): la campagna
+# software offre una mappatura dei processi, non l'analisi Ads che Clara conosce. Chi risponde passa a Dre,
+# e nessuna operazione automatica gli scrive (Clara, follow-up, promemoria): la regola sta qui, in un punto solo.
+CAMPAGNE_A_MANO = {"4476567"}
+
+
+def a_mano(p):
+    return str((p or {}).get("campaign_id") or "") in CAMPAGNE_A_MANO
+
+
 def contattabile(p):
     """MAI UNA BOZZA A CHI NON E' PIU' UN LEAD (25/9, caso Zafferano): in pipeline
     (fuori), cliente, perso, «niente follow-up», rimosso o nervoso. La stessa
@@ -286,6 +296,14 @@ def contattabile(p):
     if p.get("no_followup") or p.get("classificazione") in ("soppresso", "nervoso"):
         return False
     if p.get("in_mano_a"):                   # 4/11: «Me ne occupo io»: la relazione e' di Dre, Clara si ferma
+        return False
+    campagna = p.get("campaign_id")
+    if campagna is None and p.get("id") and "campaign_id" not in p:
+        try:
+            campagna = (sb("GET", f"/rest/v1/prospects?select=campaign_id&id=eq.{p['id']}") or [{}])[0].get("campaign_id")
+        except Exception:                                        # noqa: BLE001
+            campagna = None
+    if a_mano({"campaign_id": campagna}):    # 18/11: campagna che Dre gestisce a mano
         return False
     if p.get("id"):
         try:

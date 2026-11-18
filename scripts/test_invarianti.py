@@ -6981,6 +6981,16 @@ def _():
     assert G.pagina_sua("Omega Infissi srl", "Omega Infissi") and G.pagina_sua("Sigma Events", "Sigma Events")
 
 
+@prova("campagna a mano (18/11): chi risponde dalla campagna software non lo tocca nessuna operazione, passa a Dre")
+def _():
+    import stanza, clara_prova
+    base = {"fuori": False, "stage": "risposto", "pipeline_stage": None, "no_followup": False, "classificazione": "positivo", "in_mano_a": None}
+    assert not stanza.contattabile(dict(base, campaign_id=4476567))
+    assert stanza.a_mano({"campaign_id": "4476567"}) and not stanza.a_mano({"campaign_id": 4003942})
+    src = open(os.path.join(os.path.dirname(__file__), "clara_prova.py")).read()
+    assert "if a_mano(p) and not p.get(\"in_mano_a\"):" in src and "passa_a_dre(p)" in src
+
+
 @prova("linkedin fit (4/11): B2B, ticket alto, compratore riconoscibile; il canale a tre; i fit su una lista nuova")
 def _():
     import googlefit as G, fit_lista as F

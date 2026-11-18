@@ -173,12 +173,29 @@ def risposte_nuove(ore=None):
     # cliente/perso/non contattare, non serve una mossa (4/11: senza questo filtro erano 581 lead in 30 giorni)
     righe = sb_tutte(f"/rest/v1/prospects?select=*&last_reply_at=gte.{da}&lead_id=not.is.null&campaign_id=not.is.null&awaiting_us=eq.true")
     righe.sort(key=lambda r: r.get("last_reply_at") or "", reverse=True)
-    from stanza import contattabile
+    from stanza import contattabile, a_mano
     fuori = []
     for p in righe:
+        if a_mano(p) and not p.get("in_mano_a"):
+            passa_a_dre(p)
+            continue
         if contattabile(p) and not gia_decisa(p["id"], p["last_reply_at"]):
             fuori.append(p)
     return fuori
+
+
+def passa_a_dre(p):
+    """18/11 (Dre: «disattiva, gestisco io a mano questi, il Desk mi aiutera' a chiamarli»): chi risponde dalla
+    campagna software non lo tocca Clara. Passa in mano a Dre, una volta sola, con la notifica sul telefono."""
+    print(f"  {p.get('company') or '?'}: campagna a mano, passa a Dre")
+    if PROVA:
+        return
+    sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}",
+       {"in_mano_a": "Dre", "in_mano_motivo": "Campagna software: le risposte le gestisci tu", "in_mano_il": adesso().isoformat()},
+       {"Prefer": "return=minimal"})
+    import segnale_provvisorio
+    segnale_provvisorio.notifica(f"Ha risposto (software): {p.get('company') or p.get('email') or '?'}",
+                                 "Campagna software, la gestisci tu: apri la scheda e chiamalo.", p["id"])
 
 
 def giorni_feriali(da, a):
