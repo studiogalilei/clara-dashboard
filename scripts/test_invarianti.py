@@ -7117,6 +7117,43 @@ def _():
     assert 'att == "aspetta l\'analisi"' in m and "return ferma(d, f\"{azienda}: {att}" in m
 
 
+@prova("un account Google cancellato non e' un guasto (20/11): chi legge lo salta, il semaforo non chiede di ricaricare niente; un token scaduto di chi c'e' resta un guasto")
+def _():
+    import io
+    import urllib.error
+    import stanza as St
+    import google_api as GA
+    vero = '{\n  "error": "invalid_grant",\n  "error_description": "Account has been deleted"\n}'
+    assert GA.account_cancellato(vero)
+    assert not GA.account_cancellato('{"error": "invalid_grant", "error_description": "Token has been expired or revoked."}')
+    assert not GA.account_cancellato("")
+    # la porta vera: access_token davanti alla risposta di Google, senza rete
+    sb_vero, open_vero, env_vero = GA.sb, GA.urllib.request.urlopen, GA.env
+    def rifiuta(corpo):
+        def _apri(*a, **k):
+            raise urllib.error.HTTPError("https://oauth2.googleapis.com/token", 400, "Bad Request", {}, io.BytesIO(corpo.encode()))
+        return _apri
+    try:
+        GA.sb = lambda *a, **k: [{"refresh_token": "x"}]
+        GA.env = lambda n: "x"
+        GA._cache.clear()
+        GA.urllib.request.urlopen = rifiuta(vero)
+        try:
+            GA.access_token("uscito@esempio.it"); assert False, "doveva alzare"
+        except RuntimeError as e:
+            riga = f"  calendario di uscito@esempio.it: {str(e)[:160]}"
+        assert "cancellato" in riga and St.servizi_giu(riga) == [], St.servizi_giu(riga)
+        GA.urllib.request.urlopen = rifiuta('{"error": "invalid_grant", "error_description": "Token has been expired or revoked."}')
+        try:
+            GA.access_token("presente@esempio.it"); assert False, "doveva alzare"
+        except RuntimeError as e:
+            riga = f"  calendario di presente@esempio.it: {str(e)[:160]}"
+        assert St.servizi_giu(riga), riga
+    finally:
+        GA.sb, GA.urllib.request.urlopen, GA.env = sb_vero, open_vero, env_vero
+        GA._cache.clear()
+
+
 def main():
     falliti = 0
     ritirate = 0

@@ -26,6 +26,16 @@ UTENTE = env("GOOGLE_UTENTE") or "dramane@studiogalilei.com"
 _cache = {}
 
 
+def account_cancellato(corpo):
+    """Pura. Google dice che l'account della persona non c'e' piu' (cancellato dall'amministratore).
+    20/11: un collega uscito dal Workspace Google ha lasciato il suo token in google_token; ogni
+    lettura del calendario stampava «invalid_grant», il semaforo lo leggeva come «crediti finiti o
+    chiave scaduta, va ricaricato il conto» e la mail delle 19 lo diceva a Dre da tre giorni. Un
+    account cancellato non si ricarica e non si rinnova: chi legge lo salta e va avanti. Un token
+    scaduto o revocato di una persona che c'e' ancora resta un guasto vero."""
+    return "account has been deleted" in (corpo or "").lower()
+
+
 def access_token(email=None):
     email = email or UTENTE
     c = _cache.get(email)
@@ -43,7 +53,10 @@ def access_token(email=None):
         with urllib.request.urlopen(req, timeout=30) as r:
             d = json.loads(r.read())
     except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Google non rinnova il token di {email}: {e.read().decode()[:200]}")
+        corpo = e.read().decode()[:200]
+        if account_cancellato(corpo):
+            raise RuntimeError(f"l'account Google {email} non esiste piu' (cancellato nel Workspace Google): lo salto")
+        raise RuntimeError(f"Google non rinnova il token di {email}: {corpo}")
     _cache[email] = {"token": d["access_token"], "scade": time.time() + int(d.get("expires_in", 3600))}
     return d["access_token"]
 
