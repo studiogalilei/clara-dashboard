@@ -23,6 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stanza import sb, di_clara                            # noqa: E402
 
 GIORNI = 10
+# il motivo scritto nei Persi: il sync lo riconosce per riportare vivo chi poi risponde (sync_v2.rinasce_dal_silenzio)
+MOTIVO = "Nessuna risposta dopo l'analisi"
 
 
 def ultimo_seguito(p):
@@ -96,7 +98,7 @@ def main():
             print(f"  esce: {nome} (analisi {p['analysis_sent_at'][:10]})"); usciti += 1; continue
         sb("PATCH", f"/rest/v1/prospects?id=eq.{p['id']}", {
             "stage": "perso", "no_followup": True,
-            "lost_reason": f"Nessuna risposta dopo l'analisi ({GIORNI} giorni), uscito dai prospect il {oggi:%d/%m/%Y}",
+            "lost_reason": f"{MOTIVO} ({GIORNI} giorni), uscito dai prospect il {oggi:%d/%m/%Y}",
         })
         usciti += 1
     print(f"silenzi: {usciti} usciti dai prospect, {len(righe)} controllati")

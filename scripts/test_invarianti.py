@@ -1458,6 +1458,25 @@ def _():
         S.sb = vero_sb
 
 
+@prova("chi esce per silenzio e poi risponde torna vivo; un no, un fuori ufficio o un perso deciso a mano restano persi (23/11)")
+def _():
+    import silenzi as S
+    import sync_v2 as V
+    motivo = f"{S.MOTIVO} (10 giorni), uscito dai prospect il 10/11/2026"
+    assert motivo.startswith(S.MOTIVO)
+    p = {"stage": "perso", "fuori": False, "lost_reason": motivo}
+    assert V.rinasce_dal_silenzio(p, True, "positivo", {}), "l'ho letta, sentiamoci: deve tornare vivo"
+    assert V.rinasce_dal_silenzio(p, True, "da_classificare", {})
+    assert not V.rinasce_dal_silenzio(p, False, "positivo", {}), "senza una risposta che aspetta noi resta perso"
+    for no in V.CLASSI_NO + ("ooo",):
+        assert not V.rinasce_dal_silenzio(p, True, no, {}), f"un {no} non riporta vivo"
+    assert not V.rinasce_dal_silenzio({**p, "lost_reason": "Ha scelto un'altra agenzia"}, True, "positivo", {}), \
+        "un perso con un altro motivo l'ha deciso una persona"
+    assert not V.rinasce_dal_silenzio(p, True, "positivo", {"stage": "a-mano"}), "lo stage murato a mano non si tocca"
+    assert not V.rinasce_dal_silenzio({**p, "fuori": True}, True, "positivo", {})
+    assert "lost_reason" in V.CAMPI_PROSPECT, "il sync deve leggere il motivo per riconoscere il silenzio"
+
+
 @prova("la giornata non e' finita: una bozza di follow-up in Posta non chiude la giornata")
 def _():
     import battito as B

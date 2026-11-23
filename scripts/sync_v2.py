@@ -381,10 +381,22 @@ def data_ooo(testo):
             return None
     return None
 
+def rinasce_dal_silenzio(cur, awaiting, cls, deciso=None):
+    """Un lead messo nei Persi da silenzi.py (nessuna risposta dopo l'analisi) che poi risponde,
+    e non per dire no o per un fuori ufficio, torna vivo: e' la promessa scritta in silenzi.py
+    («se poi risponde, il sync lo riporta vivo da solo»), che il blocco dei Persi tradiva.
+    Un perso deciso da una persona (altro motivo, o lo stage murato in «deciso») resta perso."""
+    from silenzi import MOTIVO
+    return bool(cur.get("stage") == "perso" and awaiting and not cur.get("fuori")
+                and (cur.get("lost_reason") or "").startswith(MOTIVO)
+                and cls not in CLASSI_NO and cls != "ooo"
+                and "stage" not in (deciso or {}))
+
+
 # ---------- stato attuale dal DB ----------
 LOCKED_STAGES = {"cliente", "call_fissata", "perso", "rinviato"}
 # i campi del lead che il sync legge: gli stessi per il giro (db_prospects) e per un lead solo (sincronizza_lead)
-CAMPI_PROSPECT = ("id,email,company,stage,fuori,classificazione,enriched,awaiting_us,"
+CAMPI_PROSPECT = ("id,email,company,stage,fuori,classificazione,enriched,awaiting_us,lost_reason,"
                   "analysis_sent,analysis_sent_at,no_followup,last_reply_at,followup_due")
 
 CALDI_GIORNI = 30          # una conversazione dove abbiamo scritto noi da meno di un mese
@@ -664,6 +676,13 @@ def sincronizza_filo(em, lead, cid, nome_campagna, known, started, firma=None, a
             patch["ooo_until"] = ooo_until
     # stage: mai toccare i bloccati o i fuori
     cur = rec or {}
+    if rinasce_dal_silenzio(cur, awaiting, cls, deciso):
+        # 23/11: messo nei Persi da silenzi.py (dieci giorni muto), poi ha scritto «l'ho letta,
+        # sentiamoci»: Dre riceveva la notifica e l'app lo teneva nei Persi. Torna vivo.
+        patch.update({"stage": "risposto", "lost_reason": None})
+        if "no_followup" not in patch:
+            patch["no_followup"] = False
+        cur = {**cur, "stage": "risposto"}
     if not cur.get("fuori") and cur.get("stage") not in LOCKED_STAGES:
         if awaiting:
             patch["stage"] = "risposto"
