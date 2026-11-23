@@ -6585,6 +6585,21 @@ def _():
     assert "dopo_la_call_fissata(prova)" in src, "il calendario non pulisce piu' dopo la call fissata"
 
 
+@prova("una call rifiutata per mail non torna «Call fissata» per le call gia' fatte (23/11)")
+def _():
+    import calendario as K
+    import orecchio as O
+    assert K.NOTE_ORECCHIO == (O.NOTA_ANNULLA, O.NOTA_SPOSTA), "le note dell'orecchio vivono in orecchio.py"
+    futura = {"at": "2026-11-30T10:00:00+00:00", "creato_il": "2026-10-26T16:24:24+00:00"}
+    assert K.call_da_fare([futura]) == [futura], "senza annullamento la call da fare conta"
+    assert K.call_da_fare([futura], "2026-11-23T14:56:01+00:00") == [], "la mail del lead che annulla vince su una call vecchia in calendario"
+    nuova = {**futura, "creato_il": "2026-11-24T09:00:00+00:00"}
+    assert K.call_da_fare([futura, nuova], "2026-11-23T14:56:01+00:00") == [nuova], "una call riprenotata dopo l'annullamento conta"
+    src = open(K.__file__, encoding="utf-8").read()
+    corpo = src[src.index("def dopo_la_call_fissata"):src.index("def da_annullare")]
+    assert "at=gte." in corpo and "call_da_fare(" in corpo, "dopo_la_call_fissata conta di nuovo le call gia' fatte"
+
+
 @prova("la risposta del calendario a un invito e' una macchina anche col cellulare nel testo, una persona che accetta no (24/10)")
 def _():
     import segnale_provvisorio as S

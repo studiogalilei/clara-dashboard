@@ -571,6 +571,22 @@ def da_pulire(decisione, proposte):
     return cambio, chiudere
 
 
+# le note dell'orecchio (orecchio.NOTA_ANNULLA / NOTA_SPOSTA): il lead ha annullato o spostato per mail
+NOTE_ORECCHIO = ("Achille: ha annullato la call per mail", "Achille: ha chiesto per mail di spostare la call")
+
+
+def call_da_fare(call, annullata_il=None):
+    """Pura. LA CALL CHE CONTA E' QUELLA DA FARE (23/11, un lead immobiliare). Aveva fatto la conoscitiva
+    e la tecnica a ottobre, poi ha rifiutato per mail la call di conferma del 24/11: l'orecchio l'ha
+    rimesso «Da chiamare» alle 15:56 e dieci minuti dopo questo passo l'ha riportato in «Call fissata»,
+    perche' contava anche le call gia' fatte. Contano solo le call future (la query le prende gia'
+    da adesso in avanti) e, se l'orecchio ha letto un annullamento o uno spostamento, solo quelle
+    prenotate dopo: una call rifiutata che resta nel calendario di Dre non scavalca la mail del lead."""
+    if not annullata_il:
+        return list(call or [])
+    return [c for c in call or [] if (c.get("creato_il") or "") > annullata_il]
+
+
 def dopo_la_call_fissata(prova):
     """CON LA CALL IN AGENDA NIENTE RESTA INDIETRO (24/10, un lead di autonoleggio). Dre l'aveva
     chiamato e aveva prenotato la call; la scheda era passata in «Call fissata» ma l'app diceva
@@ -582,11 +598,17 @@ def dopo_la_call_fissata(prova):
     if not ps:
         return 0
     ids = ",".join(p["id"] for p in ps)
+    adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     call = {}
-    for x in sb("GET", f"/rest/v1/agenda?select=prospect_id&tipo=in.({','.join(TIPI_CALL)})&prospect_id=in.({ids})") or []:
+    for x in sb("GET", f"/rest/v1/agenda?select=prospect_id,at,creato_il&tipo=in.({','.join(TIPI_CALL)})&prospect_id=in.({ids})"
+                       f"&at=gte.{urllib.parse.quote(adesso)}") or []:
         call.setdefault(x["prospect_id"], []).append(x)
-    # solo chi ha una call vera (stanza.call_in_agenda): chi le ha annullate tutte resta com'e'
-    ps = [p for p in ps if call_in_agenda(p, call.get(p["id"], []))]
+    orecchio = {}
+    for n in sb("GET", f"/rest/v1/snella_note?select=prospect_id,at&autore_nome=eq.Achille&prospect_id=in.({ids})"
+                       f"&testo=in.({urllib.parse.quote(chr(34) + NOTE_ORECCHIO[0] + chr(34))},{urllib.parse.quote(chr(34) + NOTE_ORECCHIO[1] + chr(34))})") or []:
+        orecchio[n["prospect_id"]] = max(orecchio.get(n["prospect_id"], ""), n["at"])
+    # solo chi ha una call DA FARE prenotata dopo l'ultimo annullamento letto dall'orecchio
+    ps = [p for p in ps if call_in_agenda(p, call_da_fare(call.get(p["id"], []), orecchio.get(p["id"])))]
     if not ps:
         return 0
     ids = ",".join(p["id"] for p in ps)
@@ -594,7 +616,6 @@ def dopo_la_call_fissata(prova):
     aperte = {}
     for x in sb("GET", f"/rest/v1/proposte?select=id,prospect_id,ref&stato=eq.aperta&tipo=in.(risposta,umano)&prospect_id=in.({ids})") or []:
         aperte.setdefault(x["prospect_id"], []).append(x)
-    adesso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     toccati = 0
     for p in ps:
         cambio, chiudere = da_pulire(decisioni.get(p["id"]), aperte.get(p["id"]))
