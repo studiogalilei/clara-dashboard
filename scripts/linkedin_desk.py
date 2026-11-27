@@ -243,9 +243,9 @@ def note():
     print(json.dumps([{k: r.get(k) for k in campi} for r in righe], ensure_ascii=False, indent=1))
 
 
-def disegno(scena, out, dre=False):
+def disegno(scena, out, dre=False, stile="disegno"):
     import base64
-    d = _funzione("linkedin-disegno", {"scena": scena, "dre": dre}, timeout=170)
+    d = _funzione("linkedin-disegno", {"scena": scena, "dre": dre, "stile": stile}, timeout=170)
     if not d.get("png"):
         sys.exit(f"disegno non riuscito: {d.get('errore')}")
     open(out, "wb").write(base64.b64decode(d["png"]))
@@ -299,7 +299,7 @@ if __name__ == "__main__":
      "maps": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "maps", "q": a[1]}), ensure_ascii=False, indent=1)),
      "recensioni": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "recensioni", "data_id": a[1], "pagine": 2}, 120), ensure_ascii=False, indent=1)),
      "google": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "google", "q": a[1]}), ensure_ascii=False, indent=1)),
-     "disegno": lambda: disegno(a[1], a[2], "--dre" in a),
+     "disegno": lambda: disegno(a[1], a[2], "--dre" in a, next((x.split("=", 1)[1] for x in a if x.startswith("--stile=")), "disegno")),
      "senza-immagine": lambda: senza_immagine(),
      "immagine": lambda: immagine(a[1], a[2]),
      "nota-salva": lambda: nota_salva(a[1], a[2]),
