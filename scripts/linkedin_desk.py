@@ -10,6 +10,7 @@ La routine «LinkedIn Desk: scrivi i post» (Claude Code in cloud, sull'abboname
   python3 scripts/linkedin_desk.py errore <id> "perche'"
   python3 scripts/linkedin_desk.py usati             # i framework usati nelle ultime due settimane (per non ripeterli)
   python3 scripts/linkedin_desk.py riempi [giorni]   # i giorni vuoti dei prossimi N (7) diventano post automatici da scrivere
+  python3 scripts/linkedin_desk.py settimana         # la domenica: riempie la settimana che arriva (gli altri giorni non fa niente)
 
 Dal 27/11 (v123) ogni persona ha un post al giorno: quelli «auto» li prepara il sistema (senza dettato: tema scelto
 dalla routine), quelli «mio» nascono da un audio o un testo e prendono il posto dell'automatico del loro giorno.
@@ -101,8 +102,17 @@ def riempi(giorni=7):
     print(f"post automatici da scrivere: {nuovi}")
 
 
+def settimana():
+    """Dre, 27/11: «ogni settimana, un giorno vedi tu, prepara i post per tutta la settimana». Si fa la domenica
+    (ora di Roma), per i 7 giorni dopo; se la settimana che arriva e' gia' piena non si aggiunge niente."""
+    if datetime.datetime.now(ZoneInfo("Europe/Rome")).weekday() != 6:
+        print("non e' domenica: la settimana si prepara la domenica")
+        return
+    riempi(8)
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
     {"prendi": lambda: prendi(), "foto": lambda: foto(a[1], a[2]), "salva": lambda: salva(a[1], a[2]),
      "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati(),
-     "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7)}[a[0]]()
+     "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7), "settimana": lambda: settimana()}[a[0]]()

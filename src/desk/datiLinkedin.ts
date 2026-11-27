@@ -38,6 +38,7 @@ export async function leggiPost(): Promise<Post[]> {
   const da = new Date(); da.setHours(0, 0, 0, 0)
   const { data, error } = await supabase.from('linkedin_post').select(CAMPI)
     .neq('stato', 'scartato').gte('uscita_il', da.toISOString()).order('uscita_il', { ascending: true }).limit(60)
+  // (i post ancora senza giorno, quelli che si stanno ottimizzando, li tiene il compositore)
   if (error) throw new Error(error.message)
   return (data ?? []) as Post[]
 }
@@ -63,14 +64,27 @@ export async function urlFoto(percorso: string): Promise<string | null> {
   return data?.signedUrl ?? null
 }
 
-/** «Programma un post»: va nel primo giorno libero (v123, linkedin_nuovo). Torna quando esce. */
-export async function nuovoPost(dettato: string, foto: string | null): Promise<string | null> {
-  const { data, error } = await supabase.rpc('linkedin_nuovo', { dettato: dettato.trim(), foto })
+/** Un post nuovo, ancora senza giorno: con «Ottimizza» lo riscrive la routine, poi si programma. */
+export async function nuovoPost(dettato: string, foto: string | null, ottimizza: boolean): Promise<string> {
+  const riga: Record<string, string | null> = { dettato: dettato.trim(), foto, origine: 'mio', stato: ottimizza ? 'da_scrivere' : 'bozza', testo: ottimizza ? null : dettato.trim() }
+  const { data, error } = await supabase.from('linkedin_post').insert(riga).select('id').single()
   if (error) throw new Error(error.message)
-  const r = data as { ok?: boolean; perche?: string; uscita_il?: string } | null
+  if (ottimizza) await bussa()
+  return (data as { id: string }).id
+}
+
+export async function leggiUno(id: string): Promise<Post | null> {
+  const { data, error } = await supabase.from('linkedin_post').select(CAMPI).eq('id', id).maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Post | null) ?? null
+}
+
+/** «Programma»: giorno e ora li sceglie la persona (v124, linkedin_programma). */
+export async function programma(id: string, quando: Date): Promise<void> {
+  const { data, error } = await supabase.rpc('linkedin_programma', { post: id, quando: quando.toISOString() })
+  if (error) throw new Error(error.message)
+  const r = data as { ok?: boolean; perche?: string } | null
   if (r && r.ok === false) throw new Error(r.perche ?? 'Non sono riuscito a programmarlo.')
-  await bussa()
-  return r?.uscita_il ?? null
 }
 
 export async function cambiaOra(id: string, uscita: Date): Promise<void> {

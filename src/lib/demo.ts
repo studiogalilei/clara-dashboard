@@ -736,6 +736,12 @@ export const demoClient = {
     if (nome === 'clara_non_interessato') { const p = prospects.find((x) => x.id === args?.chi); if (p) { p.no_followup = !args?.riapri; p.lost_reason = args?.riapri ? null : 'Non interessato (Dre, al telefono, 05/11)' } return conAbort({ ok: true }) }
     if (nome === 'clara_non_interessati') return conAbort(prospects.filter((p) => p.no_followup && String(p.lost_reason ?? '').startsWith('Non interessato')).map((p) => ({ id: p.id, azienda: p.company, persona: p.name, email: p.email, citta: p.city, telefono: p.phone, quando: p.lost_reason, analisi_mandata: p.analysis_sent, ultima_risposta: p.last_reply_at })))
     if (nome === 'clara_collega_call') return conAbort({ ok: true })
+    if (nome === 'linkedin_programma') {
+      const r = linkedin_post.find((x) => x.id === args?.post); const q = String(args?.quando ?? '')
+      for (const x of linkedin_post) if (x.origine === 'auto' && String(x.uscita_il).slice(0, 10) === q.slice(0, 10)) x.stato = 'scartato'
+      if (r) { r.uscita_il = q; r.stato = 'programmato'; r.testo = r.testo ?? r.dettato }
+      return conAbort({ ok: true, uscita_il: q })
+    }
     if (nome === 'linkedin_nuovo') {
       const usati = new Set(linkedin_post.filter((r) => r.stato !== 'scartato' && r.origine === 'mio').map((r) => String(r.uscita_il).slice(0, 10)))
       let g = 1; while (usati.has(alle(g, 8).slice(0, 10))) g++
