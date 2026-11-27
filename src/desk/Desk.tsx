@@ -1,188 +1,79 @@
-// IL DESK (4/11/2026). Dre, 3/11 sera: «buttiamo al cesso l'intero sistema fatto finora e mi crei
-// una nuova dashboard per interagire al posto di questo... lascia spazio solo alle call».
-// Quattro schermate: la Coda (ogni relazione con la mossa di Clara e il testo pronto: Invia,
-// Modifica, No), le Call (prenotate e da richiamare, esiti a un tocco), le Relazioni (cerchi
-// un'azienda, vedi tutto il filo), Clara (come sta, cosa ha imparato).
-// Indirizzi: #/d/coda, #/d/coda/<id>, #/d/call, #/d/call/<id> (la scheda evidenziata), #/d/relazioni, #/d/relazioni/<id>, #/d/clara.
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+// IL LINKEDIN DESK (27/11/2026). Dre: «eliminiamo tutto cio' che riguarda l'outbound, il desk diventa prettamente
+// per LinkedIn». Due zone: Post (il compositore e il calendario) e Persone (le aziende del giorno a cui mandare la
+// richiesta). Chiunque del team entra con il suo account e vede solo le sue cose (le regole stanno nel database).
+// Indirizzi: #/d/post, #/d/persone (e #/d/linkedin, il vecchio indirizzo dei post).
+import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { chiSono, type ChiSono } from '../lib/accessi'
 import Login from '../Login'
-import { Icona, type NomeIcona } from '../snella/pezzi'
-import Chiuso from '../Chiuso'
-import { AvvisoTelefono } from '../snella/Telefono'
-import { riallinea } from '../lib/notifiche'
-import Coda from './Coda'
-import Call from './Call'
-import Relazioni from './Relazioni'
-import Filo from './Filo'
-import Analytics from './Analytics'
+import { Icona, type NomeIcona } from '../ui/pezzi'
 import Linkedin from './Linkedin'
+import Persone from './Persone'
 
-export type Voce = 'relazioni' | 'coda' | 'call' | 'analytics' | 'filo' | 'linkedin'
-export interface Dove { voce: Voce; id: string | null }
-
-// 4/11 pomeriggio, Dre: «Relazioni» e' dove agisce lui (la coda di prima, identica); «Coda» e' la coda di Clara,
-// da sbirciare; «Analytics» e' il monitoraggio. «filo» e' la scheda intera di un'azienda, senza voce nel menu.
+type Voce = 'post' | 'persone'
 const VOCI: Array<{ voce: Voce; nome: string; icona: NomeIcona }> = [
-  { voce: 'call', nome: 'Call', icona: 'telefono' },
-  { voce: 'relazioni', nome: 'Relazioni', icona: 'lead' },
-  { voce: 'coda', nome: 'Coda', icona: 'tutti' },
-  { voce: 'analytics', nome: 'Analytics', icona: 'campagne' },
-  // 27/11, Dre: «lo chiamiamo LinkedIn Desk»: audio o testo e una foto che diventano un post
-  { voce: 'linkedin', nome: 'LinkedIn', icona: 'penna' },
+  { voce: 'post', nome: 'Post', icona: 'penna' },
+  { voce: 'persone', nome: 'Persone', icona: 'persone' },
 ]
 
-export function inDesk(hash: string): boolean {
-  return /^#\/d(\/|$)/.test(hash)
-}
-
-function leggi(): Dove {
-  const [, , voce, id] = window.location.hash.replace(/^#/, '').split('/')
-  const v: Voce = voce === 'call' || voce === 'coda' || voce === 'analytics' || voce === 'filo' || voce === 'linkedin' ? voce : voce === 'clara' ? 'analytics' : 'relazioni'
-  return { voce: v, id: id ? decodeURIComponent(id) : null }
-}
-
-export function indirizzo(d: Dove): string {
-  return `#/d/${d.voce}${d.id ? `/${encodeURIComponent(d.id)}` : ''}`
+function leggi(): Voce {
+  return /^#\/d\/persone/.test(window.location.hash) ? 'persone' : 'post'
 }
 
 export default function Desk() {
-  // 4/11, Dre: «come Claude: la riporto più in dentro trascinando, e quando passo sopra appare il coso per muovere»
-  const [larghezza, setLarghezza] = useState<number>(() => { try { const v = Number(localStorage.getItem('desk_barra_px')); return v >= 72 && v <= 360 ? v : 228 } catch { return 228 } })
-  const larga = larghezza >= 140
-  const trascina = (e: ReactMouseEvent) => {
-    e.preventDefault()
-    const x0 = e.clientX, l0 = larghezza
-    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'
-    const muovi = (ev: MouseEvent) => { const l = Math.max(72, Math.min(360, l0 + ev.clientX - x0)); setLarghezza(l < 140 ? 72 : l) }
-    const lascia = () => {
-      window.removeEventListener('mousemove', muovi); window.removeEventListener('mouseup', lascia)
-      document.body.style.cursor = ''; document.body.style.userSelect = ''
-      setLarghezza((l) => { try { localStorage.setItem('desk_barra_px', String(l)) } catch { /* niente */ } return l })
-    }
-    window.addEventListener('mousemove', muovi); window.addEventListener('mouseup', lascia)
-  }
   const [session, setSession] = useState<Session | null>(null)
   const [pronta, setPronta] = useState(false)
-  const [io, setIo] = useState<ChiSono | null>(null)
-  const [erroreIo, setErroreIo] = useState(false)
-  const [dove, setDove] = useState<Dove>(leggi)
-  const passi = useRef(0)
+  const [voce, setVoce] = useState<Voce>(leggi)
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setPronta(true) })
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => sub?.subscription.unsubscribe()
   }, [])
-
   useEffect(() => {
-    if (!session) { setIo(null); return }
-    let vivo = true
-    chiSono().then((c) => { if (vivo) { setIo(c); setErroreIo(false); if (c.ruolo === 'ceo') void riallinea() } })
-      .catch(() => { if (vivo) setErroreIo(true) })
-    return () => { vivo = false }
-  }, [session])
-
-  useEffect(() => {
-    const cambia = () => setDove(leggi())
+    const cambia = () => setVoce(leggi())
     window.addEventListener('hashchange', cambia)
     return () => window.removeEventListener('hashchange', cambia)
   }, [])
 
-  const vai = (d: Dove) => { passi.current += 1; window.location.hash = indirizzo(d) }
-  const indietro = () => { if (passi.current > 0) { passi.current -= 1; window.history.back() } else vai({ voce: dove.voce, id: null }) }
-
-  if (!pronta) return <div className="min-h-dvh bg-white" />
+  if (!pronta) return <div className="min-h-dvh bg-fondo" />
   if (!session) return <Login />
-  if (erroreIo) {
-    return (
-      <div className="mx-auto max-w-md p-6 text-center">
-        <p className="text-[16px] text-inchiostro">Non riesco a capire chi sei: la connessione non risponde.</p>
-        <button onClick={() => window.location.reload()} className="mt-3 min-h-11 rounded-full bg-blu-scuro px-5 font-semibold text-white">Riprova</button>
-      </div>
-    )
-  }
-  if (!io) return <div className="min-h-dvh bg-white" />
-  // 27/11, Dre: «posso passare anche questo sistema agli altri ragazzi»: chi non e' ceo entra solo nel LinkedIn Desk
-  if (io.ruolo !== 'ceo') {
-    return dove.voce === 'linkedin'
-      ? <div className="min-h-dvh bg-fondo px-[max(0.875rem,env(safe-area-inset-left))] pb-10 pt-[calc(14px+env(safe-area-inset-top))] text-inchiostro"><Linkedin /></div>
-      : <Chiuso />
-  }
 
   return (
-    <div className="desk min-h-dvh bg-fondo text-inchiostro lg:flex">
-
-      <a href="#contenuto" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:shadow">Vai al contenuto</a>
-
-      {/* a sinistra sul computer: scuro, come una scrivania che resta ferma */}
-      {/* 4/11, Dre: «allargabile come quella di Claude»: si chiude a sole icone e si riapre, e si ricorda com'era */}
-      <nav aria-label="Sezioni" style={{ width: larghezza }} className={`relative hidden shrink-0 flex-col bg-navy-scuro py-5 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh ${larga ? 'px-3' : 'px-2.5'}`}>
-        <div className={`mb-6 flex items-center ${larga ? 'gap-3 px-3' : 'justify-center'}`}>
-          <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" width={26} height={30} style={{ width: 26, height: 30 }} className="shrink-0 object-contain brightness-0 invert" />
-          {larga && <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/60">OUTBOUND DESK</span></span>}
-        </div>
-        {/* la maniglia: invisibile, appare al passaggio; si trascina, doppio clic per aprire/chiudere */}
-        <div role="separator" aria-orientation="vertical" aria-label="Larghezza della barra" onMouseDown={trascina}
-             onDoubleClick={() => { const l = larga ? 72 : 228; setLarghezza(l); try { localStorage.setItem('desk_barra_px', String(l)) } catch { /* niente */ } }}
-             className="group absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize">
-          <span className="absolute inset-y-0 left-1 w-1 rounded bg-white/0 transition-colors group-hover:bg-white/40" />
-          <span className="absolute left-0 top-1/2 h-10 w-2.5 -translate-y-1/2 rounded bg-white/0 transition-colors group-hover:bg-white/70" />
+    <div className="min-h-dvh bg-fondo text-inchiostro lg:flex">
+      <nav aria-label="Sezioni" className="hidden w-56 shrink-0 flex-col bg-navy-scuro px-3 py-5 text-white lg:sticky lg:top-0 lg:flex lg:h-dvh">
+        <div className="mb-6 flex items-center gap-3 px-3">
+          <img src={`${import.meta.env.BASE_URL}sg-simbolo.svg`} alt="Studio Galilei" width={26} height={30} className="shrink-0 brightness-0 invert" />
+          <span className="leading-tight"><span className="block text-[11px] font-extrabold tracking-[.14em]">STUDIO GALILEI</span><span className="block text-[10px] tracking-[.12em] text-white/70">LINKEDIN DESK</span></span>
         </div>
         <ul className="space-y-1">
-          {VOCI.map((v) => {
-            const su = dove.voce === v.voce || (v.voce === 'relazioni' && dove.voce === 'filo')
-            return (
-              <li key={v.voce}>
-                <a href={indirizzo({ voce: v.voce, id: null })} aria-current={su ? 'page' : undefined} onClick={() => { passi.current += 1 }} title={larga ? undefined : v.nome}
-                   className={`flex min-h-11 items-center rounded-xl text-[14px] font-semibold ${larga ? 'gap-3 px-3.5' : 'justify-center px-0'} ${su ? 'bg-white text-navy' : 'text-white/80 hover:bg-white/[0.1] hover:text-white'}`}>
-                  <Icona nome={v.icona} className="h-[18px] w-[18px] shrink-0" /> {larga && v.nome}
-                </a>
-              </li>
-            )
-          })}
+          {VOCI.map((v) => (
+            <li key={v.voce}>
+              <a href={`#/d/${v.voce}`} aria-current={voce === v.voce ? 'page' : undefined}
+                 className={`flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-[14px] font-semibold ${voce === v.voce ? 'bg-white text-navy' : 'text-white/85 hover:bg-white/10'}`}>
+                <Icona nome={v.icona} className="h-[18px] w-[18px]" /> {v.nome}
+              </a>
+            </li>
+          ))}
         </ul>
-        <div className="mt-auto space-y-2">
-          {larga ? (
-            <div className="rounded-xl border border-white/15 bg-white/[0.06] p-3.5 text-[12px] leading-relaxed text-white/75">
-              <p className="flex items-center gap-2 font-bold text-white"><span className="h-2 w-2 rounded-full bg-ok-segno" /> Clara è al lavoro</p>
-              <p className="mt-1.5">Legge ogni risposta, decide e manda da sola. A te restano le call e le cose ferme.</p>
-            </div>
-          ) : (
-            <p className="flex justify-center py-2" title="Clara è al lavoro"><span className="h-2.5 w-2.5 rounded-full bg-ok-segno" /></p>
-          )}
-        </div>
+        <button type="button" onClick={() => void supabase.auth.signOut()} className="mt-auto min-h-11 rounded-xl px-3.5 text-left text-[13px] font-semibold text-white/70 hover:text-white">Esci</button>
       </nav>
 
-      <div className="min-w-0 flex-1">
-        <main id="contenuto" className="mx-auto w-full max-w-[1480px] pl-[max(0.875rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pb-[calc(92px+env(safe-area-inset-bottom))] pt-[calc(10px+env(safe-area-inset-top))] lg:px-7 lg:pb-12 lg:pt-6">
-          {dove.voce === 'relazioni' && !dove.id && <AvvisoTelefono />}
-          {dove.voce === 'relazioni' ? <Relazioni dove={dove} vai={vai} indietro={indietro} />
-            : dove.voce === 'coda' ? <Coda vai={vai} />
-              : dove.voce === 'call' ? <Call vai={vai} dove={dove} />
-                : dove.voce === 'filo' ? <Filo dove={dove} vai={vai} indietro={indietro} />
-                  : dove.voce === 'linkedin' ? <Linkedin />
-                    : <Analytics />}
-        </main>
-      </div>
+      <main className="min-w-0 flex-1 px-[max(0.875rem,env(safe-area-inset-left))] pb-[calc(92px+env(safe-area-inset-bottom))] pt-[calc(14px+env(safe-area-inset-top))] lg:px-8 lg:pb-12 lg:pt-8">
+        {voce === 'persone' ? <Persone /> : <Linkedin />}
+      </main>
 
-      {/* in basso sul telefono */}
       <nav aria-label="Sezioni" className="fixed inset-x-0 bottom-0 z-30 border-t border-bordo bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         <ul className="mx-auto flex max-w-md">
-          {VOCI.map((v) => {
-            const su = dove.voce === v.voce || (v.voce === 'relazioni' && dove.voce === 'filo')
-            return (
-              <li key={v.voce} className="flex-1">
-                <a href={indirizzo({ voce: v.voce, id: null })} aria-current={su ? 'page' : undefined} onClick={() => { passi.current += 1 }}
-                   className={`flex min-h-16 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold ${su ? 'text-navy' : 'text-tenue'}`}>
-                  <span className={`flex h-8 w-14 items-center justify-center rounded-full ${su ? 'bg-navy/[0.1]' : ''}`}><Icona nome={v.icona} className="h-[21px] w-[21px]" /></span>
-                  {v.nome}
-                </a>
-              </li>
-            )
-          })}
+          {VOCI.map((v) => (
+            <li key={v.voce} className="flex-1">
+              <a href={`#/d/${v.voce}`} aria-current={voce === v.voce ? 'page' : undefined}
+                 className={`flex min-h-16 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold ${voce === v.voce ? 'text-navy' : 'text-tenue'}`}>
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full ${voce === v.voce ? 'bg-navy/10' : ''}`}><Icona nome={v.icona} className="h-[21px] w-[21px]" /></span>
+                {v.nome}
+              </a>
+            </li>
+          ))}
         </ul>
       </nav>
     </div>

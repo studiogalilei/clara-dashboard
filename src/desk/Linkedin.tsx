@@ -5,8 +5,8 @@
 // lo storytelling, poi Schedule e scegli il giorno e l'ora. Easy».
 // Sopra il compositore, sotto il calendario che scorre di lato. Un tocco su un giorno apre il post (testo, foto, ora).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bottone, Errore, Icona } from '../snella/pezzi'
-import { useAvviso, useDati } from '../snella/uso'
+import { Bottone, Errore, Icona } from '../ui/pezzi'
+import { useAvviso, useDati } from '../ui/uso'
 import {
   cambiaFotoPost, cambiaOra, caricaFoto, leggiPost, leggiProfilo, leggiUno, nuovoPost, programma, salvaProfilo, salvaTesto,
   scarta, urlFoto, useAscoltaPost, useDettatura, type Post, type Profilo,

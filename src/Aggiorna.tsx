@@ -7,10 +7,15 @@
 // Quando la versione nuova e' attiva la pagina si ricarica da sola SOLO se l'app e' ferma (nessun
 // campo di testo col fuoco): mentre Dre scrive una nota compare una riga «Nuova versione: tocca per
 // aggiornare», e la ricarica avviene quando la tocca o quando l'app torna davanti ferma.
-// Sta nella porta d'ingresso (Radice.tsx): vale per la versione snella e per il Workspace completo.
+// Sta nella porta d'ingresso (App.tsx).
 import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { appFerma } from './snella/regole'
+
+/** L'app e' ferma se nessun campo di testo ha il fuoco: allora si puo' ricaricare senza perdere quello che si scrive. */
+function appFerma(tag: string | null | undefined, modificabile = false): boolean {
+  const t = (tag ?? '').toUpperCase()
+  return !(t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || modificabile)
+}
 
 export const OGNI_MINUTI = 5
 
