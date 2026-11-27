@@ -18,8 +18,9 @@ import Call from './Call'
 import Relazioni from './Relazioni'
 import Filo from './Filo'
 import Analytics from './Analytics'
+import Linkedin from './Linkedin'
 
-export type Voce = 'relazioni' | 'coda' | 'call' | 'analytics' | 'filo'
+export type Voce = 'relazioni' | 'coda' | 'call' | 'analytics' | 'filo' | 'linkedin'
 export interface Dove { voce: Voce; id: string | null }
 
 // 4/11 pomeriggio, Dre: «Relazioni» e' dove agisce lui (la coda di prima, identica); «Coda» e' la coda di Clara,
@@ -29,6 +30,8 @@ const VOCI: Array<{ voce: Voce; nome: string; icona: NomeIcona }> = [
   { voce: 'relazioni', nome: 'Relazioni', icona: 'lead' },
   { voce: 'coda', nome: 'Coda', icona: 'tutti' },
   { voce: 'analytics', nome: 'Analytics', icona: 'campagne' },
+  // 27/11, Dre: «lo chiamiamo LinkedIn Desk»: audio o testo e una foto che diventano un post
+  { voce: 'linkedin', nome: 'LinkedIn', icona: 'penna' },
 ]
 
 export function inDesk(hash: string): boolean {
@@ -37,7 +40,7 @@ export function inDesk(hash: string): boolean {
 
 function leggi(): Dove {
   const [, , voce, id] = window.location.hash.replace(/^#/, '').split('/')
-  const v: Voce = voce === 'call' || voce === 'coda' || voce === 'analytics' || voce === 'filo' ? voce : voce === 'clara' ? 'analytics' : 'relazioni'
+  const v: Voce = voce === 'call' || voce === 'coda' || voce === 'analytics' || voce === 'filo' || voce === 'linkedin' ? voce : voce === 'clara' ? 'analytics' : 'relazioni'
   return { voce: v, id: id ? decodeURIComponent(id) : null }
 }
 
@@ -155,7 +158,8 @@ export default function Desk() {
             : dove.voce === 'coda' ? <Coda vai={vai} />
               : dove.voce === 'call' ? <Call vai={vai} dove={dove} />
                 : dove.voce === 'filo' ? <Filo dove={dove} vai={vai} indietro={indietro} />
-                  : <Analytics />}
+                  : dove.voce === 'linkedin' ? <Linkedin />
+                    : <Analytics />}
         </main>
       </div>
 

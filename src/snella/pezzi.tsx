@@ -28,6 +28,7 @@ const ICONE = {
   settore: 'M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16',
   campagna: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
   chiudi: 'M18 6L6 18M6 6l12 12',
+  penna: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
 }
 
 export type NomeIcona = keyof typeof ICONE
