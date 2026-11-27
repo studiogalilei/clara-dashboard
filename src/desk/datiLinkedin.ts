@@ -46,7 +46,10 @@ async function bussa(): Promise<void> {
 
 export async function caricaFoto(file: File): Promise<string> {
   const est = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-  const percorso = `foto/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${est}`
+  // ognuno ha la sua cartella (v122): la prima parte del percorso e' chi la carica
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Non sei dentro')
+  const percorso = `${user.id}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${est}`
   const { error } = await supabase.storage.from('linkedin').upload(percorso, file, { contentType: file.type || 'image/jpeg' })
   if (error) throw new Error(error.message)
   return percorso
@@ -76,6 +79,20 @@ export async function salvaTesto(id: string, scelta: number, testo: string): Pro
 
 export async function scarta(id: string): Promise<void> {
   const { error } = await supabase.from('linkedin_post').update({ stato: 'scartato' }).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// IL PROFILO (v122): chi sei e come parli, cosi' la routine scrive con la tua voce.
+export interface Profilo { nome: string; ruolo: string; temi: string; voce: string }
+
+export async function leggiProfilo(): Promise<Profilo | null> {
+  const { data, error } = await supabase.from('linkedin_profilo').select('nome, ruolo, temi, voce').maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Profilo | null) ?? null
+}
+
+export async function salvaProfilo(p: Profilo): Promise<void> {
+  const { error } = await supabase.from('linkedin_profilo').upsert({ ...p, aggiornato_il: new Date().toISOString() })
   if (error) throw new Error(error.message)
 }
 

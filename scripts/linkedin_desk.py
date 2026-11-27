@@ -23,13 +23,16 @@ from stanza import CHIAVE, URL, sb
 
 def prendi():
     righe = sb("GET", "/rest/v1/linkedin_post?stato=eq.da_scrivere&order=creato_il.asc&limit=5"
-                      "&select=id,dettato,foto,richiesta,versioni,scelta,testo")
+                      "&select=id,autore,dettato,foto,richiesta,versioni,scelta,testo")
     presi = []
     for r in righe or []:
         # si segna solo se e' ancora da scrivere: due giri insieme non scrivono lo stesso post
         ok = sb("PATCH", f"/rest/v1/linkedin_post?id=eq.{r['id']}&stato=eq.da_scrivere",
                 {"stato": "in_scrittura", "errore": None}, {"Prefer": "return=representation"})
         if ok:
+            # chi scrive (v122): il suo profilo dice chi e', di cosa parla e come parla
+            prof = sb("GET", f"/rest/v1/linkedin_profilo?utente=eq.{r['autore']}&select=nome,ruolo,temi,voce") if r.get("autore") else []
+            r["profilo"] = prof[0] if prof else None
             presi.append(r)
     print(json.dumps(presi, ensure_ascii=False, indent=1))
 

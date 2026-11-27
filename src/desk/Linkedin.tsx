@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bottone, Carico, Errore, Icona, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import {
-  caricaFoto, leggiPost, nuovoPost, riscrivi, salvaTesto, scarta, urlFoto, useAscoltaPost, useDettatura,
-  type Post, type Richiesta,
+  caricaFoto, leggiPost, leggiProfilo, nuovoPost, riscrivi, salvaProfilo, salvaTesto, scarta, urlFoto, useAscoltaPost, useDettatura,
+  type Post, type Profilo, type Richiesta,
 } from './datiLinkedin'
 
 const RICHIESTE: Array<{ r: Richiesta; nome: string }> = [
@@ -103,6 +103,45 @@ function Crea({ fatto }: { fatto: () => void }) {
       <Bottone tipo="primo" onClick={() => void manda()} disabled={!pieno || invio} className="mt-4 w-full min-h-12 text-[16px]">
         {invio ? 'Lo mando…' : 'Fai il post'}
       </Bottone>
+    </section>
+  )
+}
+
+const CAMPI_PROFILO: Array<{ k: keyof Profilo; nome: string; esempio: string; righe: number }> = [
+  { k: 'nome', nome: 'Nome', esempio: 'Come ti firmi', righe: 1 },
+  { k: 'ruolo', nome: 'Cosa fai', esempio: 'Per esempio: sviluppatore a Studio Galilei', righe: 1 },
+  { k: 'temi', nome: 'Di cosa parli', esempio: 'I due o tre temi su cui vuoi farti conoscere', righe: 2 },
+  { k: 'voce', nome: 'Come parli', esempio: 'Parole tue, cosa non diresti mai, quanto sei ironico', righe: 3 },
+]
+
+/** Chi sei e come parli: la routine scrive con la tua voce. Aperto la prima volta, poi una riga. */
+function ProfiloCard() {
+  const [p, setP] = useState<Profilo | null>(null)
+  const [aperto, setAperto] = useState(false)
+  const [salvo, setSalvo] = useState(false)
+  useEffect(() => { void leggiProfilo().then((x) => { setP(x ?? { nome: '', ruolo: '', temi: '', voce: '' }); if (!x?.nome) setAperto(true) }).catch(() => setP(null)) }, [])
+  if (!p) return null
+  if (!aperto) {
+    return (
+      <button type="button" onClick={() => setAperto(true)} className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-xl px-1 text-left text-[14px] text-tenue hover:text-inchiostro">
+        <Icona nome="penna" className="h-4 w-4 shrink-0" /> Scrivo come {p.nome || 'te'}{p.ruolo ? `, ${p.ruolo}` : ''}. Modifica
+      </button>
+    )
+  }
+  const salva = async () => { setSalvo(true); try { await salvaProfilo(p); setAperto(false) } finally { setSalvo(false) } }
+  return (
+    <section aria-labelledby="profilo" className="mb-4 rounded-2xl border border-bordo bg-white p-4 lg:p-5">
+      <h2 id="profilo" className="text-[17px] font-bold text-inchiostro">Il tuo profilo</h2>
+      <div className="mt-3 space-y-3">
+        {CAMPI_PROFILO.map((c) => (
+          <label key={c.k} className="block">
+            <span className="text-[14px] font-semibold text-inchiostro">{c.nome}</span>
+            <textarea value={p[c.k]} rows={c.righe} placeholder={c.esempio} onChange={(e) => setP({ ...p, [c.k]: e.target.value })}
+                      className="mt-1 w-full resize-y rounded-xl border border-bordo px-3 py-2 text-[16px] text-inchiostro placeholder:text-tenue focus:border-blu-scuro focus:outline-none" />
+          </label>
+        ))}
+      </div>
+      <Bottone tipo="primo" onClick={() => void salva()} disabled={salvo || !p.nome.trim()} className="mt-3 w-full">Salva</Bottone>
     </section>
   )
 }
@@ -208,6 +247,7 @@ export default function Linkedin() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-4 text-[26px] font-extrabold text-inchiostro">LinkedIn</h1>
+      <ProfiloCard />
       <Crea fatto={() => { avvisa('Ricevuto. Arriva in qualche minuto.'); ricarica() }} />
       <h2 className="mb-3 mt-8 text-[19px] font-bold text-inchiostro">Post</h2>
       {errore ? <Errore testo={errore} riprova={ricarica} />

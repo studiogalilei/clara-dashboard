@@ -105,7 +105,12 @@ export default function Desk() {
     )
   }
   if (!io) return <div className="min-h-dvh bg-white" />
-  if (io.ruolo !== 'ceo') return <Chiuso />
+  // 27/11, Dre: «posso passare anche questo sistema agli altri ragazzi»: chi non e' ceo entra solo nel LinkedIn Desk
+  if (io.ruolo !== 'ceo') {
+    return dove.voce === 'linkedin'
+      ? <div className="min-h-dvh bg-fondo px-[max(0.875rem,env(safe-area-inset-left))] pb-10 pt-[calc(14px+env(safe-area-inset-top))] text-inchiostro"><Linkedin /></div>
+      : <Chiuso />
+  }
 
   return (
     <div className="desk min-h-dvh bg-fondo text-inchiostro lg:flex">
