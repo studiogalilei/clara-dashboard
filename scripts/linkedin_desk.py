@@ -15,6 +15,16 @@ La routine «LinkedIn Desk: scrivi i post» (Claude Code in cloud, sull'abboname
   python3 scripts/linkedin_desk.py annunci <utente>  # annunci di lavoro recenti nel mercato e nella zona (Google Jobs), senza agenzie e aziende gia' viste
   python3 scripts/linkedin_desk.py aggiungi <utente> <persone.json>   # [{azienda, settore, citta, persona, ruolo, profilo, cerca, perche, fonte, segnale}]
 
+Le note per chi ha risposto (v126): nelle Persone si tocca «Ha risposto», la routine «LinkedIn Desk: note per chi ha
+risposto» prepara il PDF «Gestionale Operativo AI - <azienda>» (modello e regole nel repo contenuti, cartella ipotesi):
+  python3 scripts/linkedin_desk.py note                       # le note chieste (le segna «in_corso»), JSON
+  python3 scripts/linkedin_desk.py maps "<azienda citta'>"   # le schede Google Maps (voto, recensioni, sito, data_id)
+  python3 scripts/linkedin_desk.py recensioni <data_id>       # le recensioni dalla piu' bassa (2 pagine)
+  python3 scripts/linkedin_desk.py google "<ricerca>"         # i primi risultati di Google
+  python3 scripts/linkedin_desk.py disegno "<scena in inglese>" <out.png>   # il disegno a mano (tetto 3 $ al mese)
+  python3 scripts/linkedin_desk.py nota-salva <id> <file.pdf> # carica il PDF e segna la nota «pronta»
+  python3 scripts/linkedin_desk.py nota-errore <id> "perche'" # segna che non e' riuscita (la persona puo' riprovare)
+
 Dal 27/11 (v123) ogni persona ha un post al giorno: quelli «auto» li prepara il sistema (senza dettato: tema scelto
 dalla routine), quelli «mio» nascono da un audio o un testo e prendono il posto dell'automatico del loro giorno.
 
@@ -24,6 +34,7 @@ import datetime
 import json
 import sys
 import urllib.parse
+import urllib.error
 import urllib.request
 from zoneinfo import ZoneInfo
 
@@ -176,6 +187,55 @@ def annunci(utente, quante=24):
     print(json.dumps(list(trovati.values()), ensure_ascii=False, indent=1))
 
 
+def _funzione(nome, corpo, timeout=60):
+    req = urllib.request.Request(f"{URL.rstrip('/')}/functions/v1/{nome}", method="POST", data=json.dumps(corpo).encode(),
+                                 headers={"Authorization": "Bearer " + CHIAVE, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        return {"errore": e.read().decode()[:300]}
+
+
+def note():
+    """Le note chieste con «Ha risposto»: le segna in_corso e le stampa. Anche quelle rimaste in_corso da piu' di due ore
+    (un giro interrotto) tornano in lista."""
+    vecchie = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=2)).isoformat()
+    righe = (sb("GET", "/rest/v1/linkedin_persone?nota_stato=eq.richiesta&select=*") or []) + \
+            (sb("GET", f"/rest/v1/linkedin_persone?nota_stato=eq.in_corso&nota_chiesta_il=lt.{urllib.parse.quote(vecchie)}&select=*") or [])
+    for r in righe:
+        sb("PATCH", f"/rest/v1/linkedin_persone?id=eq.{r['id']}", {"nota_stato": "in_corso", "nota_chiesta_il": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+    campi = ("id", "autore", "azienda", "settore", "citta", "perche", "fonte", "segnale", "sito", "persona", "ruolo")
+    print(json.dumps([{k: r.get(k) for k in campi} for r in righe], ensure_ascii=False, indent=1))
+
+
+def disegno(scena, out):
+    import base64
+    d = _funzione("linkedin-disegno", {"scena": scena}, timeout=170)
+    if not d.get("png"):
+        sys.exit(f"disegno non riuscito: {d.get('errore')}")
+    open(out, "wb").write(base64.b64decode(d["png"]))
+    print(f"disegno salvato in {out} (spesa del mese: {d.get('spesa_mese')} $)")
+
+
+def nota_salva(id_, file_):
+    r = sb("GET", f"/rest/v1/linkedin_persone?id=eq.{id_}&select=autore") or []
+    if not r:
+        sys.exit("riga non trovata")
+    percorso = f"{r[0]['autore']}/note/{id_}.pdf"
+    req = urllib.request.Request(f"{URL.rstrip('/')}/storage/v1/object/linkedin/{percorso}", method="POST",
+                                 data=open(file_, "rb").read(),
+                                 headers={"Authorization": "Bearer " + CHIAVE, "Content-Type": "application/pdf", "x-upsert": "true"})
+    urllib.request.urlopen(req, timeout=60).read()
+    sb("PATCH", f"/rest/v1/linkedin_persone?id=eq.{id_}", {"nota_stato": "pronta", "nota_file": percorso, "nota_errore": None})
+    print(f"nota pronta: {percorso}")
+
+
+def nota_errore(id_, perche):
+    sb("PATCH", f"/rest/v1/linkedin_persone?id=eq.{id_}", {"nota_stato": "errore", "nota_errore": perche[:200]})
+    print("segnata come non riuscita")
+
+
 def aggiungi(utente, file_):
     righe = json.load(open(file_, encoding="utf-8"))
     messe = 0
@@ -200,4 +260,11 @@ if __name__ == "__main__":
      "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati(),
      "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7), "settimana": lambda: settimana(),
      "persone": lambda: persone(), "aggiungi": lambda: aggiungi(a[1], a[2]),
-     "annunci": lambda: annunci(a[1], int(a[2]) if len(a) > 2 else 24)}[a[0]]()
+     "annunci": lambda: annunci(a[1], int(a[2]) if len(a) > 2 else 24),
+     "note": lambda: note(),
+     "maps": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "maps", "q": a[1]}), ensure_ascii=False, indent=1)),
+     "recensioni": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "recensioni", "data_id": a[1], "pagine": 2}, 120), ensure_ascii=False, indent=1)),
+     "google": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "google", "q": a[1]}), ensure_ascii=False, indent=1)),
+     "disegno": lambda: disegno(a[1], a[2]),
+     "nota-salva": lambda: nota_salva(a[1], a[2]),
+     "nota-errore": lambda: nota_errore(a[1], a[2])}[a[0]]()

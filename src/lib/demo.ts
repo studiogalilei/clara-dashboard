@@ -20,6 +20,8 @@ const TABELLE: Record<string, Riga[]> = {
   linkedin_persone: [
     { id: 'p1', giorno: giornoLocale(0), stato: 'da_fare', azienda: 'Noleggi Esempio Srl', settore: 'Noleggio attrezzature', citta: 'Treviso', persona: null, ruolo: 'Titolare', profilo: 'https://www.linkedin.com/in/esempio', cerca: null, perche: 'Esempio della demo: cerca un addetto all\'inserimento ordini.', fonte: null, segnale: 'annuncio', creato_il: alle(0, 7) },
     { id: 'p2', giorno: giornoLocale(-1), stato: 'da_fare', azienda: 'Consegne Esempio Spa', settore: 'Logistica', citta: 'Padova', persona: null, ruolo: 'Responsabile operativo', profilo: null, cerca: 'https://www.linkedin.com/search/results/people/?keywords=Consegne%20Esempio', perche: 'Esempio della demo: ha commentato un tuo post.', fonte: null, segnale: 'caldo', creato_il: alle(-1, 7) },
+    { id: 'p3', giorno: giornoLocale(-3), stato: 'fatto', fatto_il: alle(-3, 10), azienda: 'Trasporti Esempio Srl', settore: 'Autotrasporti', citta: 'Verona', persona: null, ruolo: 'Titolare', profilo: null, cerca: null, perche: 'Esempio della demo.', fonte: null, segnale: 'annuncio', creato_il: alle(-3, 7), nota_stato: 'pronta', nota_file: 'demo/note/p3.pdf' },
+    { id: 'p4', giorno: giornoLocale(-2), stato: 'fatto', fatto_il: alle(-2, 11), azienda: 'Impianti Esempio Spa', settore: 'Impianti', citta: 'Vicenza', persona: null, ruolo: 'Titolare', profilo: null, cerca: null, perche: 'Esempio della demo.', fonte: null, segnale: 'annuncio', creato_il: alle(-2, 7), nota_stato: null, nota_file: null },
   ],
 }
 

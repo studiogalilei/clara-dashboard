@@ -22,20 +22,58 @@ export interface Suggerito {
   perche: string
   fonte: string | null
   segnale: 'annuncio' | 'sito' | 'recensioni' | 'cambiamento' | 'caldo'
+  nota_stato?: 'richiesta' | 'in_corso' | 'pronta' | 'errore' | null
+  nota_file?: string | null
+  nota_errore?: string | null
 }
 
 const SEGNALI: Record<Suggerito['segnale'], string> = {
   annuncio: 'Annuncio di lavoro', sito: 'Dal sito', recensioni: 'Dalle recensioni', cambiamento: 'Cambiamento', caldo: 'Ti ha notato',
 }
 
-async function leggi(): Promise<{ daFare: Suggerito[]; fatteOggi: number }> {
+async function leggi(): Promise<{ daFare: Suggerito[]; fatteOggi: number; contattate: Suggerito[] }> {
   const oggi = new Date(); oggi.setHours(0, 0, 0, 0)
-  const [a, b] = await Promise.all([
+  const da = new Date(); da.setDate(da.getDate() - 45)
+  const [a, b, c] = await Promise.all([
     supabase.from('linkedin_persone').select('*').eq('stato', 'da_fare').order('giorno', { ascending: true }).limit(60),
     supabase.from('linkedin_persone').select('id').eq('stato', 'fatto').gte('fatto_il', oggi.toISOString()),
+    supabase.from('linkedin_persone').select('*').eq('stato', 'fatto').gte('fatto_il', da.toISOString()).order('fatto_il', { ascending: false }).limit(60),
   ])
   if (a.error) throw new Error(a.error.message)
-  return { daFare: (a.data ?? []) as Suggerito[], fatteOggi: (b.data ?? []).length }
+  return { daFare: (a.data ?? []) as Suggerito[], fatteOggi: (b.data ?? []).length, contattate: (c.data ?? []) as Suggerito[] }
+}
+
+// 27/11: chi risponde riceve la nota «Gestionale Operativo AI per <azienda>»: la prepara la routine, qui si chiede e si apre
+async function chiediNota(id: string) {
+  const { error } = await supabase.from('linkedin_persone').update({ nota_stato: 'richiesta', nota_chiesta_il: new Date().toISOString(), nota_errore: null }).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+async function apriNota(percorso: string) {
+  const finestra = window.open('', '_blank')
+  const { data } = await supabase.storage.from('linkedin').createSignedUrl(percorso, 3600)
+  if (data?.signedUrl && finestra) finestra.location.href = data.signedUrl
+  else finestra?.close()
+}
+
+function Contattata({ s, chiedi }: { s: Suggerito; chiedi: () => void }) {
+  const stato = s.nota_stato
+  return (
+    <li className="flex min-h-16 items-center justify-between gap-3 border-b border-bordo py-3 last:border-b-0">
+      <div className="min-w-0">
+        <p className="truncate text-[15px] font-semibold text-navy">{s.azienda}</p>
+        <p className="text-[13px] text-tenue">
+          {stato === 'pronta' ? 'La nota è pronta'
+            : stato === 'richiesta' || stato === 'in_corso' ? 'La nota si sta preparando, arriva entro un\'ora'
+              : stato === 'errore' ? (s.nota_errore || 'La nota non è riuscita')
+                : [s.settore, s.citta].filter(Boolean).join(', ')}
+        </p>
+      </div>
+      {stato === 'pronta' && s.nota_file ? <Bottone onClick={() => void apriNota(s.nota_file!)}><Icona nome="esterno" className="h-4 w-4" /> Apri la nota</Bottone>
+        : stato === 'richiesta' || stato === 'in_corso' ? null
+          : <Bottone tipo={stato === 'errore' ? 'piatto' : 'secondo'} onClick={chiedi}>{stato === 'errore' ? 'Riprova' : 'Ha risposto'}</Bottone>}
+    </li>
+  )
 }
 
 async function segna(id: string, stato: 'fatto' | 'saltato' | 'da_fare') {
@@ -94,6 +132,15 @@ export default function Persone() {
         : caricando && !dati ? <Carico righe={3} />
           : !dati?.daFare.length ? <Vuoto>Per oggi hai fatto tutto. Domattina ne arrivano altre.</Vuoto>
             : <ul className="space-y-3">{dati.daFare.map((s) => <Scheda key={s.id} s={s} fatto={(st) => void gesto(s, st)} />)}</ul>}
+      {!!dati?.contattate.length && (
+        <section className="mt-10">
+          <h2 className="font-titolo text-[20px] font-bold text-navy">Già contattate</h2>
+          <p className="mt-1 text-[14px] text-tenue">Quando un'azienda ti risponde, tocca «Ha risposto»: il sistema prepara la nota da mandarle.</p>
+          <ul className="mt-3 rounded-2xl border border-bordo bg-white px-4">
+            {dati.contattate.map((s) => <Contattata key={s.id} s={s} chiedi={() => void chiediNota(s.id).then(() => { ricarica(); mostra({ testo: `${s.azienda}: la nota arriva entro un'ora.` }) }).catch((e) => mostra({ testo: e instanceof Error ? e.message : 'Non ho salvato.' }))} />)}
+          </ul>
+        </section>
+      )}
       {vista}
     </div>
   )
