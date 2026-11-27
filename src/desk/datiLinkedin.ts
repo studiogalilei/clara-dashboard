@@ -16,6 +16,7 @@ export interface Versione {
 
 export interface Post {
   id: string
+  origine: 'auto' | 'mio'
   creato_il: string
   aggiornato_il: string
   stato: StatoPost
@@ -30,11 +31,13 @@ export interface Post {
   errore: string | null
 }
 
-const CAMPI = 'id, creato_il, aggiornato_il, stato, dettato, foto, richiesta, versioni, scelta, testo, uscita_il, pubblicato_il, errore'
+const CAMPI = 'id, origine, creato_il, aggiornato_il, stato, dettato, foto, richiesta, versioni, scelta, testo, uscita_il, pubblicato_il, errore'
 
+/** Il calendario: i post da oggi in poi (e quelli usciti oggi), in ordine di uscita. */
 export async function leggiPost(): Promise<Post[]> {
+  const da = new Date(); da.setHours(0, 0, 0, 0)
   const { data, error } = await supabase.from('linkedin_post').select(CAMPI)
-    .neq('stato', 'scartato').order('creato_il', { ascending: false }).limit(60)
+    .neq('stato', 'scartato').gte('uscita_il', da.toISOString()).order('uscita_il', { ascending: true }).limit(60)
   if (error) throw new Error(error.message)
   return (data ?? []) as Post[]
 }
@@ -60,10 +63,24 @@ export async function urlFoto(percorso: string): Promise<string | null> {
   return data?.signedUrl ?? null
 }
 
-export async function nuovoPost(dettato: string, foto: string | null): Promise<void> {
-  const { error } = await supabase.from('linkedin_post').insert({ dettato: dettato.trim(), foto, stato: 'da_scrivere' })
+/** «Programma un post»: va nel primo giorno libero (v123, linkedin_nuovo). Torna quando esce. */
+export async function nuovoPost(dettato: string, foto: string | null): Promise<string | null> {
+  const { data, error } = await supabase.rpc('linkedin_nuovo', { dettato: dettato.trim(), foto })
   if (error) throw new Error(error.message)
+  const r = data as { ok?: boolean; perche?: string; uscita_il?: string } | null
+  if (r && r.ok === false) throw new Error(r.perche ?? 'Non sono riuscito a programmarlo.')
   await bussa()
+  return r?.uscita_il ?? null
+}
+
+export async function cambiaOra(id: string, uscita: Date): Promise<void> {
+  const { error } = await supabase.from('linkedin_post').update({ uscita_il: uscita.toISOString() }).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function cambiaFotoPost(id: string, foto: string | null): Promise<void> {
+  const { error } = await supabase.from('linkedin_post').update({ foto }).eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 export async function riscrivi(p: Post, richiesta: Richiesta): Promise<void> {
@@ -83,10 +100,10 @@ export async function scarta(id: string): Promise<void> {
 }
 
 // IL PROFILO (v122): chi sei e come parli, cosi' la routine scrive con la tua voce.
-export interface Profilo { nome: string; ruolo: string; temi: string; voce: string }
+export interface Profilo { nome: string; ruolo: string; temi: string }
 
 export async function leggiProfilo(): Promise<Profilo | null> {
-  const { data, error } = await supabase.from('linkedin_profilo').select('nome, ruolo, temi, voce').maybeSingle()
+  const { data, error } = await supabase.from('linkedin_profilo').select('nome, ruolo, temi').maybeSingle()
   if (error) throw new Error(error.message)
   return (data as Profilo | null) ?? null
 }

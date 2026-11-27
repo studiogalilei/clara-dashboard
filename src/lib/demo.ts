@@ -483,16 +483,18 @@ const feedback: Riga[] = []
 const documenti: Riga[] = []
 
 const desk_regole: Riga[] = [{ chiave: 'telefono_dre', sezione: 'A', valore: '', stato: 'da_decidere' }]
-// il LinkedIn Desk in demo (27/11): un post scritto, uno in coda. Testi inventati, solo per vedere la forma.
+// il LinkedIn Desk in demo (27/11): il calendario con un post per giorno. Testi inventati, solo per vedere la forma.
+const alle = (giorni: number, h: number, m = 30) => { const d = new Date(); d.setDate(d.getDate() + giorni); d.setHours(h, m, 0, 0); return d.toISOString() }
+const postDemo = (id: string, giorni: number, origine: string, testo: string, stato = 'programmato') => ({
+  id, origine, creato_il: oreFa(5), aggiornato_il: oreFa(5), stato, dettato: '', foto: null, richiesta: null, scelta: 0, testo: null,
+  uscita_il: alle(giorni, 8), pubblicato_il: null, errore: null,
+  versioni: testo ? [{ framework: 'Esempio', caso: 'demo', testo }, { framework: 'Altro esempio', caso: 'demo', testo: `Seconda versione della demo.\n\n${testo}` }] : [],
+})
 const linkedin_post: Riga[] = [
-  { id: 'li2', creato_il: oreFa(0.1), aggiornato_il: oreFa(0.1), stato: 'in_scrittura', dettato: 'Oggi un titolare mi ha chiesto se il gestionale su misura costa come una casa.', foto: null, richiesta: null, versioni: [], scelta: null, testo: null, uscita_il: null, pubblicato_il: null, errore: null },
-  { id: 'li1', creato_il: oreFa(2), aggiornato_il: oreFa(2), stato: 'bozza', dettato: 'Esempio della demo.', foto: null, richiesta: null, scelta: 0, testo: null, uscita_il: null, pubblicato_il: null, errore: null,
-    versioni: [
-      { framework: 'Prima e dopo', caso: 'lavoro', giudice: { passa: true, note: 'Esempio della demo: qui arriva la nota del giudice.' },
-        testo: 'Immaginate un\'azienda di noleggio con dodici mezzi e un solo foglio Excel.\n\nOgni mattina qualcuno apre il foglio, controlla chi ha prenotato cosa e chiama gli autisti uno per uno.\n\nQuesto è un esempio della demo: il testo vero lo scrive la routine partendo da quello che detti.\n\nDa voi chi tiene il calendario dei mezzi?' },
-      { framework: 'Il conto', caso: 'lavoro', giudice: { passa: true, note: '' },
-        testo: 'Un\'ora al giorno a ricopiare ordini fa 220 ore l\'anno, se i giorni di lavoro sono 220.\n\nQuesto è un secondo esempio della demo, con un altro framework.\n\nQuante ore ricopiate voi?' },
-    ] },
+  postDemo('li0', 0, 'auto', 'Immaginate un\'azienda di noleggio con dodici mezzi e un solo foglio Excel.\n\nOgni mattina qualcuno apre il foglio, controlla chi ha prenotato cosa e chiama gli autisti uno per uno.\n\nQuesto è un esempio della demo: il testo vero lo scrive la routine.\n\nDa voi chi tiene il calendario dei mezzi?', 'pubblicato'),
+  postDemo('li1', 1, 'mio', 'Un\'ora al giorno a ricopiare ordini fa 220 ore l\'anno, se i giorni di lavoro sono 220.\n\nEsempio della demo.\n\nQuante ore ricopiate voi?'),
+  postDemo('li2', 2, 'auto', '', 'da_scrivere'),
+  postDemo('li3', 3, 'auto', 'Esempio della demo per il terzo giorno.\n\nOgni giorno il sistema prepara un post, e tu puoi cambiarlo fino all\'ora di uscita.'),
 ]
 
 const TABELLE: Record<string, Riga[]> = {
@@ -734,6 +736,13 @@ export const demoClient = {
     if (nome === 'clara_non_interessato') { const p = prospects.find((x) => x.id === args?.chi); if (p) { p.no_followup = !args?.riapri; p.lost_reason = args?.riapri ? null : 'Non interessato (Dre, al telefono, 05/11)' } return conAbort({ ok: true }) }
     if (nome === 'clara_non_interessati') return conAbort(prospects.filter((p) => p.no_followup && String(p.lost_reason ?? '').startsWith('Non interessato')).map((p) => ({ id: p.id, azienda: p.company, persona: p.name, email: p.email, citta: p.city, telefono: p.phone, quando: p.lost_reason, analisi_mandata: p.analysis_sent, ultima_risposta: p.last_reply_at })))
     if (nome === 'clara_collega_call') return conAbort({ ok: true })
+    if (nome === 'linkedin_nuovo') {
+      const usati = new Set(linkedin_post.filter((r) => r.stato !== 'scartato' && r.origine === 'mio').map((r) => String(r.uscita_il).slice(0, 10)))
+      let g = 1; while (usati.has(alle(g, 8).slice(0, 10))) g++
+      for (const r of linkedin_post) if (r.origine === 'auto' && String(r.uscita_il).slice(0, 10) === alle(g, 8).slice(0, 10)) r.stato = 'scartato'
+      const r = postDemo(`li${Date.now()}`, g, 'mio', '', 'da_scrivere'); r.dettato = String(args?.dettato ?? ''); linkedin_post.push(r)
+      return conAbort({ ok: true, id: r.id, uscita_il: r.uscita_il })
+    }
     return conAbort(this._rpcVecchio(nome))
   },
   _rpcVecchio(nome: string): unknown {

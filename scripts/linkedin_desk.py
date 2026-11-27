@@ -9,6 +9,10 @@ La routine «LinkedIn Desk: scrivi i post» (Claude Code in cloud, sull'abboname
   python3 scripts/linkedin_desk.py salva <id> <versioni.json>   # due versioni: [{framework, caso, testo, giudice}]
   python3 scripts/linkedin_desk.py errore <id> "perche'"
   python3 scripts/linkedin_desk.py usati             # i framework usati nelle ultime due settimane (per non ripeterli)
+  python3 scripts/linkedin_desk.py riempi [giorni]   # i giorni vuoti dei prossimi N (7) diventano post automatici da scrivere
+
+Dal 27/11 (v123) ogni persona ha un post al giorno: quelli «auto» li prepara il sistema (senza dettato: tema scelto
+dalla routine), quelli «mio» nascono da un audio o un testo e prendono il posto dell'automatico del loro giorno.
 
 I testi dei post non vanno mai nel repository (e' pubblico): stanno solo nel database.
 """
@@ -17,13 +21,14 @@ import json
 import sys
 import urllib.parse
 import urllib.request
+from zoneinfo import ZoneInfo
 
 from stanza import CHIAVE, URL, sb
 
 
 def prendi():
-    righe = sb("GET", "/rest/v1/linkedin_post?stato=eq.da_scrivere&order=creato_il.asc&limit=5"
-                      "&select=id,autore,dettato,foto,richiesta,versioni,scelta,testo")
+    righe = sb("GET", "/rest/v1/linkedin_post?stato=eq.da_scrivere&order=origine.desc,uscita_il.asc.nullsfirst&limit=10"
+                      "&select=id,autore,origine,uscita_il,dettato,foto,richiesta,versioni,scelta,testo")
     presi = []
     for r in righe or []:
         # si segna solo se e' ancora da scrivere: due giri insieme non scrivono lo stesso post
@@ -54,8 +59,11 @@ def salva(id_, file_):
     versioni = json.load(open(file_, encoding="utf-8"))
     assert isinstance(versioni, list) and versioni and all(v.get("testo") and v.get("framework") for v in versioni), \
         "servono versioni con framework e testo"
+    r = sb("GET", f"/rest/v1/linkedin_post?id=eq.{id_}&select=uscita_il")
+    # un post con il suo giorno e' programmato: esce da solo, la persona puo' cambiarlo fino all'ora
+    stato = "programmato" if r and r[0].get("uscita_il") else "bozza"
     sb("PATCH", f"/rest/v1/linkedin_post?id=eq.{id_}",
-       {"versioni": versioni, "stato": "bozza", "richiesta": None, "scelta": 0, "testo": None, "errore": None})
+       {"versioni": versioni, "stato": stato, "richiesta": None, "scelta": 0, "testo": None, "errore": None})
     print(f"salvate {len(versioni)} versioni")
 
 
@@ -71,7 +79,30 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
+def riempi(giorni=7):
+    """Per ogni persona che vuole i post automatici: ogni giorno senza post dei prossimi N ne riceve uno da scrivere."""
+    roma = ZoneInfo("Europe/Rome")
+    oggi = datetime.datetime.now(roma).date()
+    nuovi = 0
+    for prof in sb("GET", "/rest/v1/linkedin_profilo?automatici=eq.true&select=utente,ora") or []:
+        fino = (datetime.datetime.combine(oggi + datetime.timedelta(days=giorni + 1), datetime.time(), roma)).isoformat()
+        vivi = sb("GET", f"/rest/v1/linkedin_post?autore=eq.{prof['utente']}&stato=not.in.(scartato,errore)"
+                         f"&uscita_il=lt.{urllib.parse.quote(fino)}&select=uscita_il") or []
+        presi = {datetime.datetime.fromisoformat(v["uscita_il"]).astimezone(roma).date() for v in vivi if v.get("uscita_il")}
+        h, m = (int(x) for x in prof["ora"].split(":"))
+        for i in range(1, giorni + 1):   # da domani: oggi non si riempie all'ultimo
+            g = oggi + datetime.timedelta(days=i)
+            if g in presi:
+                continue
+            quando = datetime.datetime.combine(g, datetime.time(h, m), roma)
+            sb("POST", "/rest/v1/linkedin_post", {"autore": prof["utente"], "origine": "auto", "stato": "da_scrivere",
+                                                  "dettato": "", "uscita_il": quando.isoformat()})
+            nuovi += 1
+    print(f"post automatici da scrivere: {nuovi}")
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
     {"prendi": lambda: prendi(), "foto": lambda: foto(a[1], a[2]), "salva": lambda: salva(a[1], a[2]),
-     "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati()}[a[0]]()
+     "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati(),
+     "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7)}[a[0]]()
