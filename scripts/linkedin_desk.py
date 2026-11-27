@@ -125,10 +125,10 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
-# Dre, 27/11 notte: «manteniamo 3 post a settimana che raccontano cose di lavoro e altri 2 che raccontano cose di
-# attualita' inerenti al mio settore». Lunedi' e mercoledi' l'attualita' con l'immagine (esce da sola), martedi',
-# giovedi' e venerdi' una storia dal lavoro senza immagine (resta bozza finche' Dre non la approva). Fine settimana niente.
-SETTIMANA = {0: "attualita", 1: "storia", 2: "attualita", 3: "storia", 4: "storia"}
+# Dre, 27/11 notte: prima «3 storie di lavoro e 2 di attualita'», poi «anzi, 3 attualita' e 2 storie».
+# Lunedi', mercoledi' e venerdi' l'attualita' del settore con l'immagine (esce da sola), martedi' e giovedi' una storia
+# dal lavoro senza immagine (resta bozza finche' Dre non la approva). Fine settimana niente.
+SETTIMANA = {0: "attualita", 1: "storia", 2: "attualita", 3: "storia", 4: "attualita"}
 GIORNI_AUTOMATICI = set(SETTIMANA)
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Le regole del LinkedIn Desk che si difendono da sole (27/11/2026). Girano nel cancello `controlla` a ogni push.
 
-1. La settimana (Dre, 27/11 notte): lunedi' e mercoledi' attualita' con immagine, martedi' giovedi' e venerdi' una storia dal lavoro
+1. La settimana (Dre, 27/11 notte): lunedi' mercoledi' e venerdi' attualita' con immagine, martedi' e giovedi' una storia dal lavoro
    (non esce mai da solo), venerdi' e fine settimana liberi.
 2. Lo script della routine non pubblica mai su LinkedIn e non manda mail: suggerisce e scrive bozze. Dal 27/11 (Dre:
    «colleghiamo i post automatici») pubblica solo la funzione linkedin-pubblica, e solo i post «programmato» arrivati
@@ -23,8 +23,8 @@ import linkedin_desk  # noqa: E402
 
 errori = []
 
-if linkedin_desk.SETTIMANA != {0: "attualita", 1: "storia", 2: "attualita", 3: "storia", 4: "storia"}:
-    errori.append("la settimana deve essere: lun e mer attualita' con immagine, mar gio e ven storia dal lavoro")
+if linkedin_desk.SETTIMANA != {0: "attualita", 1: "storia", 2: "attualita", 3: "storia", 4: "attualita"}:
+    errori.append("la settimana deve essere: lun mer e ven attualita' con immagine, mar e gio storia dal lavoro")
 if "copy_video" in (QUI / "linkedin_desk.py").read_text().split("def riempi")[1].split("def settimana")[0]:
     errori.append("i giorni automatici non chiedono piu' copioni video: Dre non fa piu' i video")
 if 'v.get("framework") == "Copy video"' not in (QUI / "linkedin_desk.py").read_text():
