@@ -15,6 +15,7 @@ const TABELLE: Record<string, Riga[]> = {
     post('d0', 0, 'auto', 'Immaginate un\'azienda di noleggio con dodici mezzi e un solo foglio Excel.\n\nOgni mattina qualcuno apre il foglio e chiama gli autisti uno per uno.\n\nEsempio della demo.\n\nDa voi chi tiene il calendario dei mezzi?', 'pubblicato'),
     post('d2', 2, 'auto', 'Un\'ora al giorno a ricopiare ordini fa 220 ore l\'anno, se i giorni di lavoro sono 220.\n\nEsempio della demo.'),
     post('d4', 4, 'auto', '', 'da_scrivere'),
+    { ...post('d1', 1, 'auto', 'Google ha appena rilasciato un modello nuovo.\nCosa sa fare per un\'azienda?\n\nEsempio della demo: copione video.', 'bozza'), versioni: [{ framework: 'Copy video', caso: 'demo', testo: 'Google ha appena rilasciato un modello nuovo.\nCosa sa fare per un\'azienda?\n\nEsempio della demo: copione video.' }] },
     post('d3', 3, 'auto', 'Tre settimane fa un titolare mi ha detto che il suo preventivo passa da quattro mani.\n\nEsempio della demo: una storia scritta dal sistema, da rivedere.', 'bozza'),
   ],
   linkedin_profilo: [{ utente: 'demo', nome: 'Dre', ruolo: 'Fondatore di Studio Galilei', temi: 'gestionali su misura' }],

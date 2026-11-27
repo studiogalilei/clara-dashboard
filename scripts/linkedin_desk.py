@@ -80,7 +80,8 @@ def salva(id_, file_):
     # un post con il suo giorno e' programmato: esce da solo, la persona puo' cambiarlo fino all'ora.
     # 27/11, Dre: le esperienze le scrive il sistema «fittizie ma realistiche, poi ci penso io a modificare»: un post con
     # una versione segnata "da_rivedere" resta bozza nel suo giorno ed esce solo quando la persona lo approva.
-    rivedere = any(v.get("da_rivedere") for v in versioni)
+    # i copioni video non escono mai da soli: il video lo registra e lo carica la persona (Dre, 27/11)
+    rivedere = any(v.get("da_rivedere") or v.get("framework") == "Copy video" for v in versioni)
     stato = "programmato" if r and r[0].get("uscita_il") and not rivedere else "bozza"
     sb("PATCH", f"/rest/v1/linkedin_post?id=eq.{id_}",
        {"versioni": versioni, "stato": stato, "richiesta": None, "scelta": 0, "testo": None, "errore": None})
@@ -124,13 +125,16 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
-# Dre, 27/11 sera: «metterei un post al giorno»: uno e' il post di testo, due volte al mese al suo posto va un video
-# (registrato da Dre, copione con «Copy video»). Dal lunedi' al venerdi': nel fine settimana chi decide non e' su LinkedIn.
-GIORNI_AUTOMATICI = {0, 1, 2, 3, 4}   # dal lunedi' al venerdi'
+# Dre, 27/11 notte: «due post immagini a settimana e due video a settimana, e lasciamo un giorno vuoto in cui posso
+# mettere cio' che voglio; le parti dei video lasciale vuote, al massimo mi lasci i copy dei video ma non si pubblicano se
+# non registro e carico io». Lunedi' e mercoledi' il post con il disegno, martedi' e giovedi' il copione del video (resta
+# bozza: non esce mai da solo), venerdi' libero. Nel fine settimana niente.
+SETTIMANA = {0: "post", 1: "video", 2: "post", 3: "video"}
+GIORNI_AUTOMATICI = set(SETTIMANA)
 
 
 def riempi(giorni=7):
-    """Per ogni persona che vuole i post automatici: i giorni da lunedi' a venerdi' dei prossimi N giorni, se vuoti,
+    """Per ogni persona che vuole i post automatici: i giorni di SETTIMANA dei prossimi N giorni, se vuoti,
     ricevono un post da scrivere. Gli altri giorni restano liberi per i post della persona."""
     roma = ZoneInfo("Europe/Rome")
     oggi = datetime.datetime.now(roma).date()
@@ -146,8 +150,10 @@ def riempi(giorni=7):
             if g in presi or g.weekday() not in GIORNI_AUTOMATICI:
                 continue
             quando = datetime.datetime.combine(g, datetime.time(h, m), roma)
-            sb("POST", "/rest/v1/linkedin_post", {"autore": prof["utente"], "origine": "auto", "stato": "da_scrivere",
-                                                  "dettato": "", "uscita_il": quando.isoformat()})
+            riga = {"autore": prof["utente"], "origine": "auto", "stato": "da_scrivere", "dettato": "", "uscita_il": quando.isoformat()}
+            if SETTIMANA[g.weekday()] == "video":
+                riga["richiesta"] = "copy_video"   # solo il copione: Dre registra e carica lui
+            sb("POST", "/rest/v1/linkedin_post", riga)
             nuovi += 1
     print(f"post automatici da scrivere: {nuovi}")
 

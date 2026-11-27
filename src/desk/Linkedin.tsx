@@ -189,6 +189,8 @@ function Compositore({ profilo, apriProfilo, avvisa, rifai }: { profilo: Profilo
 
 /** Un post del calendario, aperto: testo che si salva da solo, foto, ora, togli. */
 function PostAperto({ p, chiudi, rifai, avvisa }: { p: Post; chiudi: () => void; rifai: () => void; avvisa: (t: string) => void }) {
+  // 27/11 notte: martedi' e giovedi' il sistema lascia solo il copione del video (non esce mai da solo)
+  const video = p.versioni?.[p.scelta ?? 0]?.framework === 'Copy video'
   const [testo, setTesto] = useState(p.testo ?? p.versioni?.[p.scelta ?? 0]?.testo ?? '')
   const salva = useRef(0)
   const area = useRef<HTMLTextAreaElement>(null)
@@ -206,7 +208,13 @@ function PostAperto({ p, chiudi, rifai, avvisa }: { p: Post; chiudi: () => void;
   const titolo = p.uscita_il ? new Date(p.uscita_il).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Post'
   return (
     <Foglio titolo={titolo.charAt(0).toUpperCase() + titolo.slice(1)} chiudi={() => { window.clearTimeout(salva.current); void salvaTesto(p.id, p.scelta ?? 0, testo).then(rifai); chiudi() }}>
-      {p.stato === 'bozza' && p.uscita_il && (
+      {video && (
+        <div className="mb-3 rounded-xl bg-noi-fondo px-4 py-3 text-[14px] text-noi-testo">
+          <p className="font-semibold">Copione del video.</p>
+          <p className="mt-1">Da qui non esce niente: registri il video e lo pubblichi tu.</p>
+        </div>
+      )}
+      {!video && p.stato === 'bozza' && p.uscita_il && (
         <div className="mb-3 rounded-xl bg-attesa-fondo px-4 py-3 text-[14px] text-attesa-testo">
           <p className="font-semibold">Da rivedere: la storia l'ha scritta il sistema.</p>
           <p className="mt-1">Mettila con i tuoi dettagli veri. Esce solo quando tocchi «Approva».</p>
@@ -216,7 +224,7 @@ function PostAperto({ p, chiudi, rifai, avvisa }: { p: Post; chiudi: () => void;
       {p.foto && <FotoPost percorso={p.foto} className="mb-3 max-h-64 w-full rounded-xl object-cover" />}
       <textarea ref={area} value={testo} onChange={(e) => cambia(e.target.value)} rows={4} aria-label="Testo del post"
                 className="w-full resize-none overflow-hidden rounded-xl border border-bordo px-3 py-2.5 text-[16px] leading-relaxed text-inchiostro focus:border-blu-scuro focus:outline-none" />
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      {!video && <div className="mt-3 flex flex-wrap items-center gap-2">
         {p.uscita_il && p.stato !== 'pubblicato' && (
           <label className="flex min-h-11 items-center gap-2 rounded-full border border-bordo px-4 text-[14px] font-semibold text-inchiostro">
             Esce alle <input type="time" defaultValue={ora(p.uscita_il)} onBlur={(e) => void nuovaOra(e.target.value)} className="bg-transparent text-[16px] font-bold focus:outline-none" />
@@ -225,7 +233,7 @@ function PostAperto({ p, chiudi, rifai, avvisa }: { p: Post; chiudi: () => void;
         <Bottone onClick={() => input.current?.click()}><Svg d={CAMERA} className="h-4 w-4" /> {p.foto ? 'Cambia foto' : 'Aggiungi foto'}</Bottone>
         {p.foto && <Bottone tipo="piatto" onClick={() => void nuovaFoto(null)}>Togli foto</Bottone>}
         <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void nuovaFoto(f); e.target.value = '' }} />
-      </div>
+      </div>}
       <button type="button" onClick={() => void scarta(p.id).then(() => { avvisa('Tolto dal calendario.'); rifai(); chiudi() })}
               className="mt-3 min-h-11 px-1 text-[14px] font-semibold text-no-testo">Togli il post</button>
     </Foglio>
@@ -253,7 +261,8 @@ function Giorno({ giorno, p, apri }: { giorno: Date; p: Post | undefined; apri: 
                   <span className={`block flex-1 overflow-hidden whitespace-pre-line px-4 pt-3 text-[15px] font-normal leading-relaxed text-inchiostro/90 ${p.foto ? 'line-clamp-[9]' : 'line-clamp-[15]'}`}>{testo}</span>
                   <span className="flex items-center justify-between px-4 py-3 text-[14px] font-semibold text-blu-scuro">
                     Leggi e modifica
-                    {p.stato === 'bozza' ? <span className="rounded-full bg-attesa-fondo px-2 py-0.5 text-[12px] text-attesa-testo">da rivedere</span>
+                    {p.versioni?.[p.scelta ?? 0]?.framework === 'Copy video' ? <span className="rounded-full bg-noi-fondo px-2 py-0.5 text-[12px] text-noi-testo">copione video</span>
+                      : p.stato === 'bozza' ? <span className="rounded-full bg-attesa-fondo px-2 py-0.5 text-[12px] text-attesa-testo">da rivedere</span>
                       : p.origine === 'mio' && <span className="rounded-full bg-noi-fondo px-2 py-0.5 text-[12px] text-noi-testo">tuo</span>}
                   </span>
                 </>
