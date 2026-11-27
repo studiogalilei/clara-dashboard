@@ -11,6 +11,8 @@ La routine «LinkedIn Desk: scrivi i post» (Claude Code in cloud, sull'abboname
   python3 scripts/linkedin_desk.py usati             # i framework usati nelle ultime due settimane (per non ripeterli)
   python3 scripts/linkedin_desk.py riempi [giorni]   # i giorni vuoti dei prossimi N (7) diventano post automatici da scrivere
   python3 scripts/linkedin_desk.py settimana         # la domenica: riempie la settimana che arriva (gli altri giorni non fa niente)
+  python3 scripts/linkedin_desk.py persone           # chi riceve le persone del giorno, quante ne mancano a 20, mercato, zona
+  python3 scripts/linkedin_desk.py aggiungi <utente> <persone.json>   # [{azienda, settore, citta, persona, ruolo, profilo, cerca, perche, fonte, segnale}]
 
 Dal 27/11 (v123) ogni persona ha un post al giorno: quelli «auto» li prepara il sistema (senza dettato: tema scelto
 dalla routine), quelli «mio» nascono da un audio o un testo e prendono il posto dell'automatico del loro giorno.
@@ -24,7 +26,7 @@ import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
 
-from stanza import CHIAVE, URL, sb
+from stanza import CHIAVE, URL, sb, sb_tutte
 
 
 def prendi():
@@ -116,8 +118,43 @@ def settimana():
     riempi(8)
 
 
+PERSONE_AL_GIORNO = 20
+
+
+def persone():
+    """Per chi ha acceso le persone del giorno: quante ne mancano a 20 da fare, il mercato, la zona e le aziende gia' viste
+    (mai riproporre la stessa azienda)."""
+    fuori = []
+    for prof in sb("GET", "/rest/v1/linkedin_profilo?persone=eq.true&select=utente,nome,mercato,zona") or []:
+        u = prof["utente"]
+        da_fare = sb("GET", f"/rest/v1/linkedin_persone?autore=eq.{u}&stato=eq.da_fare&select=id") or []
+        viste = sb_tutte(f"/rest/v1/linkedin_persone?autore=eq.{u}&select=id,azienda")
+        fuori.append({"utente": u, "nome": prof["nome"], "mercato": prof["mercato"], "zona": prof["zona"],
+                      "mancano": max(0, PERSONE_AL_GIORNO - len(da_fare)), "gia_viste": sorted({v["azienda"] for v in viste})})
+    print(json.dumps(fuori, ensure_ascii=False, indent=1))
+
+
+def aggiungi(utente, file_):
+    righe = json.load(open(file_, encoding="utf-8"))
+    messe = 0
+    for r in righe:
+        if not (r.get("azienda") and r.get("perche")):
+            continue
+        r = {k: r.get(k) for k in ("azienda", "settore", "citta", "persona", "ruolo", "profilo", "cerca", "perche", "fonte", "segnale")}
+        r["segnale"] = r["segnale"] or "annuncio"
+        r["autore"] = utente
+        try:
+            sb("POST", "/rest/v1/linkedin_persone", r)
+            messe += 1
+        except RuntimeError as e:
+            if "duplicate" not in str(e) and "23505" not in str(e):
+                raise
+    print(f"aziende aggiunte: {messe} su {len(righe)}")
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
     {"prendi": lambda: prendi(), "foto": lambda: foto(a[1], a[2]), "salva": lambda: salva(a[1], a[2]),
      "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati(),
-     "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7), "settimana": lambda: settimana()}[a[0]]()
+     "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7), "settimana": lambda: settimana(),
+     "persone": lambda: persone(), "aggiungi": lambda: aggiungi(a[1], a[2])}[a[0]]()
