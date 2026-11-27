@@ -8,7 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Bottone, Errore, Icona } from '../ui/pezzi'
 import { useAvviso, useDati } from '../ui/uso'
 import {
-  cambiaFotoPost, cambiaOra, caricaFoto, collegaLinkedin, leggiCollegamento, leggiPost, leggiProfilo, leggiUno, nuovoPost, programma, salvaProfilo, salvaTesto,
+  approva, cambiaFotoPost, cambiaOra, caricaFoto, collegaLinkedin, leggiCollegamento, leggiPost, leggiProfilo, leggiUno, nuovoPost, programma, salvaProfilo, salvaTesto,
   scarta, urlFoto, useAscoltaPost, useDettatura, type Post, type Profilo,
 } from './datiLinkedin'
 
@@ -115,7 +115,7 @@ function Compositore({ profilo, apriProfilo, avvisa, rifai }: { profilo: Profilo
     const guarda = async () => {
       const p = await leggiUno(bozza).catch(() => null)
       if (!vivo || !p) return
-      if (p.stato === 'bozza' && p.versioni?.[0]?.testo) { setTesto(p.versioni[0].testo); setLavoro(false); avvisa('Ecco la versione migliorata. Puoi ancora cambiarla.') }
+      if (p.stato === 'bozza' && p.versioni?.[0]?.testo) { setTesto(p.versioni[0].testo); setLavoro(false); avvisa(p.versioni[0].framework === 'Copy video' ? 'Ecco il copione del video. Puoi ancora cambiarlo.' : 'Ecco la versione migliorata. Puoi ancora cambiarla.') }
       if (p.stato === 'errore') { setLavoro(false); avvisa(p.errore || 'Non sono riuscito a migliorarlo.') }
     }
     void guarda()
@@ -123,12 +123,13 @@ function Compositore({ profilo, apriProfilo, avvisa, rifai }: { profilo: Profilo
     return () => { vivo = false; window.clearInterval(t) }
   }, [bozza, lavoro, avvisa])
 
-  const ottimizza = async () => {
-    d.ferma(); setLavoro(true)
+  const [video, setVideo] = useState(false)
+  const ottimizza = async (copione = false) => {
+    d.ferma(); setLavoro(true); setVideo(copione)
     try {
       const percorso = foto ? await caricaFoto(foto) : null
       if (bozza) await scarta(bozza)
-      setBozza(await nuovoPost(testo, percorso, true))
+      setBozza(await nuovoPost(testo, percorso, true, copione))
     } catch (e) { setLavoro(false); avvisa(e instanceof Error ? e.message : 'Non sono riuscito a mandarlo.') }
   }
 
@@ -163,9 +164,9 @@ function Compositore({ profilo, apriProfilo, avvisa, rifai }: { profilo: Profilo
         </div>
       )}
       {d.problema && <p className="mt-1 text-[14px] font-semibold text-no-testo">{d.problema}</p>}
-      {lavoro && <p className="mt-1 flex items-center gap-2 text-[14px] font-semibold text-blu-scuro"><span className="h-2 w-2 animate-pulse rounded-full bg-blu-scuro motion-reduce:animate-none" /> Lo sto migliorando, ci vuole qualche minuto. Puoi chiudere l’app.</p>}
+      {lavoro && <p className="mt-1 flex items-center gap-2 text-[14px] font-semibold text-blu-scuro"><span className="h-2 w-2 animate-pulse rounded-full bg-blu-scuro motion-reduce:animate-none" /> {video ? 'Scrivo il copione del video' : 'Lo sto migliorando'}, ci vuole qualche minuto. Puoi chiudere l’app.</p>}
 
-      <div className="mt-3 flex items-center gap-2 border-t border-bordo pt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-bordo pt-3">
         <button type="button" onClick={() => input.current?.click()} aria-label="Aggiungi una foto" disabled={lavoro}
                 className="flex h-12 w-12 items-center justify-center rounded-full text-inchiostro hover:bg-velo disabled:opacity-40"><Svg d={CAMERA} /></button>
         <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { setFoto(e.target.files?.[0] ?? null); e.target.value = '' }} />
@@ -174,8 +175,12 @@ function Compositore({ profilo, apriProfilo, avvisa, rifai }: { profilo: Profilo
           {d.ascolto ? <span className="h-4 w-4 animate-pulse rounded-sm bg-white motion-reduce:animate-none" /> : <Svg d={MICROFONO} />}
         </button>
         <span className="flex-1" />
-        <Bottone onClick={() => void ottimizza()} disabled={!pieno || lavoro || d.ascolto}><Svg d={STELLINE} className="h-4 w-4" /> Ottimizza</Bottone>
-        <Bottone tipo="primo" onClick={() => setQuando(true)} disabled={!pieno || lavoro || d.ascolto}>Programma</Bottone>
+        {/* su telefono i tre bottoni vanno su una riga loro: in una sola non ci stanno */}
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+          <Bottone tipo="piatto" className="whitespace-nowrap" onClick={() => void ottimizza(true)} disabled={!pieno || lavoro || d.ascolto}>Copy video</Bottone>
+          <Bottone onClick={() => void ottimizza()} disabled={!pieno || lavoro || d.ascolto}><Svg d={STELLINE} className="h-4 w-4" /> Ottimizza</Bottone>
+          <Bottone tipo="primo" onClick={() => setQuando(true)} disabled={!pieno || lavoro || d.ascolto}>Programma</Bottone>
+        </div>
       </div>
       {quando && <SceltaQuando chiudi={() => setQuando(false)} ok={programmaQui} />}
     </section>
@@ -201,6 +206,13 @@ function PostAperto({ p, chiudi, rifai, avvisa }: { p: Post; chiudi: () => void;
   const titolo = p.uscita_il ? new Date(p.uscita_il).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Post'
   return (
     <Foglio titolo={titolo.charAt(0).toUpperCase() + titolo.slice(1)} chiudi={() => { window.clearTimeout(salva.current); void salvaTesto(p.id, p.scelta ?? 0, testo).then(rifai); chiudi() }}>
+      {p.stato === 'bozza' && p.uscita_il && (
+        <div className="mb-3 rounded-xl bg-attesa-fondo px-4 py-3 text-[14px] text-attesa-testo">
+          <p className="font-semibold">Da rivedere: la storia l'ha scritta il sistema.</p>
+          <p className="mt-1">Mettila con i tuoi dettagli veri. Esce solo quando tocchi «Approva».</p>
+          <Bottone tipo="primo" className="mt-2" onClick={() => { window.clearTimeout(salva.current); void salvaTesto(p.id, p.scelta ?? 0, testo).then(() => approva(p.id)).then(() => { avvisa('Approvato: esce da solo all’ora del calendario.'); rifai(); chiudi() }).catch((e) => avvisa(e instanceof Error ? e.message : 'Non ho approvato.')) }}>Approva</Bottone>
+        </div>
+      )}
       {p.foto && <FotoPost percorso={p.foto} className="mb-3 max-h-64 w-full rounded-xl object-cover" />}
       <textarea ref={area} value={testo} onChange={(e) => cambia(e.target.value)} rows={4} aria-label="Testo del post"
                 className="w-full resize-none overflow-hidden rounded-xl border border-bordo px-3 py-2.5 text-[16px] leading-relaxed text-inchiostro focus:border-blu-scuro focus:outline-none" />
@@ -241,7 +253,8 @@ function Giorno({ giorno, p, apri }: { giorno: Date; p: Post | undefined; apri: 
                   <span className={`block flex-1 overflow-hidden whitespace-pre-line px-4 pt-3 text-[15px] font-normal leading-relaxed text-inchiostro/90 ${p.foto ? 'line-clamp-[9]' : 'line-clamp-[15]'}`}>{testo}</span>
                   <span className="flex items-center justify-between px-4 py-3 text-[14px] font-semibold text-blu-scuro">
                     Leggi e modifica
-                    {p.origine === 'mio' && <span className="rounded-full bg-noi-fondo px-2 py-0.5 text-[12px] text-noi-testo">tuo</span>}
+                    {p.stato === 'bozza' ? <span className="rounded-full bg-attesa-fondo px-2 py-0.5 text-[12px] text-attesa-testo">da rivedere</span>
+                      : p.origine === 'mio' && <span className="rounded-full bg-noi-fondo px-2 py-0.5 text-[12px] text-noi-testo">tuo</span>}
                   </span>
                 </>
               )}

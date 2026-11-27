@@ -3,12 +3,14 @@
 // Il disegno del «sistema che immaginiamo» nella nota «Gestionale Operativo AI per <azienda>», nello stile scelto da Dre
 // (il riferimento sta nello storage: linkedin/_stile/riferimento-stile.png). OpenAI gpt-image-2, qualita' media.
 // Tetto: TETTO_MESE dollari al mese, contati nella tabella spesa_immagini. Oltre il tetto non disegna (mai crediti extra).
-//   {scena} -> {png: base64, spesa_mese}
+//   {scena, dre?} -> {png: base64, spesa_mese}   (dre: protagonista Dre, l'unico con il cappellino)
 // IN CLOUD: supabase functions deploy linkedin-disegno   (segreto: OPENAI_API_KEY)
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CHIAVE = Deno.env.get("OPENAI_API_KEY") ?? "";
-const TETTO_MESE = 3.0;
+const TETTO_MESE = 4.0;   // 27/11: un post al giorno con il suo disegno (circa 1,40 $) piu' le note
+const DRE =
+  "The main character is Dre, drawn in exactly the same naive doodle style as the reference: a round head with dot eyes and a white unfilled face like everyone else (no skin colour fill), very short buzz-cut hair, a thin scribbled mustache joined to a small goatee, a black baseball cap worn backwards (he is the only one with a cap), royal blue #1532A8 sweatshirt, relaxed chill pose. ";
 const COSTO = 0.063;
 const STILE =
   "Draw a NEW scene in exactly the same drawing style as the reference image: same naive felt-pen doodle, same line weight, round heads with dot eyes, scribbled black hair, dot-pattern clothes, same amount of white space. Do not copy the reference scene or its people. " +
@@ -17,7 +19,7 @@ const STILE =
 
 Deno.serve(async (req) => {
   if (!CHIAVE) return Response.json({ errore: "manca OPENAI_API_KEY" }, { status: 500 });
-  const { scena } = await req.json().catch(() => ({ scena: "" }));
+  const { scena, dre } = await req.json().catch(() => ({ scena: "", dre: false }));
   if (!scena || typeof scena !== "string" || scena.length > 900) return Response.json({ errore: "serve scena" }, { status: 400 });
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const mese = new Date().toISOString().slice(0, 7);
@@ -28,7 +30,7 @@ Deno.serve(async (req) => {
   if (error || !rif) return Response.json({ errore: "manca il disegno di riferimento nello storage" }, { status: 500 });
   const form = new FormData();
   form.append("model", "gpt-image-2");
-  form.append("prompt", STILE + scena);
+  form.append("prompt", STILE.replace("Nobody wears a cap or a hat. ", dre ? "" : "Nobody wears a cap or a hat. ") + (dre ? DRE : "") + scena);
   form.append("size", "1536x1024");
   form.append("quality", "medium");
   form.append("n", "1");

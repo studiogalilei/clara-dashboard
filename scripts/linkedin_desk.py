@@ -21,7 +21,9 @@ risposto» prepara il PDF «Gestionale Operativo AI - <azienda>» (modello e reg
   python3 scripts/linkedin_desk.py maps "<azienda citta'>"   # le schede Google Maps (voto, recensioni, sito, data_id)
   python3 scripts/linkedin_desk.py recensioni <data_id>       # le recensioni dalla piu' bassa (2 pagine)
   python3 scripts/linkedin_desk.py google "<ricerca>"         # i primi risultati di Google
-  python3 scripts/linkedin_desk.py disegno "<scena in inglese>" <out.png>   # il disegno a mano (tetto 3 $ al mese)
+  python3 scripts/linkedin_desk.py disegno "<scena in inglese>" <out.png> [--dre]   # il disegno a mano (tetto al mese)
+  python3 scripts/linkedin_desk.py senza-immagine            # i post automatici gia' scritti senza immagine
+  python3 scripts/linkedin_desk.py immagine <id> <file.png>  # attacca l'immagine al post (esce con il post)
   python3 scripts/linkedin_desk.py nota-salva <id> <file.pdf> # carica il PDF e segna la nota «pronta»
   python3 scripts/linkedin_desk.py nota-errore <id> "perche'" # segna che non e' riuscita (la persona puo' riprovare)
 
@@ -75,11 +77,39 @@ def salva(id_, file_):
     assert isinstance(versioni, list) and versioni and all(v.get("testo") and v.get("framework") for v in versioni), \
         "servono versioni con framework e testo"
     r = sb("GET", f"/rest/v1/linkedin_post?id=eq.{id_}&select=uscita_il")
-    # un post con il suo giorno e' programmato: esce da solo, la persona puo' cambiarlo fino all'ora
-    stato = "programmato" if r and r[0].get("uscita_il") else "bozza"
+    # un post con il suo giorno e' programmato: esce da solo, la persona puo' cambiarlo fino all'ora.
+    # 27/11, Dre: le esperienze le scrive il sistema «fittizie ma realistiche, poi ci penso io a modificare»: un post con
+    # una versione segnata "da_rivedere" resta bozza nel suo giorno ed esce solo quando la persona lo approva.
+    rivedere = any(v.get("da_rivedere") for v in versioni)
+    stato = "programmato" if r and r[0].get("uscita_il") and not rivedere else "bozza"
     sb("PATCH", f"/rest/v1/linkedin_post?id=eq.{id_}",
        {"versioni": versioni, "stato": stato, "richiesta": None, "scelta": 0, "testo": None, "errore": None})
     print(f"salvate {len(versioni)} versioni")
+
+
+def senza_immagine():
+    """I post automatici dei prossimi 10 giorni gia' scritti ma senza immagine (Dre, 27/11: «dove sono le immagini con il
+    post?»): la routine fa un disegno per ciascuno."""
+    fino = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    righe = sb("GET", "/rest/v1/linkedin_post?origine=eq.auto&stato=eq.programmato&foto=is.null"
+                      f"&uscita_il=lte.{fino}&order=uscita_il.asc&select=id,autore,uscita_il,versioni,scelta,testo") or []
+    print(json.dumps([{"id": r["id"], "uscita_il": r["uscita_il"],
+                       "testo": r.get("testo") or ((r.get("versioni") or [{}])[r.get("scelta") or 0] or {}).get("testo", "")}
+                      for r in righe], ensure_ascii=False, indent=1))
+
+
+def immagine(id_, file_):
+    """Carica l'immagine nello storage della persona e la attacca al post (esce con il post)."""
+    r = sb("GET", f"/rest/v1/linkedin_post?id=eq.{id_}&select=autore") or []
+    if not r:
+        sys.exit("post non trovato")
+    percorso = f"{r[0]['autore']}/auto/{id_}.png"
+    req = urllib.request.Request(f"{URL.rstrip('/')}/storage/v1/object/linkedin/{percorso}", method="POST",
+                                 data=open(file_, "rb").read(),
+                                 headers={"Authorization": "Bearer " + CHIAVE, "Content-Type": "image/png", "x-upsert": "true"})
+    urllib.request.urlopen(req, timeout=60).read()
+    sb("PATCH", f"/rest/v1/linkedin_post?id=eq.{id_}", {"foto": percorso})
+    print(f"immagine attaccata: {percorso}")
 
 
 def errore(id_, perche):
@@ -94,12 +124,13 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
-# Dre, 27/11: «so che sono 3 post a settimana e va bene cosi'; l'altra persona puo' schedulare un post nei giorni liberi».
-GIORNI_AUTOMATICI = {0, 2, 4}   # lunedi', mercoledi', venerdi'
+# Dre, 27/11 sera: «metterei un post al giorno»: uno e' il post di testo, due volte al mese al suo posto va un video
+# (registrato da Dre, copione con «Copy video»). Dal lunedi' al venerdi': nel fine settimana chi decide non e' su LinkedIn.
+GIORNI_AUTOMATICI = {0, 1, 2, 3, 4}   # dal lunedi' al venerdi'
 
 
 def riempi(giorni=7):
-    """Per ogni persona che vuole i post automatici: lunedi', mercoledi' e venerdi' dei prossimi N giorni, se vuoti,
+    """Per ogni persona che vuole i post automatici: i giorni da lunedi' a venerdi' dei prossimi N giorni, se vuoti,
     ricevono un post da scrivere. Gli altri giorni restano liberi per i post della persona."""
     roma = ZoneInfo("Europe/Rome")
     oggi = datetime.datetime.now(roma).date()
@@ -209,9 +240,9 @@ def note():
     print(json.dumps([{k: r.get(k) for k in campi} for r in righe], ensure_ascii=False, indent=1))
 
 
-def disegno(scena, out):
+def disegno(scena, out, dre=False):
     import base64
-    d = _funzione("linkedin-disegno", {"scena": scena}, timeout=170)
+    d = _funzione("linkedin-disegno", {"scena": scena, "dre": dre}, timeout=170)
     if not d.get("png"):
         sys.exit(f"disegno non riuscito: {d.get('errore')}")
     open(out, "wb").write(base64.b64decode(d["png"]))
@@ -265,6 +296,8 @@ if __name__ == "__main__":
      "maps": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "maps", "q": a[1]}), ensure_ascii=False, indent=1)),
      "recensioni": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "recensioni", "data_id": a[1], "pagine": 2}, 120), ensure_ascii=False, indent=1)),
      "google": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "google", "q": a[1]}), ensure_ascii=False, indent=1)),
-     "disegno": lambda: disegno(a[1], a[2]),
+     "disegno": lambda: disegno(a[1], a[2], "--dre" in a),
+     "senza-immagine": lambda: senza_immagine(),
+     "immagine": lambda: immagine(a[1], a[2]),
      "nota-salva": lambda: nota_salva(a[1], a[2]),
      "nota-errore": lambda: nota_errore(a[1], a[2])}[a[0]]()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Le regole del LinkedIn Desk che si difendono da sole (27/11/2026). Girano nel cancello `controlla` a ogni push.
 
-1. Gli automatici escono solo lunedi', mercoledi' e venerdi' (Dre, 27/11: «sono 3 post a settimana»).
+1. Gli automatici escono dal lunedi' al venerdi' (Dre, 27/11 sera: «metterei un post al giorno»), mai nel fine settimana.
 2. Lo script della routine non pubblica mai su LinkedIn e non manda mail: suggerisce e scrive bozze. Dal 27/11 (Dre:
    «colleghiamo i post automatici») pubblica solo la funzione linkedin-pubblica, e solo i post «programmato» arrivati
    alla loro ora, mai piu' vecchi di 6 ore.
@@ -22,8 +22,8 @@ import linkedin_desk  # noqa: E402
 
 errori = []
 
-if linkedin_desk.GIORNI_AUTOMATICI != {0, 2, 4}:
-    errori.append("gli automatici devono essere lunedi', mercoledi', venerdi'")
+if linkedin_desk.GIORNI_AUTOMATICI != {0, 1, 2, 3, 4}:
+    errori.append("gli automatici devono essere dal lunedi' al venerdi'")
 
 script = (QUI / "linkedin_desk.py").read_text()
 for vietato in ("api.linkedin.com", "ugcPosts", "/rest/posts", "smtp", "gmail.googleapis"):
@@ -38,6 +38,9 @@ for f in list(RADICE.glob("src/**/*.ts*")) + list(QUI.glob("*.py")) + list(RADIC
 pubblica = (RADICE / "supabase/functions/linkedin-pubblica/index.ts").read_text()
 if '.eq("stato", "programmato")' not in pubblica or "6 * 3600000" not in pubblica:
     errori.append("linkedin-pubblica deve pubblicare solo i post programmato, arrivati alla loro ora e non piu' vecchi di 6 ore")
+
+if 'rivedere = any(v.get("da_rivedere")' not in script:
+    errori.append("le storie inventate (da_rivedere) devono restare bozza: escono solo con l'approvazione della persona")
 
 if errori:
     print("INVARIANTI ROTTI:\n  " + "\n  ".join(errori))

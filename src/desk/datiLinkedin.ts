@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export type StatoPost = 'da_scrivere' | 'in_scrittura' | 'bozza' | 'programmato' | 'pubblicato' | 'scartato' | 'errore'
-export type Richiesta = 'piu_corto' | 'piu_ironico' | 'cambia_framework'
+export type Richiesta = 'piu_corto' | 'piu_ironico' | 'cambia_framework' | 'copy_video'
 
 export interface Versione {
   framework: string
@@ -65,8 +65,9 @@ export async function urlFoto(percorso: string): Promise<string | null> {
 }
 
 /** Un post nuovo, ancora senza giorno: con «Ottimizza» lo riscrive la routine, poi si programma. */
-export async function nuovoPost(dettato: string, foto: string | null, ottimizza: boolean): Promise<string> {
-  const riga: Record<string, string | null> = { dettato: dettato.trim(), foto, origine: 'mio', stato: ottimizza ? 'da_scrivere' : 'bozza', testo: ottimizza ? null : dettato.trim() }
+export async function nuovoPost(dettato: string, foto: string | null, ottimizza: boolean, video = false): Promise<string> {
+  // 27/11: «Copy video» = la routine scrive il copione del video con il metodo delle domande, come una bozza
+  const riga: Record<string, string | null> = { dettato: dettato.trim(), foto, origine: 'mio', stato: ottimizza ? 'da_scrivere' : 'bozza', testo: ottimizza ? null : dettato.trim(), richiesta: ottimizza && video ? 'copy_video' : null }
   const { data, error } = await supabase.from('linkedin_post').insert(riga).select('id').single()
   if (error) throw new Error(error.message)
   if (ottimizza) await bussa()
@@ -85,6 +86,12 @@ export async function programma(id: string, quando: Date): Promise<void> {
   if (error) throw new Error(error.message)
   const r = data as { ok?: boolean; perche?: string } | null
   if (r && r.ok === false) throw new Error(r.perche ?? 'Non sono riuscito a programmarlo.')
+}
+
+/** Un post scritto dal sistema con un'esperienza inventata resta bozza: esce solo quando la persona lo approva. */
+export async function approva(id: string): Promise<void> {
+  const { error } = await supabase.from('linkedin_post').update({ stato: 'programmato' }).eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 export async function cambiaOra(id: string, uscita: Date): Promise<void> {
