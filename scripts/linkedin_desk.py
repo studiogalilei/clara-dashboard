@@ -125,11 +125,11 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
-# Dre, 27/11 notte: «due post immagini a settimana e due video a settimana, e lasciamo un giorno vuoto in cui posso
-# mettere cio' che voglio; le parti dei video lasciale vuote, al massimo mi lasci i copy dei video ma non si pubblicano se
-# non registro e carico io». Lunedi' e mercoledi' il post con il disegno, martedi' e giovedi' il copione del video (resta
-# bozza: non esce mai da solo), venerdi' libero. Nel fine settimana niente.
-SETTIMANA = {0: "post", 1: "video", 2: "post", 3: "video"}
+# Dre, 27/11 notte: «due post immagini a settimana», e i giorni dei video (martedi' e giovedi') poi sono diventati post:
+# «non faccio piu' i video, queste storielle facciamole post: vicissitudini, lezioni, insieme all'attualita'».
+# Lunedi' e mercoledi' il post con il disegno, martedi' e giovedi' una storia dal lavoro (senza immagine, resta bozza
+# finche' Dre non la approva perche' e' inventata), venerdi' libero. Nel fine settimana niente.
+SETTIMANA = {0: "post", 1: "storia", 2: "post", 3: "storia"}
 GIORNI_AUTOMATICI = set(SETTIMANA)
 
 
@@ -151,8 +151,6 @@ def riempi(giorni=7):
                 continue
             quando = datetime.datetime.combine(g, datetime.time(h, m), roma)
             riga = {"autore": prof["utente"], "origine": "auto", "stato": "da_scrivere", "dettato": "", "uscita_il": quando.isoformat()}
-            if SETTIMANA[g.weekday()] == "video":
-                riga["richiesta"] = "copy_video"   # solo il copione: Dre registra e carica lui
             sb("POST", "/rest/v1/linkedin_post", riga)
             nuovi += 1
     print(f"post automatici da scrivere: {nuovi}")
