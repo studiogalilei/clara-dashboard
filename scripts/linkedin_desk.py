@@ -125,11 +125,10 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
-# Dre, 27/11 notte: «due post immagini a settimana», e i giorni dei video (martedi' e giovedi') poi sono diventati post:
-# «non faccio piu' i video, queste storielle facciamole post: vicissitudini, lezioni, insieme all'attualita'».
-# Lunedi' e mercoledi' il post con il disegno, martedi' e giovedi' una storia dal lavoro (senza immagine, resta bozza
-# finche' Dre non la approva perche' e' inventata), venerdi' libero. Nel fine settimana niente.
-SETTIMANA = {0: "post", 1: "storia", 2: "post", 3: "storia"}
+# Dre, 27/11 notte: «manteniamo 3 post a settimana che raccontano cose di lavoro e altri 2 che raccontano cose di
+# attualita' inerenti al mio settore». Lunedi' e mercoledi' l'attualita' con l'immagine (esce da sola), martedi',
+# giovedi' e venerdi' una storia dal lavoro senza immagine (resta bozza finche' Dre non la approva). Fine settimana niente.
+SETTIMANA = {0: "attualita", 1: "storia", 2: "attualita", 3: "storia", 4: "storia"}
 GIORNI_AUTOMATICI = set(SETTIMANA)
 
 
