@@ -8,7 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Bottone, Errore, Icona } from '../ui/pezzi'
 import { useAvviso, useDati } from '../ui/uso'
 import {
-  cambiaFotoPost, cambiaOra, caricaFoto, leggiPost, leggiProfilo, leggiUno, nuovoPost, programma, salvaProfilo, salvaTesto,
+  cambiaFotoPost, cambiaOra, caricaFoto, collegaLinkedin, leggiCollegamento, leggiPost, leggiProfilo, leggiUno, nuovoPost, programma, salvaProfilo, salvaTesto,
   scarta, urlFoto, useAscoltaPost, useDettatura, type Post, type Profilo,
 } from './datiLinkedin'
 
@@ -276,6 +276,31 @@ function ProfiloFoglio({ p, chiudi, salvato }: { p: Profilo; chiudi: () => void;
   )
 }
 
+// Il collegamento a LinkedIn: senza, i post programmati restano nel calendario e non escono da soli
+function Collegamento({ avvisa }: { avvisa: (t: string) => void }) {
+  const [c, setC] = useState<{ nome: string | null; scade_il: string } | null | undefined>(undefined)
+  const [vado, setVado] = useState(false)
+  useEffect(() => {
+    void leggiCollegamento().then(setC).catch(() => setC(null))
+    const esito = /linkedin=([a-z]+)/.exec(window.location.hash)?.[1]
+    if (esito) {
+      avvisa(esito === 'collegato' ? 'LinkedIn collegato: i post programmati usciranno da soli.' : esito === 'annullato' ? 'Collegamento annullato.' : 'Il collegamento non è riuscito: riprova.')
+      window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/d/post')
+    }
+  }, [avvisa])
+  if (c === undefined) return null
+  const scade = c ? new Date(c.scade_il) : null
+  const presto = scade ? scade.getTime() - Date.now() < 7 * 86400000 : false
+  const vai = async () => { setVado(true); try { await collegaLinkedin() } catch (e) { avvisa(e instanceof Error ? e.message : 'Non riesco ad aprire LinkedIn.'); setVado(false) } }
+  if (c && !presto) return <p className="mt-3 text-center text-[13px] text-tenue">LinkedIn collegato: i post programmati escono da soli, fino al {scade!.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}.</p>
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-bordo bg-white px-4 py-3">
+      <p className="text-[14px] text-inchiostro">{c ? 'Il collegamento a LinkedIn scade tra pochi giorni.' : 'Collega LinkedIn e i post programmati usciranno da soli.'}</p>
+      <Bottone tipo="primo" onClick={() => void vai()} disabled={vado}>{c ? 'Ricollega' : 'Collega LinkedIn'}</Bottone>
+    </div>
+  )
+}
+
 export default function Linkedin() {
   const { dati, errore, rifai } = useDati(leggiPost)
   const ricarica = useCallback(() => { void rifai() }, [rifai])
@@ -295,6 +320,7 @@ export default function Linkedin() {
     <div className="mx-auto max-w-5xl pb-10">
       <div className="mx-auto max-w-2xl">
         <Compositore profilo={profilo} apriProfilo={() => setModProfilo(true)} avvisa={avvisa} rifai={ricarica} />
+        <Collegamento avvisa={avvisa} />
       </div>
       <h2 className="mb-3 mt-8 font-titolo text-[22px] font-extrabold text-navy">Calendario</h2>
       {errore ? <Errore testo={errore} riprova={ricarica} /> : (

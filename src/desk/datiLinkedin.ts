@@ -116,6 +116,19 @@ export async function scarta(id: string): Promise<void> {
 // IL PROFILO (v122): chi sei e come parli, cosi' la routine scrive con la tua voce.
 export interface Profilo { nome: string; ruolo: string; temi: string }
 
+// COLLEGA LINKEDIN (v127, 27/11): «sono collegato? fino a quando?». Il permesso resta nel database, qui mai.
+export async function leggiCollegamento(): Promise<{ nome: string | null; scade_il: string } | null> {
+  const { data } = await supabase.rpc('linkedin_collegato')
+  const r = Array.isArray(data) ? data[0] : null
+  return r?.scade_il ? r : null
+}
+
+export async function collegaLinkedin(): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('linkedin-collega', { body: {} })
+  if (error || !data?.url) throw new Error('Non riesco ad aprire LinkedIn: riprova tra un attimo.')
+  window.location.href = data.url
+}
+
 export async function leggiProfilo(): Promise<Profilo | null> {
   const { data, error } = await supabase.from('linkedin_profilo').select('nome, ruolo, temi').maybeSingle()
   if (error) throw new Error(error.message)
