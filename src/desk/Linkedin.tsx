@@ -2,7 +2,7 @@
 // lo chiamiamo LinkedIn Desk... clean e comodo». Sopra si crea (parli, o scrivi, e una foto), sotto i post: due
 // versioni con due framework diversi, si sceglie, si tocca il testo, si chiede «più corto» o «più ironico».
 // Scrive una routine di Claude Code sull'abbonamento di Dre (niente API a consumo): ci mette qualche minuto.
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Bottone, Carico, Errore, Icona, Vuoto } from '../snella/pezzi'
 import { useAvviso, useDati } from '../snella/uso'
 import {
@@ -154,11 +154,15 @@ function FotoPost({ percorso }: { percorso: string }) {
 
 function SchedaPost({ p, rifai, avvisa }: { p: Post; rifai: () => void; avvisa: (t: string) => void }) {
   const [quale, setQuale] = useState(p.scelta ?? 0)
-  const v = p.versioni[quale]
+  const versioni = p.versioni ?? []
+  const v = versioni[quale]
   const [testo, setTesto] = useState(p.scelta === quale && p.testo ? p.testo : v?.testo ?? '')
   const salva = useRef(0)
+  // il testo si legge tutto, senza scorrere dentro la casella: l'altezza segue il testo
+  const area = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => { const a = area.current; if (a) { a.style.height = 'auto'; a.style.height = `${a.scrollHeight + 4}px` } }, [testo])
 
-  useEffect(() => { setTesto(p.scelta === quale && p.testo ? p.testo : p.versioni[quale]?.testo ?? '') }, [quale, p.versioni, p.scelta, p.testo])
+  useEffect(() => { setTesto(p.scelta === quale && p.testo ? p.testo : (p.versioni ?? [])[quale]?.testo ?? '') }, [quale, p.versioni, p.scelta, p.testo])
 
   const cambia = (t: string) => {
     setTesto(t)
@@ -198,9 +202,9 @@ function SchedaPost({ p, rifai, avvisa }: { p: Post; rifai: () => void; avvisa: 
 
   return (
     <article className="rounded-2xl border border-bordo bg-white p-4">
-      {p.versioni.length > 1 && (
+      {versioni.length > 1 && (
         <div role="tablist" aria-label="Versioni" className="mb-3 flex gap-2 overflow-x-auto">
-          {p.versioni.map((x, i) => (
+          {versioni.map((x, i) => (
             <button key={i} role="tab" aria-selected={i === quale} onClick={() => setQuale(i)}
                     className={`min-h-10 shrink-0 rounded-full border px-3.5 text-[14px] font-semibold ${i === quale ? 'border-blu-scuro bg-blu-scuro text-white' : 'border-bordo bg-white text-inchiostro'}`}>
               {x.framework}
@@ -215,8 +219,8 @@ function SchedaPost({ p, rifai, avvisa }: { p: Post; rifai: () => void; avvisa: 
       </div>
       <label className="mt-2 block">
         <span className="sr-only">Testo del post</span>
-        <textarea value={testo} onChange={(e) => cambia(e.target.value)} rows={Math.min(22, Math.max(8, Math.ceil(caratteri / 42)))}
-                  className="w-full resize-y rounded-xl border border-transparent bg-white px-0 py-1 text-[16px] leading-relaxed text-inchiostro hover:border-bordo focus:border-blu-scuro focus:px-2 focus:outline-none" />
+        <textarea ref={area} value={testo} onChange={(e) => cambia(e.target.value)} rows={4}
+                  className="w-full resize-none overflow-hidden rounded-xl border border-transparent bg-white px-0 py-1 text-[16px] leading-relaxed text-inchiostro hover:border-bordo focus:border-blu-scuro focus:px-2 focus:outline-none" />
       </label>
       {p.foto && <FotoPost percorso={p.foto} />}
       <p className={`mt-2 text-[13px] font-semibold ${caratteri >= 900 && caratteri <= 1500 ? 'text-ok-testo' : 'text-attesa-testo'}`}>

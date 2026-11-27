@@ -483,7 +483,21 @@ const feedback: Riga[] = []
 const documenti: Riga[] = []
 
 const desk_regole: Riga[] = [{ chiave: 'telefono_dre', sezione: 'A', valore: '', stato: 'da_decidere' }]
+// il LinkedIn Desk in demo (27/11): un post scritto, uno in coda. Testi inventati, solo per vedere la forma.
+const linkedin_post: Riga[] = [
+  { id: 'li2', creato_il: oreFa(0.1), aggiornato_il: oreFa(0.1), stato: 'in_scrittura', dettato: 'Oggi un titolare mi ha chiesto se il gestionale su misura costa come una casa.', foto: null, richiesta: null, versioni: [], scelta: null, testo: null, uscita_il: null, pubblicato_il: null, errore: null },
+  { id: 'li1', creato_il: oreFa(2), aggiornato_il: oreFa(2), stato: 'bozza', dettato: 'Esempio della demo.', foto: null, richiesta: null, scelta: 0, testo: null, uscita_il: null, pubblicato_il: null, errore: null,
+    versioni: [
+      { framework: 'Prima e dopo', caso: 'lavoro', giudice: { passa: true, note: 'Esempio della demo: qui arriva la nota del giudice.' },
+        testo: 'Immaginate un\'azienda di noleggio con dodici mezzi e un solo foglio Excel.\n\nOgni mattina qualcuno apre il foglio, controlla chi ha prenotato cosa e chiama gli autisti uno per uno.\n\nQuesto è un esempio della demo: il testo vero lo scrive la routine partendo da quello che detti.\n\nDa voi chi tiene il calendario dei mezzi?' },
+      { framework: 'Il conto', caso: 'lavoro', giudice: { passa: true, note: '' },
+        testo: 'Un\'ora al giorno a ricopiare ordini fa 220 ore l\'anno, se i giorni di lavoro sono 220.\n\nQuesto è un secondo esempio della demo, con un altro framework.\n\nQuante ore ricopiate voi?' },
+    ] },
+]
+
 const TABELLE: Record<string, Riga[]> = {
+  linkedin_post,
+  linkedin_profilo: [{ utente: 'demo', nome: 'Dre', ruolo: 'CEO di Studio Galilei', temi: 'gestionali su misura, AI dopo il sistema', voce: '' }],
   regole: desk_regole,
   chiamate: desk_chiamate,
   snella_note: desk_note,
@@ -765,6 +779,9 @@ export const demoClient = {
       return { data: { errore: 'Nella demo non scrivo davvero: entra con il tuo account' }, error: null }
     },
   },
+  // il LinkedIn Desk ascolta la tabella: in demo non arriva niente
+  channel() { const c = { on: () => c, subscribe: () => c }; return c },
+  async removeChannel() { return 'ok' },
   storage: {
     from(_bucket: string) {
       return {
