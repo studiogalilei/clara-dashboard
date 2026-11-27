@@ -12,6 +12,7 @@ La routine «LinkedIn Desk: scrivi i post» (Claude Code in cloud, sull'abboname
   python3 scripts/linkedin_desk.py riempi [giorni]   # i giorni vuoti dei prossimi N (7) diventano post automatici da scrivere
   python3 scripts/linkedin_desk.py settimana         # la domenica: riempie la settimana che arriva (gli altri giorni non fa niente)
   python3 scripts/linkedin_desk.py persone           # chi riceve le persone del giorno, quante ne mancano a 20, mercato, zona
+  python3 scripts/linkedin_desk.py annunci <utente>  # annunci di lavoro recenti nel mercato e nella zona (Google Jobs), senza agenzie e aziende gia' viste
   python3 scripts/linkedin_desk.py aggiungi <utente> <persone.json>   # [{azienda, settore, citta, persona, ruolo, profilo, cerca, perche, fonte, segnale}]
 
 Dal 27/11 (v123) ogni persona ha un post al giorno: quelli «auto» li prepara il sistema (senza dettato: tema scelto
@@ -134,6 +135,45 @@ def persone():
     print(json.dumps(fuori, ensure_ascii=False, indent=1))
 
 
+RUOLI = ["impiegato ufficio traffico", "addetto inserimento ordini", "impiegata back office logistica",
+         "addetto programmazione mezzi", "impiegato ufficio noleggio", "customer service ordini"]
+PROVINCE = ["Treviso", "Padova", "Vicenza", "Venezia", "Verona", "Pordenone", "Udine", "Trento", "Brescia"]
+AGENZIE = ("adecco", "gi group", "gigroup", "randstad", "manpower", "umana", "openjob", "synergie", "etjca", "orienta",
+           "temporary", "lavoropi", "staff", "ali spa", "tempor", "hunters", "selezione", "recruiting", "headhunt", "talent",
+           "jobs", "risorse", "consulenza del lavoro", "e-work", "kelly", "hays", "michael page", "page personnel",
+           "agenzia", "impiegando", "gruppo importante", "azienda cliente", "importante azienda", "cercas")
+
+
+def _cerca_annunci(q):
+    req = urllib.request.Request(f"{URL.rstrip('/')}/functions/v1/linkedin-annunci", method="POST",
+                                 data=json.dumps({"q": q}).encode(),
+                                 headers={"Authorization": "Bearer " + CHIAVE, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            return json.load(r).get("lavori", [])
+    except Exception as e:   # una ricerca che non risponde non ferma le altre
+        print(f"  ricerca saltata ({q}): {e}", file=sys.stderr)
+        return []
+
+
+def annunci(utente, quante=12):
+    """Gli annunci di lavoro che descrivono un gestionale fatto a mano: ruoli x province, al massimo `quante` ricerche al
+    giorno (un credito SearchAPI ciascuna). Toglie agenzie, aziende senza nome e aziende gia' viste."""
+    import random
+    viste = {v["azienda"].lower() for v in sb_tutte(f"/rest/v1/linkedin_persone?autore=eq.{utente}&select=id,azienda")}
+    coppie = [(r, p) for r in RUOLI for p in PROVINCE]
+    random.Random(datetime.date.today().toordinal()).shuffle(coppie)
+    trovati = {}
+    for ruolo, prov in coppie[:quante]:
+        for j in _cerca_annunci(f"{ruolo} {prov}"):
+            az = (j.get("azienda") or "").strip()
+            if not az or az.lower() in viste or any(a in az.lower() for a in AGENZIE):
+                continue
+            trovati.setdefault(az.lower(), {"azienda": az, "annunci": []})["annunci"].append(
+                {k: j.get(k) for k in ("titolo", "luogo", "quando", "via", "link", "descrizione")})
+    print(json.dumps(list(trovati.values()), ensure_ascii=False, indent=1))
+
+
 def aggiungi(utente, file_):
     righe = json.load(open(file_, encoding="utf-8"))
     messe = 0
@@ -157,4 +197,5 @@ if __name__ == "__main__":
     {"prendi": lambda: prendi(), "foto": lambda: foto(a[1], a[2]), "salva": lambda: salva(a[1], a[2]),
      "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati(),
      "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7), "settimana": lambda: settimana(),
-     "persone": lambda: persone(), "aggiungi": lambda: aggiungi(a[1], a[2])}[a[0]]()
+     "persone": lambda: persone(), "aggiungi": lambda: aggiungi(a[1], a[2]),
+     "annunci": lambda: annunci(a[1], int(a[2]) if len(a) > 2 else 12)}[a[0]]()
