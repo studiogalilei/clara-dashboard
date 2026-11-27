@@ -148,17 +148,19 @@ def _cerca_annunci(q):
     req = urllib.request.Request(f"{URL.rstrip('/')}/functions/v1/linkedin-annunci", method="POST",
                                  data=json.dumps({"q": q}).encode(),
                                  headers={"Authorization": "Bearer " + CHIAVE, "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=40) as r:
-            return json.load(r).get("lavori", [])
-    except Exception as e:   # una ricerca che non risponde non ferma le altre
-        print(f"  ricerca saltata ({q}): {e}", file=sys.stderr)
-        return []
+    for prova in (1, 2):   # 27/11: Google Jobs a volte va oltre i 25 secondi (502): un secondo tentativo
+        try:
+            with urllib.request.urlopen(req, timeout=40) as r:
+                return json.load(r).get("lavori", [])
+        except Exception as e:   # una ricerca che non risponde non ferma le altre
+            if prova == 2:
+                print(f"  ricerca saltata ({q}): {e}", file=sys.stderr)
+    return []
 
 
-def annunci(utente, quante=12):
+def annunci(utente, quante=24):
     """Gli annunci di lavoro che descrivono un gestionale fatto a mano: ruoli x province, al massimo `quante` ricerche al
-    giorno (un credito SearchAPI ciascuna). Toglie agenzie, aziende senza nome e aziende gia' viste."""
+    giorno (27/11: 24, perche' due annunci su tre sono di agenzie e si scartano) (un credito SearchAPI ciascuna). Toglie agenzie, aziende senza nome e aziende gia' viste."""
     import random
     viste = {v["azienda"].lower() for v in sb_tutte(f"/rest/v1/linkedin_persone?autore=eq.{utente}&select=id,azienda")}
     coppie = [(r, p) for r in RUOLI for p in PROVINCE]
@@ -198,4 +200,4 @@ if __name__ == "__main__":
      "errore": lambda: errore(a[1], a[2]), "usati": lambda: usati(),
      "riempi": lambda: riempi(int(a[1]) if len(a) > 1 else 7), "settimana": lambda: settimana(),
      "persone": lambda: persone(), "aggiungi": lambda: aggiungi(a[1], a[2]),
-     "annunci": lambda: annunci(a[1], int(a[2]) if len(a) > 2 else 12)}[a[0]]()
+     "annunci": lambda: annunci(a[1], int(a[2]) if len(a) > 2 else 24)}[a[0]]()

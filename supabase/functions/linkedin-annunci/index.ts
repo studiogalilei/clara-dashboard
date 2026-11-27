@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   if (!q || typeof q !== "string" || q.length > 120) return Response.json({ errore: "serve q" }, { status: 400 });
   const url = `https://www.searchapi.io/api/v1/search?engine=google_jobs&gl=it&hl=it&q=${encodeURIComponent(q)}&api_key=${CHIAVE}`;
   const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 25000);
+  const t = setTimeout(() => ctl.abort(), 45000);
   try {
     const r = await fetch(url, { signal: ctl.signal });
     const d = await r.json();
