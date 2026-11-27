@@ -80,8 +80,13 @@ def usati():
                              for r in righe if r.get("versioni")} - {""}), ensure_ascii=False))
 
 
+# Dre, 27/11: «so che sono 3 post a settimana e va bene cosi'; l'altra persona puo' schedulare un post nei giorni liberi».
+GIORNI_AUTOMATICI = {0, 2, 4}   # lunedi', mercoledi', venerdi'
+
+
 def riempi(giorni=7):
-    """Per ogni persona che vuole i post automatici: ogni giorno senza post dei prossimi N ne riceve uno da scrivere."""
+    """Per ogni persona che vuole i post automatici: lunedi', mercoledi' e venerdi' dei prossimi N giorni, se vuoti,
+    ricevono un post da scrivere. Gli altri giorni restano liberi per i post della persona."""
     roma = ZoneInfo("Europe/Rome")
     oggi = datetime.datetime.now(roma).date()
     nuovi = 0
@@ -93,7 +98,7 @@ def riempi(giorni=7):
         h, m = (int(x) for x in prof["ora"].split(":"))
         for i in range(1, giorni + 1):   # da domani: oggi non si riempie all'ultimo
             g = oggi + datetime.timedelta(days=i)
-            if g in presi:
+            if g in presi or g.weekday() not in GIORNI_AUTOMATICI:
                 continue
             quando = datetime.datetime.combine(g, datetime.time(h, m), roma)
             sb("POST", "/rest/v1/linkedin_post", {"autore": prof["utente"], "origine": "auto", "stato": "da_scrivere",

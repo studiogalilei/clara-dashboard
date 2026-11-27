@@ -85,7 +85,7 @@ function SceltaQuando({ ok, chiudi }: { ok: (d: Date) => Promise<void>; chiudi: 
           <input type="time" value={alle} onChange={(e) => setAlle(e.target.value)}
                  className="mt-1 min-h-12 w-full rounded-xl border border-bordo px-3 text-[16px] text-inchiostro focus:border-blu-scuro focus:outline-none" /></label>
       </div>
-      <p className="mt-2 text-[14px] text-tenue">Se quel giorno c’era un post automatico, il tuo prende il suo posto.</p>
+      <p className="mt-2 text-[14px] text-tenue">I post automatici escono lunedì, mercoledì e venerdì. Negli altri giorni puoi mettere i tuoi; se scegli un giorno con un automatico, il tuo prende il suo posto.</p>
       {errore && <p role="alert" className="mt-2 text-[14px] font-semibold text-no-testo">{errore}</p>}
       <Bottone tipo="primo" onClick={() => void vai()} disabled={invio || !giorno || !alle} className="mt-4 min-h-12 w-full text-[16px]">{invio ? 'Lo programmo…' : 'Programma'}</Bottone>
     </Foglio>
@@ -232,7 +232,7 @@ function Giorno({ giorno, p, apri }: { giorno: Date; p: Post | undefined; apri: 
       </div>
       <button type="button" onClick={() => p && pronto && apri(p)} disabled={!pronto}
               className="flex h-[420px] w-full flex-col overflow-hidden rounded-2xl border border-bordo bg-white text-left disabled:cursor-default">
-        {!p ? <span className="m-auto px-6 text-center text-[15px] text-tenue">Lo preparo la domenica, con gli altri della settimana.</span>
+        {!p ? <span className="m-auto px-6 text-center text-[15px] text-tenue">Giorno libero. Se vuoi, programma qui un tuo post.</span>
           : p.stato === 'errore' ? <span className="m-auto px-6 text-center text-[15px] text-no-testo">{p.errore || 'Non sono riuscito a scriverlo.'}</span>
             : !pronto ? <span className="m-auto flex items-center gap-2 text-[15px] text-tenue"><span className="h-2 w-2 animate-pulse rounded-full bg-blu-scuro motion-reduce:animate-none" /> Lo sto scrivendo</span>
               : (
