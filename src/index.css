@@ -5,7 +5,9 @@
    colore accent (il blu Galilei), font tondo e leggibile.
    Rosso/ambra/verde restano SOLO per gli stati. */
 @theme {
-  --font-sans: "Plus Jakarta Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-sans: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  /* 27/11, Dre: «faccio fatica a separare cio' che e' una scritta e cio' che e' un titolo»: i titoli in Montserrat */
+  --font-titolo: "Montserrat", "Inter", -apple-system, sans-serif;
 
   /* 9/9, intervista a Dre: bianco e nero con i dettagli in blu SG. Il navy
      del brand per titoli e testo importante, il blu del brand per bottoni e

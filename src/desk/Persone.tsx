@@ -54,9 +54,9 @@ function Scheda({ s, fatto }: { s: Suggerito; fatto: (stato: 'fatto' | 'saltato'
         <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${s.segnale === 'caldo' ? 'bg-attesa-fondo text-attesa-testo' : 'bg-noi-fondo text-noi-testo'}`}>{SEGNALI[s.segnale]}</span>
         {vecchia && <span className="text-[13px] text-tenue">da ieri</span>}
       </div>
-      <h3 className="mt-2 text-[18px] font-bold text-inchiostro">{s.azienda}</h3>
+      <h3 className="mt-2 font-titolo text-[19px] font-bold text-navy">{s.azienda}</h3>
       {(s.settore || s.citta) && <p className="text-[14px] text-tenue">{[s.settore, s.citta].filter(Boolean).join(', ')}</p>}
-      <p className="mt-2 text-[15px] leading-relaxed text-inchiostro">{s.perche}</p>
+      <p className="mt-2 text-[15px] font-normal leading-relaxed text-inchiostro/90">{s.perche}</p>
       {s.fonte && <a href={s.fonte} target="_blank" rel="noreferrer" className="mt-1 inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-blu-scuro">Vedi il segnale <Icona nome="esterno" className="h-4 w-4" /></a>}
       <p className="mt-1 text-[14px] text-inchiostro"><span className="font-semibold">Chi cercare:</span> {s.persona ? `${s.persona}${s.ruolo ? `, ${s.ruolo}` : ''}` : s.ruolo || 'il titolare'}</p>
       <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
@@ -87,7 +87,7 @@ export default function Persone() {
   return (
     <div className="mx-auto max-w-2xl pb-10">
       <div className="mb-4 flex items-baseline justify-between">
-        <h1 className="text-[26px] font-extrabold text-inchiostro">Persone</h1>
+        <h1 className="font-titolo text-[28px] font-extrabold text-navy">Persone</h1>
         {dati && <span className="text-[15px] font-semibold text-tenue">{dati.fatteOggi} su 20 oggi</span>}
       </div>
       {errore ? <Errore testo={errore} riprova={ricarica} />

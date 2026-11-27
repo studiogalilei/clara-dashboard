@@ -36,7 +36,7 @@ function Testata({ d }: { d: Date }) {
   const giorno = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '')
   return (
     <span className="flex items-baseline gap-2">
-      <span className={`text-[28px] font-extrabold leading-none ${diff === 0 ? 'text-blu-scuro' : 'text-inchiostro'}`}>{d.getDate()}</span>
+      <span className={`font-titolo text-[30px] font-extrabold leading-none ${diff === 0 ? 'text-blu-scuro' : 'text-inchiostro'}`}>{d.getDate()}</span>
       <span className="text-[14px] font-semibold text-tenue">{diff === 0 ? 'oggi' : diff === 1 ? 'domani' : giorno}</span>
     </span>
   )
@@ -54,7 +54,7 @@ function Foglio({ titolo, chiudi, children }: { titolo: string; chiudi: () => vo
     <div role="dialog" aria-modal="true" aria-label={titolo} className="fixed inset-0 z-50 flex items-end justify-center bg-inchiostro/40 lg:items-center" onClick={chiudi}>
       <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(20px+env(safe-area-inset-bottom))] lg:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[20px] font-extrabold text-inchiostro">{titolo}</h2>
+          <h2 className="font-titolo text-[21px] font-extrabold text-navy">{titolo}</h2>
           <button type="button" onClick={chiudi} aria-label="Chiudi" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-velo"><Icona nome="chiudi" /></button>
         </div>
         {children}
@@ -147,7 +147,7 @@ function Compositore({ profilo, apriProfilo, avvisa, rifai }: { profilo: Profilo
     <section aria-label="Nuovo post" className="rounded-2xl border border-bordo bg-white p-4 lg:p-5">
       <button type="button" onClick={apriProfilo} className="flex min-h-11 items-center gap-3 text-left">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy text-[15px] font-bold text-white">{iniziali(profilo?.nome ?? '')}</span>
-        <span className="text-[16px] font-bold text-inchiostro">{profilo?.nome || 'Il tuo nome'}</span>
+        <span className="font-titolo text-[17px] font-bold text-navy">{profilo?.nome || 'Il tuo nome'}</span>
       </button>
 
       <label className="mt-3 block">
@@ -238,7 +238,7 @@ function Giorno({ giorno, p, apri }: { giorno: Date; p: Post | undefined; apri: 
               : (
                 <>
                   {p.foto && <FotoPost percorso={p.foto} className="h-40 w-full shrink-0 object-cover" />}
-                  <span className={`block flex-1 overflow-hidden whitespace-pre-line px-4 pt-3 text-[15px] leading-relaxed text-inchiostro ${p.foto ? 'line-clamp-[9]' : 'line-clamp-[15]'}`}>{testo}</span>
+                  <span className={`block flex-1 overflow-hidden whitespace-pre-line px-4 pt-3 text-[15px] font-normal leading-relaxed text-inchiostro/90 ${p.foto ? 'line-clamp-[9]' : 'line-clamp-[15]'}`}>{testo}</span>
                   <span className="flex items-center justify-between px-4 py-3 text-[14px] font-semibold text-blu-scuro">
                     Leggi e modifica
                     {p.origine === 'mio' && <span className="rounded-full bg-noi-fondo px-2 py-0.5 text-[12px] text-noi-testo">tuo</span>}
@@ -296,7 +296,7 @@ export default function Linkedin() {
       <div className="mx-auto max-w-2xl">
         <Compositore profilo={profilo} apriProfilo={() => setModProfilo(true)} avvisa={avvisa} rifai={ricarica} />
       </div>
-      <h2 className="mb-3 mt-7 text-[19px] font-bold text-inchiostro">Calendario</h2>
+      <h2 className="mb-3 mt-8 font-titolo text-[22px] font-extrabold text-navy">Calendario</h2>
       {errore ? <Errore testo={errore} riprova={ricarica} /> : (
         <ul aria-label="I prossimi giorni" className="-mx-[max(0.875rem,env(safe-area-inset-left))] flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-[max(0.875rem,env(safe-area-inset-left))] px-[max(0.875rem,env(safe-area-inset-left))] pb-3 lg:mx-0 lg:scroll-px-0 lg:px-0">
           {giorni.map((g) => <Giorno key={g.toISOString()} giorno={g} p={perGiorno.get(chiaveGiorno(g))} apri={setAperto} />)}
