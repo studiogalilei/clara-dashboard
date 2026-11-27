@@ -252,6 +252,16 @@ def disegno(scena, out, dre=False, stile="disegno"):
     print(f"disegno salvato in {out} (spesa del mese: {d.get('spesa_mese')} $)")
 
 
+def meme(modello, out, righe):
+    """Un meme nei formati che esistono gia' (memegen.link, gratis): modello = id (drake, fine, gru, buzz...)."""
+    import base64
+    d = _funzione("linkedin-disegno", {"modello": modello, "righe": righe}, timeout=60)
+    if not d.get("png"):
+        sys.exit(f"meme non riuscito: {d.get('errore')}")
+    open(out, "wb").write(base64.b64decode(d["png"]))
+    print(f"meme salvato in {out}")
+
+
 def nota_salva(id_, file_):
     r = sb("GET", f"/rest/v1/linkedin_persone?id=eq.{id_}&select=autore") or []
     if not r:
@@ -300,6 +310,7 @@ if __name__ == "__main__":
      "recensioni": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "recensioni", "data_id": a[1], "pagine": 2}, 120), ensure_ascii=False, indent=1)),
      "google": lambda: print(json.dumps(_funzione("linkedin-ricerca", {"tipo": "google", "q": a[1]}), ensure_ascii=False, indent=1)),
      "disegno": lambda: disegno(a[1], a[2], "--dre" in a, next((x.split("=", 1)[1] for x in a if x.startswith("--stile=")), "disegno")),
+     "meme": lambda: meme(a[1], a[2], a[3:]),
      "senza-immagine": lambda: senza_immagine(),
      "immagine": lambda: immagine(a[1], a[2]),
      "nota-salva": lambda: nota_salva(a[1], a[2]),

@@ -7,6 +7,8 @@
 // stile (Dre, 27/11 notte, per i post di attualita'): "disegno" (il nostro, col riferimento), "foto" (foto realistica da
 // giornale, mai persone vere riconoscibili ne' eventi inventati), "meme" (originale, mai template famosi), "scheda"
 // (il numero grande con la fonte, nei nostri colori).
+// {modello, righe} -> un meme nei formati che esistono gia' (Dre: «meglio i formati di meme che esistono»), fatto da
+// memegen.link (open source, gratis, nessuna chiave): modello = id di memegen (drake, fine, gru, buzz...), righe = testi.
 // IN CLOUD: supabase functions deploy linkedin-disegno   (segreto: OPENAI_API_KEY)
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -34,9 +36,30 @@ const STILE =
   "Very simple hand-drawn doodle illustration, black ink on plain white background. Few confident lines with a medium-thick felt pen, slightly wobbly like a quick human sketch. Simple cartoon people with big heads, dot eyes and minimal features. Almost no background: only the 2-4 objects the scene needs, floating on white. Very little detail, no hatching on walls or floors, at most a small patch of dot shading on one or two clothes. " +
   "One flat accent of royal blue #1532A8 and at most one tiny flat accent of warm yellow #FFC400, the rest black and white. Nobody wears a cap or a hat. No text, no letters, no logos, no 3D, no gradients, no realism, no engraving style. Lots of empty white space. Scene: ";
 
+// memegen vuole i testi nell'indirizzo: spazi -> _, e alcuni segni con il loro codice
+function perMemegen(t: string): string {
+  const pezzi = t.trim() || "_";
+  return encodeURIComponent(pezzi.replace(/_/g, "__").replace(/-/g, "--").replace(/ /g, "_").replace(/\?/g, "~q")
+    .replace(/%/g, "~p").replace(/#/g, "~h").replace(/\//g, "~s").replace(/"/g, "''")).replace(/%7E/g, "~");
+}
+
+async function memeDaModello(modello: string, righe: string[]): Promise<Response> {
+  if (!/^[a-z0-9-]{2,40}$/.test(modello) || !righe.length || righe.length > 6 || righe.some((r) => r.length > 120))
+    return Response.json({ errore: "serve un modello di memegen e da 1 a 6 righe brevi" }, { status: 400 });
+  const indirizzo = `https://api.memegen.link/images/${modello}/${righe.map(perMemegen).join("/")}.png?font=impact&width=1200`;
+  const r = await fetch(indirizzo);
+  if (!r.ok) return Response.json({ errore: `memegen ${r.status}` }, { status: 502 });
+  const b = new Uint8Array(await r.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return Response.json({ png: btoa(bin), spesa_mese: null });
+}
+
 Deno.serve(async (req) => {
   if (!CHIAVE) return Response.json({ errore: "manca OPENAI_API_KEY" }, { status: 500 });
-  const { scena, dre, stile } = await req.json().catch(() => ({ scena: "", dre: false, stile: "disegno" }));
+  const corpoIn = await req.json().catch(() => ({}));
+  if (corpoIn.modello) return await memeDaModello(String(corpoIn.modello), Array.isArray(corpoIn.righe) ? corpoIn.righe.map(String) : []);
+  const { scena, dre, stile } = { scena: "", dre: false, stile: "disegno", ...corpoIn };
   const altro = stile && stile !== "disegno" ? ALTRI[stile] : null;
   if (stile && stile !== "disegno" && !altro) return Response.json({ errore: "stile sconosciuto" }, { status: 400 });
   if (!scena || typeof scena !== "string" || scena.length > 900) return Response.json({ errore: "serve scena" }, { status: 400 });
